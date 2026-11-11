@@ -707,6 +707,8 @@ export default defineMessages(
       set: '{from} → {to}',
       base: 'env ou padrão',
       reset: 'Voltou ao padrão (era {from})',
+      filtered: 'Só as mudanças de {name}.',
+      showAll: 'Ver todas',
       requests: 'Pedidos de "rodar agora"',
       requestsEmpty: 'Nenhum pedido ainda.',
       requestStatus: {
@@ -2289,6 +2291,8 @@ export default defineMessages(
         set: '{from} → {to}',
         base: 'env or default',
         reset: 'Back to default (was {from})',
+        filtered: 'Only the changes to {name}.',
+        showAll: 'Show all',
         requests: '"Run now" requests',
         requestsEmpty: 'No requests yet.',
         requestStatus: {
@@ -3892,6 +3896,8 @@ export default defineMessages(
         set: '{from} → {to}',
         base: 'env o por defecto',
         reset: 'Volvió al valor por defecto (era {from})',
+        filtered: 'Solo los cambios de {name}.',
+        showAll: 'Ver todos',
         requests: 'Pedidos de "correr ahora"',
         requestsEmpty: 'Todavía no hay pedidos.',
         requestStatus: {

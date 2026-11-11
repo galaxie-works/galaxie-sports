@@ -2,7 +2,8 @@
 
 import { SCHEDULED_JOBS, scheduleKey, settingDef } from '@galaxie/runtime-config';
 import { Activity, Bot, Gauge, Play, RefreshCw, ShieldCheck } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useTransition, type ReactNode } from 'react';
 
 import { checkAiCreditNow, runJobNow } from '@/app/[locale]/(app)/ajustes/operacao/actions';
@@ -844,6 +845,9 @@ function HistoryTab({ snapshot, timeZone }: Ctx) {
     const def = settingDef(key);
     return def ? settingText(T, def).label : key;
   };
+  // "Ver histórico" de uma linha chega com `?chave=`: só as mudanças daquela chave
+  const only = useSearchParams().get('chave');
+  const history = only ? snapshot.history.filter((h) => h.key === only) : snapshot.history;
   return (
     <div className="flex flex-col gap-4">
       <Frame>
@@ -851,8 +855,16 @@ function HistoryTab({ snapshot, timeZone }: Ctx) {
           <FrameHeader className="px-4 pt-4">
             <FrameTitle>{T.history.title}</FrameTitle>
             <FrameDescription>{T.history.description}</FrameDescription>
+            {only ? (
+              <p className="flex flex-wrap items-center gap-2 text-sm">
+                <span>{fill(T.history.filtered, { name: label(only) })}</span>
+                <Link href="/ajustes/historico" className="text-primary text-sm hover:underline">
+                  {T.history.showAll}
+                </Link>
+              </p>
+            ) : null}
           </FrameHeader>
-          {snapshot.history.length ? (
+          {history.length ? (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -863,7 +875,7 @@ function HistoryTab({ snapshot, timeZone }: Ctx) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {snapshot.history.map((h) => (
+                {history.map((h) => (
                   <TableRow key={h.id}>
                     <TableCell className="pl-4 text-xs whitespace-nowrap">
                       {f.dateTime(h.changedAt)}

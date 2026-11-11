@@ -56,14 +56,13 @@ export const isRequired = (def: SettingDef): boolean =>
 export const canReset = (s: Pick<OpsSetting, 'source' | 'overrideInvalid'>): boolean =>
   s.source === 'db' || s.overrideInvalid;
 
-// ── Links (rotas de hoje; as antigas redirecionam depois da navegação nova, #1069) ─────────────────
+// ── Links (rotas da navegação nova de Ajustes, #1069) ──────────────────────────────────────────
 
-/** Histórico das mudanças, aberto na chave. */
-export const historyHref = (key: string): string =>
-  `/ajustes/sistema?aba=history&chave=${encodeURIComponent(key)}#historico`;
+/** Histórico das mudanças, filtrado na chave (`?chave=`). */
+export const historyHref = (key: string): string => `/ajustes/historico?chave=${encodeURIComponent(key)}`;
 
-/** Onde as credenciais aparecem hoje (Fornecedor); vira Credenciais com a navegação nova. */
-export const CREDENTIALS_HREF = '/ajustes/fornecedor#credenciais';
+/** Todas as chaves são vistas em Credenciais (A4). */
+export const CREDENTIALS_HREF = '/ajustes/credenciais';
 
 // ── Uma linha por esporte (settings-2) ─────────────────────────────────────────────────────────
 

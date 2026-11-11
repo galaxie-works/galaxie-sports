@@ -1,10 +1,15 @@
-import { APISPORTS_APIS, POSTGAME_APIS, postgameModeKey, settingDef } from '@galaxie/runtime-config';
+import { APISPORTS_APIS, POSTGAME_APIS, SETTINGS, isSecret, postgameModeKey, settingDef } from '@galaxie/runtime-config';
 import { describe, expect, it } from 'vitest';
 
 import { clientDictionary } from '@/lib/i18n/dictionary';
+import { settingPage } from '@/lib/ops/setting-page';
 import type { OpsSetting } from '@/lib/ops/types';
 
 import {
+  AI_MODEL_KEYS,
+  CREDENTIALS_HREF,
+  PLAN_SPORT_KEYS,
+  POSTGAME_SPORT_KEYS,
   bulkPostgameChanges,
   canReset,
   capPercent,
@@ -13,6 +18,7 @@ import {
   draftChanges,
   githubIntegrationState,
   groupCredentials,
+  historyHref,
   isChanged,
   isRequired,
   maskSecret,
@@ -238,5 +244,29 @@ describe('cartão do GitHub', () => {
     );
     expect(githubIntegrationState('org/repo', token)).toBe('attention');
     expect(githubIntegrationState(null, token)).toBe('disconnected');
+  });
+});
+
+describe('cada bloco na página do PR 1 (#1070)', () => {
+  it('modelos de IA só em IA interna (A3), pós-jogo no Pós-jogo, plano de cada esporte no Fornecedor', () => {
+    for (const key of AI_MODEL_KEYS) expect(settingPage(key), key).toEqual({ item: 'ai', block: 'ai' });
+    for (const key of POSTGAME_SPORT_KEYS) {
+      expect(settingPage(key), key).toEqual({ item: 'postgame', block: 'postgame' });
+    }
+    for (const key of PLAN_SPORT_KEYS) expect(settingPage(key), key).toEqual({ item: 'provider', block: 'sports' });
+  });
+
+  it('a lista de credenciais é a de Credenciais (A4), menos as três chaves gravadas no cartão da feature', () => {
+    const outside = SETTINGS.filter((d) => isSecret(d) && settingPage(d.key)?.block !== 'credentials');
+    expect(outside.map((d) => d.key).sort()).toEqual([
+      'FEEDBACK_GITHUB_TOKEN',
+      'STRIPE_SECRET_KEY',
+      'STRIPE_WEBHOOK_SECRET',
+    ]);
+  });
+
+  it('os links vão para as rotas novas', () => {
+    expect(historyHref('AI_RIGHTS_MODEL')).toBe('/ajustes/historico?chave=AI_RIGHTS_MODEL');
+    expect(CREDENTIALS_HREF).toBe('/ajustes/credenciais');
   });
 });
