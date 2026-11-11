@@ -1,9 +1,9 @@
 import { docEmbedding, type Database } from '@galaxie/db';
 import type { EmbeddingClient } from '@galaxie/llm';
 import { eq } from 'drizzle-orm';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { knowledgeTesting, searchKnowledge, type DocChunk } from '../src/index.js';
+import { knowledgeTesting, searchKnowledge, vectorKey, type DocChunk } from '../src/index.js';
 
 import { createTempDb, type TempDb } from './test-db.js';
 
@@ -49,25 +49,52 @@ describe('busca por significado', () => {
     const client = fakeClient('brinquedo-1');
     // sem nenhuma palavra em comum com os trechos
     const first = await searchKnowledge('quem joga como titular hoje?', docs, { db, client, limit: 1 });
-    await knowledgeTesting.settle(client.model);
+    await knowledgeTesting.settle(client);
     const second = await searchKnowledge('quem joga como titular hoje?', docs, { db, client, limit: 1 });
     expect(second[0]?.title).toBe('Escalações');
     expect(first.length).toBeLessThanOrEqual(1);
-    const rows = await db.select().from(docEmbedding).where(eq(docEmbedding.model, client.model));
+    const rows = await db
+      .select()
+      .from(docEmbedding)
+      .where(eq(docEmbedding.model, vectorKey(client)));
     expect(rows).toHaveLength(2);
   });
 
   it('outro processo reaproveita os vetores do banco sem chamar o provedor para os trechos', async () => {
     const a = fakeClient('brinquedo-2');
     await searchKnowledge('time', docs, { db, client: a });
-    await knowledgeTesting.settle(a.model);
+    await knowledgeTesting.settle(a);
     knowledgeTesting.reset();
     const b = fakeClient('brinquedo-2');
     await searchKnowledge('time', docs, { db, client: b });
-    await knowledgeTesting.settle(b.model);
+    await knowledgeTesting.settle(b);
     // só o vetor da pergunta (os trechos vieram do banco)
     const hits = await searchKnowledge('time', docs, { db, client: b, limit: 1 });
     expect(hits[0]?.title).toBe('Escalações');
     expect(b.calls.every((c) => c.length === 1)).toBe(true);
+  });
+
+  it('falha do provedor: não tenta de novo a cada pergunta (espera antes da próxima tentativa)', async () => {
+    const client = fakeClient('brinquedo-3');
+    let fail = true;
+    const embed = client.embed.bind(client);
+    client.embed = async (texts, opts) => {
+      if (fail) throw new Error('fora do ar');
+      return embed(texts, opts);
+    };
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const now = Date.now();
+    await searchKnowledge('time', docs, { db, client, now });
+    await knowledgeTesting.settle(client);
+    fail = false;
+    // logo depois da falha: só palavras, sem chamar o provedor
+    await searchKnowledge('time', docs, { db, client, now: now + 1000 });
+    await knowledgeTesting.settle(client);
+    expect(client.calls).toHaveLength(0);
+    // passada a espera, calcula
+    await searchKnowledge('time', docs, { db, client, now: now + 11 * 60_000 });
+    await knowledgeTesting.settle(client);
+    expect(client.calls.length).toBeGreaterThan(0);
+    spy.mockRestore();
   });
 });

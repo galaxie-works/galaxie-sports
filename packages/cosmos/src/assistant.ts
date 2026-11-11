@@ -154,9 +154,16 @@ export function estimateAssistantCredits(input: {
   minCredits: number;
   /** Modelo da função (#1088); o preço sai da tabela do ai-ledger. */
   model?: string;
+  /**
+   * Caracteres que entram além de `system` e `messages`: o orçamento da documentação, quando `system` foi montado
+   * sem ela (assim a estimativa não muda com o que a busca achou).
+   */
+  extraInputChars?: number;
 }): number {
   const inputTokens =
-    approxTokens(input.system) + input.messages.reduce((s, m) => s + approxTokens(m.content), 0);
+    approxTokens(input.system) +
+    Math.ceil((input.extraInputChars ?? 0) / 4) +
+    input.messages.reduce((s, m) => s + approxTokens(m.content), 0);
   const question = input.messages.at(-1)?.content ?? '';
   const costUsd = estimateCostUsd(input.model ?? ASSISTANT_MODEL, {
     inputTokens,

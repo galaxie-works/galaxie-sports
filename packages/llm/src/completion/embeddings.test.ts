@@ -33,7 +33,7 @@ describe('embeddings', () => {
   it('Gemini: batchEmbedContents com outputDimensionality, normaliza a dimensão reduzida', async () => {
     const f = fakeFetch([jsonResponse(200, { embeddings: [{ values: [0, 5] }] })]);
     const c = createEmbeddingClient({ provider: 'gemini', apiKey: 'k', fetch: f });
-    const r = await c.embed(['oi']);
+    const r = await c.embed(['oi'], { kind: 'query' });
     expect(f.calls[0]!.url).toContain('/models/gemini-embedding-001:batchEmbedContents');
     expect(f.calls[0]!.body).toMatchObject({
       requests: [
@@ -41,6 +41,7 @@ describe('embeddings', () => {
           model: 'models/gemini-embedding-001',
           content: { parts: [{ text: 'oi' }] },
           outputDimensionality: 768,
+          taskType: 'RETRIEVAL_QUERY',
         },
       ],
     });

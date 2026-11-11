@@ -20,6 +20,8 @@ export const EMBEDDING_MODELS: Record<EmbeddingProvider, { model: string; dimens
 /** Textos por chamada (a OpenAI aceita 2048 e a Gemini 100 por lote). */
 export const EMBEDDING_BATCH = 100;
 
+export type EmbeddingKind = 'document' | 'query';
+
 export interface EmbeddingResult {
   vectors: number[][];
   /** Tokens cobrados (a Gemini não informa: 0). */
@@ -32,7 +34,12 @@ export interface EmbeddingClient {
   readonly dimensions: number;
   embed(
     texts: readonly string[],
-    options?: { signal?: AbortSignal; timeoutMs?: number },
+    options?: {
+      signal?: AbortSignal;
+      timeoutMs?: number;
+      /** Trecho guardado ou pergunta (a Gemini calcula vetores diferentes para cada lado da busca). */
+      kind?: EmbeddingKind;
+    },
   ): Promise<EmbeddingResult>;
 }
 
@@ -63,7 +70,11 @@ export function createEmbeddingClient(options: {
   const fetchImpl = options.fetch ?? ((url, init) => fetch(url, init));
   const provider = options.provider;
 
-  async function batch(texts: readonly string[], signal: AbortSignal): Promise<EmbeddingResult> {
+  async function batch(
+    texts: readonly string[],
+    signal: AbortSignal,
+    kind: EmbeddingKind | undefined,
+  ): Promise<EmbeddingResult> {
     if (provider === 'openai') {
       const res = await postJson(
         fetchImpl,
@@ -91,6 +102,7 @@ export function createEmbeddingClient(options: {
           model: `models/${model}`,
           content: { parts: [{ text }] },
           outputDimensionality: dimensions,
+          ...(kind ? { taskType: kind === 'query' ? 'RETRIEVAL_QUERY' : 'RETRIEVAL_DOCUMENT' } : {}),
         })),
       },
       signal,
@@ -112,7 +124,7 @@ export function createEmbeddingClient(options: {
       const signal = callSignal(opts.timeoutMs ?? 30_000, opts.signal);
       const out: EmbeddingResult = { vectors: [], tokens: 0 };
       for (let i = 0; i < texts.length; i += EMBEDDING_BATCH) {
-        const r = await batch(texts.slice(i, i + EMBEDDING_BATCH), signal);
+        const r = await batch(texts.slice(i, i + EMBEDDING_BATCH), signal, opts.kind);
         out.vectors.push(...r.vectors);
         out.tokens += r.tokens;
       }

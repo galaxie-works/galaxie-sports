@@ -56,7 +56,10 @@ export async function POST(request: Request) {
   const req = parseAssistantRequest(await request.json().catch(() => null));
   if (!req) return fail('bad_request');
   const scope = { tenantId, userId: ctx.userId };
-  const prepared = await prepareQuestion(scope, req, await getRequestLocale());
+  const prepared = await prepareQuestion(scope, req, await getRequestLocale(), {
+    semantic: true,
+    signal: request.signal,
+  });
   if (!prepared) return fail('unavailable');
 
   const deps = {
