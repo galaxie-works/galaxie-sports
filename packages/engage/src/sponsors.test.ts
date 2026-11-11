@@ -333,6 +333,24 @@ describe('bebida alcoólica', () => {
     expect(suggestsAlcohol('Gin Tônica Clube')).toBe(true);
     expect(suggestsAlcohol('Destilería Sur')).toBe(true);
     expect(suggestsAlcohol('Ginástica Total')).toBe(false);
+    expect(suggestsAlcohol('Cerveza Sin Alcohol')).toBe(true);
+    expect(suggestsAlcohol('Vinícola Serra', 'https://serra.example/vinhos')).toBe(true);
+    expect(suggestsAlcohol('Wine Club')).toBe(true);
+    for (const name of [
+      'Vinícius Calçados',
+      'Brewster Imóveis',
+      'Brewing Coffee Co',
+      'Ron Sports',
+      'Chopper Motos',
+      'For the sake of sport',
+      'Whiskas',
+      'Licorice Doces',
+      'Vínculo',
+      'Ronaldo',
+      'Rumo',
+      'Cervantes',
+    ])
+      expect(suggestsAlcohol(name), name).toBe(false);
     expect(suggestsAlcohol('Suco Natural', 'https://suco.example/laranja')).toBe(false);
     expect(validateSponsor(input({ name: 'Cervejaria do Vale', category: 'beverage' }), lists).ok).toBe(true);
   });

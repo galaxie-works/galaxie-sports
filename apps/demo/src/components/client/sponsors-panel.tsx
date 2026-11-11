@@ -135,6 +135,12 @@ export function SponsorsPanel({
                       <TableCell className="font-medium">{s.name}</TableCell>
                       <TableCell className="text-xs">
                         {T.categories[s.category as keyof typeof T.categories] ?? s.category}
+                        {/* cadastro anterior à categoria `alcohol`: só aviso, quem cadastrou decide */}
+                        {s.category === 'beverage' && suggestsAlcohol(s.name, s.linkUrl) ? (
+                          <Badge variant="warning-light" className="ms-2">
+                            {T.list.reviewCategory}
+                          </Badge>
+                        ) : null}
                       </TableCell>
                       <TableCell className="text-xs">
                         {s.countries.length ? s.countries.join(', ') : T.list.allCountries}

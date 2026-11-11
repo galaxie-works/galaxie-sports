@@ -25,6 +25,7 @@ export default defineMessages(
       archive: 'Arquivar',
       empty: 'Nenhum patrocinador cadastrado.',
       count: '{count} de {max} ativos',
+      reviewCategory: 'Parece bebida alcoólica: revise a categoria',
     },
     categories: {
       alcohol: 'Bebidas alcoólicas',
@@ -130,6 +131,7 @@ export default defineMessages(
         archive: 'Archive',
         empty: 'No sponsors yet.',
         count: '{count} of {max} active',
+        reviewCategory: 'Looks like an alcoholic beverage: review the category',
       },
       categories: {
         alcohol: 'Alcoholic beverages',
@@ -234,6 +236,7 @@ export default defineMessages(
         archive: 'Archivar',
         empty: 'No hay patrocinadores cargados.',
         count: '{count} de {max} activos',
+        reviewCategory: 'Parece una bebida alcohólica: revisá la categoría',
       },
       categories: {
         alcohol: 'Bebidas alcohólicas',

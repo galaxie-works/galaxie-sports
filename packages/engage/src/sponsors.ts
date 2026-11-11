@@ -419,35 +419,45 @@ export const ADULT_ONLY_SPONSOR_CATEGORIES: readonly SponsorCategory[] = ['alcoh
 
 /**
  * Palavras de bebida alcoólica em pt, es e en, sem marca. `exact`: só a palavra inteira (`gin`, não `ginástica`);
- * `stems`: o começo da palavra (`cervejaria`, `wines`).
+ * `stems`: o começo da palavra (`cervejaria`, `wines`). Radical curto que pega nome comum (`vinic` em Vinícius, `brew`
+ * em Brewster, `whisk` em Whiskas) fica de fora ou vira palavra inteira.
  */
 const ALCOHOL_EXACT = new Set([
   'gin',
   'rum',
-  'ron',
-  'sake',
   'vino',
   'vinos',
+  'wine',
   'pisco',
   'mezcal',
   'fernet',
   'chope',
+  'chopes',
+  'chopp',
+  'chopperia',
+  'whisky',
+  'whiskey',
+  'whiskies',
+  'licor',
+  'licores',
+  'brewery',
+  'breweries',
+  'brewpub',
 ]);
 const ALCOHOL_STEMS = [
   'cervej',
   'cervec',
+  'cervez',
   'beer',
-  'brew',
-  'chopp',
   'vinho',
-  'vinic',
-  'wine',
-  'whisk',
+  'vinicol',
+  'vinicul',
+  'winer',
+  'wines',
   'vodk',
   'tequil',
   'cachac',
   'aguardent',
-  'licor',
   'liqueur',
   'liquor',
   'destil',
