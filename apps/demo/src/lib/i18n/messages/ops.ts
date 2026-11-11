@@ -1766,6 +1766,11 @@ export default defineMessages(
         label: 'Silêncio máximo da Cosmos (horas)',
         description: 'Duração máxima de um Silêncio aplicado pela Cosmos AI. Nunca passa de 24 horas.',
       },
+      COSMOS_EMBEDDINGS_PROVIDER: {
+        label: 'Busca por significado do assistente',
+        description:
+          'Provedor que lê o sentido da pergunta para achar o trecho certo da documentação. Automático usa o primeiro com chave da Cosmos (OpenAI, depois Gemini); desligado, o assistente busca só por palavras.',
+      },
       COSMOS_TRIAL_DAYS: {
         label: 'Validade dos créditos de teste',
         description: 'Em quantos dias os créditos de teste da Cosmos AI vencem.',
@@ -3555,6 +3560,11 @@ export default defineMessages(
         COSMOS_MOD_MUTE_MAX_HOURS: {
           label: 'Longest Cosmos mute (hours)',
           description: 'Longest mute Cosmos AI can apply. Never more than 24 hours.',
+        },
+        COSMOS_EMBEDDINGS_PROVIDER: {
+          label: 'Assistant search by meaning',
+          description:
+            'Provider that reads the meaning of the question to find the right part of the docs. Automatic uses the first one with a Cosmos key (OpenAI, then Gemini); off, the assistant searches by words only.',
         },
         COSMOS_TRIAL_DAYS: {
           label: 'Trial credits validity',
@@ -5370,6 +5380,11 @@ export default defineMessages(
         COSMOS_MOD_MUTE_MAX_HOURS: {
           label: 'Silencio máximo de Cosmos (horas)',
           description: 'Duración máxima de un Silencio aplicado por Cosmos AI. Nunca supera las 24 horas.',
+        },
+        COSMOS_EMBEDDINGS_PROVIDER: {
+          label: 'Búsqueda por significado del asistente',
+          description:
+            'Proveedor que lee el sentido de la pregunta para encontrar la parte correcta de la documentación. Automático usa el primero con clave de Cosmos (OpenAI, luego Gemini); apagado, el asistente busca solo por palabras.',
         },
         COSMOS_TRIAL_DAYS: {
           label: 'Vigencia de los créditos de prueba',

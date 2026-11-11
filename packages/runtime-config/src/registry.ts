@@ -988,6 +988,17 @@ export const SETTINGS: readonly SettingDef[] = [
     apply: 'refresh',
     default: '24',
   },
+  // provedor dos embeddings da busca por significado do assistente (base de conhecimento). `auto`: o primeiro com chave
+  // da Cosmos (OpenAI, depois Gemini); `off` ou sem chave: só a busca por palavras
+  {
+    key: 'COSMOS_EMBEDDINGS_PROVIDER',
+    section: 'cosmos',
+    type: 'enum',
+    options: ['auto', 'openai', 'gemini', 'off'],
+    services: ['demo'],
+    apply: 'refresh',
+    default: 'auto',
+  },
 
   // ── Engajamento (#1017) ───────────────────────────────────────────────────────────────────────
   // validade do token do torcedor (gft_, #937). Curta: punição e exclusão valem na hora pelo Valkey, mas faixa e

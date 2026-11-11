@@ -13,6 +13,7 @@ export * from './json-schema.js';
 export * from './pricing.js';
 export * from './estimate.js';
 export * from './http.js';
+export * from './embeddings.js';
 export * from './completion/index.js';
 export {
   countryFromPurpose,

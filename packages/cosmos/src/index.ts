@@ -8,6 +8,7 @@ export * from './assistant-run.js';
 export * from './balance.js';
 export * from './credit-requests.js';
 export * from './credits.js';
+export * from './knowledge.js';
 export * from './errors.js';
 export * from './lifecycle.js';
 export * from './models.js';

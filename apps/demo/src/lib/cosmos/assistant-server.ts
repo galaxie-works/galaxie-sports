@@ -13,9 +13,12 @@ import {
   buildPrompt,
   estimateAssistantCredits,
   getWallet,
+  embeddingClientFor,
   readCosmosSettings,
-  searchDocs,
+  readEmbeddingsSetting,
+  searchKnowledge,
   type ChatTurn,
+  type DocChunk,
   type CosmosSettings,
   type ScreenContext,
   verifiedHistory,
@@ -27,7 +30,20 @@ import { can } from '@/lib/client/permissions';
 import { getDictionary } from '@/lib/i18n/dictionary';
 import type { Locale } from '@/lib/i18n/config';
 
-import { docChunks } from './assistant-docs';
+import { openApiDocument } from '@/lib/openapi-reference';
+
+import { apiChunks, docChunks } from './assistant-docs';
+
+/** Trechos por idioma (guias no idioma da tela e o contrato da API), montados uma vez por processo. */
+const corpus = new Map<Locale, DocChunk[]>();
+function knowledgeFor(locale: Locale): DocChunk[] {
+  let chunks = corpus.get(locale);
+  if (!chunks) {
+    chunks = [...docChunks(getDictionary(locale).docs), ...apiChunks(openApiDocument())];
+    corpus.set(locale, chunks);
+  }
+  return chunks;
+}
 
 export const QUESTION_MAX = 2000;
 const VISIBLE_MAX = 6000;
@@ -112,16 +128,20 @@ export async function prepareQuestion(
 ): Promise<PreparedQuestion | null> {
   const tenantId = scope.tenantId;
   const db = builderDb();
-  const [settings, fn, wallet] = await Promise.all([
+  const [settings, fn, wallet, embeddings] = await Promise.all([
     readCosmosSettings(db),
     activeFunction(db, ASSISTANT_FUNCTION),
     getWallet(db, tenantId),
+    readEmbeddingsSetting(db),
   ]);
   if (!fn) return null;
   const streamer = ASSISTANT_STREAMERS[fn.provider];
   const apiKey = assistantApiKey(fn.provider);
   if (!streamer || !apiKey) return null;
-  const docs = searchDocs(req.question, docChunks(getDictionary(locale).docs));
+  const docs = await searchKnowledge(req.question, knowledgeFor(locale), {
+    db,
+    client: embeddingClientFor(embeddings),
+  });
   const history = verifiedHistory(req.history, assistantSigningKey(), scope);
   const prompt = buildPrompt({ question: req.question, context: req.context, docs, history, locale });
   const credits = estimateAssistantCredits({
