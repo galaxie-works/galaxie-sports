@@ -28,7 +28,7 @@ export default async function UsersPage() {
     <>
       <PageHeader title={t.admin.page.title} kind="ajustes" />
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 p-4 md:p-6">
-        <SettingsArea active="users">
+        <SettingsArea active="users" title={t.admin.page.title}>
           {/* Lê a sessão do admin (headers): fica fora do shell estático. */}
           <Suspense
             fallback={

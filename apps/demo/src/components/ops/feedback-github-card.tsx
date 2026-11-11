@@ -83,7 +83,8 @@ export function FeedbackGithubCard({
         }}
       >
         <FieldGroup>
-          <Field>
+          {/* id = chave: âncora da busca de ajustes (#1071) e do filtro "Alterados no painel" */}
+          <Field id="FEEDBACK_GITHUB_REPO" className="scroll-mt-20">
             <FieldLabel htmlFor="feedback-repo">{T.repo}</FieldLabel>
             <Input
               id="feedback-repo"
@@ -100,7 +101,7 @@ export function FeedbackGithubCard({
               {T.repoHint}
             </FieldDescription>
           </Field>
-          <Field>
+          <Field id="FEEDBACK_GITHUB_TOKEN" className="scroll-mt-20">
             <div className="flex flex-wrap items-center gap-2">
               <FieldLabel htmlFor="feedback-token">{T.token}</FieldLabel>
               <Badge variant={status.variant}>{status.text}</Badge>

@@ -101,78 +101,83 @@ export function AiPolicyCard({ llm }: { llm: LlmSpend }) {
             {fill(T.day, { day: llm.budgetDay, start: llm.day.start, timeZone: llm.day.timeZone })}
           </p>
 
-          <BudgetRuler
-            id="ai-daily-usd"
-            label={T.dailyUsd.label}
-            keyName="AI_DAILY_USD_BUDGET"
-            min={USD_MIN}
-            max={usdMax}
-            step={0.5}
-            marks={rulerMarks(USD_MIN, usdMax)}
-            value={usd ?? USD_MIN}
-            format={(v) => `US$ ${money(v)}`}
-            display={usd === null ? T.unlimited : undefined}
-            disabled={pending || usd === null}
-            onChange={setUsd}
-            extra={
-              <>
-                <Switch
-                  aria-label={T.unlimited}
-                  checked={usd === null}
+          {/* id = chave: âncora da busca de ajustes (#1071) e do filtro "Alterados no painel" */}
+          <div id="AI_DAILY_USD_BUDGET" className="scroll-mt-20">
+            <BudgetRuler
+              id="ai-daily-usd"
+              label={T.dailyUsd.label}
+              keyName="AI_DAILY_USD_BUDGET"
+              min={USD_MIN}
+              max={usdMax}
+              step={0.5}
+              marks={rulerMarks(USD_MIN, usdMax)}
+              value={usd ?? USD_MIN}
+              format={(v) => `US$ ${money(v)}`}
+              display={usd === null ? T.unlimited : undefined}
+              disabled={pending || usd === null}
+              onChange={setUsd}
+              extra={
+                <>
+                  <Switch
+                    aria-label={T.unlimited}
+                    checked={usd === null}
+                    disabled={pending}
+                    onCheckedChange={(on) => setUsd(on ? null : (llm.usdBudget ?? 10))}
+                  />
+                  <span className="text-muted-foreground text-xs">{T.unlimited}</span>
+                </>
+              }
+              hint={usd === null ? T.unlimitedHint : T.dailyUsd.description}
+            />
+          </div>
+
+          <div id="AI_BAND_SHARES" className="scroll-mt-20">
+            <PriorityBandCards
+              selected={band}
+              onSelect={(id) => setBand(id as AiBand)}
+              bands={AI_BANDS.map((b) => {
+                const limit = b === 'reserve' ? null : preview[b];
+                const used = b === 'reserve' ? null : (spent.get(b) ?? 0);
+                return {
+                  id: b,
+                  label: T.bands[b].label,
+                  share: shares[b],
+                  detail:
+                    b === 'reserve'
+                      ? T.reserveIn
+                      : limit === null
+                        ? fill(T.spentNoLimit, { used: money(used ?? 0) })
+                        : fill(T.spent, { used: money(used ?? 0), limit: money(limit) }),
+                  capped: limit !== null && used !== null && used >= limit,
+                };
+              })}
+            >
+              <div className="flex flex-col gap-1.5">
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <label htmlFor={`ai-band-${band}`} className="text-sm font-medium">
+                    {T.bands[band].label}
+                  </label>
+                  <span className="text-sm font-medium tabular-nums">{shares[band]}%</span>
+                </div>
+                <Slider
+                  id={`ai-band-${band}`}
+                  aria-label={T.bands[band].label}
+                  min={0}
+                  max={100}
+                  step={1}
+                  value={shares[band]}
                   disabled={pending}
-                  onCheckedChange={(on) => setUsd(on ? null : (llm.usdBudget ?? 10))}
+                  onValueChange={(v) => setShares((s) => ({ ...s, [band]: first(v) }))}
                 />
-                <span className="text-muted-foreground text-xs">{T.unlimited}</span>
-              </>
-            }
-            hint={usd === null ? T.unlimitedHint : T.dailyUsd.description}
-          />
-
-          <PriorityBandCards
-            selected={band}
-            onSelect={(id) => setBand(id as AiBand)}
-            bands={AI_BANDS.map((b) => {
-              const limit = b === 'reserve' ? null : preview[b];
-              const used = b === 'reserve' ? null : (spent.get(b) ?? 0);
-              return {
-                id: b,
-                label: T.bands[b].label,
-                share: shares[b],
-                detail:
-                  b === 'reserve'
-                    ? T.reserveIn
-                    : limit === null
-                      ? fill(T.spentNoLimit, { used: money(used ?? 0) })
-                      : fill(T.spent, { used: money(used ?? 0), limit: money(limit) }),
-                capped: limit !== null && used !== null && used >= limit,
-              };
-            })}
-          >
-            <div className="flex flex-col gap-1.5">
-              <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <label htmlFor={`ai-band-${band}`} className="text-sm font-medium">
-                  {T.bands[band].label}
-                </label>
-                <span className="text-sm font-medium tabular-nums">{shares[band]}%</span>
+                <span className="text-muted-foreground text-xs">{T.bands[band].description}</span>
+                <span className={sum === 100 ? 'text-muted-foreground text-xs' : 'text-destructive text-xs'}>
+                  {sum === 100 ? fill(T.total, { sum }) : fill(T.totalInvalid, { sum })}
+                </span>
               </div>
-              <Slider
-                id={`ai-band-${band}`}
-                aria-label={T.bands[band].label}
-                min={0}
-                max={100}
-                step={1}
-                value={shares[band]}
-                disabled={pending}
-                onValueChange={(v) => setShares((s) => ({ ...s, [band]: first(v) }))}
-              />
-              <span className="text-muted-foreground text-xs">{T.bands[band].description}</span>
-              <span className={sum === 100 ? 'text-muted-foreground text-xs' : 'text-destructive text-xs'}>
-                {sum === 100 ? fill(T.total, { sum }) : fill(T.totalInvalid, { sum })}
-              </span>
-            </div>
-          </PriorityBandCards>
+            </PriorityBandCards>
+          </div>
 
-          <div className="flex flex-col gap-1.5">
+          <div id="AI_P0_MIN_AUDIENCE" className="flex scroll-mt-20 flex-col gap-1.5">
             <div className="flex flex-wrap items-baseline justify-between gap-2">
               <label htmlFor="ai-p0-cut" className="text-sm font-medium">
                 {T.minAudience.label}

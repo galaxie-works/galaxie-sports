@@ -50,8 +50,7 @@ export default async function CrestAdminPage({ searchParams }: PageProps<'/[loca
     <>
       <PageHeader title={t.crests.page.title} kind="ajustes" />
       <div className="flex w-full min-w-0 flex-col gap-4 p-4 md:p-6">
-        <SettingsArea active="crests">
-          <p className="text-muted-foreground max-w-3xl text-sm">{t.crests.page.description}</p>
+        <SettingsArea active="crests" title={t.crests.page.title} description={t.crests.page.description}>
           <Suspense
             fallback={
               <LoadingStatus>

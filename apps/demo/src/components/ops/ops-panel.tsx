@@ -3,8 +3,8 @@
 import { SCHEDULED_JOBS, scheduleKey, settingDef } from '@galaxie/runtime-config';
 import { Activity, Bot, Gauge, Play, RefreshCw, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { useCallback, useTransition, type ReactNode } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { useCallback, type ReactNode } from 'react';
 
 import { checkAiCreditNow, runJobNow } from '@/app/[locale]/(app)/ajustes/operacao/actions';
 import { Badge } from '@/components/reui/badge';
@@ -41,11 +41,11 @@ import { aiStateText, displayValue, formatDuration, settingText, tokenUsage } fr
 import { QualityTab } from './quality-tab';
 import { SettingRow, useOpsAction } from './setting-row';
 import { TasksTab } from './tasks-tab';
-import { useScrollToHashOnMount } from './use-scroll-to-hash';
 import { YoutubeQuotaCard, YoutubeYieldPanel } from './youtube-quota';
 
 import { SETTINGS_VIEWS, type PanelBlock, type SettingsView } from '@/lib/ops/panel-tabs';
-import { settingBlock } from '@/lib/ops/setting-page';
+import { settingBlock, settingPage } from '@/lib/ops/setting-page';
+import { useReportPageChrome } from '@/components/settings/page-chrome/page-state';
 
 import { SettingLinks } from './setting-link';
 
@@ -83,10 +83,6 @@ export function OpsPanel({
 }) {
   const { t } = useI18n();
   const T = t.ops;
-  const f = useFormatters(timeZone);
-  const router = useRouter();
-  const [refreshing, startRefresh] = useTransition();
-  useScrollToHashOnMount();
 
   const content: Record<PanelBlock, () => ReactNode> = {
     status: () => <StatusTab snapshot={snapshot} timeZone={timeZone} />,
@@ -164,26 +160,15 @@ export function OpsPanel({
     cosmos: () => <SectionCard block="cosmos" snapshot={snapshot} timeZone={timeZone} />,
   };
   const blocks: readonly PanelBlock[] = SETTINGS_VIEWS[view];
+  // o topo da página (#1072) mostra a frase, o "Atualizado" e o filtro "Alterados no painel" das linhas desta página
+  useReportPageChrome({
+    updatedAt: snapshot.generatedAt,
+    timeZone,
+    settings: snapshot.settings.filter((s) => settingPage(s.key)?.item === view),
+  });
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-muted-foreground max-w-3xl text-sm">{T.views[view]}</p>
-        <div className="flex items-center gap-2">
-          <span className="text-muted-foreground text-xs">
-            {fill(T.page.generatedAt, { when: f.time(snapshot.generatedAt) })}
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={refreshing}
-            onClick={() => startRefresh(() => router.refresh())}
-          >
-            {refreshing ? <Spinner /> : <RefreshCw />}
-            {T.page.refresh}
-          </Button>
-        </div>
-      </div>
       <div className="flex flex-col gap-8">
         {blocks.map((id) =>
           blocks.length > 1 ? (

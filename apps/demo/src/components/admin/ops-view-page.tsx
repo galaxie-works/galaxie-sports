@@ -10,6 +10,16 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/u
 import { requireAdmin } from '@/lib/auth/admin';
 import { getT, getTimeZone } from '@/lib/i18n/server';
 import { OpsUnavailableError, readOpsSnapshot } from '@/lib/ops/data';
+import { SETTINGS_VIEWS, type PanelBlock } from '@/lib/ops/panel-tabs';
+import { settingsHref } from '@/lib/ops/settings-items';
+
+/** Job que aplica os ajustes da página, para o link "Job …" do topo (#1072) levar à Agenda. */
+const VIEW_JOBS: Partial<Record<SettingsView, string>> = {
+  live: 'live-run',
+  mirror: 'sync-mirror',
+  quality: 'data-quality',
+  crests: 'assets-mirror',
+};
 
 interface PanelProps {
   view: SettingsView;
@@ -68,11 +78,20 @@ export function OpsViewPanel({ view, extra, historyKey }: PanelProps) {
  */
 export async function OpsViewPage({ view, extra, historyKey }: PanelProps) {
   const t = await getT();
+  const blocks: readonly PanelBlock[] = SETTINGS_VIEWS[view];
+  const job = VIEW_JOBS[view];
   return (
     <>
       <PageHeader title={t.ops.nav[view]} kind="ajustes" />
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 p-4 md:p-6">
-        <SettingsArea active={view}>
+        <SettingsArea
+          active={view}
+          description={t.ops.views[view]}
+          {...(job ? { job: { name: job, href: settingsHref('schedule') } } : {})}
+          {...(view === 'history' ? {} : { historyHref: settingsHref('history') })}
+          // cada bloco tem a âncora do próprio nome (OpsPanel); o índice só aparece com 2+ blocos
+          sections={blocks.map((id) => ({ id, label: t.ops.tabs[id] }))}
+        >
           <OpsViewPanel view={view} extra={extra} historyKey={historyKey} />
         </SettingsArea>
       </div>
