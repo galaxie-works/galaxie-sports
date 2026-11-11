@@ -31,6 +31,8 @@ describe('matriz de cargos (#1019)', () => {
 
   it('o que cada cargo faz, como descrito na issue', () => {
     expect(can(member('owner'), 'billing.buy_credits', { tenantId: T })).toBe(true);
+    expect(can(member('moderator'), 'cosmos.assistant.ask', { tenantId: T })).toBe(true);
+    expect(can(member('volunteer'), 'cosmos.assistant.ask', { tenantId: T })).toBe(false);
     expect(can(member('admin'), 'billing.buy_credits', { tenantId: T })).toBe(false);
     expect(can(member('admin'), 'moderation.ban', { tenantId: T })).toBe(true);
     expect(can(member('senior_moderator'), 'moderation.ban', { tenantId: T })).toBe(false);

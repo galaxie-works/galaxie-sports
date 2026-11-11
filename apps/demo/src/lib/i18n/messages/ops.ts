@@ -1674,6 +1674,7 @@ export default defineMessages(
       FEEDBACK_GITHUB_REPO: { label: 'Repositório das sugestões' },
       FEEDBACK_GITHUB_TOKEN: { label: 'Token das sugestões (.env)' },
       STRIPE_SECRET_KEY: { label: 'Stripe: chave secreta (.env)' },
+      COSMOS_ANTHROPIC_API_KEY: { label: 'Cosmos AI: chave do provedor do assistente (.env)' },
       STRIPE_WEBHOOK_SECRET: { label: 'Stripe: segredo do webhook (.env)' },
       WTW_ROUND_ALLOCATION: {
         label: 'Alocação por rodada (desenho anterior)',
@@ -3386,6 +3387,7 @@ export default defineMessages(
         FEEDBACK_GITHUB_REPO: { label: 'Suggestions repository' },
         FEEDBACK_GITHUB_TOKEN: { label: 'Suggestions token (.env)' },
         STRIPE_SECRET_KEY: { label: 'Stripe: secret key (.env)' },
+        COSMOS_ANTHROPIC_API_KEY: { label: 'Cosmos AI: assistant provider key (.env)' },
         STRIPE_WEBHOOK_SECRET: { label: 'Stripe: webhook secret (.env)' },
         WTW_ROUND_ALLOCATION: {
           label: 'Per-round allocation (previous design)',
@@ -5121,6 +5123,7 @@ export default defineMessages(
         FEEDBACK_GITHUB_REPO: { label: 'Repositorio de sugerencias' },
         FEEDBACK_GITHUB_TOKEN: { label: 'Token de sugerencias (.env)' },
         STRIPE_SECRET_KEY: { label: 'Stripe: clave secreta (.env)' },
+        COSMOS_ANTHROPIC_API_KEY: { label: 'Cosmos AI: clave del proveedor del asistente (.env)' },
         STRIPE_WEBHOOK_SECRET: { label: 'Stripe: secreto del webhook (.env)' },
         WTW_ROUND_ALLOCATION: {
           label: 'Asignación por fecha (diseño anterior)',
