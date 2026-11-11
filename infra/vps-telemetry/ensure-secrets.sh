@@ -66,11 +66,22 @@ for k in "${WARN_KEYS[@]}"; do
   needs "$k" && echo "WARN  $k vazio ou com o valor de exemplo: gere com openssl rand -hex 32 e suba o obs junto"
 done
 
-# Chave repetida com valores diferentes (ex.: o bloco do env.example colado embaixo, com SETTINGS_KEK= vazia): o compose
-# usa a última, mas a de cima pode ser o segredo em uso. Gerar apagaria as duas, então para e pede para deixar uma linha só
+# Chave que vai ser gerada (a última linha está vazia ou de exemplo) mas que tem, em outra linha, um valor de verdade
+# (ex.: o bloco do env.example colado embaixo, com SETTINGS_KEK= vazia): esse valor pode ser o segredo em uso, e gerar
+# apagaria as duas linhas. Para e pede para deixar uma linha só. Linha repetida sem valor de verdade não atrapalha
+real_elsewhere() {
+  local v
+  while IFS= read -r v; do
+    v="${v%$'\r'}"
+    v="${v%\"}"
+    v="${v#\"}"
+    [ -n "$v" ] && [[ "$v" != troque-por* ]] && return 0
+  done < <(sed -n "s/^$1=//p" "$ENV_FILE")
+  return 1
+}
 for k in "${KEYS[@]}"; do
-  if [ "$(sed -n "s/^$k=//p" "$ENV_FILE" | sort -u | wc -l)" -gt 1 ]; then
-    echo "FAIL  $k aparece mais de uma vez no $ENV_FILE com valores diferentes; deixe uma linha só (a do valor em uso). Nada foi gerado"
+  if needs "$k" && real_elsewhere "$k"; then
+    echo "FAIL  $k aparece mais de uma vez no $ENV_FILE, e a última linha está vazia mas outra tem valor; deixe uma linha só (a do valor em uso). Nada foi gerado"
     exit 1
   fi
 done

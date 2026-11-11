@@ -70,8 +70,18 @@ printf 'SETTINGS_KEK=""\n' > "$WORK/kek-aspas.env"
 # chave repetida com valores diferentes (valor em uso em cima, vazia colada embaixo): para sem apagar a de cima
 printf 'SETTINGS_KEK=em-uso-0123456789abcdef0123456789abcdef\nAPI_DOMAIN=x\nSETTINGS_KEK=\n' > "$WORK/dup.env"
 before="$(cat "$WORK/dup.env")"
-if (cd "$WORK" && bash "$HERE/ensure-secrets.sh" dup.env >/dev/null); then ko "duplicada passou"; else ok "duplicada falha"; fi
+if out4="$(cd "$WORK" && bash "$HERE/ensure-secrets.sh" dup.env)"; then ko "duplicada passou"; else
+  [[ "$out4" == *"aparece mais de uma vez"* ]] && ok "duplicada falha" || ko "duplicada falhou por outro motivo: '$out4'"
+fi
 [ "$(cat "$WORK/dup.env")" = "$before" ] && ok "duplicada: .env intocado" || ko "duplicada: .env mudou"
+# exemplo esquecido em cima do valor real: vale a última (como no compose), nada a gerar
+printf 'BETTER_AUTH_SECRET=troque-por-x\nBETTER_AUTH_SECRET=real\nFAN_TOKEN_SECRET=a\nSTREAM_TOKEN_SECRET=b\nSETTINGS_KEK=c\n' > "$WORK/exemplo-em-cima.env"
+(cd "$WORK" && bash "$HERE/ensure-secrets.sh" exemplo-em-cima.env | grep -q "todos definidos") && ok "exemplo em cima do valor real passa" ||
+  ko "exemplo em cima do valor real falhou"
+# duas linhas vazias: gera uma só
+printf 'SETTINGS_KEK=""\nSETTINGS_KEK=\n' > "$WORK/duas-vazias.env"
+(cd "$WORK" && bash "$HERE/ensure-secrets.sh" duas-vazias.env >/dev/null) && [ "$(grep -c '^SETTINGS_KEK=' "$WORK/duas-vazias.env")" = 1 ] &&
+  ok "duas linhas vazias viram uma gerada" || ko "duas linhas vazias"
 # repetida com o mesmo valor não atrapalha
 printf 'FAN_TOKEN_SECRET=\nSTREAM_TOKEN_SECRET=igual\nSTREAM_TOKEN_SECRET=igual\n' > "$WORK/dup-igual.env"
 (cd "$WORK" && bash "$HERE/ensure-secrets.sh" dup-igual.env >/dev/null) && ok "repetida com o mesmo valor passa" ||

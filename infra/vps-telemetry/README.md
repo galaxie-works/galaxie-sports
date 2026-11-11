@@ -38,7 +38,7 @@ Domínios (registro A → IP da VPS): `DEMO_DOMAIN` (demo), `API_DOMAIN` (API p�
   gera uma nova, a saída avisa: guarde uma cópia fora da VPS (cofre de senhas). Se ela for
   perdida ou apagada, o deploy gera outra; se for trocada à mão por outro valor, vale o novo. Nos dois casos as chaves
   gravadas pelo painel não abrem mais: os serviços voltam às do `.env` e cada chave precisa ser cadastrada de novo no
-  painel. Se ela aparecer em duas linhas com valores diferentes, o deploy para sem gerar nada. Trocar de propósito só pela rotação do runbook
+  painel. Se a última linha da chave estiver vazia e outra linha tiver valor, o deploy para sem gerar nada. Trocar de propósito só pela rotação do runbook
   (`nova,antiga` e "Recifrar com a chave atual").
 - **Uma chave, um ingestor**: com o ingestor da VPS no ar, nenhum outro ambiente roda jobs com a mesma
   `APISPORTS_KEY` (a cota diária é por conta e por API).
