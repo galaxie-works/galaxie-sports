@@ -53,6 +53,9 @@ importers:
       '@galaxie/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@galaxie/engage':
+        specifier: workspace:*
+        version: link:../../packages/engage
       '@galaxie/explore':
         specifier: workspace:*
         version: link:../../packages/explore
