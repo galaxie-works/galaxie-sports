@@ -8,6 +8,8 @@
 import { revalidateSystem } from '@/lib/ops/revalidate';
 import {
   AI_CREDIT_CHECK,
+  AI_PROVIDER_KEY_ENV,
+  type AiProvider,
   isSecret,
   scheduledJob,
   settingDef,
@@ -122,7 +124,7 @@ export async function saveSetting(key: string, raw: string): Promise<OpsActionRe
 
   // trocar de provedor sem a chave dele deixaria os agentes só no texto determinístico
   if (key === 'AI_PROVIDER') {
-    const keyName = checked.value === 'anthropic' ? 'ANTHROPIC_API_KEY' : 'OPENAI_API_KEY';
+    const keyName = AI_PROVIDER_KEY_ENV[checked.value as AiProvider] ?? 'OPENAI_API_KEY';
     const { rows } = await pool.query<{ configured: boolean }>(
       `select configured from ops.runtime_env where service = 'agents' and key = $1`,
       [keyName],

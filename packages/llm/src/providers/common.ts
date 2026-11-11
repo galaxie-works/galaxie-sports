@@ -1,5 +1,5 @@
 import type { LlmCitation, LlmJsonRequest, LlmMessage } from '../types.js';
-import type { UsageWithSearches } from '../budget.js';
+import type { UsageWithSearches } from '../estimate.js';
 
 /** Acumula o uso de várias chamadas (retries, continuações) — tudo é cobrado. */
 export class UsageMeter {
