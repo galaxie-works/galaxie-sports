@@ -28,6 +28,16 @@ import { walletState } from './wallets-table';
 
 type Entry = StaffWalletDetail['entries'][number];
 
+/** UUID v4 da ação; `randomUUID` só existe em contexto seguro (HTTPS), o painel na rede local cai no fallback. */
+function newRequestKey(): string {
+  if (typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+  const b = crypto.getRandomValues(new Uint8Array(16));
+  b[6] = (b[6]! & 0x0f) | 0x40;
+  b[8] = (b[8]! & 0x3f) | 0x80;
+  const h = Array.from(b, (x) => x.toString(16).padStart(2, '0')).join('');
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
+}
+
 function AmountAction({
   kind,
   tenantId,
@@ -40,6 +50,9 @@ function AmountAction({
   const router = useRouter();
   const id = useId();
   const [value, setValue] = useState('');
+  // chave de idempotência do ajuste: nasce ao abrir a janela; reenviar (clique duplo, nova tentativa depois de um
+  // erro de rede) usa a mesma e não lança duas vezes. Cada abertura é um ajuste novo
+  const [requestKey, setRequestKey] = useState(newRequestKey);
   const n = Number(value);
   const valid = Number.isFinite(n) && n !== 0 && (kind === 'adjustment' || n > 0);
   const title = kind === 'adjustment' ? T.adjust : kind === 'refund' ? T.refund : T.multiplier;
@@ -59,11 +72,12 @@ function AmountAction({
       title={title}
       description={description}
       canConfirm={valid}
+      onOpen={() => setRequestKey(newRequestKey())}
       onConfirm={async (reason) => {
         const r =
           kind === 'multiplier'
             ? await setMultiplier({ tenantId, multiplier: n, reason })
-            : await creditWallet({ tenantId, kind, credits: n, reason });
+            : await creditWallet({ tenantId, kind, credits: n, reason, requestKey });
         if (r.ok) {
           setValue('');
           router.refresh();

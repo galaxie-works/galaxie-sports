@@ -208,9 +208,15 @@ function useColumns(timeZone: string): ColumnDef<DataGridFeatures, Entry>[] {
       },
       {
         id: 'user',
-        accessorFn: (e) => e.person?.name ?? '',
+        // lançamento da equipe: só "Galaxie", sem a pessoa (o servidor já tirou quem fez)
+        accessorFn: (e) => (e.staff ? T.galaxie : (e.person?.name ?? '')),
         header: ({ column }) => <DataGridColumnHeader column={column} title={c.user} />,
-        cell: ({ row }) => <PersonCell person={row.original.person} fallback={T.system} />,
+        cell: ({ row }) => (
+          <PersonCell
+            person={row.original.staff ? null : row.original.person}
+            fallback={row.original.staff ? T.galaxie : T.system}
+          />
+        ),
         size: 180,
       },
       {

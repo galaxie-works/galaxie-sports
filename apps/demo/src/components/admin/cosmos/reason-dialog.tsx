@@ -28,6 +28,7 @@ export function ReasonDialog({
   children,
   canConfirm = true,
   onConfirm,
+  onOpen,
 }: {
   trigger: React.ReactElement;
   title: string;
@@ -36,6 +37,8 @@ export function ReasonDialog({
   children?: ReactNode;
   canConfirm?: boolean;
   onConfirm: (reason: string) => Promise<{ ok: boolean; error?: string }>;
+  /** Chamado a cada vez que a janela abre (ex.: gerar a chave de idempotência da ação). */
+  onOpen?: () => void;
 }) {
   const { t } = useI18n();
   const T = t.cosmosStaff.actions;
@@ -64,7 +67,8 @@ export function ReasonDialog({
       open={open}
       onOpenChange={(next) => {
         setOpen(next);
-        if (!next) setError(null);
+        if (next) onOpen?.();
+        else setError(null);
       }}
     >
       <DialogTrigger render={trigger} />

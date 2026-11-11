@@ -7,12 +7,21 @@
  * Fica separado do orçamento da IA interna (agentes de cenário, resumo, onde assistir), que segue no TokenBudget com
  * o limite diário próprio: aqui só se lê e se escreve o schema `cosmos`.
  */
-import { randomUUID } from 'node:crypto';
 import { and, desc, eq, gte, sql } from 'drizzle-orm';
 import type { Database } from '@galaxie/db/client';
-import { creditPackage, ledger, purchaseIntent, staffAction, tenant, wallet } from '@galaxie/db/schema';
+import {
+  creditPackage,
+  ledger,
+  purchaseIntent,
+  rechargeAttempt,
+  staffAction,
+  tenant,
+  wallet,
+} from '@galaxie/db/schema';
 import { CosmosError } from './errors.js';
 import { upsertPackage, type PackageInput } from './purchases.js';
+import { cancelPendingRecharges } from './recharge.js';
+import { isUuid } from './uuid.js';
 import { addEntry } from './wallet.js';
 
 /** Motivo de toda ação da equipe: obrigatório, com pelo menos 5 caracteres (o banco confere também). */
@@ -39,8 +48,9 @@ export interface WalletOverviewRow {
   usedCredits: number;
   /** Custo real do provedor no período, em US$. */
   costUsd: number;
-  /** Receita das compras pagas no período, em centavos por moeda. */
+  /** Receita das compras pagas e das recargas automáticas concluídas no período, em centavos por moeda. */
   revenueCents: { brl: number; usd: number };
+  /** Última compra avulsa paga ou recarga automática concluída. */
   lastPurchaseAt: Date | null;
 }
 
@@ -75,6 +85,23 @@ export async function walletsOverview(
     .where(eq(purchaseIntent.status, 'paid'))
     .groupBy(purchaseIntent.tenantId)
     .as('sales');
+  // recargas automáticas pagas também são receita e compra; a conclusão é a última escrita da tentativa (o webhook
+  // marca `succeeded` e ninguém mexe mais nela)
+  const recharges = db
+    .select({
+      tenantId: rechargeAttempt.tenantId,
+      brl: sql<string>`coalesce(sum(${rechargeAttempt.amountCents}) filter (where ${rechargeAttempt.currency} = 'brl' and ${rechargeAttempt.updatedAt} >= ${since}::timestamptz), 0)`.as(
+        'r_brl',
+      ),
+      usd: sql<string>`coalesce(sum(${rechargeAttempt.amountCents}) filter (where ${rechargeAttempt.currency} = 'usd' and ${rechargeAttempt.updatedAt} >= ${since}::timestamptz), 0)`.as(
+        'r_usd',
+      ),
+      last: sql<string | null>`max(${rechargeAttempt.updatedAt})`.as('r_last'),
+    })
+    .from(rechargeAttempt)
+    .where(eq(rechargeAttempt.status, 'succeeded'))
+    .groupBy(rechargeAttempt.tenantId)
+    .as('recharges');
   const rows = await db
     .select({
       tenantId: wallet.tenantId,
@@ -92,12 +119,20 @@ export async function walletsOverview(
       brl: sales.brl,
       usd: sales.usd,
       last: sales.last,
+      rechargeBrl: recharges.brl,
+      rechargeUsd: recharges.usd,
+      rechargeLast: recharges.last,
     })
     .from(wallet)
     .innerJoin(tenant, eq(tenant.id, wallet.tenantId))
     .leftJoin(usage, eq(usage.tenantId, wallet.tenantId))
     .leftJoin(sales, eq(sales.tenantId, wallet.tenantId))
+    .leftJoin(recharges, eq(recharges.tenantId, wallet.tenantId))
     .orderBy(tenant.name);
+  const latest = (...dates: (string | null)[]) => {
+    const times = dates.filter((d): d is string => Boolean(d)).map((d) => new Date(d).getTime());
+    return times.length ? new Date(Math.max(...times)) : null;
+  };
   return rows.map((r) => ({
     tenantId: r.tenantId,
     name: r.name,
@@ -111,17 +146,33 @@ export async function walletsOverview(
     multiplier: r.multiplier,
     usedCredits: Number(r.used ?? 0),
     costUsd: Number(r.cost ?? 0),
-    revenueCents: { brl: Number(r.brl ?? 0), usd: Number(r.usd ?? 0) },
-    lastPurchaseAt: r.last ? new Date(r.last) : null,
+    revenueCents: {
+      brl: Number(r.brl ?? 0) + Number(r.rechargeBrl ?? 0),
+      usd: Number(r.usd ?? 0) + Number(r.rechargeUsd ?? 0),
+    },
+    lastPurchaseAt: latest(r.last, r.rechargeLast),
   }));
 }
 
-/** Ajuste manual (positivo ou negativo) ou estorno de créditos, com o motivo e quem no extrato. */
+/**
+ * Ajuste manual (positivo ou negativo) ou estorno de créditos, com o motivo e quem no extrato. `requestKey` (UUID)
+ * é gerada no navegador ao abrir a janela do ajuste e vira a chave de idempotência (`staff:<chave>`): o mesmo envio
+ * repetido devolve o lançamento original (`replayed`) em vez de lançar de novo.
+ */
 export async function staffCredit(
   db: Database,
-  input: { tenantId: string; kind: 'adjustment' | 'refund'; credits: number; reason: string; userId: string },
+  input: {
+    tenantId: string;
+    kind: 'adjustment' | 'refund';
+    credits: number;
+    reason: string;
+    userId: string;
+    requestKey: string;
+  },
 ) {
   const reason = reasonOf(input.reason);
+  if (!isUuid(input.requestKey))
+    throw new CosmosError('missing_idempotency_key', 'ajuste da equipe sem chave de idempotência válida');
   return addEntry(db, {
     tenantId: input.tenantId,
     kind: input.kind,
@@ -129,8 +180,7 @@ export async function staffCredit(
     userId: input.userId,
     note: reason,
     metadata: { staff: true },
-    // a ação é única (um clique, uma linha); repetir o envio do mesmo formulário usa outra chave de propósito
-    idempotencyKey: `staff:${randomUUID()}`,
+    idempotencyKey: `staff:${input.requestKey.toLowerCase()}`,
   });
 }
 
@@ -199,10 +249,14 @@ export async function staffSetBlocked(
       : w.available > 0
         ? { status: 'active' as const, blockReason: null }
         : { status: 'blocked' as const, blockReason: 'depleted' as const };
+    const now = new Date();
     await tx
       .update(wallet)
-      .set({ ...next, updatedAt: new Date() })
+      .set({ ...next, updatedAt: now })
       .where(eq(wallet.tenantId, input.tenantId));
+    // carteira bloqueada pela equipe não é cobrada: a recarga pendente que ainda não chamou o Stripe sai junto (a
+    // que já chamou espera o webhook sem cobrar de novo; o job não tira da fila carteira bloqueada)
+    if (input.blocked) await cancelPendingRecharges(tx, input.tenantId, 'wallet_blocked', now);
     await logAction(tx, {
       tenantId: input.tenantId,
       action: input.blocked ? 'block' : 'unblock',
