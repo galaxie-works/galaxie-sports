@@ -76,7 +76,7 @@ function BalanceNotice({ wallet, onRecharge }: { wallet: Wallet; onRecharge?: ()
   );
 }
 
-function AutoRechargeOption({ data, readOnly }: { data: CosmosOverviewData; readOnly: boolean }) {
+export function AutoRechargeOption({ data, readOnly }: { data: CosmosOverviewData; readOnly: boolean }) {
   const { t, locale } = useI18n();
   const T = t.cosmos.autoRecharge;
   const router = useRouter();
@@ -127,7 +127,12 @@ function AutoRechargeOption({ data, readOnly }: { data: CosmosOverviewData; read
           <div className="flex flex-col gap-3">
             <Field>
               <FieldLabel htmlFor={`${ids}-package`}>{T.package}</FieldLabel>
-              <Select items={items} value={packageId} onValueChange={(v) => setPackageId(String(v ?? ''))}>
+              <Select
+                items={items}
+                value={packageId}
+                onValueChange={(v) => setPackageId(String(v ?? ''))}
+                disabled={readOnly}
+              >
                 <SelectTrigger id={`${ids}-package`} className="w-full">
                   <SelectValue />
                 </SelectTrigger>
@@ -150,6 +155,7 @@ function AutoRechargeOption({ data, readOnly }: { data: CosmosOverviewData; read
                   min={1}
                   value={threshold}
                   onChange={(e) => setThreshold(e.target.value)}
+                  disabled={readOnly}
                 />
                 <InputGroupAddon align="inline-end">{T.thresholdUnit}</InputGroupAddon>
               </InputGroup>
@@ -159,6 +165,7 @@ function AutoRechargeOption({ data, readOnly }: { data: CosmosOverviewData; read
                 id={`${ids}-consent`}
                 checked={accepted}
                 onCheckedChange={(v) => setAccepted(v === true)}
+                disabled={readOnly}
               />
               <Label htmlFor={`${ids}-consent`} className="text-sm leading-snug font-normal">
                 {T.consent}
@@ -174,15 +181,18 @@ function AutoRechargeOption({ data, readOnly }: { data: CosmosOverviewData; read
                   })}`
                 : ''}
             </p>
-            <div>
-              <Button
-                size="sm"
-                disabled={pending || !accepted || !(Number(threshold) > 0)}
-                onClick={() => save(true)}
-              >
-                {T.save}
-              </Button>
-            </div>
+            {/* só leitura (sem `cosmos.manage`): os campos mostram o que está gravado, sem Salvar */}
+            {readOnly ? null : (
+              <div>
+                <Button
+                  size="sm"
+                  disabled={pending || !accepted || !(Number(threshold) > 0)}
+                  onClick={() => save(true)}
+                >
+                  {T.save}
+                </Button>
+              </div>
+            )}
           </div>
         ) : (
           <p className="text-muted-foreground text-sm">{T.noPackages}</p>
