@@ -200,6 +200,8 @@ export function PostgameTable({ settings, before }: { settings: readonly OpsSett
     const changed = settings.some((s) => (s.key === modeKey || s.key === minKey) && isChanged(s));
     return {
       api,
+      id: has(modeKey) ? modeKey : minKey,
+      alsoIds: has(modeKey) && has(minKey) ? [minKey] : [],
       label,
       changed,
       description: on ? fill(B.postgameOn, { mode: optionLabel(T, modeDef, mode), minutes }) : B.postgameOff,
@@ -330,6 +332,7 @@ export function PlanTable({
     const value = d.value(key);
     return {
       api,
+      id: key,
       label,
       changed: isChanged(s),
       description: value

@@ -44,6 +44,10 @@ export function SportIcon({ api, className }: { api: string; className?: string 
 
 export interface SportRow {
   api: string;
+  /** Âncora da linha (a chave do registro), para o "ver em…" e a busca abrirem a página nela. */
+  id?: string;
+  /** Outras chaves da mesma linha (ex.: os minutos do pós-jogo), também como âncora. */
+  alsoIds?: readonly string[];
   label: string;
   description?: ReactNode;
   /** Algum valor da linha vem do painel: selo "alterado". */
@@ -81,12 +85,16 @@ export function SportRowsTable({ title, description, rows, before, footer }: Spo
           {rows.map((row) => (
             <li
               key={row.api}
+              id={row.id}
               data-sport={row.api}
               className={cn(
-                'flex flex-wrap items-center gap-3 border-b px-4 py-3 last:border-b-0',
+                'flex scroll-mt-24 flex-wrap items-center gap-3 border-b px-4 py-3 last:border-b-0',
                 row.changed && 'bg-primary/5',
               )}
             >
+              {row.alsoIds?.map((id) => (
+                <span key={id} id={id} className="sr-only scroll-mt-24" aria-hidden="true" />
+              ))}
               <IconTile size="sm" aria-hidden="true">
                 <SportIcon api={row.api} />
               </IconTile>

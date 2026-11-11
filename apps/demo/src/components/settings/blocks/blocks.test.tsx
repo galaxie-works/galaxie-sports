@@ -1,5 +1,12 @@
 // @vitest-environment happy-dom
-import { POSTGAME_APIS, postgameIntervalKey, postgameModeKey, settingDef } from '@galaxie/runtime-config';
+import {
+  POSTGAME_APIS,
+  SCHEDULED_JOBS,
+  postgameIntervalKey,
+  postgameModeKey,
+  scheduleKey,
+  settingDef,
+} from '@galaxie/runtime-config';
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -21,6 +28,7 @@ const { SettingRow } = await import('./setting-row');
 const { StatusList } = await import('./status-list');
 const { CredentialsList } = await import('./status-panels');
 const { PostgameTable } = await import('./sport-tables');
+const { JobsGrid } = await import('./jobs-grid');
 
 const T = clientDictionary('pt-BR');
 const B = T.ops.blocks;
@@ -144,5 +152,45 @@ describe('PostgameTable', () => {
     });
     expect(saveSetting).toHaveBeenCalledTimes(9);
     expect(saveSetting.mock.calls.every(([, v]) => v === 'off')).toBe(true);
+  });
+});
+
+describe('JobsGrid', () => {
+  const rows = SCHEDULED_JOBS.map((j) => ({
+    job: j.name,
+    key: scheduleKey(j.name),
+    label: j.name,
+    setting: setting(scheduleKey(j.name)),
+    status: {
+      name: j.name,
+      service: j.service,
+      runNow: j.runNow,
+      last: null,
+      lastOkAt: null,
+      errors24h: 0,
+      queued: null,
+    },
+  }));
+  const grid = () =>
+    show(<JobsGrid rows={rows} timeZone="UTC" now={NOW} lastRun={() => null} runNow={() => null} />);
+
+  it('todos os jobs, agrupados nas cinco áreas', () => {
+    const { container } = grid();
+    const areas = [...container.querySelectorAll('[data-job-area]')].map((e) =>
+      e.getAttribute('data-job-area'),
+    );
+    expect(areas).toEqual(['live', 'data', 'ai', 'content', 'maintenance']);
+    for (const j of SCHEDULED_JOBS) expect(screen.getAllByText(j.name).length).toBeGreaterThan(0);
+  });
+
+  it('a busca filtra as linhas e some com as áreas vazias', () => {
+    const { container } = grid();
+    fireEvent.change(screen.getByLabelText(B.jobs.searchLabel), { target: { value: 'wtw-rights' } });
+    const areas = [...container.querySelectorAll('[data-job-area]')].map((e) =>
+      e.getAttribute('data-job-area'),
+    );
+    expect(areas).toEqual(['ai']);
+    fireEvent.change(screen.getByLabelText(B.jobs.searchLabel), { target: { value: 'nada-disso' } });
+    expect(screen.getByText(B.jobs.empty)).toBeTruthy();
   });
 });

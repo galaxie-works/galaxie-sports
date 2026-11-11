@@ -57,7 +57,8 @@ export interface StatusItem {
 
 export interface StatusSection {
   id: string;
-  title: string;
+  /** Sem título, as linhas vêm direto (lista de uma seção só, como a dos Webhooks). */
+  title?: string;
   description?: string;
   items: readonly StatusItem[];
 }
@@ -94,12 +95,14 @@ export function StatusList({
       ) : null}
       {sections.map((section) => (
         <FramePanel key={section.id} className="p-0" data-status-section={section.id}>
-          <div className="flex flex-col gap-0.5 border-b px-4 py-3">
-            <span className="text-sm font-semibold">{section.title}</span>
-            {section.description ? (
-              <span className="text-muted-foreground text-sm">{section.description}</span>
-            ) : null}
-          </div>
+          {section.title ? (
+            <div className="flex flex-col gap-0.5 border-b px-4 py-3">
+              <span className="text-sm font-semibold">{section.title}</span>
+              {section.description ? (
+                <span className="text-muted-foreground text-sm">{section.description}</span>
+              ) : null}
+            </div>
+          ) : null}
           <ul className="flex flex-col">
             {section.items.map((item) => (
               <li

@@ -1,4 +1,11 @@
-import { APISPORTS_APIS, POSTGAME_APIS, SETTINGS, isSecret, postgameModeKey, settingDef } from '@galaxie/runtime-config';
+import {
+  APISPORTS_APIS,
+  POSTGAME_APIS,
+  SETTINGS,
+  isSecret,
+  postgameModeKey,
+  settingDef,
+} from '@galaxie/runtime-config';
 import { describe, expect, it } from 'vitest';
 
 import { clientDictionary } from '@/lib/i18n/dictionary';
@@ -253,7 +260,8 @@ describe('cada bloco na página do PR 1 (#1070)', () => {
     for (const key of POSTGAME_SPORT_KEYS) {
       expect(settingPage(key), key).toEqual({ item: 'postgame', block: 'postgame' });
     }
-    for (const key of PLAN_SPORT_KEYS) expect(settingPage(key), key).toEqual({ item: 'provider', block: 'sports' });
+    for (const key of PLAN_SPORT_KEYS)
+      expect(settingPage(key), key).toEqual({ item: 'provider', block: 'sports' });
   });
 
   it('a lista de credenciais é a de Credenciais (A4), menos as três chaves gravadas no cartão da feature', () => {

@@ -18,6 +18,9 @@ import { useMemo, useState } from 'react';
 import { resetSetting, saveSetting } from '@/app/[locale]/(app)/ajustes/operacao/actions';
 import { Badge } from '@/components/reui/badge';
 import { Frame, FrameDescription, FrameHeader, FramePanel, FrameTitle } from '@/components/reui/frame';
+import { isChanged, sportsByLabel } from '@/components/settings/blocks/logic';
+import { SportRowsTable } from '@/components/settings/blocks/sport-rows-table';
+import { useHash } from '@/components/settings/blocks/use-hash';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,7 +34,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Spinner } from '@/components/ui/spinner';
 import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -50,20 +52,54 @@ interface Ctx {
 
 const settingOf = (snapshot: OpsSnapshot, key: string) => snapshot.settings.find((s) => s.key === key);
 
-/** Espelho da api-sports: orçamento, ordem dos grupos e a tabela de períodos com a estimativa de chamadas. */
+/**
+ * Espelho da api-sports: orçamento, ordem dos grupos, uma linha por esporte (padrão settings-2, #1075) com a
+ * estimativa de chamadas dos períodos gravados e, abaixo, a tabela de períodos do esporte escolhido. Cada esporte
+ * continua uma chave só (MIRROR_PERIODS_<API>), gravada como antes.
+ */
 export function MirrorTab({ snapshot, timeZone }: Ctx) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const T = t.ops;
   const M = T.mirror;
-  const [api, setApi] = useState('football');
+  const MB = T.blocks.mirror;
+  const hash = useHash();
+  // o "ver em…" chega com a chave no hash: abre o esporte dela
+  const fromHash = snapshot.mirror.apis.find((a) => mirrorPeriodsKey(a.api) === hash)?.api;
+  const [picked, setPicked] = useState<string | null>(null);
+  const api = picked ?? fromHash ?? 'football';
   const { production, reservePercent } = snapshot.mirror;
   const budgetPercent = Number(settingOf(snapshot, MIRROR_BUDGET_KEY)?.value ?? 20);
   const view = snapshot.mirror.apis.find((a) => a.api === api)!;
   const periodsSetting = settingOf(snapshot, mirrorPeriodsKey(api))!;
-  const apiItems = snapshot.mirror.apis.map((a) => ({
-    value: a.api,
-    label: T.apis[a.api as keyof typeof T.apis] ?? a.api,
-  }));
+  const n = (v: number) => new Intl.NumberFormat(locale, { maximumFractionDigits: v < 10 ? 1 : 0 }).format(v);
+  const apis = snapshot.mirror.apis.map((a) => a.api);
+  const sportRows = sportsByLabel(apis, T.apis).flatMap(({ api: rowApi, label }) => {
+    const rowView = snapshot.mirror.apis.find((a) => a.api === rowApi)!;
+    const s = settingOf(snapshot, mirrorPeriodsKey(rowApi));
+    if (!s) return [];
+    const periods = draftState(rowApi, initialDraft(rowApi, s.value)).periods;
+    const total = estimateMirrorCalls(rowApi, (id) => periods.get(id) ?? [], rowView.inventory).total;
+    const selected = rowApi === api;
+    return [
+      {
+        api: rowApi,
+        id: s.key,
+        label,
+        changed: isChanged(s),
+        description: rowView.inventory ? fill(MB.estimate, { calls: n(total) }) : MB.noInventory,
+        controls: (
+          <Button
+            variant={selected ? 'secondary' : 'outline'}
+            size="sm"
+            aria-pressed={selected}
+            onClick={() => setPicked(rowApi)}
+          >
+            {selected ? MB.editing : MB.edit}
+          </Button>
+        ),
+      },
+    ];
+  });
 
   return (
     <div className="flex flex-col gap-4">
@@ -91,25 +127,14 @@ export function MirrorTab({ snapshot, timeZone }: Ctx) {
           })}
         </FramePanel>
       </Frame>
+      <SportRowsTable title={MB.title} description={MB.description} rows={sportRows} />
       <Frame>
         <FramePanel className="p-0">
-          <FrameHeader className="flex flex-wrap items-start justify-between gap-3 px-4 pt-4">
-            <div className="flex max-w-3xl flex-col gap-1">
-              <FrameTitle>{M.periodsTitle}</FrameTitle>
-              <FrameDescription>{M.periodsDescription}</FrameDescription>
-            </div>
-            <Select items={apiItems} value={api} onValueChange={(v) => v && setApi(String(v))}>
-              <SelectTrigger className="w-56" aria-label={M.api}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {apiItems.map((i) => (
-                  <SelectItem key={i.value} value={i.value}>
-                    {i.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <FrameHeader className="px-4 pt-4">
+            <FrameTitle>
+              {fill(MB.periodsOf, { sport: T.apis[api as keyof typeof T.apis] ?? api })}
+            </FrameTitle>
+            <FrameDescription>{M.periodsDescription}</FrameDescription>
           </FrameHeader>
           <PeriodsEditor
             key={`${api}:${periodsSetting.source}:${periodsSetting.value ?? ''}`}

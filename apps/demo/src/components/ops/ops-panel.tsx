@@ -4,7 +4,7 @@ import { SCHEDULED_JOBS, scheduleKey, settingDef } from '@galaxie/runtime-config
 import { Activity, Bot, Gauge, Play, RefreshCw, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useTransition, type ReactNode } from 'react';
+import { useCallback, useTransition, type ReactNode } from 'react';
 
 import { checkAiCreditNow, runJobNow } from '@/app/[locale]/(app)/ajustes/operacao/actions';
 import { Badge } from '@/components/reui/badge';
@@ -12,6 +12,7 @@ import { SettingsSection } from '@/components/settings';
 import { Frame, FrameDescription, FrameHeader, FramePanel, FrameTitle } from '@/components/reui/frame';
 import { ModelAgentCards } from '@/components/settings/blocks/ai-usage';
 import { GithubIntegration } from '@/components/settings/blocks/integrations';
+import { JobsGrid, type JobRow } from '@/components/settings/blocks/jobs-grid';
 import { AI_MODEL_KEYS, PLAN_SPORT_KEYS, POSTGAME_SPORT_KEYS } from '@/components/settings/blocks/logic';
 import { PlanTable, PostgameTable } from '@/components/settings/blocks/sport-tables';
 import { CredentialsList, ServicesStatusList } from '@/components/settings/blocks/status-panels';
@@ -784,50 +785,48 @@ function JobsOverview({ snapshot, timeZone }: Ctx) {
 function ScheduleTab({ snapshot, timeZone }: Ctx) {
   const { t } = useI18n();
   const T = t.ops;
+  const now = snapshot.generatedAt;
   const others = snapshot.settings.filter((s) => s.section === 'schedule' && !settingDef(s.key)!.job);
+  // os jobs do registro, com a flag da agenda e o estado da última execução (a tabela agrupa e ordena)
+  const rows: JobRow[] = SCHEDULED_JOBS.flatMap((j) => {
+    const setting = snapshot.settings.find((s) => s.key === scheduleKey(j.name));
+    const status = snapshot.jobs.find((x) => x.name === j.name);
+    if (!setting || !status) return [];
+    return [
+      {
+        job: j.name,
+        key: setting.key,
+        label: settingText(T, settingDef(setting.key)!).label,
+        setting,
+        status,
+      },
+    ];
+  });
+  const lastRun = useCallback(
+    (job: JobStatus) => <LastRun job={job} timeZone={timeZone} now={now} />,
+    [timeZone, now],
+  );
+  const runNow = useCallback((job: JobStatus) => <RunNowButton job={job} />, []);
   return (
-    <div className="flex flex-col gap-4">
-      {(['ingestor', 'live', 'agents'] as const).map((service) => (
-        <Frame key={service}>
+    <JobsGrid
+      rows={rows}
+      timeZone={timeZone}
+      now={now}
+      lastRun={lastRun}
+      runNow={runNow}
+      footer={
+        others.length ? (
           <FramePanel className="p-0">
-            <FrameHeader className="px-4 pt-4">
-              <FrameTitle>
-                {T.sections.schedule.title} · {T.services[service]}
-              </FrameTitle>
-              <FrameDescription>{T.sections.schedule.description}</FrameDescription>
-            </FrameHeader>
-            {SCHEDULED_JOBS.filter((j) => j.service === service).map((j) => {
-              const setting = snapshot.settings.find((s) => s.key === scheduleKey(j.name))!;
-              const job = snapshot.jobs.find((x) => x.name === j.name)!;
-              return (
-                <SettingRow
-                  key={`${setting.key}:${setting.source}:${setting.value}`}
-                  setting={setting}
-                  timeZone={timeZone}
-                  now={snapshot.generatedAt}
-                  aside={<LastRun job={job} timeZone={timeZone} now={snapshot.generatedAt} />}
-                  actions={<RunNowButton job={job} />}
-                />
-              );
-            })}
-          </FramePanel>
-        </Frame>
-      ))}
-      {others.length ? (
-        <Frame>
-          <FramePanel className="p-0">
+            <div className="border-b px-4 py-3">
+              <span className="text-sm font-semibold">{T.blocks.jobs.others}</span>
+            </div>
             {others.map((s) => (
-              <SettingRow
-                key={`${s.key}:${s.source}:${s.value}`}
-                setting={s}
-                timeZone={timeZone}
-                now={snapshot.generatedAt}
-              />
+              <SettingRow key={`${s.key}:${s.source}:${s.value}`} setting={s} timeZone={timeZone} now={now} />
             ))}
           </FramePanel>
-        </Frame>
-      ) : null}
-    </div>
+        ) : null
+      }
+    />
   );
 }
 
