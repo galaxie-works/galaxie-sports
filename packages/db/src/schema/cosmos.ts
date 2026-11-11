@@ -526,3 +526,36 @@ export const creditRequest = cosmos.table(
     index('credit_request_tenant_idx').on(t.tenantId, t.id.desc()),
   ],
 );
+
+// ─── assistente usado pela equipe Galaxie (#1100) ───────────────────────────────────────────────────
+
+/**
+ * Cada pergunta da equipe Galaxie ao assistente de um tenant: não mexe na carteira do cliente nem entra no
+ * `ops.llm_usage`/`TokenBudget` dos agentes internos, mas o custo real fica registrado aqui (quem, onde, quanto).
+ * Também serve de contador para o limite de perguntas por minuto, que vale entre processos.
+ */
+export const staffUsage = cosmos.table(
+  'staff_usage',
+  {
+    id: pkUuidV7(),
+    /** Tenant em foco na tela. */
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenant.id, { onDelete: 'cascade' }),
+    userId: text('user_id').notNull(),
+    route: text('route').notNull(),
+    provider: text('provider').notNull(),
+    model: text('model').notNull(),
+    inputTokens: integer('input_tokens').notNull().default(0),
+    outputTokens: integer('output_tokens').notNull().default(0),
+    costUsd: numeric('cost_usd', { precision: 12, scale: 6 }).notNull().default('0'),
+    outcome: text('outcome').$type<'ok' | 'error' | 'pending'>().notNull().default('pending'),
+    error: text('error'),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    check('staff_usage_outcome', sql`${t.outcome} in ('ok', 'error', 'pending')`),
+    index('staff_usage_user_idx').on(t.userId, t.createdAt.desc()),
+    index('staff_usage_tenant_idx').on(t.tenantId, t.id.desc()),
+  ],
+);

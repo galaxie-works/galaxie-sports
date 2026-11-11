@@ -133,7 +133,8 @@ export function CosmosAssistant({
           context: readScreenContext(),
           history: history(turnsRef.current),
         });
-        if (live) setEstimate(r.ok ? r.credits : null);
+        // 0 = equipe Galaxie (não gasta créditos do cliente): sem o "cerca de N créditos"
+        if (live) setEstimate(r.ok && r.credits > 0 ? r.credits : null);
       } catch {
         if (live) setEstimate(null);
       } finally {
@@ -182,8 +183,8 @@ export function CosmosAssistant({
         } else if (event.type === 'done')
           patch(answerId, {
             status: 'done',
-            charged: event.charged,
-            available: event.available,
+            // a equipe Galaxie não gasta créditos do cliente: sem a linha de cobrança
+            ...(event.staff ? {} : { charged: event.charged, available: event.available }),
             ...(event.sig ? { sig: event.sig } : {}),
           });
         else patch(answerId, { status: 'error', error: event.code, text: '' });
