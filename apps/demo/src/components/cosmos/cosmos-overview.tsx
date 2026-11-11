@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import {
   ActionNotice,
   ExplainEmpty,
+  SafetyNote,
   SettingOption,
   SettingsSection,
   UsageMeter,
@@ -33,17 +34,18 @@ type Wallet = NonNullable<CosmosOverviewData['wallet']>;
 /** Créditos da recarga atual (o saldo no começo do ciclo); nunca abaixo do saldo de agora. */
 const cycleTotal = (w: Wallet) => Math.max(w.cycleBase, w.available + w.reserved);
 
-function BalanceNotice({ wallet, onRecharge }: { wallet: Wallet; onRecharge: () => void }) {
+/** `onRecharge` ausente = cargo sem `cosmos.manage`: o aviso aparece, sem o botão de recarregar. */
+function BalanceNotice({ wallet, onRecharge }: { wallet: Wallet; onRecharge?: () => void }) {
   const { t, locale } = useI18n();
   const T = t.cosmos.overview.notices;
   const kind = balanceNotice(wallet);
   if (!kind) return null;
   const n = new Intl.NumberFormat(locale);
-  const recharge = (
+  const recharge = onRecharge ? (
     <Button size="sm" onClick={onRecharge}>
       {t.cosmos.overview.recharge}
     </Button>
-  );
+  ) : undefined;
   if (kind === 'trial')
     return (
       <ActionNotice tone="info" title={T.trialTitle}>
@@ -74,7 +76,7 @@ function BalanceNotice({ wallet, onRecharge }: { wallet: Wallet; onRecharge: () 
   );
 }
 
-function AutoRechargeOption({ data }: { data: CosmosOverviewData }) {
+export function AutoRechargeOption({ data, readOnly }: { data: CosmosOverviewData; readOnly: boolean }) {
   const { t, locale } = useI18n();
   const T = t.cosmos.autoRecharge;
   const router = useRouter();
@@ -117,7 +119,7 @@ function AutoRechargeOption({ data }: { data: CosmosOverviewData }) {
       // desligar salva na hora; ligar abre as travas para escolher o pacote, o limite e dar o aceite
       onCheckedChange={(next) => (next ? setEnabled(true) : save(false))}
       // sem pacote à venda dá para desligar, só não dá para ligar
-      disabled={pending || (!enabled && !data.packages.length)}
+      disabled={readOnly || pending || (!enabled && !data.packages.length)}
       allows={T.description}
       safety={current?.lastFailureReason ? fill(T.failure, { reason: current.lastFailureReason }) : undefined}
       locks={
@@ -125,7 +127,12 @@ function AutoRechargeOption({ data }: { data: CosmosOverviewData }) {
           <div className="flex flex-col gap-3">
             <Field>
               <FieldLabel htmlFor={`${ids}-package`}>{T.package}</FieldLabel>
-              <Select items={items} value={packageId} onValueChange={(v) => setPackageId(String(v ?? ''))}>
+              <Select
+                items={items}
+                value={packageId}
+                onValueChange={(v) => setPackageId(String(v ?? ''))}
+                disabled={readOnly}
+              >
                 <SelectTrigger id={`${ids}-package`} className="w-full">
                   <SelectValue />
                 </SelectTrigger>
@@ -148,6 +155,7 @@ function AutoRechargeOption({ data }: { data: CosmosOverviewData }) {
                   min={1}
                   value={threshold}
                   onChange={(e) => setThreshold(e.target.value)}
+                  disabled={readOnly}
                 />
                 <InputGroupAddon align="inline-end">{T.thresholdUnit}</InputGroupAddon>
               </InputGroup>
@@ -157,6 +165,7 @@ function AutoRechargeOption({ data }: { data: CosmosOverviewData }) {
                 id={`${ids}-consent`}
                 checked={accepted}
                 onCheckedChange={(v) => setAccepted(v === true)}
+                disabled={readOnly}
               />
               <Label htmlFor={`${ids}-consent`} className="text-sm leading-snug font-normal">
                 {T.consent}
@@ -172,15 +181,18 @@ function AutoRechargeOption({ data }: { data: CosmosOverviewData }) {
                   })}`
                 : ''}
             </p>
-            <div>
-              <Button
-                size="sm"
-                disabled={pending || !accepted || !(Number(threshold) > 0)}
-                onClick={() => save(true)}
-              >
-                {T.save}
-              </Button>
-            </div>
+            {/* só leitura (sem `cosmos.manage`): os campos mostram o que está gravado, sem Salvar */}
+            {readOnly ? null : (
+              <div>
+                <Button
+                  size="sm"
+                  disabled={pending || !accepted || !(Number(threshold) > 0)}
+                  onClick={() => save(true)}
+                >
+                  {T.save}
+                </Button>
+              </div>
+            )}
           </div>
         ) : (
           <p className="text-muted-foreground text-sm">{T.noPackages}</p>
@@ -197,10 +209,13 @@ function AutoRechargeOption({ data }: { data: CosmosOverviewData }) {
 export function CosmosOverview({
   data,
   purchase,
+  canManage,
 }: {
   data: CosmosOverviewData;
   /** Volta do Checkout do Stripe (`?purchase=&status=`). */
   purchase: { id: string; status: 'success' | 'canceled' } | null;
+  /** O cargo tem `cosmos.manage` (#1019): comprar, recarga automática, ligar e desligar. Sem ele, só leitura. */
+  canManage: boolean;
 }) {
   const { t, locale } = useI18n();
   const T = t.cosmos.overview;
@@ -229,12 +244,13 @@ export function CosmosOverview({
       ) : null}
 
       <SettingsSection title={T.title} description={T.description}>
+        {!canManage ? <SafetyNote>{T.readOnly}</SafetyNote> : null}
         <SettingOption
           title={T.enable}
           description={T.enableDescription}
           checked={on}
           onCheckedChange={toggle}
-          disabled={pending}
+          disabled={pending || !canManage}
           safety={wallet?.trialGranted ? undefined : fill(T.enableSafety, data.trial)}
         />
       </SettingsSection>
@@ -245,17 +261,19 @@ export function CosmosOverview({
             title={T.balanceTitle}
             description={T.balanceDescription}
             action={
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setBuying(true)}
-                disabled={!data.packages.length}
-              >
-                {T.manage}
-              </Button>
+              canManage ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setBuying(true)}
+                  disabled={!data.packages.length}
+                >
+                  {T.manage}
+                </Button>
+              ) : null
             }
           >
-            <BalanceNotice wallet={wallet} onRecharge={() => setBuying(true)} />
+            <BalanceNotice wallet={wallet} onRecharge={canManage ? () => setBuying(true) : undefined} />
             {/* o medidor conta o que já foi usado desta recarga; o saldo disponível vai no rótulo */}
             <UsageMeter
               label={`${T.available}: ${n.format(wallet.available)}`}
@@ -288,7 +306,7 @@ export function CosmosOverview({
             title={t.cosmos.autoRecharge.title}
             description={t.cosmos.autoRecharge.description}
           >
-            <AutoRechargeOption data={data} />
+            <AutoRechargeOption data={data} readOnly={!canManage} />
           </SettingsSection>
         </>
       ) : (
@@ -300,7 +318,7 @@ export function CosmosOverview({
         />
       )}
 
-      <PurchaseDialog open={buying} onOpenChange={setBuying} packages={data.packages} />
+      {canManage ? <PurchaseDialog open={buying} onOpenChange={setBuying} packages={data.packages} /> : null}
     </div>
   );
 }

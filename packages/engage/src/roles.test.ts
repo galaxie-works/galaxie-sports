@@ -46,6 +46,24 @@ describe('matriz de cargos (#1019)', () => {
     expect(can(member('admin'), 'legal.export', { tenantId: T })).toBe(false);
   });
 
+  it('Cosmos AI: Admin vê, só o Dono compra, liga e desliga; Moderador só pergunta', () => {
+    const who = (action: 'cosmos.view' | 'cosmos.manage' | 'cosmos.assistant.ask') =>
+      TENANT_ROLES.filter((r) => can(member(r), action, { tenantId: T }));
+    expect(who('cosmos.view')).toEqual(['owner', 'admin']);
+    expect(who('cosmos.manage')).toEqual(['owner']);
+    expect(who('cosmos.assistant.ask')).toEqual(['owner', 'admin', 'senior_moderator', 'moderator']);
+    expect(check(member('volunteer'), 'cosmos.manage', { tenantId: T })).toEqual({
+      ok: false,
+      reason: 'role',
+    });
+    expect(check(member('owner'), 'cosmos.manage', { tenantId: 'tenant-b' })).toEqual({
+      ok: false,
+      reason: 'other_tenant',
+    });
+    // escopo restrito (só algumas Comunidades) não abre ação do tenant inteiro
+    expect(can(member('owner', { communities: ['c1'] }), 'cosmos.view', { tenantId: T })).toBe(false);
+  });
+
   it('voluntário silencia por até 1 hora; sem duração não silencia', () => {
     expect(check(member('volunteer'), 'moderation.mute', { tenantId: T, durationSec: 3600 })).toEqual({
       ok: true,
