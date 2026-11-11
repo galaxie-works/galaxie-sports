@@ -226,7 +226,13 @@ describe('usuários e cargos (#1019)', () => {
       (await actions.inviteMember({ email: 'apagado@um.test', name: 'Apagado', role: 'owner' })).ok,
     ).toBe(true);
     as('admin@galaxie.test');
-    expect((await admin.removeUser(await userId('apagado@um.test'))).ok).toBe(true);
+    const apagado = await userId('apagado@um.test');
+    // o convite vai para o tenant ativo do Dono, que pode não ser o T1 depois dos testes de vários tenants
+    const { rows: held } = await db.sql.query(`select tenant_id from api.tenant_member where user_id = $1`, [
+      apagado,
+    ]);
+    expect(held).toHaveLength(1);
+    expect((await admin.removeUser(apagado)).ok).toBe(true);
     const { rows } = await db.sql.query(
       `select count(*)::int as n from api.tenant_member m where not exists (select 1 from "user" u where u.id = m.user_id)
          and m.user_id is not null`,
@@ -236,7 +242,7 @@ describe('usuários e cargos (#1019)', () => {
     const { rows: events } = await db.sql.query(
       `select subject from api.tenant_member_event
         where tenant_id = $1 and action = 'removed' and actor like 'galaxie:%'`,
-      [T1],
+      [held[0].tenant_id],
     );
     expect(events).toContainEqual({ subject: 'apagado@um.test' });
     expect(events).not.toContainEqual({ subject: null });
