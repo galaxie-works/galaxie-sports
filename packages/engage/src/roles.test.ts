@@ -16,6 +16,7 @@ import {
   setRolePermission,
   TENANT_ACTIONS,
   TENANT_ROLES,
+  VIEW_OF,
   type Actor,
   type MemberScope,
   type RoleOverrides,
@@ -241,6 +242,53 @@ describe('permissões por cargo configuráveis pelo Dono', () => {
       { role: 'senior_moderator', action: 'moderation.ban', allowed: false },
       { role: 'moderator', action: 'moderation.ban', allowed: false },
     ]);
+  });
+
+  it('quem gerencia também vê: Moderador com cosmos.manage dado pelo Dono passa a ver', () => {
+    const cfg = setRolePermission(null, 'moderator', 'cosmos.manage', true);
+    for (const role of ['admin', 'senior_moderator', 'moderator'] as const) {
+      expect(can(as(role, cfg), 'cosmos.manage', { tenantId: T })).toBe(true);
+      expect(can(as(role, cfg), 'cosmos.view', { tenantId: T })).toBe(true);
+    }
+    expect(diffOverrides(null, cfg)).toEqual(
+      expect.arrayContaining([
+        { role: 'moderator', action: 'cosmos.view', allowed: true },
+        { role: 'moderator', action: 'cosmos.manage', allowed: true },
+      ]),
+    );
+    // o mesmo para a cobrança
+    const billing = setRolePermission(null, 'admin', 'billing.buy_credits', true);
+    expect(roleAllows('admin', 'billing.view', billing)).toBe(true);
+  });
+
+  it('tirar cosmos.view tira o cosmos.manage (na gravação e na leitura)', () => {
+    const cfg = setRolePermission(null, 'admin', 'cosmos.manage', true);
+    const off = setRolePermission(cfg, 'admin', 'cosmos.view', false);
+    expect(roleAllows('admin', 'cosmos.view', off)).toBe(false);
+    expect(roleAllows('admin', 'cosmos.manage', off)).toBe(false);
+    expect(off).toEqual({ admin: { 'cosmos.view': false } });
+    // configuração gravada à mão com manage sem view: o manage não vale
+    const forged: RoleOverrides = { admin: { 'cosmos.view': false, 'cosmos.manage': true } };
+    expect(can(as('admin', forged), 'cosmos.manage', { tenantId: T })).toBe(false);
+    expect(normalizeOverrides(forged)).toEqual({ admin: { 'cosmos.view': false } });
+    // com qualquer configuração, manage implica view
+    for (const c of [cfg, off, forged, setRolePermission(null, 'moderator', 'cosmos.manage', true)])
+      for (const role of TENANT_ROLES)
+        for (const [manage, view] of Object.entries(VIEW_OF))
+          if (roleAllows(role, manage as never, c)) expect(roleAllows(role, view, c)).toBe(true);
+  });
+
+  it('members.view coerente com members.manage (fixa): travado para quem cuida dos cargos', () => {
+    expect(canReceive('admin', 'members.view')).toBe(false);
+    expect(canReceive('senior_moderator', 'members.view')).toBe(true);
+    expect(setRolePermission(null, 'admin', 'members.view', false)).toEqual({});
+    const forged: RoleOverrides = { admin: { 'members.view': false } };
+    expect(roleAllows('admin', 'members.view', forged)).toBe(true);
+    expect(roleAllows('admin', 'members.manage', forged)).toBe(true);
+    // dar a visão a quem não cuida dos cargos não dá o cuidar
+    const cfg = setRolePermission(null, 'moderator', 'members.view', true);
+    expect(roleAllows('moderator', 'members.view', cfg)).toBe(true);
+    expect(roleAllows('moderator', 'members.manage', cfg)).toBe(false);
   });
 
   it('o voluntário com moderação liberada continua com o teto de 1 hora para silenciar', () => {

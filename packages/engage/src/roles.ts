@@ -88,6 +88,7 @@ export const isTenantAction = (value: unknown): value is TenantAction =>
  *  - ações fixas (`FIXED_ACTIONS`) seguem a matriz: Exportação judicial, cuidar dos cargos (a Escada) e mudar as
  *    próprias permissões;
  *  - nenhum cargo pode mais que o de cima (a Escada também vale para as ações): tirar de um cargo tira dos de baixo;
+ *  - quem gerencia também vê (`VIEW_OF`): dar `x.manage` dá `x.view` ao mesmo cargo; tirar `x.view` tira `x.manage`;
  *  - ações do painel não descem ao Voluntário, que é Perfil de torcedor e não entra no console (`DELEGATION_FLOOR`);
  *  - a equipe Galaxie continua passando por cima.
  */
@@ -109,6 +110,20 @@ export const DELEGATION_FLOOR: Partial<Record<TenantAction, TenantRole>> = Objec
 
 export const isConfigurable = (action: TenantAction) => !FIXED_ACTIONS.includes(action);
 
+/**
+ * Ver que acompanha cada ação de gerenciar: quem gerencia também vê. Vale na leitura (`roleAllows`) e na gravação
+ * (`setRolePermission`).
+ */
+export const VIEW_OF: Partial<Record<TenantAction, TenantAction>> = {
+  'billing.buy_credits': 'billing.view',
+  'members.manage': 'members.view',
+  'cosmos.manage': 'cosmos.view',
+};
+
+/** Ações de gerenciar que dependem de `view`. */
+const managersOf = (view: TenantAction) =>
+  (Object.keys(VIEW_OF) as TenantAction[]).filter((m) => VIEW_OF[m] === view);
+
 /** Cargos que o Dono configura (ele mesmo sempre pode tudo). */
 export const CONFIGURABLE_ROLES = TENANT_ROLES.filter((r) => r !== 'owner');
 
@@ -116,7 +131,9 @@ export const CONFIGURABLE_ROLES = TENANT_ROLES.filter((r) => r !== 'owner');
 export function canReceive(role: TenantRole, action: TenantAction): boolean {
   if (role === 'owner' || !isConfigurable(action)) return false;
   const floor = DELEGATION_FLOOR[action];
-  return floor === undefined || atLeast(role, floor);
+  if (floor !== undefined && !atLeast(role, floor)) return false;
+  // o ver de uma ação de gerenciar fixa não muda para quem gerencia: hoje, `members.view` do Admin
+  return !managersOf(action).some((m) => !isConfigurable(m) && atLeast(role, ACTIONS[m]));
 }
 
 /** O que mudou da matriz no tenant: cargo → ação → pode. Só cargos e ações configuráveis contam. */
@@ -132,7 +149,8 @@ function rawAllows(role: TenantRole, action: TenantAction, overrides: RoleOverri
 
 /**
  * O cargo pode fazer a ação no tenant com esta configuração? Vale a Escada: o cargo só pode o que todos os cargos
- * acima dele também podem, mesmo que a configuração gravada diga outra coisa (banco editado à mão, por exemplo).
+ * acima dele também podem; e quem gerencia também vê: sem o `view`, o `manage` não vale. As duas regras valem mesmo
+ * que a configuração gravada diga outra coisa (banco editado à mão, por exemplo).
  */
 export function roleAllows(
   role: TenantRole,
@@ -140,7 +158,8 @@ export function roleAllows(
   overrides?: RoleOverrides | null,
 ): boolean {
   for (let i = 0; i <= roleRank(role); i++) if (!rawAllows(TENANT_ROLES[i]!, action, overrides)) return false;
-  return true;
+  const view = VIEW_OF[action];
+  return view === undefined || roleAllows(role, view, overrides);
 }
 
 /**
@@ -160,7 +179,8 @@ export function normalizeOverrides(overrides: RoleOverrides | null | undefined):
 
 /**
  * Liga ou desliga uma ação num cargo e devolve a configuração nova (limpa). Dar a um cargo dá também aos de cima;
- * tirar de um cargo tira dos de baixo. Ação fixa, Dono ou cargo abaixo do piso: devolve a configuração sem mudança.
+ * tirar de um cargo tira dos de baixo. Dar um `manage` dá o `view` dele; tirar um `view` tira os `manage` que
+ * dependem dele. Ação fixa, Dono ou cargo abaixo do piso: devolve a configuração sem mudança.
  */
 export function setRolePermission(
   overrides: RoleOverrides | null | undefined,
@@ -175,8 +195,15 @@ export function setRolePermission(
     for (const a of TENANT_ACTIONS) if (canReceive(r, a)) (next[r] ??= {})[a] = roleAllows(r, a, overrides);
   for (const r of CONFIGURABLE_ROLES) {
     if (!canReceive(r, action)) continue;
-    if (allowed && atLeast(r, role)) next[r]![action] = true;
-    if (!allowed && atLeast(role, r)) next[r]![action] = false;
+    if (allowed && atLeast(r, role)) {
+      next[r]![action] = true;
+      const view = VIEW_OF[action];
+      if (view && canReceive(r, view)) next[r]![view] = true;
+    }
+    if (!allowed && atLeast(role, r)) {
+      next[r]![action] = false;
+      for (const m of managersOf(action)) if (canReceive(r, m)) next[r]![m] = false;
+    }
   }
   return normalizeOverrides(next);
 }

@@ -195,6 +195,33 @@ describe('permissões por cargo (#1019)', () => {
     expect(await events(T2)).toEqual([]);
   });
 
+  it('quem gerencia também vê: cosmos.manage ao Moderador abre a Cosmos; tirar o ver tira o gerenciar', async () => {
+    as('dono@p1.test');
+    expect(
+      (await actions.changeRolePermission({ role: 'moderator', action: 'cosmos.manage', allowed: true })).ok,
+    ).toBe(true);
+    as('mod@p1.test');
+    let ctx = await context();
+    expect(permissions.can(ctx, 'cosmos.view')).toBe(true);
+    expect(permissions.can(ctx, 'cosmos.manage')).toBe(true);
+    as('dono@p1.test');
+    expect(
+      (await actions.changeRolePermission({ role: 'moderator', action: 'cosmos.view', allowed: false })).ok,
+    ).toBe(true);
+    as('mod@p1.test');
+    ctx = await context();
+    expect(permissions.can(ctx, 'cosmos.view')).toBe(false);
+    expect(permissions.can(ctx, 'cosmos.manage')).toBe(false);
+    // o Admin (acima) continua com os dois
+    as('admin@p1.test');
+    expect(permissions.can(await context(), 'cosmos.manage')).toBe(true);
+    // members.view do Admin não muda enquanto members.manage for fixa
+    as('dono@p1.test');
+    expect(
+      (await actions.changeRolePermission({ role: 'admin', action: 'members.view', allowed: false })).ok,
+    ).toBe(false);
+  });
+
   it('voltar ao padrão apaga a configuração e registra cada permissão que mudou', async () => {
     as('dono@p1.test');
     const before = (await events(T1)).length;

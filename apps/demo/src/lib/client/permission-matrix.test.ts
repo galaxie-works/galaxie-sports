@@ -37,6 +37,14 @@ describe('tabela de permissões por cargo', () => {
     expect(cell(rows, 'moderation.ban', 'volunteer').editable).toBe(true);
   });
 
+  it('members.view travado para quem cuida dos cargos; Moderador com cosmos.manage aparece vendo', () => {
+    const rows = permissionMatrix(setRolePermission(null, 'moderator', 'cosmos.manage', true), true);
+    expect(cell(rows, 'members.view', 'admin')).toMatchObject({ allowed: true, editable: false });
+    expect(cell(rows, 'members.view', 'senior_moderator').editable).toBe(true);
+    expect(cell(rows, 'cosmos.view', 'moderator').allowed).toBe(true);
+    expect(cell(rows, 'cosmos.manage', 'moderator').allowed).toBe(true);
+  });
+
   it('mostra o efetivo da configuração do tenant', () => {
     const rows = permissionMatrix(setRolePermission(null, 'admin', 'cosmos.manage', true), true);
     expect(row(rows, 'cosmos.manage').cells.map((c) => c.allowed)).toEqual([true, true, false, false, false]);

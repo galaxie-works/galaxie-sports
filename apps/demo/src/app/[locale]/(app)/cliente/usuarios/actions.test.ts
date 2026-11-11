@@ -76,6 +76,7 @@ describe('mudar permissões por cargo', () => {
       { role: 'admin', action: 'members.manage', allowed: false },
       { role: 'admin', action: 'permissions.manage', allowed: true },
       { role: 'volunteer', action: 'cosmos.manage', allowed: true },
+      { role: 'admin', action: 'members.view', allowed: false },
       { role: 'chefe', action: 'cosmos.view', allowed: true },
       { role: 'admin', action: 'cosmos.tudo', allowed: true },
     ])
@@ -115,5 +116,18 @@ describe('mudar permissões por cargo', () => {
       actor: { ...admin.actor, overrides: { admin: { 'cosmos.manage': true } } },
     };
     expect(cosmosAccessError(withConfig as never, 'cosmos.manage')).toBeNull();
+  });
+
+  it('quem gerencia também vê: Moderador com cosmos.manage passa no gate de ver e de gerenciar', async () => {
+    const { setRolePermission } = await import('@galaxie/engage');
+    const { cosmosAccessError } = await import('@/lib/cosmos/config');
+    const mod = as('moderator');
+    const overrides = setRolePermission(null, 'moderator', 'cosmos.manage', true);
+    const ctx = { ...mod, actor: { ...mod.actor, overrides } };
+    expect(cosmosAccessError(ctx as never, 'cosmos.view')).toBeNull();
+    expect(cosmosAccessError(ctx as never, 'cosmos.manage')).toBeNull();
+    // manage gravado sem view (banco editado à mão) não abre o gerenciar
+    const forged = { ...mod, actor: { ...mod.actor, overrides: { moderator: { 'cosmos.manage': true } } } };
+    expect(cosmosAccessError(forged as never, 'cosmos.manage')).toBe('role');
   });
 });
