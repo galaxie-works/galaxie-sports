@@ -62,7 +62,7 @@ export interface TenantView {
 }
 
 /**
- * Ajustes → Engajamento → Países (#954): as fichas por país (tabela e edição com versão e motivo), o histórico e os
+ * Ajustes → Conformidade → Ficha por país (#954): as fichas por país (tabela e edição com versão e motivo), o histórico e os
  * países de cada cliente. As regras são conferidas de novo no servidor, em `@galaxie/engage`.
  */
 export function CountryPoliciesPanel({

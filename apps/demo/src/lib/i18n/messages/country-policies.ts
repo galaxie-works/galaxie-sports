@@ -1,9 +1,9 @@
 import { defineMessages } from '../define';
 
-/** Ajustes → Engajamento → Países (#954): fichas por país da Galaxie e os países de cada cliente. */
+/** Ajustes → Conformidade → Ficha por país (#954): fichas por país da Galaxie e os países de cada cliente. */
 export default defineMessages(
   {
-    meta: { title: 'Engajamento · Ajustes' },
+    meta: { title: 'Ficha por país · Ajustes' },
     policies: {
       title: 'Fichas por país',
       description:
@@ -93,7 +93,7 @@ export default defineMessages(
   },
   {
     en: {
-      meta: { title: 'Engagement · Settings' },
+      meta: { title: 'Country profile · Settings' },
       policies: {
         title: 'Country rules',
         description:
@@ -183,7 +183,7 @@ export default defineMessages(
       },
     },
     'es-AR': {
-      meta: { title: 'Interacción · Ajustes' },
+      meta: { title: 'Ficha por país · Ajustes' },
       policies: {
         title: 'Fichas por país',
         description:

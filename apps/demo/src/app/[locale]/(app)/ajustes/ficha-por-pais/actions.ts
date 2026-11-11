@@ -1,7 +1,7 @@
 'use server';
 
 /**
- * Ações de Ajustes → Engajamento → Países (#954), só admin da Galaxie: gravar uma ficha (com versão e motivo) e os
+ * Ações de Ajustes → Conformidade → Ficha por país (#954), só admin da Galaxie: gravar uma ficha (com versão e motivo) e os
  * países de um cliente. A sessão de admin é conferida de novo no servidor; as regras ficam em `@galaxie/engage`.
  */
 import type { CountryPolicy, PolicyIssue, TenantCountry } from '@galaxie/engage';

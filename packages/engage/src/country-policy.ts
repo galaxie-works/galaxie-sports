@@ -1,6 +1,6 @@
 /**
- * Ficha por país (#954; arquitetura 01). Uma ficha por país, mantida pela Galaxie em Ajustes → Engajamento, que
- * todos os módulos leem no servidor. País novo é ficha nova, sem código novo. O cliente marca os países onde
+ * Ficha por país (#954; arquitetura 01). Uma ficha por país, mantida pela Galaxie em Ajustes → Conformidade → Ficha
+ * por país, que todos os módulos leem no servidor. País novo é ficha nova, sem código novo. O cliente marca os países onde
  * opera e só pode endurecer a ficha (`hardenPolicy`).
  *
  * Qual ficha vale (`resolvePolicy`): a do país do torcedor (no token); sem ficha própria, a de "demais da América
