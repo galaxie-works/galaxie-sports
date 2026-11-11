@@ -84,6 +84,27 @@ describe('<galaxie-widget>', () => {
     expect(new Headers(api![1]?.headers).get(PUBLISHABLE_KEY_HEADER)).toBe('gs_pk_live_exemplo');
   });
 
+  it('torcedor: o token do atributo (ou da função da página) vai para a API com a chave do site', async () => {
+    const fanCall = () =>
+      fetchMock.mock.calls.filter(([u]) => String(u) === 'https://api.exemplo.test/v1/fans/me').at(-1);
+    document.body.innerHTML = `<${EMBED_TAG} widget="${WIDGET}" key="gs_pk_live_exemplo" fan-token="gft_do.atributo"></${EMBED_TAG}>`;
+    await waitFor(() => expect(fanCall()).toBeTruthy());
+    let h = new Headers(fanCall()![1]?.headers);
+    expect(h.get('authorization')).toBe('Bearer gft_do.atributo');
+    expect(h.get(PUBLISHABLE_KEY_HEADER)).toBe('gs_pk_live_exemplo');
+    document.body.innerHTML = '';
+    fetchMock.mockClear();
+    (globalThis as { galaxieSports?: unknown }).galaxieSports = { getFanToken: async () => 'gft_da.pagina' };
+    try {
+      document.body.innerHTML = `<${EMBED_TAG} widget="${WIDGET}" key="k" fan-token="gft_do.atributo"></${EMBED_TAG}>`;
+      await waitFor(() => expect(fanCall()).toBeTruthy());
+      h = new Headers(fanCall()![1]?.headers);
+      expect(h.get('authorization')).toBe('Bearer gft_da.pagina');
+    } finally {
+      delete (globalThis as { galaxieSports?: unknown }).galaxieSports;
+    }
+  });
+
   it('dois elementos do mesmo widget leem a configuração uma vez só', async () => {
     document.body.innerHTML = `<${EMBED_TAG} widget="${WIDGET}" key="k"></${EMBED_TAG}><${EMBED_TAG} widget="${WIDGET}" key="k"></${EMBED_TAG}>`;
     const [a, b] = document.querySelectorAll(EMBED_TAG);

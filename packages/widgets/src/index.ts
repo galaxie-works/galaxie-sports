@@ -66,13 +66,24 @@ export {
   sportProfile,
   type SportProfile,
   type SportScoreUnit,
+  FAN_CAPABILITIES,
+  fanGateMessage,
+  fanTokenExpiresAt,
+  isFanToken,
+  type FanCapability,
+  type FanStatus,
+  type GsFanMe,
 } from './core/model.js';
 
 // componentes (client components)
 export {
   GalaxieWidgetError,
   GalaxieWidgetProvider,
+  FanGate,
+  useFanSession,
   useGalaxieWidget,
+  type FanTokenResult,
+  type GalaxieFanSession,
   type GalaxieWidgetProviderProps,
 } from './core/react.js';
 export { MatchCard, type MatchCardProps } from './widgets/match-card.js';

@@ -4,6 +4,8 @@
  * antes do prazo; com o Valkey fora, as rotas que leem o Perfil no banco continuam recusando o Perfil excluído.
  */
 import type { FastifyInstance, FastifyRequest } from 'fastify';
+import type { TenantContext } from '../auth/authenticator.js';
+import { publishableKeyFrom, requestOrigin } from '../auth/publishable.js';
 import type { Redis } from 'ioredis';
 import { readRuntimeOverrides, type Database } from '@galaxie/db';
 import { resolveSetting, settingDef } from '@galaxie/runtime-config';
@@ -84,8 +86,18 @@ function bearer(request: FastifyRequest): string | undefined {
   return scheme?.toLowerCase() === 'bearer' && token?.startsWith(FAN_TOKEN_PREFIX) ? token : undefined;
 }
 
+/** Confere a chave publicável que acompanha o token no navegador (widget, embed). */
+export interface FanPublishableCheck {
+  authenticate(rawKey: string, origin: string | undefined, attempt?: { ip?: string }): Promise<TenantContext>;
+}
+
 export interface FanAuthDeps {
   signer: FanTokenSigner | null;
+  /**
+   * No navegador o token vai junto da chave publicável do site (`x-galaxie-publishable-key`): a chave confere a
+   * origem e o cliente dela tem de ser o do token. Sem chave (servidor ou app), vale só o token.
+   */
+  publishable?: FanPublishableCheck | undefined;
   revocations: FanRevocations;
   limiter: RateLimiter;
   windowMs: number;
@@ -102,6 +114,16 @@ export function registerFanAuth(app: FastifyInstance, deps: FanAuthDeps): void {
     if (!deps.signer) throw problems.degraded('Tokens do torcedor não configurados (FAN_TOKEN_SECRET).');
     const claims = deps.signer.verify(token);
     if (!claims) throw problems.invalidFanToken();
+    const pk = publishableKeyFrom(request);
+    if (pk) {
+      if (!deps.publishable)
+        throw problems.degraded('Autenticação indisponível: banco de dados não configurado.');
+      const origin = requestOrigin(request);
+      const site = await deps.publishable.authenticate(pk, origin, { ip: request.ip });
+      // token de outro cliente na página deste: recusado (e sem CORS, o navegador nem lê a resposta)
+      if (site.tenantId !== claims.tenantId) throw problems.invalidFanToken('Token de outro cliente.');
+      if (origin) request.publishableOrigin = origin;
+    }
     try {
       if (await deps.revocations.isRevoked(claims.tenantId, claims.profileId))
         throw problems.invalidFanToken('Perfil excluído.');

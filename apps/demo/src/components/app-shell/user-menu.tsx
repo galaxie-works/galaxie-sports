@@ -1,8 +1,9 @@
 'use client';
 
-import { Blocks, ChevronsUpDown, Languages, LogOut, SlidersHorizontal, Users } from 'lucide-react';
+import { Blocks, ChevronsUpDown, Languages, LogOut, SlidersHorizontal, Trophy, Users } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 
 import { LoadingStatus } from '@/components/app-shell/loading-status';
 import { AvatarInfoSkeleton } from '@/components/app-shell/skeletons';
@@ -19,11 +20,13 @@ import {
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { authClient } from '@/lib/auth/client';
 import { canAccessClientPanel } from '@/lib/auth/roles';
+import type { FanProfile } from '@/lib/fan/profile';
 import { initials } from '@/lib/format';
 import { useI18n } from '@/lib/i18n/client';
 import type { Locale } from '@/lib/i18n/config';
 import { clearTrail, topLevelClick } from '@/lib/trail';
 
+import { FanProfileDialog } from './fan-profile-dialog';
 import { LanguageSelect } from './language-select';
 
 /**
@@ -39,7 +42,8 @@ export async function rememberLocale(locale: Locale) {
 export function UserMenu() {
   const router = useRouter();
   const { t } = useI18n();
-  const { data, isPending } = authClient.useSession();
+  const { data, isPending, refetch } = authClient.useSession();
+  const [fanOpen, setFanOpen] = useState(false);
 
   // Skeleton de largura fixa: o SidebarMenuSkeleton sorteia a largura (Math.random), o que o Next 16 não
   // aceita no prerender e que diverge na hidratação.
@@ -112,6 +116,10 @@ export function UserMenu() {
                 {t.shell.userMenu.operations}
               </DropdownMenuItem>
             ) : null}
+            <DropdownMenuItem onClick={() => setFanOpen(true)}>
+              <Trophy />
+              {t.shell.userMenu.fanProfile}
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
               <DropdownMenuLabel className="flex items-center gap-2">
@@ -129,6 +137,20 @@ export function UserMenu() {
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        {fanOpen ? (
+          <FanProfileDialog
+            open
+            onOpenChange={(open) => {
+              setFanOpen(open);
+              if (!open) refetch();
+            }}
+            initial={{
+              nickname: user.fanNickname ?? undefined,
+              ageBand: (user.fanAgeBand as FanProfile['ageBand'] | null) ?? undefined,
+              country: (user.fanCountry as FanProfile['country'] | null) ?? undefined,
+            }}
+          />
+        ) : null}
       </SidebarMenuItem>
     </SidebarMenu>
   );
