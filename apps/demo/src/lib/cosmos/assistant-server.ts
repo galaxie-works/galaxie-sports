@@ -143,7 +143,7 @@ export function assistantSigningKey(env: Record<string, string | undefined> = pr
 /**
  * Quem pode perguntar: o cliente do próprio tenant, com o módulo Cosmos AI no contrato e cargo que abre
  * `cosmos.assistant.ask` (#996; voluntário não). A equipe Galaxie também pergunta, em qualquer tenant em foco, mas sem
- * gastar os créditos dele: a rota usa `askAssistantAsStaff`, e o custo vai para o ledger da IA interna.
+ * gastar os créditos dele: a rota usa `askAssistantAsStaff`, e o custo fica em `cosmos.staff_usage`.
  */
 export function assistantAccessError(ctx: {
   role: 'admin' | 'client';

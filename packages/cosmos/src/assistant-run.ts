@@ -13,7 +13,7 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { and, count, eq, gt, gte, sql } from 'drizzle-orm';
 import type { Database } from '@galaxie/db/client';
-import { ledger, llmUsage, reservation } from '@galaxie/db/schema';
+import { ledger, reservation, staffUsage } from '@galaxie/db/schema';
 import {
   approxTokens,
   ASSISTANT_FUNCTION,
@@ -365,26 +365,39 @@ export interface StaffAskInput {
   signingKey?: string | null;
 }
 
-/** Perguntas por pessoa da equipe por minuto, neste processo (a equipe não reserva, então o limite fica aqui). */
-const staffAsks = new Map<string, number[]>();
-
 /**
  * Assistente para a equipe Galaxie acompanhando um tenant: a mesma resposta, sem tocar na carteira do cliente. O custo
- * real vai para o ledger da IA interna (`ops.llm_usage`, agente `cosmos-staff`), não para o extrato do cliente.
+ * real fica em `cosmos.staff_usage` (fora do extrato do cliente e do `TokenBudget` dos agentes internos). A linha nasce
+ * `pending` antes da chamada, então o limite por minuto conta também as perguntas em andamento, entre processos.
  */
 export async function* askAssistantAsStaff(
-  db: Pick<Database, 'insert'>,
+  db: Pick<Database, 'insert' | 'select' | 'update'>,
   input: StaffAskInput,
   deps: Pick<AskDeps, 'stream' | 'signal' | 'now'>,
 ): AsyncGenerator<AssistantEvent> {
   const now = deps.now ?? (() => new Date());
   const at = now();
-  const recent = (staffAsks.get(input.userId) ?? []).filter((t) => at.getTime() - t < 60_000);
-  if (recent.length >= ASSISTANT_LIMITS.userPerMinute) {
+  const [recent] = await db
+    .select({ n: count() })
+    .from(staffUsage)
+    .where(
+      and(eq(staffUsage.userId, input.userId), gte(staffUsage.createdAt, new Date(at.getTime() - 60_000))),
+    );
+  if ((recent?.n ?? 0) >= ASSISTANT_LIMITS.userPerMinute) {
     yield { type: 'error', code: 'rate_limited' };
     return;
   }
-  staffAsks.set(input.userId, [...recent, at.getTime()]);
+  const [row] = await db
+    .insert(staffUsage)
+    .values({
+      tenantId: input.tenantId,
+      userId: input.userId,
+      route: input.route.slice(0, 200),
+      provider: input.provider,
+      model: input.model,
+      createdAt: at,
+    })
+    .returning({ id: staffUsage.id });
 
   const usage: StreamUsage = { inputTokens: 0, cachedInputTokens: 0, outputTokens: 0 };
   const controller = new AbortController();
@@ -393,36 +406,39 @@ export async function* askAssistantAsStaff(
   if (deps.signal?.aborted) controller.abort();
   yield { type: 'start', reserved: 0 };
   let text = '';
-  let failed = false;
+  let error: string | null = null;
   try {
     for await (const piece of deps.stream(controller.signal, usage)) {
       text += piece;
       yield { type: 'delta', text: piece };
     }
   } catch (err) {
-    failed = true;
+    error = controller.signal.aborted ? 'aborted' : String((err as Error)?.message ?? err).slice(0, 500);
     if (!controller.signal.aborted) console.error('[cosmos] assistente da equipe falhou no provedor', err);
   } finally {
     deps.signal?.removeEventListener('abort', onAbort);
   }
+  // como no caminho do cliente: sem a contagem final, estima a saída pelo texto e a entrada pelo prompt
   if (!usage.outputFinal && usage.outputTokens < approxTokens(text)) usage.outputTokens = approxTokens(text);
-  if (usage.inputTokens > 0 || usage.outputTokens > 0) {
+  if (usage.inputTokens === 0) {
+    usage.inputTokens =
+      approxTokens(input.prompt.system) +
+      input.prompt.messages.reduce((sum, m) => sum + approxTokens(m.content), 0);
+    usage.cachedInputTokens = 0;
+  }
+  if (row)
     await db
-      .insert(llmUsage)
-      .values({
-        dayUtc: at.toISOString().slice(0, 10),
-        agent: 'cosmos-staff',
-        purpose: `cosmos-staff:assistant:${input.route}`.slice(0, 200),
-        provider: input.provider,
-        model: input.model,
-        tier: 'light',
+      .update(staffUsage)
+      .set({
         inputTokens: usage.inputTokens,
         outputTokens: usage.outputTokens,
         costUsd: assistantCostUsd(usage, input.model).toFixed(6),
-        outcome: failed ? 'error' : 'ok',
+        outcome: error || !text ? 'error' : 'ok',
+        error: error ?? (text ? null : 'empty'),
       })
+      .where(eq(staffUsage.id, row.id))
       .catch((err) => console.error('[cosmos] uso do assistente da equipe não foi registrado', err));
-  }
+  const failed = error !== null;
   if (!text) {
     yield { type: 'error', code: 'failed' };
     return;

@@ -71,7 +71,7 @@ export async function POST(request: Request) {
       }),
     signal: request.signal,
   };
-  // a equipe Galaxie acompanhando o tenant não gasta os créditos dele: o custo vai para o ledger da IA interna
+  // a equipe Galaxie acompanhando o tenant não gasta os créditos dele: o custo fica em cosmos.staff_usage
   const events =
     ctx.role === 'admin'
       ? askAssistantAsStaff(
