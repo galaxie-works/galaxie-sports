@@ -1,5 +1,6 @@
 'use client';
 
+import type { TenantAction } from '@galaxie/engage';
 import {
   Blocks,
   ChevronRightIcon,
@@ -9,6 +10,7 @@ import {
   Menu,
   Palette,
   Tv,
+  Users,
   Webhook,
 } from 'lucide-react';
 import Link from 'next/link';
@@ -41,19 +43,34 @@ export type ClientNavIcon = ComponentType<SVGProps<SVGSVGElement>>;
 
 /**
  * Áreas do painel do cliente que já existem. Os produtos novos (Chat ao vivo, Comunidades, Gamificação,
- * Shop the game, Cobrança e créditos, Usuários e cargos) entram aqui quando tiverem página;
- * grupo sem área não aparece.
+ * Shop the game, Cobrança e créditos) entram aqui quando tiverem página; grupo sem área não aparece.
+ * `action`: ação da matriz de cargos (#1019) que a área exige; `module`: módulo que o tenant precisa ter (#1018).
+ * Sem a permissão ou o módulo, a área some do menu e a página mostra o aviso.
  */
 export const CLIENT_NAV = [
   { id: 'overview', href: '/cliente', icon: LayoutDashboard, group: 'account' },
-  { id: 'keys', href: '/cliente/chaves', icon: KeyRound, group: 'account' },
-  { id: 'builder', href: '/cliente/builder', icon: Blocks, group: 'content' },
-  { id: 'themes', href: '/cliente/temas', icon: Palette, group: 'content' },
-  { id: 'lineup', href: '/cliente/grade', icon: Tv, group: 'content' },
-  { id: 'channels', href: '/cliente/canais', icon: ListVideo, group: 'content' },
+  { id: 'members', href: '/cliente/usuarios', icon: Users, group: 'account', action: 'members.view' },
+  { id: 'keys', href: '/cliente/chaves', icon: KeyRound, group: 'account', action: 'settings.manage' },
+  { id: 'builder', href: '/cliente/builder', icon: Blocks, group: 'content', action: 'settings.manage' },
+  { id: 'themes', href: '/cliente/temas', icon: Palette, group: 'content', action: 'settings.manage' },
+  { id: 'lineup', href: '/cliente/grade', icon: Tv, group: 'content', action: 'settings.manage' },
+  { id: 'channels', href: '/cliente/canais', icon: ListVideo, group: 'content', action: 'settings.manage' },
   { id: 'cosmos', href: '/cliente/cosmos', icon: CosmosIcon, group: 'intelligence' },
-  { id: 'webhooks', href: '/cliente/webhooks', icon: Webhook, group: 'integrations' },
-] as const satisfies readonly { id: string; href: string; icon: ClientNavIcon; group: ClientNavGroupId }[];
+  {
+    id: 'webhooks',
+    href: '/cliente/webhooks',
+    icon: Webhook,
+    group: 'integrations',
+    action: 'settings.manage',
+  },
+] as const satisfies readonly {
+  id: string;
+  href: string;
+  icon: ClientNavIcon;
+  group: ClientNavGroupId;
+  action?: TenantAction;
+  module?: string;
+}[];
 
 export type ClientSection = (typeof CLIENT_NAV)[number]['id'];
 
@@ -70,18 +87,35 @@ export interface ClientNavGroup {
   items: ClientNavLeaf[];
 }
 
-/** Grupos com as áreas no idioma da tela, em ordem alfabética; grupo vazio fica de fora. */
-export function clientNavGroups(nav: ClientDictionary['client']['nav']): ClientNavGroup[] {
+/** Requisitos de uma área (cargo e módulo), para a moldura decidir o que aparece. */
+export const navRequirement = (id: ClientSection): { action?: TenantAction; module?: string } => {
+  const item = CLIENT_NAV.find((i) => i.id === id) as { action?: TenantAction; module?: string } | undefined;
+  return {
+    ...(item?.action ? { action: item.action } : {}),
+    ...(item?.module ? { module: item.module } : {}),
+  };
+};
+
+/**
+ * Grupos com as áreas no idioma da tela, em ordem alfabética; grupo vazio fica de fora. `visible` = só essas áreas
+ * (as que o cargo e os módulos do tenant abrem); ausente = todas.
+ */
+export function clientNavGroups(
+  nav: ClientDictionary['client']['nav'],
+  visible?: readonly ClientSection[],
+): ClientNavGroup[] {
   return CLIENT_NAV_GROUPS.map((group) => ({
     id: group,
     label: nav.groups[group],
     items: sortByLabel(
-      CLIENT_NAV.filter((i) => i.group === group).map(({ id, href, icon }) => ({
-        id,
-        href,
-        icon,
-        label: nav[id],
-      })),
+      CLIENT_NAV.filter((i) => i.group === group && (!visible || visible.includes(i.id))).map(
+        ({ id, href, icon }) => ({
+          id,
+          href,
+          icon,
+          label: nav[id],
+        }),
+      ),
     ),
   })).filter((g) => g.items.length > 0);
 }
@@ -92,13 +126,21 @@ export function clientNavGroups(nav: ClientDictionary['client']['nav']): ClientN
  * `aria-current`), os grupos vêm das rotas e são botões que abrem e fecham pelo teclado. Os grupos
  * nascem abertos (o da rota atual sempre), para o Tab chegar a todas as áreas.
  */
-function ClientNavMenu({ active, onNavigate }: { active: ClientSection; onNavigate?: () => void }) {
+function ClientNavMenu({
+  active,
+  visible,
+  onNavigate,
+}: {
+  active: ClientSection;
+  visible?: readonly ClientSection[] | undefined;
+  onNavigate?: () => void;
+}) {
   const { t } = useI18n();
   return (
     <Card className="p-0">
       <CardContent className="p-1">
         <div className="flex flex-col gap-0.5">
-          {clientNavGroups(t.client.nav).map((group) => (
+          {clientNavGroups(t.client.nav, visible).map((group) => (
             <Collapsible key={group.id} defaultOpen>
               <CollapsibleTrigger
                 render={
@@ -158,17 +200,33 @@ function ClientNavMenu({ active, onNavigate }: { active: ClientSection; onNaviga
 }
 
 /** Menu lateral do painel do cliente no computador (coluna de 240 px). */
-export function ClientSideNav({ active, className }: { active: ClientSection; className?: string }) {
+export function ClientSideNav({
+  active,
+  visible,
+  className,
+}: {
+  active: ClientSection;
+  visible?: readonly ClientSection[];
+  className?: string;
+}) {
   const { t } = useI18n();
   return (
     <nav aria-label={t.client.nav.label} className={cn('w-60 shrink-0', className)}>
-      <ClientNavMenu active={active} />
+      <ClientNavMenu active={active} visible={visible} />
     </nav>
   );
 }
 
 /** O mesmo menu no celular, numa gaveta aberta pelo botão do topo (fecha ao navegar). */
-export function ClientNavSheet({ active, className }: { active: ClientSection; className?: string }) {
+export function ClientNavSheet({
+  active,
+  visible,
+  className,
+}: {
+  active: ClientSection;
+  visible?: readonly ClientSection[];
+  className?: string;
+}) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
   return (
@@ -183,7 +241,7 @@ export function ClientNavSheet({ active, className }: { active: ClientSection; c
           <SheetTitle>{t.client.title}</SheetTitle>
         </SheetHeader>
         <nav aria-label={t.client.nav.label}>
-          <ClientNavMenu active={active} onNavigate={() => setOpen(false)} />
+          <ClientNavMenu active={active} visible={visible} onNavigate={() => setOpen(false)} />
         </nav>
       </SheetContent>
     </Sheet>
