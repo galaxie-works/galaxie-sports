@@ -16,12 +16,13 @@ import {
   X,
   type LucideIcon,
 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 
 import { Endpoint } from '@/components/docs/endpoint';
 import { Crest } from '@/components/sport/crest';
 import { Badge } from '@/components/reui/badge';
+import { announceSettingAnchor } from '@/components/settings/page-chrome/setting-anchor';
 import {
   CommandDialog,
   Command,
@@ -34,6 +35,7 @@ import {
 } from '@/components/ui/command';
 import { Spinner } from '@/components/ui/spinner';
 import { authClient } from '@/lib/auth/client';
+import { canAccessAdmin } from '@/lib/auth/roles';
 import type { DocGuideRef } from '@/lib/docs';
 import { switchLocale, useI18n } from '@/lib/i18n/client';
 import { apiLocale, LANGUAGES, type Locale } from '@/lib/i18n/config';
@@ -58,6 +60,7 @@ import {
 import { startTrailAt } from '@/lib/trail';
 
 import { rememberLocale } from '../app-shell/user-menu';
+import { isSettingsPath, SettingsResultGroups, useSettingsSearch } from './settings-results';
 
 const DEBOUNCE_MS = 200;
 const MIN_CHARS = 2;
@@ -288,6 +291,10 @@ export function CommandPalette({
   const router = useRouter();
   const { data: session } = authClient.useSession();
   const isAdmin = session?.user.role === 'admin';
+  // Busca de ajustes (#1071): só a equipe, como o resto de Ajustes. Dentro de Ajustes vem antes; fora, depois do app.
+  const pathname = usePathname();
+  const inSettings = isSettingsPath(pathname);
+  const isStaff = canAccessAdmin(session?.user.role);
   const [query, setQuery] = useState('');
   const term = useDebounced(query.trim(), DEBOUNCE_MS);
   const search = useApiSearch(term, locale);
@@ -299,8 +306,10 @@ export function CommandPalette({
   const groups = apiActive && search.data ? groupResults(search.data.data) : [];
   const docHits = typed ? filterEntries(docs, typed, 6) : docs.filter((d) => d.kind === 'doc');
   const actions = filterEntries(actionEntries(T, locale, isAdmin, guides[0]?.description ?? ''), typed);
+  const settingsHits = useSettingsSearch(typed, isStaff);
+  const hasSettingsHits = settingsHits.settings.length > 0 || settingsHits.pages.length > 0;
   const waiting = typed.length >= MIN_CHARS && (term !== typed || search.isFetching);
-  const nothing = !!typed && !groups.length && !docHits.length && !actions.length;
+  const nothing = !!typed && !groups.length && !docHits.length && !actions.length && !hasSettingsHits;
 
   function close(next: boolean) {
     onOpenChange(next);
@@ -320,6 +329,21 @@ export function CommandPalette({
     close(false);
     router.push(entry.href);
   }
+
+  function goToSetting(href: string) {
+    close(false);
+    router.push(href);
+    // mesma página, outra âncora: o push não gera hashchange; a página escuta este aviso (useSettingAnchor)
+    announceSettingAnchor();
+  }
+
+  const settingsGroups = hasSettingsHits ? (
+    <SettingsResultGroups
+      settings={settingsHits.settings}
+      pages={settingsHits.pages}
+      onSelect={goToSetting}
+    />
+  ) : null;
 
   const actionsGroup = actions.length ? (
     <>
@@ -388,6 +412,8 @@ export function CommandPalette({
             <p className="text-muted-foreground px-3 py-2 text-xs">{T.error}</p>
           ) : null}
 
+          {inSettings ? settingsGroups : null}
+
           {groups.map(([type, entries]) => (
             <CommandGroup key={type} heading={T.groups[type]}>
               {entries.map((e) => (
@@ -395,6 +421,8 @@ export function CommandPalette({
               ))}
             </CommandGroup>
           ))}
+
+          {!inSettings ? settingsGroups : null}
 
           {/* Sem termo, os atalhos vêm antes das páginas da documentação; com termo, depois. */}
           {!typed ? actionsGroup : null}
