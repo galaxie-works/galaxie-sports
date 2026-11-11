@@ -545,10 +545,18 @@ export async function addEntryInTx(
   // repetição (ou outro processo com a mesma chave): com a carteira travada, devolve o lançamento original
   if (key) {
     const [prev] = await tx
-      .select({ id: ledger.id, after: ledger.balanceAfter })
+      .select({ id: ledger.id, after: ledger.balanceAfter, kind: ledger.kind, credits: ledger.credits })
       .from(ledger)
       .where(and(eq(ledger.tenantId, input.tenantId), eq(ledger.idempotencyKey, key)));
-    if (prev) return { ledgerId: prev.id, available: prev.after, replayed: true };
+    if (prev) {
+      // a repetição só vale para o mesmo lançamento: outro valor ou tipo com a mesma chave sumiria calado
+      if (prev.kind !== input.kind || Number(prev.credits) !== credits)
+        throw new CosmosError(
+          'idempotency_conflict',
+          'a chave de idempotência já foi usada em outro lançamento',
+        );
+      return { ledgerId: prev.id, available: prev.after, replayed: true };
+    }
   }
   // teste uma vez só por tenant: com a carteira travada, a segunda concessão (repetição ou outro processo) é recusada
   if (input.kind === 'trial' && w.trialGranted)

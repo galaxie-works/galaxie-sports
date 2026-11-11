@@ -17,7 +17,7 @@ import { ceilCredits } from './credits.js';
 import { isUuid } from './uuid.js';
 import { CosmosError } from './errors.js';
 import type { StripeCheckoutSession, StripeEvent } from './stripe.js';
-import { applyRechargeEvent } from './recharge.js';
+import { applyRechargeEvent, cancelPendingRechargesOfPackage } from './recharge.js';
 import { addEntryInTx, type Tx } from './wallet.js';
 
 export interface CreditPackageView {
@@ -61,13 +61,21 @@ export interface PackageInput {
   sortOrder?: number;
 }
 
-/** Cadastra ou atualiza um pacote (preço e créditos são dados da Galaxie, não código). */
+/**
+ * Cadastra ou atualiza um pacote (preço e créditos são dados da Galaxie, não código). Mudar preço, moeda ou
+ * créditos de um pacote existente desliga as recargas automáticas que usam esse pacote e retira o aceite: a
+ * cobrança recorrente foi aceita com o preço antigo, então o dono precisa aceitar de novo. As tentativas
+ * pendentes desse pacote que ainda não falaram com o Stripe são encerradas. Aceita uma transação já aberta
+ * (a equipe grava o pacote junto com o registro da ação).
+ */
 export async function upsertPackage(
-  db: Pick<Database, 'insert' | 'update'>,
+  db: Database | Tx,
   input: PackageInput,
+  options: { now?: Date } = {},
 ): Promise<string> {
   if (!(input.credits > 0) || !(Number.isInteger(input.priceCents) && input.priceCents > 0))
     throw new CosmosError('invalid_amount', 'créditos e preço do pacote precisam ser maiores que 0');
+  const now = options.now ?? new Date();
   const values = {
     name: input.name,
     credits: ceilCredits(input.credits),
@@ -77,14 +85,47 @@ export async function upsertPackage(
     active: input.active ?? true,
     sortOrder: input.sortOrder ?? 0,
   };
-  const [row] = input.id
-    ? await db
-        .insert(creditPackage)
-        .values({ id: input.id, ...values })
-        .onConflictDoUpdate({ target: creditPackage.id, set: { ...values, updatedAt: new Date() } })
-        .returning({ id: creditPackage.id })
-    : await db.insert(creditPackage).values(values).returning({ id: creditPackage.id });
-  return row!.id;
+  if (!input.id) {
+    const [row] = await db.insert(creditPackage).values(values).returning({ id: creditPackage.id });
+    return row!.id;
+  }
+  const id = input.id;
+  return db.transaction(async (tx) => {
+    const [before] = await tx
+      .select({
+        credits: creditPackage.credits,
+        priceCents: creditPackage.priceCents,
+        currency: creditPackage.currency,
+      })
+      .from(creditPackage)
+      .where(eq(creditPackage.id, id))
+      .for('update');
+    const [row] = await tx
+      .insert(creditPackage)
+      .values({ id, ...values })
+      .onConflictDoUpdate({ target: creditPackage.id, set: { ...values, updatedAt: now } })
+      .returning({ id: creditPackage.id });
+    const priceChanged =
+      before &&
+      (before.priceCents !== values.priceCents ||
+        before.currency !== values.currency ||
+        before.credits !== values.credits);
+    if (priceChanged) {
+      await tx
+        .update(autoRecharge)
+        .set({
+          enabled: false,
+          acceptedAt: null,
+          acceptedBy: null,
+          lastFailureAt: now,
+          lastFailureReason: 'package_changed',
+          updatedAt: now,
+        })
+        .where(and(eq(autoRecharge.packageId, id), eq(autoRecharge.enabled, true)));
+      await cancelPendingRechargesOfPackage(tx, id, 'package_changed', now);
+    }
+    return row!.id;
+  });
 }
 
 /**

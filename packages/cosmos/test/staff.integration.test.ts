@@ -1,11 +1,14 @@
-import { randomBytes } from 'node:crypto';
-import { purchaseIntent, tenant, type Database } from '@galaxie/db';
+import { randomBytes, randomUUID } from 'node:crypto';
+import { autoRecharge, purchaseIntent, rechargeAttempt, tenant, type Database } from '@galaxie/db';
+import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import {
   addEntry,
+  configureAutoRecharge,
   getWallet,
   isCosmosError,
+  ledgerCsv,
   listAllPackages,
   listLedger,
   listStaffActions,
@@ -15,7 +18,9 @@ import {
   staffSavePackage,
   staffSetBlocked,
   staffSetMultiplier,
+  toClientEntry,
   upsertFunctionDef,
+  upsertPackage,
   walletsOverview,
   type CosmosSettings,
 } from '../src/index.js';
@@ -70,6 +75,28 @@ describe('carteiras para a equipe Galaxie', () => {
       status: 'paid',
       paidAt: new Date(),
     });
+    // recarga automática concluída também é receita e compra; a de fora do período só conta na última compra
+    const rechargedAt = new Date(Date.now() + 60_000);
+    await db.insert(rechargeAttempt).values([
+      {
+        tenantId: a,
+        credits: 500,
+        amountCents: 1000,
+        currency: 'usd',
+        status: 'succeeded',
+        updatedAt: rechargedAt,
+      },
+      {
+        tenantId: a,
+        credits: 500,
+        amountCents: 700,
+        currency: 'usd',
+        status: 'succeeded',
+        updatedAt: new Date(Date.now() - 60 * 86_400_000),
+      },
+      // falhou: não é receita
+      { tenantId: a, credits: 500, amountCents: 300, currency: 'brl', status: 'failed' },
+    ]);
     const rows = await walletsOverview(db);
     const alfa = rows.find((x) => x.tenantId === a)!;
     expect(alfa).toMatchObject({
@@ -77,9 +104,9 @@ describe('carteiras para a equipe Galaxie', () => {
       available: 95,
       usedCredits: 5,
       costUsd: 0.05,
-      revenueCents: { brl: 4900, usd: 0 },
+      revenueCents: { brl: 4900, usd: 1000 },
     });
-    expect(alfa.lastPurchaseAt).not.toBeNull();
+    expect(alfa.lastPurchaseAt?.getTime()).toBe(rechargedAt.getTime());
     expect(rows.find((x) => x.tenantId === b)).toMatchObject({
       usedCredits: 0,
       costUsd: 0,
@@ -96,6 +123,7 @@ describe('carteiras para a equipe Galaxie', () => {
       credits: 5,
       reason: 'cortesia do piloto',
       userId: 'adm1',
+      requestKey: randomUUID(),
     });
     await staffCredit(db, {
       tenantId: t,
@@ -103,6 +131,7 @@ describe('carteiras para a equipe Galaxie', () => {
       credits: 3,
       reason: 'falha na moderação',
       userId: 'adm1',
+      requestKey: randomUUID(),
     });
     await staffCredit(db, {
       tenantId: t,
@@ -110,9 +139,17 @@ describe('carteiras para a equipe Galaxie', () => {
       credits: -2,
       reason: 'correção manual',
       userId: 'adm2',
+      requestKey: randomUUID(),
     });
     await expectCode(
-      staffCredit(db, { tenantId: t, kind: 'adjustment', credits: 1, reason: ' ', userId: 'a' }),
+      staffCredit(db, {
+        tenantId: t,
+        kind: 'adjustment',
+        credits: 1,
+        reason: ' ',
+        userId: 'a',
+        requestKey: randomUUID(),
+      }),
       'reason_required',
     );
     const { entries } = await listLedger(db, t, { kinds: ['adjustment', 'refund'] });
@@ -122,6 +159,106 @@ describe('carteiras para a equipe Galaxie', () => {
       ['adjustment', 5, 'adm1', 'cortesia do piloto'],
     ]);
     expect((await getWallet(db, t))?.available).toBe(26);
+  });
+
+  it('ajuste com a mesma chave da janela não lança duas vezes; chave inválida é recusada', async () => {
+    const t = await newTenant('Zeta');
+    await addEntry(db, { tenantId: t, kind: 'purchase', idempotencyKey: key(), credits: 10 });
+    const requestKey = randomUUID();
+    const input = {
+      tenantId: t,
+      kind: 'adjustment' as const,
+      credits: 4,
+      reason: 'cortesia do piloto',
+      userId: 'adm',
+      requestKey,
+    };
+    const [first, again] = await Promise.all([staffCredit(db, input), staffCredit(db, input)]);
+    expect([first.replayed, again.replayed].sort()).toEqual([false, true]);
+    expect(again.ledgerId).toBe(first.ledgerId);
+    expect((await staffCredit(db, input)).replayed).toBe(true);
+    expect((await getWallet(db, t))?.available).toBe(14);
+    // a mesma chave com outro valor ou outro tipo é recusada, não engolida como repetição
+    await expectCode(staffCredit(db, { ...input, credits: 40 }), 'idempotency_conflict');
+    await expectCode(staffCredit(db, { ...input, kind: 'refund' }), 'idempotency_conflict');
+    expect((await getWallet(db, t))?.available).toBe(14);
+    // outra abertura da janela, outra chave: outro ajuste
+    await staffCredit(db, { ...input, requestKey: randomUUID() });
+    expect((await getWallet(db, t))?.available).toBe(18);
+    await expectCode(staffCredit(db, { ...input, requestKey: 'staff-1' }), 'missing_idempotency_key');
+  });
+
+  it('o cliente vê o lançamento da equipe só como Galaxie, sem a pessoa nem o motivo', async () => {
+    const t = await newTenant('Eta');
+    await addEntry(db, { tenantId: t, kind: 'purchase', idempotencyKey: key(), credits: 10 });
+    await staffCredit(db, {
+      tenantId: t,
+      kind: 'adjustment',
+      credits: 2,
+      reason: 'motivo interno da equipe',
+      userId: 'adm-interno',
+      requestKey: randomUUID(),
+    });
+    const { entries } = await listLedger(db, t);
+    expect(entries.map((e) => [e.kind, e.staff])).toEqual([
+      ['adjustment', true],
+      ['purchase', false],
+    ]);
+    expect(toClientEntry(entries[0]!)).toMatchObject({ staff: true, userId: null, note: null });
+    const csv = ledgerCsv(entries);
+    expect(csv).not.toContain('adm-interno');
+    expect(csv).not.toContain('motivo interno');
+    expect(csv).toContain(',Galaxie,');
+    // a equipe segue vendo quem fez e o motivo
+    expect(ledgerCsv(entries, { staff: true })).toContain('motivo interno da equipe');
+  });
+
+  it('bloqueio da equipe impede a recarga automática, inclusive depois de um ajuste negativo', async () => {
+    const pkg = await upsertPackage(db, {
+      name: 'Teste',
+      credits: 500,
+      priceCents: 1000,
+      currency: 'brl',
+      market: 'BR',
+    });
+    const t = await newTenant('Teta');
+    await addEntry(db, { tenantId: t, kind: 'purchase', idempotencyKey: key(), credits: 30 });
+    await configureAutoRecharge(db, {
+      tenantId: t,
+      enabled: true,
+      packageId: pkg,
+      thresholdCredits: 20,
+      accepted: true,
+      userId: 'dono',
+    });
+    await db.update(autoRecharge).set({ stripeCustomerId: 'cus_staff' }).where(eq(autoRecharge.tenantId, t));
+    const attempts = async () =>
+      (await db.select().from(rechargeAttempt).where(eq(rechargeAttempt.tenantId, t))).map((a) => a.status);
+
+    // ajuste negativo abaixo do limiar, sem bloqueio: abre a tentativa; o bloqueio a encerra
+    await staffCredit(db, {
+      tenantId: t,
+      kind: 'adjustment',
+      credits: -15,
+      reason: 'correção manual',
+      userId: 'adm',
+      requestKey: randomUUID(),
+    });
+    expect(await attempts()).toEqual(['pending']);
+    await staffSetBlocked(db, { tenantId: t, blocked: true, reason: 'pagamento em atraso', userId: 'adm' });
+    expect(await attempts()).toEqual(['cancelled']);
+
+    // bloqueada, outro ajuste negativo não abre tentativa
+    await staffCredit(db, {
+      tenantId: t,
+      kind: 'adjustment',
+      credits: -5,
+      reason: 'correção manual',
+      userId: 'adm',
+      requestKey: randomUUID(),
+    });
+    expect(await attempts()).toEqual(['cancelled']);
+    expect(await getWallet(db, t)).toMatchObject({ status: 'blocked', blockReason: 'staff', available: 10 });
   });
 
   it('multiplicador e bloqueio ficam registrados com o antes e o depois', async () => {
@@ -173,6 +310,7 @@ describe('carteiras para a equipe Galaxie', () => {
       credits: -1,
       reason: 'teste encerrado',
       userId: 'a',
+      requestKey: randomUUID(),
     });
     await staffSetBlocked(db, { tenantId: t, blocked: true, reason: 'revisão do contrato', userId: 'a' });
     await staffSetBlocked(db, { tenantId: t, blocked: false, reason: 'revisão concluída', userId: 'a' });

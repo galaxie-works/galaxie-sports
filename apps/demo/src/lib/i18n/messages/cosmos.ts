@@ -155,6 +155,8 @@ export default defineMessages(
       byFunctionTitle: 'Uso por função',
       calls: { one: '{count} chamada', other: '{count} chamadas' },
       system: 'Automático',
+      /** Autor dos lançamentos da equipe (ajuste ou estorno): só a marca, sem a pessoa. */
+      galaxie: 'Galaxie',
       none: '—',
       purchasesTitle: 'Compras e recibos',
       purchasesDescription: 'O recibo de cada compra chega por e-mail, enviado pelo Stripe.',
@@ -390,6 +392,7 @@ export default defineMessages(
         byFunctionTitle: 'Usage by function',
         calls: { one: '{count} call', other: '{count} calls' },
         system: 'Automatic',
+        galaxie: 'Galaxie',
         none: '—',
         purchasesTitle: 'Purchases and receipts',
         purchasesDescription: 'Each purchase receipt arrives by email, sent by Stripe.',
@@ -620,6 +623,8 @@ export default defineMessages(
         byFunctionTitle: 'Uso por función',
         calls: { one: '{count} llamada', other: '{count} llamadas' },
         system: 'Automático',
+        /** Autor dos lançamentos da equipe (ajuste ou estorno): só a marca, sem a pessoa. */
+        galaxie: 'Galaxie',
         none: '—',
         purchasesTitle: 'Compras y recibos',
         purchasesDescription: 'El recibo de cada compra llega por correo, enviado por Stripe.',

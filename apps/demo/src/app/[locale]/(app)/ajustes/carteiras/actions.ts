@@ -51,16 +51,21 @@ async function run(tenantId: string | null, reason: string, fn: (userId: string)
   return { ok: true };
 }
 
-/** Ajuste (positivo ou negativo) ou estorno de créditos. */
+/**
+ * Ajuste (positivo ou negativo) ou estorno de créditos. `requestKey` nasce no navegador ao abrir a janela: reenviar
+ * o mesmo formulário (clique duplo, nova tentativa) devolve o lançamento já feito em vez de lançar de novo.
+ */
 export async function creditWallet(input: {
   tenantId: string;
   kind: 'adjustment' | 'refund';
   credits: number;
   reason: string;
+  requestKey: string;
 }): Promise<StaffActionResult> {
   const credits = Number(input.credits);
   if (!Number.isFinite(credits) || credits === 0 || (input.kind === 'refund' && credits < 0))
     return { ok: false, error: (await texts()).amount };
+  if (!isUuid(input.requestKey)) return { ok: false, error: (await texts()).generic };
   return run(input.tenantId, input.reason, (userId) =>
     staffCredit(builderDb(), {
       tenantId: input.tenantId,
@@ -68,6 +73,7 @@ export async function creditWallet(input: {
       credits,
       reason: input.reason,
       userId,
+      requestKey: input.requestKey,
     }),
   );
 }

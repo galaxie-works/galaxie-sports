@@ -128,6 +128,9 @@ importers:
       '@galaxie/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@galaxie/engage':
+        specifier: workspace:*
+        version: link:../../packages/engage
       '@galaxie/net-guard':
         specifier: workspace:*
         version: link:../../packages/net-guard
@@ -364,6 +367,8 @@ importers:
       drizzle-kit:
         specifier: ^0.31.11
         version: 0.31.11
+
+  packages/engage: {}
 
   packages/explore:
     dependencies:

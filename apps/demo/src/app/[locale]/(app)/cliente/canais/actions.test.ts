@@ -38,6 +38,8 @@ const ctx = (over: Record<string, unknown> = {}) => ({
   role: 'client',
   tenant: TENANT,
   tenants: [],
+  memberRole: 'owner',
+  actor: { kind: 'member', tenantId: TENANT.id, role: 'owner', scope: null },
   ...over,
 });
 

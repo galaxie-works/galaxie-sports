@@ -75,8 +75,18 @@ export const ROLE_GRANTS: Record<RoleService, RoleGrants> = {
       'core.asset',
       'core.participant',
       'core.competition',
-      // Cosmos AI no painel do cliente: ligar (carteira e teste), intenção de compra e recarga automática (#993, #994)
-      'cosmos',
+      // Cosmos AI no painel do cliente: ligar (carteira e teste no extrato), intenção de compra e recarga
+      // automática (#993, #994). Só as tabelas que a demo escreve: o registro de eventos do Stripe
+      // (cosmos.stripe_event), as reservas e o catálogo de funções ficam com a API e o ingestor
+      'cosmos.wallet',
+      'cosmos.ledger',
+      'cosmos.balance_alert',
+      'cosmos.purchase_intent',
+      'cosmos.auto_recharge',
+      'cosmos.recharge_attempt',
+      // Carteiras da equipe Galaxie no painel (#1002): pacotes e o registro das ações
+      'cosmos.package',
+      'cosmos.staff_action',
     ],
   },
   // ingestor (agendador e CLIs manuais, inclusive o seed semântico do pós-deploy); o cursor do cache da demo é
