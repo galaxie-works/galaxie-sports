@@ -125,5 +125,7 @@ responde "indisponível" e nada é reservado. Busca por palavras na documentaç�
 Cada função do catálogo guarda o provedor (`anthropic`, `openai`, `gemini`, `deepseek`) e o modelo; vazio = o padrão
 (Anthropic, modelo leve do registro). A equipe Galaxie troca em Ajustes → Assinaturas e carteiras → Funções da Cosmos,
 com motivo (fica em `cosmos.staff_action`). O preço sai da tabela do ai-ledger, e o crédito do custo real: um modelo
-mais barato gasta menos créditos do cliente, sem mexer nos pacotes. Modelo sem preço na tabela é recusado. O
-assistente chama hoje a Anthropic (`ASSISTANT_STREAMERS`); OpenAI, Gemini e DeepSeek entram pelo `@galaxie/llm`.
+mais barato gasta menos créditos do cliente, sem mexer nos pacotes. Modelo sem preço na tabela (com AI_MODEL_PRICES por
+cima) é recusado. O assistente chama a Anthropic direto (ponto de cache depois da documentação) e OpenAI, Gemini e
+DeepSeek pelo cliente compartilhado `@galaxie/llm` (`ASSISTANT_STREAMERS`); erro no meio do fluxo traz o uso já gasto,
+e o acerto cobra o que o provedor cobrou.

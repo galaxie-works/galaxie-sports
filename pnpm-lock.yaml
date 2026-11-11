@@ -335,6 +335,9 @@ importers:
       '@galaxie/db':
         specifier: workspace:*
         version: link:../db
+      '@galaxie/llm':
+        specifier: workspace:*
+        version: link:../llm
       '@galaxie/runtime-config':
         specifier: workspace:*
         version: link:../runtime-config

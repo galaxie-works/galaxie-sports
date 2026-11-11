@@ -57,6 +57,8 @@ describe('AI_MODEL_PRICES (preço por cima da tabela, sem deploy)', () => {
       'claude-x': { input: 3, cachedInput: 0.3, output: 15, cacheWrite: 3.75 },
     });
     expect(parseModelPrices('')).toEqual({});
+    // claude sem o quarto campo: a gravação no cache vale 1,25× a entrada, como na tabela do código
+    expect(parseModelPrices('claude-y=0.1/0.01/0.5')['claude-y']?.cacheWrite).toBe(0.125);
     expect(() => parseModelPrices('deepseek-flash=0.15')).toThrow(/AI_MODEL_PRICES/);
     expect(MODEL_PRICES_PATTERN.test('a=1/2')).toBe(false);
   });
