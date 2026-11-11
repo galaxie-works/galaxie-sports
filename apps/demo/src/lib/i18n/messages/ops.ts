@@ -1051,6 +1051,11 @@ export default defineMessages(
         label: 'Tentativas extras',
         description: 'Quantas vezes repetir uma chamada em erro passageiro do provedor.',
       },
+      AI_MODEL_PRICES: {
+        label: 'Preço por token',
+        description:
+          'Preço dos modelos em US$ por 1 milhão de tokens, no formato modelo=entrada/cache/saída separado por vírgula (ex.: deepseek-flash=0.15/0.003/0.6). Vale por cima da tabela do código na conta do gasto e no teto diário em US$; cache vazio usa o preço da entrada, e um quarto valor opcional é a gravação no cache. Serve para corrigir um preço ou incluir um modelo novo sem deploy. Vazio usa a tabela do código.',
+      },
       AI_TIMEOUT_MS: {
         label: 'Tempo limite por chamada',
         description: 'Espera máxima por uma resposta do provedor.',
@@ -1280,6 +1285,7 @@ export default defineMessages(
       OPENAI_API_KEY: { label: 'Chave da OpenAI' },
       ANTHROPIC_API_KEY: { label: 'Chave da Anthropic' },
       GEMINI_API_KEY: { label: 'Chave do Gemini' },
+      DEEPSEEK_API_KEY: { label: 'Chave da DeepSeek' },
       YOUTUBE_API_KEY: { label: 'Chave do YouTube' },
       QUALITY_API_KEY: { label: 'Qualidade dos dados: chave da API' },
       S3_ACCESS_KEY: { label: 'Armazenamento: chave de acesso' },
@@ -2317,6 +2323,11 @@ export default defineMessages(
           label: 'Extra attempts',
           description: 'How many times to retry a call on a transient provider error.',
         },
+        AI_MODEL_PRICES: {
+          label: 'Price per token',
+          description:
+            'Model prices in US$ per 1 million tokens, as model=input/cache/output separated by commas (e.g. deepseek-flash=0.15/0.003/0.6). Applies over the code table in the spend count and the daily US$ cap; an empty cache uses the input price, and an optional fourth value is the cache write. Use it to fix a price or add a new model without a deploy. Empty uses the code table.',
+        },
         AI_TIMEOUT_MS: {
           label: 'Timeout per call',
           description: 'Longest wait for a provider answer.',
@@ -2545,6 +2556,7 @@ export default defineMessages(
         OPENAI_API_KEY: { label: 'OpenAI key' },
         ANTHROPIC_API_KEY: { label: 'Anthropic key' },
         GEMINI_API_KEY: { label: 'Gemini key' },
+        DEEPSEEK_API_KEY: { label: 'DeepSeek key' },
         YOUTUBE_API_KEY: { label: 'YouTube key' },
         QUALITY_API_KEY: { label: 'Data quality: API key' },
         S3_ACCESS_KEY: { label: 'Storage: access key' },
@@ -3598,6 +3610,11 @@ export default defineMessages(
           label: 'Intentos extra',
           description: 'Cuántas veces repetir una llamada ante un error pasajero del proveedor.',
         },
+        AI_MODEL_PRICES: {
+          label: 'Precio por token',
+          description:
+            'Precio de los modelos en US$ por 1 millón de tokens, en el formato modelo=entrada/caché/salida separado por comas (ej.: deepseek-flash=0.15/0.003/0.6). Vale por encima de la tabla del código en la cuenta del gasto y en el tope diario en US$; caché vacío usa el precio de la entrada, y un cuarto valor opcional es la escritura en caché. Sirve para corregir un precio o incluir un modelo nuevo sin deploy. Vacío usa la tabla del código.',
+        },
         AI_TIMEOUT_MS: {
           label: 'Tiempo límite por llamada',
           description: 'Espera máxima por una respuesta del proveedor.',
@@ -3829,6 +3846,7 @@ export default defineMessages(
         OPENAI_API_KEY: { label: 'Clave de OpenAI' },
         ANTHROPIC_API_KEY: { label: 'Clave de Anthropic' },
         GEMINI_API_KEY: { label: 'Clave de Gemini' },
+        DEEPSEEK_API_KEY: { label: 'Clave de DeepSeek' },
         YOUTUBE_API_KEY: { label: 'Clave de YouTube' },
         QUALITY_API_KEY: { label: 'Calidad de los datos: clave de la API' },
         S3_ACCESS_KEY: { label: 'Almacenamiento: clave de acceso' },

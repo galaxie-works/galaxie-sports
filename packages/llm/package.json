@@ -1,0 +1,29 @@
+{
+  "name": "@galaxie/llm",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Clientes dos provedores de IA (OpenAI, Anthropic, Gemini e DeepSeek): saída JSON com schema, texto inteiro e em streaming, uso de tokens com cache, timeout, retentativas e erros tipados",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --dir src --passWithNoTests"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.3.0",
+    "@galaxie/ai-ledger": "workspace:*",
+    "ajv": "^8.20.0",
+    "openai": "^7.47.0"
+  }
+}

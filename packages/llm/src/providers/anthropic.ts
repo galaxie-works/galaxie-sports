@@ -16,7 +16,7 @@
  * e .../tool-use/server-tools.
  */
 import Anthropic from '@anthropic-ai/sdk';
-import { DEFAULT_MAX_OUTPUT_TOKENS } from '../budget.js';
+import { DEFAULT_MAX_OUTPUT_TOKENS } from '../estimate.js';
 import { classifyProviderError, LlmError } from '../errors.js';
 import { assertMatchesSchema, strictSchemaProblems } from '../json-schema.js';
 import { estimateCostUsd, WEB_SEARCH_USD_PER_CALL } from '../pricing.js';

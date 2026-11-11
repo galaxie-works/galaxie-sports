@@ -8,13 +8,19 @@ export * from './retry.js';
 export * from './hygiene.js';
 export * from './budget.js';
 export { FakeLlmClient, type FakeHandler, type FakeReply, type FakeResponse } from './fake.js';
-export { OpenAiLlmClient, type OpenAiClientOptions, type OpenAiResponsesApi } from './providers/openai.js';
-export { GeminiLlmClient, type GeminiClientOptions } from './providers/gemini.js';
+// Clientes dos provedores: vivem em @galaxie/llm (compartilhados com a Cosmos AI).
 export {
   AnthropicLlmClient,
+  DeepSeekLlmClient,
+  GeminiLlmClient,
+  OpenAiLlmClient,
   type AnthropicClientOptions,
   type AnthropicMessagesApi,
-} from './providers/anthropic.js';
+  type DeepSeekClientOptions,
+  type GeminiClientOptions,
+  type OpenAiClientOptions,
+  type OpenAiResponsesApi,
+} from '@galaxie/llm';
 export {
   budgetPolicyFromSettings,
   createLlmClient,

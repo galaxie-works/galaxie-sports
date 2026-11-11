@@ -4,19 +4,32 @@
  * - https://developers.openai.com/api/docs/pricing
  * - https://platform.claude.com/docs/en/about-claude/pricing (Anthropic, modelos atuais conferidos em 2026-10-25)
  * - https://ai.google.dev/gemini-api/docs/pricing (Gemini, conferida em 2026-10-23)
+ * - https://api-docs.deepseek.com/quick_start/pricing (DeepSeek, conferida em 2026-11-11)
  * É uma ESTIMATIVA para orçamento e métricas — a fatura do provedor é a fonte da verdade.
+ *
+ * É o único lugar com preço por token: os agentes (services/ai-agents), o ingestor e a Cosmos leem daqui.
+ * Para mudar um preço (ou incluir um modelo) sem deploy: a flag AI_MODEL_PRICES em Ajustes
+ * (`modelo=entrada/cache/saída[/gravação]`, US$ por 1 milhão de tokens), que vale por cima desta tabela.
  */
-/** Tokens de uma chamada (a entrada inclui os lidos do cache; `cachedInputTokens` os separa). */
+/**
+ * Tokens de uma chamada (a entrada inclui os lidos e os gravados no cache; `cachedInputTokens` e
+ * `cacheWriteTokens` os separam).
+ */
 export interface TokenUsage {
   inputTokens: number;
   outputTokens: number;
   cachedInputTokens?: number;
+  cacheWriteTokens?: number;
 }
 
+/** US$ por 1 milhão de tokens. */
 export interface ModelPrice {
   input: number;
+  /** Entrada lida do cache (ausente: o preço da entrada). */
   cachedInput?: number;
   output: number;
+  /** Entrada gravada no cache (ausente: o preço da entrada). */
+  cacheWrite?: number;
 }
 
 export const PRICES_CHECKED_AT = '2026-10-21';
@@ -62,7 +75,82 @@ export const MODEL_PRICES: Record<string, ModelPrice> = {
   'gemini-3.5-flash-lite': { input: 0.3, output: 2.5 },
   'gemini-3.1-pro-preview': { input: 2, output: 12 },
   'gemini-3.1-flash-lite': { input: 0.25, output: 1.5 },
+  // DeepSeek (API compatível com a da OpenAI). Preço do horário de pico (01:00–04:00 e 06:00–10:00 UTC, dias
+  // úteis), o dobro do fora de pico: o teto do dia fica do lado seguro. `deepseek-chat` e `deepseek-reasoner`
+  // não aparecem mais na página de preços: fora da tabela, valem pelo preço mais caro do provedor.
+  'deepseek-flash': { input: 0.3, cachedInput: 0.006, output: 1.2 },
+  'deepseek-v4-pro': { input: 1.32, cachedInput: 0.044, output: 3.96 },
 };
+
+/** Anthropic: gravar no cache (TTL de 5 min) custa 1,25× a entrada; os demais não cobram à parte. */
+for (const [model, price] of Object.entries(MODEL_PRICES))
+  if (model.startsWith('claude-') && price.cacheWrite === undefined)
+    price.cacheWrite = Math.round(price.input * 1.25 * 1_000_000) / 1_000_000;
+
+/**
+ * AI_MODEL_PRICES: `modelo=entrada/cache/saída[/gravação]` separados por vírgula, ponto e vírgula ou
+ * espaço (US$ por 1 milhão de tokens; `cache` e `gravação` podem ficar vazios: valem o preço da entrada).
+ * Ex.: `deepseek-flash=0.15/0.003/0.6, gpt-6-luna=0.1/0.01/0.5`.
+ */
+const PRICE_NUM = '\\d+(?:\\.\\d+)?';
+const PRICE_ENTRY = `[a-zA-Z0-9][a-zA-Z0-9._:/-]{0,80}=${PRICE_NUM}/(?:${PRICE_NUM})?/${PRICE_NUM}(?:/(?:${PRICE_NUM})?)?`;
+export const MODEL_PRICES_PATTERN = new RegExp(`^${PRICE_ENTRY}(?:[,;\\s]+${PRICE_ENTRY})*$`);
+
+/** Lê AI_MODEL_PRICES. Vazio: {}; formato inválido: erro com a entrada. */
+export function parseModelPrices(raw: string | null | undefined): Record<string, ModelPrice> {
+  const out: Record<string, ModelPrice> = {};
+  const text = raw?.trim();
+  if (!text) return out;
+  if (!MODEL_PRICES_PATTERN.test(text))
+    throw new Error(
+      `AI_MODEL_PRICES inválido: use modelo=entrada/cache/saída[/gravação] (recebido: ${text}).`,
+    );
+  for (const entry of text.split(/[,;\s]+/).filter(Boolean)) {
+    const [model, values] = entry.split('=') as [string, string];
+    const [input, cached, output, write] = values.split('/');
+    out[model] = {
+      input: Number(input),
+      output: Number(output),
+      ...(cached ? { cachedInput: Number(cached) } : {}),
+      ...(write ? { cacheWrite: Number(write) } : {}),
+    };
+  }
+  return out;
+}
+
+let overrides: Record<string, ModelPrice> | undefined;
+
+/**
+ * Preços que valem por cima da tabela. Sem chamada a `setModelPriceOverrides`, lê AI_MODEL_PRICES do
+ * ambiente na primeira consulta (os jobs são processos novos a cada execução, com o env atualizado);
+ * valor inválido no ambiente sai no log e é ignorado (a tabela do código vale).
+ */
+export function modelPriceOverrides(): Readonly<Record<string, ModelPrice>> {
+  if (overrides === undefined) {
+    try {
+      overrides = parseModelPrices(process.env.AI_MODEL_PRICES);
+    } catch (err) {
+      console.warn(
+        `[preços de IA] ${err instanceof Error ? err.message : String(err)} A tabela do código vale.`,
+      );
+      overrides = {};
+    }
+  }
+  return overrides;
+}
+
+/**
+ * Troca os preços por cima da tabela (processo de vida longa que resolve AI_MODEL_PRICES pelo banco, ex.:
+ * a API da Cosmos). Texto no formato da flag, mapa pronto ou null (volta a ler o ambiente).
+ */
+export function setModelPriceOverrides(value: string | Record<string, ModelPrice> | null): void {
+  overrides = value === null ? undefined : typeof value === 'string' ? parseModelPrices(value) : { ...value };
+}
+
+/** A tabela do código com os preços de AI_MODEL_PRICES por cima. */
+export function effectiveModelPrices(): Record<string, ModelPrice> {
+  return { ...MODEL_PRICES, ...modelPriceOverrides() };
+}
 
 /** US$ por chamada da ferramenta de busca (US$ 10 por 1.000 na OpenAI e na Anthropic). */
 export const WEB_SEARCH_USD_PER_CALL = 0.01;
@@ -79,11 +167,12 @@ export function searchUsdFor(provider: string): number {
 
 /** Preço do modelo (aceita snapshots datados, ex.: `gpt-6-luna-2026-05-18`). */
 export function priceFor(model: string): ModelPrice | undefined {
-  if (MODEL_PRICES[model]) return MODEL_PRICES[model];
-  const base = Object.keys(MODEL_PRICES)
+  const prices = effectiveModelPrices();
+  if (prices[model]) return prices[model];
+  const base = Object.keys(prices)
     .filter((k) => model.startsWith(`${k}-`))
     .sort((a, b) => b.length - a.length)[0];
-  return base ? MODEL_PRICES[base] : undefined;
+  return base ? prices[base] : undefined;
 }
 
 /** Prefixo dos modelos de cada provedor na tabela de preços. */
@@ -91,9 +180,10 @@ const PROVIDER_MODEL_PREFIX: Record<string, string> = {
   openai: 'gpt-',
   anthropic: 'claude-',
   gemini: 'gemini-',
+  deepseek: 'deepseek-',
 };
 
-/** Provedor do modelo pelo nome (o da tabela); undefined fora dos três provedores. */
+/** Provedor do modelo pelo nome (o da tabela); undefined fora dos provedores conhecidos. */
 export function providerOfModel(model: string): string | undefined {
   return Object.entries(PROVIDER_MODEL_PREFIX).find(([, prefix]) => model.startsWith(prefix))?.[0];
 }
@@ -101,7 +191,7 @@ export function providerOfModel(model: string): string | undefined {
 /** Maior preço de entrada e de saída entre os modelos do provedor (sem desconto de cache). */
 function highestPriceOf(provider: string): ModelPrice | undefined {
   const prefix = PROVIDER_MODEL_PREFIX[provider];
-  const prices = Object.entries(MODEL_PRICES)
+  const prices = Object.entries(effectiveModelPrices())
     .filter(([k]) => prefix && k.startsWith(prefix))
     .map(([, p]) => p);
   if (!prices.length) return undefined;
@@ -142,9 +232,11 @@ export function estimateCostUsd(
 ): number {
   const p = budgetPriceFor(model, provider);
   const cached = Math.min(usage.cachedInputTokens ?? 0, usage.inputTokens);
+  const written = Math.min(usage.cacheWriteTokens ?? 0, usage.inputTokens - cached);
   const tokensCost = p
-    ? ((usage.inputTokens - cached) * p.input +
+    ? ((usage.inputTokens - cached - written) * p.input +
         cached * (p.cachedInput ?? p.input) +
+        written * (p.cacheWrite ?? p.input) +
         usage.outputTokens * p.output) /
       1_000_000
     : 0;

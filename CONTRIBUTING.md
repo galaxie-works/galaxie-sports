@@ -41,6 +41,7 @@ O CI cobra isso (`pnpm lint:deps`): o PR que viola é reprovado com o nome da re
 | `services/ai-agents` | Camada de LLM independente de provedor (OpenAI/Anthropic, orçamento de tokens) e agentes de IA (onde assistir, cenário, live scheduler, curadoria) |
 | `packages/runtime-config` | Flags da operação que mudam sem deploy (banco > env > padrão), editadas em Ajustes na demo |
 | `packages/ai-ledger` | Orçamento diário de IA (`ops.llm_usage`): preços, tetos em tokens e US$ e reserva antes de cada chamada |
+| `packages/llm` | Clientes dos provedores de IA (OpenAI, Anthropic, Gemini, DeepSeek): JSON com schema, texto e streaming, uso com cache, retentativas e erros tipados |
 | `packages/scheduler` | Motor de agendamento do ingestor e dos agentes de IA (cron em UTC, um processo por job, trava, catch-up) |
 | `packages/core-writer` | Grava o lote neutro dos provedores no core (`upsertBatch`): o ingestor alimenta o core por ele e os testes de integração semeiam cenários pelo mesmo caminho |
 | `packages/net-guard` | Proteção contra SSRF: use `guardedFetch` para qualquer URL de terceiro |

@@ -15,10 +15,11 @@
  * Sem filtro de domínios na busca do Google: a allowlist vai no prompt e o validador de direitos só
  * aceita fonte de domínio permitido que cita a emissora (docs/07 §2.2), como nos outros provedores.
  */
-import { DEFAULT_MAX_OUTPUT_TOKENS, estimateRequestTokens, estimateRequestUsd } from '../budget.js';
+import { DEFAULT_MAX_OUTPUT_TOKENS, estimateRequestTokens, estimateRequestUsd } from '../estimate.js';
 import { classifyProviderError, LlmError } from '../errors.js';
 import { assertMatchesSchema, parseJsonOutput, strictSchemaProblems } from '../json-schema.js';
 import { estimateCostUsd, GEMINI_GROUNDING_USD_PER_QUERY } from '../pricing.js';
+import type { FetchLike } from '../http.js';
 import { withRetry, type RetryOptions } from '../retry.js';
 import type { LlmCitation, LlmClient, LlmJsonRequest, LlmResult, LlmTier } from '../types.js';
 import { dedupeCitations, splitMessages, UsageMeter, withUsage } from './common.js';
@@ -88,7 +89,7 @@ interface InteractionOutput {
   error?: { code?: number; message?: string; status?: string };
 }
 
-export type FetchLike = (url: string, init: RequestInit) => Promise<Response>;
+export type { FetchLike } from '../http.js';
 
 export interface GeminiClientOptions {
   apiKey?: string;

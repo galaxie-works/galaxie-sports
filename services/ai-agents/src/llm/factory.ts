@@ -11,9 +11,7 @@ import {
 } from './budget.js';
 import { llmSettingsFromEnv, type AiStatus, type LlmSettings } from './config.js';
 import { priorityResolver } from './priority.js';
-import { AnthropicLlmClient } from './providers/anthropic.js';
-import { GeminiLlmClient } from './providers/gemini.js';
-import { OpenAiLlmClient } from './providers/openai.js';
+import { AnthropicLlmClient, DeepSeekLlmClient, GeminiLlmClient, OpenAiLlmClient } from '@galaxie/llm';
 import type { LlmClient } from './types.js';
 
 export interface CreateLlmClientOptions {
@@ -78,7 +76,7 @@ export interface LlmRuntime {
   budget: TokenBudget;
 }
 
-/** Cria o cliente do provedor escolhido por AI_PROVIDER (openai, anthropic ou gemini), já com orçamento diário e registro de uso. */
+/** Cria o cliente do provedor escolhido por AI_PROVIDER (openai, anthropic, gemini ou deepseek), já com orçamento diário e registro de uso. */
 export function createLlmClient(options: CreateLlmClientOptions = {}): LlmRuntime {
   const env = options.env ?? process.env;
   const settings = llmSettingsFromEnv(env);
@@ -99,7 +97,9 @@ export function createLlmClient(options: CreateLlmClientOptions = {}): LlmRuntim
       ? new AnthropicLlmClient(common)
       : settings.provider === 'gemini'
         ? new GeminiLlmClient(common)
-        : new OpenAiLlmClient(common);
+        : settings.provider === 'deepseek'
+          ? new DeepSeekLlmClient(common)
+          : new OpenAiLlmClient(common);
   const budget = new TokenBudget(
     options.db ? new PgTokenBudgetStore(options.db) : new MemoryTokenBudgetStore(),
     budgetPolicyFromSettings(settings, options.agentLimits, bands),
