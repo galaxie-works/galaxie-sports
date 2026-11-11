@@ -31,6 +31,9 @@ x-node-env: &node-env
   S3_BUCKET: ${S3_BUCKET:-galaxie-sports-assets}
   S3_ACCESS_KEY: ${S3_ACCESS_KEY:?defina S3_ACCESS_KEY}
   S3_SECRET_KEY: ${S3_SECRET_KEY:?defina S3_SECRET_KEY}
+  # KEK das chaves trocadas no painel (#1087): abre as linhas <CHAVE>_SEALED de ops.runtime_setting. Vazia = vale o .env
+  # (docs/runbooks/chaves-no-painel.md)
+  SETTINGS_KEK: ${SETTINGS_KEK:-}
   APISPORTS_PLAN: ${APISPORTS_PLAN:-free}
   # Plano por API (cada API tem assinatura própria); vazio = APISPORTS_PLAN.
   APISPORTS_PLAN_FOOTBALL: ${APISPORTS_PLAN_FOOTBALL:-}
@@ -169,6 +172,9 @@ services:
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       SMTP_FROM: ${SMTP_FROM:-}
+      # Chaves de API trocadas no painel (Ajustes → Credenciais, #1087): a demo cifra ao gravar e abre ao reler (a cada
+      # minuto). Vazia: o painel não grava chaves; o token das sugestões gravado antes abre pela WEBHOOK_SIGNING_SECRET
+      SETTINGS_KEK: ${SETTINGS_KEK:-}
       # Webhooks no painel do cliente (/cliente/webhooks): a mesma KEK do worker cifra o segredo no cadastro e na
       # rotação. Vazia: o painel lista, testa e reenvia, mas não cadastra (docs/runbooks/webhooks.md)
       WEBHOOK_SIGNING_SECRET: ${WEBHOOK_SIGNING_SECRET:-}
