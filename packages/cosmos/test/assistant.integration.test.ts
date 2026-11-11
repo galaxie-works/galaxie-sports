@@ -1,11 +1,12 @@
 import { randomBytes } from 'node:crypto';
-import { ledger, reservation, tenant, type Database } from '@galaxie/db';
+import { ledger, reservation, staffUsage, tenant, type Database } from '@galaxie/db';
 import { and, eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import {
   addEntry,
   askAssistant,
+  askAssistantAsStaff,
   assistantLimitError,
   ASSISTANT_FUNCTION,
   ASSISTANT_LIMITS,
@@ -387,5 +388,97 @@ describe('histórico assinado', () => {
       { role: 'assistant', text: 'resposta verdadeira' },
     ]);
     expect(verifiedHistory([{ role: 'assistant', text: 'x', sig }], null, scope)).toEqual([]);
+  });
+});
+
+describe('equipe Galaxie no assistente', () => {
+  it('responde sem tocar na carteira do cliente; o custo fica no uso da equipe', async () => {
+    const t = await newTenant(100);
+    const events: AssistantEvent[] = [];
+    for await (const e of askAssistantAsStaff(
+      db,
+      {
+        tenantId: t,
+        userId: 'staff-1',
+        route: '/esportes/futebol',
+        prompt,
+        provider: 'anthropic',
+        model: ASSISTANT_MODEL,
+        signingKey: 'segredo-de-teste',
+      },
+      { stream: fakeStream(['Olá', ' equipe'], { tokens: { outputTokens: 20 } }) },
+    ))
+      events.push(e);
+    expect(events.map((e) => e.type)).toEqual(['start', 'delta', 'delta', 'done']);
+    expect(events.at(-1)).toMatchObject({ type: 'done', charged: 0, staff: true, sig: expect.any(String) });
+    // nada na carteira nem no extrato do cliente
+    expect((await getWallet(db, t))?.available).toBe(100);
+    expect((await db.select().from(reservation).where(eq(reservation.tenantId, t))).length).toBe(0);
+    const rows = await db.select().from(staffUsage).where(eq(staffUsage.tenantId, t));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      userId: 'staff-1',
+      inputTokens: 1000,
+      outputTokens: 20,
+      outcome: 'ok',
+      provider: 'anthropic',
+    });
+    expect(Number(rows[0]!.costUsd)).toBeGreaterThan(0);
+  });
+
+  it('para no limite por minuto, contando as perguntas em andamento', async () => {
+    const t = await newTenant(1);
+    await db.insert(staffUsage).values(
+      Array.from({ length: 10 }, () => ({
+        tenantId: t,
+        userId: 'staff-limite',
+        route: '/',
+        provider: 'anthropic',
+        model: ASSISTANT_MODEL,
+      })),
+    );
+    const events: AssistantEvent[] = [];
+    for await (const e of askAssistantAsStaff(
+      db,
+      {
+        tenantId: t,
+        userId: 'staff-limite',
+        route: '/',
+        prompt,
+        provider: 'anthropic',
+        model: ASSISTANT_MODEL,
+      },
+      { stream: fakeStream(['x']) },
+    ))
+      events.push(e);
+    expect(events).toEqual([{ type: 'error', code: 'rate_limited' }]);
+  });
+
+  it('cortada antes do uso final, estima a entrada pelo prompt e grava o erro', async () => {
+    const t = await newTenant(1);
+    async function* cut(): AsyncGenerator<string> {
+      yield 'meia';
+      throw new Error('conexão caiu');
+    }
+    const events: AssistantEvent[] = [];
+    for await (const e of askAssistantAsStaff(
+      db,
+      {
+        tenantId: t,
+        userId: 'staff-corte',
+        route: '/',
+        prompt,
+        provider: 'anthropic',
+        model: ASSISTANT_MODEL,
+      },
+      { stream: () => cut() },
+    ))
+      events.push(e);
+    // o que chegou fica na tela, sem assinatura
+    expect(events.at(-1)).toMatchObject({ type: 'done', staff: true });
+    expect(events.at(-1)).not.toHaveProperty('sig');
+    const [row] = await db.select().from(staffUsage).where(eq(staffUsage.tenantId, t));
+    expect(row).toMatchObject({ outcome: 'error', error: 'conexão caiu' });
+    expect(row!.inputTokens).toBeGreaterThan(0);
   });
 });

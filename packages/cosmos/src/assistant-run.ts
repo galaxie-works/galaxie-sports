@@ -13,7 +13,7 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { and, count, eq, gt, gte, sql } from 'drizzle-orm';
 import type { Database } from '@galaxie/db/client';
-import { ledger, reservation } from '@galaxie/db/schema';
+import { ledger, reservation, staffUsage } from '@galaxie/db/schema';
 import {
   approxTokens,
   ASSISTANT_FUNCTION,
@@ -61,7 +61,7 @@ export type AssistantErrorCode =
 export type AssistantEvent =
   | { type: 'start'; reserved: number }
   | { type: 'delta'; text: string }
-  | { type: 'done'; charged: number; available: number; sig?: string }
+  | { type: 'done'; charged: number; available: number; sig?: string; staff?: true }
   | { type: 'error'; code: AssistantErrorCode };
 
 const RESERVE_ERRORS: Record<string, AssistantErrorCode> = {
@@ -348,6 +348,106 @@ export async function* askAssistant(
     type: 'done',
     charged: settled?.charged ?? 0,
     available,
+    ...(input.signingKey && !failed
+      ? { sig: signAssistantTurn(input.signingKey, { tenantId: input.tenantId, userId: input.userId }, text) }
+      : {}),
+  };
+}
+
+export interface StaffAskInput {
+  /** Tenant em foco (a tela e o histórico assinado são dele); nada sai da carteira dele. */
+  tenantId: string;
+  userId: string;
+  route: string;
+  prompt: AssistantPrompt;
+  provider: string;
+  model: string;
+  signingKey?: string | null;
+}
+
+/**
+ * Assistente para a equipe Galaxie acompanhando um tenant: a mesma resposta, sem tocar na carteira do cliente. O custo
+ * real fica em `cosmos.staff_usage` (fora do extrato do cliente e do `TokenBudget` dos agentes internos). A linha nasce
+ * `pending` antes da chamada, então o limite por minuto conta também as perguntas em andamento, entre processos.
+ */
+export async function* askAssistantAsStaff(
+  db: Pick<Database, 'insert' | 'select' | 'update'>,
+  input: StaffAskInput,
+  deps: Pick<AskDeps, 'stream' | 'signal' | 'now'>,
+): AsyncGenerator<AssistantEvent> {
+  const now = deps.now ?? (() => new Date());
+  const at = now();
+  const [recent] = await db
+    .select({ n: count() })
+    .from(staffUsage)
+    .where(
+      and(eq(staffUsage.userId, input.userId), gte(staffUsage.createdAt, new Date(at.getTime() - 60_000))),
+    );
+  if ((recent?.n ?? 0) >= ASSISTANT_LIMITS.userPerMinute) {
+    yield { type: 'error', code: 'rate_limited' };
+    return;
+  }
+  const [row] = await db
+    .insert(staffUsage)
+    .values({
+      tenantId: input.tenantId,
+      userId: input.userId,
+      route: input.route.slice(0, 200),
+      provider: input.provider,
+      model: input.model,
+      createdAt: at,
+    })
+    .returning({ id: staffUsage.id });
+
+  const usage: StreamUsage = { inputTokens: 0, cachedInputTokens: 0, outputTokens: 0 };
+  const controller = new AbortController();
+  const onAbort = () => controller.abort();
+  deps.signal?.addEventListener('abort', onAbort, { once: true });
+  if (deps.signal?.aborted) controller.abort();
+  yield { type: 'start', reserved: 0 };
+  let text = '';
+  let error: string | null = null;
+  try {
+    for await (const piece of deps.stream(controller.signal, usage)) {
+      text += piece;
+      yield { type: 'delta', text: piece };
+    }
+  } catch (err) {
+    error = controller.signal.aborted ? 'aborted' : String((err as Error)?.message ?? err).slice(0, 500);
+    if (!controller.signal.aborted) console.error('[cosmos] assistente da equipe falhou no provedor', err);
+  } finally {
+    deps.signal?.removeEventListener('abort', onAbort);
+  }
+  // como no caminho do cliente: sem a contagem final, estima a saída pelo texto e a entrada pelo prompt
+  if (!usage.outputFinal && usage.outputTokens < approxTokens(text)) usage.outputTokens = approxTokens(text);
+  if (usage.inputTokens === 0) {
+    usage.inputTokens =
+      approxTokens(input.prompt.system) +
+      input.prompt.messages.reduce((sum, m) => sum + approxTokens(m.content), 0);
+    usage.cachedInputTokens = 0;
+  }
+  if (row)
+    await db
+      .update(staffUsage)
+      .set({
+        inputTokens: usage.inputTokens,
+        outputTokens: usage.outputTokens,
+        costUsd: assistantCostUsd(usage, input.model).toFixed(6),
+        outcome: error || !text ? 'error' : 'ok',
+        error: error ?? (text ? null : 'empty'),
+      })
+      .where(eq(staffUsage.id, row.id))
+      .catch((err) => console.error('[cosmos] uso do assistente da equipe não foi registrado', err));
+  const failed = error !== null;
+  if (!text) {
+    yield { type: 'error', code: 'failed' };
+    return;
+  }
+  yield {
+    type: 'done',
+    charged: 0,
+    available: 0,
+    staff: true,
     ...(input.signingKey && !failed
       ? { sig: signAssistantTurn(input.signingKey, { tenantId: input.tenantId, userId: input.userId }, text) }
       : {}),
