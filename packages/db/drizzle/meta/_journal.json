@@ -547,6 +547,13 @@
       "when": 1794339450000,
       "tag": "0079_cargos_do_cliente",
       "breakpoints": true
+    },
+    {
+      "idx": 78,
+      "version": "7",
+      "when": 1794339541778,
+      "tag": "0080_cosmos_alertas",
+      "breakpoints": true
     }
   ]
 }

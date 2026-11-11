@@ -114,7 +114,7 @@ flowchart TB
   packages_where_to_watch --> packages_db
   packages_widgets --> packages_contracts
   services_ai_agents --> packages_ai_ledger & packages_contracts & packages_db & packages_geo & packages_knowledge & packages_net_guard & packages_observability & packages_providers & packages_rules & packages_runtime_config & packages_scheduler & packages_where_to_watch
-  services_ingestor --> packages_ai_ledger & packages_apisports_client & packages_contracts & packages_core_writer & packages_crests & packages_db & packages_explore & packages_geo & packages_knowledge & packages_net_guard & packages_observability & packages_providers & packages_rules & packages_runtime_config & packages_scheduler & packages_where_to_watch
+  services_ingestor --> packages_ai_ledger & packages_apisports_client & packages_contracts & packages_core_writer & packages_cosmos & packages_crests & packages_db & packages_explore & packages_geo & packages_knowledge & packages_net_guard & packages_observability & packages_providers & packages_rules & packages_runtime_config & packages_scheduler & packages_where_to_watch
 ```
 <!-- deps-map:end -->
 

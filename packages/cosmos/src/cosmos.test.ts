@@ -104,6 +104,13 @@ describe('visão do cliente', () => {
         status: 'active',
         trialGranted: false,
         multiplier: 3,
+        trialRemaining: 0,
+        trialExpiresAt: null,
+        cycleBase: 1,
+        cycleStartedAt: null,
+        alertLevel: 0,
+        blockReason: null,
+        enabled: true,
       }),
     ).not.toHaveProperty('multiplier');
   });

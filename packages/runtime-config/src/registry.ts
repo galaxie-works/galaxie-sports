@@ -137,6 +137,7 @@ export const SCHEDULED_JOBS: readonly ScheduledJobDef[] = [
   { name: 'fixture-people', service: 'ingestor', cron: '25 4 * * *', runNow: true },
   { name: 'quota-status', service: 'ingestor', cron: '5 * * * *', runNow: true },
   { name: 'data-quality', service: 'ingestor', cron: '40 4 * * *', runNow: true },
+  { name: 'cosmos-upkeep', service: 'ingestor', cron: '*/5 * * * *', runNow: true },
   { name: 'bootstrap-catalog', service: 'ingestor', cron: '15 3 * * 1', runNow: false },
   { name: 'recap-run', service: 'agents', cron: '*/5 * * * *', runNow: true },
   { name: 'context-run', service: 'agents', cron: '10 * * * *', runNow: true },
@@ -782,7 +783,7 @@ export const SETTINGS: readonly SettingDef[] = [
   secret('FEEDBACK_GITHUB_TOKEN', 'feedback', ['demo']),
   // Stripe da Galaxie Works LLC (#993): a chave secreta abre o checkout no painel do cliente; o segredo do webhook confere
   // a assinatura na API. Sem elas a compra fica indisponível
-  secret('STRIPE_SECRET_KEY', 'cosmos', ['demo']),
+  secret('STRIPE_SECRET_KEY', 'cosmos', ['demo', 'ingestor']),
   secret('STRIPE_WEBHOOK_SECRET', 'cosmos', ['api']),
 
   // ── Cosmos AI (#989) ──────────────────────────────────────────────────────────────────────────
@@ -801,6 +802,28 @@ export const SETTINGS: readonly SettingDef[] = [
     apply: 'refresh',
     default: '25',
     critical: true,
+  },
+  // créditos de teste ao ligar a Cosmos pela primeira vez (uma vez por tenant) e a validade deles; comprados não vencem
+  {
+    key: 'COSMOS_TRIAL_CREDITS',
+    section: 'cosmos',
+    type: 'int',
+    min: 1,
+    max: 100_000,
+    services: ['demo'],
+    apply: 'refresh',
+    default: '250',
+    critical: true,
+  },
+  {
+    key: 'COSMOS_TRIAL_DAYS',
+    section: 'cosmos',
+    type: 'int',
+    min: 1,
+    max: 365,
+    services: ['demo'],
+    apply: 'refresh',
+    default: '90',
   },
   // valor de 1 crédito em US$ de custo de provedor (converte o custo real em créditos). Sem padrão no código: o número
   // é da Galaxie e fica só no banco. Vazio, cada chamada cobra o mínimo da função

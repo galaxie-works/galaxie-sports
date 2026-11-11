@@ -610,6 +610,9 @@ importers:
       '@galaxie/core-writer':
         specifier: workspace:*
         version: link:../../packages/core-writer
+      '@galaxie/cosmos':
+        specifier: workspace:*
+        version: link:../../packages/cosmos
       '@galaxie/crests':
         specifier: workspace:*
         version: link:../../packages/crests

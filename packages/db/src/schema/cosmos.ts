@@ -53,6 +53,21 @@ export const wallet = cosmos.table(
     trialGranted: boolean('trial_granted').notNull().default(false),
     /** Multiplicador sobre o custo real. Só a equipe Galaxie vê. */
     multiplier: numeric('multiplier', { precision: 8, scale: 3, mode: 'number' }).notNull().default(1),
+    /** Quanto do teste ainda está no saldo (o uso gasta o teste primeiro); sai no vencimento (#994). */
+    trialRemaining: credits('trial_remaining').notNull().default(0),
+    trialExpiresAt: timestamp('trial_expires_at', { withTimezone: true }),
+    /**
+     * Ciclo de alertas: começa a cada entrada de créditos (teste, compra, ajuste). `cycle_base` é o saldo livre
+     * logo depois da entrada; os alertas de 80% e 90% medem o uso contra ele, uma vez por limiar por ciclo.
+     */
+    cycleBase: credits('cycle_base').notNull().default(0),
+    cycleStartedAt: timestamp('cycle_started_at', { withTimezone: true }),
+    /** Maior limiar já alertado no ciclo: 0, 80, 90 ou 100 (saldo zerado). */
+    alertLevel: integer('alert_level').notNull().default(0),
+    /** Por que está bloqueada: `depleted` (saldo zerou, uma recarga libera) ou `staff` (decisão da Galaxie). */
+    blockReason: text('block_reason').$type<'depleted' | 'staff'>(),
+    /** O cliente ligou a Cosmos (switch da Visão geral). Desligada, nenhuma função reserva; o saldo fica. */
+    enabled: boolean('enabled').notNull().default(true),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -60,6 +75,11 @@ export const wallet = cosmos.table(
     check('wallet_available_non_negative', sql`${t.available} >= 0`),
     check('wallet_reserved_non_negative', sql`${t.reserved} >= 0`),
     check('wallet_multiplier_positive', sql`${t.multiplier} > 0`),
+    check('wallet_trial_remaining_non_negative', sql`${t.trialRemaining} >= 0`),
+    check('wallet_alert_level', sql`${t.alertLevel} in (0, 80, 90, 100)`),
+    index('wallet_trial_expiry_idx')
+      .on(t.trialExpiresAt)
+      .where(sql`${t.trialRemaining} > 0`),
   ],
 );
 
@@ -276,3 +296,100 @@ export const stripeEvent = cosmos.table('stripe_event', {
   outcome: text('outcome').notNull(),
   receivedAt: timestamp('received_at', { withTimezone: true }).notNull().defaultNow(),
 });
+
+// ─── alertas de saldo e recarga automática (#994) ───────────────────────────────────────────────────
+
+/**
+ * Caixa de saída dos alertas de saldo: 80%, 90% e 100% (zerado), uma linha por limiar por ciclo. A tela lê o
+ * estado da carteira; o e-mail ao dono e o webhook (`cosmos.balance.low`, `cosmos.balance.depleted`, #1023)
+ * marcam o envio aqui.
+ */
+export const balanceAlert = cosmos.table(
+  'balance_alert',
+  {
+    id: pkUuidV7(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenant.id, { onDelete: 'cascade' }),
+    level: integer('level').notNull(),
+    cycleStartedAt: timestamp('cycle_started_at', { withTimezone: true }).notNull(),
+    available: credits('available').notNull(),
+    cycleBase: credits('cycle_base').notNull(),
+    emailedAt: timestamp('emailed_at', { withTimezone: true }),
+    webhookAt: timestamp('webhook_at', { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    check('balance_alert_level', sql`${t.level} in (80, 90, 100)`),
+    uniqueIndex('balance_alert_once_per_cycle').on(t.tenantId, t.level, t.cycleStartedAt),
+  ],
+);
+
+/**
+ * Recarga automática (opcional): o pacote, o limiar e o aceite explícito da cobrança recorrente. O cartão fica
+ * no Stripe (cliente salvo na compra com a recarga ligada); aqui só o id do cliente.
+ */
+export const autoRecharge = cosmos.table(
+  'auto_recharge',
+  {
+    tenantId: uuid('tenant_id')
+      .primaryKey()
+      .references(() => tenant.id, { onDelete: 'cascade' }),
+    enabled: boolean('enabled').notNull().default(false),
+    packageId: uuid('package_id').references(() => creditPackage.id, { onDelete: 'set null' }),
+    /** Abaixo deste saldo livre, a recarga dispara. */
+    thresholdCredits: credits('threshold_credits').notNull(),
+    /** Aceite da cobrança recorrente: quem e quando. Sem aceite, nunca cobra. */
+    acceptedAt: timestamp('accepted_at', { withTimezone: true }),
+    acceptedBy: text('accepted_by'),
+    stripeCustomerId: text('stripe_customer_id'),
+    /** Última falha de cobrança (a recarga se desliga e o dono é avisado). */
+    lastFailureAt: timestamp('last_failure_at', { withTimezone: true }),
+    lastFailureReason: text('last_failure_reason'),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [check('auto_recharge_threshold_positive', sql`${t.thresholdCredits} > 0`)],
+);
+
+export const rechargeStatus = cosmos.enum('recharge_status', [
+  'pending',
+  'processing',
+  'succeeded',
+  'failed',
+  /** A recarga foi desligada (ou o aceite retirado) antes da cobrança. */
+  'cancelled',
+  /** Paga com valor ou moeda diferentes da tentativa: sem crédito até a equipe revisar. */
+  'review',
+]);
+
+/** Tentativa de recarga automática: uma aberta por tenant de cada vez; o crédito entra pelo webhook. */
+export const rechargeAttempt = cosmos.table(
+  'recharge_attempt',
+  {
+    id: pkUuidV7(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenant.id, { onDelete: 'cascade' }),
+    packageId: uuid('package_id').references(() => creditPackage.id, { onDelete: 'set null' }),
+    credits: credits('credits').notNull(),
+    amountCents: integer('amount_cents').notNull(),
+    currency: text('currency').$type<PackageCurrency>().notNull(),
+    status: rechargeStatus('status').notNull().default('pending'),
+    paymentIntentId: text('payment_intent_id').unique(),
+    /** Cliente e cartão da primeira chamada: a repetição manda os mesmos (mesma chave de idempotência no Stripe). */
+    stripeCustomerId: text('stripe_customer_id'),
+    paymentMethodId: text('payment_method_id'),
+    /** Chamadas ao Stripe com falha passageira; no teto, a tentativa falha e a recarga se desliga. */
+    attempts: integer('attempts').notNull().default(0),
+    ledgerId: uuid('ledger_id'),
+    failureReason: text('failure_reason'),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex('recharge_attempt_one_open')
+      .on(t.tenantId)
+      .where(sql`${t.status} in ('pending', 'processing')`),
+  ],
+);
