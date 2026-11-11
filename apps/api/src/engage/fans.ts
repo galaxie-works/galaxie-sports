@@ -3,6 +3,7 @@
  * Tudo filtrado pelo tenant; o Perfil aponta para a Conta por chave composta (o banco recusa mistura).
  */
 import {
+  eraseModerationContent,
   fanAccount,
   fanErasureLog,
   fanPointsRevokedEvent,
@@ -182,7 +183,8 @@ export async function patchFan(
  * coração; a linha fica para o que o Perfil escreveu continuar apontando para "torcedor excluído") e grava o
  * registro para repetir depois de um restore. Repetir a chamada não faz nada. Devolve o Perfil excluído agora.
  *
- * A carteira de pontos (#938) sai junto. Os módulos que guardam conteúdo do torcedor (chat, comunidades, palpites,
+ * A carteira de pontos (#938) sai junto; da moderação (#953) sai o conteúdo do torcedor e os bloqueios, e as decisões
+ * ficam sem o conteúdo até o relógio da ficha do país. Os módulos que guardam conteúdo do torcedor (chat, comunidades, palpites,
  * conquistas) entram aqui quando
  * chegarem, na mesma transação, e o tópico `fan.profile.deleted` sai pelo outbox (#1023).
  */
@@ -233,6 +235,7 @@ export async function eraseFan(
           eq(fanPointsRevokedEvent.profileId, target.profileId),
         ),
       );
+    await eraseModerationContent(tx, input.tenantId, target.profileId);
     await tx.insert(fanErasureLog).values({
       tenantId: input.tenantId,
       profileId: target.profileId,

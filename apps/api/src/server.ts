@@ -11,6 +11,7 @@ import {
   type FanRevocations,
 } from './engage/fan-auth.js';
 import { fanRoutes } from './engage/fan-routes.js';
+import { moderationRoutes } from './engage/moderation-routes.js';
 import type { FanTokenSigner } from './engage/fan-token.js';
 import { AdminGuard, type AdminGuardOptions } from './admin/guard.js';
 import { loadPlans, type PlanCatalog } from './admin/plans.js';
@@ -462,6 +463,7 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
       ttl: new FanTokenTtl(options.db),
       revocations: fanRevocations,
     });
+    await moderationRoutes(instance, { db: options.db, now: options.now });
   });
 
   // escopo próprio: o parser de corpo cru do webhook não vale para as outras rotas
