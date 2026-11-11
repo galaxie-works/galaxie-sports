@@ -67,7 +67,17 @@ export const ROLE_GRANTS: Record<RoleService, RoleGrants> = {
   // operação, widgets e chaves
   demo: {
     read: APP_SCHEMAS.filter((s) => s !== 'raw'),
-    write: ['ops', 'semantic', 'enrich', 'api', 'core.asset', 'core.participant', 'core.competition'],
+    write: [
+      'ops',
+      'semantic',
+      'enrich',
+      'api',
+      'core.asset',
+      'core.participant',
+      'core.competition',
+      // Cosmos AI: a intenção de compra nasce no painel do cliente, antes do checkout do Stripe (#993)
+      'cosmos.purchase_intent',
+    ],
   },
   // ingestor (agendador e CLIs manuais, inclusive o seed semântico do pós-deploy); o cursor do cache da demo é
   // piso da poda do change feed (change-feed-prune). Em `api`, só a poda das entregas de webhook (data-retention,

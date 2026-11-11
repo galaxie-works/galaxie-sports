@@ -14,7 +14,7 @@ import { ceilCredits, creditsFor, roundCredits } from './credits.js';
 import { CosmosError } from './errors.js';
 import { readCosmosSettings, type CosmosSettings } from './settings.js';
 
-type Tx = Parameters<Parameters<Database['transaction']>[0]>[0];
+export type Tx = Parameters<Parameters<Database['transaction']>[0]>[0];
 type Db = Database | Tx;
 
 /** Prazo padrão de uma reserva aberta; passou dele, `releaseExpired` devolve o saldo. */
@@ -463,6 +463,15 @@ export async function addEntry(
   input: EntryInput,
   options: { now?: Date } = {},
 ): Promise<{ ledgerId: string; available: number; replayed: boolean }> {
+  return db.transaction((tx) => addEntryInTx(tx, input, options));
+}
+
+/** O mesmo que `addEntry`, dentro de uma transação já aberta (o webhook credita junto com o evento). */
+export async function addEntryInTx(
+  tx: Tx,
+  input: EntryInput,
+  options: { now?: Date } = {},
+): Promise<{ ledgerId: string; available: number; replayed: boolean }> {
   const now = options.now ?? new Date();
   const key = input.idempotencyKey?.trim() || null;
   if (!key && KEYED_KINDS.has(input.kind))
@@ -475,51 +484,49 @@ export async function addEntry(
       'invalid_amount',
       'créditos do lançamento precisam ser diferentes de 0 (positivos no teste e na compra)',
     );
-  return db.transaction(async (tx) => {
-    await tx.insert(wallet).values({ tenantId: input.tenantId }).onConflictDoNothing();
-    const w = await lockWallet(tx, input.tenantId);
-    if (!w) throw new CosmosError('no_wallet', 'carteira não foi criada');
-    // repetição (ou outro processo com a mesma chave): com a carteira travada, devolve o lançamento original
-    if (key) {
-      const [prev] = await tx
-        .select({ id: ledger.id, after: ledger.balanceAfter })
-        .from(ledger)
-        .where(and(eq(ledger.tenantId, input.tenantId), eq(ledger.idempotencyKey, key)));
-      if (prev) return { ledgerId: prev.id, available: prev.after, replayed: true };
-    }
-    // teste uma vez só por tenant: com a carteira travada, a segunda concessão (repetição ou outro processo) é recusada
-    if (input.kind === 'trial' && w.trialGranted)
-      throw new CosmosError('trial_already_granted', 'créditos de teste já concedidos a este tenant');
-    const available = roundCredits(w.available + credits);
-    if (available < 0) throw new CosmosError('insufficient_credits', 'saída maior que o saldo livre');
-    const received = credits > 0 && RECEIVED_KINDS.has(input.kind) ? credits : 0;
-    await tx
-      .update(wallet)
-      .set({
-        available,
-        receivedTotal: sql`${wallet.receivedTotal} + ${received}`,
-        ...(input.kind === 'trial' ? { trialGranted: true } : {}),
-        updatedAt: now,
-      })
-      .where(eq(wallet.tenantId, input.tenantId));
-    const [entry] = await tx
-      .insert(ledger)
-      .values({
-        tenantId: input.tenantId,
-        kind: input.kind,
-        credits,
-        balanceBefore: w.available,
-        balanceAfter: available,
-        userId: input.userId ?? null,
-        scope: input.scope ?? null,
-        note: input.note ?? null,
-        metadata: input.metadata ?? null,
-        idempotencyKey: key,
-        createdAt: now,
-      })
-      .returning({ id: ledger.id });
-    return { ledgerId: entry!.id, available, replayed: false };
-  });
+  await tx.insert(wallet).values({ tenantId: input.tenantId }).onConflictDoNothing();
+  const w = await lockWallet(tx, input.tenantId);
+  if (!w) throw new CosmosError('no_wallet', 'carteira não foi criada');
+  // repetição (ou outro processo com a mesma chave): com a carteira travada, devolve o lançamento original
+  if (key) {
+    const [prev] = await tx
+      .select({ id: ledger.id, after: ledger.balanceAfter })
+      .from(ledger)
+      .where(and(eq(ledger.tenantId, input.tenantId), eq(ledger.idempotencyKey, key)));
+    if (prev) return { ledgerId: prev.id, available: prev.after, replayed: true };
+  }
+  // teste uma vez só por tenant: com a carteira travada, a segunda concessão (repetição ou outro processo) é recusada
+  if (input.kind === 'trial' && w.trialGranted)
+    throw new CosmosError('trial_already_granted', 'créditos de teste já concedidos a este tenant');
+  const available = roundCredits(w.available + credits);
+  if (available < 0) throw new CosmosError('insufficient_credits', 'saída maior que o saldo livre');
+  const received = credits > 0 && RECEIVED_KINDS.has(input.kind) ? credits : 0;
+  await tx
+    .update(wallet)
+    .set({
+      available,
+      receivedTotal: sql`${wallet.receivedTotal} + ${received}`,
+      ...(input.kind === 'trial' ? { trialGranted: true } : {}),
+      updatedAt: now,
+    })
+    .where(eq(wallet.tenantId, input.tenantId));
+  const [entry] = await tx
+    .insert(ledger)
+    .values({
+      tenantId: input.tenantId,
+      kind: input.kind,
+      credits,
+      balanceBefore: w.available,
+      balanceAfter: available,
+      userId: input.userId ?? null,
+      scope: input.scope ?? null,
+      note: input.note ?? null,
+      metadata: input.metadata ?? null,
+      idempotencyKey: key,
+      createdAt: now,
+    })
+    .returning({ id: ledger.id });
+  return { ledgerId: entry!.id, available, replayed: false };
 }
 
 /** Bloqueia ou libera a carteira (saldo zerado, decisão da Galaxie). */
