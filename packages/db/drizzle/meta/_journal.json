@@ -617,6 +617,13 @@
       "when": 1794422461928,
       "tag": "0092_cosmos_uso_equipe",
       "breakpoints": true
+    },
+    {
+      "idx": 88,
+      "version": "7",
+      "when": 1794427652218,
+      "tag": "0095_denuncias",
+      "breakpoints": true
     }
   ]
 }
