@@ -3,6 +3,15 @@ import type { Redis } from 'ioredis';
 import type { MediaDenylist } from '@galaxie/apisports-client';
 import { pingDb, type Database } from '@galaxie/db';
 import { loadWtwConfig, type WtwConfig } from '@galaxie/where-to-watch';
+import {
+  FanTokenTtl,
+  MemoryFanRevocations,
+  RedisFanRevocations,
+  registerFanAuth,
+  type FanRevocations,
+} from './engage/fan-auth.js';
+import { fanRoutes } from './engage/fan-routes.js';
+import type { FanTokenSigner } from './engage/fan-token.js';
 import { AdminGuard, type AdminGuardOptions } from './admin/guard.js';
 import { loadPlans, type PlanCatalog } from './admin/plans.js';
 import { adminRoutes } from './admin/routes.js';
@@ -140,6 +149,13 @@ export interface ServerOptions {
    * memória sem Valkey); false desliga. Segue `usagePersist` para consolidar ou não.
    */
   moduleUsage?: ModuleUsageMeter | false;
+  /**
+   * Assinatura do token do torcedor (`gft_`, #937): FAN_TOKEN_SECRET. Ausente ou null, as rotas do torcedor
+   * respondem 503 (um segredo aleatório por processo não vale com várias instâncias).
+   */
+  fanTokens?: FanTokenSigner | null;
+  /** Marca de Perfil excluído (Valkey; memória sem Valkey). */
+  fanRevocations?: FanRevocations;
   /** Diretório dos regulamentos (padrão: config/rules do monorepo). */
   rulesDir?: string;
   /** URLs de mídia bloqueadas (config/assets/denylist.yaml). */
@@ -296,6 +312,10 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
     registerCors(app, options.cors ?? { origins: [] }, publishable);
   app.decorateRequest('tenant', null);
   app.decorateRequest('reauthenticate', null);
+  const fanRevocations =
+    options.fanRevocations ??
+    (options.redis ? new RedisFanRevocations(options.redis, prefix) : new MemoryFanRevocations());
+  registerFanAuth(app, { signer: options.fanTokens ?? null, revocations: fanRevocations, limiter, windowMs });
 
   // Autenticação, módulo do plano, uso e rate limit — rotas com `config.module` ou `config.authenticated`.
   // A chave secreta (`x-galaxie-key`) tem precedência; sem ela, vale a publicável, só para leitura.
@@ -436,6 +456,12 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
     await mirrorRoutes(instance, ctx);
     await internalWhereToWatchRoutes(instance, ctx);
     await accountRoutes(instance, { db: options.db, usage: usageBackend });
+    await fanRoutes(instance, {
+      db: options.db,
+      signer: options.fanTokens ?? null,
+      ttl: new FanTokenTtl(options.db),
+      revocations: fanRevocations,
+    });
   });
 
   // escopo próprio: o parser de corpo cru do webhook não vale para as outras rotas
