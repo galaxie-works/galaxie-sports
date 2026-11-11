@@ -33,6 +33,7 @@ export const APP_SCHEMAS = [
   'multisport',
   'equestrian',
   'cosmos',
+  'engage',
   'fan',
 ] as const;
 
@@ -68,7 +69,7 @@ export const ROLE_GRANTS: Record<RoleService, RoleGrants> = {
   // runtime_env/publishable_key/change_feed em ops
   api: {
     read: [...APP_SCHEMAS, `${DEMO_AUTH_SCHEMA}.${DEMO_FEED_CURSOR}`],
-    write: ['api', 'enrich', 'ops', 'cosmos', 'fan'],
+    write: ['api', 'enrich', 'ops', 'cosmos', 'fan', 'engage'],
   },
   // demo (painel de Ajustes): revisão semântica, grades e logos, escudos de time e competição, vídeos,
   // operação, widgets e chaves
@@ -79,6 +80,7 @@ export const ROLE_GRANTS: Record<RoleService, RoleGrants> = {
       'semantic',
       'enrich',
       'api',
+      'engage',
       'core.asset',
       'core.participant',
       'core.competition',

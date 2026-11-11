@@ -12,8 +12,11 @@ Regras do engajamento do torcedor (#1017) sem HTTP nem banco, iguais na API, no 
   que o de cima (a Escada) e ações do painel não descem ao Voluntário (`DELEGATION_FLOOR`). `setRolePermission` liga
   ou desliga uma célula (dar sobe, tirar desce) e `diffOverrides` lista o que mudou para a auditoria.
 
-Vêm depois, na mesma biblioteca: token do torcedor (#937), ficha por país (#954), configuração efetiva e Regras
-fixas.
+- `country-policy.ts` (#954): a Ficha por país (idade, entidade, moeda, retenção, gamificação e campanhas com prêmio),
+  as fichas iniciais, `validatePolicy` / `policyChangeIssues` (nunca abaixo de 13; escrever abaixo de 18 só com
+  confirmação), `hardenPolicy` (o cliente só endurece) e `resolvePolicy` (país do torcedor, LATAM, país principal).
+
+Vêm depois, na mesma biblioteca: configuração efetiva e Regras fixas. O token do torcedor (#937) mora em `apps/api`.
 
 ## Depende de
 
@@ -21,4 +24,4 @@ Nada.
 
 ## Usado por
 
-`apps/demo` (Cliente → Usuários e cargos) e, nas próximas ondas, `apps/api` (rotas do engajamento).
+`apps/demo` (Cliente → Usuários e cargos; Ajustes → Conformidade → Ficha por país) e, nas próximas ondas, `apps/api` (rotas do engajamento).

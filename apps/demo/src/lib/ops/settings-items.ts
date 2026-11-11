@@ -1,5 +1,5 @@
 /**
- * Itens do menu de Ajustes (épico #1066): Início fixo no topo e 9 grupos com 44 itens, 22 que já existem e 22
+ * Itens do menu de Ajustes (épico #1066): Início fixo no topo e 9 grupos com 44 itens, 23 que já existem e 21
  * planejados com o selo "Em breve" (decisão A5). Puro (sem React nem servidor): o proxy, os redirecionamentos, o mapa
  * ajuste → página e os testes leem daqui; os ícones e os textos ficam em `components/admin/settings-nav.tsx` e no
  * dicionário (`ops.nav`).
@@ -63,12 +63,8 @@ export const SETTINGS_ITEMS = [
   { id: 'plans', href: '/ajustes/planos', group: 'comercial', soon: { href: SETTINGS_EPIC_URL } },
   { id: 'advertising', href: '/ajustes/publicidade', group: 'comercial', soon: { href: SETTINGS_EPIC_URL } },
   // Conformidade
-  {
-    id: 'countryProfile',
-    href: '/ajustes/ficha-por-pais',
-    group: 'conformidade',
-    soon: { href: issue(954) },
-  },
+  // Ficha por país (#954): regras de idade, entidade, moeda e prêmio por país, com versão e histórico
+  { id: 'countryProfile', href: '/ajustes/ficha-por-pais', group: 'conformidade' },
   {
     id: 'legalHold',
     href: '/ajustes/guarda-legal',

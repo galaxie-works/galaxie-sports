@@ -14,6 +14,7 @@ export default defineConfig({
     'multisport',
     'equestrian',
     'cosmos',
+    'engage',
     'fan',
   ],
   dbCredentials: {

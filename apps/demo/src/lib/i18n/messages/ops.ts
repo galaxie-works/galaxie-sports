@@ -205,10 +205,6 @@ export default defineMessages(
           what: 'Inventário e regra de revenue share do D2C e do white-label.',
           phase: 'A definir',
         },
-        countryProfile: {
-          what: 'Idade, entidade, moeda, regras de menores e tetos de prêmio por país, com versão.',
-          phase: 'Base do engajamento · #954',
-        },
         legalHold: {
           what: 'Guarda de 2 anos, legal hold e pedidos de exportação judicial com hash.',
           phase: 'Base do engajamento',
@@ -2002,10 +1998,6 @@ export default defineMessages(
             what: 'Inventory and revenue share rule for D2C and white-label.',
             phase: 'To be defined',
           },
-          countryProfile: {
-            what: 'Age, entity, currency, rules for minors and prize caps per country, versioned.',
-            phase: 'Engagement base · #954',
-          },
           legalHold: {
             what: 'Two-year retention, legal hold and court export requests with hash.',
             phase: 'Engagement base',
@@ -3781,10 +3773,6 @@ export default defineMessages(
           advertising: {
             what: 'Inventario y regla de revenue share del D2C y del white-label.',
             phase: 'A definir',
-          },
-          countryProfile: {
-            what: 'Edad, entidad, moneda, reglas de menores y topes de premio por país, con versión.',
-            phase: 'Base de la participación · #954',
           },
           legalHold: {
             what: 'Custodia de 2 años, legal hold y pedidos de exportación judicial con hash.',

@@ -10,6 +10,7 @@ import client from './messages/client';
 import code from './messages/code';
 import common from './messages/common';
 import cosmos from './messages/cosmos';
+import countryPolicies from './messages/country-policies';
 import cosmosStaff from './messages/cosmos-staff';
 import crests from './messages/crests';
 import docs from './messages/docs';
@@ -47,6 +48,7 @@ export const NAMESPACES = {
   code,
   common,
   cosmos,
+  countryPolicies,
   cosmosStaff,
   crests,
   docs,
@@ -101,6 +103,7 @@ export const CLIENT_NAMESPACES = [
   'client',
   'code',
   'common',
+  'countryPolicies',
   'cosmos',
   'cosmosStaff',
   'crests',

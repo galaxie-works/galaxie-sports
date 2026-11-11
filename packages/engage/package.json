@@ -2,7 +2,7 @@
   "name": "@galaxie/engage",
   "version": "0.1.0",
   "private": true,
-  "description": "Regras do engajamento do torcedor sem HTTP nem banco: cargos da equipe do cliente e a matriz de permissões (can), e depois token, ficha por país e Regras fixas",
+  "description": "Regras do engajamento do torcedor sem HTTP nem banco: cargos da equipe do cliente a matriz de permissões (can) e a ficha por país; depois, Regras fixas",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
