@@ -178,6 +178,10 @@ describe('carteiras para a equipe Galaxie', () => {
     expect(again.ledgerId).toBe(first.ledgerId);
     expect((await staffCredit(db, input)).replayed).toBe(true);
     expect((await getWallet(db, t))?.available).toBe(14);
+    // a mesma chave com outro valor ou outro tipo é recusada, não engolida como repetição
+    await expectCode(staffCredit(db, { ...input, credits: 40 }), 'idempotency_conflict');
+    await expectCode(staffCredit(db, { ...input, kind: 'refund' }), 'idempotency_conflict');
+    expect((await getWallet(db, t))?.available).toBe(14);
     // outra abertura da janela, outra chave: outro ajuste
     await staffCredit(db, { ...input, requestKey: randomUUID() });
     expect((await getWallet(db, t))?.available).toBe(18);

@@ -94,7 +94,11 @@ function AmountAction({
           type="number"
           step={kind === 'multiplier' ? 0.1 : 1}
           value={value}
-          onChange={(e) => setValue(e.target.value)}
+          onChange={(e) => {
+            setValue(e.target.value);
+            // outro valor é outro ajuste: chave nova, para o reenvio não devolver o lançamento do valor anterior
+            if (kind !== 'multiplier') setRequestKey(newRequestKey());
+          }}
         />
       </Field>
     </ReasonDialog>
