@@ -142,7 +142,8 @@ export function assistantSigningKey(env: Record<string, string | undefined> = pr
 
 /**
  * Quem pode perguntar: o cliente do próprio tenant, com o módulo Cosmos AI no contrato e cargo que abre
- * `cosmos.assistant.ask` (#996; voluntário não). A equipe Galaxie acompanhando um tenant não gasta os créditos dele.
+ * `cosmos.assistant.ask` (#996; voluntário não). A equipe Galaxie também pergunta, em qualquer tenant em foco, mas sem
+ * gastar os créditos dele: a rota usa `askAssistantAsStaff`, e o custo vai para o ledger da IA interna.
  */
 export function assistantAccessError(ctx: {
   role: 'admin' | 'client';
@@ -150,7 +151,7 @@ export function assistantAccessError(ctx: {
   actor: Actor | null;
 }): 'unauthorized' | 'staff' | 'module' | 'role' | null {
   if (!ctx.tenant) return 'unauthorized';
-  if (ctx.role === 'admin') return 'staff';
+  if (ctx.role === 'admin') return null;
   if (!ctx.tenant.modules.includes('cosmos_ai')) return 'module';
   if (!can(ctx, 'cosmos.assistant.ask')) return 'role';
   return null;

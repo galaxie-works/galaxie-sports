@@ -13,7 +13,7 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { and, count, eq, gt, gte, sql } from 'drizzle-orm';
 import type { Database } from '@galaxie/db/client';
-import { ledger, reservation } from '@galaxie/db/schema';
+import { ledger, llmUsage, reservation } from '@galaxie/db/schema';
 import {
   approxTokens,
   ASSISTANT_FUNCTION,
@@ -61,7 +61,7 @@ export type AssistantErrorCode =
 export type AssistantEvent =
   | { type: 'start'; reserved: number }
   | { type: 'delta'; text: string }
-  | { type: 'done'; charged: number; available: number; sig?: string }
+  | { type: 'done'; charged: number; available: number; sig?: string; staff?: true }
   | { type: 'error'; code: AssistantErrorCode };
 
 const RESERVE_ERRORS: Record<string, AssistantErrorCode> = {
@@ -348,6 +348,90 @@ export async function* askAssistant(
     type: 'done',
     charged: settled?.charged ?? 0,
     available,
+    ...(input.signingKey && !failed
+      ? { sig: signAssistantTurn(input.signingKey, { tenantId: input.tenantId, userId: input.userId }, text) }
+      : {}),
+  };
+}
+
+export interface StaffAskInput {
+  /** Tenant em foco (a tela e o histórico assinado são dele); nada sai da carteira dele. */
+  tenantId: string;
+  userId: string;
+  route: string;
+  prompt: AssistantPrompt;
+  provider: string;
+  model: string;
+  signingKey?: string | null;
+}
+
+/** Perguntas por pessoa da equipe por minuto, neste processo (a equipe não reserva, então o limite fica aqui). */
+const staffAsks = new Map<string, number[]>();
+
+/**
+ * Assistente para a equipe Galaxie acompanhando um tenant: a mesma resposta, sem tocar na carteira do cliente. O custo
+ * real vai para o ledger da IA interna (`ops.llm_usage`, agente `cosmos-staff`), não para o extrato do cliente.
+ */
+export async function* askAssistantAsStaff(
+  db: Pick<Database, 'insert'>,
+  input: StaffAskInput,
+  deps: Pick<AskDeps, 'stream' | 'signal' | 'now'>,
+): AsyncGenerator<AssistantEvent> {
+  const now = deps.now ?? (() => new Date());
+  const at = now();
+  const recent = (staffAsks.get(input.userId) ?? []).filter((t) => at.getTime() - t < 60_000);
+  if (recent.length >= ASSISTANT_LIMITS.userPerMinute) {
+    yield { type: 'error', code: 'rate_limited' };
+    return;
+  }
+  staffAsks.set(input.userId, [...recent, at.getTime()]);
+
+  const usage: StreamUsage = { inputTokens: 0, cachedInputTokens: 0, outputTokens: 0 };
+  const controller = new AbortController();
+  const onAbort = () => controller.abort();
+  deps.signal?.addEventListener('abort', onAbort, { once: true });
+  if (deps.signal?.aborted) controller.abort();
+  yield { type: 'start', reserved: 0 };
+  let text = '';
+  let failed = false;
+  try {
+    for await (const piece of deps.stream(controller.signal, usage)) {
+      text += piece;
+      yield { type: 'delta', text: piece };
+    }
+  } catch (err) {
+    failed = true;
+    if (!controller.signal.aborted) console.error('[cosmos] assistente da equipe falhou no provedor', err);
+  } finally {
+    deps.signal?.removeEventListener('abort', onAbort);
+  }
+  if (!usage.outputFinal && usage.outputTokens < approxTokens(text)) usage.outputTokens = approxTokens(text);
+  if (usage.inputTokens > 0 || usage.outputTokens > 0) {
+    await db
+      .insert(llmUsage)
+      .values({
+        dayUtc: at.toISOString().slice(0, 10),
+        agent: 'cosmos-staff',
+        purpose: `cosmos-staff:assistant:${input.route}`.slice(0, 200),
+        provider: input.provider,
+        model: input.model,
+        tier: 'light',
+        inputTokens: usage.inputTokens,
+        outputTokens: usage.outputTokens,
+        costUsd: assistantCostUsd(usage, input.model).toFixed(6),
+        outcome: failed ? 'error' : 'ok',
+      })
+      .catch((err) => console.error('[cosmos] uso do assistente da equipe não foi registrado', err));
+  }
+  if (!text) {
+    yield { type: 'error', code: 'failed' };
+    return;
+  }
+  yield {
+    type: 'done',
+    charged: 0,
+    available: 0,
+    staff: true,
     ...(input.signingKey && !failed
       ? { sig: signAssistantTurn(input.signingKey, { tenantId: input.tenantId, userId: input.userId }, text) }
       : {}),

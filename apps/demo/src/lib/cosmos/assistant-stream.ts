@@ -21,7 +21,7 @@ export type AssistantErrorCode =
 export type AssistantEvent =
   | { type: 'start'; reserved: number }
   | { type: 'delta'; text: string }
-  | { type: 'done'; charged: number; available: number; sig?: string }
+  | { type: 'done'; charged: number; available: number; sig?: string; staff?: true }
   | { type: 'error'; code: AssistantErrorCode };
 
 const CODES: readonly AssistantErrorCode[] = [
@@ -59,6 +59,7 @@ function parseLine(line: string): AssistantEvent | null {
         charged: Number(e.charged) || 0,
         available: Number(e.available) || 0,
         ...(typeof e.sig === 'string' ? { sig: e.sig } : {}),
+        ...(e.staff === true ? { staff: true as const } : {}),
       };
     case 'error':
       return {

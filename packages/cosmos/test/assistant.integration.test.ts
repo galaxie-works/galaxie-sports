@@ -1,11 +1,12 @@
 import { randomBytes } from 'node:crypto';
-import { ledger, reservation, tenant, type Database } from '@galaxie/db';
+import { ledger, llmUsage, reservation, tenant, type Database } from '@galaxie/db';
 import { and, eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import {
   addEntry,
   askAssistant,
+  askAssistantAsStaff,
   assistantLimitError,
   ASSISTANT_FUNCTION,
   ASSISTANT_LIMITS,
@@ -387,5 +388,40 @@ describe('histórico assinado', () => {
       { role: 'assistant', text: 'resposta verdadeira' },
     ]);
     expect(verifiedHistory([{ role: 'assistant', text: 'x', sig }], null, scope)).toEqual([]);
+  });
+});
+
+describe('equipe Galaxie no assistente', () => {
+  it('responde sem tocar na carteira do cliente; o custo vai para o ledger da IA interna', async () => {
+    const t = await newTenant(100);
+    const events: AssistantEvent[] = [];
+    for await (const e of askAssistantAsStaff(
+      db,
+      {
+        tenantId: t,
+        userId: 'staff-1',
+        route: '/esportes/futebol',
+        prompt,
+        provider: 'anthropic',
+        model: ASSISTANT_MODEL,
+        signingKey: 'segredo-de-teste',
+      },
+      { stream: fakeStream(['Olá', ' equipe'], { tokens: { outputTokens: 20 } }) },
+    ))
+      events.push(e);
+    expect(events.map((e) => e.type)).toEqual(['start', 'delta', 'delta', 'done']);
+    expect(events.at(-1)).toMatchObject({ type: 'done', charged: 0, staff: true, sig: expect.any(String) });
+    // nada na carteira nem no extrato do cliente
+    expect((await getWallet(db, t))?.available).toBe(100);
+    expect((await db.select().from(reservation).where(eq(reservation.tenantId, t))).length).toBe(0);
+    const rows = await db.select().from(llmUsage).where(eq(llmUsage.agent, 'cosmos-staff'));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      inputTokens: 1000,
+      outputTokens: 20,
+      outcome: 'ok',
+      provider: 'anthropic',
+    });
+    expect(Number(rows[0]!.costUsd)).toBeGreaterThan(0);
   });
 });
