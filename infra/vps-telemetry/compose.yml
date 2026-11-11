@@ -183,8 +183,12 @@ services:
       # Cosmos AI (#993): chave secreta do Stripe da Galaxie Works LLC (sk_test_… no ensaio), para abrir o Checkout dos
       # pacotes de créditos. Vazia: a compra fica indisponível no painel do cliente
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
-      # Cosmos AI (#1003): chave do provedor só do assistente do app. Vazia: o assistente responde "indisponível"
+      # Cosmos AI (#1003): chaves dos provedores só do assistente do app (também trocáveis no painel). Vazia a do
+      # provedor escolhido: o assistente responde "indisponível"
       COSMOS_ANTHROPIC_API_KEY: ${COSMOS_ANTHROPIC_API_KEY:-}
+      COSMOS_DEEPSEEK_API_KEY: ${COSMOS_DEEPSEEK_API_KEY:-}
+      COSMOS_GEMINI_API_KEY: ${COSMOS_GEMINI_API_KEY:-}
+      COSMOS_OPENAI_API_KEY: ${COSMOS_OPENAI_API_KEY:-}
       # "Sugerir ou reportar algo" do cabeçalho vira issue numa repo PRIVADA só de sugestões (docs/runbooks/sugestoes-do-app.md):
       # token próprio, só dessa repo (Issues: read and write). Vazio, ou repo pública: o formulário responde "indisponível".
       # As imagens vão para o bucket privado das tarefas (feedback/) e a issue as mostra por link assinado da demo

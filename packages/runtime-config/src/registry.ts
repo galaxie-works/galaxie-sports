@@ -880,14 +880,12 @@ export const SETTINGS: readonly SettingDef[] = [
   panelSecret('STRIPE_SECRET_KEY', 'cosmos', ['demo', 'ingestor'], SECRET_FORMATS.stripeSecret, 'refresh'),
   panelSecret('STRIPE_WEBHOOK_SECRET', 'cosmos', ['api'], SECRET_FORMATS.stripeWebhook, 'restart'),
   // IAs externas da Cosmos AI (assistente e moderação dos clientes), separadas das chaves da IA interna: o gasto de cada
-  // lado fica na conta própria do provedor. A API lê na partida; vazia, a Cosmos segue como hoje
-  panelSecret('COSMOS_OPENAI_API_KEY', 'cosmos', ['api'], SECRET_FORMATS.openai, 'restart'),
-  // o assistente da Cosmos no app (#1003) lê na demo a cada pedido; a API, na partida
-  panelSecret('COSMOS_ANTHROPIC_API_KEY', 'cosmos', ['demo', 'api'], SECRET_FORMATS.anthropic, 'restart', {
-    demo: 'refresh',
-  }),
-  panelSecret('COSMOS_GEMINI_API_KEY', 'cosmos', ['api'], SECRET_FORMATS.google, 'restart'),
-  panelSecret('COSMOS_DEEPSEEK_API_KEY', 'cosmos', ['api'], SECRET_FORMATS.openai, 'restart'),
+  // lado fica na conta própria do provedor. Quem lê é o assistente na demo, a cada pedido (process.env): a chave trocada
+  // no painel vale em até 1 minuto. Vazia, o assistente responde "indisponível"
+  panelSecret('COSMOS_OPENAI_API_KEY', 'cosmos', ['demo'], SECRET_FORMATS.openai, 'refresh'),
+  panelSecret('COSMOS_ANTHROPIC_API_KEY', 'cosmos', ['demo'], SECRET_FORMATS.anthropic, 'refresh'),
+  panelSecret('COSMOS_GEMINI_API_KEY', 'cosmos', ['demo'], SECRET_FORMATS.google, 'refresh'),
+  panelSecret('COSMOS_DEEPSEEK_API_KEY', 'cosmos', ['demo'], SECRET_FORMATS.openai, 'refresh'),
 
   // ── Cosmos AI (#989) ──────────────────────────────────────────────────────────────────────────
   // teto de segurança próprio da Cosmos: o custo real somado de todos os clientes no dia UTC (cosmos.ledger), fora do
