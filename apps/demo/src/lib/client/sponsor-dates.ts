@@ -28,6 +28,10 @@ export function startOfDay(ymd: string, timeZone: string): string {
   // duas passadas: o offset pode mudar entre o palpite e o resultado (horário de verão)
   let t = wall - offsetMs(wall, timeZone);
   t = wall - offsetMs(t, timeZone);
+  // meia-noite que não existe (horário de verão que começa às 00:00, como em Santiago): o dia começa no primeiro
+  // instante que já é dele, depois da hora que o relógio pulou
+  if (dayIn(new Date(t).toISOString(), timeZone) !== ymd)
+    t += offsetMs(t + 6 * 3600_000, timeZone) - offsetMs(t, timeZone);
   return new Date(t).toISOString();
 }
 

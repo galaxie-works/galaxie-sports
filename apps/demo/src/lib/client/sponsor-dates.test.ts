@@ -10,6 +10,12 @@ describe('vigência do patrocinador no fuso do cliente', () => {
     expect(startsAtOf('', 'UTC')).toBeNull();
   });
 
+  it('dia em que a meia-noite não existe (Santiago, 06/09/2026) começa à 01:00 local', () => {
+    expect(startsAtOf('2026-09-06', 'America/Santiago')).toBe('2026-09-06T04:00:00.000Z');
+    expect(startDayOf(startsAtOf('2026-09-06', 'America/Santiago'), 'America/Santiago')).toBe('2026-09-06');
+    expect(endDayOf(endsAtOf('2026-09-05', 'America/Santiago'), 'America/Santiago')).toBe('2026-09-05');
+  });
+
   it('ida e volta mostram o mesmo dia digitado', () => {
     for (const tz of ['America/Sao_Paulo', 'America/New_York', 'Asia/Tokyo', 'UTC']) {
       expect(startDayOf(startsAtOf('2026-03-08', tz), tz)).toBe('2026-03-08');

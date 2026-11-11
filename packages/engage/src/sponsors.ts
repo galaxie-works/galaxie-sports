@@ -69,7 +69,11 @@ export interface SponsorIssue {
 
 const COUNTRY = /^[A-Z]{2}$/;
 /** Códigos que o `Intl` conhece mas não são país do ISO 3166-1 (UK é GB). */
-const NOT_COUNTRIES = new Set(['UK', 'EU', 'EZ', 'UN', 'ZZ', 'QO']);
+const NOT_COUNTRIES = new Set([
+  ...['UK', 'EU', 'EZ', 'UN', 'ZZ', 'QO', 'XA', 'XB'],
+  // reservas excepcionais e códigos extintos
+  ...['AC', 'CP', 'DG', 'EA', 'IC', 'TA', 'AN', 'BU', 'CS', 'DD', 'FX', 'SU', 'TP', 'YU', 'ZR'],
+]);
 let regionNames: Intl.DisplayNames | null = null;
 const isCountry = (c: string): boolean => {
   if (!COUNTRY.test(c) || NOT_COUNTRIES.has(c)) return false;
@@ -80,7 +84,11 @@ const isCountry = (c: string): boolean => {
 /** Encurtadores e agregadores de link: escondem o destino, então o link da peça tem de ir direto ao patrocinador. */
 const LINK_HIDERS = [
   'bit.ly',
+  'bitly.com',
   'beacons.ai',
+  'buff.ly',
+  'rb.gy',
+  'tiny.cc',
   'cutt.ly',
   'goo.gl',
   'is.gd',
@@ -107,6 +115,38 @@ function httpsUrl(v: string | null): string | null | undefined {
   }
 }
 
+/** Letras gregas e cirílicas que imitam as latinas (`Βet365` com beta). */
+const LOOKALIKE: Record<string, string> = {
+  α: 'a',
+  β: 'b',
+  ε: 'e',
+  η: 'n',
+  ι: 'i',
+  κ: 'k',
+  ν: 'v',
+  ο: 'o',
+  ρ: 'p',
+  τ: 't',
+  υ: 'u',
+  χ: 'x',
+  а: 'a',
+  в: 'b',
+  е: 'e',
+  і: 'i',
+  к: 'k',
+  м: 'm',
+  н: 'h',
+  о: 'o',
+  р: 'p',
+  с: 'c',
+  т: 't',
+  у: 'y',
+  х: 'x',
+};
+
+/** Palavra de aposta no caminho ou na query do link (`/apostas`, `?utm_campaign=betting`). */
+const BET_PATH = /(?:^|[^a-z])(?:apostas?|apuestas?|betting|bets|casino|cassino|cassinos)(?:[^a-z]|$)/;
+
 const betScreen = (text: string, lists: CompiledLists) =>
   screen(text, { kind: 'wall_post' }, lists).reasons.includes('betting');
 
@@ -118,7 +158,9 @@ const betScreen = (text: string, lists: CompiledLists) =>
 export function looksLikeBetting(text: string, lists: CompiledLists): boolean {
   if (!text.trim()) return false;
   if (betScreen(text, lists)) return true;
-  const folded = text.normalize('NFKD').replace(/\p{M}/gu, '').toLowerCase();
+  const folded = [...text.normalize('NFKD').replace(/\p{M}/gu, '').toLowerCase()]
+    .map((c) => LOOKALIKE[c] ?? c)
+    .join('');
   if (/(?:^|[^a-z0-9])bet(?:[^a-z]|$)/.test(folded)) return true;
   const joined = folded.replace(/[^a-z0-9]+/g, '');
   if (!joined) return false;
@@ -179,13 +221,25 @@ export function validateSponsor(
     if (!url) continue;
     const host = hostOf(url);
     const inList = (list: readonly string[]) => list.some((d) => host === d || host.endsWith(`.${d}`));
+    // decodifica até três vezes (`%2562` → `%62` → `b`)
     let decoded = url;
-    try {
-      decoded = decodeURIComponent(url);
-    } catch {
-      // URL com escape quebrado: confere como veio
+    for (let k = 0; k < 3; k += 1) {
+      try {
+        const next = decodeURIComponent(decoded);
+        if (next === decoded) break;
+        decoded = next;
+      } catch {
+        break;
+      }
     }
-    if (inList(lists.betDomains) || looksLikeBetting(host, lists) || betScreen(decoded, lists))
+    const rest = decoded.replace(/^https:\/\/[^/?#]+/i, '');
+    if (
+      inList(lists.betDomains) ||
+      looksLikeBetting(host, lists) ||
+      betScreen(decoded, lists) ||
+      looksLikeBetting(rest.replace(/[^\p{L}\p{N}]+/gu, ' '), lists) ||
+      BET_PATH.test(rest.toLowerCase())
+    )
       issues.push({ field, code: 'betting' });
     else if (field === 'linkUrl' && inList(LINK_HIDERS)) issues.push({ field, code: 'shortener' });
   }
