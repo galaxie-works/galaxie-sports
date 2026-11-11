@@ -58,13 +58,14 @@ beforeAll(async () => {
       `insert into api.tenant (id, slug, name, plan, modules) values ($1, $2, $2, 'core_data', '{core_data}')`,
       [id, slug],
     );
-  for (const email of ['dono@um.test', 'mod@um.test', 'dono@dois.test', 'troca@um.test'])
+  for (const email of ['dono@um.test', 'mod@um.test', 'dono@dois.test', 'troca@um.test', 'retenta@um.test'])
     cookies[email] = await signInAs(email, 'client');
   cookies['admin@galaxie.test'] = await signInAs('admin@galaxie.test', 'admin');
   // clientes de antes dos cargos: só o tenant gravado no usuário
   await db.sql.query(`update "user" set tenant_id = $1 where email = 'dono@um.test'`, [T1]);
   await db.sql.query(`update "user" set tenant_id = $1 where email = 'dono@dois.test'`, [T2]);
   await db.sql.query(`update "user" set tenant_id = $1 where email = 'troca@um.test'`, [T1]);
+  await db.sql.query(`update "user" set tenant_id = $1 where email = 'retenta@um.test'`, [T1]);
   actions = await import('../src/app/[locale]/(app)/cliente/usuarios/actions');
   admin = await import('../src/app/[locale]/(app)/ajustes/actions');
 }, 120_000);
@@ -190,6 +191,34 @@ describe('usuários e cargos (#1019)', () => {
     expect(rows).toEqual([{ action: 'removed', actor: expect.stringMatching(/^galaxie:/) }]);
   });
 
+  it('troca de tenant que falha ao tirar o cargo não muda o tenant, e repetir conserta', async () => {
+    as('retenta@um.test');
+    expect(await context()).toMatchObject({ tenant: { id: T1 }, memberRole: 'owner' });
+    as('admin@galaxie.test');
+    const id = await userId('retenta@um.test');
+    const input = { role: 'client' as const, accessExpiresAt: null, tenantId: T2 };
+    // a remoção do cargo falha (banco fora do ar no meio da ação, por exemplo)
+    await db.sql.query(`create function api.falha_remocao() returns trigger language plpgsql as $$
+      begin raise exception 'falha simulada'; end $$`);
+    await db.sql.query(`create trigger falha_remocao before delete on api.tenant_member
+      for each row execute function api.falha_remocao()`);
+    try {
+      expect((await admin.updateAccess(id, input)).ok).toBe(false);
+    } finally {
+      await db.sql.query('drop trigger falha_remocao on api.tenant_member');
+      await db.sql.query('drop function api.falha_remocao()');
+    }
+    // nada mudou: o tenant gravado continua o anterior, então a próxima tentativa ainda sabe de onde tirar o cargo
+    const tenantOf = async () =>
+      (await db.sql.query(`select tenant_id from "user" where id = $1`, [id])).rows[0]?.tenant_id;
+    expect(await tenantOf()).toBe(T1);
+    expect(await memberId(T1, 'retenta@um.test')).toBeDefined();
+
+    expect((await admin.updateAccess(id, input)).ok).toBe(true);
+    expect(await tenantOf()).toBe(T2);
+    expect(await memberId(T1, 'retenta@um.test')).toBeUndefined();
+  });
+
   it('pessoa apagada do console sai dos cargos e não conta como Dono', async () => {
     as('dono@um.test');
     await context();
@@ -203,6 +232,14 @@ describe('usuários e cargos (#1019)', () => {
          and m.user_id is not null`,
     );
     expect(rows).toEqual([{ n: 0 }]);
+    // a auditoria guarda quem saiu: o cargo sai antes de o usuário ser apagado
+    const { rows: events } = await db.sql.query(
+      `select subject from api.tenant_member_event
+        where tenant_id = $1 and action = 'removed' and actor like 'galaxie:%'`,
+      [T1],
+    );
+    expect(events).toContainEqual({ subject: 'apagado@um.test' });
+    expect(events).not.toContainEqual({ subject: null });
     // o Dono que sobrou continua sendo o último
     as('dono@um.test');
     await context();

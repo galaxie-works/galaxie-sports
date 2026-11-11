@@ -182,6 +182,13 @@ export async function updateAccess(
       'select tenant_id from "user" where id = $1',
       [userId],
     );
+    // cliente trocado de tenant (ou que deixou de ser cliente) perde o cargo no tenant anterior: sem isso, o
+    // primeiro acesso dava Dono no tenant novo e o antigo continuava na troca de tenant. Sai ANTES de gravar o
+    // tenant novo: se a remoção falhar, o usuário fica no tenant anterior e repetir a ação conserta (com a ordem
+    // inversa, o "anterior" da segunda tentativa já seria o novo e o cargo antigo ficava para sempre).
+    const previous = before[0]?.tenant_id ?? null;
+    if (previous && previous !== tenant.tenantId)
+      await removeMembershipsOf(userId, `galaxie:${me.id}`, previous);
     const h = await headers();
     await auth.api.setRole({ headers: h, body: { userId, role: input.role } });
     await auth.api.adminUpdateUser({
@@ -194,11 +201,6 @@ export async function updateAccess(
         },
       },
     });
-    // cliente trocado de tenant (ou que deixou de ser cliente) perde o cargo no tenant anterior: sem isso, o
-    // primeiro acesso dava Dono no tenant novo e o antigo continuava na troca de tenant
-    const previous = before[0]?.tenant_id ?? null;
-    if (previous && previous !== tenant.tenantId)
-      await removeMembershipsOf(userId, `galaxie:${me.id}`, previous);
     revalidatePath(`/ajustes/usuarios/${userId}`);
     revalidatePath('/ajustes/usuarios');
     return { ok: true };
@@ -283,9 +285,10 @@ export async function removeUser(userId: string): Promise<ActionResult> {
   const me = await requireAdmin();
   if (userId === me.id) return fail('selfRemove');
   try {
-    await auth.api.removeUser({ headers: await headers(), body: { userId } });
-    // cargos da pessoa apagada (a coluna não tem chave estrangeira para o usuário do console)
+    // cargos da pessoa (a coluna não tem chave estrangeira para o usuário do console). Antes de apagar o usuário:
+    // a auditoria lê o e-mail dele em "user", e depois do removeUser o registro ficaria sem a pessoa
     await removeMembershipsOf(userId, `galaxie:${me.id}`);
+    await auth.api.removeUser({ headers: await headers(), body: { userId } });
     await pool.query('delete from activity where user_id = $1', [userId]);
     await pool.query('delete from invite where user_id = $1', [userId]);
     revalidatePath('/ajustes/usuarios');
