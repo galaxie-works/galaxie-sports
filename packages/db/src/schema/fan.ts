@@ -233,13 +233,14 @@ export const fanPointsLedger = fan.table(
     uniqueIndex('points_ledger_revert_uq')
       .on(t.tenantId, t.revertsId)
       .where(sql`${t.revertsId} is not null`),
-    // estorno aponta um lançamento do mesmo cliente
+    // extrato da carteira em ordem; único para o estorno poder apontar um lançamento da mesma carteira
+    uniqueIndex('points_ledger_wallet_uq').on(t.tenantId, t.profileId, t.programCountry, t.id),
+    // estorno aponta um lançamento da mesma carteira (mesmo cliente, Perfil e programa)
     foreignKey({
       name: 'points_ledger_reverts_fk',
-      columns: [t.tenantId, t.revertsId],
-      foreignColumns: [t.tenantId, t.id],
+      columns: [t.tenantId, t.profileId, t.programCountry, t.revertsId],
+      foreignColumns: [t.tenantId, t.profileId, t.programCountry, t.id],
     }).onDelete('cascade'),
-    index('points_ledger_wallet_idx').on(t.tenantId, t.profileId, t.programCountry, t.id),
     check('points_ledger_reason', inList('reason', FAN_POINTS_REASONS)),
     check('points_ledger_source', inList('source', FAN_POINTS_SOURCES)),
     check('points_ledger_nonzero', sql`${t.pointsDelta} <> 0 or ${t.balanceDelta} <> 0`),
@@ -282,5 +283,14 @@ export const fanPointsRevokedEvent = fan.table(
       foreignColumns: [fanProfile.tenantId, fanProfile.id],
     }).onDelete('cascade'),
     check('points_revoked_event_len', sql`length(${t.sourceEvent}) between 1 and 200`),
+    check('points_revoked_event_source', inList('source', FAN_POINTS_SOURCES)),
+    // só motivo de crédito: resgate e estorno não têm crédito a recusar
+    check(
+      'points_revoked_event_reason',
+      inList(
+        'reason',
+        FAN_POINTS_REASONS.filter((r) => r !== 'redeem' && r !== 'revert'),
+      ),
+    ),
   ],
 );

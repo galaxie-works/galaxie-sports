@@ -98,8 +98,12 @@ const entryColumns = {
 type Tx = Parameters<Parameters<Database['transaction']>[0]>[0];
 
 /**
- * Faixa do Perfil ativo, ou null se não existe ou foi excluído. Trava a linha do Perfil (`for share`) até o fim
- * da transação: uma exclusão em andamento termina antes, e o lançamento vê o `deleted_at`.
+ * Faixa do Perfil ativo, ou null se não existe ou foi excluído. Trava a linha do Perfil (`for key share`) até o fim
+ * da transação: uma exclusão em andamento (`for update`) termina antes, e o lançamento vê o `deleted_at`. A edição
+ * do Perfil (Apelido) não espera.
+ *
+ * Depois trava a carteira pela chave (advisory lock da transação), exista ela ou não: crédito, resgate e estorno da
+ * mesma carteira passam um de cada vez, inclusive o primeiro crédito contra um estorno que chega ao mesmo tempo.
  */
 async function lockProfile(
   tx: Tx,
@@ -109,8 +113,12 @@ async function lockProfile(
     .select({ ageBand: fanProfile.ageBand, deletedAt: fanProfile.deletedAt })
     .from(fanProfile)
     .where(and(eq(fanProfile.tenantId, key.tenantId), eq(fanProfile.id, key.profileId)))
-    .for('share');
-  return row ? { ageBand: row.ageBand, deleted: row.deletedAt !== null } : null;
+    .for('key share');
+  if (!row) return null;
+  await tx.execute(
+    sql`select pg_advisory_xact_lock(hashtextextended(${`fan.wallet:${key.tenantId}:${key.profileId}:${key.programCountry}`}, 0))`,
+  );
+  return { ageBand: row.ageBand, deleted: row.deletedAt !== null };
 }
 
 async function activeAgeBand(tx: Tx, key: FanWalletKey): Promise<FanAgeBand | null> {
@@ -255,7 +263,6 @@ export async function creditPoints(
     const band = await activeAgeBand(tx, input);
     if (!band) return { ok: false, error: 'profile_not_found' };
     if (band === 'under13') return { ok: false, error: 'age_restricted' };
-    const current = (await lockWallet(tx, input))!;
     const dup = await existingEntry(tx, input, input.source, input.sourceEvent, input.reason);
     // evento já estornado (palpite recalculado usa um `sourceEvent` novo, ex.: `palpite:1:v2`)
     if (dup)
@@ -268,6 +275,8 @@ export async function creditPoints(
       .from(fanPointsRevokedEvent)
       .where(revokedWhere(input));
     if (revoked) return { ok: false, error: 'reverted' };
+    // só cria a carteira quando vai creditar: crédito recusado não deixa carteira vazia (nem linha no Ranking)
+    const current = (await lockWallet(tx, input))!;
     const entry = await apply(tx, input, current, {
       reason: input.reason,
       source: input.source,

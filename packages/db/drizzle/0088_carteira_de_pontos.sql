@@ -37,7 +37,9 @@ CREATE TABLE "fan"."points_revoked_event" (
 	"reason" text NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "points_revoked_event_pkey" PRIMARY KEY("tenant_id","profile_id","program_country","source","source_event","reason"),
-	CONSTRAINT "points_revoked_event_len" CHECK (length("fan"."points_revoked_event"."source_event") between 1 and 200)
+	CONSTRAINT "points_revoked_event_len" CHECK (length("fan"."points_revoked_event"."source_event") between 1 and 200),
+	CONSTRAINT "points_revoked_event_source" CHECK (source in ('live_chat', 'communities', 'gamification', 'cosmos_ai', 'galaxie')),
+	CONSTRAINT "points_revoked_event_reason" CHECK (reason in ('prediction', 'achievement', 'presence', 'poll', 'trivia', 'adjustment'))
 );
 --> statement-breakpoint
 CREATE TABLE "fan"."wallet" (
@@ -56,16 +58,18 @@ CREATE TABLE "fan"."wallet" (
 --> statement-breakpoint
 ALTER TABLE "fan"."points_ledger" ADD CONSTRAINT "points_ledger_tenant_id_tenant_id_fk" FOREIGN KEY ("tenant_id") REFERENCES "api"."tenant"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "fan"."points_ledger" ADD CONSTRAINT "points_ledger_wallet_fk" FOREIGN KEY ("tenant_id","profile_id","program_country") REFERENCES "fan"."wallet"("tenant_id","profile_id","program_country") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "fan"."points_ledger" ADD CONSTRAINT "points_ledger_reverts_fk" FOREIGN KEY ("tenant_id","reverts_id") REFERENCES "fan"."points_ledger"("tenant_id","id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+CREATE UNIQUE INDEX "points_ledger_wallet_uq" ON "fan"."points_ledger" USING btree ("tenant_id","profile_id","program_country","id");--> statement-breakpoint
+-- estorno aponta um lançamento da mesma carteira (mesmo cliente, Perfil e programa)
+ALTER TABLE "fan"."points_ledger" ADD CONSTRAINT "points_ledger_reverts_fk" FOREIGN KEY ("tenant_id","profile_id","program_country","reverts_id") REFERENCES "fan"."points_ledger"("tenant_id","profile_id","program_country","id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "fan"."points_revoked_event" ADD CONSTRAINT "points_revoked_event_tenant_id_tenant_id_fk" FOREIGN KEY ("tenant_id") REFERENCES "api"."tenant"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "fan"."points_revoked_event" ADD CONSTRAINT "points_revoked_event_profile_fk" FOREIGN KEY ("tenant_id","profile_id") REFERENCES "fan"."profile"("tenant_id","id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "fan"."wallet" ADD CONSTRAINT "wallet_tenant_id_tenant_id_fk" FOREIGN KEY ("tenant_id") REFERENCES "api"."tenant"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "fan"."wallet" ADD CONSTRAINT "wallet_profile_fk" FOREIGN KEY ("tenant_id","profile_id") REFERENCES "fan"."profile"("tenant_id","id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 CREATE UNIQUE INDEX "points_ledger_event_uq" ON "fan"."points_ledger" USING btree ("tenant_id","profile_id","program_country","source","source_event","reason") WHERE "fan"."points_ledger"."reverts_id" is null;--> statement-breakpoint
 CREATE UNIQUE INDEX "points_ledger_revert_uq" ON "fan"."points_ledger" USING btree ("tenant_id","reverts_id") WHERE "fan"."points_ledger"."reverts_id" is not null;--> statement-breakpoint
-CREATE INDEX "points_ledger_wallet_idx" ON "fan"."points_ledger" USING btree ("tenant_id","profile_id","program_country","id");--> statement-breakpoint
 -- extrato é append-only: lançamento errado se corrige com estorno. DELETE só em cascata (exclusão do Perfil ou do
--- cliente apaga a carteira, e a carteira leva o extrato); direto, nunca. TRUNCATE também não.
+-- cliente apaga a carteira, e a carteira leva o extrato); direto, nunca. TRUNCATE também não. A exceção vale para
+-- qualquer DELETE vindo de trigger (pg_trigger_depth() > 1), não só da cascata: nenhum outro trigger apaga o extrato.
 CREATE OR REPLACE FUNCTION "fan"."points_ledger_append_only"() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
   IF TG_OP = 'DELETE' AND pg_trigger_depth() > 1 THEN

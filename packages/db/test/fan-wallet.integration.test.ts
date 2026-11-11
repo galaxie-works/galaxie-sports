@@ -173,12 +173,39 @@ describe('carteira de pontos (B6, #938)', () => {
       ok: false,
       error: 'reverted',
     });
-    expect(await readWallets(db, tenantId, p)).toEqual([{ programCountry: 'BR', points: 0, balance: 0 }]);
+    expect(await readWallets(db, tenantId, p)).toEqual([]);
     // Perfil que não existe: erro tipado, sem exceção
     expect(await revertPoints(db, { ...key('0190f1c0-0000-7000-8000-000000000bad'), ...ev })).toEqual({
       ok: false,
       error: 'profile_not_found',
     });
+  });
+
+  it('estorno e primeiro crédito ao mesmo tempo, sem carteira: nunca ficam a marca e os Pontos juntos', async () => {
+    for (let i = 0; i < 10; i += 1) {
+      const p = await profile('18plus');
+      const ev = {
+        reason: 'prediction' as const,
+        source: 'gamification' as const,
+        sourceEvent: `corrida:${i}`,
+      };
+      const [rev, cred] = await Promise.all([
+        revertPoints(db, { ...key(p), ...ev }),
+        creditPoints(db, { ...key(p), amount: 10, ...ev }),
+      ]);
+      const wallets = await readWallets(db, tenantId, p);
+      const points = wallets[0]?.points ?? 0;
+      if (rev.ok) {
+        // o crédito veio antes e foi estornado
+        expect(cred.ok).toBe(true);
+        expect(points).toBe(0);
+      } else {
+        // o estorno veio antes e marcou: o crédito foi recusado e não sobrou carteira
+        expect(rev).toEqual({ ok: false, error: 'entry_not_found' });
+        expect(cred).toEqual({ ok: false, error: 'reverted' });
+        expect(wallets).toEqual([]);
+      }
+    }
   });
 
   it('exclusão e crédito ao mesmo tempo: o crédito espera e não entra no Perfil excluído', async () => {
@@ -315,13 +342,30 @@ describe('carteira de pontos (B6, #938)', () => {
     );
     await expect(pg`delete from fan.points_ledger where profile_id = ${p}`).rejects.toThrow(/append-only/);
     await expect(pg`truncate fan.points_ledger cascade`).rejects.toThrow(/append-only/);
-    // estorno não aponta lançamento de outro cliente
+    // estorno só aponta lançamento da mesma carteira: outro Perfil (com carteira própria) é recusado pela FK
+    const other = await profile('18plus');
+    await creditPoints(db, {
+      ...key(other),
+      amount: 3,
+      reason: 'poll',
+      source: 'communities',
+      sourceEvent: 'y',
+    });
     await expect(
       pg`insert into fan.points_ledger (tenant_id, profile_id, program_country, reason, source, source_event,
           reverts_id, points_delta, balance_delta, points_after, balance_after)
-        values (${otherTenant}, ${p}, 'BR', 'revert', 'communities', 'x',
-          (select id from fan.points_ledger where profile_id = ${p} limit 1), -1, -1, 0, 0)`,
-    ).rejects.toThrow();
+        values (${tenantId}, ${other}, 'BR', 'revert', 'communities', 'x',
+          (select id from fan.points_ledger where profile_id = ${p} limit 1), -1, -1, 2, 2)`,
+    ).rejects.toThrow(/points_ledger_reverts_fk/);
+    // a marca de estorno também só aceita origem e motivo de crédito
+    await expect(
+      pg`insert into fan.points_revoked_event (tenant_id, profile_id, program_country, source, source_event, reason)
+        values (${tenantId}, ${p}, 'BR', 'shopping', 'z', 'poll')`,
+    ).rejects.toThrow(/points_revoked_event_source/);
+    await expect(
+      pg`insert into fan.points_revoked_event (tenant_id, profile_id, program_country, source, source_event, reason)
+        values (${tenantId}, ${p}, 'BR', 'communities', 'z', 'redeem')`,
+    ).rejects.toThrow(/points_revoked_event_reason/);
     // em cascata (carteira apagada na exclusão) passa
     await pg`delete from fan.wallet where tenant_id = ${tenantId} and profile_id = ${p}`;
     expect((await pg`select count(*)::int as n from fan.points_ledger where profile_id = ${p}`)[0]!.n).toBe(

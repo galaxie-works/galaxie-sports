@@ -19516,8 +19516,8 @@
           "method": "btree",
           "with": {}
         },
-        "points_ledger_wallet_idx": {
-          "name": "points_ledger_wallet_idx",
+        "points_ledger_wallet_uq": {
+          "name": "points_ledger_wallet_uq",
           "columns": [
             {
               "expression": "tenant_id",
@@ -19544,7 +19544,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -19590,10 +19590,14 @@
           "schemaTo": "fan",
           "columnsFrom": [
             "tenant_id",
+            "profile_id",
+            "program_country",
             "reverts_id"
           ],
           "columnsTo": [
             "tenant_id",
+            "profile_id",
+            "program_country",
             "id"
           ],
           "onDelete": "cascade",
@@ -19743,6 +19747,14 @@
         "points_revoked_event_len": {
           "name": "points_revoked_event_len",
           "value": "length(\"fan\".\"points_revoked_event\".\"source_event\") between 1 and 200"
+        },
+        "points_revoked_event_source": {
+          "name": "points_revoked_event_source",
+          "value": "source in ('live_chat', 'communities', 'gamification', 'cosmos_ai', 'galaxie')"
+        },
+        "points_revoked_event_reason": {
+          "name": "points_revoked_event_reason",
+          "value": "reason in ('prediction', 'achievement', 'presence', 'poll', 'trivia', 'adjustment')"
         }
       },
       "isRLSEnabled": false
