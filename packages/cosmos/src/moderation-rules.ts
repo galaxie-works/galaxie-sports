@@ -83,7 +83,11 @@ export interface ModerationConfig {
   hiddenNotice: string | null;
 }
 
-/** Exceção de uma sala ou comunidade: só o que muda em relação ao cliente. */
+/**
+ * Exceção de uma sala ou comunidade: só o que muda em relação ao cliente. Os ajustes por categoria somam aos do
+ * cliente (a exceção troca o nível de uma categoria, não apaga o ajuste herdado); o nível geral da exceção vale para
+ * as categorias sem ajuste em nenhum dos dois.
+ */
 export type ModerationOverride = Partial<ModerationConfig> & {
   features?: Partial<Record<ModerationFeature, boolean>>;
   autonomy?: Partial<Record<ModerationAction, AutonomyStep>>;

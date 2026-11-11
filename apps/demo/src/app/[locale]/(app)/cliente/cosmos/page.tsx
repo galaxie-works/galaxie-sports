@@ -60,7 +60,8 @@ async function Cosmos({
             },
             timeZone,
           ),
-          loadCosmosModeration(tenant.id),
+          // só na aba Moderação: o histórico traz quem mudou, e as outras abas não precisam dele
+          tab === 'moderation' ? loadCosmosModeration(tenant.id) : null,
         ]);
         return (
           <CosmosArea
@@ -75,7 +76,16 @@ async function Cosmos({
             }
             usage={<CosmosUsage data={statement} timeZone={timeZone} />}
             // mudar regras e réguas é configuração do cliente (Admin e Dono); o servidor confere de novo ao salvar
-            moderation={<CosmosModeration data={moderation} canEdit={can(ctx, 'settings.manage')} />}
+            moderation={
+              moderation ? (
+                // a versão na chave: depois de salvar (ou de um conflito), o formulário recomeça do que está gravado
+                <CosmosModeration
+                  key={moderation.version}
+                  data={moderation}
+                  canEdit={can(ctx, 'settings.manage')}
+                />
+              ) : null
+            }
           />
         );
       }}

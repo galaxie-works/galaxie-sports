@@ -160,7 +160,21 @@ export async function saveModerationConfig(
         'version_conflict',
         `versão ${currentVersion}, esperada ${input.expectedVersion}`,
       );
-    const version = currentVersion + 1;
+    // exceção recriada depois de sair: a versão continua do histórico, para "versão N" seguir única no escopo
+    let version = currentVersion + 1;
+    if (!current) {
+      const [last] = await tx
+        .select({ version: sql<number>`coalesce(max(${moderationConfigLog.version}), 0)::int` })
+        .from(moderationConfigLog)
+        .where(
+          and(
+            eq(moderationConfigLog.tenantId, tenantId),
+            eq(moderationConfigLog.scopeKind, scope.kind),
+            eq(moderationConfigLog.scopeId, scope.id),
+          ),
+        );
+      version = (last?.version ?? 0) + 1;
+    }
     const config = parsed.value as Record<string, unknown>;
     // a primeira gravação de duas pessoas ao mesmo tempo: a segunda bate no índice único e vira conflito
     const written = await tx

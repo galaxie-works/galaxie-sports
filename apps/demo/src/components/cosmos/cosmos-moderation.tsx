@@ -51,9 +51,14 @@ export function CosmosModeration({ data, canEdit }: { data: CosmosModerationData
   const [config, setConfig] = useState<ModerationConfig>(data.config);
   const [pending, startTransition] = useTransition();
   const readOnly = !canEdit || pending;
-  const dirty = JSON.stringify(config) !== JSON.stringify(data.config);
+  // o texto só de espaços vale como vazio (o servidor grava null): sem isto o formulário ficaria sempre "mudado"
+  const payload: ModerationConfig = { ...config, hiddenNotice: config.hiddenNotice?.trim() || null };
+  const dirty = JSON.stringify(payload) !== JSON.stringify(data.config);
   const when = new Intl.DateTimeFormat(locale, { dateStyle: 'short', timeStyle: 'short' });
-  const muteOptions = MUTE_HOURS.filter((h) => h <= data.ceiling.muteHours);
+  // o teto e o valor gravado entram na lista mesmo fora dos degraus comuns (teto de 8 h, por exemplo)
+  const muteOptions = [...new Set([...MUTE_HOURS, data.ceiling.muteHours, config.muteHours])]
+    .filter((h) => h <= data.ceiling.muteHours)
+    .sort((a, b) => a - b);
 
   const patch = (p: Partial<ModerationConfig>) => setConfig((c) => ({ ...c, ...p }));
   const setStep = (action: ModerationAction, step: AutonomyStep) =>
@@ -61,7 +66,7 @@ export function CosmosModeration({ data, canEdit }: { data: CosmosModerationData
 
   const save = () =>
     startTransition(async () => {
-      const r = await saveCosmosModeration(config, data.version);
+      const r = await saveCosmosModeration(payload, data.version);
       if (!r.ok) {
         toast.error(r.error);
         if (r.conflict) router.refresh();

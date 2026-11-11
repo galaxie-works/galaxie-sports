@@ -57,7 +57,8 @@ export async function loadCosmosModeration(tenantId: string): Promise<CosmosMode
         scope: h.scope,
         version: h.version,
         removed: h.config === null,
-        who: p ? p.name || p.email : null,
+        // só o nome: o e-mail de quem mudou não aparece para quem só vê a Cosmos
+        who: p?.name?.trim() || null,
         at: h.createdAt.toISOString(),
       };
     }),

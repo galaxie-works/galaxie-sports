@@ -168,6 +168,17 @@ describe('configuração da moderação (#997)', () => {
     expect(await listModerationOverrides(db, t)).toEqual([]);
     const [last] = await listModerationHistory(db, t, { scope: room });
     expect(last).toMatchObject({ config: null, changedBy: 'u2', version: 2 });
+    // recriada depois de sair: a versão segue do histórico, sem repetir
+    expect(
+      await saveModerationConfig(db, {
+        tenantId: t,
+        scope: room,
+        config: { level: 0 },
+        expectedVersion: 0,
+        userId: 'u3',
+        ceiling: open,
+      }),
+    ).toEqual({ version: 3 });
   });
 
   it('teto da Galaxie lido do painel: baixar o teto rebaixa o que já estava salvo', async () => {

@@ -75,6 +75,7 @@ export async function removeCosmosModerationOverride(
 ): Promise<ModerationActionResult> {
   const g = await gate();
   if ('error' in g) return { ok: false, error: g.error };
+  if (!Number.isInteger(expectedVersion) || expectedVersion < 1) return { ok: false, error: g.t.invalid };
   try {
     await removeModerationOverride(builderDb(), {
       tenantId: g.ctx.tenant.id,
