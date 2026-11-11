@@ -264,6 +264,24 @@ describe('pergunta ao assistente', () => {
     for await (const _ of first) void _;
   });
 
+  it('reserva vencida de outra pergunta (processo caiu) não prende a pessoa', async () => {
+    const t = await newTenant();
+    const ctl = new AbortController();
+    const first = askAssistant(
+      db,
+      { tenantId: t, userId: 'u1', route: '/x', prompt, credits: 5, settings },
+      { stream: fakeStream(['a'], { holdUntilAbort: true }), signal: ctl.signal, settleBackoffMs: [1, 1] },
+    );
+    expect((await first.next()).value).toMatchObject({ type: 'start' });
+    await db
+      .update(reservation)
+      .set({ expiresAt: new Date(Date.now() - 60_000) })
+      .where(eq(reservation.tenantId, t));
+    expect((await run(t, fakeStream(['b']))).at(-1)).toMatchObject({ type: 'done' });
+    ctl.abort();
+    for await (const _ of first) void _;
+  });
+
   it('limite por minuto da pessoa', async () => {
     const t = await newTenant(1000);
     for (let i = 0; i < ASSISTANT_LIMITS.userPerMinute; i++)

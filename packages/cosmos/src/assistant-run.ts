@@ -191,6 +191,8 @@ async function earlierOpenAsks(db: Database, tenantId: string, userId: string, r
         eq(reservation.functionName, ASSISTANT_FUNCTION),
         eq(reservation.userId, userId),
         eq(reservation.status, 'open'),
+        // vencida (processo caiu no meio) não prende: a limpeza fecha depois
+        gt(reservation.expiresAt, new Date()),
         sql`${reservation.id} < ${reservationId}::uuid`,
       ),
     );
