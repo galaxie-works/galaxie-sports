@@ -62,6 +62,14 @@ export const ACTIONS = {
   'moderation.word_list.manage': 'admin',
 
   // Cosmos AI (#996)
+  /** Ver a área da Cosmos AI: menu, tela, saldo, extrato e CSV. */
+  'cosmos.view': 'admin',
+  /**
+   * Mexer no dinheiro e no interruptor da Cosmos AI: comprar créditos, recarga automática no cartão salvo, ligar e
+   * desligar. Separada de `billing.buy_credits` (que fica para a área de Cobrança, com plano e faturas) porque ligar e
+   * desligar a Cosmos não é compra, e o Dono pode querer delegar uma coisa sem a outra.
+   */
+  'cosmos.manage': 'owner',
   /** Perguntar ao assistente (gasta créditos do tenant). Voluntário fica de fora: é torcedor promovido. */
   'cosmos.assistant.ask': 'moderator',
 } as const satisfies Record<string, TenantRole>;

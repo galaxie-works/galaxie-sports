@@ -7,6 +7,7 @@ import { LEDGER_KINDS, type LedgerKind } from '@galaxie/db/schema';
 
 import { builderDb } from '@/lib/builder/store';
 import { readClientContext } from '@/lib/client/session';
+import { cosmosAccessError } from '@/lib/cosmos/config';
 import { periodFrom } from '@/lib/cosmos/data-utils';
 import { getDictionary } from '@/lib/i18n/dictionary';
 import { getRequestLocale, getTimeZone } from '@/lib/i18n/server';
@@ -23,6 +24,9 @@ export async function GET(request: Request) {
   const t = getDictionary(locale);
   if (!ctx) return Response.json({ title: t.common.unauthorized }, { status: 401 });
   if (!ctx.tenant) return Response.json({ title: t.common.forbidden }, { status: 403 });
+  // o extrato é dinheiro do tenant: só quem tem `cosmos.view` no cargo (#1019)
+  if (cosmosAccessError(ctx, 'cosmos.view'))
+    return Response.json({ title: t.cosmos.checkout.errors.viewNotAllowed }, { status: 403 });
 
   const url = new URL(request.url);
   const period = periodFrom(

@@ -60,6 +60,10 @@ describe('áreas por cargo e módulo (#1018, #1019)', () => {
     expect(navRequirement('members')).toEqual({ action: 'members.view' });
     expect(navRequirement('overview')).toEqual({});
   });
+
+  it('Cosmos AI exige cosmos.view (saldo e extrato não aparecem para Moderador nem Voluntário)', () => {
+    expect(navRequirement('cosmos')).toEqual({ action: 'cosmos.view' });
+  });
 });
 
 describe('ClientSideNav', () => {

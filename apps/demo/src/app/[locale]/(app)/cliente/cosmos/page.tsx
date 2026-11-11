@@ -8,6 +8,7 @@ import { CosmosArea } from '@/components/cosmos/cosmos-area';
 import { CosmosOverview } from '@/components/cosmos/cosmos-overview';
 import { CosmosUsage } from '@/components/cosmos/cosmos-usage';
 import { Skeleton } from '@/components/ui/skeleton';
+import { can } from '@/lib/client/permissions';
 import { isUuid } from '@/lib/client/tenants';
 import { loadCosmosOverview, loadCosmosStatement } from '@/lib/cosmos/data';
 import { COSMOS_TABS, type CosmosTab } from '@/lib/cosmos/data-utils';
@@ -40,8 +41,9 @@ async function Cosmos({
       : null;
   return (
     <ClientArea section="cosmos">
-      {async ({ tenant }) => {
-        // o tenant vem da sessão (ClientArea): o cliente só vê a carteira e o extrato dele
+      {async (ctx) => {
+        const { tenant } = ctx;
+        // o tenant vem da sessão (ClientArea, que já exigiu `cosmos.view`): o cliente só vê a carteira e o extrato dele
         const [overview, statement] = await Promise.all([
           loadCosmosOverview(tenant, timeZone),
           loadCosmosStatement(
@@ -60,7 +62,14 @@ async function Cosmos({
         return (
           <CosmosArea
             tab={tab}
-            overview={<CosmosOverview data={overview} purchase={purchase} />}
+            overview={
+              <CosmosOverview
+                data={overview}
+                purchase={purchase}
+                // botões de compra, recarga e o interruptor; o servidor confere de novo em cada ação
+                canManage={can(ctx, 'cosmos.manage')}
+              />
+            }
             usage={<CosmosUsage data={statement} timeZone={timeZone} />}
           />
         );

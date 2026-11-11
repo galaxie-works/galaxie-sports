@@ -1,15 +1,47 @@
 import { describe, expect, it } from 'vitest';
 
-import { canBuyCredits, checkoutUrls, packageMarket, stripeSecretKey } from './config';
+import { TENANT_ROLES, type TenantRole } from '@galaxie/engage';
 
-const tenant = { id: 't', name: 'T' } as never;
+import { checkoutUrls, cosmosAccessError, packageMarket, stripeSecretKey } from './config';
+
+const tenant = { id: 't' };
+const member = (role: TenantRole) => ({
+  tenant,
+  actor: { kind: 'member' as const, tenantId: 't', role, scope: null },
+});
 
 describe('compra de créditos da Cosmos', () => {
-  it('compra: admin e cliente com tenant; sem tenant ou papel user, não', () => {
-    expect(canBuyCredits({ role: 'admin', tenant })).toBe(true);
-    expect(canBuyCredits({ role: 'client', tenant })).toBe(true);
-    expect(canBuyCredits({ role: 'client', tenant: null })).toBe(false);
-    expect(canBuyCredits({ role: 'user' as never, tenant })).toBe(false);
+  it('ver: Dono e Admin; o resto recebe a recusa de cargo', () => {
+    expect(TENANT_ROLES.map((r) => cosmosAccessError(member(r), 'cosmos.view'))).toEqual([
+      null,
+      null,
+      'role',
+      'role',
+      'role',
+    ]);
+  });
+
+  it('comprar, recarga automática, ligar e desligar: só o Dono (Voluntário e Admin recusados)', () => {
+    expect(TENANT_ROLES.map((r) => cosmosAccessError(member(r), 'cosmos.manage'))).toEqual([
+      null,
+      'role',
+      'role',
+      'role',
+      'role',
+    ]);
+  });
+
+  it('equipe Galaxie passa; sem sessão ou sem tenant, recusa antes do cargo', () => {
+    expect(cosmosAccessError({ tenant, actor: { kind: 'galaxie_staff' } }, 'cosmos.manage')).toBeNull();
+    expect(cosmosAccessError(null, 'cosmos.view')).toBe('forbidden');
+    expect(cosmosAccessError({ tenant: null, actor: null }, 'cosmos.view')).toBe('noTenant');
+    // cargo de outro tenant (sessão trocada) não vale
+    expect(
+      cosmosAccessError(
+        { tenant, actor: { kind: 'member', tenantId: 'outro', role: 'owner', scope: null } },
+        'cosmos.manage',
+      ),
+    ).toBe('role');
   });
 
   it('mercado dos pacotes pelo que o tenant contratou', () => {

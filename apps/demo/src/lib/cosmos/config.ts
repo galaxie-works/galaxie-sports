@@ -1,15 +1,22 @@
 /**
  * Regras puras da compra de créditos da Cosmos no painel (testáveis sem sessão nem Stripe).
  */
-import type { ClientContext } from '@/lib/client/session';
+import { can, type PermissionContext } from '@/lib/client/permissions';
+
+/** Ações da Cosmos AI no painel do cliente: ver (tela, saldo, extrato, CSV) e gerenciar (comprar, recarga, ligar). */
+export type CosmosPanelAction = 'cosmos.view' | 'cosmos.manage';
 
 /**
- * Quem pode comprar créditos. Antes dos cargos (#1019), vale a checagem que já existe no painel: a equipe
- * Galaxie (admin) e a conta do cliente ligada ao tenant.
- * TODO(#1019): só o dono e quem tiver a permissão de cobrança do cargo.
+ * Por que a sessão não pode fazer `action` na Cosmos do tenant em foco, ou null quando pode. O cargo vem da sessão
+ * (`readClientContext`), nunca do navegador; a equipe Galaxie passa por cima (`galaxie_staff`).
  */
-export function canBuyCredits(ctx: Pick<ClientContext, 'role' | 'tenant'>): boolean {
-  return Boolean(ctx.tenant) && (ctx.role === 'admin' || ctx.role === 'client');
+export function cosmosAccessError(
+  ctx: PermissionContext | null,
+  action: CosmosPanelAction,
+): 'forbidden' | 'noTenant' | 'role' | null {
+  if (!ctx) return 'forbidden';
+  if (!ctx.tenant || !ctx.actor) return 'noTenant';
+  return can(ctx, action) ? null : 'role';
 }
 
 /** Mercados com tabela própria de pacotes (BR em reais; EUA e Canadá em dólar). */
