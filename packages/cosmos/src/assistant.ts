@@ -7,7 +7,7 @@
  * leve e busca por palavras na documentação, sem embeddings. O cliente nunca vê o modelo nem o custo técnico:
  * só créditos.
  */
-import { estimateCostUsd } from '@galaxie/ai-ledger/pricing';
+import { ANTHROPIC_CACHE_WRITE_MULTIPLIER, estimateCostUsd } from '@galaxie/ai-ledger/pricing';
 import { AI_DEFAULT_MODELS } from '@galaxie/runtime-config';
 import { creditsFor } from './credits.js';
 
@@ -172,10 +172,9 @@ export interface StreamUsage {
   /** Escrita no cache (cobrada acima da entrada comum). */
   cacheWriteTokens?: number;
   outputTokens: number;
+  /** O provedor mandou a contagem final da saída (`message_delta`); sem ela, a saída é estimada pelo texto. */
+  outputFinal?: boolean;
 }
-
-/** A escrita no cache de 5 minutos custa 1,25 vez a entrada comum (tabela do provedor). */
-export const CACHE_WRITE_MULTIPLIER = 1.25;
 
 export class AssistantProviderError extends Error {
   constructor(
@@ -258,6 +257,7 @@ export async function* streamAssistant(
         usage.outputTokens = u.output_tokens ?? 0;
       } else if (event.type === 'message_delta' && event.usage) {
         usage.outputTokens = event.usage.output_tokens ?? usage.outputTokens;
+        if (event.usage.output_tokens !== undefined) usage.outputFinal = true;
       } else if (
         event.type === 'content_block_delta' &&
         event.delta?.type === 'text_delta' &&
@@ -283,6 +283,7 @@ export function assistantCostUsd(usage: StreamUsage, model: string = ASSISTANT_M
     cachedInputTokens: read,
     outputTokens: usage.outputTokens,
   });
-  const writeCost = estimateCostUsd(model, { inputTokens: write, outputTokens: 0 }) * CACHE_WRITE_MULTIPLIER;
+  const writeCost =
+    estimateCostUsd(model, { inputTokens: write, outputTokens: 0 }) * ANTHROPIC_CACHE_WRITE_MULTIPLIER;
   return Math.round((base + writeCost) * 1_000_000) / 1_000_000;
 }

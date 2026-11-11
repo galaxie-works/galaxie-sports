@@ -11,7 +11,7 @@
  *   dela, que é maior que a duração máxima da rota).
  */
 import { createHmac, timingSafeEqual } from 'node:crypto';
-import { and, count, eq, gte, sql } from 'drizzle-orm';
+import { and, count, eq, gt, gte, sql } from 'drizzle-orm';
 import type { Database } from '@galaxie/db/client';
 import { ledger, reservation } from '@galaxie/db/schema';
 import {
@@ -88,7 +88,15 @@ export async function assistantLimitError(
     db
       .select({ n: count() })
       .from(reservation)
-      .where(and(mine, eq(reservation.userId, input.userId), eq(reservation.status, 'open'))),
+      // reserva vencida (processo que caiu no meio) não prende a pessoa até a limpeza rodar
+      .where(
+        and(
+          mine,
+          eq(reservation.userId, input.userId),
+          eq(reservation.status, 'open'),
+          gt(reservation.expiresAt, now),
+        ),
+      ),
     db
       .select({ n: count() })
       .from(reservation)
@@ -267,7 +275,8 @@ export async function* askAssistant(
   }
 
   // entregue (inteiro ou em parte): acerta pelo usado, sem passar da reserva
-  if (usage.outputTokens < approxTokens(text)) usage.outputTokens = approxTokens(text);
+  // sem a contagem final do provedor (corte, falha no meio): estima a saída pelo texto já mandado
+  if (!usage.outputFinal && usage.outputTokens < approxTokens(text)) usage.outputTokens = approxTokens(text);
   const backoff = deps.settleBackoffMs ?? [200, 800];
   let settled: { charged: number; available: number } | null = null;
   for (let attempt = 0; attempt <= backoff.length && !settled; attempt++) {

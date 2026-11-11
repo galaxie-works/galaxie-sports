@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import { reservation, tenant, type Database } from '@galaxie/db';
+import { ledger, reservation, tenant, type Database } from '@galaxie/db';
 import { and, eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
@@ -145,6 +145,21 @@ describe('pergunta ao assistente', () => {
     expect(done.sig).toBe(signAssistantTurn('segredo-de-teste', { tenantId: t, userId: 'u1' }, 'Olá, mundo'));
     expect(await statuses(t)).toEqual(['settled']);
     expect((await getWallet(db, t))?.available).toBeCloseTo(100 - done.charged, 3);
+  });
+
+  it('com a contagem final do provedor, a saída não é estimada pelo texto', async () => {
+    const outOf = async (t: string) =>
+      (await db.select({ out: ledger.tokensOut }).from(ledger).where(eq(ledger.tenantId, t))).find(
+        (r) => r.out !== null,
+      )?.out;
+    const longo = 'x'.repeat(400); // ~100 tokens pela conta do texto
+    const real = await newTenant();
+    await run(real, fakeStream([longo], { tokens: { outputTokens: 10, outputFinal: true } }));
+    expect(await outOf(real)).toBe(10);
+    // sem a contagem final (corte no meio), vale a estimativa pelo texto mandado
+    const cortado = await newTenant();
+    await run(cortado, fakeStream([longo], { tokens: { outputTokens: 10 } }));
+    expect(await outOf(cortado)).toBe(100);
   });
 
   it('custo acima da reserva: cobra só a reserva (o cliente nunca paga mais que o mostrado)', async () => {

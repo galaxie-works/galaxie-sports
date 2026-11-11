@@ -148,7 +148,13 @@ describe('resposta em fluxo', () => {
     }))
       text += piece;
     expect(text).toBe('Olá, mundo');
-    expect(usage).toEqual({ inputTokens: 150, cachedInputTokens: 50, cacheWriteTokens: 0, outputTokens: 12 });
+    expect(usage).toEqual({
+      inputTokens: 150,
+      cachedInputTokens: 50,
+      cacheWriteTokens: 0,
+      outputTokens: 12,
+      outputFinal: true,
+    });
     expect(sent).toMatchObject({ model: ASSISTANT_MODEL, stream: true });
     // só a parte fixa leva o ponto de cache
     expect(sent.system?.[0]?.cache_control).toEqual({ type: 'ephemeral' });
