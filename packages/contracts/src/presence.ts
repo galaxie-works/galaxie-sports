@@ -90,7 +90,7 @@ export const presencePaths: ZodOpenApiPathsObject = {
       requestParams: { path: PresenceEventParams },
       responses: {
         '200': { description: 'OK', content: json(EventPresence) },
-        '401': problem('Token ausente, inválido ou vencido (INVALID_KEY)'),
+        '401': problem('Token ausente, inválido, vencido ou de Perfil excluído (INVALID_KEY)'),
         '403': problem('Faixa etária sem permissão (FAN_AGE_RESTRICTED)'),
         '429': problem('Limite atingido (RATE_LIMITED)'),
       },
