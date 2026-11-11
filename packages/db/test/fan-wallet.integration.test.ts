@@ -253,6 +253,16 @@ describe('carteira de pontos (B6, #938)', () => {
       ok: false,
       error: 'insufficient_balance',
     });
+    // resgate sem carteira (nunca ganhou ponto nesse programa) é recusado e não cria carteira vazia
+    expect(
+      await debitBalance(db, {
+        ...key(p, 'AR'),
+        amount: 1,
+        source: 'gamification',
+        sourceEvent: 'resgate:ar',
+      }),
+    ).toEqual({ ok: false, error: 'insufficient_balance' });
+    expect((await readWallets(db, tenantId, p)).map((w) => w.programCountry)).toEqual(['BR']);
     // estorno depois do resgate tira os Pontos inteiros e só o Saldo que sobrou
     const r = await revertPoints(db, {
       ...key(p),

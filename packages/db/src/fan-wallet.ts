@@ -303,7 +303,9 @@ export async function debitBalance(
     const band = await activeAgeBand(tx, input);
     if (!band) return { ok: false, error: 'profile_not_found' };
     if (band !== '18plus') return { ok: false, error: 'age_restricted' };
-    const current = (await lockWallet(tx, input))!;
+    // não cria carteira: sem carteira não há Saldo, e o resgate recusado não deixa linha vazia
+    const current = await lockWallet(tx, input, false);
+    if (!current) return { ok: false, error: 'insufficient_balance' };
     const dup = await existingEntry(tx, input, input.source, input.sourceEvent, 'redeem');
     if (dup) return { ok: true, entry: dup, duplicate: true };
     if (current.balance < input.amount) return { ok: false, error: 'insufficient_balance' };
