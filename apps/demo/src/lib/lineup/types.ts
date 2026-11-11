@@ -651,7 +651,8 @@ export function emailMatchesDomains(email: string, domains: readonly string[]): 
 
 // ─── filtros da revisão (URL) ────────────────────────────────────────────────────────────────────
 
-export const ADMIN_TABS = ['revisao', 'pedidos', 'tenants'] as const;
+/** Abas de Ajustes → Grades e ofertas; `ajustes` são os `LINEUP_*` (#1070), que saíram de Onde Assistir. */
+export const ADMIN_TABS = ['revisao', 'pedidos', 'tenants', 'ajustes'] as const;
 export type AdminTab = (typeof ADMIN_TABS)[number];
 
 /** `pending` = espera decisão (rascunho, conferido ou com mudança encontrada); null = todos. */
