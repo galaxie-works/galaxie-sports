@@ -79,14 +79,21 @@ export const MODEL_PRICES: Record<string, ModelPrice> = {
   'deepseek-v4-pro': { input: 1.32, cachedInput: 0.044, output: 3.96 },
 };
 
-/** Anthropic: gravar no cache (TTL de 5 min) custa 1,25× a entrada; os demais não cobram à parte. */
-for (const [model, price] of Object.entries(MODEL_PRICES))
+/**
+ * Anthropic: gravar no cache (TTL de 5 min) custa 1,25× a entrada; os demais não cobram à parte. Vale para a tabela
+ * do código e para os preços de AI_MODEL_PRICES sem o quarto campo.
+ */
+function withAnthropicCacheWrite(model: string, price: ModelPrice): ModelPrice {
   if (model.startsWith('claude-') && price.cacheWrite === undefined)
     price.cacheWrite = Math.round(price.input * 1.25 * 1_000_000) / 1_000_000;
+  return price;
+}
+for (const [model, price] of Object.entries(MODEL_PRICES)) withAnthropicCacheWrite(model, price);
 
 /**
  * AI_MODEL_PRICES: `modelo=entrada/cache/saída[/gravação]` separados por vírgula, ponto e vírgula ou
- * espaço (US$ por 1 milhão de tokens; `cache` e `gravação` podem ficar vazios: valem o preço da entrada).
+ * espaço (US$ por 1 milhão de tokens; `cache` e `gravação` podem ficar vazios: valem o preço da entrada, e a
+ * gravação dos modelos `claude-*`, 1,25× a entrada).
  * Ex.: `deepseek-flash=0.15/0.003/0.6, gpt-6-luna=0.1/0.01/0.5`.
  */
 const PRICE_NUM = '\\d+(?:\\.\\d+)?';
@@ -105,12 +112,12 @@ export function parseModelPrices(raw: string | null | undefined): Record<string,
   for (const entry of text.split(/[,;\s]+/).filter(Boolean)) {
     const [model, values] = entry.split('=') as [string, string];
     const [input, cached, output, write] = values.split('/');
-    out[model] = {
+    out[model] = withAnthropicCacheWrite(model, {
       input: Number(input),
       output: Number(output),
       ...(cached ? { cachedInput: Number(cached) } : {}),
       ...(write ? { cacheWrite: Number(write) } : {}),
-    };
+    });
   }
   return out;
 }

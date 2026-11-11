@@ -193,6 +193,13 @@ describe('pergunta ao assistente', () => {
     expect(await outOf(cortado)).toBe(100);
   });
 
+  it('provedor sem uso até o fim (OpenAI, DeepSeek) cortado no meio: a entrada é estimada pelo prompt', async () => {
+    const t = await newTenant();
+    await run(t, fakeStream(['parte 1', 'parte 2'], { failAfter: 1, tokens: { inputTokens: 0 } }));
+    const [usage] = (await listLedger(db, t, { kinds: ['usage'] })).entries;
+    expect(usage?.tokensIn).toBeGreaterThan(0);
+  });
+
   it('custo acima da reserva: cobra só a reserva (o cliente nunca paga mais que o mostrado)', async () => {
     const t = await newTenant();
     const events = await run(

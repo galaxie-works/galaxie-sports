@@ -279,6 +279,13 @@ export async function* askAssistant(
   // entregue (inteiro ou em parte): acerta pelo usado, sem passar da reserva
   // sem a contagem final do provedor (corte, falha no meio): estima a saída pelo texto já mandado
   if (!usage.outputFinal && usage.outputTokens < approxTokens(text)) usage.outputTokens = approxTokens(text);
+  // provedor que só manda o uso no fim (OpenAI, DeepSeek): no corte, a entrada também é estimada pelo prompt
+  if (!usage.outputFinal && usage.inputTokens === 0) {
+    usage.inputTokens =
+      approxTokens(input.prompt.system) +
+      input.prompt.messages.reduce((sum, m) => sum + approxTokens(m.content), 0);
+    usage.cachedInputTokens = 0;
+  }
   const backoff = deps.settleBackoffMs ?? [200, 800];
   let settled: { charged: number; available: number } | null = null;
   for (let attempt = 0; attempt <= backoff.length && !settled; attempt++) {
