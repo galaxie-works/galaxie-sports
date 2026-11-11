@@ -56,10 +56,8 @@ export const fanPresenceWindow = fan.table(
     index('presence_window_open_idx').on(t.tenantId, t.profileId, t.lastSeenAt),
     index('presence_window_purge_idx').on(t.lastSeenAt),
     check('presence_window_order', sql`${t.lastSeenAt} >= ${t.startedAt}`),
-    check(
-      'presence_window_interaction',
-      sql`${t.lastInteractionAt} between ${t.startedAt} and ${t.lastSeenAt}`,
-    ),
+    // a última interação pode ser de uma janela anterior do mesmo jogo (passa de uma janela para a outra)
+    check('presence_window_interaction', sql`${t.lastInteractionAt} <= ${t.lastSeenAt}`),
     check('presence_window_heartbeats', sql`${t.heartbeats} >= 1`),
   ],
 );

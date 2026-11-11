@@ -11,7 +11,7 @@ CREATE TABLE "fan"."presence_window" (
 	"heartbeats" integer DEFAULT 1 NOT NULL,
 	CONSTRAINT "presence_window_pkey" PRIMARY KEY("tenant_id","id"),
 	CONSTRAINT "presence_window_order" CHECK ("fan"."presence_window"."last_seen_at" >= "fan"."presence_window"."started_at"),
-	CONSTRAINT "presence_window_interaction" CHECK ("fan"."presence_window"."last_interaction_at" between "fan"."presence_window"."started_at" and "fan"."presence_window"."last_seen_at"),
+	CONSTRAINT "presence_window_interaction" CHECK ("fan"."presence_window"."last_interaction_at" <= "fan"."presence_window"."last_seen_at"),
 	CONSTRAINT "presence_window_heartbeats" CHECK ("fan"."presence_window"."heartbeats" >= 1)
 );
 --> statement-breakpoint

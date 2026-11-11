@@ -76,8 +76,10 @@ const verdict = (v: {
   now: number;
 }): PresenceVerdict => {
   if (!v.visible) return 'hidden';
-  if (v.interacted || v.windowStartedAt === null) return 'counted';
-  return v.now - (v.lastInteractionAt ?? v.windowStartedAt) > 15 * min ? 'interaction_needed' : 'counted';
+  if (v.interacted) return 'counted';
+  const since = v.lastInteractionAt ?? v.windowStartedAt;
+  if (since === null) return 'counted';
+  return v.now - since > 15 * min ? 'interaction_needed' : 'counted';
 };
 const rules = { gapMs: 90_000, maxGames: 2, verdict };
 const beat = (profileId: string, eventId: string, over: { visible?: boolean; interacted?: boolean } = {}) =>
@@ -112,6 +114,32 @@ describe('presença ao vivo (B9, #906)', () => {
     expect(await beat(p, ev)).toMatchObject({ counted: false, reason: 'interaction_needed' });
     expect(await beat(p, ev, { interacted: true })).toMatchObject({ counted: true, opened: false });
     expect(await beat(p, ev)).toMatchObject({ counted: true });
+  });
+
+  it('sumir 90 s e voltar não zera o relógio da interação', async () => {
+    const p = await profile('18plus');
+    const ev = randomUUID();
+    await beat(p, ev);
+    // a janela fechou (último sinal há 2 min) e o último toque foi há 20 min
+    await pg`update fan.presence_window set started_at = now() - interval '20 minutes',
+      last_interaction_at = now() - interval '20 minutes', last_seen_at = now() - interval '2 minutes'
+      where profile_id = ${p}`;
+    expect(await beat(p, ev)).toMatchObject({ counted: false, reason: 'interaction_needed' });
+    expect(await presenceWindows(db, { tenantId, profileId: p, eventId: ev })).toHaveLength(1);
+    expect(await beat(p, ev, { interacted: true })).toMatchObject({ counted: true, opened: true });
+  });
+
+  it('sinais em paralelo não quebram a janela nem voltam no tempo', async () => {
+    const p = await profile('18plus');
+    const ev = randomUUID();
+    const res = await Promise.all(
+      Array.from({ length: 20 }, (_, i) => beat(p, ev, { interacted: i % 2 === 0 })),
+    );
+    expect(res.every((r) => r.counted)).toBe(true);
+    const ws = await presenceWindows(db, { tenantId, profileId: p, eventId: ev });
+    expect(ws).toHaveLength(1);
+    expect(ws[0]!.heartbeats).toBe(20);
+    expect(ws[0]!.lastSeenAt.getTime()).toBeGreaterThanOrEqual(ws[0]!.startedAt.getTime());
   });
 
   it('limite de jogos ao mesmo tempo, e janela velha não conta', async () => {

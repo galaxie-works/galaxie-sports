@@ -20789,7 +20789,7 @@
         },
         "presence_window_interaction": {
           "name": "presence_window_interaction",
-          "value": "\"fan\".\"presence_window\".\"last_interaction_at\" between \"fan\".\"presence_window\".\"started_at\" and \"fan\".\"presence_window\".\"last_seen_at\""
+          "value": "\"fan\".\"presence_window\".\"last_interaction_at\" <= \"fan\".\"presence_window\".\"last_seen_at\""
         },
         "presence_window_heartbeats": {
           "name": "presence_window_heartbeats",

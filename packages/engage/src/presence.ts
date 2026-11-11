@@ -5,7 +5,8 @@
  *
  * - **Só aba visível conta.** Sinal com a aba oculta não abre nem estende janela.
  * - **Interação ocasional.** Sem interação há mais de `PRESENCE_INTERACTION_EVERY_S`, o sinal deixa de contar até
- *   o torcedor interagir (o widget pede um toque); robô que só manda sinal para de somar.
+ *   o torcedor interagir (o widget pede um toque); robô que só manda sinal para de somar. O `interacted` é a palavra
+ *   do widget: é uma barreira contra aba esquecida e robô simples, não contra quem forja o sinal.
  * - **Limite de jogos ao mesmo tempo** por Perfil: padrão da Galaxie no painel, que o cliente só pode baixar.
  * - **Relógio do aparelho nunca vale**, e quem chega depois do evento não ganha o evento.
  */
@@ -19,6 +20,8 @@ export const PRESENCE_INTERACTION_EVERY_S = 15 * 60;
 /** Jogos ao mesmo tempo por Perfil: padrão e teto da Galaxie (o painel pode mudar dentro de 1 a 10). */
 export const PRESENCE_MAX_GAMES_DEFAULT = 3;
 export const PRESENCE_MAX_GAMES_CEILING = 10;
+/** Dias que as janelas ficam guardadas depois do último sinal (dado pessoal; o expurgo roda de hora em hora). */
+export const PRESENCE_RETENTION_DAYS = 90;
 
 /** O limite que vale para o cliente: o dele, se for menor que o da Galaxie. */
 export function presenceMaxGames(
@@ -35,8 +38,9 @@ export function presenceMaxGames(
 export type HeartbeatVerdict = 'counted' | 'hidden' | 'interaction_needed';
 
 /**
- * O sinal conta? `lastInteractionAt` é o último toque registrado pelo servidor (null = nunca), `windowStartedAt` o
- * começo da janela aberta (null = vai abrir agora). Uma janela nova sempre conta: abrir já é interação.
+ * O sinal conta? `lastInteractionAt` é o último toque registrado pelo servidor no jogo, em qualquer janela (null =
+ * nunca), `windowStartedAt` o começo da janela aberta (null = vai abrir agora). A primeira janela do jogo conta;
+ * abrir outra depois de sumir 90 s não zera o relógio da interação (senão o robô só pararia de mandar sinal).
  */
 export function heartbeatVerdict(input: {
   visible: boolean;
@@ -46,8 +50,9 @@ export function heartbeatVerdict(input: {
   now: number;
 }): HeartbeatVerdict {
   if (!input.visible) return 'hidden';
-  if (input.interacted || input.windowStartedAt === null) return 'counted';
+  if (input.interacted) return 'counted';
   const since = input.lastInteractionAt ?? input.windowStartedAt;
+  if (since === null) return 'counted';
   return input.now - since > PRESENCE_INTERACTION_EVERY_S * 1000 ? 'interaction_needed' : 'counted';
 }
 

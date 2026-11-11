@@ -15,11 +15,19 @@ import {
   type EventPresence,
   type FanPresenceResponse,
 } from '@galaxie/contracts';
-import { event, readPresenceLimit, readRuntimeOverrides, recordHeartbeat, type Database } from '@galaxie/db';
+import {
+  event,
+  purgePresence,
+  readPresenceLimit,
+  readRuntimeOverrides,
+  recordHeartbeat,
+  type Database,
+} from '@galaxie/db';
 import {
   PRESENCE_GAP_S,
   PRESENCE_HEARTBEAT_S,
   PRESENCE_MAX_GAMES_DEFAULT,
+  PRESENCE_RETENTION_DAYS,
   heartbeatVerdict,
   interactionDue,
   presenceMaxGames,
@@ -111,6 +119,22 @@ export class PresenceMaxGames {
     }
     return this.value;
   }
+}
+
+/** Retenção das janelas (`PRESENCE_RETENTION_DAYS`): de hora em hora, no processo da API, que já escreve em `fan`. */
+export function startPresencePurge(
+  db: Database,
+  log: { warn: (obj: object, msg: string) => void },
+  everyMs = 3_600_000,
+): () => void {
+  const run = () => {
+    purgePresence(db, new Date(Date.now() - PRESENCE_RETENTION_DAYS * 86_400_000)).catch((err: unknown) =>
+      log.warn({ err }, 'expurgo da presença falhou'),
+    );
+  };
+  const timer = setInterval(run, everyMs);
+  timer.unref();
+  return () => clearInterval(timer);
 }
 
 export interface PresenceRoutesDeps {

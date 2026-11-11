@@ -33,6 +33,10 @@ describe('presença ao vivo (B9, #906)', () => {
     expect(heartbeatVerdict({ ...base, lastInteractionAt: 0, windowStartedAt: 0, now: 16 * min })).toBe(
       'interaction_needed',
     );
+    // janela nova, mas o último toque no jogo foi há 16 min: não conta
+    expect(heartbeatVerdict({ ...base, lastInteractionAt: 0, windowStartedAt: null, now: 16 * min })).toBe(
+      'interaction_needed',
+    );
     expect(
       heartbeatVerdict({
         ...base,

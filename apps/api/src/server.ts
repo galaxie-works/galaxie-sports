@@ -16,6 +16,7 @@ import {
   PresenceMaxGames,
   presenceRoutes,
   RedisPresenceCounter,
+  startPresencePurge,
 } from './engage/presence-routes.js';
 import type { FanTokenSigner } from './engage/fan-token.js';
 import { AdminGuard, type AdminGuardOptions } from './admin/guard.js';
@@ -473,6 +474,10 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
       counter: options.redis ? new RedisPresenceCounter(options.redis, prefix) : new MemoryPresenceCounter(),
       maxGames: new PresenceMaxGames(options.db),
     });
+    if (options.db) {
+      const stopPurge = startPresencePurge(options.db, instance.log);
+      instance.addHook('onClose', async () => stopPurge());
+    }
   });
 
   // escopo próprio: o parser de corpo cru do webhook não vale para as outras rotas
