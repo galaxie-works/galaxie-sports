@@ -44,7 +44,10 @@ function toSet(rows: Row[]): ModerationListSet {
 
 /** Listas base + do cliente, com cache curto por cliente. */
 export class ModerationLists {
-  private readonly cache = new Map<string, { at: number; lists: Promise<CompiledLists> }>();
+  private readonly cache = new Map<
+    string,
+    { at: number; lists: Promise<CompiledLists>; good?: CompiledLists }
+  >();
 
   constructor(
     private readonly db: Database,
@@ -54,12 +57,30 @@ export class ModerationLists {
   forTenant(tenantId: string): Promise<CompiledLists> {
     const hit = this.cache.get(tenantId);
     if (hit && this.now() - hit.at < TTL_MS) return hit.lists;
-    const lists = this.load(tenantId);
-    // falha não fica no cache: a próxima chamada tenta de novo
-    lists.catch(() => this.cache.delete(tenantId));
-    if (this.cache.size >= MAX_ENTRIES) this.cache.clear();
-    this.cache.set(tenantId, { at: this.now(), lists });
-    return lists;
+    const entry: { at: number; lists: Promise<CompiledLists>; good?: CompiledLists } = {
+      at: this.now(),
+      lists: Promise.resolve(null as never),
+    };
+    entry.lists = this.load(tenantId).then(
+      (lists) => {
+        entry.good = lists;
+        return lists;
+      },
+      (err: unknown) => {
+        // banco fora: vale a última lista boa; sem ela, a próxima chamada tenta de novo
+        if (this.cache.get(tenantId) === entry) {
+          if (hit?.good) {
+            entry.good = hit.good;
+            return hit.good;
+          }
+          this.cache.delete(tenantId);
+        }
+        throw err;
+      },
+    );
+    if (!hit && this.cache.size >= MAX_ENTRIES) this.cache.clear();
+    this.cache.set(tenantId, entry);
+    return entry.lists;
   }
 
   private async load(tenantId: string): Promise<CompiledLists> {

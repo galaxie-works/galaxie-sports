@@ -122,20 +122,85 @@ const LEET: Record<string, string> = {
   '9': 'g',
 };
 
-/** Minúsculas, sem acento. */
+/** Cirílico e grego que se parecem com letras latinas (`mаcaco` com `а` cirílico). Só no caminho do drible. */
+const HOMOGLYPHS: Record<string, string> = {
+  а: 'a',
+  е: 'e',
+  о: 'o',
+  р: 'p',
+  с: 'c',
+  у: 'y',
+  х: 'x',
+  к: 'k',
+  м: 'm',
+  т: 't',
+  в: 'b',
+  н: 'h',
+  і: 'i',
+  ѕ: 's',
+  ј: 'j',
+  ԁ: 'd',
+  ӏ: 'l',
+  α: 'a',
+  ο: 'o',
+  ε: 'e',
+  ι: 'i',
+  κ: 'k',
+  ν: 'v',
+  ρ: 'p',
+  τ: 't',
+  υ: 'u',
+  χ: 'x',
+  β: 'b',
+  γ: 'y',
+  η: 'n',
+  μ: 'u',
+};
+
+/** Minúsculas, sem acento, sem caractere invisível (zero-width, hífen suave) e com os pontos de outras escritas
+ *  (`。`) trocados por `.`. */
 function fold(text: string): string {
-  return text.normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  return text
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\p{Cf}/gu, '')
+    .replace(/[。｡︒]/g, '.')
+    .toLowerCase();
 }
 
-/** Letras repetidas viram uma só (`maaacaaco` → `macaco`). Termos passam pela mesma regra. */
+/** Letras repetidas viram uma só (`maaacaaco` → `macaco`). Só para achar candidatos: a confirmação exige no texto
+ *  pelo menos as letras dobradas do termo (`nigger` não casa com `nigeria`). */
 function squeeze(word: string): string {
   return word.replace(/(.)\1+/g, '$1');
+}
+
+/** Regex do termo que aceita letra repetida a mais, mas não a menos: `rr` em `morrer` pede ao menos dois `r`. */
+function termPattern(term: string): string {
+  let out = '';
+  for (const m of term.matchAll(/(.)\1*/g)) {
+    const c = m[1]!.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    out += m[0].length > 1 ? `${c}{${m[0].length},}` : `${c}+`;
+  }
+  return out;
 }
 
 /** Palavras do texto, já sem acento. `leet` troca números e símbolos por letras. Sequências de letras soltas
  *  (`m a c a c o`, `m.a.c.a.c.o`) viram uma palavra só. */
 function words(folded: string, leet: boolean): string[] {
-  const mapped = leet ? [...folded].map((c) => LEET[c] ?? c).join('') : folded;
+  // apóstrofo dentro da palavra some (`I'll` → `ill`, `d'água` → `dagua`)
+  let mapped = folded.replace(/(?<=[a-z0-9ñ])['’`´](?=[a-z0-9ñ])/g, '');
+  // no caminho do drible: homóglifo, leet e hífen ou sublinhado no meio da palavra (`maca-co`)
+  if (leet)
+    mapped = [...mapped]
+      // símbolo só vira letra no meio da palavra (`m@c@co`); `Vamos Macaca!` não vira `macacai`
+      .map(
+        (c, i, all) =>
+          HOMOGLYPHS[c] ??
+          (/[0-9]/.test(c) || /[a-z0-9ñ@$€!|+]/.test(all[i + 1] ?? '') ? LEET[c] : undefined) ??
+          c,
+      )
+      .join('')
+      .replace(/(?<=[a-z0-9ñ])[-_]+(?=[a-z0-9ñ])/g, '');
   const raw = mapped.split(/[^a-z0-9ñ]+/).filter(Boolean);
   const out: string[] = [];
   let singles = '';
@@ -151,17 +216,17 @@ function words(folded: string, leet: boolean): string[] {
   }
   if (singles.length >= 3) out.push(singles);
   else if (singles) out.push(...singles);
-  return out.map(squeeze);
+  return out;
 }
 
-/** Forma canônica de um termo da lista (o que a tela grava e o que o filtro compara). */
+/** Forma canônica de um termo da lista (o que a tela grava e o que o filtro compara). Guarda as letras dobradas:
+ *  `nigger` e `niger` são palavras diferentes. */
 export function normalizeTerm(term: string): string {
-  const t = fold(term.trim());
+  const t = fold(term.trim()).replace(/(?<=[a-z0-9ñ])['’`´](?=[a-z0-9ñ])/g, '');
   const prefix = t.endsWith('*');
   const body = (prefix ? t.slice(0, -1) : t)
     .split(/[^a-z0-9ñ]+/)
     .filter(Boolean)
-    .map(squeeze)
     .join(' ');
   return body ? (prefix ? `${body}*` : body) : '';
 }
@@ -177,11 +242,19 @@ export function normalizeDomain(domain: string): string {
 // ---------------------------------------------------------------------------------------------------------------
 // Listas compiladas
 
-interface CompiledTerms {
-  exact: Set<string>;
-  prefixes: string[];
-  phrases: string[];
+/** Termo compilado: a forma sem letra repetida acha o candidato rápido; a regex confirma. */
+interface Term {
+  key: string;
+  re: RegExp;
 }
+
+interface CompiledTerms {
+  exact: Map<string, RegExp[]>;
+  prefixes: Term[];
+  phrases: Term[];
+}
+
+const emptyTerms = (): CompiledTerms => ({ exact: new Map(), prefixes: [], phrases: [] });
 
 export interface CompiledLists {
   byCategory: Map<TermCategory, { any: CompiledTerms; byLocale: Map<ListLocale, CompiledTerms> }>;
@@ -191,23 +264,29 @@ export interface CompiledLists {
 }
 
 function compileTerms(terms: string[]): CompiledTerms {
-  const out: CompiledTerms = { exact: new Set(), prefixes: [], phrases: [] };
+  const out = emptyTerms();
   for (const raw of terms) {
     const t = normalizeTerm(raw);
     if (!t) continue;
-    if (t.includes(' ')) out.phrases.push(` ${t.replace(/\*$/, '')}`);
-    else if (t.endsWith('*')) out.prefixes.push(t.slice(0, -1));
-    else out.exact.add(t);
+    const prefix = t.endsWith('*');
+    const body = prefix ? t.slice(0, -1) : t;
+    if (body.includes(' ')) {
+      // frase: começa e (sem `*`) termina em fronteira de palavra; `se mata` não casa com `se matava`
+      const pattern = ` ${body.split(' ').map(termPattern).join(' ')}${prefix ? '' : ' '}`;
+      out.phrases.push({ key: ` ${squeeze(body)}${prefix ? '' : ' '}`, re: new RegExp(pattern) });
+    } else if (prefix) out.prefixes.push({ key: squeeze(body), re: new RegExp(`^${termPattern(body)}`) });
+    else {
+      const key = squeeze(body);
+      out.exact.set(key, [...(out.exact.get(key) ?? []), new RegExp(`^${termPattern(body)}$`)]);
+    }
   }
   return out;
 }
 
 function mergeTerms(a: CompiledTerms, b: CompiledTerms): CompiledTerms {
-  return {
-    exact: new Set([...a.exact, ...b.exact]),
-    prefixes: [...a.prefixes, ...b.prefixes],
-    phrases: [...a.phrases, ...b.phrases],
-  };
+  const exact = new Map(a.exact);
+  for (const [k, v] of b.exact) exact.set(k, [...(exact.get(k) ?? []), ...v]);
+  return { exact, prefixes: [...a.prefixes, ...b.prefixes], phrases: [...a.phrases, ...b.phrases] };
 }
 
 /**
@@ -218,7 +297,7 @@ export function compileLists(base: ModerationListSet, tenant?: ModerationListSet
   const byCategory: CompiledLists['byCategory'] = new Map();
   for (const cat of TERM_CATEGORIES) {
     const byLocale = new Map<ListLocale, CompiledTerms>();
-    let any: CompiledTerms = { exact: new Set(), prefixes: [], phrases: [] };
+    let any = emptyTerms();
     for (const loc of LIST_LOCALES) {
       const terms = [...(base.terms[cat]?.[loc] ?? []), ...(tenant?.terms[cat]?.[loc] ?? [])];
       const c = compileTerms(terms);
@@ -238,12 +317,27 @@ export function compileLists(base: ModerationListSet, tenant?: ModerationListSet
   };
 }
 
-function matches(c: CompiledTerms, ws: string[], joined: string): boolean {
-  for (const w of ws) {
-    if (c.exact.has(w)) return true;
-    for (const p of c.prefixes) if (w.startsWith(p)) return true;
+interface Text {
+  words: string[];
+  squeezed: string[];
+  joined: string;
+  joinedSqueezed: string;
+}
+
+function textOf(ws: string[]): Text {
+  const squeezed = ws.map(squeeze);
+  return { words: ws, squeezed, joined: ` ${ws.join(' ')} `, joinedSqueezed: ` ${squeezed.join(' ')} ` };
+}
+
+function matches(c: CompiledTerms, t: Text): boolean {
+  for (let i = 0; i < t.words.length; i += 1) {
+    const w = t.words[i]!;
+    const sq = t.squeezed[i]!;
+    const exact = c.exact.get(sq);
+    if (exact?.some((re) => re.test(w))) return true;
+    for (const p of c.prefixes) if (sq.startsWith(p.key) && p.re.test(w)) return true;
   }
-  for (const p of c.phrases) if (joined.includes(p)) return true;
+  for (const p of c.phrases) if (t.joinedSqueezed.includes(p.key) && p.re.test(t.joined)) return true;
   return false;
 }
 
@@ -251,14 +345,21 @@ function matches(c: CompiledTerms, ws: string[], joined: string): boolean {
 // Detectores
 
 const TLDS =
-  'com|net|org|br|bet|io|me|gg|tv|xyz|app|ly|co|ar|mx|cl|pe|uy|ec|py|bo|ve|us|ca|info|site|online|vip|win|club|live|link|top|fun|games|casino|pro|biz|cc|to|in';
+  'com|net|org|br|bet|io|me|gg|tv|xyz|app|ly|co|ar|mx|cl|pe|uy|ec|py|bo|ve|us|ca|info|site|online|vip|win|club|live|link|top|fun|games|casino|pro|biz|cc|to|in|pt|es|de|uk|ru|fr|it|eu|shop|store|dev|ai|tech|website|space|page|stream';
 const URL_RE = new RegExp(
-  String.raw`(?:https?:\/\/|www\.)[^\s<>"']+|\b(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+(?:${TLDS})\b(?:\/[^\s<>"']*)?`,
+  String.raw`(?:https?:\/\/|www\.)[^\s<>"']+|\b(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.){1,8}(?:${TLDS})\b(?:\/[^\s<>"']*)?`,
   'gi',
 );
-/** `site ponto com`, `bet365 (dot) com`, `betano . com`. */
-const SPELLED_DOT = /\s*(?:\(\s*)?(?:ponto|punto|dot)(?:\s*\))?\s*|\s+\.\s*|\s*\.\s+/gi;
-const EMAIL_RE = /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i;
+/** Ponto escondido entre parênteses ou colchetes: `site(.)com`, `site [dot] com`, `site (ponto) com`. */
+const BRACKET_DOT = /\s*[([{]\s*(?:\.|ponto|punto|dot)\s*[)\]}]\s*/gi;
+/** Ponto por extenso ou com espaço (`site ponto com`, `betano . com`). Só vale com o domínio no fim da frase:
+ *  "um ponto com o empate" e "Ganhamos o jogo. Com certeza" são texto comum. */
+const SPACED_HOST = new RegExp(
+  String.raw`(?<![a-z0-9.-])([a-z0-9][a-z0-9-]{1,62})(?:\s+(?:ponto|punto|dot)\s+|\s+\.\s*|\s*\.\s+)(${TLDS})(?=\s*(?:$|[/!?,;:)]))`,
+  'gi',
+);
+// limites de tamanho: sem eles, `a.a.a…` e `a@a@a…` custam tempo quadrático
+const EMAIL_RE = /[a-z0-9._%+-]{1,64}@[a-z0-9-]{1,63}(?:\.[a-z0-9-]{1,63}){0,6}\.[a-z]{2,24}\b/i;
 const UUID_RE = /\b[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}\b/i;
 const CPF_RE = /(?<!\d)(\d{3})[.\s]?(\d{3})[.\s]?(\d{3})[-.\s]?(\d{2})(?!\d)/g;
 const CNPJ_RE = /(?<!\d)(\d{2})[.\s]?(\d{3})[.\s]?(\d{3})[/\s]?(\d{4})[-.\s]?(\d{2})(?!\d)/g;
@@ -309,7 +410,8 @@ const domainIn = (host: string, list: string[]) => list.some((d) => host === d |
 /** Hosts dos links do texto, inclusive os escritos com "ponto com". */
 function hostsIn(folded: string): string[] {
   const hosts = new Set<string>();
-  for (const variant of [folded, folded.replace(SPELLED_DOT, '.')])
+  for (const m of folded.matchAll(SPACED_HOST)) hosts.add(`${m[1]}.${m[2]}`);
+  for (const variant of [folded, folded.replace(BRACKET_DOT, '.')])
     for (const m of variant.matchAll(URL_RE)) {
       // e-mail não é link (cai em dado pessoal)
       const before = variant[m.index! - 1];
@@ -379,19 +481,31 @@ export function screen(text: string, ctx: ScreenContext, lists: CompiledLists): 
     }
   }
 
+  // longo demais não é publicado: nem passa pelo resto (as regex de link e e-mail custam com texto enorme)
+  if (reasons.has('too_long') || reasons.has('empty')) {
+    const sorted = ORDER.filter((r) => reasons.has(r));
+    return {
+      action: 'block',
+      reasons: sorted,
+      categories: [],
+      suspect: false,
+      evasion: false,
+      ...(retryAfterS !== undefined ? { retryAfterS } : {}),
+    };
+  }
+
   const folded = fold(trimmed);
-  const plain = words(folded, false).filter((w) => !lists.exceptions.has(w));
-  const leet = words(folded, true).filter((w) => !lists.exceptions.has(w));
-  const joinedPlain = ` ${plain.join(' ')} `;
-  const joinedLeet = ` ${leet.join(' ')} `;
+  const notException = (w: string) => !lists.exceptions.has(w) && !lists.exceptions.has(squeeze(w));
+  const plain = textOf(words(folded, false).filter(notException));
+  const leet = textOf(words(folded, true).filter(notException));
   const loc = localeKey(ctx.locale);
 
   for (const [cat, c] of lists.byCategory) {
     // palavrão só conta no idioma do torcedor (e nas listas `all`); os outros valem em qualquer idioma
     const terms =
       cat === 'profanity' ? mergeTerms(c.byLocale.get('all')!, loc ? c.byLocale.get(loc)! : c.any) : c.any;
-    if (matches(terms, plain, joinedPlain)) categories.add(cat);
-    else if (matches(terms, leet, joinedLeet)) {
+    if (matches(terms, plain)) categories.add(cat);
+    else if (matches(terms, leet)) {
       categories.add(cat);
       evasion = true;
     }

@@ -15,6 +15,8 @@ export default defineMessages(
       version: 'Versão',
       edit: 'Editar',
       empty: 'Nenhuma lista gravada.',
+      add: 'Lista que falta',
+      create: 'Criar',
     },
     names: {
       hate: 'Ódio e discriminação',
@@ -109,6 +111,8 @@ export default defineMessages(
         version: 'Version',
         edit: 'Edit',
         empty: 'No lists saved.',
+        add: 'Missing list',
+        create: 'Create',
       },
       names: {
         hate: 'Hate and discrimination',
@@ -202,6 +206,8 @@ export default defineMessages(
         version: 'Versión',
         edit: 'Editar',
         empty: 'Ninguna lista guardada.',
+        add: 'Lista que falta',
+        create: 'Crear',
       },
       names: {
         hate: 'Odio y discriminación',

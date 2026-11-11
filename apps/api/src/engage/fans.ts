@@ -93,6 +93,31 @@ export async function upsertFan(
   });
 }
 
+/** Apelido gravado do Perfil pelos ids do cliente (null se o Perfil ainda não existe ou foi excluído). */
+export async function storedNickname(
+  db: Database,
+  tenantId: string,
+  externalAccountId: string,
+  externalProfileId: string,
+): Promise<string | null> {
+  const [row] = await db
+    .select({ nickname: fanProfile.nickname })
+    .from(fanProfile)
+    .innerJoin(
+      fanAccount,
+      and(eq(fanAccount.tenantId, fanProfile.tenantId), eq(fanAccount.id, fanProfile.accountId)),
+    )
+    .where(
+      and(
+        eq(fanProfile.tenantId, tenantId),
+        eq(fanAccount.externalAccountId, externalAccountId),
+        eq(fanProfile.externalProfileId, externalProfileId),
+        isNull(fanProfile.deletedAt),
+      ),
+    );
+  return row?.nickname ?? null;
+}
+
 /** Perfil ativo do token; null se foi excluído (ou nunca existiu neste tenant). */
 export async function readFan(
   db: Database,

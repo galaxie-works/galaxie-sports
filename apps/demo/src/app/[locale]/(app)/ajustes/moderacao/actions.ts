@@ -64,6 +64,11 @@ export async function testScreenAction(input: {
     : 'chat_message';
   const text = String(input?.text ?? '').slice(0, 5000);
   const locale = String(input?.locale ?? 'pt-BR').slice(0, 10);
-  const r = screen(text, { kind, locale }, await compiledBaseLists());
-  return { ...r, notice: screenNotice(r, locale) };
+  try {
+    const r = screen(text, { kind, locale }, await compiledBaseLists());
+    return { ...r, notice: screenNotice(r, locale) };
+  } catch (err) {
+    console.error('ajustes/moderacao: teste do texto falhou', err);
+    return null;
+  }
 }

@@ -2,12 +2,15 @@
 
 import {
   DOMAIN_LISTS,
+  LIST_LOCALES,
+  MODERATION_LISTS,
   SCREEN_KINDS,
+  TERM_CATEGORIES,
   type ListLocale,
   type ModerationListName,
   type ScreenKind,
 } from '@galaxie/engage';
-import { Pencil } from 'lucide-react';
+import { Pencil, Plus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
@@ -56,6 +59,13 @@ export interface ModerationLogView {
 }
 
 const SAMPLE = 4;
+
+/** Listas que podem existir: categoria de termo por idioma; domínios e exceções só em `all`. */
+const ALL_LISTS: Array<{ list: ModerationListName; locale: ListLocale }> = MODERATION_LISTS.flatMap((list) =>
+  (TERM_CATEGORIES as readonly string[]).includes(list)
+    ? LIST_LOCALES.map((locale) => ({ list, locale }))
+    : [{ list, locale: 'all' as ListLocale }],
+);
 const TEST_LOCALES = ['pt-BR', 'es-AR', 'en'] as const;
 
 /**
@@ -75,14 +85,46 @@ export function ModerationListsPanel({
   const T = t.moderationLists;
   const f = useFormatters(timeZone);
   const [editing, setEditing] = useState<ModerationListView | null>(null);
+  const [adding, setAdding] = useState('');
+  const missing = ALL_LISTS.filter((a) => !lists.some((l) => l.list === a.list && l.locale === a.locale));
 
   return (
     <div className="flex flex-col gap-4">
       <Frame>
         <FramePanel className="p-0">
-          <FrameHeader className="flex flex-col gap-1 p-4">
-            <FrameTitle>{T.lists.title}</FrameTitle>
-            <FrameDescription>{T.lists.description}</FrameDescription>
+          <FrameHeader className="flex flex-row flex-wrap items-start justify-between gap-4 p-4">
+            <div className="flex flex-col gap-1">
+              <FrameTitle>{T.lists.title}</FrameTitle>
+              <FrameDescription>{T.lists.description}</FrameDescription>
+            </div>
+            {missing.length ? (
+              <div className="flex items-center gap-2">
+                <Select value={adding} onValueChange={(v) => setAdding(v ?? '')}>
+                  <SelectTrigger className="w-56" aria-label={T.lists.add}>
+                    <SelectValue placeholder={T.lists.add} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {missing.map((m) => (
+                      <SelectItem key={`${m.list}:${m.locale}`} value={`${m.list}:${m.locale}`}>
+                        {T.names[m.list]} · {T.locales[m.locale]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  size="sm"
+                  disabled={!adding}
+                  onClick={() => {
+                    const [list, locale] = adding.split(':') as [ModerationListName, ListLocale];
+                    setEditing({ list, locale, terms: [], version: 0, updatedAt: '' });
+                    setAdding('');
+                  }}
+                >
+                  <Plus />
+                  {T.lists.create}
+                </Button>
+              </div>
+            ) : null}
           </FrameHeader>
           {lists.length ? (
             <Table>
@@ -197,7 +239,8 @@ function ListDialog({ current, onClose }: { current: ModerationListView; onClose
         list: current.list,
         locale: current.locale,
         terms: text.split('\n'),
-        expectedVersion: current.version,
+        // versão 0 = lista nova (ainda não gravada)
+        expectedVersion: current.version || null,
         reason,
       });
       if (!r.ok) return void toast.error(r.error ?? T.errors.generic);
@@ -262,7 +305,9 @@ function ScreenTestCard() {
 
   const run = () =>
     start(async () => {
-      setResult(await testScreenAction({ text, kind, locale }));
+      const r = await testScreenAction({ text, kind, locale });
+      if (!r) toast.error(T.errors.generic);
+      setResult(r);
     });
 
   return (

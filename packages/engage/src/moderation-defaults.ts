@@ -52,10 +52,11 @@ export const DEFAULT_MODERATION_LISTS: ModerationListSet = {
         'vou matar voce',
         'te pego na saida',
         'sei onde voce mora',
-        'vai morrer',
+        'voce vai morrer',
+        'tu vai morrer',
         'merece morrer',
         'vou te quebrar',
-        'vou explodir',
+        'vou te explodir',
       ],
       es: [
         'te voy a matar',
@@ -168,6 +169,6 @@ export const DEFAULT_MODERATION_LISTS: ModerationListSet = {
     'f12.bet',
     'caliente.mx',
   ],
-  // falso positivo comum: nomes de jogador, clube e cidade que casam com termo da lista
-  exceptions: ['macae', 'macaense', 'macacao', 'macacoes'],
+  // falso positivo comum que casa com termo da lista: roupa (macacão) e o apelido da Ponte Preta (Macaca)
+  exceptions: ['macacao', 'macacoes', 'macaca', 'macacas'],
 };

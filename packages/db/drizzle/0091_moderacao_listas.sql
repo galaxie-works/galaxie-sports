@@ -38,26 +38,27 @@ CREATE INDEX "moderation_list_log_changed_idx" ON "engage"."moderation_list_log"
 --> statement-breakpoint
 -- listas base iniciais (versão 1), as mesmas de DEFAULT_MODERATION_LISTS em @galaxie/engage; daí em diante a tela da Galaxie
 INSERT INTO "engage"."moderation_list" ("list", "locale", "terms", "version", "updated_by") VALUES
-  ('hate', 'all', ARRAY['niger*', 'niga*', 'sieg heil', '148']::text[], 1, 'migration'),
+  ('hate', 'all', ARRAY['nigger*', 'nigga*', 'sieg heil', '1488']::text[], 1, 'migration'),
   ('hate', 'pt', ARRAY['macac*', 'crioul*', 'negrinh*', 'tiziu', 'senzala', 'volta pra senzala', 'viado', 'viadinho', 'viadao', 'boiol*', 'sapatao', 'traveco*', 'baianada', 'paraiba de merda', 'nordestino de merda', 'judeu de merda', 'nazist*', 'hitler tinha razao']::text[], 1, 'migration'),
-  ('hate', 'es', ARRAY['mono de mierda', 'negro de mierda', 'sudaca*', 'paragua de mierda', 'puto de mierda', 'maricon*', 'trolo*', 'indio de mierda', 'vilero de mierda', 'judio de mierda']::text[], 1, 'migration'),
-  ('hate', 'en', ARRAY['monkey boy', 'go back to africa', 'fagot*', 'trany*', 'white power', 'heil hitler']::text[], 1, 'migration'),
-  ('threat', 'pt', ARRAY['vou te matar', 'vou matar voce', 'te pego na saida', 'sei onde voce mora', 'vai morer', 'merece morer', 'vou te quebrar', 'vou explodir']::text[], 1, 'migration'),
+  ('hate', 'es', ARRAY['mono de mierda', 'negro de mierda', 'sudaca*', 'paragua de mierda', 'puto de mierda', 'maricon*', 'trolo*', 'indio de mierda', 'villero de mierda', 'judio de mierda']::text[], 1, 'migration'),
+  ('hate', 'en', ARRAY['monkey boy', 'go back to africa', 'faggot*', 'tranny*', 'white power', 'heil hitler']::text[], 1, 'migration'),
+  ('threat', 'pt', ARRAY['vou te matar', 'vou matar voce', 'te pego na saida', 'sei onde voce mora', 'voce vai morrer', 'tu vai morrer', 'merece morrer', 'vou te quebrar', 'vou te explodir']::text[], 1, 'migration'),
   ('threat', 'es', ARRAY['te voy a matar', 'te mato', 'se donde vivis', 'se donde vives', 'vas a morir', 'te espero a la salida']::text[], 1, 'migration'),
-  ('threat', 'en', ARRAY['i wil kil you', 'il kil you', 'gona kil you', 'i know where you live', 'you wil die']::text[], 1, 'migration'),
+  ('threat', 'en', ARRAY['i will kill you', 'ill kill you', 'gonna kill you', 'i know where you live', 'you will die']::text[], 1, 'migration'),
   ('harassment', 'pt', ARRAY['se mata', 'se mate', 'ninguem gosta de voce', 'lixo humano', 'aborto da natureza']::text[], 1, 'migration'),
   ('harassment', 'es', ARRAY['matate', 'suicidate', 'nadie te quiere', 'basura humana']::text[], 1, 'migration'),
-  ('harassment', 'en', ARRAY['kil yourself', 'kys', 'nobody loves you', 'human trash']::text[], 1, 'migration'),
+  ('harassment', 'en', ARRAY['kill yourself', 'kys', 'nobody loves you', 'human trash']::text[], 1, 'migration'),
   ('sexual', 'pt', ARRAY['manda nudes', 'manda nude', 'pack do pezinho', 'chupa meu*', 'senta no meu*']::text[], 1, 'migration'),
   ('sexual', 'es', ARRAY['manda nudes', 'mandame fotos desnuda', 'chupame la*']::text[], 1, 'migration'),
   ('sexual', 'en', ARRAY['send nudes', 'suck my*']::text[], 1, 'migration'),
-  ('profanity', 'pt', ARRAY['pora', 'caralh*', 'puta que pariu', 'fdp', 'filho da puta', 'arombad*', 'otari*', 'merda', 'cuzao', 'buceta']::text[], 1, 'migration'),
+  ('profanity', 'pt', ARRAY['porra', 'caralh*', 'puta que pariu', 'fdp', 'filho da puta', 'arrombad*', 'otari*', 'merda', 'cuzao', 'buceta']::text[], 1, 'migration'),
   ('profanity', 'es', ARRAY['concha de tu madre', 'la concha de*', 'hijo de puta', 'hdp', 'pelotudo*', 'boludo de mierda', 'mierda', 'carajo', 'pendejo*', 'chinga tu madre']::text[], 1, 'migration'),
-  ('profanity', 'en', ARRAY['fuck*', 'motherfucker*', 'shit', 'bulshit', 'ashole*', 'bitch*', 'cunt*']::text[], 1, 'migration'),
-  ('betting', 'all', ARRAY['bet365', 'betano', 'sportingbet', 'betfair', 'pixbet', 'estrelabet', 'esportes da sorte', '1xbet', 'bwin', 'codere', 'betway', 'betson', 'rivalo', 'novibet', 'superbet', 'betnacional', 'kto', 'f12bet', 'mrjack', 'luva bet', 'casa de aposta*', 'casas de aposta*', 'casa de apuesta*', 'casas de apuesta*', 'apostas esportivas', 'apuestas deportivas', 'sports beting', 'ods turbinad*', 'cupom de aposta', 'codigo de bonus', 'link na bio', 'tigrinho', 'fortune tiger', 'aviator']::text[], 1, 'migration'),
+  ('profanity', 'en', ARRAY['fuck*', 'motherfucker*', 'shit', 'bullshit', 'asshole*', 'bitch*', 'cunt*']::text[], 1, 'migration'),
+  ('betting', 'all', ARRAY['bet365', 'betano', 'sportingbet', 'betfair', 'pixbet', 'estrelabet', 'esportes da sorte', '1xbet', 'bwin', 'codere', 'betway', 'betsson', 'rivalo', 'novibet', 'superbet', 'betnacional', 'kto', 'f12bet', 'mrjack', 'luva bet', 'casa de aposta*', 'casas de aposta*', 'casa de apuesta*', 'casas de apuesta*', 'apostas esportivas', 'apuestas deportivas', 'sports betting', 'odds turbinad*', 'cupom de aposta', 'codigo de bonus', 'link na bio', 'tigrinho', 'fortune tiger', 'aviator']::text[], 1, 'migration'),
   ('allowed_domains', 'all', ARRAY['galaxie.sports', 'galaxie.works']::text[], 1, 'migration'),
   ('bet_domains', 'all', ARRAY['bet', 'bet365.com', 'betano.com', 'sportingbet.com', 'betfair.com', 'pixbet.com', 'estrelabet.com', 'esportesdasorte.com', 'blaze.com', 'stake.com', '1xbet.com', 'bwin.com', 'codere.com', 'betway.com', 'betsson.com', 'rivalo.com', 'novibet.com', 'superbet.com', 'betnacional.com', 'kto.com', 'f12.bet', 'caliente.mx']::text[], 1, 'migration'),
-  ('exceptions', 'all', ARRAY['macae', 'macaense', 'macacao', 'macacoes']::text[], 1, 'migration')
+  ('exceptions', 'all', ARRAY['macacao', 'macacoes', 'macaca', 'macacas']::text[], 1, 'migration')
+
 ON CONFLICT DO NOTHING;--> statement-breakpoint
 INSERT INTO "engage"."moderation_list_log" ("list_id", "tenant_id", "list", "locale", "version", "terms", "changed_by", "reason")
   SELECT id, NULL, list, locale, 1, terms, 'migration', 'listas iniciais (#969)' FROM "engage"."moderation_list"

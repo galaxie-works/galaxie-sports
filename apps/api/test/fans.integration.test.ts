@@ -3,7 +3,9 @@ import type { FastifyInstance } from 'fastify';
 import { Redis } from 'ioredis';
 import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { closeDb, createDb, moderationList, runMigrations, type Database } from '@galaxie/db';
+import { DEFAULT_MODERATION_LISTS, normalizeDomain, normalizeTerm } from '@galaxie/engage';
+import { eq, isNull } from 'drizzle-orm';
+import { closeDb, createDb, fanProfile, moderationList, runMigrations, type Database } from '@galaxie/db';
 import { generateAdminKey, hashAdminKey } from '../src/admin/guard.js';
 import { loadPlans } from '../src/admin/plans.js';
 import { FanTokenSigner } from '../src/engage/fan-token.js';
@@ -144,6 +146,36 @@ describe('identidade do torcedor (#937)', () => {
       .values({ tenantId: t2.id, list: 'hate', locale: 'pt', terms: ['gamba'], updatedBy: 'teste' });
     const r = await issue(t2.key, { ...base, externalProfileId: 'mod_gamba', nickname: 'Gambá' });
     expect(r.statusCode).toBe(400);
+    // Apelido que já estava gravado não é filtrado de novo: a lista nova não tranca o login de quem já tem
+    const ok = await issue(t2.key, { ...base, externalProfileId: 'mod_antigo', nickname: 'Tricolor' });
+    expect(ok.statusCode).toBe(201);
+    await db
+      .update(fanProfile)
+      .set({ nickname: 'Gambá' })
+      .where(eq(fanProfile.id, ok.json().data.profile_id));
+    expect(
+      (await issue(t2.key, { ...base, externalProfileId: 'mod_antigo', nickname: 'Gambá' })).statusCode,
+    ).toBe(201);
+    // mudar para um Apelido que o filtro pega continua recusado
+    expect(
+      (await issue(t2.key, { ...base, externalProfileId: 'mod_antigo', nickname: 'm4c4c0' })).statusCode,
+    ).toBe(400);
+  });
+
+  it('as listas iniciais gravadas pela migration 0091 são as de DEFAULT_MODERATION_LISTS', async () => {
+    const rows = await db.select().from(moderationList).where(isNull(moderationList.tenantId));
+    const got = Object.fromEntries(rows.map((r) => [`${r.list}:${r.locale}`, r.terms]));
+    const d = DEFAULT_MODERATION_LISTS;
+    const uniq = (a: string[]) => [...new Set(a.filter(Boolean))];
+    const want: Record<string, string[]> = {
+      'allowed_domains:all': uniq(d.allowedDomains!.map(normalizeDomain)),
+      'bet_domains:all': uniq(d.betDomains!.map(normalizeDomain)),
+      'exceptions:all': uniq(d.exceptions!.map(normalizeTerm)),
+    };
+    for (const [cat, byLocale] of Object.entries(d.terms))
+      for (const [loc, terms] of Object.entries(byLocale ?? {}))
+        want[`${cat}:${loc}`] = uniq(terms!.map(normalizeTerm));
+    expect(got).toEqual(want);
   });
 
   it('nenhuma coluna de e-mail, documento, telefone ou nascimento no schema fan', async () => {
