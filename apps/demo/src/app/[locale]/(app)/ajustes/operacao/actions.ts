@@ -13,7 +13,6 @@ import {
   settingDef,
   validateSetting,
 } from '@galaxie/runtime-config';
-import { revalidatePath } from 'next/cache';
 
 import { requireAdmin } from '@/lib/auth/admin';
 import { pool } from '@/lib/auth/db';
@@ -38,7 +37,6 @@ export interface OpsActionResult {
   warning?: string;
 }
 
-const FEATURES_PATH = '/ajustes/esportes';
 /** O mesmo limite do painel: scheduler sem relatar há mais que isto não vai pegar o pedido logo. */
 const ALIVE_MS = 3 * 60_000;
 
@@ -136,7 +134,6 @@ export async function saveSetting(key: string, raw: string): Promise<OpsActionRe
     return { ok: false, error: err instanceof Error ? err.message : t.errors.unknown };
   }
   revalidateSystem();
-  revalidatePath(FEATURES_PATH);
   // a flag do ao vivo vale com o serviço `live` no ar ou, com SCHEDULER_LIVE=internal, com o ingestor
   const alive = (await Promise.all(def.services.map((s) => serviceAlive(s).catch(() => false)))).some(
     Boolean,
@@ -207,7 +204,6 @@ export async function resetSetting(key: string): Promise<OpsActionResult> {
     return { ok: false, error: err instanceof Error ? err.message : t.errors.unknown };
   }
   revalidateSystem();
-  revalidatePath(FEATURES_PATH);
   return { ok: true };
 }
 
@@ -318,7 +314,6 @@ async function enqueue(job: string, by: string, service: string): Promise<OpsAct
   if ((rows[0]?.n ?? 0) > 0) return { ok: false, error: t.errors.alreadyQueued };
   await pool.query('insert into ops.job_request (job, requested_by) values ($1, $2)', [job, by]);
   revalidateSystem();
-  revalidatePath(FEATURES_PATH);
   const alive = await serviceAlive(service).catch(() => false);
   return alive ? { ok: true } : { ok: true, warning: t.feedback.serviceOffline };
 }

@@ -23,7 +23,7 @@ A `galaxie-sports` é pública. O envio leva dado de cliente (mensagem livre e p
 
 ## Ligar e configurar
 
-Tudo em **Ajustes → Sistema → Sugestões** (só admin), sem entrar na VPS e sem reiniciar contêiner:
+Tudo em **Ajustes → Plataforma → Sugestões e reportes** (só admin), sem entrar na VPS e sem reiniciar contêiner:
 
 - **Botão de sugestões** (`FEEDBACK_ENABLED`, ligado por padrão): desligado, o botão some do app e o `sendFeedback`
   recusa no servidor ("indisponível"). O servidor passa a recusar na hora; o botão some na próxima carga da página.
@@ -56,7 +56,7 @@ FEEDBACK_GITHUB_REPO=galaxie-works/galaxie-sports-customer-voice
   no contêiner, o painel recusa gravar: nunca vai texto puro para o banco.
 - A demo relê a cada envio, então a troca vale em `site` e `console` sem reiniciar. Ela só decifra para enviar e para
   saber se o token abre; o valor nunca vai ao navegador, a log, a resposta de API ou ao histórico.
-- `ops.runtime_setting_log` registra quem mudou e quando, com `••••••••` no lugar do valor (Sistema → Histórico).
+- `ops.runtime_setting_log` registra quem mudou e quando, com `••••••••` no lugar do valor (Ajustes → Plataforma → Histórico e auditoria).
 - O `mirror-prod-to-dev` apaga `ops.runtime_setting` inteira: o token do painel de produção não vai para o dev.
 - **Trocar a KEK:** `wh seal-secrets` recifra só os segredos dos webhooks. Depois de tirar a KEK antiga do `.env`, o
   painel mostra "Token salvo não abre" e o envio cai no token do `.env` (se houver): cole o token de novo em Sugestões.
@@ -80,7 +80,7 @@ Quem enviou acompanha a sugestão pelo sino do cabeçalho (caixa de entrada) e p
   mudar lá, senão ela não gera aviso (o log do `site` mostra "colunas que o app não conhece").
 - **Conferência diária:** às 12:00 UTC (9h de Brasília) o `site` lê as issues com o mesmo token do envio. O token
   fine-grained de Issues não enxerga o quadro, mas lê o histórico de colunas de cada issue, que é o que basta. Ajustes →
-  Sistema → Sugestões mostra a última conferência e tem "Verificar agora". Repetir não duplica aviso.
+  Plataforma → Sugestões e reportes mostra a última conferência e tem "Verificar agora". Repetir não duplica aviso.
 - **O que vira aviso:** a coluna final do dia (Backlog não avisa; ida e volta no mesmo dia também não) e os comentários
   que começam com `/responder`. Qualquer outro comentário fica só entre a equipe. Coluna e resposta no mesmo dia viram
   um aviso só.
@@ -99,7 +99,7 @@ Quem enviou acompanha a sugestão pelo sino do cabeçalho (caixa de entrada) e p
 
 ## Descobrir quem enviou
 
-No contêiner do `site` (tem o segredo), com o id do usuário (Ajustes → Usuários) ou do tenant:
+No contêiner do `site` (tem o segredo), com o id do usuário (Ajustes → Clientes → Usuários e equipe) ou do tenant:
 
 ```bash
 docker compose exec site node -e '
