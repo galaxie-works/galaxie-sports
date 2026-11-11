@@ -427,7 +427,7 @@ describe('equipe Galaxie no assistente', () => {
   });
 
   it('para no limite por minuto, contando as perguntas em andamento', async () => {
-    const t = await newTenant(0);
+    const t = await newTenant(1);
     await db.insert(staffUsage).values(
       Array.from({ length: 10 }, () => ({
         tenantId: t,
@@ -455,7 +455,7 @@ describe('equipe Galaxie no assistente', () => {
   });
 
   it('cortada antes do uso final, estima a entrada pelo prompt e grava o erro', async () => {
-    const t = await newTenant(0);
+    const t = await newTenant(1);
     async function* cut(): AsyncGenerator<string> {
       yield 'meia';
       throw new Error('conexão caiu');
