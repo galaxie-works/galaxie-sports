@@ -215,6 +215,9 @@ export async function presenceRoutes(app: FastifyInstance, deps: PresenceRoutesD
     if (!fanCan(fan.ageBand, 'read'))
       throw problems.fanAgeRestricted('Perfis com menos de 13 anos não usam os recursos sociais.');
     const { eventId } = parseInput(PresenceEventParams, request.params);
+    // a marca de exclusão fica no Valkey e pode faltar: o banco confirma que o Perfil existe
+    if (!(await readFan(db(), fan.tenantId, fan.profileId)))
+      throw problems.invalidFanToken('Perfil excluído.');
     let present = 0;
     try {
       present = await deps.counter.count(fan.tenantId, eventId, Date.now());

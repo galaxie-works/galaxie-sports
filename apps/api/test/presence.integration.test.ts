@@ -15,6 +15,7 @@ import {
 import { generateAdminKey, hashAdminKey } from '../src/admin/guard.js';
 import { loadPlans } from '../src/admin/plans.js';
 import { FanTokenSigner } from '../src/engage/fan-token.js';
+import { eraseFan } from '../src/engage/fans.js';
 import { buildServer } from '../src/server.js';
 
 const adminUrl = process.env.DATABASE_URL;
@@ -173,6 +174,32 @@ describe('presença ao vivo (#906)', () => {
       counted: false,
       reason: 'too_many_games',
     });
+  });
+
+  it('Perfil excluído não lê a contagem, mesmo sem a marca de exclusão no Valkey', async () => {
+    const t = await tenantKey('pres-e', ['core_data', 'live_chat']);
+    const a = await fan(t.key, 30);
+    const ev = await game();
+    const ok = await app.inject({
+      method: 'GET',
+      url: `/v1/events/${ev}/presence`,
+      headers: { authorization: `Bearer ${a}` },
+    });
+    expect(ok.statusCode).toBe(200);
+    // apaga só no banco: a marca no Valkey não existe, como quando ele está fora
+    await eraseFan(db, {
+      tenantId: t.id,
+      externalAccountId: 'acc_30',
+      externalProfileId: 'prof_30',
+      requestedBy: 'teste',
+    });
+    const gone = await app.inject({
+      method: 'GET',
+      url: `/v1/events/${ev}/presence`,
+      headers: { authorization: `Bearer ${a}` },
+    });
+    expect(gone.statusCode).toBe(401);
+    expect(gone.json().detail).toBe('Perfil excluído.');
   });
 
   it('menor de 13 fica fora', async () => {
