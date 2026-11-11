@@ -1088,4 +1088,6 @@ curl_setopt_array($ch, [
 $token = json_decode(curl_exec($ch), true)['data']['token'];
 ```
 
+**Apelido e moderação (#969):** o `nickname` passa pelo filtro de texto da Galaxie (ódio, ameaça, assédio, conteúdo sexual, palavrão, aposta, link e dado pessoal, inclusive com grafia trocada como `m4c4c0`) mais os termos que o cliente acrescentou. Qualquer achado recusa a emissão com `400 INVALID_PARAMS` e `errors[0].path = "nickname"`, com um aviso curto para mostrar ao torcedor. As listas base ficam em Ajustes → Conformidade → Moderação; mudança chega à API em até 60 s.
+
 Ainda não: CORS das rotas do torcedor para o navegador e renovação silenciosa pelo widget (#1020), tópico `fan.profile.deleted` pelo outbox (#1023).

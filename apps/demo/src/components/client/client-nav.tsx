@@ -1,7 +1,17 @@
 'use client';
 
 import type { TenantAction } from '@galaxie/engage';
-import { Blocks, KeyRound, LayoutDashboard, ListVideo, Palette, Tv, Users, Webhook } from 'lucide-react';
+import {
+  Blocks,
+  Handshake,
+  KeyRound,
+  LayoutDashboard,
+  ListVideo,
+  Palette,
+  Tv,
+  Users,
+  Webhook,
+} from 'lucide-react';
 import type { ComponentType, SVGProps } from 'react';
 
 import { CosmosIcon } from '@/components/cosmos/cosmos-icon';
@@ -37,6 +47,13 @@ export const CLIENT_NAV = [
   { id: 'themes', href: '/cliente/temas', icon: Palette, group: 'content', action: 'settings.manage' },
   { id: 'lineup', href: '/cliente/grade', icon: Tv, group: 'content', action: 'settings.manage' },
   { id: 'channels', href: '/cliente/canais', icon: ListVideo, group: 'content', action: 'settings.manage' },
+  {
+    id: 'sponsors',
+    href: '/cliente/patrocinadores',
+    icon: Handshake,
+    group: 'engagement',
+    action: 'settings.manage',
+  },
   { id: 'cosmos', href: '/cliente/cosmos', icon: CosmosIcon, group: 'intelligence', action: 'cosmos.view' },
   {
     id: 'webhooks',

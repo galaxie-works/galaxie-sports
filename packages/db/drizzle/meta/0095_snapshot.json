@@ -1,6 +1,6 @@
 {
-  "id": "8472b9eb-f523-4089-8bfa-f8dd9628bfea",
-  "prevId": "c83926ed-c9a8-4422-8478-a85a40d56fb5",
+  "id": "c3ad3212-25b1-468a-9e21-8ba045ed8498",
+  "prevId": "1260d10f-ac97-4153-8db8-541e4f63d337",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -19588,6 +19588,564 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "engage.moderation_list": {
+      "name": "moderation_list",
+      "schema": "engage",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "public.uuid_generate_v7()"
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "list": {
+          "name": "list",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "locale": {
+          "name": "locale",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "terms": {
+          "name": "terms",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::text[]"
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "updated_by": {
+          "name": "updated_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "moderation_list_base_uq": {
+          "name": "moderation_list_base_uq",
+          "columns": [
+            {
+              "expression": "list",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "locale",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"engage\".\"moderation_list\".\"tenant_id\" is null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "moderation_list_tenant_uq": {
+          "name": "moderation_list_tenant_uq",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "list",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "locale",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"engage\".\"moderation_list\".\"tenant_id\" is not null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "moderation_list_tenant_id_tenant_id_fk": {
+          "name": "moderation_list_tenant_id_tenant_id_fk",
+          "tableFrom": "moderation_list",
+          "tableTo": "tenant",
+          "schemaTo": "api",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "moderation_list_name": {
+          "name": "moderation_list_name",
+          "value": "list in ('hate', 'threat', 'harassment', 'sexual', 'profanity', 'betting', 'allowed_domains', 'bet_domains', 'exceptions')"
+        },
+        "moderation_list_locale": {
+          "name": "moderation_list_locale",
+          "value": "\"engage\".\"moderation_list\".\"locale\" in ('all', 'pt', 'es', 'en')"
+        },
+        "moderation_list_domain_locale": {
+          "name": "moderation_list_domain_locale",
+          "value": "\"engage\".\"moderation_list\".\"list\" not in ('allowed_domains', 'bet_domains', 'exceptions') or \"engage\".\"moderation_list\".\"locale\" = 'all'"
+        },
+        "moderation_list_tenant_exceptions": {
+          "name": "moderation_list_tenant_exceptions",
+          "value": "\"engage\".\"moderation_list\".\"tenant_id\" is null or \"engage\".\"moderation_list\".\"list\" <> 'exceptions'"
+        },
+        "moderation_list_size": {
+          "name": "moderation_list_size",
+          "value": "cardinality(\"engage\".\"moderation_list\".\"terms\") <= 5000"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "engage.moderation_list_log": {
+      "name": "moderation_list_log",
+      "schema": "engage",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "public.uuid_generate_v7()"
+        },
+        "list_id": {
+          "name": "list_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "list": {
+          "name": "list",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "locale": {
+          "name": "locale",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "terms": {
+          "name": "terms",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "changed_by": {
+          "name": "changed_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reason": {
+          "name": "reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "moderation_list_log_version_uq": {
+          "name": "moderation_list_log_version_uq",
+          "columns": [
+            {
+              "expression": "list_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "version",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "moderation_list_log_changed_idx": {
+          "name": "moderation_list_log_changed_idx",
+          "columns": [
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "moderation_list_log_list_id_moderation_list_id_fk": {
+          "name": "moderation_list_log_list_id_moderation_list_id_fk",
+          "tableFrom": "moderation_list_log",
+          "tableTo": "moderation_list",
+          "schemaTo": "engage",
+          "columnsFrom": [
+            "list_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "engage.sponsor": {
+      "name": "sponsor",
+      "schema": "engage",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "public.uuid_generate_v7()"
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "category": {
+          "name": "category",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "link_url": {
+          "name": "link_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "logo_light_url": {
+          "name": "logo_light_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "logo_dark_url": {
+          "name": "logo_dark_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "countries": {
+          "name": "countries",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::text[]"
+        },
+        "starts_at": {
+          "name": "starts_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ends_at": {
+          "name": "ends_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "archived_at": {
+          "name": "archived_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "updated_by": {
+          "name": "updated_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "sponsor_tenant_id_uq": {
+          "name": "sponsor_tenant_id_uq",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "sponsor_tenant_name_uq": {
+          "name": "sponsor_tenant_name_uq",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "lower(\"name\")",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"engage\".\"sponsor\".\"archived_at\" is null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "sponsor_tenant_id_tenant_id_fk": {
+          "name": "sponsor_tenant_id_tenant_id_fk",
+          "tableFrom": "sponsor",
+          "tableTo": "tenant",
+          "schemaTo": "api",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "sponsor_category": {
+          "name": "sponsor_category",
+          "value": "category in ('apparel', 'automotive', 'beverage', 'education', 'energy', 'finance', 'food', 'health', 'media', 'retail', 'technology', 'telecom', 'travel', 'other')"
+        },
+        "sponsor_name_len": {
+          "name": "sponsor_name_len",
+          "value": "length(\"engage\".\"sponsor\".\"name\") between 2 and 80"
+        },
+        "sponsor_urls_https": {
+          "name": "sponsor_urls_https",
+          "value": "(\"engage\".\"sponsor\".\"link_url\" is null or \"engage\".\"sponsor\".\"link_url\" ~ '^https://') and (\"engage\".\"sponsor\".\"logo_light_url\" is null or \"engage\".\"sponsor\".\"logo_light_url\" ~ '^https://') and (\"engage\".\"sponsor\".\"logo_dark_url\" is null or \"engage\".\"sponsor\".\"logo_dark_url\" ~ '^https://')"
+        },
+        "sponsor_countries": {
+          "name": "sponsor_countries",
+          "value": "cardinality(\"engage\".\"sponsor\".\"countries\") <= 60"
+        },
+        "sponsor_dates": {
+          "name": "sponsor_dates",
+          "value": "\"engage\".\"sponsor\".\"ends_at\" is null or \"engage\".\"sponsor\".\"starts_at\" is null or \"engage\".\"sponsor\".\"ends_at\" > \"engage\".\"sponsor\".\"starts_at\""
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "engage.sponsor_impression_daily": {
+      "name": "sponsor_impression_daily",
+      "schema": "engage",
+      "columns": {
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sponsor_id": {
+          "name": "sponsor_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "surface": {
+          "name": "surface",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "surface_id": {
+          "name": "surface_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "day": {
+          "name": "day",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "impressions": {
+          "name": "impressions",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "sponsor_impression_sponsor_fk": {
+          "name": "sponsor_impression_sponsor_fk",
+          "tableFrom": "sponsor_impression_daily",
+          "tableTo": "sponsor",
+          "schemaTo": "engage",
+          "columnsFrom": [
+            "tenant_id",
+            "sponsor_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "sponsor_impression_daily_pkey": {
+          "name": "sponsor_impression_daily_pkey",
+          "columns": [
+            "tenant_id",
+            "sponsor_id",
+            "surface",
+            "surface_id",
+            "day"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "sponsor_impression_surface": {
+          "name": "sponsor_impression_surface",
+          "value": "surface in ('chat_room', 'prediction_campaign', 'reward')"
+        },
+        "sponsor_impression_surface_id_len": {
+          "name": "sponsor_impression_surface_id_len",
+          "value": "length(\"engage\".\"sponsor_impression_daily\".\"surface_id\") between 1 and 200"
+        },
+        "sponsor_impression_nonneg": {
+          "name": "sponsor_impression_nonneg",
+          "value": "\"engage\".\"sponsor_impression_daily\".\"impressions\" >= 0"
+        }
+      },
       "isRLSEnabled": false
     },
     "engage.tenant_country": {

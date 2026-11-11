@@ -123,6 +123,7 @@ describe('ao vivo no Postgres', () => {
     });
   });
 
+  // a noite inteira passa pelo core, pelo change feed e pela tabela: no CI carregado chega perto de 30 s
   it('roda a noite: estado e placar no core, timeline, detalhe, change feed, orçamento, cursor e tabela', async () => {
     const world = liveWorld({
       matches: tonight,
@@ -237,7 +238,7 @@ describe('ao vivo no Postgres', () => {
     expect(table.every((r) => r.played === 2)).toBe(true);
     // Palmeiras 1x0 Bahia, Corinthians 0x0 Fortaleza, Palmeiras 1x1 Corinthians, Bahia 0x1 Fortaleza
     expect(table.map((r) => r.points)).toEqual([4, 4, 2, 0]);
-  });
+  }, 90_000);
 
   it('recálculo de tabelas: temporadas com resultado novo, idempotente; tabela do provedor mais nova prevalece', async () => {
     const pal = await eventRow(9101);
