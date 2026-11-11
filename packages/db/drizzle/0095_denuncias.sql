@@ -197,6 +197,7 @@ CREATE INDEX "moderation_sanction_account_idx" ON "engage"."moderation_sanction"
 -- (engage.moderation_purge = on na transação; apaga a linha vencida ou tira o conteúdo vencido) e a exclusão do
 -- torcedor (engage.moderation_erasure = on; só tira o conteúdo). A exclusão em cascata do tenant inteiro também
 -- passa: o DELETE só é aceito quando o cliente já não existe (não vale gatilho próprio chamando DELETE).
+-- Supõe api.tenant sem RLS: com RLS, a função precisa virar SECURITY DEFINER com search_path fixo.
 CREATE FUNCTION engage.moderation_audit_guard() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
   IF TG_OP = 'TRUNCATE' THEN

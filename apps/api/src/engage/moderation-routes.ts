@@ -58,7 +58,7 @@ import {
   type ReportReason,
   type RoleOverrides,
 } from '@galaxie/engage';
-import { and, eq, isNotNull, isNull } from 'drizzle-orm';
+import { and, eq, isNotNull, isNull, or } from 'drizzle-orm';
 import { problems } from '../errors.js';
 import { parseInput } from '../util.js';
 import { fanCan } from './fan-rules.js';
@@ -179,7 +179,10 @@ export async function moderationRoutes(app: FastifyInstance, deps: ModerationRou
     const { fan, profile } = await activeFan(request);
     const body = parseInput(ModerationReportBody, request.body);
     // denúncia de Perfil: o alvo é o próprio Perfil, que tem de existir no mesmo cliente
-    const targetProfileId = body.targetType === 'profile' ? body.targetId : (body.targetProfileId ?? null);
+    // o id do Perfil vai em minúsculas: o mesmo Perfil não vira dois casos
+    const targetId = body.targetType === 'profile' ? body.targetId.toLowerCase() : body.targetId;
+    const targetProfileId =
+      body.targetType === 'profile' ? targetId : (body.targetProfileId?.toLowerCase() ?? null);
     if (body.targetType === 'profile' && !UUID.test(body.targetId))
       throw problems.invalidParams([{ path: 'targetId', message: 'Perfil: use o profile_id' }]);
     if (targetProfileId && !(await profileExists(fan.tenantId, targetProfileId)))
@@ -188,7 +191,7 @@ export async function moderationRoutes(app: FastifyInstance, deps: ModerationRou
     const res = await fileReport(db(), {
       tenantId: fan.tenantId,
       targetType: body.targetType,
-      targetId: body.targetId,
+      targetId,
       targetProfileId,
       module: body.module,
       room: body.room ?? null,
@@ -254,7 +257,11 @@ export async function moderationRoutes(app: FastifyInstance, deps: ModerationRou
 
   app.get('/v1/fans/me/sanctions', { config: { fan: true } }, async (request, reply) => {
     const { fan } = await activeFan(request);
-    const rows = await sanctionsForFan(db(), { tenantId: fan.tenantId, profileId: fan.profileId });
+    const rows = await sanctionsForFan(db(), {
+      tenantId: fan.tenantId,
+      profileId: fan.profileId,
+      accountId: fan.accountId,
+    });
     const at = now().getTime();
     const appeals = await appealsForSanctions(
       db(),
@@ -301,7 +308,10 @@ export async function moderationRoutes(app: FastifyInstance, deps: ModerationRou
         and(
           eq(moderationSanction.tenantId, fan.tenantId),
           eq(moderationSanction.id, sanctionId),
-          eq(moderationSanction.profileId, fan.profileId),
+          or(
+            eq(moderationSanction.profileId, fan.profileId),
+            eq(moderationSanction.accountId, fan.accountId),
+          ),
           eq(moderationSanction.hidden, false),
         ),
       );
@@ -326,6 +336,7 @@ export async function moderationRoutes(app: FastifyInstance, deps: ModerationRou
     const res = await fileAppeal(db(), {
       tenantId: fan.tenantId,
       profileId: fan.profileId,
+      accountId: fan.accountId,
       sanctionId,
       stage,
       route: route.to,

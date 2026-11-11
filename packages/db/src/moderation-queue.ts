@@ -198,99 +198,110 @@ export async function fileReport(
   if (input.targetProfileId && input.targetProfileId === input.reporterProfileId)
     return { ok: false, reason: 'self_report' };
   const now = input.now ?? new Date();
-  return db.transaction(async (tx) => {
-    // denúncia em massa: trava por denunciante para a contagem valer com pedidos em paralelo
-    await tx.execute(
-      sql`select pg_advisory_xact_lock(hashtextextended(${`engage.report:${input.tenantId}:${input.reporterProfileId}`}, 0))`,
-    );
-    const [{ n } = { n: 0 }] = await tx
-      .select({ n: sql<number>`count(*)::int` })
-      .from(moderationReport)
-      .where(
-        and(
-          eq(moderationReport.tenantId, input.tenantId),
-          eq(moderationReport.reporterProfileId, input.reporterProfileId),
-          gte(moderationReport.createdAt, new Date(now.getTime() - 3600_000)),
-        ),
+  return db
+    .transaction(async (tx) => {
+      // denúncia em massa: trava por denunciante para a contagem valer com pedidos em paralelo
+      await tx.execute(
+        sql`select pg_advisory_xact_lock(hashtextextended(${`engage.report:${input.tenantId}:${input.reporterProfileId}`}, 0))`,
       );
-    if (n >= input.rules.perHour) return { ok: false, reason: 'rate_limited' } as const;
+      const [{ n } = { n: 0 }] = await tx
+        .select({ n: sql<number>`count(*)::int` })
+        .from(moderationReport)
+        .where(
+          and(
+            eq(moderationReport.tenantId, input.tenantId),
+            eq(moderationReport.reporterProfileId, input.reporterProfileId),
+            gte(moderationReport.createdAt, new Date(now.getTime() - 3600_000)),
+          ),
+        );
+      if (n >= input.rules.perHour) return { ok: false, reason: 'rate_limited' } as const;
 
-    const c = await openCase(tx, input, {
-      source: 'report',
-      severity: input.rules.severity([input.reason], 1),
-      content: input.content,
-      clocks: input.clocks,
-    });
-    const [report] = await tx
-      .insert(moderationReport)
-      .values({
-        tenantId: input.tenantId,
-        caseId: c.id,
-        reporterProfileId: input.reporterProfileId,
-        targetType: input.targetType,
-        targetId: input.targetId,
-        reason: input.reason,
-        note: input.note,
-      })
-      .onConflictDoNothing()
-      .returning({ id: moderationReport.id });
-    const [current] = await tx
-      .select({ hiddenAt: moderationCase.hiddenAt })
-      .from(moderationCase)
-      .where(and(eq(moderationCase.tenantId, input.tenantId), eq(moderationCase.id, c.id)));
-    if (!report)
-      return { ok: true, caseId: c.id, hidden: current?.hiddenAt != null, duplicate: true } as const;
+      const c = await openCase(tx, input, {
+        source: 'report',
+        severity: input.rules.severity([input.reason], 1),
+        content: input.content,
+        clocks: input.clocks,
+      });
+      // o autor do conteúdo é o do caso (o primeiro que informou), não o que este denunciante mandou
+      const [author] = await tx
+        .select({ id: moderationCase.targetProfileId })
+        .from(moderationCase)
+        .where(and(eq(moderationCase.tenantId, input.tenantId), eq(moderationCase.id, c.id)));
+      if (author?.id === input.reporterProfileId) throw new SelfReportError();
+      const [report] = await tx
+        .insert(moderationReport)
+        .values({
+          tenantId: input.tenantId,
+          caseId: c.id,
+          reporterProfileId: input.reporterProfileId,
+          targetType: input.targetType,
+          targetId: input.targetId,
+          reason: input.reason,
+          note: input.note,
+        })
+        .onConflictDoNothing()
+        .returning({ id: moderationReport.id });
+      const [current] = await tx
+        .select({ hiddenAt: moderationCase.hiddenAt })
+        .from(moderationCase)
+        .where(and(eq(moderationCase.tenantId, input.tenantId), eq(moderationCase.id, c.id)));
+      if (!report)
+        return { ok: true, caseId: c.id, hidden: current?.hiddenAt != null, duplicate: true } as const;
 
-    const stats = await tx
-      .select({
-        reasons: sql<string[]>`array_agg(distinct ${moderationReport.reason})`,
-        reporters: sql<number>`count(distinct ${moderationReport.reporterProfileId})::int`,
-      })
-      .from(moderationReport)
-      .where(and(eq(moderationReport.tenantId, input.tenantId), eq(moderationReport.caseId, c.id)));
-    const reasons = stats[0]?.reasons ?? [input.reason];
-    const reporters = stats[0]?.reporters ?? 1;
-    const hide = input.rules.hides && reporters >= input.rules.hideAt && current?.hiddenAt == null;
-    await tx
-      .update(moderationCase)
-      .set({
-        reasons: sql`(select array(select distinct unnest(${moderationCase.reasons} || ${textArray(reasons)}) order by 1))`,
-        reportCount: reporters,
-        severity: sql`greatest(${moderationCase.severity}, ${input.rules.severity(reasons, reporters)})`,
-        ...(hide ? { hiddenAt: now } : {}),
-        // conteúdo original: guarda o da primeira denúncia que trouxe
-        ...(input.content
-          ? {
-              content: sql`coalesce(${moderationCase.content}, ${input.content})`,
-              contentPurgeAt: sql`coalesce(${moderationCase.contentPurgeAt}, ${input.clocks.contentPurgeAt.toISOString()}::timestamptz)`,
-            }
-          : {}),
-        updatedAt: now,
-      })
-      .where(and(eq(moderationCase.tenantId, input.tenantId), eq(moderationCase.id, c.id)));
-    const actor: ModerationActor = { id: `fan:${input.reporterProfileId}`, kind: 'fan' };
-    await audit(tx, {
-      tenantId: input.tenantId,
-      actor,
-      action: 'report',
-      clocks: input.clocks,
-      subjectProfileId: input.targetProfileId,
-      caseId: c.id,
-      reason: input.reason,
-    });
-    if (hide)
+      const stats = await tx
+        .select({
+          reasons: sql<string[]>`array_agg(distinct ${moderationReport.reason})`,
+          reporters: sql<number>`count(distinct ${moderationReport.reporterProfileId})::int`,
+        })
+        .from(moderationReport)
+        .where(and(eq(moderationReport.tenantId, input.tenantId), eq(moderationReport.caseId, c.id)));
+      const reasons = stats[0]?.reasons ?? [input.reason];
+      const reporters = stats[0]?.reporters ?? 1;
+      const hide = input.rules.hides && reporters >= input.rules.hideAt && current?.hiddenAt == null;
+      await tx
+        .update(moderationCase)
+        .set({
+          reasons: sql`(select array(select distinct unnest(${moderationCase.reasons} || ${textArray(reasons)}) order by 1))`,
+          reportCount: reporters,
+          severity: sql`greatest(${moderationCase.severity}, ${input.rules.severity(reasons, reporters)})`,
+          ...(hide ? { hiddenAt: now } : {}),
+          // conteúdo original: guarda o da primeira denúncia que trouxe
+          ...(input.content
+            ? {
+                content: sql`coalesce(${moderationCase.content}, ${input.content})`,
+                contentPurgeAt: sql`coalesce(${moderationCase.contentPurgeAt}, ${input.clocks.contentPurgeAt.toISOString()}::timestamptz)`,
+              }
+            : {}),
+          updatedAt: now,
+        })
+        .where(and(eq(moderationCase.tenantId, input.tenantId), eq(moderationCase.id, c.id)));
+      const actor: ModerationActor = { id: `fan:${input.reporterProfileId}`, kind: 'fan' };
       await audit(tx, {
         tenantId: input.tenantId,
-        actor: { id: 'system', kind: 'system' },
-        action: 'hide',
+        actor,
+        action: 'report',
         clocks: input.clocks,
         subjectProfileId: input.targetProfileId,
         caseId: c.id,
-        reason: 'report_threshold',
-        rules: { hideAt: input.rules.hideAt, reporters },
+        reason: input.reason,
       });
-    return { ok: true, caseId: c.id, hidden: hide || current?.hiddenAt != null, duplicate: false } as const;
-  });
+      if (hide)
+        await audit(tx, {
+          tenantId: input.tenantId,
+          actor: { id: 'system', kind: 'system' },
+          action: 'hide',
+          clocks: input.clocks,
+          subjectProfileId: input.targetProfileId,
+          caseId: c.id,
+          reason: 'report_threshold',
+          rules: { hideAt: input.rules.hideAt, reporters },
+        });
+      return { ok: true, caseId: c.id, hidden: hide || current?.hiddenAt != null, duplicate: false } as const;
+    })
+    .catch((err) => {
+      if (err instanceof SelfReportError) return { ok: false, reason: 'self_report' } as const;
+      throw err;
+    });
 }
 
 /**
@@ -324,6 +335,12 @@ export async function holdContent(
         reasons: sql`(select array(select distinct unnest(${moderationCase.reasons} || ${textArray(input.reasons)}) order by 1))`,
         severity: sql`greatest(${moderationCase.severity}, ${input.severity})`,
         detail: sql`coalesce(${moderationCase.detail}, '{}'::jsonb) || ${JSON.stringify({ [input.source]: input.detail ?? {} })}::jsonb`,
+        ...(input.content
+          ? {
+              content: sql`coalesce(${moderationCase.content}, ${input.content})`,
+              contentPurgeAt: sql`coalesce(${moderationCase.contentPurgeAt}, ${input.clocks.contentPurgeAt.toISOString()}::timestamptz)`,
+            }
+          : {}),
         ...(input.hide
           ? { hiddenAt: sql`coalesce(${moderationCase.hiddenAt}, ${now.toISOString()}::timestamptz)` }
           : {}),
@@ -555,6 +572,14 @@ export async function applySanction(
 ): Promise<SanctionView> {
   const now = input.now ?? new Date();
   return db.transaction(async (tx) => {
+    // a punição aponta para o caso de origem; caso de apelação não (o expurgo da apelação levaria o caso junto)
+    if (input.caseId) {
+      const [origin] = await tx
+        .select({ source: moderationCase.source })
+        .from(moderationCase)
+        .where(and(eq(moderationCase.tenantId, input.tenantId), eq(moderationCase.id, input.caseId)));
+      if (origin?.source === 'appeal') throw new Error('punição não pode apontar para caso de apelação');
+    }
     const [row] = await tx
       .insert(moderationSanction)
       .values({
@@ -629,7 +654,7 @@ export async function activeSanctions(
 /** Punições que o próprio torcedor vê: o Silêncio oculto não aparece (é a exceção ao aviso). */
 export async function sanctionsForFan(
   db: Database,
-  input: { tenantId: string; profileId: string; limit?: number },
+  input: { tenantId: string; profileId: string; accountId: string | null; limit?: number },
 ): Promise<SanctionView[]> {
   const rows = await db
     .select()
@@ -637,7 +662,13 @@ export async function sanctionsForFan(
     .where(
       and(
         eq(moderationSanction.tenantId, input.tenantId),
-        eq(moderationSanction.profileId, input.profileId),
+        // a punição estendida à Conta vale (e aparece) para todos os Perfis dela
+        input.accountId
+          ? or(
+              eq(moderationSanction.profileId, input.profileId),
+              eq(moderationSanction.accountId, input.accountId),
+            )
+          : eq(moderationSanction.profileId, input.profileId),
         eq(moderationSanction.hidden, false),
       ),
     )
@@ -662,6 +693,8 @@ export async function fileAppeal(
   input: {
     tenantId: string;
     profileId: string;
+    /** Conta do Perfil: a punição estendida à Conta também é apelável pelos Perfis dela. */
+    accountId: string | null;
     sanctionId: string;
     stage: 1 | 2;
     route: 'team' | 'galaxie';
@@ -697,7 +730,12 @@ export async function fileAppeal(
           and(
             eq(moderationSanction.tenantId, input.tenantId),
             eq(moderationSanction.id, input.sanctionId),
-            eq(moderationSanction.profileId, input.profileId),
+            input.accountId
+              ? or(
+                  eq(moderationSanction.profileId, input.profileId),
+                  eq(moderationSanction.accountId, input.accountId),
+                )
+              : eq(moderationSanction.profileId, input.profileId),
           ),
         );
       if (!s) return { ok: false, reason: 'not_found' } as const;
@@ -760,6 +798,7 @@ export async function fileAppeal(
 }
 
 class AppealExistsError extends Error {}
+class SelfReportError extends Error {}
 
 export interface AppealView {
   id: string;
@@ -870,6 +909,7 @@ export async function decideAppeal(
       .select({
         stage: moderationAppeal.stage,
         status: moderationAppeal.status,
+        route: moderationAppeal.route,
         appliedBy: moderationSanction.decidedBy,
         sanctionId: moderationAppeal.sanctionId,
       })
@@ -885,6 +925,8 @@ export async function decideAppeal(
       .for('update');
     if (!current || current.status !== 'pending') return 'not_pending' as const;
     if (current.stage === 2 && input.actor.kind === 'cosmos') return 'forbidden' as const;
+    // fila da Galaxie: só a equipe da Galaxie decide
+    if (current.route === 'galaxie' && input.actor.kind !== 'galaxie') return 'forbidden' as const;
     if (input.actor.id === current.appliedBy) return 'forbidden' as const;
     if (current.stage === 2) {
       const [prev] = await tx
@@ -1082,13 +1124,14 @@ export async function purgeModeration(
         and(sql`${moderationAudit.contentPurgeAt} <= now()`, sql`${moderationAudit.content} is not null`),
       )
       .returning({ id: moderationAudit.id });
-    // o prazo da decisão (purge_at − created_at) conta a partir do encerramento da punição
+    // o prazo da decisão (purge_at − created_at) conta a partir do encerramento da punição; a Advertência não tem
+    // fim e se encerra ao ser dada
     const sanctions = await tx
       .delete(moderationSanction)
       .where(
         and(
-          sql`least(${moderationSanction.revokedAt}, ${moderationSanction.endsAt}) <= now()`,
-          sql`least(${moderationSanction.revokedAt}, ${moderationSanction.endsAt}) + (${moderationSanction.purgeAt} - ${moderationSanction.createdAt}) <= now()`,
+          sql`coalesce(least(${moderationSanction.revokedAt}, ${moderationSanction.endsAt}), case when ${moderationSanction.level} = 'warning' then ${moderationSanction.startsAt} end) <= now()`,
+          sql`coalesce(least(${moderationSanction.revokedAt}, ${moderationSanction.endsAt}), case when ${moderationSanction.level} = 'warning' then ${moderationSanction.startsAt} end) + (${moderationSanction.purgeAt} - ${moderationSanction.createdAt}) <= now()`,
           sql`not exists (select 1 from ${moderationAppeal} a where a.tenant_id = ${moderationSanction.tenantId}
             and a.sanction_id = ${moderationSanction.id} and a.status = 'pending')`,
         ),
@@ -1099,6 +1142,8 @@ export async function purgeModeration(
       .where(
         and(
           inArray(moderationCase.status, ['resolved', 'dismissed']),
+          // caso de apelação só sai com a punição (cascata): senão a etapa poderia ser pedida de novo
+          isNull(moderationCase.sanctionId),
           sql`${moderationCase.purgeAt} <= now()`,
           sql`not exists (select 1 from ${moderationSanction} s where s.tenant_id = ${moderationCase.tenantId}
             and s.case_id = ${moderationCase.id})`,

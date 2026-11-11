@@ -257,11 +257,14 @@ describe('fila única da moderação (B8, #953)', () => {
     expect(
       (await activeSanctions(db, { tenantId, profileId: fan.id, accountId: fan.accountId })).map((x) => x.id),
     ).toEqual([s.id]);
-    expect((await sanctionsForFan(db, { tenantId, profileId: fan.id })).map((x) => x.id)).toEqual([s.id]);
+    expect(
+      (await sanctionsForFan(db, { tenantId, profileId: fan.id, accountId: null })).map((x) => x.id),
+    ).toEqual([s.id]);
 
     const ap1 = await fileAppeal(db, {
       tenantId,
       profileId: fan.id,
+      accountId: null,
       sanctionId: s.id,
       stage: 1,
       route: 'team',
@@ -275,6 +278,7 @@ describe('fila única da moderação (B8, #953)', () => {
       await fileAppeal(db, {
         tenantId,
         profileId: fan.id,
+        accountId: null,
         sanctionId: s.id,
         stage: 1,
         route: 'team',
@@ -289,6 +293,7 @@ describe('fila única da moderação (B8, #953)', () => {
       await fileAppeal(db, {
         tenantId,
         profileId: other.id,
+        accountId: null,
         sanctionId: s.id,
         stage: 1,
         route: 'team',
@@ -326,6 +331,7 @@ describe('fila única da moderação (B8, #953)', () => {
     const ap2 = await fileAppeal(db, {
       tenantId,
       profileId: fan.id,
+      accountId: null,
       sanctionId: s.id,
       stage: 2,
       route: 'galaxie',
@@ -389,12 +395,13 @@ describe('fila única da moderação (B8, #953)', () => {
       endsAt: new Date(Date.now() + day),
       clocks: clocks(),
     });
-    expect(await sanctionsForFan(db, { tenantId, profileId: fan.id })).toEqual([]);
+    expect(await sanctionsForFan(db, { tenantId, profileId: fan.id, accountId: null })).toEqual([]);
     expect(await activeSanctions(db, { tenantId, profileId: fan.id, accountId: null })).toHaveLength(1);
     expect(
       await fileAppeal(db, {
         tenantId,
         profileId: fan.id,
+        accountId: null,
         sanctionId: s.id,
         stage: 1,
         route: 'team',
@@ -674,6 +681,7 @@ describe('fila única da moderação (B8, #953)', () => {
     await fileAppeal(db, {
       tenantId,
       profileId: fan.id,
+      accountId: null,
       sanctionId: s.id,
       stage: 1,
       route: 'team',
@@ -687,5 +695,179 @@ describe('fila única da moderação (B8, #953)', () => {
     expect(a!.statement).toBeNull();
     const [c] = await pg`select detail from engage.moderation_case where id = ${h.caseId}`;
     expect(c!.detail).toBeNull();
+  });
+
+  it('punição na Conta aparece e é apelável no Perfil irmão', async () => {
+    const a = await profile();
+    const [sib] = await pg`insert into fan.profile
+        (tenant_id, account_id, external_profile_id, nickname, age_band, country, locale)
+      values (${tenantId}, ${a.accountId}, ${`irmao_${a.id}`}, 'Irmao', '18plus', 'BR', 'pt-BR') returning id`;
+    const s = await applySanction(db, {
+      tenantId,
+      profileId: a.id,
+      accountId: a.accountId,
+      level: 'suspension',
+      hidden: false,
+      scope: 'tenant',
+      scopeId: null,
+      reason: 'abuso',
+      caseId: null,
+      actor: person('mod'),
+      endsAt: new Date(Date.now() + day),
+      clocks: clocks(),
+    });
+    const seen = await sanctionsForFan(db, {
+      tenantId,
+      profileId: sib!.id as string,
+      accountId: a.accountId,
+    });
+    expect(seen.map((x) => x.id)).toEqual([s.id]);
+    const ap = await fileAppeal(db, {
+      tenantId,
+      profileId: sib!.id as string,
+      accountId: a.accountId,
+      sanctionId: s.id,
+      stage: 1,
+      route: 'team',
+      statement: null,
+      dueAt: new Date(Date.now() + day),
+      clocks: clocks(),
+      severity: 20,
+    });
+    expect(ap.ok).toBe(true);
+  });
+
+  it('expurgo: Advertência vencida sai; apelação decidida de banimento em vigor fica', async () => {
+    const author = await profile();
+    const at = Date.now() - 400 * day;
+    const old = clocks(at);
+    const w = await applySanction(db, {
+      tenantId,
+      profileId: author.id,
+      accountId: null,
+      level: 'warning',
+      hidden: false,
+      scope: 'place',
+      scopeId: 'sala-1',
+      reason: 'aviso',
+      caseId: null,
+      actor: person('mod'),
+      endsAt: null,
+      clocks: old,
+    });
+    await pg`update engage.moderation_sanction set starts_at = now() - interval '400 days' where id = ${w.id}`;
+    const ban = await applySanction(db, {
+      tenantId,
+      profileId: author.id,
+      accountId: null,
+      level: 'ban',
+      hidden: false,
+      scope: 'tenant',
+      scopeId: null,
+      reason: 'ódio',
+      caseId: null,
+      actor: person('mod'),
+      endsAt: null,
+      clocks: old,
+    });
+    const ap = await fileAppeal(db, {
+      tenantId,
+      profileId: author.id,
+      accountId: null,
+      sanctionId: ban.id,
+      stage: 1,
+      route: 'team',
+      statement: null,
+      dueAt: new Date(Date.now() + day),
+      clocks: old,
+      severity: 20,
+    });
+    if (!ap.ok) throw new Error('apelação');
+    expect(
+      await decideAppeal(db, {
+        tenantId,
+        appealId: ap.appealId,
+        decision: 'upheld',
+        actor: person('mod2'),
+        note: null,
+        clocks: old,
+      }),
+    ).toBe('decided');
+    await purgeModeration(db);
+    const [gone] = await pg`select id from engage.moderation_sanction where id = ${w.id}`;
+    expect(gone).toBeUndefined();
+    const [kept] = await pg`select id from engage.moderation_appeal where id = ${ap.appealId}`;
+    expect(kept).toBeDefined();
+    expect(
+      (
+        await fileAppeal(db, {
+          tenantId,
+          profileId: author.id,
+          accountId: null,
+          sanctionId: ban.id,
+          stage: 1,
+          route: 'team',
+          statement: null,
+          dueAt: new Date(),
+          clocks: clocks(),
+          severity: 20,
+        })
+      ).ok,
+    ).toBe(false);
+  });
+
+  it('autor do conteúdo não denuncia o próprio conteúdo, mesmo sem dizer quem é o autor', async () => {
+    const author = await profile();
+    const rep = await profile();
+    const t = target(author.id);
+    await fileReport(db, {
+      ...t,
+      reporterProfileId: rep.id,
+      reason: 'spam',
+      note: null,
+      content: null,
+      clocks: clocks(),
+      rules,
+    });
+    expect(
+      await fileReport(db, {
+        ...t,
+        targetProfileId: null,
+        reporterProfileId: author.id,
+        reason: 'spam',
+        note: null,
+        content: null,
+        clocks: clocks(),
+        rules,
+      }),
+    ).toEqual({ ok: false, reason: 'self_report' });
+  });
+
+  it('o texto do filtro entra no caso aberto pela denúncia', async () => {
+    const author = await profile();
+    const rep = await profile();
+    const t = target(author.id);
+    const r = await fileReport(db, {
+      ...t,
+      reporterProfileId: rep.id,
+      reason: 'hate',
+      note: null,
+      content: null,
+      clocks: clocks(),
+      rules,
+    });
+    if (!r.ok) throw new Error('denúncia');
+    await holdContent(db, {
+      ...t,
+      source: 'filter',
+      reasons: ['hate'],
+      severity: 90,
+      hide: true,
+      content: 'texto ofensivo',
+      detail: null,
+      clocks: clocks(),
+    });
+    const [c] = (await listQueue(db, tenantId)).filter((x) => x.id === r.caseId);
+    expect(c!.content).toBe('texto ofensivo');
   });
 });
