@@ -65,8 +65,12 @@ function fakeStream(
       yield p;
       i += 1;
     }
+    // como o fetch de verdade: sinal já cortado rejeita na hora; senão, espera o corte
     if (opts.holdUntilAbort)
-      await new Promise((_, reject) => signal.addEventListener('abort', () => reject(new Error('abortado'))));
+      await new Promise((_, reject) => {
+        if (signal.aborted) reject(new Error('abortado'));
+        else signal.addEventListener('abort', () => reject(new Error('abortado')), { once: true });
+      });
   };
 }
 
@@ -91,6 +95,20 @@ async function run(
   ))
     events.push(e);
   return events;
+}
+
+/** Pergunta passo a passo: o teste decide quando avançar, em vez de esperar um tempo. */
+const ask = (t: string, stream: ReturnType<typeof fakeStream>, signal?: AbortSignal) =>
+  askAssistant(
+    db,
+    { tenantId: t, userId: 'u1', route: '/cliente/webhooks', prompt, credits: 5, settings },
+    { stream, settleBackoffMs: [1, 1], ...(signal ? { signal } : {}) },
+  );
+
+async function drain(gen: AsyncGenerator<AssistantEvent>) {
+  const out: AssistantEvent[] = [];
+  for await (const e of gen) out.push(e);
+  return out;
 }
 
 const statuses = async (t: string) =>
@@ -167,11 +185,13 @@ describe('pergunta ao assistente', () => {
     await run(t, fakeStream(['nunca']), { signal: early.signal });
     expect(await statuses(t)).toEqual(['released']);
 
+    // "Parar" só depois de ver o primeiro pedaço chegar (nada de espera por tempo)
     const late = new AbortController();
-    const stream = fakeStream(['já chegou'], { holdUntilAbort: true });
-    const p = run(t, stream, { signal: late.signal });
-    setTimeout(() => late.abort(), 50);
-    const events = await p;
+    const asking = ask(t, fakeStream(['já chegou'], { holdUntilAbort: true }), late.signal);
+    expect((await asking.next()).value).toMatchObject({ type: 'start' });
+    expect((await asking.next()).value).toMatchObject({ type: 'delta', text: 'já chegou' });
+    late.abort();
+    const events = await drain(asking);
     expect(events.at(-1)?.type).toBe('done');
     expect((await statuses(t)).sort()).toEqual(['released', 'settled']);
     // tokens de saída estimados pelo texto quando o provedor não mandou
@@ -201,23 +221,16 @@ describe('pergunta ao assistente', () => {
 
   it('duas perguntas ao mesmo tempo da mesma pessoa: exatamente uma passa', async () => {
     const t = await newTenant();
-    // o provedor só responde quando as duas já passaram pela conferência
-    let open!: () => void;
-    const latch = new Promise<void>((r) => (open = r));
-    const gated = async function* (_signal: AbortSignal, usage: StreamUsage) {
-      Object.assign(usage, { inputTokens: 100, cachedInputTokens: 0, outputTokens: 5 });
-      await latch;
-      yield 'ok';
-    };
-    const both = Promise.all([run(t, gated), run(t, gated)]);
-    // libera o provedor só depois de as duas terem reservado (ou desistido)
-    for (let i = 0; i < 200 && (await statuses(t)).length < 2; i++) await new Promise((r) => setImmediate(r));
-    open();
-    const results = await both;
-    const firsts = results.map((events) =>
-      events[0]?.type === 'start' ? 'start' : (events[0] as { code?: string }).code,
+    // as duas entram juntas; o primeiro evento de cada uma só sai depois da conferência (antes e depois da reserva),
+    // e o gerador para ali: o provedor não roda antes de as duas decidirem
+    const a = ask(t, fakeStream(['a']));
+    const b = ask(t, fakeStream(['b']));
+    const [ea, eb] = await Promise.all([a.next(), b.next()]);
+    const firsts = [ea.value, eb.value].map((e) =>
+      e?.type === 'start' ? 'start' : (e as { code?: string }).code,
     );
     expect(firsts.sort()).toEqual(['busy', 'start']);
+    await Promise.all([drain(a), drain(b)]);
   });
 
   it('pergunta nova com outra em andamento: recusa como ocupada', async () => {
