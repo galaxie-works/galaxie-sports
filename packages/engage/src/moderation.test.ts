@@ -275,7 +275,19 @@ describe('screen: drible da revisão (#1101)', () => {
     expect(chat(text).reasons).toContain('link');
   });
 
-  it.each(['acessa meusite ponto com agora', 'meusite ponto com ponto br agora'])(
+  it.each([
+    'acessa meusite ponto com agora',
+    'entra no site meusite ponto com hoje',
+    'visite meusite dot com now',
+  ])('link por extenso depois de palavra de chamada bloqueia: %s', (text) => {
+    expect(chat(text).reasons).toContain('link');
+  });
+
+  it('macaca escrita igual não libera a mesma palavra em leet', () => {
+    expect(chat('macaca m4c4c4').action).toBe('shadow');
+  });
+
+  it.each(['meusite ponto com ponto br agora', 'meusite . com agora', 'meusite. com agora'])(
     'link por extenso no meio da frase vai para a Cosmos: %s',
     (text) => {
       expect(chat(text)).toMatchObject({ suspect: true });

@@ -372,6 +372,11 @@ const SPACED_DOT_HOST = new RegExp(
   String.raw`(?<![a-z0-9.-])([a-z0-9][a-z0-9-]{1,62})(?:\s+\.\s*|\s*\.\s+)(${STRONG_TLDS})(?![\p{L}\p{N}])(?!\s*[\p{L}\p{N}])`,
   'giu',
 );
+/** O mesmo ponto com espaço, com texto depois (`meusite . com agora`): só marca para a Cosmos. */
+const SPACED_DOT_MID = new RegExp(
+  String.raw`(?<![a-z0-9.-])([a-z0-9][a-z0-9-]{1,62})(?:\s+\.\s*|\s*\.\s+)(${STRONG_TLDS})(?![\p{L}\p{N}])(?=\s*[\p{L}\p{N}])`,
+  'giu',
+);
 /** Ponto por extenso (`site ponto com`, `site dot com ponto br`). No fim do trecho é link; no meio da frase ("um
  *  ponto com o empate") pode ser texto comum, então só marca para a Cosmos. */
 const SPELLED_HOST = new RegExp(
@@ -432,16 +437,28 @@ const spelledHost = (m: RegExpMatchArray) => (m[3] ? `${m[1]}.${m[2]}.${m[3]}` :
 const textAfter = (folded: string, m: RegExpMatchArray) =>
   /^\s*[\p{L}\p{N}]/u.test(folded.slice(m.index! + m[0].length));
 
-/** Domínio por extenso no meio da frase: talvez link, talvez texto comum (`um ponto com o empate`). */
-function spelledMidHosts(folded: string): string[] {
-  return [...folded.matchAll(SPELLED_HOST)].filter((m) => textAfter(folded, m)).map(spelledHost);
+/** Palavra de chamada antes do domínio por extenso (`acessa meusite ponto com agora`): é link, mesmo no meio. */
+const CALL_BEFORE =
+  /(?:^|[^\p{L}\p{N}])(?:acessa|acesse|acessem|entra|entre|entrem|visita|visite|site|link|siga|segue|confere|confira|clica|clique|ingresa|ingresen|visit|go to|check out)\s+$/u;
+const calledHost = (folded: string, m: RegExpMatchArray) => CALL_BEFORE.test(folded.slice(0, m.index!));
+
+/** Domínio por extenso ou com ponto e espaço no meio da frase: talvez link, talvez texto comum (`um ponto com o
+ *  empate`). Não bloqueia, mas vai para a Cosmos. */
+function midHosts(folded: string): string[] {
+  return [
+    ...[...folded.matchAll(SPELLED_HOST)]
+      .filter((m) => textAfter(folded, m) && !calledHost(folded, m))
+      .map(spelledHost),
+    ...[...folded.matchAll(SPACED_DOT_MID)].map((m) => `${m[1]}.${m[2]}`),
+  ];
 }
 
 /** Hosts dos links do texto, inclusive os escritos com "ponto com". */
 function hostsIn(folded: string): string[] {
   const hosts = new Set<string>();
   for (const m of folded.matchAll(SPACED_DOT_HOST)) hosts.add(`${m[1]}.${m[2]}`);
-  for (const m of folded.matchAll(SPELLED_HOST)) if (!textAfter(folded, m)) hosts.add(spelledHost(m));
+  for (const m of folded.matchAll(SPELLED_HOST))
+    if (!textAfter(folded, m) || calledHost(folded, m)) hosts.add(spelledHost(m));
   for (const variant of [folded, folded.replace(BRACKET_DOT, '.')])
     for (const m of variant.matchAll(URL_RE)) {
       // e-mail não é link (cai em dado pessoal)
@@ -531,8 +548,21 @@ export function screen(text: string, ctx: ScreenContext, lists: CompiledLists): 
   const ambiguous = plainWords.filter((w) => AMBIGUOUS_WORDS.has(squeeze(w)));
   const written = new Set(ambiguous);
   const plain = textOf(plainWords.filter((w) => !written.has(w)));
-  // no caminho do drible, a palavra ambígua só sai quando foi escrita igual (`macaca`), não com leet (`m4c4c4`)
-  const leet = textOf(words(folded, true).filter((w) => notException(w) && !written.has(w)));
+  // no caminho do drible, a palavra ambígua só sai tantas vezes quantas foi escrita igual (`macaca`): a escrita com
+  // leet (`macaca m4c4c4`) continua lá
+  const left = new Map<string, number>();
+  for (const w of ambiguous) left.set(w, (left.get(w) ?? 0) + 1);
+  const leet = textOf(
+    words(folded, true).filter((w) => {
+      if (!notException(w)) return false;
+      const n = left.get(w) ?? 0;
+      if (n > 0) {
+        left.set(w, n - 1);
+        return false;
+      }
+      return true;
+    }),
+  );
   const loc = localeKey(ctx.locale);
 
   for (const [cat, c] of lists.byCategory) {
@@ -550,7 +580,7 @@ export function screen(text: string, ctx: ScreenContext, lists: CompiledLists): 
   const ambiguousHit =
     ambiguous.length > 0 &&
     [...lists.byCategory].some(([cat, c]) => ABUSE.has(cat) && matches(c.any, textOf(ambiguous)));
-  const maybeLink = spelledMidHosts(folded).some((h) => !domainIn(h, lists.allowedDomains));
+  const maybeLink = midHosts(folded).some((h) => !domainIn(h, lists.allowedDomains));
 
   const hosts = hostsIn(folded);
   const betHost = hosts.some((h) => domainIn(h, lists.betDomains));
