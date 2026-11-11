@@ -957,6 +957,38 @@ export const SETTINGS: readonly SettingDef[] = [
     critical: true,
   },
 
+  // teto da Galaxie para a autonomia da moderação da Cosmos (#997): o cliente escolhe o degrau de cada ação dentro dele.
+  // `flag` só sinaliza, `notify` age e avisa, `auto` age sozinha. Suspender e banir não têm teto aqui: pedem pessoa
+  {
+    key: 'COSMOS_MOD_HIDE_MAX',
+    section: 'cosmos',
+    type: 'enum',
+    options: ['flag', 'notify', 'auto'],
+    services: ['demo', 'api'],
+    apply: 'refresh',
+    default: 'auto',
+  },
+  {
+    key: 'COSMOS_MOD_MUTE_MAX',
+    section: 'cosmos',
+    type: 'enum',
+    options: ['flag', 'notify', 'auto'],
+    services: ['demo', 'api'],
+    apply: 'refresh',
+    default: 'auto',
+  },
+  // horas máximas de um Silêncio aplicado pela Cosmos (nunca passa de 24)
+  {
+    key: 'COSMOS_MOD_MUTE_MAX_HOURS',
+    section: 'cosmos',
+    type: 'int',
+    min: 1,
+    max: 24,
+    services: ['demo', 'api'],
+    apply: 'refresh',
+    default: '24',
+  },
+
   // ── Engajamento (#1017) ───────────────────────────────────────────────────────────────────────
   // validade do token do torcedor (gft_, #937). Curta: punição e exclusão valem na hora pelo Valkey, mas faixa e
   // país só mudam no próximo token. Relido a cada minuto; os segredos ficam no .env (FAN_TOKEN_SECRET)

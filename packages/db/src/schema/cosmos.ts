@@ -440,3 +440,89 @@ export const staffAction = cosmos.table(
     index('staff_action_tenant_idx').on(t.tenantId, t.id.desc()),
   ],
 );
+
+/** Onde vale uma configuração da moderação: o cliente todo, uma Sala do Jogo ou uma Comunidade (#997). */
+export const MODERATION_SCOPE_KINDS = ['tenant', 'room', 'community'] as const;
+export type ModerationScopeKind = (typeof MODERATION_SCOPE_KINDS)[number];
+
+/**
+ * Configuração da moderação da Cosmos (#997): recursos ligados, régua por categoria, escada de autonomia por ação,
+ * exceções por cargo e o texto que o torcedor vê. Uma linha para o cliente (`scope_kind = 'tenant'`, `scope_id = ''`)
+ * e uma por sala ou comunidade com exceção. O formato do `config` e a validação dentro do teto da Galaxie moram em
+ * `@galaxie/cosmos`; `version` sobe a cada mudança e o histórico fica em `moderation_config_log`.
+ */
+export const moderationConfig = cosmos.table(
+  'moderation_config',
+  {
+    id: pkUuidV7(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenant.id, { onDelete: 'cascade' }),
+    scopeKind: text('scope_kind').$type<ModerationScopeKind>().notNull(),
+    /** Id da sala ou da comunidade; vazio na linha do cliente. */
+    scopeId: text('scope_id').notNull().default(''),
+    config: jsonb('config').$type<Record<string, unknown>>().notNull(),
+    version: integer('version').notNull().default(1),
+    updatedBy: text('updated_by').notNull(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex('moderation_config_scope_uq').on(t.tenantId, t.scopeKind, t.scopeId),
+    check('moderation_config_scope_kind', sql`${t.scopeKind} in ('tenant', 'room', 'community')`),
+    check('moderation_config_scope_id', sql`(${t.scopeKind} = 'tenant') = (${t.scopeId} = '')`),
+  ],
+);
+
+/** Cada versão gravada da configuração da moderação: quem mudou, quando e como ficou (`config` null = exceção removida). */
+export const moderationConfigLog = cosmos.table(
+  'moderation_config_log',
+  {
+    id: pkUuidV7(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenant.id, { onDelete: 'cascade' }),
+    scopeKind: text('scope_kind').$type<ModerationScopeKind>().notNull(),
+    scopeId: text('scope_id').notNull().default(''),
+    version: integer('version').notNull(),
+    config: jsonb('config').$type<Record<string, unknown>>(),
+    changedBy: text('changed_by').notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index('moderation_config_log_scope_idx').on(t.tenantId, t.scopeKind, t.scopeId, t.id.desc())],
+);
+
+/** Estados do pedido de créditos ao dono (#996). */
+export const CREDIT_REQUEST_STATUSES = ['open', 'approved', 'declined', 'canceled'] as const;
+export type CreditRequestStatus = (typeof CREDIT_REQUEST_STATUSES)[number];
+
+/**
+ * Pedido de créditos ao dono (#996): quem não pode comprar escreve a justificativa, e quem pode (cargo com
+ * `cosmos.manage`) aprova, o que abre a compra, ou recusa. Um pedido aberto por pessoa e tenant; a decisão guarda quem
+ * decidiu, quando e a nota.
+ */
+export const creditRequest = cosmos.table(
+  'credit_request',
+  {
+    id: pkUuidV7(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenant.id, { onDelete: 'cascade' }),
+    requestedBy: text('requested_by').notNull(),
+    reason: text('reason').notNull(),
+    status: text('status').$type<CreditRequestStatus>().notNull().default('open'),
+    decidedBy: text('decided_by'),
+    decidedAt: timestamp('decided_at', { withTimezone: true }),
+    decisionNote: text('decision_note'),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    check('credit_request_status', sql`${t.status} in ('open', 'approved', 'declined', 'canceled')`),
+    check('credit_request_reason', sql`length(trim(${t.reason})) between 5 and 500`),
+    check('credit_request_decided', sql`(${t.status} = 'open') = (${t.decidedAt} is null)`),
+    uniqueIndex('credit_request_open_uq')
+      .on(t.tenantId, t.requestedBy)
+      .where(sql`${t.status} = 'open'`),
+    index('credit_request_tenant_idx').on(t.tenantId, t.id.desc()),
+  ],
+);

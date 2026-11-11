@@ -600,6 +600,20 @@
     {
       "idx": 85,
       "version": "7",
+      "when": 1794421600000,
+      "tag": "0089_cosmos_moderacao_config",
+      "breakpoints": true
+    },
+    {
+      "idx": 86,
+      "version": "7",
+      "when": 1794421658842,
+      "tag": "0090_cosmos_pedido_creditos",
+      "breakpoints": true
+    },
+    {
+      "idx": 87,
+      "version": "7",
       "when": 1794424402478,
       "tag": "0093_moderacao_listas",
       "breakpoints": true
