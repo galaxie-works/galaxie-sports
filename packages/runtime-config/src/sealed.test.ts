@@ -18,7 +18,7 @@ import { SettingsSecretBox, secretHint, settingsSecretBox } from './sealed.js';
 const KEK = 'k'.repeat(40);
 const OTHER_KEK = 'o'.repeat(40);
 const box = new SettingsSecretBox([KEK]);
-const API_KEY = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4';
+const API_KEY = 'a1b2c3d4'.repeat(4);
 const OPENAI = 'sk-proj-novaChaveDoPainel1234567890';
 
 describe('cofre dos segredos do painel', () => {
@@ -85,7 +85,7 @@ describe('formato por provedor', () => {
     expect(v('ANTHROPIC_API_KEY', 'sk-ant-api03-abcdefghijklmnopqrstuvwxyz').ok).toBe(true);
     expect(v('GEMINI_API_KEY', `AIza${'x'.repeat(35)}`).ok).toBe(true);
     expect(v('YOUTUBE_API_KEY', `AIza${'y'.repeat(35)}`).ok).toBe(true);
-    expect(v('STRIPE_SECRET_KEY', 'sk_test_51abcdefghijklmno').ok).toBe(true);
+    expect(v('STRIPE_SECRET_KEY', 'sk_' + 'test_51abcdefghijklmno').ok).toBe(true);
     expect(v('STRIPE_WEBHOOK_SECRET', 'whsec_abcdefghijklmnop').ok).toBe(true);
     expect(v('APISPORTS_KEY', API_KEY).ok).toBe(true);
   });

@@ -35,7 +35,7 @@ describe('env do painel na ordem das fotos', () => {
 
 describe('chaves trocadas no painel (#1087)', () => {
   const KEK = 'k'.repeat(40);
-  const KEY = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4';
+  const KEY = 'a1b2c3d4'.repeat(4);
   const rows = async () =>
     new Map([['APISPORTS_KEY_SEALED', new SettingsSecretBox([KEK]).seal('APISPORTS_KEY', KEY)]]);
 

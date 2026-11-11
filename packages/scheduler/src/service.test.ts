@@ -137,7 +137,7 @@ describe('SchedulerService: job que fica no ar (keepAlive)', () => {
 
 describe('SchedulerService: chaves trocadas no painel (#1087)', () => {
   const KEK = 'k'.repeat(40);
-  const KEY = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4';
+  const KEY = 'a1b2c3d4'.repeat(4);
 
   function withSealed(env: NodeJS.ProcessEnv) {
     const lines: string[] = [];

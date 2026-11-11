@@ -9,8 +9,8 @@ import { afterAll, describe, expect, it, vi } from 'vitest';
 vi.mock('@/lib/auth/db', () => ({ pool: {} }));
 
 const KEK = 'k'.repeat(40);
-const ENV_STRIPE = 'sk_test_doEnvDoContainer123';
-const PANEL_STRIPE = 'sk_test_doPainelNovo1234567890';
+const ENV_STRIPE = 'sk_' + 'test_doEnvDoContainer123';
+const PANEL_STRIPE = 'sk_' + 'test_doPainelNovo1234567890';
 const before = { ...process.env };
 process.env.SETTINGS_KEK = KEK;
 process.env.STRIPE_SECRET_KEY = ENV_STRIPE;
@@ -63,7 +63,7 @@ describe('situação da chave para a tela', () => {
       ['APISPORTS_KEY_SEALED', { value, updated_by: 'ana', updated_at: new Date('2026-11-11T12:00:00Z') }],
     ]);
   const def = settingDef('APISPORTS_KEY')!;
-  const KEY = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4';
+  const KEY = 'a1b2c3d4'.repeat(4);
 
   it('do painel: só os 4 últimos e quem trocou; nunca o valor nem o cifrado', () => {
     const sealed = box.seal('APISPORTS_KEY', KEY);

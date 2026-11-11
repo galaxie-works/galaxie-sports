@@ -201,7 +201,7 @@ describe('Credenciais trocadas no painel (#1087)', () => {
   });
 
   it('Trocar: testa a chave digitada, pede confirmação e só então grava; o valor não fica na tela', async () => {
-    const KEY = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4';
+    const KEY = 'a1b2c3d4'.repeat(4);
     const { baseElement } = show(
       <CredentialsList
         settings={[

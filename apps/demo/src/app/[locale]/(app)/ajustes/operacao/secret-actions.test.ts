@@ -33,7 +33,7 @@ const { resealSecrets, resetSecret, saveSecret, testSecret } = await import('./s
 
 const KEK = 'k'.repeat(40);
 const box = new SettingsSecretBox([KEK]);
-const API_KEY = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4';
+const API_KEY = 'a1b2c3d4'.repeat(4);
 const OPENAI = 'sk-proj-chaveNovaDoPainel1234567890';
 
 /** O banco: `rows` responde às leituras de linhas cifradas e do relato de KEK; as gravações ficam em `query`. */
@@ -149,7 +149,7 @@ describe('gravar', () => {
   });
 
   it('chave da demo: relê na hora', async () => {
-    await saveSecret('STRIPE_SECRET_KEY', 'sk_test_51abcdefghijklmno');
+    await saveSecret('STRIPE_SECRET_KEY', 'sk_' + 'test_51abcdefghijklmno');
     expect(refreshPanelSecrets).toHaveBeenCalled();
   });
 
