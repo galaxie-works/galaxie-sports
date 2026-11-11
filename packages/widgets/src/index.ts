@@ -71,6 +71,7 @@ export {
   fanTokenExpiresAt,
   FAN_TOKEN_CHANGED_EVENT,
   isFanToken,
+  fanTokenSubject,
   type FanCapability,
   type FanStatus,
   type GsFanMe,

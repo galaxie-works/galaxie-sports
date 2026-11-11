@@ -4752,7 +4752,7 @@ export function safeLink(url: string | null | undefined): string | null {
 
 /**
  * O que o torcedor pode fazer no widget: `none` (sem token: "entre para participar"), `checking`, `expired`
- * (token recusado ou vencido), `unavailable` (API fora) e, com o Perfil lido, `ready` (as capacidades da faixa
+ * (token recusado ou vencido), `unavailable` (API fora ou chave que não leva o torcedor) e, com o Perfil lido, `ready` (as capacidades da faixa
  * etária vêm de `GET /v1/fans/me`).
  */
 export type FanStatus = 'none' | 'checking' | 'expired' | 'unavailable' | 'ready';
@@ -4795,6 +4795,22 @@ export function fanTokenExpiresAt(token: string): number | null {
     const b64 = body.replace(/-/g, '+').replace(/_/g, '/');
     const json = JSON.parse(atob(b64 + '='.repeat((4 - (b64.length % 4)) % 4))) as { exp?: unknown };
     return typeof json.exp === 'number' && Number.isFinite(json.exp) ? json.exp * 1000 : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Cliente e Perfil do token (`t:p` do corpo), para saber se o torcedor mudou; null se não der para ler. */
+export function fanTokenSubject(token: string): string | null {
+  if (!isFanToken(token)) return null;
+  const body = token.slice(FAN_TOKEN_PREFIX.length).split('.')[0] ?? '';
+  try {
+    const b64 = body.replace(/-/g, '+').replace(/_/g, '/');
+    const json = JSON.parse(atob(b64 + '='.repeat((4 - (b64.length % 4)) % 4))) as {
+      t?: unknown;
+      p?: unknown;
+    };
+    return typeof json.t === 'string' && typeof json.p === 'string' ? `${json.t}:${json.p}` : null;
   } catch {
     return null;
   }

@@ -332,7 +332,10 @@ export function defineGalaxieWidgetElement(options: DefineEmbedOptions = {}): vo
       if (this.root) void this.update().then(() => this.refreshFanToken());
     }
 
-    /** Confere a sessão do torcedor de novo (depois de entrar ou sair sem recarregar a página). */
+    /**
+     * Confere de novo a sessão do torcedor em todos os widgets da página (depois de entrar ou sair sem
+     * recarregar): dispara `galaxie:fan-token-changed` no `document`.
+     */
     refreshFanToken(): void {
       document.dispatchEvent(new CustomEvent(FAN_TOKEN_CHANGED_EVENT));
     }

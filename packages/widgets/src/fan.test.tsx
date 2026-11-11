@@ -210,5 +210,93 @@ describe('<FanGate> e a sessão do torcedor', () => {
     expect(getFanToken.mock.calls.length - before).toBe(1);
     await expect(fan!.fetch('@evil.test/x')).rejects.toThrow(TypeError);
     await expect(fan!.fetch('//evil.test/x')).rejects.toThrow(TypeError);
+    await expect(fan!.fetch('/\\evil.test/x')).rejects.toThrow(TypeError);
+  });
+
+  it('chave que não leva o torcedor (403): indisponível, sem pedir outro token', async () => {
+    const getFanToken = vi.fn(async () => tokenFor('site'));
+    const fetchImpl = vi.fn(
+      async () => new Response(JSON.stringify({ code: 'PUBLISHABLE_KEY_NOT_ALLOWED' }), { status: 403 }),
+    );
+    let status = '';
+    function Probe() {
+      status = useFanSession().status;
+      return <span>{status}</span>;
+    }
+    setup(<Probe />, { getFanToken }, fetchImpl);
+    expect(await screen.findByText('unavailable')).toBeTruthy();
+    expect(getFanToken).toHaveBeenCalledTimes(1);
+  });
+
+  it('token fixo recusado no fetch: não repete com o mesmo token e a sessão termina', async () => {
+    const token = tokenFor('site');
+    let fan: ReturnType<typeof useFanSession> | null = null;
+    function Probe() {
+      fan = useFanSession();
+      return <span>{fan.status}</span>;
+    }
+    const base = api();
+    const fetchImpl = vi.fn(async (url: RequestInfo | URL, init?: RequestInit) =>
+      String(url).endsWith('/wallet') ? new Response(null, { status: 401 }) : base(url, init),
+    );
+    setup(<Probe />, { getFanToken: () => token }, fetchImpl);
+    await screen.findByText('ready');
+    await act(async () => {
+      expect((await fan!.fetch('/v1/fans/me/wallet')).status).toBe(401);
+    });
+    expect(fetchImpl.mock.calls.filter(([u]) => String(u).endsWith('/wallet'))).toHaveLength(1);
+    expect(await screen.findByText('expired')).toBeTruthy();
+  });
+
+  it('logout com um pedido de token em voo: o refresh não aproveita o token de quem saiu', async () => {
+    let logged = true;
+    const slow: ((t: string | null) => void)[] = [];
+    const getFanToken = vi.fn(() => {
+      if (logged) return new Promise<string | null>((r) => slow.push(r));
+      return null;
+    });
+    let fan: ReturnType<typeof useFanSession> | null = null;
+    function Probe() {
+      fan = useFanSession();
+      return <span>{fan.status}</span>;
+    }
+    const fetchImpl = setup(<Probe />, { getFanToken });
+    await waitFor(() => expect(slow).toHaveLength(1));
+    logged = false;
+    act(() => fan!.refresh());
+    expect(await screen.findByText('none')).toBeTruthy();
+    // o pedido antigo chega depois: não traz de volta o torcedor que saiu
+    await act(async () => {
+      slow[0]!(tokenFor('site'));
+    });
+    expect(screen.getByText('none')).toBeTruthy();
+    // e o fetch do torcedor não usa o token de quem saiu
+    const calls = fetchImpl.mock.calls.length;
+    await act(async () => {
+      expect((await fan!.fetch('/v1/fans/me/wallet')).status).toBe(401);
+    });
+    expect(fetchImpl.mock.calls.length).toBe(calls);
+  });
+
+  it('outro torcedor no mesmo widget: o Perfil anterior sai da tela enquanto confere', async () => {
+    let who = 'p1';
+    const tok = () => `gft_${b64({ v: 1, t: 'site', p: who, exp: Math.floor(Date.now() / 1000) + 900 })}.x`;
+    const base = api();
+    let fail = false;
+    const fetchImpl = vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
+      if (fail) throw new TypeError('rede fora');
+      return base(url, init);
+    });
+    let fan: ReturnType<typeof useFanSession> | null = null;
+    function Probe() {
+      fan = useFanSession();
+      return <span>{`${fan.status}:${fan.me?.nickname ?? '-'}`}</span>;
+    }
+    setup(<Probe />, { getFanToken: async () => tok() }, fetchImpl);
+    expect(await screen.findByText('ready:Tricolor_77')).toBeTruthy();
+    who = 'p2';
+    fail = true;
+    act(() => fan!.refresh());
+    expect(await screen.findByText('unavailable:-')).toBeTruthy();
   });
 });

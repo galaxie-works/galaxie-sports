@@ -15,6 +15,7 @@ import {
 import {
   FAN_TOKEN_CHANGED_EVENT,
   FAN_TOKEN_RENEW_BEFORE_MS,
+  fanTokenSubject,
   LIVE_STATUSES,
   PROBLEM_STATUSES,
   fanGateMessage,
@@ -199,6 +200,10 @@ function useFanSessionState({
   const tokenRef = useRef<string | null>(null);
   // um pedido de token novo por vez: recusas ao mesmo tempo esperam o mesmo
   const renewRef = useRef<Promise<string | null> | null>(null);
+  // sobe a cada refresh(): pedido de token iniciado antes do login ou logout não vale mais
+  const generationRef = useRef(0);
+  // de quem é o `me` na tela (cliente:Perfil do token), para não mostrar o Perfil anterior com o token novo
+  const meSubjectRef = useRef<string | null>(null);
   const [state, setState] = useState<{ status: FanStatus; me: GsFanMe | null }>(() => ({
     status: hasCallback || isFanToken(fanToken) ? 'checking' : 'none',
     me: null,
@@ -219,21 +224,24 @@ function useFanSessionState({
   }, [fanToken]);
 
   const renew = useCallback((): Promise<string | null> => {
-    renewRef.current ??= obtain()
+    if (renewRef.current) return renewRef.current;
+    const generation = generationRef.current;
+    const pending = obtain()
       .then((t) => {
-        tokenRef.current = t;
+        if (generation === generationRef.current) tokenRef.current = t;
         return t;
       })
       .finally(() => {
-        renewRef.current = null;
+        if (renewRef.current === pending) renewRef.current = null;
       });
-    return renewRef.current;
+    renewRef.current = pending;
+    return pending;
   }, [obtain]);
 
   const call = useCallback(
     (token: string, path: string, init: RequestInit = {}) => {
-      // só caminhos da API: `@outro.host/x` ou `//outro.host` levariam o token para fora
-      if (!path.startsWith('/') || path.startsWith('//'))
+      // só caminhos da API: `@outro.host/x`, `//outro.host` ou `/\outro.host` levariam o token para fora
+      if (!path.startsWith('/') || path.startsWith('//') || path.includes('\\'))
         throw new TypeError(`Caminho da API inválido: ${path}`);
       const headers = new Headers(init.headers);
       headers.set('accept', headers.get('accept') ?? 'application/json');
@@ -247,18 +255,31 @@ function useFanSessionState({
   useEffect(() => {
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
+    let lastToken: string | null = null;
     const check = async () => {
       let token = await renew();
       if (cancelled) return;
       tokenRef.current = token;
       if (!token) {
+        meSubjectRef.current = null;
         setState({ status: 'none', me: null });
         return;
+      }
+      // outro torcedor no mesmo widget: o Perfil anterior sai da tela já
+      if (meSubjectRef.current && meSubjectRef.current !== fanTokenSubject(token)) {
+        meSubjectRef.current = null;
+        setState({ status: 'checking', me: null });
       }
       try {
         let res = await call(token, '/v1/fans/me');
         if (cancelled) return;
-        if ((res.status === 401 || res.status === 403) && getRef.current) {
+        if (res.status === 403) {
+          // não é a sessão: a chave não leva o torcedor (presa a um widget) ou o recurso está fechado
+          meSubjectRef.current = null;
+          setState({ status: 'unavailable', me: null });
+          return;
+        }
+        if (res.status === 401 && getRef.current) {
           // o site pode ter devolvido um token guardado e vencido: pede outro uma vez
           const fresh = await renew();
           if (cancelled) return;
@@ -269,28 +290,31 @@ function useFanSessionState({
             if (cancelled) return;
           }
         }
-        if (res.status === 401 || res.status === 403) {
+        if (res.status === 401) {
           // token vencido, de outro cliente ou de Perfil excluído; com o callback, o próximo pedido tenta outro
           tokenRef.current = null;
+          meSubjectRef.current = null;
           setState({ status: 'expired', me: null });
           return;
         }
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const body = (await res.json()) as { data?: GsFanMe };
         if (cancelled) return;
-        setState(
-          body.data && Array.isArray(body.data.capabilities)
-            ? { status: 'ready', me: body.data }
-            : { status: 'unavailable', me: null },
-        );
+        const ok = Boolean(body.data && Array.isArray(body.data.capabilities));
+        meSubjectRef.current = ok ? fanTokenSubject(token) : null;
+        setState(ok ? { status: 'ready', me: body.data! } : { status: 'unavailable', me: null });
       } catch {
         if (cancelled) return;
         setState((s) => (s.me ? s : { status: 'unavailable', me: null }));
       }
-      // renova antes de vencer (só quem sabe pedir outro)
+      // renova antes de vencer (só quem sabe pedir outro); se a fonte devolveu o mesmo token já perto de
+      // vencer (token fixo), não adianta conferir de novo
       const exp = fanTokenExpiresAt(token);
-      if (exp !== null && getRef.current)
-        timer = setTimeout(() => void check(), Math.max(5_000, exp - Date.now() - FAN_TOKEN_RENEW_BEFORE_MS));
+      const wait = exp === null ? null : exp - Date.now() - FAN_TOKEN_RENEW_BEFORE_MS;
+      const stuck = token === lastToken && wait !== null && wait < 5_000;
+      lastToken = token;
+      if (wait !== null && getRef.current && !stuck)
+        timer = setTimeout(() => void check(), Math.max(5_000, wait));
     };
     // já pronto: segue pronto enquanto confere, para o widget não desmontar (texto digitado no chat fica)
     setState((s) => (s.status === 'checking' || s.status === 'ready' ? s : { ...s, status: 'checking' }));
@@ -311,7 +335,15 @@ function useFanSessionState({
       const fresh = tokenRef.current && tokenRef.current !== token ? tokenRef.current : await renew();
       tokenRef.current = fresh;
       if (!fresh) {
+        meSubjectRef.current = null;
         setState({ status: 'none', me: null });
+        return res;
+      }
+      if (fresh === token) {
+        // a fonte não tem outro (token fixo): a sessão terminou
+        tokenRef.current = null;
+        meSubjectRef.current = null;
+        setState({ status: 'expired', me: null });
         return res;
       }
       const again = await call(fresh, path, init);
@@ -319,10 +351,15 @@ function useFanSessionState({
       if (again.status === 401) setAttempt((n) => n + 1);
       return again;
     },
-    [obtain, renew, call],
+    [renew, call],
   );
 
-  const refresh = useCallback(() => setAttempt((n) => n + 1), []);
+  const refresh = useCallback(() => {
+    // descarta o pedido de token em voo: ele começou antes do login ou do logout
+    generationRef.current += 1;
+    renewRef.current = null;
+    setAttempt((n) => n + 1);
+  }, []);
   // o site avisa que o torcedor entrou ou saiu (login sem recarregar a página)
   useEffect(() => {
     const doc = (globalThis as { document?: Document }).document;
