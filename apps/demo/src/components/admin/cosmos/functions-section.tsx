@@ -35,10 +35,14 @@ export interface StaffFunction {
 const PROVIDERS: Provider[] = ['anthropic', 'deepseek', 'gemini', 'openai'];
 /** Valor do seletor para "padrão da Cosmos" (o Select não aceita string vazia como item). */
 const DEFAULT = 'default';
-/** A única função que hoje chama um modelo; as outras aceitam qualquer provedor. */
-const ASSISTANT_FUNCTION = 'assistant.ask';
-
-function FunctionDialog({ fn, assistantProviders }: { fn?: StaffFunction; assistantProviders: Provider[] }) {
+function FunctionDialog({
+  fn,
+  callableFor,
+}: {
+  fn?: StaffFunction;
+  /** Funções que chamam modelo e os provedores de cada uma; as outras aceitam qualquer provedor. */
+  callableFor: Record<string, Provider[]>;
+}) {
   const { t } = useI18n();
   const T = t.cosmosStaff.functions;
   const router = useRouter();
@@ -57,7 +61,7 @@ function FunctionDialog({ fn, assistantProviders }: { fn?: StaffFunction; assist
   const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) => setForm((f) => ({ ...f, [k]: v }));
   const valid = form.name.trim() && form.permission.trim() && form.minCredits > 0;
   // provedor sem chamador nesta função aparece desligado: salvar deixaria a função "Ativa" sem responder
-  const callable = fn?.callable ?? (form.name.trim() === ASSISTANT_FUNCTION ? assistantProviders : PROVIDERS);
+  const callable = fn?.callable ?? callableFor[form.name.trim()] ?? PROVIDERS;
   const providerItems = [
     { value: DEFAULT, label: T.defaultProvider, disabled: false },
     ...PROVIDERS.map((p) => ({
@@ -166,11 +170,11 @@ function FunctionDialog({ fn, assistantProviders }: { fn?: StaffFunction; assist
 /** Catálogo de funções da Cosmos (#1088): mínimo, provedor e modelo de cada uma, ativas ou não. */
 export function FunctionsSection({
   functions,
-  assistantProviders,
+  callableFor,
 }: {
   functions: StaffFunction[];
   /** Provedores que o assistente já sabe chamar. */
-  assistantProviders: Provider[];
+  callableFor: Record<string, Provider[]>;
 }) {
   const { t, locale } = useI18n();
   const T = t.cosmosStaff.functions;
@@ -179,7 +183,7 @@ export function FunctionsSection({
     <SettingsSection
       title={T.title}
       description={T.description}
-      action={<FunctionDialog assistantProviders={assistantProviders} />}
+      action={<FunctionDialog callableFor={callableFor} />}
     >
       {functions.length ? (
         <Table>
@@ -216,7 +220,7 @@ export function FunctionsSection({
                   </Badge>
                 </TableCell>
                 <TableCell className="text-right">
-                  <FunctionDialog fn={f} assistantProviders={assistantProviders} />
+                  <FunctionDialog fn={f} callableFor={callableFor} />
                 </TableCell>
               </TableRow>
             ))}

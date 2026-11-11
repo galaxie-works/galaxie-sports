@@ -8,14 +8,14 @@ import {
   WIDGET_CATALOG,
   createPreviewFetch,
 } from '@galaxie/widgets';
-import { ArrowLeft, Info, Plus, Save, Trash2 } from 'lucide-react';
+import { ArrowLeft, Info, Plus, Save, Sparkles, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState, useTransition } from 'react';
 import { toast } from 'sonner';
 
 import { deleteBrandThemeAction, saveBrandThemeAction } from '@/app/[locale]/(app)/cliente/actions';
-import { Alert, AlertDescription } from '@/components/reui/alert';
+import { Alert, AlertDescription, AlertTitle } from '@/components/reui/alert';
 import { Frame, FrameDescription, FrameHeader, FramePanel, FrameTitle } from '@/components/reui/frame';
 import {
   AlertDialog,
@@ -32,11 +32,13 @@ import { Button } from '@/components/ui/button';
 import { Field, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Spinner } from '@/components/ui/spinner';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { NAME_MAX } from '@/lib/builder/config';
 import type { BrandThemeItem, WidgetTheme } from '@/lib/builder/types';
 import { useI18n } from '@/lib/i18n/client';
 import { fill } from '@/lib/i18n/text';
 
+import { BrandbookDialog, type BrandbookResult } from './brandbook-dialog';
 import { ThemeEditor } from './theme-editor';
 
 /** Prévia do tema em dois widgets com dados de exemplo (card do jogo e tabela). */
@@ -78,6 +80,15 @@ export function BrandThemeEditor({ initial }: { initial: BrandThemeItem | null }
   const [saved, setSaved] = useState(initial ? snapshot(initial.name, initial.theme) : null);
   const dirty = saved !== snapshot(name, theme);
   const linked = initial?.widgetCount ?? 0;
+  // tema montado pela Cosmos a partir do brandbook (#1004): as duas versões, para o cliente escolher antes de salvar
+  const [cosmos, setCosmos] = useState<BrandbookResult | null>(null);
+  const cc = th.cosmos;
+
+  function fromCosmos(r: BrandbookResult) {
+    setCosmos(r);
+    setTheme({ ...r.light });
+    toast.success(fill(cc.charged, { credits: r.charged }));
+  }
 
   function save() {
     startTransition(async () => {
@@ -141,7 +152,9 @@ export function BrandThemeEditor({ initial }: { initial: BrandThemeItem | null }
                 </AlertDialogContent>
               </AlertDialog>
             </>
-          ) : null}
+          ) : (
+            <BrandbookDialog onResult={fromCosmos} />
+          )}
           <Button onClick={save} disabled={pending || !name.trim() || (!!initial && !dirty)}>
             {pending ? <Spinner /> : <Save />}
             {initial ? th.save : th.saveNew}
@@ -162,6 +175,39 @@ export function BrandThemeEditor({ initial }: { initial: BrandThemeItem | null }
                 onChange={(ev) => setName(ev.target.value)}
               />
             </Field>
+            {cosmos ? (
+              <Alert variant="info">
+                <Sparkles />
+                <AlertTitle>{cc.notesTitle}</AlertTitle>
+                <AlertDescription className="flex flex-col gap-3">
+                  {cosmos.notes ? <p>{cosmos.notes}</p> : null}
+                  {cosmos.adjusted.map((a) => (
+                    <p key={a.mode}>
+                      {fill(cc.adjusted, {
+                        from: a.from,
+                        to: a.to,
+                        mode: a.mode === 'light' ? cc.light : cc.dark,
+                      })}
+                    </p>
+                  ))}
+                  {cosmos.fonts.length ? <p>{fill(cc.fonts, { fonts: cosmos.fonts.join(', ') })}</p> : null}
+                  <ToggleGroup
+                    variant="outline"
+                    size="sm"
+                    spacing={0}
+                    aria-label={cc.pick}
+                    value={[theme.mode]}
+                    onValueChange={(next) => {
+                      const v = next[0];
+                      if (v === 'light' || v === 'dark') setTheme({ ...cosmos[v] });
+                    }}
+                  >
+                    <ToggleGroupItem value="light">{cc.light}</ToggleGroupItem>
+                    <ToggleGroupItem value="dark">{cc.dark}</ToggleGroupItem>
+                  </ToggleGroup>
+                </AlertDescription>
+              </Alert>
+            ) : null}
             <ThemeEditor value={theme} onChange={setTheme} />
             {linked > 0 ? (
               <Alert>
