@@ -22,7 +22,7 @@ export async function SoonPage({ id }: { id: SoonItemId }) {
     <>
       <PageHeader title={t.ops.nav[id]} kind="ajustes" />
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 p-4 md:p-6">
-        <SettingsArea active={id}>
+        <SettingsArea active={id} bare>
           <Frame>
             <FramePanel className="flex flex-col gap-4 p-6">
               <FrameHeader className="flex flex-col gap-2 p-0">

@@ -60,6 +60,7 @@ import {
 import { startTrailAt } from '@/lib/trail';
 
 import { rememberLocale } from '../app-shell/user-menu';
+import type { SearchMode } from './search-provider';
 import { isSettingsPath, SettingsResultGroups, useSettingsSearch } from './settings-results';
 
 const DEBOUNCE_MS = 200;
@@ -278,11 +279,14 @@ function Kbd({ children }: { children: React.ReactNode }) {
 export function CommandPalette({
   open,
   onOpenChange,
+  mode = 'all',
   guides,
   operations,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** `settings`: aberta pelo campo "Buscar ajuste…" do menu de Ajustes, com os ajustes na frente. */
+  mode?: SearchMode;
   guides: DocGuideRef[];
   operations: ApiOperationSummary[];
 }) {
@@ -291,10 +295,12 @@ export function CommandPalette({
   const router = useRouter();
   const { data: session } = authClient.useSession();
   const isAdmin = session?.user.role === 'admin';
-  // Busca de ajustes (#1071): só a equipe, como o resto de Ajustes. Dentro de Ajustes vem antes; fora, depois do app.
+  // Busca de ajustes (#1071): só a equipe, como o resto de Ajustes. Dentro de Ajustes (ou aberta pelo campo do menu)
+  // vem antes; fora, depois do app.
   const pathname = usePathname();
-  const inSettings = isSettingsPath(pathname);
   const isStaff = canAccessAdmin(session?.user.role);
+  const settingsMode = mode === 'settings' && isStaff;
+  const inSettings = settingsMode || isSettingsPath(pathname);
   const [query, setQuery] = useState('');
   const term = useDebounced(query.trim(), DEBOUNCE_MS);
   const search = useApiSearch(term, locale);
@@ -304,8 +310,16 @@ export function CommandPalette({
   const typed = query.trim();
   const apiActive = term.length >= MIN_CHARS;
   const groups = apiActive && search.data ? groupResults(search.data.data) : [];
-  const docHits = typed ? filterEntries(docs, typed, 6) : docs.filter((d) => d.kind === 'doc');
-  const actions = filterEntries(actionEntries(T, locale, isAdmin, guides[0]?.description ?? ''), typed);
+  // no modo de ajustes, sem termo, a paleta só explica o que acha (sem recentes, atalhos nem documentação)
+  const settingsIdle = settingsMode && !typed;
+  const docHits = settingsIdle
+    ? []
+    : typed
+      ? filterEntries(docs, typed, 6)
+      : docs.filter((d) => d.kind === 'doc');
+  const actions = settingsIdle
+    ? []
+    : filterEntries(actionEntries(T, locale, isAdmin, guides[0]?.description ?? ''), typed);
   const settingsHits = useSettingsSearch(typed, isStaff);
   const hasSettingsHits = settingsHits.settings.length > 0 || settingsHits.pages.length > 0;
   const waiting = typed.length >= MIN_CHARS && (term !== typed || search.isFetching);
@@ -366,7 +380,12 @@ export function CommandPalette({
     >
       <Command shouldFilter={false} loop className="**:data-[selected=true]:bg-muted">
         <div className="relative">
-          <CommandInput value={query} onValueChange={setQuery} placeholder={T.placeholder} className="pr-8" />
+          <CommandInput
+            value={query}
+            onValueChange={setQuery}
+            placeholder={settingsMode ? t.ops.search.placeholder : T.placeholder}
+            className="pr-8"
+          />
           {waiting ? (
             <span
               className="text-muted-foreground absolute top-1/2 right-4 -translate-y-1/2"
@@ -387,7 +406,11 @@ export function CommandPalette({
             </CommandEmpty>
           ) : null}
 
-          {!typed && recents.length ? (
+          {settingsIdle ? (
+            <p className="text-muted-foreground px-3 py-6 text-center text-xs">{t.ops.search.tip}</p>
+          ) : null}
+
+          {!typed && !settingsMode && recents.length ? (
             <CommandGroup
               heading={
                 <span className="flex items-center justify-between">

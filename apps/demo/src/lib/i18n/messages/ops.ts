@@ -240,15 +240,6 @@ export default defineMessages(
       movedModels: 'Os modelos de IA ficam todos em IA interna; aqui só o que está em uso.',
       movedKeys: 'As chaves ficam todas em Credenciais; aqui só se estão configuradas.',
     },
-    home: {
-      description: 'A porta de entrada de Ajustes: o que espera ação e todos os grupos do menu.',
-      pendingTitle: 'Esperando ação',
-      review: 'Itens na fila da Revisão do catálogo',
-      requests: 'Pedidos das operadoras em aberto',
-      nothing: 'Nada esperando ação agora.',
-      unavailable: 'Não deu para ler as contagens agora.',
-      groupsTitle: 'Todas as áreas',
-    },
     sections: {
       mirror: {
         title: 'Espelho da api-sports (sync:mirror)',
@@ -1148,6 +1139,7 @@ export default defineMessages(
     /** Início de Ajustes (#1073): só o que pede ação. */
     home: {
       title: 'Início',
+      groupsTitle: 'Todas as áreas',
       description: 'O que pede ação em Ajustes agora. Cada cartão leva à página onde se resolve.',
       nothing: 'Nada pendente',
       unavailable: 'Sem dados agora',
@@ -1817,15 +1809,6 @@ export default defineMessages(
         movedTitle: 'Edited on another page',
         movedModels: 'All AI models live in Internal AI; here only what is in use.',
         movedKeys: 'All keys live in Credentials; here only whether they are set.',
-      },
-      home: {
-        description: 'The entry point of Settings: what awaits action and every menu group.',
-        pendingTitle: 'Awaiting action',
-        review: 'Items in the Catalog review queue',
-        requests: 'Open operator requests',
-        nothing: 'Nothing awaiting action right now.',
-        unavailable: 'Could not read the counts right now.',
-        groupsTitle: 'All areas',
       },
       sections: {
         mirror: {
@@ -2702,6 +2685,7 @@ export default defineMessages(
       },
       home: {
         title: 'Home',
+        groupsTitle: 'All areas',
         description:
           'What needs action in Settings right now. Each card leads to the page where it gets solved.',
         nothing: 'Nothing pending',
@@ -3374,15 +3358,6 @@ export default defineMessages(
         movedTitle: 'Se edita en otra página',
         movedModels: 'Todos los modelos de IA están en IA interna; aquí solo el que está en uso.',
         movedKeys: 'Todas las claves están en Credenciales; aquí solo si están configuradas.',
-      },
-      home: {
-        description: 'La puerta de entrada de Ajustes: lo que espera acción y todos los grupos del menú.',
-        pendingTitle: 'Esperando acción',
-        review: 'Ítems en la cola de la Revisión del catálogo',
-        requests: 'Pedidos de los operadores abiertos',
-        nothing: 'Nada esperando acción ahora.',
-        unavailable: 'No se pudieron leer los conteos ahora.',
-        groupsTitle: 'Todas las áreas',
       },
       sections: {
         mirror: {
@@ -4277,6 +4252,7 @@ export default defineMessages(
       },
       home: {
         title: 'Inicio',
+        groupsTitle: 'Todas las áreas',
         description: 'Lo que pide acción en Ajustes ahora. Cada tarjeta lleva a la página donde se resuelve.',
         nothing: 'Nada pendiente',
         unavailable: 'Sin datos ahora',

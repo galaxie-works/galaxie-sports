@@ -39,14 +39,19 @@ export function SettingsPageHeader({
   job,
   historyHref,
   actions,
+  leading,
 }: {
   /** Do grupo até o item (o "Ajustes" do começo entra sozinho, com link para o Início). */
   crumbs: readonly SettingsCrumb[];
-  title: string;
+  /** Sem título, só o caminho (página que tem o próprio topo, como a de "Em breve"). */
+  title?: string;
   description?: ReactNode;
   /** Quando os dados da página foram lidos (ISO); sem ele, nem "Atualizado" nem "Atualizar". */
   updatedAt?: string;
-  timeZone: string;
+  /** Fuso do "Atualizado" (o padrão é o do navegador). */
+  timeZone?: string;
+  /** Antes do caminho (o botão da gaveta do menu no celular); com ele, o caminho some abaixo de md. */
+  leading?: ReactNode;
   /** Job que aplica os ajustes da página (ex.: `live-run`) e o link dele na Agenda. */
   job?: { name: string; href: string };
   /** Histórico filtrado pela área. */
@@ -57,30 +62,36 @@ export function SettingsPageHeader({
   const T = t.ops.pageChrome;
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const f = useMemo(() => createFormatters(locale, timeZone), [locale, timeZone]);
+  const f = useMemo(
+    () => createFormatters(locale, timeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone),
+    [locale, timeZone],
+  );
   const path: SettingsCrumb[] = [{ label: T.root, href: '/ajustes' }, ...crumbs];
 
   return (
     <header className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <Breadcrumb aria-label={T.breadcrumb}>
-          <BreadcrumbList>
-            {path.map((c, i) => (
-              <Fragment key={`${i}-${c.label}`}>
-                {i > 0 ? <BreadcrumbSeparator /> : null}
-                <BreadcrumbItem>
-                  {i === path.length - 1 ? (
-                    <BreadcrumbPage>{c.label}</BreadcrumbPage>
-                  ) : c.href ? (
-                    <BreadcrumbLink render={<Link href={c.href} />}>{c.label}</BreadcrumbLink>
-                  ) : (
-                    <span>{c.label}</span>
-                  )}
-                </BreadcrumbItem>
-              </Fragment>
-            ))}
-          </BreadcrumbList>
-        </Breadcrumb>
+        <div className="flex min-w-0 items-center gap-2">
+          {leading}
+          <Breadcrumb aria-label={T.breadcrumb} className={leading ? 'hidden min-w-0 md:block' : 'min-w-0'}>
+            <BreadcrumbList>
+              {path.map((c, i) => (
+                <Fragment key={`${i}-${c.label}`}>
+                  {i > 0 ? <BreadcrumbSeparator /> : null}
+                  <BreadcrumbItem>
+                    {i === path.length - 1 ? (
+                      <BreadcrumbPage>{c.label}</BreadcrumbPage>
+                    ) : c.href ? (
+                      <BreadcrumbLink render={<Link href={c.href} />}>{c.label}</BreadcrumbLink>
+                    ) : (
+                      <span>{c.label}</span>
+                    )}
+                  </BreadcrumbItem>
+                </Fragment>
+              ))}
+            </BreadcrumbList>
+          </Breadcrumb>
+        </div>
         {updatedAt ? (
           <div className="flex items-center gap-2">
             <span className="text-muted-foreground text-xs tabular-nums">
@@ -98,29 +109,31 @@ export function SettingsPageHeader({
           </div>
         ) : null}
       </div>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <h1 className="text-xl font-semibold tracking-tight">{title}</h1>
-          {description ? <p className="text-muted-foreground max-w-3xl text-sm">{description}</p> : null}
-        </div>
-        {job || historyHref || actions ? (
-          <div className="flex flex-wrap items-center gap-2">
-            {job ? (
-              <Button variant="ghost" size="sm" nativeButton={false} render={<Link href={job.href} />}>
-                <Timer aria-hidden />
-                {fill(T.job, { job: job.name })}
-              </Button>
-            ) : null}
-            {historyHref ? (
-              <Button variant="ghost" size="sm" nativeButton={false} render={<Link href={historyHref} />}>
-                <History aria-hidden />
-                {T.history}
-              </Button>
-            ) : null}
-            {actions}
+      {title ? (
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+            <h2 className="text-xl font-semibold tracking-tight">{title}</h2>
+            {description ? <p className="text-muted-foreground max-w-3xl text-sm">{description}</p> : null}
           </div>
-        ) : null}
-      </div>
+          {job || historyHref || actions ? (
+            <div className="flex flex-wrap items-center gap-2">
+              {job ? (
+                <Button variant="ghost" size="sm" nativeButton={false} render={<Link href={job.href} />}>
+                  <Timer aria-hidden />
+                  {fill(T.job, { job: job.name })}
+                </Button>
+              ) : null}
+              {historyHref ? (
+                <Button variant="ghost" size="sm" nativeButton={false} render={<Link href={historyHref} />}>
+                  <History aria-hidden />
+                  {T.history}
+                </Button>
+              ) : null}
+              {actions}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
     </header>
   );
 }

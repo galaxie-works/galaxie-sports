@@ -120,7 +120,7 @@ describe('cartões do Início', () => {
     expect(by.alerts).toMatchObject({ state: 'pending', count: 2 });
     expect(by.credentials).toMatchObject({ state: 'pending', count: 2, tone: 'warning' });
     expect(by.aiCeiling).toMatchObject({ state: 'pending', count: 1, percent: 85 });
-    expect(by.signups).toMatchObject({ state: 'soon', href: null });
+    expect(by.signups).toMatchObject({ state: 'soon', href: '/ajustes/cadastros' });
     expect(homePendingTotal(cards)).toBe(12 + 3 + 2 + 2 + 2 + 1);
   });
 
@@ -149,7 +149,19 @@ describe('cartões do Início', () => {
     });
   });
 
-  it('aceita os links das rotas novas', () => {
+  it('cada cartão leva ao item do menu novo (#1068)', () => {
+    expect(HOME_LINKS).toEqual({
+      review: '/ajustes/revisao',
+      requests: '/ajustes/grades?aba=pedidos',
+      failedJobs: '/ajustes/tarefas',
+      alerts: '/ajustes/status',
+      credentials: '/ajustes/credenciais',
+      aiCeiling: '/ajustes/ia',
+      signups: '/ajustes/cadastros',
+    });
+  });
+
+  it('aceita outros links', () => {
     const links = { ...HOME_LINKS, failedJobs: '/ajustes/tarefas' };
     const card = buildHomeCards({ review: null, requests: null, ops: null }, links).find(
       (c) => c.id === 'failedJobs',

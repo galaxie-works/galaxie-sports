@@ -10,21 +10,13 @@ import { useI18n } from '@/lib/i18n/client';
 import {
   buildSettingsIndex,
   currentSettingsTabs,
-  fallbackSettingPage,
   pageCrumbs,
   searchSettings,
   searchSettingsPages,
   settingsSearchPages,
-  type SettingPageResolver,
   type SettingsSearchEntry,
   type SettingsSearchPage,
 } from '@/lib/ops/settings-search';
-
-/**
- * Lugar de cada ajuste. Ponto de troca: quando o `settingPage(key)` do #1070 existir em `lib/ops/`, ele entra aqui
- * no lugar do resolvedor provisório (e os itens do menu novo chegam por `settingsNavGroups`).
- */
-const RESOLVE: SettingPageResolver = fallbackSettingPage;
 
 /** Rota de Ajustes (o caminho do navegador vem sem o idioma). */
 export const isSettingsPath = (pathname: string | null) =>
@@ -41,7 +33,7 @@ export function useSettingsSearch(term: string, enabled: boolean, limits = { set
     [enabled, t],
   );
   const index = useMemo(
-    () => (enabled ? buildSettingsIndex({ t: t.ops, pages, resolve: RESOLVE }) : []),
+    () => (enabled ? buildSettingsIndex({ t: t.ops, pages }) : []),
     [enabled, pages, t.ops],
   );
   const typed = term.trim();

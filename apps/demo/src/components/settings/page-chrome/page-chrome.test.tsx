@@ -10,6 +10,9 @@ import {
   ChangedFilter,
   HIGHLIGHT_MS,
   OnThisPage,
+  PageChangedFilter,
+  PageChromeProvider,
+  useReportPageChrome,
   activeSection,
   anchorKey,
   countChanged,
@@ -78,6 +81,43 @@ describe('Alterados no painel', () => {
     render(wrap(<ChangedFilter value="all" onValueChange={() => {}} count={0} />));
     const none = screen.getByText('Nenhum alterado').closest('button')!;
     expect(none.hasAttribute('disabled') || none.hasAttribute('data-disabled')).toBe(true);
+  });
+});
+
+describe('Alterados no painel na página', () => {
+  function Content({ settings }: { settings: ChangedSource[] }) {
+    useReportPageChrome({ updatedAt: '2026-11-11T12:00:00Z', timeZone: 'UTC', settings });
+    return null;
+  }
+
+  it('o conteúdo conta as linhas; o filtro esconde as que vêm do .env ou do padrão', () => {
+    const { container } = render(
+      wrap(
+        <PageChromeProvider>
+          <PageChangedFilter />
+          <Content settings={rows} />
+        </PageChromeProvider>,
+      ),
+    );
+    expect(container.querySelector('style')).toBeNull();
+    fireEvent.click(screen.getByText('Alterados no painel (2)'));
+    const css = container.querySelector('style')!.textContent!;
+    expect(css).toContain('#LIVE_POLL_INTERVAL_SECONDS');
+    expect(css).toContain('#LIVE_IDLE_EXIT_MINUTES');
+    expect(css).not.toContain('#LIVE_FEATURED');
+  });
+
+  it('sem linhas de ajuste na página, nada de filtro', () => {
+    const { container } = render(
+      wrap(
+        <PageChromeProvider>
+          <PageChangedFilter />
+          <Content settings={[]} />
+        </PageChromeProvider>,
+      ),
+    );
+    expect(container.querySelector('[role="group"]')).toBeNull();
+    expect(screen.queryByText('Todos')).toBeNull();
   });
 });
 

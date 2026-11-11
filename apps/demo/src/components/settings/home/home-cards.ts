@@ -5,6 +5,7 @@
  */
 import { settingDef } from '@galaxie/runtime-config';
 
+import { settingsHref } from '@/lib/ops/settings-items';
 import type { OpsSnapshot } from '@/lib/ops/types';
 
 /** Ordem dos cartões na página (fixa: a página tem sempre a mesma forma). */
@@ -23,17 +24,18 @@ export type HomeCardId = (typeof HOME_CARDS)[number];
 export const AI_NEAR_CEILING = 0.8;
 
 /**
- * Para onde cada cartão leva. Ponto de troca: as rotas novas do #1068 (Plataforma → Tarefas, Status, Credenciais;
- * Clientes → Cadastros e trials) entram aqui quando existirem.
+ * Para onde cada cartão leva, nos itens do menu de Ajustes (#1068): Dados → Revisão do catálogo; Produtos → Grades e
+ * ofertas (aba Pedidos); Plataforma → Tarefas, Status dos serviços e Credenciais; Inteligência → IA interna; Clientes →
+ * Cadastros e trials (ainda "Em breve": leva à página de espera).
  */
 export const HOME_LINKS: Record<HomeCardId, string | null> = {
-  review: '/ajustes/revisao',
-  requests: '/ajustes/grades?aba=pedidos',
-  failedJobs: '/ajustes/operacao',
-  alerts: '/ajustes/operacao',
-  credentials: '/ajustes/fornecedor',
-  aiCeiling: '/ajustes/ia',
-  signups: null,
+  review: settingsHref('review'),
+  requests: `${settingsHref('lineup')}?aba=pedidos`,
+  failedJobs: settingsHref('tasks'),
+  alerts: settingsHref('status'),
+  credentials: settingsHref('credentials'),
+  aiCeiling: settingsHref('ai'),
+  signups: settingsHref('signups'),
 };
 
 /** Fontes do Início; `null` = a fonte não respondeu (tabela ainda não migrada, banco fora). */

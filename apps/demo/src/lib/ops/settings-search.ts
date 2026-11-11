@@ -3,14 +3,18 @@
  * dicionário, no idioma da tela, e a busca sobre ele. Sem chamada ao servidor: a paleta (⌘K) e o campo do menu de
  * Ajustes montam o índice no navegador. Puro: sem React nem servidor.
  *
- * O lugar de cada ajuste vem de um resolvedor (`SettingPageResolver`): o `settingPage(key)` do #1070 quando ele
- * existir; até lá, `fallbackSettingPage`, que segue a `section` do registro e as rotas de hoje.
+ * O lugar de cada ajuste vem de um resolvedor (`SettingPageResolver`); o padrão é `resolveSettingPage`, sobre o mapa
+ * único ajuste → página do #1070 (`settingPage`).
  */
 import { foldSearchText } from '@galaxie/contracts';
-import { SETTINGS, isSecret, type SettingDef } from '@galaxie/runtime-config';
+import { SETTINGS, isSecret } from '@galaxie/runtime-config';
 
 import { settingText } from '@/components/ops/format';
 import type { ClientDictionary } from '@/lib/i18n/dictionary';
+
+import { SETTINGS_VIEWS } from './panel-tabs';
+import { settingPage } from './setting-page';
+import { settingsItem } from './settings-items';
 
 type OpsTexts = ClientDictionary['ops'];
 
@@ -67,28 +71,16 @@ export interface SettingsSearchEntry {
 }
 
 /**
- * Seções do registro → item do menu de hoje (#1059) e a rota dele. Temporário: sai quando o `settingPage` do #1070
- * existir (ele divide Ao vivo e Pós-jogo e leva as chaves para Credenciais, regras A3/A4).
+ * Lugar de cada ajuste no menu de Ajustes, pelo `settingPage` do #1070: item, rota e grupo do menu. A seção (o bloco
+ * da página) só entra no caminho quando a página tem mais de um bloco (Fornecedor e cota › Esportes); com um só, ela
+ * repetiria a página.
  */
-const SECTION_PAGES: Record<SettingDef['section'], { item: string; href: string; group: string }> = {
-  ai: { item: 'ai', href: '/ajustes/ia', group: 'platform' },
-  assets: { item: 'system', href: '/ajustes/sistema', group: 'platform' },
-  cosmos: { item: 'system', href: '/ajustes/sistema', group: 'platform' },
-  credentials: { item: 'provider', href: '/ajustes/fornecedor', group: 'platform' },
-  feedback: { item: 'system', href: '/ajustes/sistema', group: 'platform' },
-  live: { item: 'operation', href: '/ajustes/operacao', group: 'platform' },
-  mirror: { item: 'provider', href: '/ajustes/fornecedor', group: 'platform' },
-  provider: { item: 'provider', href: '/ajustes/fornecedor', group: 'platform' },
-  related: { item: 'features', href: '/ajustes/esportes?aba=related', group: 'data' },
-  schedule: { item: 'operation', href: '/ajustes/operacao', group: 'platform' },
-  wtw: { item: 'features', href: '/ajustes/esportes?aba=wtw', group: 'data' },
-};
-
-/** Resolvedor provisório: pela `section` do registro, nas rotas de hoje. */
-export const fallbackSettingPage: SettingPageResolver = (key) => {
-  const def = SETTINGS.find((s) => s.key === key);
-  if (!def) return undefined;
-  return { ...SECTION_PAGES[def.section], section: def.section };
+export const resolveSettingPage: SettingPageResolver = (key) => {
+  const page = settingPage(key);
+  if (!page) return undefined;
+  const item = settingsItem(page.item);
+  const multi = SETTINGS_VIEWS[page.item].length > 1;
+  return { item: page.item, href: item.href, group: item.group, ...(multi ? { section: page.block } : {}) };
 };
 
 /**
@@ -107,7 +99,7 @@ function aliasesOf(t: OpsTexts, key: string): string[] {
 }
 
 /** Junta link e âncora (o link pode já ter `?aba=`). */
-export const settingHref = (href: string, key: string) => `${href.split('#')[0]}#${key}`;
+export const withSettingAnchor = (href: string, key: string) => `${href.split('#')[0]}#${key}`;
 
 /**
  * Índice de todos os ajustes do registro, na ordem do registro. Cada um com rótulo e descrição do dicionário, o
@@ -117,7 +109,7 @@ export const settingHref = (href: string, key: string) => `${href.split('#')[0]}
 export function buildSettingsIndex({
   t,
   pages,
-  resolve = fallbackSettingPage,
+  resolve = resolveSettingPage,
   sectionLabel,
   groupLabel,
 }: {
@@ -152,7 +144,7 @@ export function buildSettingsIndex({
       key: def.key,
       label: text.label,
       description: text.description,
-      href: settingHref(ref.href, def.key),
+      href: withSettingAnchor(ref.href, def.key),
       crumbs: unique,
       item: ref.item,
       group: ref.group,
@@ -262,7 +254,8 @@ export function settingsSearchPages(
   groups: readonly {
     id: string;
     label: string;
-    items: readonly { id: string; href: string; label: string; soon?: unknown }[];
+    /** `soon` (item planejado) ou `muted`, como a folha do menu (`settingsNavGroups`) marca o "Em breve". */
+    items: readonly { id: string; href: string; label: string; soon?: unknown; muted?: boolean }[];
   }[],
   tabs: Readonly<Record<string, readonly { id: string; label: string; href: string }[]>> = {},
 ): SettingsSearchPage[] {
@@ -274,7 +267,7 @@ export function settingsSearchPages(
         label: item.label,
         group: g.label,
         groupId: g.id,
-        ...(item.soon ? { soon: true } : {}),
+        ...(item.soon || item.muted ? { soon: true } : {}),
       },
       ...(tabs[item.id] ?? []).map((tab) => ({
         id: `${item.id}:${tab.id}`,
@@ -288,21 +281,17 @@ export function settingsSearchPages(
   );
 }
 
-/** Abas internas das páginas de hoje (#1059), para o grupo Páginas achar "Pedidos das operadoras". */
+/** Abas internas das páginas de Ajustes (Grades e ofertas), para o grupo Páginas achar "Pedidos das operadoras". */
 export function currentSettingsTabs(
-  t: Pick<ClientDictionary, 'ops' | 'lineup'>,
+  t: Pick<ClientDictionary, 'lineup'>,
 ): Record<string, { id: string; label: string; href: string }[]> {
   const lineup = t.lineup.admin.tabs;
+  const href = settingsItem('lineup').href;
   return {
-    lineup: (['revisao', 'pedidos', 'tenants'] as const).map((id) => ({
+    lineup: (['revisao', 'pedidos', 'tenants', 'ajustes'] as const).map((id) => ({
       id,
       label: lineup[id],
-      href: `/ajustes/grades?aba=${id}`,
-    })),
-    features: (['sports', 'related', 'wtw'] as const).map((id) => ({
-      id,
-      label: t.ops.tabs[id],
-      href: `/ajustes/esportes?aba=${id}`,
+      href: `${href}?aba=${id}`,
     })),
   };
 }

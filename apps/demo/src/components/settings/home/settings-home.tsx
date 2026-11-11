@@ -35,7 +35,8 @@ import type { Dictionary } from '@/lib/i18n/dictionary';
 import { createFormatters } from '@/lib/i18n/format';
 import { getLocale, getT, getTimeZone } from '@/lib/i18n/server';
 import { fill, plural } from '@/lib/i18n/text';
-import { fallbackSettingPage, settingHref, type SettingPageResolver } from '@/lib/ops/settings-search';
+import { resolveSettingPage, withSettingAnchor, type SettingPageResolver } from '@/lib/ops/settings-search';
+import { settingsHref } from '@/lib/ops/settings-items';
 
 import { readSettingsHome, type SettingsHomeData } from './data';
 import { HOME_CARDS, HOME_LINKS, type HomeCard, type HomeCardId } from './home-cards';
@@ -149,7 +150,7 @@ function RecentList({
                 </ItemContent>
               );
               return ref ? (
-                <Item key={row.id} size="sm" render={<Link href={settingHref(ref.href, row.key)} />}>
+                <Item key={row.id} size="sm" render={<Link href={withSettingAnchor(ref.href, row.key)} />}>
                   {body}
                 </Item>
               ) : (
@@ -238,9 +239,9 @@ export function SettingsHomeSkeleton() {
  * (`SettingsPageHeader` ou `PageHeader`); aqui só o conteúdo.
  */
 export function SettingsHome({
-  resolve = fallbackSettingPage,
+  resolve = resolveSettingPage,
   links = HOME_LINKS,
-  historyHref = '/ajustes/sistema',
+  historyHref = settingsHref('history'),
 }: {
   /** Lugar de cada ajuste (o `settingPage` do #1070), para o link das últimas mudanças. */
   resolve?: SettingPageResolver;

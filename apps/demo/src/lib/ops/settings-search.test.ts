@@ -8,7 +8,7 @@ import { clientDictionary } from '@/lib/i18n/dictionary';
 import {
   buildSettingsIndex,
   currentSettingsTabs,
-  fallbackSettingPage,
+  resolveSettingPage,
   searchSettings,
   searchSettingsPages,
   settingScore,
@@ -35,21 +35,38 @@ describe('índice da busca de ajustes', () => {
     }
   });
 
-  it('usa o resolvedor recebido (o settingPage do #1070)', () => {
+  it('usa o resolvedor recebido', () => {
     const { index } = setup('pt-BR', (key) =>
-      key === 'AI_DAILY_USD_BUDGET' ? { item: 'ai', href: '/ajustes/ia', group: 'platform' } : undefined,
+      key === 'AI_DAILY_USD_BUDGET' ? { item: 'ai', href: '/ajustes/ia', group: 'inteligencia' } : undefined,
     );
     expect(keys(index)).toEqual(['AI_DAILY_USD_BUDGET']);
-    expect(index[0]!.crumbs).toEqual(['Plataforma', 'IA interna']);
+    expect(index[0]!.crumbs).toEqual(['Inteligência', 'IA interna']);
     expect(index[0]!.href).toBe('/ajustes/ia#AI_DAILY_USD_BUDGET');
   });
 
-  it('o resolvedor provisório leva cada seção à página de hoje', () => {
-    expect(fallbackSettingPage('LIVE_FEATURED')).toMatchObject({
-      href: '/ajustes/operacao',
-      section: 'live',
+  it('o resolvedor padrão segue o settingPage do #1070, nas rotas novas', () => {
+    expect(resolveSettingPage('LIVE_FEATURED')).toEqual({
+      item: 'live',
+      href: '/ajustes/ao-vivo',
+      group: 'produtos',
     });
-    expect(fallbackSettingPage('NAO_EXISTE')).toBeUndefined();
+    expect(resolveSettingPage('POSTGAME_NBA_MIN')).toMatchObject({ href: '/ajustes/pos-jogo' });
+    expect(resolveSettingPage('YOUTUBE_API_KEY')).toMatchObject({ href: '/ajustes/credenciais' });
+    expect(resolveSettingPage('AI_RIGHTS_MODEL')).toMatchObject({ href: '/ajustes/ia' });
+    // página com dois blocos: a seção entra no caminho
+    expect(resolveSettingPage('APISPORTS_PLAN_NBA')).toMatchObject({
+      href: '/ajustes/fornecedor',
+      section: 'sports',
+    });
+    expect(resolveSettingPage('NAO_EXISTE')).toBeUndefined();
+  });
+
+  it('caminho e link do resultado nas rotas novas', () => {
+    const { index } = setup();
+    const daily = index.find((e) => e.key === 'AI_DAILY_USD_BUDGET')!;
+    expect(daily.crumbs).toEqual(['Inteligência', 'IA interna']);
+    expect(daily.href).toBe('/ajustes/ia#AI_DAILY_USD_BUDGET');
+    for (const e of index) expect(e.href, e.key).not.toMatch(/\/ajustes\/(operacao|sistema|esportes)|\?aba=/);
   });
 });
 
@@ -106,5 +123,16 @@ describe('busca de ajustes', () => {
     expect(searchSettingsPages(pages, 'pedidos').map((p) => p.id)).toContain('lineup:pedidos');
     expect(searchSettingsPages(pages, 'ia')[0]!.id).toBe('ai');
     expect(searchSettingsPages(pages, '')).toEqual([]);
+    expect(searchSettingsPages(pages, 'ajustes da grade')[0]).toMatchObject({
+      id: 'lineup:ajustes',
+      href: '/ajustes/grades?aba=ajustes',
+    });
+  });
+
+  it('Páginas traz os 43 itens do menu, os "Em breve" com o selo', () => {
+    expect(pages.filter((p) => !p.parent)).toHaveLength(43);
+    const soon = pages.find((p) => p.id === 'tvApps')!;
+    expect(soon).toMatchObject({ href: '/ajustes/apps-de-tv', soon: true });
+    expect(pages.find((p) => p.id === 'live')!.soon).toBeUndefined();
   });
 });

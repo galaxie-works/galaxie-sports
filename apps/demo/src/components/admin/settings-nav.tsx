@@ -47,7 +47,6 @@ import {
   Wallet,
   Webhook,
 } from 'lucide-react';
-import Link from 'next/link';
 import { createContext, Suspense, use, useContext, type ReactNode } from 'react';
 
 import { CosmosIcon } from '@/components/cosmos/cosmos-icon';
@@ -60,13 +59,17 @@ import {
   type NavLeaf,
 } from '@/components/settings/grouped-nav';
 import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from '@/components/ui/breadcrumb';
+  OnThisPage,
+  showOnThisPage,
+  type OnThisPageSection,
+} from '@/components/settings/page-chrome/on-this-page';
+import {
+  PageChangedFilter,
+  PageChromeProvider,
+  usePageChromeReport,
+} from '@/components/settings/page-chrome/page-state';
+import { SettingAnchor } from '@/components/settings/page-chrome/setting-anchor';
+import { SettingsPageHeader } from '@/components/settings/page-chrome/settings-page-header';
 import { Button } from '@/components/ui/button';
 import { sortByLabel } from '@/lib/alphabetical';
 import { useI18n } from '@/lib/i18n/client';
@@ -80,7 +83,6 @@ import {
   type SettingsNavGroupId,
   type SettingsNavId,
 } from '@/lib/ops/settings-items';
-import { topLevelClick } from '@/lib/trail';
 
 export { SETTINGS_ITEMS as SETTINGS_NAV, SETTINGS_NAV_GROUPS, type SettingsNavGroupId };
 /** Área ativa de uma página de Ajustes (um dos 43 itens ou o Início). */
@@ -222,10 +224,13 @@ export const settingsGroupOf = (id: SettingsItemId): SettingsNavGroupId =>
 /** Onde fica lembrado o que a pessoa abriu ou fechou no menu de Ajustes (A6). */
 export const SETTINGS_MENU_STORAGE = 'galaxie:ajustes:grupos';
 
-/** Campo "Buscar ajuste…" (o lugar dele, #1067; a busca dos 167 ajustes vem com o #1071): abre a paleta ⌘K. */
+/**
+ * Campo "Buscar ajuste…" no topo da coluna e da gaveta de Ajustes (#1067): abre a paleta ⌘K já na busca de ajustes
+ * (#1071), com os ajustes e as páginas de Ajustes na frente.
+ */
 export function SettingsSearchField({ onOpen }: { onOpen?: () => void }) {
   const { t } = useI18n();
-  const { setOpen } = useSearch();
+  const { openSettings } = useSearch();
   const shortcut = useShortcutLabel();
   return (
     <Button
@@ -233,7 +238,7 @@ export function SettingsSearchField({ onOpen }: { onOpen?: () => void }) {
       className="text-muted-foreground hover:text-foreground w-full justify-start gap-2 font-normal"
       onClick={() => {
         onOpen?.();
-        setOpen(true);
+        openSettings();
       }}
     >
       <Search aria-hidden="true" />
@@ -257,81 +262,137 @@ export const SettingsColumnProvider = ColumnContext.Provider;
 export const useSettingsColumn = () => useContext(ColumnContext);
 
 /**
- * Topo da área de trabalho de uma página de Ajustes (moldura `app-shell-14`, #1067): o caminho Ajustes / Grupo / Item
- * e, embaixo, a barra de abas da página (`tabs`), quando ela tem vistas. O menu fica na segunda coluna (layout de
- * Ajustes); no celular ele vai para a gaveta, aberta pelo botão com a página atual.
+ * Moldura de uma página de Ajustes (`app-shell-14`, #1067) com o topo comum (#1072): o cabeçalho (caminho Ajustes ›
+ * Grupo › Item, título, a frase do que a página controla, "Atualizado" e "Atualizar" quando o conteúdo conta quando
+ * leu os dados, e os links do job e do histórico), a barra de abas da página (`tabs`) com o filtro "Alterados no
+ * painel" à direita, o conteúdo e, à direita dele em telas ≥ xl, o índice "Nesta página" (`sections`, com 2+ seções).
+ * Chegada por `#CHAVE` (a busca de ajustes, #1071) rola até a linha e a destaca. O menu fica na segunda coluna (layout
+ * de Ajustes); no celular ele vai para a gaveta, aberta pelo botão com a página atual.
  */
 export function SettingsArea({
   active,
+  title,
+  description,
+  job,
+  historyHref,
   tabs,
+  sections,
+  bare,
   children,
 }: {
   active: SettingsSectionId;
+  /** Título da página; o padrão é o nome do item no menu. */
+  title?: string;
+  /** Uma frase do que a página controla. */
+  description?: ReactNode;
+  /** Job que aplica os ajustes da página e o link dele na Agenda. */
+  job?: { name: string; href: string };
+  /** Histórico e auditoria. */
+  historyHref?: string;
   /** Abas da página (ex.: Grades e ofertas: Revisão, Pedidos das operadoras…). */
   tabs?: ReactNode;
+  /** Seções da página para o "Nesta página" (`id` do elemento e rótulo). */
+  sections?: readonly OnThisPageSection[];
+  /** Só o caminho, sem título nem frase: a página tem o próprio topo (a de "Em breve"). */
+  bare?: boolean;
   children: ReactNode;
 }) {
+  return (
+    <PageChromeProvider>
+      <SettingsAreaBody
+        bare={bare}
+        active={active}
+        title={title}
+        description={description}
+        job={job}
+        historyHref={historyHref}
+        tabs={tabs}
+        sections={sections}
+      >
+        {children}
+      </SettingsAreaBody>
+    </PageChromeProvider>
+  );
+}
+
+function SettingsAreaBody({
+  active,
+  title,
+  description,
+  job,
+  historyHref,
+  tabs,
+  sections,
+  bare,
+  children,
+}: Parameters<typeof SettingsArea>[0]) {
   const { t } = useI18n();
   const nav = t.ops.nav;
   const column = useSettingsColumn();
+  const report = usePageChromeReport();
   const group = active === SETTINGS_HOME.id ? null : settingsGroupOf(active);
+  const leading = (
+    <>
+      <GroupedNavSheet
+        groups={settingsNavGroups(nav)}
+        pinned={settingsNavPinned(nav)}
+        active={active}
+        label={nav.label}
+        title={nav.title}
+        storageKey={SETTINGS_MENU_STORAGE}
+        header={(close) => (
+          <div className="px-1">
+            <SettingsSearchField onOpen={close} />
+          </div>
+        )}
+        className="self-start md:hidden"
+      />
+      {column?.hidden ? (
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          className="hidden md:inline-flex"
+          aria-label={nav.show}
+          title={nav.show}
+          onClick={() => column.setHidden(false)}
+        >
+          <PanelLeftOpen aria-hidden="true" />
+        </Button>
+      ) : null}
+    </>
+  );
+  const withIndex = !!sections && showOnThisPage(sections);
   return (
     <div className="flex min-w-0 flex-col gap-4">
-      <div className="flex min-w-0 flex-wrap items-center gap-2">
-        <GroupedNavSheet
-          groups={settingsNavGroups(nav)}
-          pinned={settingsNavPinned(nav)}
-          active={active}
-          label={nav.label}
-          title={nav.title}
-          storageKey={SETTINGS_MENU_STORAGE}
-          header={(close) => (
-            <div className="px-1">
-              <SettingsSearchField onOpen={close} />
-            </div>
-          )}
-          className="self-start md:hidden"
-        />
-        {column?.hidden ? (
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            className="hidden md:inline-flex"
-            aria-label={nav.show}
-            title={nav.show}
-            onClick={() => column.setHidden(false)}
-          >
-            <PanelLeftOpen aria-hidden="true" />
-          </Button>
-        ) : null}
-        <Breadcrumb aria-label={nav.breadcrumb} className="hidden min-w-0 md:block">
-          <BreadcrumbList>
-            <BreadcrumbItem>
-              {active === SETTINGS_HOME.id ? (
-                <BreadcrumbPage>{nav.title}</BreadcrumbPage>
-              ) : (
-                <BreadcrumbLink
-                  render={<Link href={SETTINGS_HOME.href} onClick={topLevelClick(SETTINGS_HOME.href)} />}
-                >
-                  {nav.title}
-                </BreadcrumbLink>
-              )}
-            </BreadcrumbItem>
-            {group ? (
-              <>
-                <BreadcrumbSeparator />
-                <BreadcrumbItem>{nav.groups[group]}</BreadcrumbItem>
-                <BreadcrumbSeparator />
-                <BreadcrumbItem>
-                  <BreadcrumbPage>{nav[active]}</BreadcrumbPage>
-                </BreadcrumbItem>
-              </>
-            ) : null}
-          </BreadcrumbList>
-        </Breadcrumb>
-      </div>
-      {tabs}
-      {children}
+      <SettingAnchor />
+      <SettingsPageHeader
+        leading={leading}
+        crumbs={group ? [{ label: nav.groups[group] }, { label: nav[active] }] : []}
+        title={bare ? undefined : (title ?? nav[active])}
+        description={bare ? undefined : description}
+        updatedAt={report?.updatedAt}
+        timeZone={report?.timeZone}
+        job={job}
+        historyHref={historyHref}
+      />
+      {tabs ? (
+        <div className="flex min-w-0 flex-wrap items-end gap-2">
+          <div className="min-w-0 flex-1">{tabs}</div>
+          <PageChangedFilter className="mb-1" />
+        </div>
+      ) : (
+        <div className="flex justify-end empty:hidden">
+          <PageChangedFilter />
+        </div>
+      )}
+      {withIndex ? (
+        <div className="flex min-w-0 gap-8">
+          <div className="flex min-w-0 flex-1 flex-col gap-4">{children}</div>
+          <OnThisPage sections={sections} />
+        </div>
+      ) : (
+        children
+      )}
     </div>
   );
 }

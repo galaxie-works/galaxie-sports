@@ -22,4 +22,11 @@ export {
   settingKeysProps,
   useSettingAnchor,
 } from './setting-anchor';
+export {
+  PageChangedFilter,
+  PageChromeProvider,
+  usePageChromeReport,
+  useReportPageChrome,
+  type PageChromeReport,
+} from './page-state';
 export { SettingsPageHeader, type SettingsCrumb } from './settings-page-header';
