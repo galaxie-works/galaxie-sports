@@ -5,10 +5,10 @@ import { getT } from '@/lib/i18n/server';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getT();
-  return { title: t.ops.nav.operation };
+  return { title: t.ops.nav.quality };
 }
 
-/** Ajustes → Plataforma → Operação (#1001): as seções dela empilhadas, sem abas. */
+/** Ajustes → Dados → Qualidade dos dados (saía de Operação). (#1069) */
 export default function Page() {
-  return <OpsViewPage view="operation" active="operation" />;
+  return <OpsViewPage view="quality" />;
 }

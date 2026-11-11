@@ -9,6 +9,7 @@ export * from './channel-guide.js';
 export * from './related.js';
 export * from './realtime.js';
 export * from './account.js';
+export * from './fans.js';
 export * from './teams.js';
 export * from './context.js';
 export * from './bracket.js';

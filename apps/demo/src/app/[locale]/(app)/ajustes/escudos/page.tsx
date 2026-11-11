@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Suspense } from 'react';
 
 import { CrestAdmin } from '@/components/admin/crest-admin';
+import { OpsViewPanel } from '@/components/admin/ops-view-page';
 import { SettingsArea } from '@/components/admin/settings-nav';
 import { LoadingStatus } from '@/components/app-shell/loading-status';
 import { PageHeader } from '@/components/app-shell/page-header';
@@ -49,8 +50,7 @@ export default async function CrestAdminPage({ searchParams }: PageProps<'/[loca
     <>
       <PageHeader title={t.crests.page.title} kind="ajustes" />
       <div className="flex w-full min-w-0 flex-col gap-4 p-4 md:p-6">
-        <SettingsArea active="crests">
-          <p className="text-muted-foreground max-w-3xl text-sm">{t.crests.page.description}</p>
+        <SettingsArea active="crests" title={t.crests.page.title} description={t.crests.page.description}>
           <Suspense
             fallback={
               <LoadingStatus>
@@ -60,6 +60,8 @@ export default async function CrestAdminPage({ searchParams }: PageProps<'/[loca
           >
             <Content searchParams={searchParams} />
           </Suspense>
+          {/* o acervo customizado de logos, que estava no Sistema (#1069); o id="assets" é do bloco do painel */}
+          <OpsViewPanel view="crests" />
         </SettingsArea>
       </div>
     </>

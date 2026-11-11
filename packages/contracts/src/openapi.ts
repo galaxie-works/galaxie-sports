@@ -19,6 +19,7 @@ import {
   Venue,
 } from './catalog.js';
 import { accountPaths } from './account.js';
+import { fanPaths } from './fans.js';
 import { ChampionsParams, ChampionsQuery, CompetitionChampions } from './champions.js';
 import { ChannelGuide, ChannelGuideParams, ChannelGuideQuery } from './channel-guide.js';
 import { channelListPaths } from './channel-list.js';
@@ -98,7 +99,7 @@ const errorResponses = (...statuses: (400 | 401 | 403 | 404 | 429 | 503)[]): Zod
 
 const okHeaders = z.object({
   etag: z.string().meta({ description: 'Validador para If-None-Match (304).' }),
-  'cache-control': z.string().meta({ description: 'TTL por tipo de recurso (docs/05 §7).' }),
+  'cache-control': z.string().meta({ description: 'TTL por tipo de recurso (docs/05 §9).' }),
   'x-ratelimit-limit': z.string().meta({ description: 'Requisições por janela (por rota).' }),
   'x-ratelimit-remaining': z.string(),
   'x-ratelimit-reset': z.string().meta({ description: 'Segundos até a janela reiniciar.' }),
@@ -225,6 +226,12 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
       },
       { name: 'Tempo real', description: 'SSE e webhooks assinados (docs/05 §5).' },
       { name: 'Conta', description: 'Autoatendimento do tenant: chaves e uso (docs/05 §1.2).' },
+      {
+        name: 'Torcedor',
+        description:
+          'Identidade do torcedor nos módulos de engajamento: token curto emitido pelo seu servidor, Perfil e ' +
+          'exclusão (docs/05 §9).',
+      },
       {
         name: 'Hipismo',
         description:
@@ -736,6 +743,7 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
         },
       },
       ...accountPaths,
+      ...fanPaths,
       ...channelListPaths,
       ...relatedPaths,
     }),
@@ -747,6 +755,11 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
           in: 'header',
           name: 'x-galaxie-publishable-key',
           description: 'Chave publicável (gs_pk_live_...): leitura de /v1 a partir das origens permitidas.',
+        },
+        galaxieFanToken: {
+          type: 'http',
+          scheme: 'bearer',
+          description: 'Token do torcedor (gft_...), emitido por POST /v1/fans/tokens; vale 15 minutos.',
         },
       },
       schemas: { Event, EventContext, TeamSummary, Team, Person },
