@@ -261,6 +261,11 @@ export interface SettleInput {
   model?: string | null;
   note?: string | null;
   metadata?: Record<string, unknown> | null;
+  /**
+   * Teto do acerto em créditos (nunca abaixo do mínimo gravado na reserva). O assistente passa a própria reserva:
+   * o cliente nunca paga mais que o "cerca de N créditos" que viu antes; o que passar é custo da Galaxie.
+   */
+  maxCredits?: number;
 }
 
 export interface Settlement {
@@ -352,11 +357,16 @@ export async function settle(
             minCredits: r.minCredits,
           });
 
+    const capped =
+      input.maxCredits !== undefined && Number.isFinite(input.maxCredits)
+        ? Math.min(target, Math.max(ceilCredits(input.maxCredits), r.minCredits))
+        : target;
+
     // o que estaria livre se a reserva voltasse inteira
     const pool = roundCredits(w.available + r.credits);
-    const charged = Math.min(target, pool);
+    const charged = Math.min(capped, pool);
     const available = roundCredits(pool - charged);
-    const uncharged = roundCredits(target - charged);
+    const uncharged = roundCredits(capped - charged);
 
     await tx
       .update(wallet)

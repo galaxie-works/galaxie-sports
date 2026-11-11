@@ -94,10 +94,28 @@ carteira.
 | `estimateAssistantCredits` | "Deve gastar cerca de N créditos": a entrada inteira e meia resposta, pelo valor do crédito, nunca abaixo do mínimo |
 | `streamAssistant` | Chamada em fluxo ao provedor; no fim, os tokens reais para o acerto |
 
-A rota da demo (`api/cliente/cosmos/assistente`) reserva a estimativa (`assistant.ask`), manda o texto aos pedaços e
-acerta pelo custo real; falha ou "parar" devolve a reserva. O cliente vê só créditos, nunca o modelo nem o custo técnico.
+`askAssistant` (`assistant-run.ts`) faz a pergunta do começo ao fim, e a rota da demo
+(`api/cliente/cosmos/assistente`) só cuida da sessão e do fluxo em NDJSON:
+
+- **Limites antes de reservar** (`ASSISTANT_LIMITS`): uma pergunta em andamento e 10 por minuto por pessoa, 60 por
+  minuto por tenant, e no máximo 25% do teto diário de segurança da Cosmos gasto por um tenant no assistente.
+- **Reserva** da estimativa, que cresce com o tamanho da pergunta e do contexto (`expectedOutputTokens`), com prazo
+  maior que a duração máxima da rota.
+- **Nada entregue** (falha ou desistência antes do primeiro pedaço): a reserva volta inteira.
+- **Algo entregue** (fim normal, falha no meio, "Parar", navegador fechado): acerta pelo usado, com os tokens do
+  provedor ou, sem eles, estimados pelo texto mandado. **O acerto nunca passa da reserva** (`maxCredits`): o cliente
+  nunca paga mais que o "cerca de N créditos" que viu. Acerto que falha é repetido e, se ainda falhar, vai para o log
+  de erro para conciliação.
+- **Cache do provedor** só na parte fixa (instruções e documentação); a tela vai depois do ponto de cache. Escrita no
+  cache é cobrada a 1,25 vez a entrada comum; leitura, ao preço de cache.
+- **Histórico assinado**: a resposta sai com uma assinatura (HMAC com `BETTER_AUTH_SECRET`); só resposta assinada volta
+  ao prompt, para o navegador não inventar uma "resposta da Cosmos" que vire instrução.
+
+O cliente vê só créditos, nunca o modelo nem o custo técnico. A equipe Galaxie acompanhando um tenant não pergunta
+(não gasta os créditos do cliente), e o tenant precisa do módulo `cosmos_ai` no contrato.
 
 Para ligar: `COSMOS_ANTHROPIC_API_KEY` na demo (chave só da Cosmos, separada da dos agentes internos) e a função
-`assistant.ask` ativa em `cosmos.function_def`, com o mínimo de créditos definido pela Galaxie. Sem qualquer um dos dois,
+`assistant.ask` ativa em `cosmos.function_def`. O mínimo é o menor que o banco aceita (0,001 crédito, três casas):
+a pergunta paga o custo real convertido, e um "Olá" não paga como uma pergunta longa. Sem qualquer um dos dois,
 o painel responde "indisponível" e nada é reservado. Padrões provisórios, fáceis de trocar: chave própria, só o modelo
 leve do registro (`ASSISTANT_MODEL`) e busca por palavras.

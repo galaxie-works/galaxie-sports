@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 
 import {
   ASSISTANT_MODEL,
+  assistantCostUsd,
   buildPrompt,
+  expectedOutputTokens,
   estimateAssistantCredits,
   searchDocs,
   streamAssistant,
@@ -61,13 +63,52 @@ describe('prompt', () => {
 });
 
 describe('créditos antes de rodar', () => {
-  it('estima pela entrada e por meia resposta, nunca abaixo do mínimo', () => {
+  it('estima pela entrada e pela resposta esperada, nunca abaixo do mínimo', () => {
     const prompt = { system: 'x'.repeat(4000), messages: [{ content: 'y'.repeat(400) }] };
     const low = estimateAssistantCredits({ ...prompt, creditUsd: 1, multiplier: 1, minCredits: 2 });
     expect(low).toBe(2);
     const priced = estimateAssistantCredits({ ...prompt, creditUsd: 0.00001, multiplier: 1, minCredits: 1 });
     expect(priced).toBeGreaterThan(1);
     expect(estimateAssistantCredits({ ...prompt, creditUsd: null, multiplier: 1, minCredits: 3 })).toBe(3);
+  });
+
+  it('pergunta curta custa menos que pergunta longa; com o piso de 0,001, sem valor fixo', () => {
+    const base = { system: 'x'.repeat(4000), creditUsd: 0.0001, multiplier: 1, minCredits: 0.001 };
+    const hello = estimateAssistantCredits({ ...base, messages: [{ content: 'Olá, Cosmos' }] });
+    const long = estimateAssistantCredits({ ...base, messages: [{ content: 'Como verifico… '.repeat(60) }] });
+    expect(hello).toBeLessThan(long);
+    expect(expectedOutputTokens('Olá')).toBe(120);
+    expect(expectedOutputTokens('x'.repeat(10_000))).toBe(1024);
+    // fração de crédito: o banco guarda 3 casas
+    expect(Number.isInteger(hello * 1000)).toBe(true);
+  });
+});
+
+describe('custo real com cache', () => {
+  it('leitura do cache sai mais barata que a entrada comum; escrita no cache sai mais cara', () => {
+    const plain = assistantCostUsd({ inputTokens: 10_000, cachedInputTokens: 0, outputTokens: 0 });
+    const read = assistantCostUsd({ inputTokens: 10_000, cachedInputTokens: 8_000, outputTokens: 0 });
+    const write = assistantCostUsd({
+      inputTokens: 10_000,
+      cachedInputTokens: 0,
+      cacheWriteTokens: 8_000,
+      outputTokens: 0,
+    });
+    expect(read).toBeLessThan(plain);
+    expect(write).toBeGreaterThan(plain);
+  });
+
+  it('o prompt põe o cache só na parte fixa (instruções e documentação); a tela vai depois', () => {
+    const p = buildPrompt({
+      question: 'oi',
+      context: { route: '/x', title: 'T', visible: 'dados' },
+      docs: [docs[0]!],
+      history: [],
+      locale: 'pt-BR',
+    });
+    expect(p.fixed).toContain('<documentacao>');
+    expect(p.fixed).not.toContain('Rota: /x');
+    expect(p.screen).toContain('<tela>');
   });
 });
 
@@ -87,7 +128,7 @@ describe('resposta em fluxo', () => {
     ]);
     // corta no meio de um evento, como a rede faz
     const chunks = [body.slice(0, 37), body.slice(37)];
-    let sent: { model?: string; stream?: boolean } = {};
+    let sent: { model?: string; stream?: boolean; system?: { cache_control?: object }[] } = {};
     const fetchImpl = (async (_url: string, init: RequestInit) => {
       sent = JSON.parse(String(init.body));
       return new Response(
@@ -102,18 +143,25 @@ describe('resposta em fluxo', () => {
     }) as unknown as typeof fetch;
     const usage: StreamUsage = { inputTokens: 0, cachedInputTokens: 0, outputTokens: 0 };
     let text = '';
-    for await (const piece of streamAssistant('k', { system: 's', messages: [] }, usage, { fetchImpl }))
+    for await (const piece of streamAssistant('k', { fixed: 's', screen: '', messages: [] }, usage, {
+      fetchImpl,
+    }))
       text += piece;
     expect(text).toBe('Olá, mundo');
-    expect(usage).toEqual({ inputTokens: 150, cachedInputTokens: 50, outputTokens: 12 });
+    expect(usage).toEqual({ inputTokens: 150, cachedInputTokens: 50, cacheWriteTokens: 0, outputTokens: 12 });
     expect(sent).toMatchObject({ model: ASSISTANT_MODEL, stream: true });
+    // só a parte fixa leva o ponto de cache
+    expect(sent.system?.[0]?.cache_control).toEqual({ type: 'ephemeral' });
   });
 
   it('erro do provedor vira exceção', async () => {
     const fetchImpl = (async () => new Response('sem crédito', { status: 402 })) as unknown as typeof fetch;
     const usage: StreamUsage = { inputTokens: 0, cachedInputTokens: 0, outputTokens: 0 };
     await expect(async () => {
-      for await (const _ of streamAssistant('k', { system: 's', messages: [] }, usage, { fetchImpl })) void _;
+      for await (const _ of streamAssistant('k', { fixed: 's', screen: '', messages: [] }, usage, {
+        fetchImpl,
+      }))
+        void _;
     }).rejects.toThrow('sem crédito');
   });
 });

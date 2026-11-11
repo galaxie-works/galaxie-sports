@@ -4,6 +4,7 @@
  * Fica fora do `TokenBudget`/`ops.llm_usage` dos agentes internos (arquitetura 06).
  */
 export * from './assistant.js';
+export * from './assistant-run.js';
 export * from './balance.js';
 export * from './credits.js';
 export * from './errors.js';

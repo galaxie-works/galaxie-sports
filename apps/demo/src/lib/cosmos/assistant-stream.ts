@@ -6,26 +6,36 @@ export type AssistantErrorCode =
   | 'unauthorized'
   | 'bad_request'
   | 'unavailable'
+  | 'module'
+  | 'staff'
   | 'disabled'
   | 'blocked'
   | 'insufficient'
   | 'no_wallet'
+  | 'busy'
+  | 'rate_limited'
+  | 'tenant_limit'
   | 'failed';
 
 export type AssistantEvent =
   | { type: 'start'; reserved: number }
   | { type: 'delta'; text: string }
-  | { type: 'done'; charged: number; available: number }
+  | { type: 'done'; charged: number; available: number; sig?: string }
   | { type: 'error'; code: AssistantErrorCode };
 
 const CODES: readonly AssistantErrorCode[] = [
   'unauthorized',
   'bad_request',
   'unavailable',
+  'module',
+  'staff',
   'disabled',
   'blocked',
   'insufficient',
   'no_wallet',
+  'busy',
+  'rate_limited',
+  'tenant_limit',
   'failed',
 ];
 
@@ -42,7 +52,12 @@ function parseLine(line: string): AssistantEvent | null {
     case 'delta':
       return typeof e.text === 'string' ? { type: 'delta', text: e.text } : null;
     case 'done':
-      return { type: 'done', charged: Number(e.charged) || 0, available: Number(e.available) || 0 };
+      return {
+        type: 'done',
+        charged: Number(e.charged) || 0,
+        available: Number(e.available) || 0,
+        ...(typeof e.sig === 'string' ? { sig: e.sig } : {}),
+      };
     case 'error':
       return {
         type: 'error',

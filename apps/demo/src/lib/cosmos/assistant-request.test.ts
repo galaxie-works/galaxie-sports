@@ -2,7 +2,13 @@ import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('@/lib/builder/store', () => ({ builderDb: () => ({}) }));
 
-import { assistantApiKey, parseAssistantRequest, QUESTION_MAX } from './assistant-server';
+import { allowEstimate, ESTIMATES_PER_MINUTE } from './assistant-limits';
+import {
+  assistantAccessError,
+  assistantApiKey,
+  parseAssistantRequest,
+  QUESTION_MAX,
+} from './assistant-server';
 
 describe('entrada do assistente', () => {
   it('aceita a pergunta e corta o resto ao tamanho combinado', () => {
@@ -43,5 +49,35 @@ describe('entrada do assistente', () => {
     expect(assistantApiKey({})).toBeNull();
     expect(assistantApiKey({ COSMOS_ANTHROPIC_API_KEY: '  ' })).toBeNull();
     expect(assistantApiKey({ COSMOS_ANTHROPIC_API_KEY: ' k ' })).toBe('k');
+  });
+});
+
+describe('quem pode perguntar', () => {
+  it('cliente com o módulo; a equipe acompanhando o tenant não gasta os créditos dele', () => {
+    const tenant = { modules: ['core_data', 'cosmos_ai'] };
+    expect(assistantAccessError({ role: 'client', tenant })).toBeNull();
+    expect(assistantAccessError({ role: 'admin', tenant })).toBe('staff');
+    expect(assistantAccessError({ role: 'client', tenant: { modules: ['core_data'] } })).toBe('module');
+    expect(assistantAccessError({ role: 'client', tenant: null })).toBe('unauthorized');
+  });
+
+  it('a estimativa tem limite por pessoa por minuto', () => {
+    const t0 = 1_000_000;
+    for (let i = 0; i < ESTIMATES_PER_MINUTE; i++) expect(allowEstimate('pessoa-a', t0 + i)).toBe(true);
+    expect(allowEstimate('pessoa-a', t0 + 100)).toBe(false);
+    expect(allowEstimate('pessoa-b', t0 + 100)).toBe(true);
+    expect(allowEstimate('pessoa-a', t0 + 61_000)).toBe(true);
+  });
+
+  it('resposta do histórico vai com a assinatura; pergunta é cortada', () => {
+    const r = parseAssistantRequest({
+      question: 'ok',
+      history: [
+        { role: 'assistant', text: 'resposta', sig: 'abc' },
+        { role: 'user', text: 'x'.repeat(5000) },
+      ],
+    });
+    expect(r?.history[0]).toEqual({ role: 'assistant', text: 'resposta', sig: 'abc' });
+    expect(r?.history[1]?.text).toHaveLength(4000);
   });
 });

@@ -14,6 +14,7 @@ import {
   type ChatTurn,
   type CosmosSettings,
   type ScreenContext,
+  verifiedHistory,
 } from '@galaxie/cosmos';
 
 import { builderDb } from '@/lib/builder/store';
@@ -30,7 +31,8 @@ const TURN_MAX = 4000;
 export interface AssistantRequest {
   question: string;
   context: ScreenContext;
-  history: ChatTurn[];
+  /** Respostas vêm com a assinatura do servidor; sem ela, não entram no prompt (`verifiedHistory`). */
+  history: (ChatTurn & { sig?: string })[];
 }
 
 /** Lê e corta a entrada do navegador (nada passa do tamanho combinado; o resto é descartado). */
@@ -60,7 +62,14 @@ export function parseAssistantRequest(body: unknown): AssistantRequest | null {
             t.text.trim() !== '',
         )
         .slice(-HISTORY_MAX)
-        .map((t) => ({ role: t.role, text: t.text.slice(0, TURN_MAX) }))
+        .map((t) => {
+          const sig = (t as { sig?: unknown }).sig;
+          // a resposta vai inteira (a assinatura é do texto exato); a pergunta é cortada
+          return t.role === 'assistant'
+            ? { role: t.role, text: t.text, ...(typeof sig === 'string' ? { sig: sig.slice(0, 100) } : {}) }
+            : { role: t.role, text: t.text.slice(0, TURN_MAX) };
+        })
+        .filter((t) => t.text.length <= TURN_MAX * 4)
     : [];
   return {
     question,
@@ -82,10 +91,11 @@ export interface PreparedQuestion {
 
 /** Monta o prompt e a estimativa; null quando a função não está no catálogo (assistente indisponível). */
 export async function prepareQuestion(
-  tenantId: string,
+  scope: { tenantId: string; userId: string },
   req: AssistantRequest,
   locale: Locale,
 ): Promise<PreparedQuestion | null> {
+  const tenantId = scope.tenantId;
   const db = builderDb();
   const [settings, minCredits, wallet] = await Promise.all([
     readCosmosSettings(db),
@@ -94,13 +104,8 @@ export async function prepareQuestion(
   ]);
   if (minCredits === null) return null;
   const docs = searchDocs(req.question, docChunks(getDictionary(locale).docs));
-  const prompt = buildPrompt({
-    question: req.question,
-    context: req.context,
-    docs,
-    history: req.history,
-    locale,
-  });
+  const history = verifiedHistory(req.history, assistantSigningKey(), scope);
+  const prompt = buildPrompt({ question: req.question, context: req.context, docs, history, locale });
   const credits = estimateAssistantCredits({
     system: prompt.system,
     messages: prompt.messages,
@@ -109,6 +114,26 @@ export async function prepareQuestion(
     minCredits,
   });
   return { prompt, credits, settings };
+}
+
+/** Chave que assina as respostas do histórico (a mesma da sessão); sem ela, respostas antigas não voltam ao prompt. */
+export function assistantSigningKey(env: Record<string, string | undefined> = process.env): string | null {
+  return env.BETTER_AUTH_SECRET?.trim() || null;
+}
+
+/**
+ * Quem pode perguntar: o cliente do próprio tenant, com o módulo Cosmos AI no contrato. A equipe Galaxie
+ * acompanhando um tenant não gasta os créditos dele. TODO(#996): conferir `can(ctx, 'cosmos.assistant.ask')`
+ * quando os cargos (#1053) estiverem na main.
+ */
+export function assistantAccessError(ctx: {
+  role: 'admin' | 'client';
+  tenant: { modules: readonly string[] } | null;
+}): 'unauthorized' | 'staff' | 'module' | null {
+  if (!ctx.tenant) return 'unauthorized';
+  if (ctx.role === 'admin') return 'staff';
+  if (!ctx.tenant.modules.includes('cosmos_ai')) return 'module';
+  return null;
 }
 
 /** Chave do provedor só da Cosmos (separada da dos agentes internos); vazia = assistente indisponível. */

@@ -70,12 +70,16 @@ interface Turn {
   error?: AssistantErrorCode;
   charged?: number;
   available?: number;
+  /** Assinatura do servidor: só resposta assinada volta para o histórico do prompt. */
+  sig?: string;
   /** Pergunta que gerou a resposta (para "perguntar de novo"). */
   question?: string;
 }
 
 const history = (turns: Turn[]) =>
-  turns.filter((t) => t.role === 'user' || t.status === 'done').map((t) => ({ role: t.role, text: t.text }));
+  turns
+    .filter((t) => t.role === 'user' || (t.status === 'done' && t.sig))
+    .map((t) => ({ role: t.role, text: t.text, ...(t.sig ? { sig: t.sig } : {}) }));
 
 export function CosmosAssistant({
   open,
@@ -174,12 +178,18 @@ export function CosmosAssistant({
           text += event.text;
           patch(answerId, { text, status: 'streaming' });
         } else if (event.type === 'done')
-          patch(answerId, { status: 'done', charged: event.charged, available: event.available });
+          patch(answerId, {
+            status: 'done',
+            charged: event.charged,
+            available: event.available,
+            ...(event.sig ? { sig: event.sig } : {}),
+          });
         else patch(answerId, { status: 'error', error: event.code, text: '' });
       }
     } catch {
-      // parar no meio também cai aqui: a rota devolve a reserva
-      patch(answerId, { status: 'error', error: 'failed', text: '' });
+      // "Parar" depois de chegar texto: fica o que veio (o servidor cobra só o que entregou); antes, nada foi gasto
+      if (text) patch(answerId, { status: 'done', text });
+      else patch(answerId, { status: 'error', error: 'failed', text: '' });
     } finally {
       if (abortRef.current === controller) abortRef.current = null;
     }
@@ -400,7 +410,10 @@ function AnswerMessage({
                     {action}
                   </Link>
                 ) : null}
-                {turn.error === 'failed' || turn.error === 'unavailable' ? (
+                {turn.error === 'failed' ||
+                turn.error === 'unavailable' ||
+                turn.error === 'busy' ||
+                turn.error === 'rate_limited' ? (
                   <Button variant="outline" size="sm" disabled={busy} onClick={onRetry}>
                     <RefreshCwIcon data-icon="inline-start" aria-hidden />
                     {T.retry}

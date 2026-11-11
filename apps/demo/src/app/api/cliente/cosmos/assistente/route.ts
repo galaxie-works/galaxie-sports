@@ -1,44 +1,47 @@
 /**
- * Assistente da Cosmos em fluxo (#1003): reserva os créditos da estimativa, chama o modelo, manda o texto aos
- * pedaços (NDJSON) e acerta pelo custo real no fim. Sem reserva, nenhuma chamada; falha ou desistência devolve a
- * reserva. O tenant sai da sessão, nunca do navegador.
+ * Assistente da Cosmos em fluxo (#1003). A regra de cobrança mora em `askAssistant` (@galaxie/cosmos): sem reserva,
+ * nenhuma chamada; nada entregue, a reserva volta; algo entregue, acerta pelo usado, nunca acima da reserva. Aqui
+ * ficam a sessão, quem pode perguntar e o fluxo em NDJSON:
  *
  *   {"type":"start","reserved":3}
  *   {"type":"delta","text":"…"}
- *   {"type":"done","charged":2.4,"available":120}
+ *   {"type":"done","charged":2.4,"available":120,"sig":"…"}
  *   {"type":"error","code":"insufficient"}
  *
- * TODO(#1018): conferir o módulo da Cosmos no plano do tenant. TODO(#1019): permissão do cargo para o assistente.
+ * O navegador que fecha ou o "Parar" cortam o provedor, mas o acerto segue até o fim no servidor.
  */
-import {
-  ASSISTANT_FUNCTION,
-  ASSISTANT_MODEL,
-  assistantCostUsd,
-  isCosmosError,
-  release,
-  reserve,
-  settle,
-  streamAssistant,
-  type StreamUsage,
-} from '@galaxie/cosmos';
+import { askAssistant, streamAssistant, type AssistantErrorCode } from '@galaxie/cosmos';
 
 import { builderDb } from '@/lib/builder/store';
 import { readClientContext } from '@/lib/client/session';
-import { assistantApiKey, parseAssistantRequest, prepareQuestion } from '@/lib/cosmos/assistant-server';
-import type { AssistantErrorCode } from '@/lib/cosmos/assistant-stream';
+import {
+  assistantAccessError,
+  assistantApiKey,
+  assistantSigningKey,
+  parseAssistantRequest,
+  prepareQuestion,
+} from '@/lib/cosmos/assistant-server';
 import { getRequestLocale } from '@/lib/i18n/server';
 
-const RESERVE_ERRORS: Record<string, AssistantErrorCode> = {
-  insufficient_credits: 'insufficient',
-  wallet_blocked: 'blocked',
-  cosmos_disabled: 'disabled',
-  no_wallet: 'no_wallet',
-  unknown_function: 'unavailable',
-  safety_ceiling: 'unavailable',
+/** Duração máxima da rota (s): menor que o prazo da reserva (300 s), para a limpeza nunca devolver uma pergunta viva. */
+export const maxDuration = 90;
+
+/** Teto da chamada ao provedor (ms). */
+const PROVIDER_TIMEOUT_MS = 60_000;
+
+const STATUS: Partial<Record<AssistantErrorCode, number>> = {
+  unauthorized: 401,
+  bad_request: 400,
+  staff: 403,
+  module: 403,
+  unavailable: 503,
+  busy: 429,
+  rate_limited: 429,
+  tenant_limit: 429,
 };
 
 const line = (o: object) => `${JSON.stringify(o)}\n`;
-const fail = (code: AssistantErrorCode, status: number) =>
+const fail = (code: AssistantErrorCode, status = STATUS[code] ?? 402) =>
   new Response(line({ type: 'error', code }), {
     status,
     headers: { 'content-type': 'application/x-ndjson; charset=utf-8' },
@@ -46,63 +49,76 @@ const fail = (code: AssistantErrorCode, status: number) =>
 
 export async function POST(request: Request) {
   const ctx = await readClientContext();
-  if (!ctx?.tenant) return fail('unauthorized', 401);
-  const tenantId = ctx.tenant.id;
+  if (!ctx) return fail('unauthorized');
+  const denied = assistantAccessError(ctx);
+  if (denied) return fail(denied);
+  const tenantId = ctx.tenant!.id;
   const req = parseAssistantRequest(await request.json().catch(() => null));
-  if (!req) return fail('bad_request', 400);
+  if (!req) return fail('bad_request');
   const apiKey = assistantApiKey();
-  if (!apiKey) return fail('unavailable', 503);
-  const locale = await getRequestLocale();
-  const prepared = await prepareQuestion(tenantId, req, locale);
-  if (!prepared) return fail('unavailable', 503);
+  if (!apiKey) return fail('unavailable');
+  const scope = { tenantId, userId: ctx.userId };
+  const prepared = await prepareQuestion(scope, req, await getRequestLocale());
+  if (!prepared) return fail('unavailable');
 
-  const db = builderDb();
-  let reservation;
-  try {
-    reservation = await reserve(
-      db,
-      {
-        tenantId,
-        functionName: ASSISTANT_FUNCTION,
-        estimatedCredits: prepared.credits,
-        scope: 'assistant',
-        userId: ctx.userId,
-      },
-      { settings: prepared.settings },
-    );
-  } catch (err) {
-    if (isCosmosError(err)) return fail(RESERVE_ERRORS[err.code] ?? 'failed', 402);
-    throw err;
-  }
+  const events = askAssistant(
+    builderDb(),
+    {
+      ...scope,
+      route: req.context.route,
+      prompt: prepared.prompt,
+      credits: prepared.credits,
+      settings: prepared.settings,
+      signingKey: assistantSigningKey(),
+    },
+    {
+      // desistência (navegador fechou, "Parar") ou o teto de tempo cortam o provedor
+      stream: (signal, usage) =>
+        streamAssistant(apiKey, prepared.prompt, usage, {
+          signal: AbortSignal.any([signal, request.signal, AbortSignal.timeout(PROVIDER_TIMEOUT_MS)]),
+        }),
+      signal: request.signal,
+    },
+  );
+
+  // a primeira resposta decide o status: recusa antes de reservar sai como erro HTTP
+  const first = await events.next();
+  if (first.done) return fail('failed', 500);
+  if (first.value.type === 'error') return fail(first.value.code);
 
   const encoder = new TextEncoder();
-  const usage: StreamUsage = { inputTokens: 0, cachedInputTokens: 0, outputTokens: 0 };
+  let open = true;
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
-      const send = (o: object) => controller.enqueue(encoder.encode(line(o)));
-      send({ type: 'start', reserved: reservation.credits });
+      const send = (o: object) => {
+        if (!open) return;
+        try {
+          controller.enqueue(encoder.encode(line(o)));
+        } catch {
+          open = false;
+        }
+      };
       try {
-        for await (const text of streamAssistant(apiKey, prepared.prompt, usage, { signal: request.signal }))
-          send({ type: 'delta', text });
-        const result = await settle(db, {
-          tenantId,
-          reservationId: reservation.id,
-          costUsd: assistantCostUsd(usage),
-          tokensIn: usage.inputTokens,
-          tokensCached: usage.cachedInputTokens,
-          tokensOut: usage.outputTokens,
-          model: ASSISTANT_MODEL,
-          metadata: { route: req.context.route },
-        });
-        send({ type: 'done', charged: result.charged, available: result.available });
+        send(first.value);
+        // segue até o fim mesmo sem ninguém lendo: o acerto acontece depois do último pedaço
+        for await (const event of events) send(event);
       } catch (err) {
         console.error('[cosmos] assistente falhou', err);
-        // nada foi entregue de vez: a reserva volta inteira
-        await release(db, { tenantId, reservationId: reservation.id }).catch(() => {});
         send({ type: 'error', code: 'failed' });
       } finally {
-        controller.close();
+        if (open) {
+          open = false;
+          try {
+            controller.close();
+          } catch {
+            // já fechado pelo navegador
+          }
+        }
       }
+    },
+    cancel() {
+      // o navegador fechou: para de mandar; o provedor é cortado pelo request.signal e o acerto segue
+      open = false;
     },
   });
   return new Response(stream, {
