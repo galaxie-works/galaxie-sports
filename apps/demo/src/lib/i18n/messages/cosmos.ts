@@ -33,7 +33,7 @@ export default defineMessages(
       enabled: 'Cosmos AI ligada',
       disabled: 'Cosmos AI desligada. O saldo continua guardado.',
       readOnly:
-        'Seu cargo acompanha a Cosmos AI: saldo, uso e extrato. Ligar, desligar, comprar créditos e a recarga automática ficam com o Dono.',
+        'Seu cargo acompanha a Cosmos AI: saldo, uso e extrato. Ligar, desligar, comprar créditos e a recarga automática ficam com o Dono e com quem ele liberar em Usuários e cargos.',
       balanceTitle: 'Créditos',
       balanceDescription: 'O saldo é um só para todas as funções da Cosmos.',
       available: 'Créditos disponíveis',
@@ -268,7 +268,7 @@ export default defineMessages(
         enabled: 'Cosmos AI on',
         disabled: 'Cosmos AI off. Your balance stays saved.',
         readOnly:
-          'Your role follows Cosmos AI: balance, usage and statement. Turning it on or off, buying credits and auto top-up stay with the Owner.',
+          'Your role follows Cosmos AI: balance, usage and statement. Turning it on or off, buying credits and auto top-up stay with the Owner and whoever the Owner allows in Users and roles.',
         balanceTitle: 'Credits',
         balanceDescription: 'One balance for every Cosmos function.',
         available: 'Available credits',
@@ -509,7 +509,7 @@ export default defineMessages(
         enabled: 'Cosmos AI activada',
         disabled: 'Cosmos AI desactivada. El saldo sigue guardado.',
         readOnly:
-          'Tu rol sigue Cosmos AI: saldo, uso y extracto. Activarla o desactivarla, comprar créditos y la recarga automática quedan con el Dueño.',
+          'Tu rol sigue Cosmos AI: saldo, uso y extracto. Activarla o desactivarla, comprar créditos y la recarga automática quedan con el Dueño y con quien él habilite en Usuarios y roles.',
         balanceTitle: 'Créditos',
         balanceDescription: 'Un solo saldo para todas las funciones de Cosmos.',
         available: 'Créditos disponibles',
