@@ -80,4 +80,14 @@ describe('POST /api/torcedor/token', () => {
     expect(await res.json()).toEqual({ code: 'fan_profile_missing' });
     expect(upstream).not.toHaveBeenCalled();
   });
+
+  it('apelido que a moderação recusa: 409 para a pessoa trocar no perfil', async () => {
+    session.mockResolvedValue(user());
+    upstream.mockResolvedValueOnce(
+      Response.json({ code: 'INVALID_PARAMS', errors: [{ path: 'nickname' }] }, { status: 400 }),
+    );
+    const res = await post();
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({ code: 'fan_nickname_rejected' });
+  });
 });

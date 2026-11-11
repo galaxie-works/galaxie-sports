@@ -1140,6 +1140,6 @@ webView.configuration.userContentController.addUserScript(
   WKUserScript(source: js, injectionTime: .atDocumentStart, forMainFrameOnly: true))
 ```
 
-**No site Galaxie (demo).** O site Galaxie é cliente de si mesmo: no menu do usuário, "Perfil de torcedor" pede apelido, faixa etária e país (sem data de nascimento) e `POST /api/torcedor/token` emite o token com a chave do tenant da demo, só para a própria demo (mesma origem) e sem nome ou e-mail do login.
+**No site Galaxie (demo).** O site Galaxie é cliente de si mesmo: no menu do usuário, "Perfil de torcedor" pede apelido, faixa etária e país (sem data de nascimento) e `POST /api/torcedor/token` emite o token com a chave do tenant da demo, só para a própria demo (mesma origem) e sem nome ou e-mail do login. O apelido passa pelo filtro da moderação já ao salvar; se as listas mudarem depois e a API recusar o apelido, a rota responde 409 `fan_nickname_rejected` para a pessoa trocá-lo no perfil.
 
 Ainda não: tópico `fan.profile.deleted` pelo outbox (#1023).

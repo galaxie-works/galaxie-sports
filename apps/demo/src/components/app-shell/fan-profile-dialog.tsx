@@ -60,7 +60,14 @@ export function FanProfileDialog({
       if (!res.ok) {
         setError({
           field: res.field,
-          text: res.field ? T.invalid[res.field] : res.error === 'session' ? T.session : T.unavailable,
+          text:
+            res.error === 'rejected'
+              ? T.rejected
+              : res.field
+                ? T.invalid[res.field]
+                : res.error === 'session'
+                  ? T.session
+                  : T.unavailable,
         });
         return;
       }
