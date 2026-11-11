@@ -17,6 +17,7 @@ import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { closeDb, jobLockContender, readRuntimeOverrides } from '@galaxie/db';
 import { applyOverrides, runtimeBaseEnv } from '@galaxie/runtime-config';
+import { settingsSecretBox } from '@galaxie/runtime-config/sealed';
 import { ApiSportsProvider } from '@galaxie/providers';
 import { contextFromEnv } from '../context.js';
 import { PgCursorStore } from '../jobs/runtime/cursor-store.js';
@@ -278,7 +279,10 @@ await runCli(async () => {
         refresh: {
           everyMs: 60_000,
           load: async () => {
-            const { env } = applyOverrides(baseEnv, await readRuntimeOverrides(ctx.db));
+            const { env } = applyOverrides(baseEnv, await readRuntimeOverrides(ctx.db), {
+              secrets: settingsSecretBox(baseEnv),
+              services: ['live'],
+            });
             return settingsFrom(env);
           },
         },

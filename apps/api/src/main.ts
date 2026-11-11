@@ -5,6 +5,7 @@ import { parse } from 'yaml';
 import { MediaDenylist, type MediaDenylistEntry } from '@galaxie/apisports-client';
 import { closeDb, createDb, readRuntimeOverrides, reportRuntimeEnv } from '@galaxie/db';
 import { applyOverrides, envReport, lineupMinReviewStatus } from '@galaxie/runtime-config';
+import { settingsSecretBox } from '@galaxie/runtime-config/sealed';
 import { hardeningFromEnv } from './config.js';
 import type { ReviewStatus } from './context.js';
 import { buildServer } from './server.js';
@@ -40,8 +41,12 @@ if (minReviewStatus && !REVIEW_STATUSES.includes(minReviewStatus))
 if (db) {
   try {
     const containerEnv = { ...process.env };
-    const { env, applied } = applyOverrides(containerEnv, await readRuntimeOverrides(db));
-    for (const key of applied) process.env[key] = env[key];
+    // segredos trocados no painel (#1087, ex.: STRIPE_WEBHOOK_SECRET) também só na partida
+    const { env, applied, secrets } = applyOverrides(containerEnv, await readRuntimeOverrides(db), {
+      secrets: settingsSecretBox(containerEnv),
+      services: ['api'],
+    });
+    for (const key of [...applied, ...secrets]) process.env[key] = env[key];
     await reportRuntimeEnv(db, 'api', [
       ...envReport('api', containerEnv),
       // piso editorial efetivo: a revisão semântica (Ajustes → Revisão) mostra se o item é servido hoje

@@ -7,6 +7,7 @@ import {
   applyOverrides,
   type BudgetDay,
 } from '@galaxie/runtime-config';
+import { settingsSecretBox } from '@galaxie/runtime-config/sealed';
 import type { AgentRunReport } from '../context/run.js';
 import { isAgentLocale, type AgentLocale } from '../guardrails/index.js';
 import { agentStatusFromEnv, aiStatusFromEnv } from '../llm/config.js';
@@ -34,7 +35,11 @@ export async function runtimeEnv(
   env: NodeJS.ProcessEnv = process.env,
 ): Promise<NodeJS.ProcessEnv> {
   try {
-    const applied = applyOverrides(env, await readRuntimeOverrides(db));
+    // chaves de IA e do YouTube trocadas no painel (#1087), abertas com a SETTINGS_KEK do contêiner
+    const applied = applyOverrides(env, await readRuntimeOverrides(db), {
+      secrets: settingsSecretBox(env),
+      services: ['agents'],
+    });
     for (const c of applied.converted)
       console.warn(
         `Configuração antiga do painel convertida: ${c.key}=${c.from} → ${Object.entries(c.to)

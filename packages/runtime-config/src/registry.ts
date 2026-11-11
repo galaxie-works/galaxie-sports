@@ -102,6 +102,12 @@ export interface SettingDef {
   critical?: boolean;
   /** cron: job agendado. */
   job?: string;
+  /**
+   * Segredo que o painel troca (#1087): gravado cifrado em `ops.runtime_setting` como `<CHAVE>_SEALED` e aberto pelos
+   * serviços com a `SETTINGS_KEK`. Sem a marca, o segredo fica só no .env (a KEK, o login, o banco…). Para segredos,
+   * `pattern` é o formato aceito do valor (conferido antes de cifrar e de novo depois de abrir).
+   */
+  panelSecret?: boolean;
 }
 
 /**
@@ -287,6 +293,7 @@ const agents = (
   section: SettingSection,
   def: Omit<SettingDef, 'section' | 'services' | 'apply'>,
 ): SettingDef => ({ section, services: ['agents'], apply: 'next-run', ...def });
+/** Segredo só do .env: o painel mostra se está configurado, com o selo "só no servidor". */
 const secret = (key: string, section: SettingSection, services: readonly RuntimeService[]): SettingDef => ({
   key,
   section,
@@ -295,6 +302,36 @@ const secret = (key: string, section: SettingSection, services: readonly Runtime
   apply: 'restart',
   default: null,
 });
+
+/**
+ * Segredo que o painel troca (#1087). `apply` diz quando a chave nova chega: `next-run` nos jobs do scheduler (cada
+ * execução recebe o env com a chave aberta), `refresh` na demo (relê a cada minuto), `restart` na API (lê na partida).
+ */
+const panelSecret = (
+  key: string,
+  section: SettingSection,
+  services: readonly RuntimeService[],
+  pattern: RegExp,
+  apply: SettingApply = 'next-run',
+): SettingDef => ({ ...secret(key, section, services), apply, pattern, panelSecret: true });
+
+/** Formatos dos segredos: só ASCII visível (o valor vira cabeçalho HTTP ou variável de ambiente). */
+const SECRET_FORMATS = {
+  /** api-sports: 32 caracteres hexadecimais hoje; aceita a faixa por folga. */
+  apisports: /^[A-Za-z0-9]{20,128}$/,
+  openai: /^sk-[A-Za-z0-9_-]{20,300}$/,
+  anthropic: /^sk-ant-[A-Za-z0-9_-]{20,300}$/,
+  /** Chaves de API do Google (Gemini, YouTube). */
+  google: /^AIza[0-9A-Za-z_-]{30,60}$/,
+  stripeSecret: /^(sk|rk)_(test|live)_[A-Za-z0-9]{10,300}$/,
+  stripeWebhook: /^whsec_[A-Za-z0-9+/=_-]{10,300}$/,
+  /** Token de GitHub, de métricas, chave do S3: ASCII visível, sem espaço. */
+  token: /^[\x21-\x7e]{16,512}$/,
+  /** Usuário e chave de acesso do S3, host e usuário do SMTP. */
+  plain: /^[\x21-\x7e]{3,512}$/,
+  /** Senha do SMTP: aceita espaço no meio. */
+  password: /^[\x21-\x7e](?:[\x20-\x7e]{0,510}[\x21-\x7e])?$/,
+} as const;
 
 /** `dono/repositório` das sugestões do app: o mesmo formato no painel e no env (apps/demo/src/lib/feedback). */
 export const FEEDBACK_REPO_PATTERN = /^[A-Za-z0-9-]+\/(?!\.)[\w.-]+$/;
@@ -780,11 +817,18 @@ export const SETTINGS: readonly SettingDef[] = [
     allowEmpty: true,
     default: null,
   },
-  secret('FEEDBACK_GITHUB_TOKEN', 'feedback', ['demo']),
+  // o token do painel é a mesma chave cifrada (FEEDBACK_GITHUB_TOKEN_SEALED), gravada pelo cartão do GitHub
+  panelSecret('FEEDBACK_GITHUB_TOKEN', 'feedback', ['demo'], SECRET_FORMATS.token, 'refresh'),
   // Stripe da Galaxie Works LLC (#993): a chave secreta abre o checkout no painel do cliente; o segredo do webhook confere
   // a assinatura na API. Sem elas a compra fica indisponível
-  secret('STRIPE_SECRET_KEY', 'cosmos', ['demo', 'ingestor']),
-  secret('STRIPE_WEBHOOK_SECRET', 'cosmos', ['api']),
+  panelSecret('STRIPE_SECRET_KEY', 'cosmos', ['demo', 'ingestor'], SECRET_FORMATS.stripeSecret, 'refresh'),
+  panelSecret('STRIPE_WEBHOOK_SECRET', 'cosmos', ['api'], SECRET_FORMATS.stripeWebhook, 'restart'),
+  // IAs externas da Cosmos AI (assistente e moderação dos clientes), separadas das chaves da IA interna: o gasto de cada
+  // lado fica na conta própria do provedor. A API lê na partida; vazia, a Cosmos segue como hoje
+  panelSecret('COSMOS_OPENAI_API_KEY', 'cosmos', ['api'], SECRET_FORMATS.openai, 'restart'),
+  panelSecret('COSMOS_ANTHROPIC_API_KEY', 'cosmos', ['api'], SECRET_FORMATS.anthropic, 'restart'),
+  panelSecret('COSMOS_GEMINI_API_KEY', 'cosmos', ['api'], SECRET_FORMATS.google, 'restart'),
+  panelSecret('COSMOS_DEEPSEEK_API_KEY', 'cosmos', ['api'], SECRET_FORMATS.openai, 'restart'),
 
   // ── Cosmos AI (#989) ──────────────────────────────────────────────────────────────────────────
   // teto de segurança próprio da Cosmos: o custo real somado de todos os clientes no dia UTC (cosmos.ledger), fora do
@@ -856,24 +900,31 @@ export const SETTINGS: readonly SettingDef[] = [
     critical: true,
   },
 
-  // ── Credenciais (só "configurado ou não") ───────────────────────────────────────────────────
-  secret('APISPORTS_KEY', 'provider', ['ingestor', 'live']),
-  secret('OPENAI_API_KEY', 'ai', ['agents']),
-  secret('ANTHROPIC_API_KEY', 'ai', ['agents']),
-  secret('GEMINI_API_KEY', 'ai', ['agents']),
-  secret('YOUTUBE_API_KEY', 'related', ['agents']),
-  secret('S3_ACCESS_KEY', 'credentials', ['ingestor']),
-  secret('QUALITY_API_KEY', 'credentials', ['ingestor']),
-  secret('S3_SECRET_KEY', 'credentials', ['ingestor']),
+  // ── Credenciais ─────────────────────────────────────────────────────────────────────────────
+  // trocadas no painel (#1087): cifradas no banco, abertas por cada serviço com a SETTINGS_KEK dele
+  panelSecret('APISPORTS_KEY', 'provider', ['ingestor', 'live'], SECRET_FORMATS.apisports),
+  panelSecret('OPENAI_API_KEY', 'ai', ['agents'], SECRET_FORMATS.openai),
+  panelSecret('ANTHROPIC_API_KEY', 'ai', ['agents'], SECRET_FORMATS.anthropic),
+  panelSecret('GEMINI_API_KEY', 'ai', ['agents'], SECRET_FORMATS.google),
+  // DeepSeek (API compatível com a da OpenAI): a chave já fica guardada; os agentes ainda não chamam o provedor
+  panelSecret('DEEPSEEK_API_KEY', 'ai', ['agents'], SECRET_FORMATS.openai),
+  panelSecret('YOUTUBE_API_KEY', 'related', ['agents'], SECRET_FORMATS.google),
+  panelSecret('S3_ACCESS_KEY', 'credentials', ['ingestor', 'demo'], SECRET_FORMATS.plain),
+  panelSecret('QUALITY_API_KEY', 'credentials', ['ingestor'], SECRET_FORMATS.token),
+  panelSecret('S3_SECRET_KEY', 'credentials', ['ingestor', 'demo'], SECRET_FORMATS.plain),
+  panelSecret('SMTP_HOST', 'credentials', ['demo'], SECRET_FORMATS.plain, 'refresh'),
+  panelSecret('SMTP_USER', 'credentials', ['demo'], SECRET_FORMATS.plain, 'refresh'),
+  panelSecret('SMTP_PASSWORD', 'credentials', ['demo'], SECRET_FORMATS.password, 'refresh'),
+  // só no .env: não dá para guardar no banco a chave que abre o cofre, o login ou o próprio banco
+  // o Prometheus manda o mesmo token lido do .env: trocar só no painel cortaria as métricas
   secret('METRICS_TOKEN', 'credentials', ['api']),
+  // KEK dos segredos do painel (#1087): cada serviço que lê uma chave trocada no painel precisa dela
+  secret('SETTINGS_KEK', 'credentials', ['ingestor', 'live', 'agents', 'api', 'demo']),
   // KEK dos webhooks: o worker não relata ao painel; a demo (cadastro no painel do cliente) relata se está definida
   secret('WEBHOOK_SIGNING_SECRET', 'credentials', ['demo']),
   secret('ADMIN_KEY_HASHES', 'credentials', ['api']),
   secret('GALAXIE_DEMO_KEY', 'credentials', ['demo']),
   secret('BETTER_AUTH_SECRET', 'credentials', ['demo']),
-  secret('SMTP_HOST', 'credentials', ['demo']),
-  secret('SMTP_USER', 'credentials', ['demo']),
-  secret('SMTP_PASSWORD', 'credentials', ['demo']),
 ];
 
 const BY_KEY = new Map(SETTINGS.map((s) => [s.key, s]));
@@ -883,6 +934,10 @@ export function settingDef(key: string): SettingDef | undefined {
 }
 
 export const isSecret = (def: SettingDef) => def.type === 'secret';
+
+/** Segredo que o painel troca (cifrado no banco); os outros segredos ficam só no .env. */
+export const isPanelSecret = (def: SettingDef | undefined): def is SettingDef =>
+  def?.type === 'secret' && def.panelSecret === true;
 
 /**
  * O serviço cujo relato vale para a chave no painel: o primeiro de `def.services` que a relatou (`reported` diz se
