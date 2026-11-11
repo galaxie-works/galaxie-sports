@@ -31,8 +31,8 @@ Domínios (registro A → IP da VPS): `DEMO_DOMAIN` (demo), `API_DOMAIN` (API p�
   vazios ou com o valor de exemplo (`ensure-secrets.sh`); o que já existe nunca muda. O `BETTER_AUTH_SECRET` também
   assina os links dos anexos das sugestões e as referências `u_`/`t_` das issues: gerado no lugar do valor de exemplo,
   isso tudo muda junto com as sessões. `METRICS_TOKEN` só avisa, porque o Prometheus só lê o novo quando o obs sobe de
-  novo. Chaves de fornecedor e o segredo dos webhooks seguem à mão. Linha com `export` ou espaços em volta do `=` faz o
-  script parar sem gerar nada.
+  novo. Chaves de fornecedor e o segredo dos webhooks seguem à mão. Linha com `export`, espaços em volta do `=` ou `:` no
+  lugar do `=` faz o script parar sem gerar nada.
 - **Uma chave, um ingestor**: com o ingestor da VPS no ar, nenhum outro ambiente roda jobs com a mesma
   `APISPORTS_KEY` (a cota diária é por conta e por API).
 

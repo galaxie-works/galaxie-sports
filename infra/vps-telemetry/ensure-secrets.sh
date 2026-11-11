@@ -38,12 +38,12 @@ command -v openssl >/dev/null || {
   exit 1
 }
 
-# O compose também lê `export CHAVE=` e `CHAVE = valor`; nessas formas o script não sabe trocar a linha sem risco de
+# O compose também lê `export CHAVE=`, `CHAVE = valor` e `CHAVE: valor`; nessas formas o script não sabe trocar a linha sem risco de
 # mudar um segredo em uso, então para e pede para deixar a linha como `CHAVE=valor`
 for k in "${KEYS[@]}" "${WARN_KEYS[@]}"; do
-  if grep -qE "^[[:space:]]*(export[[:space:]]+)?${k}[[:space:]]*=" "$ENV_FILE" &&
-    grep -E "^[[:space:]]*(export[[:space:]]+)?${k}[[:space:]]*=" "$ENV_FILE" | grep -qvE "^$k="; then
-    echo "FAIL  $k está no $ENV_FILE numa forma diferente de $k=valor (export ou espaços); deixe como $k=valor. Nada foi gerado"
+  if grep -qE "^[[:space:]]*(export[[:space:]]+)?${k}[[:space:]]*[=:]" "$ENV_FILE" &&
+    grep -E "^[[:space:]]*(export[[:space:]]+)?${k}[[:space:]]*[=:]" "$ENV_FILE" | grep -qvE "^$k="; then
+    echo "FAIL  $k está no $ENV_FILE numa forma diferente de $k=valor (export, espaços ou dois-pontos); deixe como $k=valor. Nada foi gerado"
     exit 1
   fi
 done
@@ -84,7 +84,13 @@ if [ "$rc" -gt 1 ]; then
   exit 1
 fi
 for k in "${missing[@]}"; do
-  printf '%s=%s\n' "$k" "$(openssl rand -hex 32)" >> "$tmp"
+  # gerado antes, numa variável: falha do openssl dentro do printf passaria pelo set -e e gravaria a chave vazia
+  v="$(openssl rand -hex 32)"
+  [[ "$v" =~ ^[0-9a-f]{64}$ ]] || {
+    echo "FAIL  openssl não gerou um segredo válido para $k; nada foi gerado"
+    exit 1
+  }
+  printf '%s=%s\n' "$k" "$v" >> "$tmp"
 done
 chmod 600 "$tmp"
 mv "$tmp" "$ENV_FILE"

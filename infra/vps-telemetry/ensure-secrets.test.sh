@@ -54,6 +54,20 @@ if (cd "$WORK" && bash "$HERE/ensure-secrets.sh" export.env >/dev/null); then ko
 [ "$(cat "$WORK/export.env")" = "$before" ] && ok "export: .env intocado" || ko "export: .env mudou"
 printf 'BETTER_AUTH_SECRET = em-uso\n' > "$WORK/espaco.env"
 if (cd "$WORK" && bash "$HERE/ensure-secrets.sh" espaco.env >/dev/null); then ko "espaços passou"; else ok "espaços falha"; fi
+[ "$(cat "$WORK/espaco.env")" = "BETTER_AUTH_SECRET = em-uso" ] && ok "espaços: .env intocado" || ko "espaços: .env mudou"
+printf 'STREAM_TOKEN_SECRET: em-uso\n' > "$WORK/dois-pontos.env"
+if (cd "$WORK" && bash "$HERE/ensure-secrets.sh" dois-pontos.env >/dev/null); then ko "dois-pontos passou"; else ok "dois-pontos falha"; fi
+# openssl quebrado: para sem gravar chave vazia
+mkdir -p "$WORK/bin"
+printf '#!/bin/sh\nexit 1\n' > "$WORK/bin/openssl"
+chmod +x "$WORK/bin/openssl"
+printf 'FAN_TOKEN_SECRET=\n' > "$WORK/openssl.env"
+if (cd "$WORK" && PATH="$WORK/bin:$PATH" bash "$HERE/ensure-secrets.sh" openssl.env >/dev/null); then
+  ko "openssl quebrado passou"
+else
+  ok "openssl quebrado falha"
+fi
+[ "$(cat "$WORK/openssl.env")" = "FAN_TOKEN_SECRET=" ] && ok "openssl quebrado: .env intocado" || ko "openssl quebrado: .env mudou"
 
 if (cd "$WORK" && bash "$HERE/ensure-secrets.sh" nao-existe.env >/dev/null); then ko "arquivo ausente passou"; else ok "arquivo ausente falha"; fi
 
