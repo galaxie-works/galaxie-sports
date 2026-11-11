@@ -132,9 +132,15 @@ export function startPresencePurge(
       log.warn({ err }, 'expurgo da presença falhou'),
     );
   };
+  // a primeira rodada sai poucos minutos depois de subir (com deploys seguidos, o intervalo sozinho nunca chegaria)
+  const first = setTimeout(run, Math.floor(60_000 + Math.random() * 240_000));
+  first.unref();
   const timer = setInterval(run, everyMs);
   timer.unref();
-  return () => clearInterval(timer);
+  return () => {
+    clearTimeout(first);
+    clearInterval(timer);
+  };
 }
 
 export interface PresenceRoutesDeps {
