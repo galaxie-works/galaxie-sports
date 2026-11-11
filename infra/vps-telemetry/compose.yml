@@ -558,6 +558,7 @@ services:
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
       # heartbeat da checagem de crédito na página de status (Better Stack); vazio = não avisa
       AI_HEARTBEAT_URL: ${AI_HEARTBEAT_URL:-}
       # pesquisa de direitos por temporada com outro provedor (vazio = AI_PROVIDER)

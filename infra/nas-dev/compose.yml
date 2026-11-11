@@ -42,6 +42,7 @@ x-worker-env: &worker-env
   OPENAI_API_KEY: ${OPENAI_API_KEY:-}
   ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
   GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+  DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
   # KEK das chaves trocadas no painel (#1087). No dev, vazia ou DIFERENTE da produção: as linhas cifradas que vierem da
   # cópia da produção não abrem e cada serviço fica com a chave deste .env
   SETTINGS_KEK: ${SETTINGS_KEK:-}

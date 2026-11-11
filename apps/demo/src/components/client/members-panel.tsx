@@ -3,7 +3,7 @@
 import type { TenantRole } from '@galaxie/engage';
 import { Plus, Users } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useState, useTransition } from 'react';
+import { useState, useTransition, type ReactNode } from 'react';
 import { toast } from 'sonner';
 
 import { changeMemberRole, inviteMember, removeMember } from '@/app/[locale]/(app)/cliente/usuarios/actions';
@@ -227,12 +227,15 @@ export function MembersPanel({
   invitable,
   events,
   timeZone,
+  permissions,
 }: {
   members: MemberRow[];
   /** Cargos que quem vê pode dar num convite; vazio = só leitura. */
   invitable: TenantRole[];
   events: MemberEvent[];
   timeZone: string;
+  /** Permissões por cargo, entre a equipe e a auditoria. */
+  permissions?: ReactNode;
 }) {
   const { t } = useI18n();
   const m = t.client.members;
@@ -241,6 +244,12 @@ export function MembersPanel({
   const who = (actor: string) =>
     actor === 'legacy' ? m.audit.legacy : actor.startsWith('galaxie:') ? m.audit.galaxie : m.audit.panel;
   const roleName = (r: TenantRole | null) => (r ? m.roles[r] : '');
+  // mudança de permissão: o `subject` é a ação da matriz, mostrada pelo nome no idioma da tela
+  const labels: Record<string, string> = m.permissions.labels;
+  const subjectOf = (e: MemberEvent) =>
+    e.action === 'permission_granted' || e.action === 'permission_revoked'
+      ? (labels[e.subject ?? ''] ?? e.subject ?? '')
+      : (e.subject ?? '');
 
   return (
     <div className="flex flex-col gap-6">
@@ -302,6 +311,8 @@ export function MembersPanel({
         <SafetyNote>{m.volunteerNote}</SafetyNote>
       </SettingsSection>
 
+      {permissions}
+
       <Frame>
         <FramePanel className="flex flex-col gap-3">
           <FrameHeader className="p-0">
@@ -328,7 +339,7 @@ export function MembersPanel({
                     </TableCell>
                     <TableCell className="text-sm">
                       {fill(m.audit.actions[e.action], {
-                        subject: e.subject ?? '',
+                        subject: subjectOf(e),
                         from: roleName(e.fromRole),
                         to: roleName(e.toRole),
                       })}

@@ -14,4 +14,4 @@ Política em `config/ai-policy.yaml` (`AI_POLICY_FILE`); tetos e status também 
 
 ## Usado por
 
-`services/ai-agents`, `services/ingestor`.
+`services/ai-agents`, `services/ingestor`, `packages/llm`.

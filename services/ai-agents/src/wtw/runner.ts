@@ -632,10 +632,14 @@ function countBy<T>(items: T[], key: (t: T) => string): Record<string, number> {
   return out;
 }
 
-/** Falhas que passam sozinhas (orçamento do dia, crédito, limite de taxa, provedor): vale tentar de novo. */
+/**
+ * Falhas que passam sozinhas (orçamento do dia, crédito, chave trocada no painel, limite de taxa,
+ * provedor): vale tentar de novo.
+ */
 function isTransient(err: unknown): boolean {
   if (err instanceof BudgetExceededError) return true;
   return (
-    err instanceof LlmError && ['budget', 'quota', 'rate_limit', 'timeout', 'provider'].includes(err.kind)
+    err instanceof LlmError &&
+    ['budget', 'quota', 'auth', 'rate_limit', 'timeout', 'provider'].includes(err.kind)
   );
 }

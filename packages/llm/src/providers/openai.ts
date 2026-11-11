@@ -4,7 +4,7 @@
  * Docs: developers.openai.com/api/docs/guides/structured-outputs e .../tools-web-search.
  */
 import OpenAI from 'openai';
-import { DEFAULT_MAX_OUTPUT_TOKENS } from '../budget.js';
+import { DEFAULT_MAX_OUTPUT_TOKENS } from '../estimate.js';
 import { classifyProviderError, LlmError } from '../errors.js';
 import { assertMatchesSchema, parseJsonOutput, strictSchemaProblems } from '../json-schema.js';
 import { estimateCostUsd, WEB_SEARCH_USD_PER_CALL } from '../pricing.js';

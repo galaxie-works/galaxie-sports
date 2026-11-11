@@ -309,8 +309,36 @@ export const tenantMember = api.table(
 );
 
 /**
- * Auditoria dos cargos (#1019): quem deu, trocou ou tirou o cargo de quem, e quando. Só cresce: o painel nunca
- * altera nem apaga uma linha.
+ * Permissões por cargo que o Dono mudou no tenant (#1019). Só o que difere da matriz `ACTIONS` de `@galaxie/engage`
+ * fica aqui; sem linha, vale o padrão. O Dono, as ações fixas e o piso de cada ação não são configuráveis: o
+ * `normalizeOverrides` descarta o que vier a mais.
+ */
+export const tenantRolePermission = api.table(
+  'tenant_role_permission',
+  {
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenant.id, { onDelete: 'cascade' }),
+    role: text('role').$type<TenantMemberRole>().notNull(),
+    /** Ação da matriz, ex.: `cosmos.manage`. */
+    action: text('action').notNull(),
+    allowed: boolean('allowed').notNull(),
+    /** Quem mudou: `panel:<id do usuário>` ou `galaxie:<id>`. */
+    updatedBy: text('updated_by').notNull(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.tenantId, t.role, t.action] }),
+    check(
+      'tenant_role_permission_role',
+      sql`${t.role} in ('admin', 'senior_moderator', 'moderator', 'volunteer')`,
+    ),
+  ],
+);
+
+/**
+ * Auditoria dos cargos (#1019): quem deu, trocou ou tirou o cargo de quem, quem mudou as permissões de um cargo, e
+ * quando. Só cresce: o painel nunca altera nem apaga uma linha.
  */
 export const tenantMemberEvent = api.table(
   'tenant_member_event',
@@ -319,11 +347,22 @@ export const tenantMemberEvent = api.table(
     tenantId: uuid('tenant_id')
       .notNull()
       .references(() => tenant.id, { onDelete: 'cascade' }),
-    /** Membro afetado (o id fica mesmo depois de removido). */
-    memberId: uuid('member_id').notNull(),
-    /** `invited` | `accepted` | `role_changed` | `scope_changed` | `removed` */
+    /** Membro afetado (o id fica mesmo depois de removido); null nas mudanças de permissão, que valem para o cargo. */
+    memberId: uuid('member_id'),
+    /**
+     * `invited` | `accepted` | `role_changed` | `scope_changed` | `removed`; `permission_granted` |
+     * `permission_revoked` (cargo em `to_role`, ação em `subject`).
+     */
     action: text('action')
-      .$type<'invited' | 'accepted' | 'role_changed' | 'scope_changed' | 'removed'>()
+      .$type<
+        | 'invited'
+        | 'accepted'
+        | 'role_changed'
+        | 'scope_changed'
+        | 'removed'
+        | 'permission_granted'
+        | 'permission_revoked'
+      >()
       .notNull(),
     /** Quem fez: `panel:<id do usuário>`, `galaxie:<id>`, `legacy`. */
     actor: text('actor').notNull(),

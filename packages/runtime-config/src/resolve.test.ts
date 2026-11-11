@@ -188,6 +188,22 @@ describe('validação por tipo', () => {
       ok: false,
       error: { code: 'zero' },
     });
+    // DeepSeek como provedor (#1088) e preço por token por cima da tabela do código
+    expect(validateSettingKey('AI_PROVIDER', 'deepseek')).toEqual({ ok: true, value: 'deepseek' });
+    expect(validateSettingKey('AI_REVIEW_PROVIDER', 'deepseek')).toMatchObject({ ok: true });
+    expect(validateSettingKey('AI_MODEL_PRICES', 'deepseek-flash=0.15/0.003/0.6, novo=1//2')).toMatchObject({
+      ok: true,
+    });
+    expect(validateSettingKey('AI_MODEL_PRICES', '')).toEqual({ ok: true, value: '' });
+    expect(validateSettingKey('AI_MODEL_PRICES', 'deepseek-flash=0.15')).toMatchObject({
+      ok: false,
+      error: { code: 'format' },
+    });
+    expect(settingDef('DEEPSEEK_API_KEY')).toMatchObject({
+      type: 'secret',
+      section: 'ai',
+      services: ['agents'],
+    });
     expect(validateSettingKey('AI_STATUS', 'OFF')).toEqual({ ok: true, value: 'off' });
     expect(validateSettingKey('AI_STATUS', '0')).toMatchObject({ ok: false, error: { code: 'enum' } });
     expect(validateSettingKey('AI_AGENT_STATUS', 'lineups=on,wtw=off')).toMatchObject({ ok: true });

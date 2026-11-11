@@ -34,6 +34,7 @@ e do que depende.
 | [`packages/crests`](../packages/crests/README.md) | lib | `@galaxie/crests` | Escudos: tipo da imagem, paleta, SVG seguro, tamanhos e o preparo do envio no painel | — |
 | [`packages/runtime-config`](../packages/runtime-config/README.md) | lib | `@galaxie/runtime-config` | Flags da operação (banco > env > padrão) | — |
 | [`packages/ai-ledger`](../packages/ai-ledger/README.md) | lib | `@galaxie/ai-ledger` | Orçamento diário de IA em tokens e US$ | — |
+| [`packages/llm`](../packages/llm/README.md) | lib | `@galaxie/llm` | Clientes dos provedores de IA (OpenAI, Anthropic, Gemini, DeepSeek): JSON com schema, texto e streaming | — |
 | [`packages/cosmos`](../packages/cosmos/README.md) | lib | `@galaxie/cosmos` | Cosmos AI: carteira de créditos por tenant, extrato e reserva antes de cada chamada | — |
 | [`packages/scheduler`](../packages/scheduler/README.md) | lib | `@galaxie/scheduler` | Motor de agendamento do ingestor e dos agentes (cron em UTC, um processo por job, trava, catch-up) | — |
 | [`packages/core-writer`](../packages/core-writer/README.md) | lib | `@galaxie/core-writer` | Grava o lote neutro dos provedores no core (`upsertBatch`), com a máquina de estados do evento, a importância e a junção do jogo provisório | — |
@@ -78,6 +79,7 @@ flowchart TB
     packages_explore[explore]
     packages_geo[geo]
     packages_knowledge[knowledge]
+    packages_llm[llm]
     packages_providers[providers]
     packages_rules[rules]
     packages_where_to_watch[where-to-watch]
@@ -107,13 +109,14 @@ flowchart TB
   packages_crests --> packages_db
   packages_explore --> packages_contracts & packages_db & packages_geo & packages_providers
   packages_knowledge --> packages_db
+  packages_llm --> packages_ai_ledger
   packages_observability --> packages_apisports_client & packages_db & packages_runtime_config
   packages_providers --> packages_apisports_client
   packages_rules --> packages_db
   packages_scheduler --> packages_db & packages_observability & packages_runtime_config
   packages_where_to_watch --> packages_db
   packages_widgets --> packages_contracts
-  services_ai_agents --> packages_ai_ledger & packages_contracts & packages_db & packages_geo & packages_knowledge & packages_net_guard & packages_observability & packages_providers & packages_rules & packages_runtime_config & packages_scheduler & packages_where_to_watch
+  services_ai_agents --> packages_ai_ledger & packages_contracts & packages_db & packages_geo & packages_knowledge & packages_llm & packages_net_guard & packages_observability & packages_providers & packages_rules & packages_runtime_config & packages_scheduler & packages_where_to_watch
   services_ingestor --> packages_ai_ledger & packages_apisports_client & packages_contracts & packages_core_writer & packages_cosmos & packages_crests & packages_db & packages_explore & packages_geo & packages_knowledge & packages_net_guard & packages_observability & packages_providers & packages_rules & packages_runtime_config & packages_scheduler & packages_where_to_watch
 ```
 <!-- deps-map:end -->

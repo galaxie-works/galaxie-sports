@@ -1,7 +1,20 @@
 /** Erros da camada de IA (mensagens em português; `kind` orienta retry e métricas). */
 
+/**
+ * `auth`: chave recusada pelo provedor (401/403); `quota`: conta sem crédito; `rate_limit`: 429;
+ * `timeout`: tempo esgotado; `provider`: erro do servidor (5xx), de conexão ou outro do provedor.
+ */
 export type LlmErrorKind =
-  'config' | 'provider' | 'rate_limit' | 'quota' | 'timeout' | 'schema' | 'refusal' | 'incomplete' | 'budget';
+  | 'config'
+  | 'auth'
+  | 'provider'
+  | 'rate_limit'
+  | 'quota'
+  | 'timeout'
+  | 'schema'
+  | 'refusal'
+  | 'incomplete'
+  | 'budget';
 
 export class LlmError extends Error {
   constructor(

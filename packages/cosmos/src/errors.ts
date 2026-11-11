@@ -29,6 +29,12 @@ export type CosmosErrorCode =
   | 'cosmos_disabled'
   /** Ação da equipe sem motivo (pelo menos 5 caracteres). */
   | 'reason_required'
+  /** Função nova com o nome de uma que já existe no catálogo. */
+  | 'function_exists'
+  /** Provedor ou modelo de IA fora da lista, de outro provedor, ou sem preço na tabela. */
+  | 'invalid_model'
+  /** Provedor que a função ainda não sabe chamar (ex.: o assistente fora dos provedores com chamador). */
+  | 'provider_unavailable'
   /** Valor fora da faixa (créditos negativos, zero, NaN). */
   | 'invalid_amount';
 

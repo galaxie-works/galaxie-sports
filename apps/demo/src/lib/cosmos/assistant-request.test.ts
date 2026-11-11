@@ -47,9 +47,12 @@ describe('entrada do assistente', () => {
   });
 
   it('sem chave própria da Cosmos, o assistente fica indisponível', () => {
-    expect(assistantApiKey({})).toBeNull();
-    expect(assistantApiKey({ COSMOS_ANTHROPIC_API_KEY: '  ' })).toBeNull();
-    expect(assistantApiKey({ COSMOS_ANTHROPIC_API_KEY: ' k ' })).toBe('k');
+    expect(assistantApiKey('anthropic', {})).toBeNull();
+    expect(assistantApiKey('anthropic', { COSMOS_ANTHROPIC_API_KEY: '  ' })).toBeNull();
+    expect(assistantApiKey('anthropic', { COSMOS_ANTHROPIC_API_KEY: ' k ' })).toBe('k');
+    // cada provedor tem a chave dele: a da Anthropic não serve para o DeepSeek
+    expect(assistantApiKey('deepseek', { COSMOS_ANTHROPIC_API_KEY: 'k' })).toBeNull();
+    expect(assistantApiKey('deepseek', { COSMOS_DEEPSEEK_API_KEY: 'd' })).toBe('d');
   });
 });
 
