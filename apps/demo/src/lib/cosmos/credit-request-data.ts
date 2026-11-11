@@ -25,10 +25,14 @@ export async function loadCreditRequests(
   userId: string,
   canManage: boolean,
 ): Promise<CreditRequestView[]> {
-  const rows = await listCreditRequests(builderDb(), tenantId, {
-    ...(canManage ? {} : { requestedBy: userId }),
-    limit: canManage ? 30 : 5,
-  });
+  const db = builderDb();
+  // quem compra vê todos os abertos (nenhum some atrás dos decididos) e os últimos decididos; quem não compra, os seus
+  const rows = canManage
+    ? [
+        ...(await listCreditRequests(db, tenantId, { status: ['open'], limit: 200 })),
+        ...(await listCreditRequests(db, tenantId, { status: ['approved', 'declined', 'canceled'], limit: 20 })),
+      ]
+    : await listCreditRequests(db, tenantId, { requestedBy: userId, limit: 5 });
   const who = await people(rows.flatMap((r) => [r.requestedBy, r.decidedBy]));
   const name = (id: string | null) => (id ? who.get(id)?.name?.trim() || null : null);
   return rows.map((r) => ({

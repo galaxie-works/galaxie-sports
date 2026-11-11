@@ -66,7 +66,9 @@ export function CreditRequests({
   const when = new Intl.DateTimeFormat(locale, { dateStyle: 'short', timeStyle: 'short' });
   const open = requests.filter((r) => r.status === 'open');
   const myOpen = open.find((r) => r.mine) ?? null;
-  const reasonOk = reason.trim().length >= REASON_MIN && reason.trim().length <= REASON_MAX;
+  // conta como o servidor e o Postgres (code points): emoji vale 1
+  const size = [...reason.trim()].length;
+  const reasonOk = size >= REASON_MIN && size <= REASON_MAX;
 
   const run = (action: () => Promise<{ ok: boolean; error?: string }>, success: string, after?: () => void) =>
     startTransition(async () => {
@@ -193,7 +195,7 @@ export function CreditRequests({
               placeholder={T.reasonPlaceholder}
               onChange={(e) => setReason(e.target.value)}
             />
-            <FieldDescription>{fill(T.count, { count: reason.length, max: REASON_MAX })}</FieldDescription>
+            <FieldDescription>{fill(T.count, { count: [...reason].length, max: REASON_MAX })}</FieldDescription>
           </Field>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAsking(false)}>

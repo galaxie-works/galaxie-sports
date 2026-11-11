@@ -10,6 +10,7 @@ import {
   createCreditRequest,
   decideCreditRequest,
   isCosmosError,
+  listCreditRequests,
 } from '@galaxie/cosmos';
 
 import { pool } from '@/lib/auth/db';
@@ -41,12 +42,19 @@ function failure(err: unknown, t: Texts): CreditRequestResult {
     if (err.code === 'reason_required') return { ok: false, error: t.errors.reason };
     if (err.code === 'request_open') return { ok: false, error: t.errors.alreadyOpen };
     if (err.code === 'request_closed') return { ok: false, error: t.errors.closed };
+    if (err.code === 'note_too_long') return { ok: false, error: t.errors.note };
   }
   console.error('[cosmos] pedido de créditos falhou', err);
   return { ok: false, error: t.errors.generic };
 }
 
-/** E-mail para os Donos com usuário no console. Falha de envio não desfaz o pedido: ele já está na tela. */
+/** Um aviso por e-mail por pessoa nesta janela: pedir, cancelar e pedir de novo não lota a caixa dos Donos. */
+const EMAIL_WINDOW_MS = 30 * 60_000;
+
+/**
+ * E-mail para os Donos com usuário no console e convite aceito. Falha de envio não desfaz o pedido: ele já está na
+ * tela. Vai no idioma de quem pediu (a demo não guarda o idioma de cada pessoa).
+ */
 async function notifyOwners(input: {
   tenantId: string;
   tenantName: string;
@@ -57,7 +65,7 @@ async function notifyOwners(input: {
   const { rows } = await pool.query<{ email: string; name: string; requester: string | null }>(
     `select u.email, u.name, (select r.name from "user" r where r.id = $2) as requester
        from api.tenant_member m join "user" u on u.id = m.user_id
-      where m.tenant_id = $1 and m.role = 'owner' and m.user_id <> $2`,
+      where m.tenant_id = $1 and m.role = 'owner' and m.user_id <> $2 and m.accepted_at is not null`,
     [input.tenantId, input.requesterId],
   );
   const base = (process.env.BETTER_AUTH_URL?.trim() || 'http://localhost:3000').replace(/\/+$/, '');
@@ -89,7 +97,13 @@ export async function requestCosmosCredits(reason: string): Promise<CreditReques
       userId: g.ctx.userId,
       reason,
     });
-    await notifyOwners({
+    const recent = await listCreditRequests(builderDb(), g.ctx.tenant.id, {
+      requestedBy: g.ctx.userId,
+      since: new Date(Date.now() - EMAIL_WINDOW_MS),
+      limit: 2,
+    });
+    if (recent.length <= 1)
+      await notifyOwners({
       tenantId: g.ctx.tenant.id,
       tenantName: g.ctx.tenant.name,
       requesterId: g.ctx.userId,

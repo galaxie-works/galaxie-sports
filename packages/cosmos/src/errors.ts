@@ -44,7 +44,9 @@ export type CosmosErrorCode =
   /** A pessoa já tem um pedido de créditos aberto (#996). */
   | 'request_open'
   /** Pedido de créditos inexistente, de outro tenant ou já fechado. */
-  | 'request_closed';
+  | 'request_closed'
+  /** Nota da decisão com mais de 500 caracteres. */
+  | 'note_too_long';
 
 export class CosmosError extends Error {
   readonly code: CosmosErrorCode;

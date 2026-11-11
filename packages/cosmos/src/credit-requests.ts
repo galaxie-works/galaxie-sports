@@ -6,7 +6,7 @@
  * Quem pode pedir e quem pode decidir é checado por quem chama (o painel, pelo `can()` de `@galaxie/engage`); aqui
  * fica o estado: só um pedido aberto anda, e nunca de volta.
  */
-import { and, desc, eq, inArray } from 'drizzle-orm';
+import { and, desc, eq, gte, inArray } from 'drizzle-orm';
 // subcaminhos, não o índice: o índice traz o migrator (pasta drizzle/), que o bundler do Next não resolve
 import type { Database } from '@galaxie/db/client';
 import { CREDIT_REQUEST_STATUSES, creditRequest, type CreditRequestStatus } from '@galaxie/db/schema';
@@ -52,7 +52,9 @@ export async function createCreditRequest(
   input: { tenantId: string; userId: string; reason: string },
 ): Promise<CreditRequest> {
   const reason = input.reason.trim();
-  if (reason.length < CREDIT_REQUEST_REASON_MIN || reason.length > CREDIT_REQUEST_REASON_MAX)
+  // conta caracteres como o Postgres (code points): emoji vale 1, não 2
+  const size = [...reason].length;
+  if (size < CREDIT_REQUEST_REASON_MIN || size > CREDIT_REQUEST_REASON_MAX)
     throw new CosmosError('reason_required', 'justificativa de 5 a 500 caracteres');
   try {
     const [row] = await db
@@ -71,11 +73,18 @@ export async function createCreditRequest(
 export async function listCreditRequests(
   db: Pick<Database, 'select'>,
   tenantId: string,
-  options: { status?: readonly CreditRequestStatus[]; requestedBy?: string; limit?: number } = {},
+  options: {
+    status?: readonly CreditRequestStatus[];
+    requestedBy?: string;
+    /** Só os abertos a partir de (inclusive). */
+    since?: Date;
+    limit?: number;
+  } = {},
 ): Promise<CreditRequest[]> {
   const where = [eq(creditRequest.tenantId, tenantId)];
   if (options.status?.length) where.push(inArray(creditRequest.status, [...options.status]));
   if (options.requestedBy) where.push(eq(creditRequest.requestedBy, options.requestedBy));
+  if (options.since) where.push(gte(creditRequest.createdAt, options.since));
   const rows = await db
     .select()
     .from(creditRequest)
@@ -98,8 +107,8 @@ async function close(
   },
 ): Promise<CreditRequest> {
   const note = input.note?.trim() || null;
-  if (note && note.length > CREDIT_REQUEST_NOTE_MAX)
-    throw new CosmosError('reason_required', 'nota até 500 caracteres');
+  if (note && [...note].length > CREDIT_REQUEST_NOTE_MAX)
+    throw new CosmosError('note_too_long', 'nota até 500 caracteres');
   const where = [
     eq(creditRequest.id, input.requestId),
     eq(creditRequest.tenantId, input.tenantId),

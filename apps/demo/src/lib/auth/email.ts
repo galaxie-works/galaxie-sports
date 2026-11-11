@@ -170,7 +170,8 @@ function renderCreditRequest(mail: Extract<AccessEmail, { kind: 'credit_request'
   const t = getDictionary(mail.locale).email;
   const greeting = greetingOf(mail);
   const T = t.creditRequest;
-  const subject = fill(T.subject, { requester: mail.requester });
+  // o nome de quem pediu fica fora do assunto: é texto livre e iria no remetente oficial
+  const subject = T.subject;
   const intro = fill(T.intro, { requester: mail.requester, tenant: mail.tenant });
   const reason = fill(T.reason, { reason: mail.reason });
   const text = `${greeting}\n\n${intro}\n\n${reason}\n\n${T.how}\n\n${T.action}: ${mail.url}\n\n${t.signature}`;
