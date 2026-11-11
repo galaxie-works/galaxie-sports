@@ -247,3 +247,15 @@ export {
   WebhookSecretError,
 } from './webhook-secret-box.js';
 export * from './webhooks-admin.js';
+export {
+  creditPoints,
+  debitBalance,
+  readLedger,
+  readWallets,
+  revertPoints,
+  type FanCreditReason,
+  type FanLedgerEntry,
+  type FanWalletKey,
+  type FanWalletResult,
+  type FanWalletView,
+} from './fan-wallet.js';

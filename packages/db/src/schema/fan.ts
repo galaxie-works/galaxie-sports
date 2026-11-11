@@ -15,6 +15,7 @@
  */
 import { sql } from 'drizzle-orm';
 import {
+  bigint,
   check,
   foreignKey,
   index,
@@ -130,5 +131,121 @@ export const fanErasureLog = fan.table(
   (t) => [
     primaryKey({ name: 'erasure_log_pkey', columns: [t.tenantId, t.id] }),
     index('erasure_log_profile_idx').on(t.tenantId, t.profileId),
+  ],
+);
+
+/**
+ * Carteira de pontos (#938, B6). Uma por Perfil e **programa** (cliente + país). Duas grandezas separadas:
+ *
+ * - **Pontos**: só sobem (Palpites, Conquistas, presença, enquete, trivia) e definem Nível e Ranking. Só caem por
+ *   estorno do evento que os deu (gol anulado, palpite recalculado).
+ * - **Saldo**: o que se pode gastar na Vitrine opcional. Sobe junto com os Pontos; trocar gasta só o Saldo, nunca
+ *   os Pontos nem o Ranking.
+ *
+ * Compra e clique na loja nunca creditam: a origem `shopping` é recusada pelo banco. Pontos não se compram, não se
+ * transferem entre torcedores e não viram dinheiro. O valor do ponto, a validade e o resgate são da Gamificação
+ * (#928); aqui ficam só a carteira, o extrato e o serviço `credit`/`debit`/`revert` (`@galaxie/db/fan-wallet`).
+ */
+export const FAN_POINTS_REASONS = [
+  'prediction',
+  'achievement',
+  'presence',
+  'poll',
+  'trivia',
+  'adjustment',
+  'redeem',
+  'revert',
+] as const;
+export type FanPointsReason = (typeof FAN_POINTS_REASONS)[number];
+
+/** Módulos que creditam pontos. `shopping` fica de fora de propósito (compra nunca dá ponto). */
+export const FAN_POINTS_SOURCES = [
+  'live_chat',
+  'communities',
+  'gamification',
+  'cosmos_ai',
+  'galaxie',
+] as const;
+export type FanPointsSource = (typeof FAN_POINTS_SOURCES)[number];
+
+const inList = (col: unknown, list: readonly string[]) =>
+  sql.raw(`${String(col)} in (${list.map((v) => `'${v}'`).join(', ')})`);
+
+export const fanWallet = fan.table(
+  'wallet',
+  {
+    tenantId: tenantRef(),
+    profileId: uuid('profile_id').notNull(),
+    /** País do programa (ISO 3166-1 alfa-2): Pontos e Ranking são por cliente e país. */
+    programCountry: text('program_country').notNull(),
+    points: bigint('points', { mode: 'number' }).notNull().default(0),
+    balance: bigint('balance', { mode: 'number' }).notNull().default(0),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    primaryKey({ name: 'wallet_pkey', columns: [t.tenantId, t.profileId, t.programCountry] }),
+    foreignKey({
+      name: 'wallet_profile_fk',
+      columns: [t.tenantId, t.profileId],
+      foreignColumns: [fanProfile.tenantId, fanProfile.id],
+    }).onDelete('cascade'),
+    check('wallet_country', sql`${t.programCountry} ~ '^[A-Z]{2}$'`),
+    check('wallet_points_nonneg', sql`${t.points} >= 0`),
+    check('wallet_balance_nonneg', sql`${t.balance} >= 0`),
+  ],
+);
+
+export const fanPointsLedger = fan.table(
+  'points_ledger',
+  {
+    tenantId: tenantRef(),
+    id: fanId(),
+    profileId: uuid('profile_id').notNull(),
+    programCountry: text('program_country').notNull(),
+    reason: text('reason').$type<FanPointsReason>().notNull(),
+    /** Módulo que lançou. */
+    source: text('source').$type<FanPointsSource>().notNull(),
+    /** Id do evento de origem no módulo (palpite, conquista, janela de presença). Chave de idempotência. */
+    sourceEvent: text('source_event').notNull(),
+    /** Lançamento que este estorna (só em `revert`). */
+    revertsId: uuid('reverts_id'),
+    pointsDelta: bigint('points_delta', { mode: 'number' }).notNull(),
+    balanceDelta: bigint('balance_delta', { mode: 'number' }).notNull(),
+    pointsAfter: bigint('points_after', { mode: 'number' }).notNull(),
+    balanceAfter: bigint('balance_after', { mode: 'number' }).notNull(),
+    /** Texto curto para o extrato, sem dado pessoal. */
+    note: text('note'),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    primaryKey({ name: 'points_ledger_pkey', columns: [t.tenantId, t.id] }),
+    foreignKey({
+      name: 'points_ledger_wallet_fk',
+      columns: [t.tenantId, t.profileId, t.programCountry],
+      foreignColumns: [fanWallet.tenantId, fanWallet.profileId, fanWallet.programCountry],
+    }).onDelete('cascade'),
+    // o mesmo evento do mesmo módulo nunca lança duas vezes no mesmo programa do Perfil (reprocessar não duplica)
+    uniqueIndex('points_ledger_event_uq')
+      .on(t.tenantId, t.profileId, t.programCountry, t.source, t.sourceEvent, t.reason)
+      .where(sql`${t.revertsId} is null`),
+    // cada lançamento é estornado uma vez só
+    uniqueIndex('points_ledger_revert_uq')
+      .on(t.tenantId, t.revertsId)
+      .where(sql`${t.revertsId} is not null`),
+    index('points_ledger_wallet_idx').on(t.tenantId, t.profileId, t.programCountry, t.id),
+    check('points_ledger_reason', inList('reason', FAN_POINTS_REASONS)),
+    check('points_ledger_source', inList('source', FAN_POINTS_SOURCES)),
+    check('points_ledger_nonzero', sql`${t.pointsDelta} <> 0 or ${t.balanceDelta} <> 0`),
+    // Pontos só caem por estorno; o resgate gasta só o Saldo
+    check(
+      'points_ledger_shape',
+      sql`(${t.reason} = 'revert' and ${t.revertsId} is not null and ${t.pointsDelta} <= 0 and ${t.balanceDelta} <= 0)
+        or (${t.reason} = 'redeem' and ${t.revertsId} is null and ${t.pointsDelta} = 0 and ${t.balanceDelta} < 0)
+        or (${t.reason} not in ('revert', 'redeem') and ${t.revertsId} is null and ${t.pointsDelta} > 0 and ${t.balanceDelta} = ${t.pointsDelta})`,
+    ),
+    check('points_ledger_after_nonneg', sql`${t.pointsAfter} >= 0 and ${t.balanceAfter} >= 0`),
+    check('points_ledger_event_len', sql`length(${t.sourceEvent}) between 1 and 200`),
+    check('points_ledger_note_len', sql`${t.note} is null or length(${t.note}) <= 200`),
   ],
 );

@@ -3,7 +3,15 @@ import type { FastifyInstance } from 'fastify';
 import { Redis } from 'ioredis';
 import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { closeDb, createDb, runMigrations, type Database } from '@galaxie/db';
+import {
+  closeDb,
+  createDb,
+  creditPoints,
+  debitBalance,
+  revertPoints,
+  runMigrations,
+  type Database,
+} from '@galaxie/db';
 import { generateAdminKey, hashAdminKey } from '../src/admin/guard.js';
 import { loadPlans } from '../src/admin/plans.js';
 import { FanTokenSigner } from '../src/engage/fan-token.js';
@@ -204,5 +212,78 @@ describe('identidade do torcedor (#937)', () => {
           values (${b.id}, ${acc!.id}, 'x', 'x', '18plus', 'BR', 'pt-BR')`,
     ).rejects.toThrow(/profile_account_fk/);
     await sql.end();
+  });
+});
+
+describe('carteira de pontos (#938)', () => {
+  const wallet = (token: string, path = '', query = '') =>
+    app.inject({
+      method: 'GET',
+      url: `/v1/fans/me/wallet${path}${query}`,
+      headers: { authorization: `Bearer ${token}` },
+    });
+
+  it('mostra Pontos, Saldo e o extrato do programa, com estorno e resgate', async () => {
+    const t = await tenantKey('wallet-a', ['core_data', 'gamification']);
+    const { token, profile_id } = (await issue(t.key, { ...base, externalProfileId: 'prof_w1' })).json().data;
+    expect((await wallet(token)).json()).toEqual({ data: [] });
+    const k = { tenantId: t.id, profileId: profile_id, programCountry: 'BR' };
+    for (let i = 0; i < 3; i += 1)
+      await creditPoints(db, {
+        ...k,
+        amount: 10,
+        reason: 'prediction',
+        source: 'gamification',
+        sourceEvent: `p${i}`,
+      });
+    await revertPoints(db, { ...k, reason: 'prediction', source: 'gamification', sourceEvent: 'p1' });
+    await debitBalance(db, { ...k, amount: 5, source: 'gamification', sourceEvent: 'r1' });
+    const w = await wallet(token);
+    expect(w.statusCode).toBe(200);
+    expect(w.headers['cache-control']).toBe('no-store');
+    expect(w.json()).toEqual({ data: [{ program_country: 'BR', points: 20, balance: 15 }] });
+    const page1 = await wallet(token, '/ledger', '?limit=3');
+    expect(page1.statusCode).toBe(200);
+    const body = page1.json();
+    expect(body.program_country).toBe('BR');
+    expect(body.data.map((e: { reason: string }) => e.reason)).toEqual(['redeem', 'revert', 'prediction']);
+    expect(body.data[1].reverts_id).not.toBeNull();
+    const page2 = (await wallet(token, '/ledger', `?limit=3&before=${body.next_before}`)).json();
+    expect(page2.data).toHaveLength(2);
+    expect(page2.next_before).toBeNull();
+    expect((await wallet(token, '/ledger', '?limit=0')).statusCode).toBe(400);
+  });
+
+  it('menor de 13 recebe 403; outro cliente não vê a carteira', async () => {
+    const t = await tenantKey('wallet-b', ['core_data', 'gamification']);
+    const kid = (await issue(t.key, { ...base, externalProfileId: 'prof_kid', ageBand: 'under13' })).json()
+      .data;
+    expect((await wallet(kid.token)).statusCode).toBe(403);
+    const adult = (await issue(t.key, { ...base, externalProfileId: 'prof_w2' })).json().data;
+    await creditPoints(db, {
+      tenantId: t.id,
+      profileId: adult.profile_id,
+      programCountry: 'BR',
+      amount: 7,
+      reason: 'poll',
+      source: 'communities',
+      sourceEvent: 'e1',
+    });
+    const other = await tenantKey('wallet-c', ['core_data', 'gamification']);
+    const theirs = (await issue(other.key, { ...base, externalProfileId: 'prof_w2' })).json().data;
+    expect((await wallet(theirs.token)).json()).toEqual({ data: [] });
+    expect((await wallet(adult.token)).json().data[0].points).toBe(7);
+    // exclusão do Perfil leva a carteira e o extrato junto
+    await app.inject({
+      method: 'DELETE',
+      url: '/v1/fans/acc_100/profiles/prof_w2',
+      headers: { 'x-galaxie-key': t.key },
+    });
+    const sql = postgres(testUrl, { max: 1 });
+    const left = await sql`select
+      (select count(*)::int from fan.wallet where profile_id = ${adult.profile_id}) as w,
+      (select count(*)::int from fan.points_ledger where profile_id = ${adult.profile_id}) as l`;
+    await sql.end();
+    expect(left[0]).toEqual({ w: 0, l: 0 });
   });
 });
