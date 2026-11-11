@@ -47,6 +47,14 @@ out2="$(cd "$WORK" && bash "$HERE/ensure-secrets.sh")"
   ko "segunda rodada trocou um segredo"
 [[ "$out2" == *"todos definidos"* ]] && ok "segunda rodada: nada a gerar" || ko "segunda rodada: '$out2'"
 
+# forma que o compose aceita mas o script não troca com segurança: para sem mexer
+printf 'export STREAM_TOKEN_SECRET=em-uso\nFAN_TOKEN_SECRET=\n' > "$WORK/export.env"
+before="$(cat "$WORK/export.env")"
+if (cd "$WORK" && bash "$HERE/ensure-secrets.sh" export.env >/dev/null); then ko "export passou"; else ok "export falha"; fi
+[ "$(cat "$WORK/export.env")" = "$before" ] && ok "export: .env intocado" || ko "export: .env mudou"
+printf 'BETTER_AUTH_SECRET = em-uso\n' > "$WORK/espaco.env"
+if (cd "$WORK" && bash "$HERE/ensure-secrets.sh" espaco.env >/dev/null); then ko "espaços passou"; else ok "espaços falha"; fi
+
 if (cd "$WORK" && bash "$HERE/ensure-secrets.sh" nao-existe.env >/dev/null); then ko "arquivo ausente passou"; else ok "arquivo ausente falha"; fi
 
 exit $fail

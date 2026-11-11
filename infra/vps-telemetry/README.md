@@ -28,8 +28,11 @@ Domínios (registro A → IP da VPS): `DEMO_DOMAIN` (demo), `API_DOMAIN` (API p�
 - Proibido: `docker system prune`, `docker volume prune`, `docker network prune`, mexer no `ufw`, publicar portas.
 - Segredos só no `.env` da VPS (`chmod 600`), gerados lá com `openssl rand -hex 32`; nunca impressos.
 - Os internos (`FAN_TOKEN_SECRET`, `STREAM_TOKEN_SECRET`, `BETTER_AUTH_SECRET`) o deploy gera sozinho quando estão
-  vazios ou com o valor de exemplo (`ensure-secrets.sh`); o que já existe nunca muda. `METRICS_TOKEN` só avisa, porque o
-  Prometheus só lê o novo quando o obs sobe de novo. Chaves de fornecedor e o segredo dos webhooks seguem à mão.
+  vazios ou com o valor de exemplo (`ensure-secrets.sh`); o que já existe nunca muda. O `BETTER_AUTH_SECRET` também
+  assina os links dos anexos das sugestões e as referências `u_`/`t_` das issues: gerado no lugar do valor de exemplo,
+  isso tudo muda junto com as sessões. `METRICS_TOKEN` só avisa, porque o Prometheus só lê o novo quando o obs sobe de
+  novo. Chaves de fornecedor e o segredo dos webhooks seguem à mão. Linha com `export` ou espaços em volta do `=` faz o
+  script parar sem gerar nada.
 - **Uma chave, um ingestor**: com o ingestor da VPS no ar, nenhum outro ambiente roda jobs com a mesma
   `APISPORTS_KEY` (a cota diária é por conta e por API).
 
