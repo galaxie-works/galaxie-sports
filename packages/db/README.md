@@ -26,7 +26,7 @@ papel. Detalhes e passo a passo: [runbook](../../docs/runbooks/papeis-do-banco.m
 
 | Papel | URL | Lê | Escreve | Conexões |
 |---|---|---|---|---|
-| `galaxie_api` | `DB_URL_API` | todos os schemas | `api`, `enrich`, `ops`, `engage` | 45 |
+| `galaxie_api` | `DB_URL_API` | todos os schemas | `api`, `enrich`, `ops`, `cosmos`, `fan`, `engage` | 45 |
 | `galaxie_demo` | `DB_URL_DEMO` | todos, menos `raw` | `ops`, `semantic`, `enrich`, `api`, `engage`, `core.asset` (dona do `demo_auth`) | 30 |
 | `galaxie_ingestor` | `DB_URL_INGESTOR` | todos | `raw`, `core`, `ops`, `semantic`, `enrich`, `multisport`, `equestrian` | 40 |
 | `galaxie_agents` | `DB_URL_AGENTS` | todos | `enrich`, `semantic`, `ops`, `core.asset`, `api.tenant_channel_list` | 25 |
