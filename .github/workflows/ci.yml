@@ -138,6 +138,9 @@ jobs:
       - name: Testes da regra de dependência
         run: pnpm test:deps
 
+      - name: Testes do status dos PRs
+        run: pnpm test:status-prs
+
       - name: Build
         run: pnpm exec turbo run build $AFFECTED $BUILD_FILTER
 
