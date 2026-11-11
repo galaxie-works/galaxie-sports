@@ -160,6 +160,8 @@ export interface AskInput {
   prompt: AssistantPrompt;
   credits: number;
   settings: CosmosSettings;
+  /** Modelo que respondeu (o da função no catálogo): vai para o extrato e define o preço do acerto. */
+  model?: string;
   /** Chave para assinar a resposta (histórico); sem chave, a resposta sai sem assinatura. */
   signingKey?: string | null;
 }
@@ -279,11 +281,11 @@ export async function* askAssistant(
               tenantId: input.tenantId,
               reservationId,
               waive: true,
-              costUsd: assistantCostUsd(usage),
+              costUsd: assistantCostUsd(usage, input.model ?? ASSISTANT_MODEL),
               tokensIn: usage.inputTokens,
               tokensCached: usage.cachedInputTokens,
               tokensOut: usage.outputTokens,
-              model: ASSISTANT_MODEL,
+              model: input.model ?? ASSISTANT_MODEL,
               metadata: { route: input.route, partial: true, undelivered: true },
             },
             { now: now() },
@@ -306,12 +308,12 @@ export async function* askAssistant(
         {
           tenantId: input.tenantId,
           reservationId,
-          costUsd: assistantCostUsd(usage),
+          costUsd: assistantCostUsd(usage, input.model ?? ASSISTANT_MODEL),
           maxCredits: reserved,
           tokensIn: usage.inputTokens,
           tokensCached: usage.cachedInputTokens,
           tokensOut: usage.outputTokens,
-          model: ASSISTANT_MODEL,
+          model: input.model ?? ASSISTANT_MODEL,
           metadata: {
             route: input.route,
             ...(failed ? { partial: true } : {}),
