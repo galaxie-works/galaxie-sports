@@ -93,10 +93,10 @@ A queima do SLO `ao-vivo` não manda push: ela chega no resumo diário e diz se 
 ### `ia`: conta sem crédito ou gasto perto do teto
 
 - **`AiCreditExhausted`**: recarregue o saldo no AI Studio (ou troque a chave) e peça "verificar agora" em Ajustes →
-  Sistema → IA. Os agentes seguem no texto determinístico enquanto isso: nada quebra para o cliente, mas o conteúdo de
+  Plataforma → Status dos serviços (cartão do crédito da IA). Os agentes seguem no texto determinístico enquanto isso: nada quebra para o cliente, mas o conteúdo de
   IA para. Ver o [postmortem de 27/10](../postmortems/2026-10-27-ia-sem-credito.md).
-- **`AiSpendNearDailyBudget`** (80% do teto do dia): em Ajustes → Sistema → IA, veja o gasto por agente. Um agente fora
-  do normal (lote manual, laço de retentativa) tem o teto dele reduzido no mesmo painel. Não suba o teto sem saber quem gastou: o dia vira
+- **`AiSpendNearDailyBudget`** (80% do teto do dia): em Ajustes → Plataforma → Status dos serviços, veja o gasto por agente. Um agente fora
+  do normal (lote manual, laço de retentativa) tem o teto dele reduzido em Ajustes → Inteligência → IA interna. Não suba o teto sem saber quem gastou: o dia vira
   às 06:00 de Brasília e o alerta resolve sozinho.
 
 ### `backup-disco`: backup atrasado, verificação falhando ou disco cheio
@@ -107,7 +107,7 @@ A queima do SLO `ao-vivo` não manda push: ela chega no resumo diário e diz se 
   ssh root@<vps> 'cd /docker/galaxie-sports && docker compose -f compose.dados.yml logs --tail 100 backup && docker compose -f compose.dados.yml exec -T backup ls -lt /backups | head'
   ```
 
-  O `error` do job em Ajustes → Sistema (jobs `pg-backup` e `backup-check`) diz qual parte falhou: dump, conferência
+  O `error` do job em Ajustes → Plataforma → Status dos serviços (jobs `pg-backup` e `backup-check`) diz qual parte falhou: dump, conferência
   ou recibo do NAS. Recibo do NAS atrasado: a stack `galaxie-sports-backup-nas` no Portainer do NAS parou.
 - **`RestoreDrillFailed`**: o dump mais recente não restaurou. É sério, mas não urgente de madrugada: siga o
   [runbook de DR](exercicio-dr.md) no dia seguinte e confira se o dump de antes restaura.
@@ -168,7 +168,7 @@ docker logs <job> > /root/logs/<job>-$(date +%F).log 2>&1 && docker rm <job>   #
   de novo: os CLIs longos são idempotentes e retomam (cursores em `ops.sync_cursor`).
 - O espelho de assets não é mais religado pelo deploy: roda só como job do scheduler (`assets-mirror`), com cursor por
   tipo de asset, e retoma de onde parou. Para rodar mais vezes por dia, mude `SCHEDULE_ASSETS_MIRROR` no painel
-  (Ajustes → Operação), por exemplo `30 */3 * * *`.
+  (Ajustes → Plataforma → Agenda dos jobs), por exemplo `30 */3 * * *`.
 - Os que já têm tipo na fila (acervo, espelho, carga histórica, backfills) vão para a fila, e o serviço `worker` os
   executa, drenando no deploy ([tarefas](tarefas.md#o-worker)). O contêiner avulso fica para o que ainda não tem tipo.
 

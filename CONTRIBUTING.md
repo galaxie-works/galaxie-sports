@@ -52,7 +52,7 @@ O CI cobra isso (`pnpm lint:deps`): o PR que viola é reprovado com o nome da re
 ## Regras
 
 1. **Toda chamada à api-sports passa pelo `ApiSportsClient`** — nunca `fetch` direto. Testes usam `fetch` falso; não gaste cota real em testes.
-2. **Banco**: mudou `packages/db/src/schema`? Rode `pnpm db:generate` e commite `drizzle/` (o CI falha se houver drift). Migrations podem ser renumeradas pelo coordenador na hora do merge; a renumerada precisa de `when` (em `drizzle/meta/_journal.json`) maior que o da última migration do `main`, senão o migrator a pula em silêncio num banco que já tem as outras — acerte o `when` ou regere a migration (o CI confere). A migration só pode **expandir** (coluna opcional ou com `DEFAULT`, tabela, índice); `DROP`, `RENAME`, mudança de tipo e `NOT NULL` sem `DEFAULT` vão num PR próprio com o rótulo `contrair`, depois do deploy que parou de usar o que sai ([docs/runbooks/migrations.md](docs/runbooks/migrations.md)).
+2. **Banco**: mudou `packages/db/src/schema`? Rode `pnpm db:generate` e commite `drizzle/` (o CI falha se houver drift). Migrations podem ser renumeradas pelo coordenador na hora do merge; a renumerada precisa de `when` (em `drizzle/meta/_journal.json`) maior que o da última migration do `main`, senão o migrator a pula em silêncio num banco que já tem as outras — acerte o `when` ou regere a migration (o CI confere). Antes de gerar, veja os números já usados nos PRs abertos (comando abaixo) e use o próximo livre; se duas frentes colidirem, quem entra depois renumera contra a `main`, nunca encaixa um número no meio da pilha de outra frente. A migration só pode **expandir** (coluna opcional ou com `DEFAULT`, tabela, índice); `DROP`, `RENAME`, mudança de tipo e `NOT NULL` sem `DEFAULT` vão num PR próprio com o rótulo `contrair`, depois do deploy que parou de usar o que sai ([docs/runbooks/migrations.md](docs/runbooks/migrations.md)).
 3. **Testes**: unitários ao lado do código (`*.test.ts`); integração em `test/` criando um banco descartável a partir de `DATABASE_URL` (ver `packages/db/test`). Sem `.env` (ex.: worktrees), exporte `DATABASE_URL=postgres://galaxie:galaxie@localhost:5433/galaxie_sports`.
 4. **Idioma**: código e identificadores em inglês; comentários, docs, mensagens de CLI e de erro voltadas a pessoas em **português**.
 5. **Neutralidade**: nenhuma marca de cliente, operadora ou fornecedor interno em código, dados, docs, issues ou commits.
@@ -61,3 +61,14 @@ O CI cobra isso (`pnpm lint:deps`): o PR que viola é reprovado com o nome da re
 8. **Commits**: mensagem em português, convencional (`feat(escopo): ...`), com `Closes #N` quando fechar issue.
 9. **Contrato da API**: mudou `packages/contracts`? O check "contrato OpenAPI" falha com quebra do `/v1` (docs/05 §8); quebra de propósito leva o rótulo `quebra-de-contrato`.
 10. **PRs**: um PR por conjunto coeso de issues, descrição com resumo, como testar e o que ficou fora; `Closes #N` para cada issue concluída.
+11. **PRs empilhados** (um branch criado a partir de outro ainda aberto):
+    - No máximo **3** na pilha. Precisa de mais? Mergeie a base antes.
+    - A pilha entra na `main` de baixo para cima com **merge commit** (`gh pr merge N --merge`). Squash só para PR sozinho: o squash cria um commit sem parentesco com o branch, e o filho seguinte conflita (sempre no `_journal.json`) e precisa de outro CI.
+    - Nunca `--delete-branch` no pai antes de apontar os filhos para a `main` (`gh pr edit <filho> --base main`): o GitHub fecha os filhos em vez de mudar a base.
+    - **Não faça merge de branch de outra frente** (ex.: o branch de engajamento trazendo `cosmos/stripe`). Precisa do código dela? Espere entrar na `main` e traga a `main`.
+
+```bash
+# migrations nos PRs abertos (rode antes de pnpm db:generate)
+gh pr list --state open --limit 50 --json number,files \
+  --jq '.[] | {n: .number, m: [.files[].path | select(test("drizzle/[0-9]{4}_.*sql$"))]} | select(.m | length > 0) | "#\(.n) \(.m | join(" "))"'
+```

@@ -163,10 +163,11 @@ export function RelatedChannels({
   const { t } = useI18n();
   const T = t.relatedAdmin;
   const href = (next: ChannelFilter) => {
-    const p = new URLSearchParams({ aba: 'related' });
+    const p = new URLSearchParams();
     if (q) p.set('q', q);
     if (next !== 'all') p.set('filtro', next);
-    return `/ajustes/esportes?${p.toString()}`;
+    const query = p.toString();
+    return `/ajustes/videos${query ? `?${query}` : ''}`;
   };
 
   return (
@@ -187,8 +188,7 @@ export function RelatedChannels({
             </Link>
           ))}
         </nav>
-        <form action="/ajustes/esportes" className="flex items-center gap-2">
-          <input type="hidden" name="aba" value="related" />
+        <form action="/ajustes/videos" className="flex items-center gap-2">
           {filter !== 'all' ? <input type="hidden" name="filtro" value={filter} /> : null}
           <Input
             name="q"

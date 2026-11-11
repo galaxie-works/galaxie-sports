@@ -9,7 +9,7 @@ Regras em [docs/04 §1.1](../04-modelo-de-dados.md#11-retenção-dos-dados-que-c
 | `change-feed-prune` | 02:45 | `ops.change_feed` com mais de 7 dias, respeitando a última mudança de cada entidade, o cursor dos webhooks e o piso do cache da demo |
 | `data-retention` | 03:20 | raw do ao vivo com mais de 30 dias (fica a última resposta de cada requisição), ledger de IA com mais de 90 dias (agregado por dia antes), `job_run`, `quota_ledger`, `job_request`, `normalize_failure`, entregas de webhook |
 
-Os dois apagam em lotes curtos (uma transação por lote, dentro do `statement_timeout` de 10 min do perfil `job`) e são idempotentes. O painel (Ajustes → Sistema) tem "rodar agora" para os dois.
+Os dois apagam em lotes curtos (uma transação por lote, dentro do `statement_timeout` de 10 min do perfil `job`) e são idempotentes. O painel (Ajustes → Plataforma → Status dos serviços ou Agenda dos jobs) tem "rodar agora" para os dois.
 
 A dedupe do raw é na gravação, sem job: corpo igual ao da última resposta da mesma requisição só atualiza `last_seen_at` e `seen_count`.
 

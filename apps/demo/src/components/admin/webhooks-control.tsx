@@ -1,6 +1,6 @@
 'use client';
 
-import { KeyRound, LockKeyhole } from 'lucide-react';
+import { Inbox, KeyRound, LockKeyhole, Server, ShieldAlert, Webhook } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useTransition } from 'react';
 import { toast } from 'sonner';
@@ -13,8 +13,8 @@ import {
 } from '@/app/[locale]/(app)/ajustes/webhooks/actions';
 import { formatDuration } from '@/components/ops/format';
 import { Alert, AlertDescription } from '@/components/reui/alert';
-import { Badge } from '@/components/reui/badge';
 import { Frame, FrameDescription, FrameHeader, FramePanel, FrameTitle } from '@/components/reui/frame';
+import { StatusList, type StatusItem, type StatusTone } from '@/components/settings/blocks/status-list';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import { Switch } from '@/components/ui/switch';
@@ -36,24 +36,6 @@ export interface WebhooksOverviewView {
     rejectPlaintext: boolean | null;
     deliveryEnabled: boolean | null;
   };
-}
-
-type Tone = 'success-light' | 'destructive-light' | 'warning-light' | 'secondary';
-
-function Row({ label, children, hint }: { label: string; children: React.ReactNode; hint?: string | null }) {
-  return (
-    <div className="flex flex-col gap-1 border-b px-4 py-3 last:border-b-0 sm:flex-row sm:items-center sm:justify-between">
-      <span className="text-sm font-medium">{label}</span>
-      <div className="flex flex-col items-start gap-0.5 sm:items-end">
-        <div className="flex items-center gap-2 text-sm">{children}</div>
-        {hint ? <span className="text-muted-foreground text-xs">{hint}</span> : null}
-      </div>
-    </div>
-  );
-}
-
-function State({ tone, children }: { tone: Tone; children: React.ReactNode }) {
-  return <Badge variant={tone}>{children}</Badge>;
 }
 
 /**
@@ -89,14 +71,13 @@ export function WebhooksControl({
       router.refresh();
     });
 
-  const kekState = (v: boolean | null) =>
-    v === null ? (
-      <State tone="secondary">{T.status.unknown}</State>
-    ) : v ? (
-      <State tone="success-light">{T.status.yes}</State>
-    ) : (
-      <State tone="destructive-light">{T.status.no}</State>
-    );
+  // chave de cifra: sim, não ou ainda sem relato do worker
+  const kek = (v: boolean | null): Pick<StatusItem, 'tone' | 'statusLabel'> =>
+    v === null
+      ? { tone: 'neutral', statusLabel: T.status.unknown }
+      : v
+        ? { tone: 'ok', statusLabel: T.status.yes }
+        : { tone: 'missing', statusLabel: T.status.no };
 
   const kekMissing = o.worker.kekConfigured === false || !panelKek;
   const workerLags = (applied: boolean | null, wanted: boolean) =>
@@ -105,58 +86,72 @@ export function WebhooksControl({
 
   return (
     <div className="grid gap-4 lg:grid-cols-2">
-      <Frame>
-        <FramePanel className="p-0">
-          <FrameHeader className="p-4">
-            <FrameTitle>{T.status.title}</FrameTitle>
-            <FrameDescription>{T.status.description}</FrameDescription>
-          </FrameHeader>
-          <Row label={T.status.workerKek}>{kekState(o.worker.kekConfigured)}</Row>
-          <Row label={T.status.panelKek}>{kekState(panelKek)}</Row>
-          <Row
-            label={T.status.worker}
-            hint={
-              o.worker.reportedAt
-                ? fill(T.status.lastReport, { when: f.relative(o.worker.reportedAt) })
-                : T.status.neverReported
-            }
-          >
-            {o.worker.alive ? (
-              <State tone="success-light">{T.status.alive}</State>
-            ) : (
-              <State tone="destructive-light">{T.status.down}</State>
-            )}
-          </Row>
-          <Row label={T.status.endpoints}>
-            {fill(T.status.endpointsValue, { n: o.endpoints, active: o.activeEndpoints })}
-          </Row>
-          <Row
-            label={T.status.queue}
-            hint={
-              o.overdueSeconds > 0
-                ? fill(T.status.overdue, { duration: formatDuration(locale, o.overdueSeconds * 1000) })
-                : null
-            }
-          >
-            {fill(T.status.queueValue, { pending: f.number(o.pending), dead: f.number(o.dead) })}
-          </Row>
-          <Row label={T.status.plaintext}>
-            {o.plaintextSecrets > 0 ? (
-              <State tone="warning-light">{f.number(o.plaintextSecrets)}</State>
-            ) : (
-              <State tone="success-light">{T.status.noneLeft}</State>
-            )}
-          </Row>
-          {kekMissing ? (
-            <div className="p-4">
-              <Alert variant="info">
-                <KeyRound />
-                <AlertDescription>{T.status.kekHint}</AlertDescription>
-              </Alert>
-            </div>
-          ) : null}
-        </FramePanel>
-      </Frame>
+      {/* o retrato no padrão de linhas com estado (settings-4, #1076), como Credenciais e Status dos serviços */}
+      <div className="flex flex-col gap-4">
+        <StatusList
+          id="estado-dos-webhooks"
+          title={T.status.title}
+          description={T.status.description}
+          sections={[
+            {
+              id: 'webhooks',
+              items: [
+                {
+                  id: 'chave-worker',
+                  icon: <KeyRound />,
+                  name: T.status.workerKek,
+                  ...kek(o.worker.kekConfigured),
+                },
+                { id: 'chave-painel', icon: <LockKeyhole />, name: T.status.panelKek, ...kek(panelKek) },
+                {
+                  id: 'worker',
+                  icon: <Server />,
+                  name: T.status.worker,
+                  purpose: o.worker.reportedAt
+                    ? fill(T.status.lastReport, { when: f.relative(o.worker.reportedAt) })
+                    : T.status.neverReported,
+                  tone: o.worker.alive ? 'ok' : 'offline',
+                  statusLabel: o.worker.alive ? T.status.alive : T.status.down,
+                },
+                {
+                  id: 'endpoints',
+                  icon: <Webhook />,
+                  name: T.status.endpoints,
+                  tone: 'neutral',
+                  statusLabel: fill(T.status.endpointsValue, { n: o.endpoints, active: o.activeEndpoints }),
+                },
+                {
+                  id: 'fila',
+                  icon: <Inbox />,
+                  name: T.status.queue,
+                  purpose:
+                    o.overdueSeconds > 0
+                      ? fill(T.status.overdue, { duration: formatDuration(locale, o.overdueSeconds * 1000) })
+                      : undefined,
+                  tone: (o.dead > 0 || o.overdueSeconds > 0 ? 'warning' : 'neutral') satisfies StatusTone,
+                  statusLabel: fill(T.status.queueValue, {
+                    pending: f.number(o.pending),
+                    dead: f.number(o.dead),
+                  }),
+                },
+                {
+                  id: 'sem-cifra',
+                  icon: <ShieldAlert />,
+                  name: T.status.plaintext,
+                  tone: o.plaintextSecrets > 0 ? 'warning' : 'ok',
+                  statusLabel: o.plaintextSecrets > 0 ? f.number(o.plaintextSecrets) : T.status.noneLeft,
+                },
+              ],
+            },
+          ]}
+        />
+        {kekMissing ? (
+          <Alert variant="info">
+            <KeyRound />
+            <AlertDescription>{T.status.kekHint}</AlertDescription>
+          </Alert>
+        ) : null}
+      </div>
 
       <Frame>
         <FramePanel className="p-0">

@@ -711,7 +711,7 @@ A resposta do onde assistir traz o bloco aditivo **`availability`**: além de qu
   Os canais vêm das opções publicadas e do **canal do jogo** gravado pelo job `wtw-channel` (`enrich.match_channel`, [07 §2.2.4](07-ia-tempo-real-e-enriquecimento.md#224-canal-do-jogo)): canal confirmado ali que ainda não era opção publicada entra em `options` (e em `free_tv`/`pay_tv_channels`) como `confirmed`, e o "a confirmar" sai. Reprise não é inventada: a demo, depois do jogo, só aponta os vídeos relacionados que já existem ([12](12-conteudo-relacionado.md)).
 - `your_operator`: a operadora do próprio tenant (`api.tenant.operator_platform_id`), com os planos em que o jogo está (`plans: []` = não está na grade dela); `null` quando o tenant não é operadora.
 - **Regra por tenant:** com operadora e `show_other_operators = false`, `platforms` traz só a própria operadora e os streamings; com `true`, ou sem operadora (outros tenants e a demo), todas, a do tenant primeiro.
-- **Piso editorial:** `LINEUP_MIN_REVIEW_STATUS` (`draft` | `reviewed` | `approved`, padrão `approved`; painel Ajustes → Operação), no mesmo padrão do `SEMANTIC_MIN_REVIEW_STATUS`.
+- **Piso editorial:** `LINEUP_MIN_REVIEW_STATUS` (`draft` | `reviewed` | `approved`, padrão `approved`; painel Ajustes → Produtos → Grades e ofertas, aba Ajustes), no mesmo padrão do `SEMANTIC_MIN_REVIEW_STATUS`.
 - **Cache:** a operadora do tenant (e o filtro dela) entra no `vary`; tags `platform` e `platform:<id>` somadas às do onde assistir.
 
 | Rota | O que devolve |
