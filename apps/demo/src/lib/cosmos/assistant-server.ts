@@ -16,8 +16,10 @@ import {
   type ScreenContext,
   verifiedHistory,
 } from '@galaxie/cosmos';
+import type { Actor } from '@galaxie/engage';
 
 import { builderDb } from '@/lib/builder/store';
+import { can } from '@/lib/client/permissions';
 import { getDictionary } from '@/lib/i18n/dictionary';
 import type { Locale } from '@/lib/i18n/config';
 
@@ -122,17 +124,18 @@ export function assistantSigningKey(env: Record<string, string | undefined> = pr
 }
 
 /**
- * Quem pode perguntar: o cliente do próprio tenant, com o módulo Cosmos AI no contrato. A equipe Galaxie
- * acompanhando um tenant não gasta os créditos dele. TODO(#996): conferir `can(ctx, 'cosmos.assistant.ask')`
- * quando os cargos (#1053) estiverem na main.
+ * Quem pode perguntar: o cliente do próprio tenant, com o módulo Cosmos AI no contrato e cargo que abre
+ * `cosmos.assistant.ask` (#996; voluntário não). A equipe Galaxie acompanhando um tenant não gasta os créditos dele.
  */
 export function assistantAccessError(ctx: {
   role: 'admin' | 'client';
-  tenant: { modules: readonly string[] } | null;
-}): 'unauthorized' | 'staff' | 'module' | null {
+  tenant: { id: string; modules: readonly string[] } | null;
+  actor: Actor | null;
+}): 'unauthorized' | 'staff' | 'module' | 'role' | null {
   if (!ctx.tenant) return 'unauthorized';
   if (ctx.role === 'admin') return 'staff';
   if (!ctx.tenant.modules.includes('cosmos_ai')) return 'module';
+  if (!can(ctx, 'cosmos.assistant.ask')) return 'role';
   return null;
 }
 

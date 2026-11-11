@@ -18,7 +18,7 @@ import { allowEstimate } from './assistant-limits';
 
 export type EstimateResult =
   | { ok: true; credits: number }
-  | { ok: false; error: 'unauthorized' | 'staff' | 'module' | 'unavailable' | 'rate_limited' };
+  | { ok: false; error: 'unauthorized' | 'staff' | 'module' | 'role' | 'unavailable' | 'rate_limited' };
 
 export async function estimateAssistantQuestion(body: unknown): Promise<EstimateResult> {
   const ctx = await readClientContext();

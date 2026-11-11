@@ -48,6 +48,7 @@ export type AssistantErrorCode =
   | 'unavailable'
   | 'module'
   | 'staff'
+  | 'role'
   | 'disabled'
   | 'blocked'
   | 'insufficient'

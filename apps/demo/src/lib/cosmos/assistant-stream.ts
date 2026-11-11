@@ -8,6 +8,7 @@ export type AssistantErrorCode =
   | 'unavailable'
   | 'module'
   | 'staff'
+  | 'role'
   | 'disabled'
   | 'blocked'
   | 'insufficient'
@@ -29,6 +30,7 @@ const CODES: readonly AssistantErrorCode[] = [
   'unavailable',
   'module',
   'staff',
+  'role',
   'disabled',
   'blocked',
   'insufficient',

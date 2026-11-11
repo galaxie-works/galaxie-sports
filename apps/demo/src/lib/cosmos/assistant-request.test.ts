@@ -1,3 +1,4 @@
+import type { TenantRole } from '@galaxie/engage';
 import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('@/lib/builder/store', () => ({ builderDb: () => ({}) }));
@@ -54,11 +55,20 @@ describe('entrada do assistente', () => {
 
 describe('quem pode perguntar', () => {
   it('cliente com o módulo; a equipe acompanhando o tenant não gasta os créditos dele', () => {
-    const tenant = { modules: ['core_data', 'cosmos_ai'] };
-    expect(assistantAccessError({ role: 'client', tenant })).toBeNull();
-    expect(assistantAccessError({ role: 'admin', tenant })).toBe('staff');
-    expect(assistantAccessError({ role: 'client', tenant: { modules: ['core_data'] } })).toBe('module');
-    expect(assistantAccessError({ role: 'client', tenant: null })).toBe('unauthorized');
+    const tenant = { id: 't1', modules: ['core_data', 'cosmos_ai'] };
+    const as = (role: TenantRole) => ({ kind: 'member', tenantId: tenant.id, role, scope: null }) as const;
+    expect(assistantAccessError({ role: 'client', tenant, actor: as('owner') })).toBeNull();
+    expect(assistantAccessError({ role: 'client', tenant, actor: as('moderator') })).toBeNull();
+    expect(assistantAccessError({ role: 'client', tenant, actor: as('volunteer') })).toBe('role');
+    expect(assistantAccessError({ role: 'admin', tenant, actor: { kind: 'galaxie_staff' } })).toBe('staff');
+    expect(
+      assistantAccessError({
+        role: 'client',
+        tenant: { ...tenant, modules: ['core_data'] },
+        actor: as('owner'),
+      }),
+    ).toBe('module');
+    expect(assistantAccessError({ role: 'client', tenant: null, actor: null })).toBe('unauthorized');
   });
 
   it('a estimativa tem limite por pessoa por minuto', () => {

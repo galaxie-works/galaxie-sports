@@ -34,6 +34,7 @@ const STATUS: Partial<Record<AssistantErrorCode, number>> = {
   bad_request: 400,
   staff: 403,
   module: 403,
+  role: 403,
   unavailable: 503,
   busy: 429,
   rate_limited: 429,

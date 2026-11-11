@@ -226,6 +226,7 @@ export default defineMessages(
         module: 'O módulo Cosmos AI não está no contrato desta conta. Fale com o time da Galaxie.',
         staff:
           'A equipe Galaxie não usa o assistente com os créditos do cliente. Entre com uma conta do cliente para testar.',
+        role: 'Seu cargo nesta conta não usa o assistente da Cosmos. O dono ou um admin da conta pode mudar o seu cargo.',
         busy: 'Espere a resposta anterior terminar antes de perguntar de novo.',
         rate_limited: 'Muitas perguntas em pouco tempo. Espere um minuto e tente de novo.',
         tenant_limit: 'Esta conta chegou ao limite de uso do assistente por hoje. Volta amanhã.',
@@ -462,6 +463,7 @@ export default defineMessages(
           module: 'The Cosmos AI module is not in this account’s contract. Contact the Galaxie team.',
           staff:
             'The Galaxie team does not use the assistant with the client’s credits. Sign in with a client account to test.',
+          role: 'Your role in this account does not include the Cosmos assistant. The account owner or an admin can change your role.',
           busy: 'Wait for the previous answer to finish before asking again.',
           rate_limited: 'Too many questions in a short time. Wait a minute and try again.',
           tenant_limit: 'This account reached today’s assistant usage limit. It resets tomorrow.',
@@ -696,6 +698,7 @@ export default defineMessages(
             'El módulo Cosmos AI no está en el contrato de esta cuenta. Habla con el equipo de Galaxie.',
           staff:
             'El equipo de Galaxie no usa el asistente con los créditos del cliente. Entra con una cuenta del cliente para probar.',
+          role: 'Tu cargo en esta cuenta no incluye el asistente de Cosmos. El dueño o un admin de la cuenta puede cambiar tu cargo.',
           busy: 'Espera a que termine la respuesta anterior antes de preguntar de nuevo.',
           rate_limited: 'Demasiadas preguntas en poco tiempo. Espera un minuto e intenta de nuevo.',
           tenant_limit: 'Esta cuenta llegó al límite de uso del asistente por hoy. Se renueva mañana.',
