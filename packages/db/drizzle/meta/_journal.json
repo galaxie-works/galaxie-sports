@@ -589,6 +589,13 @@
       "when": 1794406770458,
       "tag": "0087_ficha_por_pais",
       "breakpoints": true
+    },
+    {
+      "idx": 84,
+      "version": "7",
+      "when": 1794421811901,
+      "tag": "0091_moderacao_listas",
+      "breakpoints": true
     }
   ]
 }

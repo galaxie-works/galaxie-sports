@@ -3,7 +3,7 @@ import type { FastifyInstance } from 'fastify';
 import { Redis } from 'ioredis';
 import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { closeDb, createDb, runMigrations, type Database } from '@galaxie/db';
+import { closeDb, createDb, moderationList, runMigrations, type Database } from '@galaxie/db';
 import { generateAdminKey, hashAdminKey } from '../src/admin/guard.js';
 import { loadPlans } from '../src/admin/plans.js';
 import { FanTokenSigner } from '../src/engage/fan-token.js';
@@ -125,6 +125,25 @@ describe('identidade do torcedor (#937)', () => {
     const count = await sql`select count(*)::int as n from fan.profile where tenant_id = ${t.id}`;
     await sql.end();
     expect(count[0]!.n).toBe(1);
+  });
+
+  it('Apelido passa pelo filtro de moderação (#969): ofensa, aposta e lista do cliente recusam', async () => {
+    const t = await tenantKey('fans-mod', ['core_data', 'live_chat']);
+    for (const nickname of ['m4c4c0', 'bet365', 'porra']) {
+      const r = await issue(t.key, { ...base, externalProfileId: `mod_${nickname}`, nickname });
+      expect(r.statusCode, nickname).toBe(400);
+      expect(r.json()).toMatchObject({ code: 'INVALID_PARAMS', errors: [{ path: 'nickname' }] });
+    }
+    expect(
+      (await issue(t.key, { ...base, externalProfileId: 'mod_ok', nickname: 'Macaense_10' })).statusCode,
+    ).toBe(201);
+    // lista do cliente acrescenta termo (vale depois do cache de 60 s; aqui, um cliente novo)
+    const t2 = await tenantKey('fans-mod-2', ['core_data', 'live_chat']);
+    await db
+      .insert(moderationList)
+      .values({ tenantId: t2.id, list: 'hate', locale: 'pt', terms: ['gamba'], updatedBy: 'teste' });
+    const r = await issue(t2.key, { ...base, externalProfileId: 'mod_gamba', nickname: 'Gambá' });
+    expect(r.statusCode).toBe(400);
   });
 
   it('nenhuma coluna de e-mail, documento, telefone ou nascimento no schema fan', async () => {

@@ -16,6 +16,7 @@ import {
   type FanMe,
   type FanTokenResponse,
 } from '@galaxie/contracts';
+import { screen, screenNotice } from '@galaxie/engage';
 import { isEngageModule, type Database } from '@galaxie/db';
 import type { TenantContext } from '../auth/authenticator.js';
 import { problems } from '../errors.js';
@@ -24,6 +25,7 @@ import { FAN_REVOCATION_TTL_S, type FanRevocations, type FanTokenTtl } from './f
 import { fanCan, fanCapabilities } from './fan-rules.js';
 import type { FanTokenSigner } from './fan-token.js';
 import { eraseFan, patchFan, readFan, upsertFan, type FanProfileView } from './fans.js';
+import { ModerationLists } from './moderation.js';
 
 export interface FanRoutesDeps {
   db: Database | undefined;
@@ -63,6 +65,7 @@ export async function fanRoutes(app: FastifyInstance, deps: FanRoutesDeps): Prom
     if (!deps.db) throw problems.degraded('Banco de dados não configurado.');
     return deps.db;
   };
+  const moderation = deps.db ? new ModerationLists(deps.db) : null;
   const signer = () => {
     if (!deps.signer) throw problems.degraded('Tokens do torcedor não configurados (FAN_TOKEN_SECRET).');
     return deps.signer;
@@ -72,7 +75,19 @@ export async function fanRoutes(app: FastifyInstance, deps: FanRoutesDeps): Prom
     const tenant = engageTenant(request);
     const body = parseInput(FanTokenBody, request.body);
     const sign = signer();
-    const { accountId, profileId } = await upsertFan(db(), {
+    const database = db();
+    // Apelido passa pelo filtro (#969): qualquer achado recusa, porque o Apelido aparece para todos
+    const screened = screen(
+      body.nickname,
+      { kind: 'nickname', locale: body.locale },
+      await moderation!.forTenant(tenant.tenantId),
+    );
+    if (screened.action !== 'allow')
+      throw problems.invalidParams(
+        [{ path: 'nickname', message: screenNotice(screened, 'pt-BR') ?? 'Apelido não permitido.' }],
+        'Apelido não permitido pelas regras de moderação.',
+      );
+    const { accountId, profileId } = await upsertFan(database, {
       tenantId: tenant.tenantId,
       externalAccountId: body.externalAccountId,
       externalProfileId: body.externalProfileId,

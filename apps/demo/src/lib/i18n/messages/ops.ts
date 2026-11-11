@@ -209,10 +209,6 @@ export default defineMessages(
           what: 'Guarda de 2 anos, legal hold e pedidos de exportação judicial com hash.',
           phase: 'Base do engajamento',
         },
-        moderation: {
-          what: 'Lista proibida global, regras fixas, Escada e Modo de entrada (teto), denúncias para ocultar.',
-          phase: 'Base do engajamento',
-        },
         secondAppeal: {
           what: 'Fila da Galaxie para cliente sem equipe própria, com prazo de 72 h.',
           phase: 'Base do engajamento',
@@ -2002,10 +1998,6 @@ export default defineMessages(
             what: 'Two-year retention, legal hold and court export requests with hash.',
             phase: 'Engagement base',
           },
-          moderation: {
-            what: 'Global block list, fixed rules, Ladder and Entry mode (cap), reports to hide.',
-            phase: 'Engagement base',
-          },
           secondAppeal: {
             what: "Galaxie's queue for clients without their own team, with a 72-hour deadline.",
             phase: 'Engagement base',
@@ -3776,10 +3768,6 @@ export default defineMessages(
           },
           legalHold: {
             what: 'Custodia de 2 años, legal hold y pedidos de exportación judicial con hash.',
-            phase: 'Base de la participación',
-          },
-          moderation: {
-            what: 'Lista prohibida global, reglas fijas, Escalera y Modo de entrada (tope), denuncias para ocultar.',
             phase: 'Base de la participación',
           },
           secondAppeal: {
