@@ -86,10 +86,41 @@ const pr = (number, base, head, mig = []) => ({
 test('pilhas e ordem de merge', () => {
   const prs = [pr(3, 'b', 'c'), pr(2, 'a', 'b', [90]), pr(1, 'main', 'a', [89]), pr(5, 'main', 'x', [82]), pr(4, 'main', 'y')];
   const st = stackInfo(prs);
-  assert.deepEqual(st.get(1), { parent: null, children: [2], stacked: true });
-  assert.deepEqual(st.get(3), { parent: 2, children: [], stacked: true });
+  assert.deepEqual(st.get(1), { parent: null, parentBranch: null, children: [2], stacked: true });
+  assert.deepEqual(st.get(3), { parent: 2, parentBranch: null, children: [], stacked: true });
   assert.equal(st.get(5).stacked, false);
   assert.deepEqual(mergeOrder(prs, st).map((p) => p.number), [5, 1, 2, 3, 4]);
+});
+
+test('pilha cuja raiz não tem migration ordena pela menor migration da pilha', () => {
+  const prs = [pr(1, 'main', 'a'), pr(2, 'a', 'b', [82]), pr(3, 'main', 'c', [83])];
+  assert.deepEqual(mergeOrder(prs, stackInfo(prs)).map((p) => p.number), [1, 2, 3]);
+});
+
+test('pilha com pai ou filho fora do filtro continua pilha', () => {
+  const all = [pr(1, 'main', 'a'), pr(2, 'a', 'b')];
+  const st = stackInfo(all);
+  assert.equal(st.get(1).stacked, true);
+  assert.deepEqual(mergeOrder([all[1]], st).map((p) => p.number), [2]);
+  const orphan = stackInfo([pr(9, 'feat-x', 'y')]).get(9);
+  assert.deepEqual(orphan, { parent: null, parentBranch: 'feat-x', children: [], stacked: true });
+  const base = { title: 't', isDraft: false, mergeable: 'MERGEABLE', ci: summarizeCi([]), status: { fields: {} } };
+  const txt = render({ title: 'x', prs: [{ ...all[0], ...base }], stacks: st, generatedAt: 'g', issues: [] });
+  assert.match(txt, /pilha, base de #2; entra com merge commit/);
+});
+
+test('migration repetida dentro do mesmo PR', () => {
+  const issues = migrationIssues([{ number: 5, migrations: [{ num: 82 }, { num: 82 }] }], 81);
+  assert.deepEqual(issues.map((i) => i.text), ['0082 aparece mais de uma vez no #5']);
+});
+
+test('comentário comum com "CI:" não apaga o status', () => {
+  const s = parseStatusComments([
+    { body: 'Revisão: ok', createdAt: '1' },
+    { body: 'ci: o gate foi corrigido', createdAt: '2' },
+    { body: 'CI: rodando de novo', createdAt: '3' },
+  ]);
+  assert.deepEqual(s.fields, { 'Revisão': 'ok' });
 });
 
 test('texto final', () => {

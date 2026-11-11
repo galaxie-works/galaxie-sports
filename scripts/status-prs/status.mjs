@@ -15,12 +15,36 @@
  * Quem monta o lote de merge roda isto na hora; as sessões das frentes só deixam o comentário de status no PR.
  */
 import { execFileSync } from 'node:child_process';
-import { lastJournalEntry, migrationIssues, parseStatusComments, prMigrations, render, summarizeCi } from './lib.mjs';
+import {
+  lastJournalEntry,
+  migrationIssues,
+  parseStatusComments,
+  prMigrations,
+  render,
+  stackInfo,
+  summarizeCi,
+} from './lib.mjs';
 
 const FIELDS = [
   'number', 'title', 'url', 'isDraft', 'baseRefName', 'headRefName', 'headRefOid', 'mergeable',
-  'labels', 'files', 'body', 'statusCheckRollup', 'comments',
+  'labels', 'files', 'changedFiles', 'body', 'statusCheckRollup', 'comments',
 ].join(',');
+
+/** O `files` do `gh pr list` para em 100 arquivos: o PR maior busca a lista inteira para não perder migration. */
+function allFiles(p) {
+  if (!p.changedFiles || (p.files?.length ?? 0) >= p.changedFiles) return p.files ?? [];
+  const out = gh(['api', '--paginate', `repos/{owner}/{repo}/pulls/${p.number}/files?per_page=100`, '--jq', '.[].filename']);
+  return out.split(/\r?\n/).filter(Boolean).map((path) => ({ path }));
+}
+
+function positiveInt(name, raw) {
+  const n = Number(String(raw).replace('#', '').trim());
+  if (!Number.isInteger(n) || n <= 0) {
+    console.error(`${name} precisa de um número positivo (recebido: "${raw}")`);
+    process.exit(2);
+  }
+  return n;
+}
 
 function gh(args) {
   return execFileSync('gh', args, { encoding: 'utf8', maxBuffer: 256 * 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe'] });
@@ -32,9 +56,9 @@ function parseArgs(argv) {
     const a = argv[i];
     const next = () => argv[++i] ?? '';
     const val = a.includes('=') ? a.slice(a.indexOf('=') + 1) : null;
-    if (a.startsWith('--epico')) opts.epico = Number((val ?? next()).replace('#', ''));
-    else if (a.startsWith('--pr')) opts.prs = (val ?? next()).split(',').map((s) => Number(s.trim().replace('#', ''))).filter(Boolean);
-    else if (a.startsWith('--limit')) opts.limit = Number(val ?? next());
+    if (a === '--epico' || a.startsWith('--epico=')) opts.epico = positiveInt('--epico', val ?? next());
+    else if (a === '--pr' || a.startsWith('--pr=')) opts.prs = (val ?? next()).split(',').map((s) => positiveInt('--pr', s));
+    else if (a === '--limit' || a.startsWith('--limit=')) opts.limit = positiveInt('--limit', val ?? next());
     else if (a === '--json') opts.json = true;
     else if (a === '-h' || a === '--help') {
       console.log('uso: pnpm status:prs [--epico N] [--pr N,M] [--json] [--limit 100]');
@@ -64,7 +88,7 @@ function main() {
   const open = JSON.parse(gh(['pr', 'list', '--state', 'open', '--limit', String(opts.limit), '--json', FIELDS]));
   const all = open.map((p) => ({
     ...p,
-    migrations: prMigrations(p.files),
+    migrations: prMigrations(allFiles(p)),
     ci: summarizeCi(p.statusCheckRollup),
     status: parseStatusComments(p.comments),
   }));
@@ -97,7 +121,8 @@ function main() {
     console.log(JSON.stringify({ title, generatedAt, mainLast: last?.tag ?? null, merged: merged.map((p) => p.number), prs: slim, issues }, null, 2));
     return;
   }
-  console.log(render({ title, prs: selected, merged, mainLast, generatedAt, issues }));
+  // Pilhas sobre todos os abertos: pai ou filho fora do filtro continua contando (nunca sugerir squash numa pilha).
+  console.log(render({ title, prs: selected, stacks: stackInfo(all), merged, mainLast, generatedAt, issues }));
 }
 
 try {

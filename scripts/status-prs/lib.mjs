@@ -77,11 +77,13 @@ export function migrationIssues(prs, mainLast) {
     byNum.get(m.num).push(pr.number);
   }
   const issues = [];
-  for (const [num, owners] of [...byNum].sort(([a], [b]) => a - b)) {
+  for (const [num, all] of [...byNum].sort(([a], [b]) => a - b)) {
     const pad = String(num).padStart(4, '0');
-    owners.sort((a, b) => a - b);
+    const owners = [...new Set(all)].sort((a, b) => a - b);
     const who = owners.map((n) => `#${n}`).join(', ');
     if (owners.length > 1) issues.push({ prs: owners, text: `${pad} reservada em mais de um PR: ${who}` });
+    for (const n of owners)
+      if (all.filter((x) => x === n).length > 1) issues.push({ prs: [n], text: `${pad} aparece mais de uma vez no #${n}` });
     if (mainLast != null && num <= mainLast)
       issues.push({ prs: owners, text: `${pad} (${who}) já existe na main (última: ${String(mainLast).padStart(4, '0')}); renumerar` });
   }
@@ -90,11 +92,13 @@ export function migrationIssues(prs, mainLast) {
 
 /**
  * Lê o comentário padrão de status mais recente: linhas "Revisão: …", "Próximo passo: …", "CI: …", "Observação: …".
- * Também reconhece o aviso de cota do Codex. Retorna { fields: {chave: texto}, at, codexNoQuota }.
+ * Só conta como status o comentário com a linha "Revisão:" ou com pelo menos duas das chaves (um comentário qualquer
+ * com uma linha "CI: …" não apaga o status). Também reconhece o aviso de cota do Codex.
+ * Retorna { fields: {chave: texto}, at, codexNoQuota }.
  */
 export function parseStatusComments(comments = []) {
-  // "Revisão: x", "- Revisão: x", "**Revisão**: x" e "**Revisão:** x".
-  const keyRe = new RegExp(`^\\s*[-*]?\\s*\\**(${STATUS_KEYS.join('|')})\\**\\s*:\\s*\\**\\s*(.+)$`, 'i');
+  // "Revisão: x", "- Revisão: x", "**Revisão**: x" e "**Revisão:** x"; chave com a grafia exata.
+  const keyRe = new RegExp(`^\\s*[-*]?\\s*\\**(${STATUS_KEYS.join('|')})\\**\\s*:\\s*\\**\\s*(.+)$`);
   let fields = {};
   let at = null;
   let codexNoQuota = false;
@@ -105,10 +109,10 @@ export function parseStatusComments(comments = []) {
     for (const line of body.split(/\r?\n/)) {
       const m = keyRe.exec(line);
       if (!m) continue;
-      const key = STATUS_KEYS.find((k) => k.toLowerCase() === m[1].toLowerCase());
-      found[key] = m[2].trim();
+      found[m[1]] = m[2].trim();
     }
-    if (Object.keys(found).length && (!at || (c.createdAt ?? '') >= at)) {
+    const isStatus = Boolean(found['Revisão']) || Object.keys(found).length >= 2;
+    if (isStatus && (!at || (c.createdAt ?? '') >= at)) {
       fields = found;
       at = c.createdAt ?? at;
     }
@@ -116,24 +120,38 @@ export function parseStatusComments(comments = []) {
   return { fields, at, codexNoQuota };
 }
 
-/** Pilhas: o PR cuja base é o branch de outro PR aberto está empilhado nele. */
+/**
+ * Pilhas, calculadas sobre TODOS os PRs abertos (não só os filtrados, senão o pai ou o filho fora do filtro some):
+ * o PR cuja base é o branch de outro PR aberto está empilhado nele. Base diferente da main sem PR aberto para ela
+ * também conta como pilha (`parentBranch`), para nunca sugerir squash.
+ */
 export function stackInfo(prs) {
   const byHead = new Map(prs.map((p) => [p.headRefName, p]));
   const info = new Map();
   for (const p of prs) {
-    const parent = p.baseRefName !== 'main' ? byHead.get(p.baseRefName) : undefined;
+    const onMain = p.baseRefName === 'main';
+    const parent = onMain ? undefined : byHead.get(p.baseRefName);
     const children = prs.filter((c) => c.baseRefName === p.headRefName).map((c) => c.number);
-    info.set(p.number, { parent: parent?.number ?? null, children, stacked: Boolean(parent) || children.length > 0 });
+    info.set(p.number, {
+      parent: parent?.number ?? null,
+      parentBranch: onMain || parent ? null : p.baseRefName,
+      children,
+      stacked: !onMain || children.length > 0,
+    });
   }
   return info;
 }
 
-/** Ordem de merge: a base de cada pilha antes dos filhos; entre independentes, menor migration primeiro, depois número. */
+/**
+ * Ordem de merge dos PRs da lista: a base de cada pilha antes dos filhos; entre pilhas e independentes, a menor
+ * migration da pilha inteira primeiro, depois o número.
+ */
 export function mergeOrder(prs, stacks) {
-  const firstMig = (p) => p.migrations[0]?.num ?? Infinity;
-  const roots = prs.filter((p) => stacks.get(p.number).parent === null || !prs.some((x) => x.number === stacks.get(p.number).parent));
-  roots.sort((a, b) => firstMig(a) - firstMig(b) || a.number - b.number);
   const byNum = new Map(prs.map((p) => [p.number, p]));
+  const descendants = (p) => [p, ...stacks.get(p.number).children.filter((c) => byNum.has(c)).flatMap((c) => descendants(byNum.get(c)))];
+  const minMig = (p) => Math.min(...descendants(p).map((d) => d.migrations[0]?.num ?? Infinity));
+  const roots = prs.filter((p) => !byNum.has(stacks.get(p.number).parent));
+  roots.sort((a, b) => minMig(a) - minMig(b) || a.number - b.number);
   const order = [];
   const visit = (p) => {
     if (order.includes(p)) return;
@@ -162,8 +180,7 @@ function ciText(ci, sha) {
 }
 
 /** Texto do status, pronto para colar ou para o Agente Master ler. */
-export function render({ title, prs, merged = [], mainLast, generatedAt, issues }) {
-  const stacks = stackInfo(prs);
+export function render({ title, prs, stacks = stackInfo(prs), merged = [], mainLast, generatedAt, issues }) {
   const ordered = mergeOrder(prs, stacks);
   const lines = [];
   lines.push(`${title} — gerado em ${generatedAt}`);
@@ -181,7 +198,7 @@ export function render({ title, prs, merged = [], mainLast, generatedAt, issues 
     const st = stacks.get(p.number);
     const draft = p.isDraft ? 'rascunho' : 'pronto para revisão';
     const how = st.stacked
-      ? `pilha${st.parent ? ` sobre #${st.parent}` : ''}${st.children.length ? `, base de ${st.children.map((n) => `#${n}`).join(', ')}` : ''}; entra com merge commit`
+      ? `pilha${st.parent ? ` sobre #${st.parent}` : ''}${st.parentBranch ? ` sobre ${st.parentBranch} (sem PR aberto)` : ''}${st.children.length ? `, base de ${st.children.map((n) => `#${n}`).join(', ')}` : ''}; entra com merge commit`
       : `base ${p.baseRefName}, independente; entra com squash`;
     lines.push('');
     lines.push(`${i + 1}. #${p.number}, ${p.title}`);
