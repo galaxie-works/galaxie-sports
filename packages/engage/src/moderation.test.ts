@@ -338,23 +338,30 @@ describe('screen: rodada 4 da revisão (#1101)', () => {
     },
   );
 
-  it.each(['v!ado', 'v!@d0', 'v|@d0', 'v!!ado', 'm4c4c4-fc', 'v!\u0430do', 'v|\u0430do'])(
-    'o drible com símbolo no meio continua pegando: %s',
-    (t) => {
-      expect(chat(t)).toMatchObject({ action: 'shadow', evasion: true });
-    },
-  );
+  it.each([
+    'v!ado',
+    'v!@d0',
+    'v|@d0',
+    'v!!ado',
+    'm4c4c4-fc',
+    'v!\u0430do',
+    'v|\u0430do',
+    `v${'!'.repeat(20)}ado`,
+  ])('o drible com símbolo no meio continua pegando: %s', (t) => {
+    expect(chat(t)).toMatchObject({ action: 'shadow', evasion: true });
+  });
 
   it('macaca!!fc publica e vai para a Cosmos', () => {
     expect(chat('macaca!!fc')).toMatchObject({ action: 'allow', suspect: true });
   });
 
-  it.each(['segue a vida ponto com fe', 'siga o baile ponto com calma'])(
-    'artigo de uma letra não vira chamada de link: %s',
-    (t) => {
-      expect(chat(t)).toMatchObject({ action: 'allow', suspect: true });
-    },
-  );
+  it.each([
+    'segue a vida ponto com fe',
+    'siga o baile ponto com calma',
+    'jogo entre a ponte ponto com casa cheia',
+  ])('artigo de uma letra não vira chamada de link: %s', (t) => {
+    expect(chat(t)).toMatchObject({ action: 'allow', suspect: true });
+  });
 
   it.each(['Ganhamos o jogo. Com certeza', 'Que vitória. Com esse time vamos longe', 'Jogou bem. Br demais'])(
     'frase depois de ponto final não vai para a Cosmos: %s',
