@@ -338,9 +338,23 @@ describe('screen: rodada 4 da revisão (#1101)', () => {
     },
   );
 
-  it('o drible com ! antes de letra continua pegando', () => {
-    expect(chat('m4c4c0 volta pra senzal!a').action).toBe('shadow');
+  it.each(['v!ado', 'v!@d0', 'v|@d0', 'v!!ado', 'm4c4c4-fc'])(
+    'o drible com símbolo no meio continua pegando: %s',
+    (t) => {
+      expect(chat(t)).toMatchObject({ action: 'shadow', evasion: true });
+    },
+  );
+
+  it('macaca!!fc publica e vai para a Cosmos', () => {
+    expect(chat('macaca!!fc')).toMatchObject({ action: 'allow', suspect: true });
   });
+
+  it.each(['segue a vida ponto com fe', 'visita a ponte ponto com calma'])(
+    'artigo de uma letra não vira chamada de link: %s',
+    (t) => {
+      expect(chat(t)).toMatchObject({ action: 'allow', suspect: true });
+    },
+  );
 
   it.each(['Ganhamos o jogo. Com certeza', 'Que vitória. Com esse time vamos longe', 'Jogou bem. Br demais'])(
     'frase depois de ponto final não vai para a Cosmos: %s',
@@ -355,7 +369,7 @@ describe('screen: rodada 4 da revisão (#1101)', () => {
   });
 
   it.each([
-    'acessa o meusite ponto com agora',
+    'acessa no meusite ponto com agora',
     'entra no meusite ponto com hoje',
     'check out the meusite dot com now',
   ])('palavra de chamada com artigo no meio é link: %s', (t) => {
