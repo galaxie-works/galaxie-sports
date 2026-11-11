@@ -29,6 +29,8 @@ export type CosmosErrorCode =
   | 'cosmos_disabled'
   /** Ação da equipe sem motivo (pelo menos 5 caracteres). */
   | 'reason_required'
+  /** Provedor ou modelo de IA fora da lista, ou modelo sem preço na tabela. */
+  | 'invalid_model'
   /** Valor fora da faixa (créditos negativos, zero, NaN). */
   | 'invalid_amount';
 

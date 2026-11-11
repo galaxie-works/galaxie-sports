@@ -9,7 +9,10 @@ import {
   assistantLimitError,
   ASSISTANT_FUNCTION,
   ASSISTANT_LIMITS,
+  ASSISTANT_MODEL,
+  assistantCostUsd,
   buildPrompt,
+  defaultModelFor,
   ensureWallet,
   getWallet,
   listLedger,
@@ -77,7 +80,13 @@ function fakeStream(
 async function run(
   t: string,
   stream: ReturnType<typeof fakeStream>,
-  extra: { credits?: number; signal?: AbortSignal; userId?: string; settings?: CosmosSettings } = {},
+  extra: {
+    credits?: number;
+    signal?: AbortSignal;
+    userId?: string;
+    settings?: CosmosSettings;
+    model?: string;
+  } = {},
 ) {
   const events: AssistantEvent[] = [];
   for await (const e of askAssistant(
@@ -90,6 +99,7 @@ async function run(
       credits: extra.credits ?? 5,
       settings: extra.settings ?? settings,
       signingKey: 'segredo-de-teste',
+      ...(extra.model ? { model: extra.model } : {}),
     },
     { stream, settleBackoffMs: [1, 1], ...(extra.signal ? { signal: extra.signal } : {}) },
   ))
@@ -145,6 +155,27 @@ describe('pergunta ao assistente', () => {
     expect(done.sig).toBe(signAssistantTurn('segredo-de-teste', { tenantId: t, userId: 'u1' }, 'Olá, mundo'));
     expect(await statuses(t)).toEqual(['settled']);
     expect((await getWallet(db, t))?.available).toBeCloseTo(100 - done.charged, 3);
+  });
+
+  it('o modelo da função vai para o extrato e define o preço do acerto (#1088)', async () => {
+    const usageOf = async (t: string) =>
+      (
+        await db
+          .select({ model: ledger.model, cost: ledger.costUsd })
+          .from(ledger)
+          .where(eq(ledger.tenantId, t))
+      ).find((r) => r.model !== null);
+    const tokens = { inputTokens: 20_000, cachedInputTokens: 0, outputTokens: 500, outputFinal: true };
+    const padrao = await newTenant();
+    await run(padrao, fakeStream(['ok'], { tokens }));
+    const outro = await newTenant();
+    await run(outro, fakeStream(['ok'], { tokens }), { model: defaultModelFor('gemini') });
+    const a = await usageOf(padrao);
+    const b = await usageOf(outro);
+    expect(a?.model).toBe(ASSISTANT_MODEL);
+    expect(b?.model).toBe(defaultModelFor('gemini'));
+    expect(b?.cost).toBeCloseTo(assistantCostUsd(tokens, defaultModelFor('gemini')), 6);
+    expect(b?.cost).not.toBe(a?.cost);
   });
 
   it('com a contagem final do provedor, a saída não é estimada pelo texto', async () => {

@@ -10,13 +10,12 @@
  *
  * O navegador que fecha ou o "Parar" cortam o provedor, mas o acerto segue até o fim no servidor.
  */
-import { askAssistant, streamAssistant, type AssistantErrorCode } from '@galaxie/cosmos';
+import { askAssistant, type AssistantErrorCode } from '@galaxie/cosmos';
 
 import { builderDb } from '@/lib/builder/store';
 import { readClientContext } from '@/lib/client/session';
 import {
   assistantAccessError,
-  assistantApiKey,
   assistantSigningKey,
   parseAssistantRequest,
   prepareQuestion,
@@ -56,8 +55,6 @@ export async function POST(request: Request) {
   const tenantId = ctx.tenant!.id;
   const req = parseAssistantRequest(await request.json().catch(() => null));
   if (!req) return fail('bad_request');
-  const apiKey = assistantApiKey();
-  if (!apiKey) return fail('unavailable');
   const scope = { tenantId, userId: ctx.userId };
   const prepared = await prepareQuestion(scope, req, await getRequestLocale());
   if (!prepared) return fail('unavailable');
@@ -70,12 +67,17 @@ export async function POST(request: Request) {
       prompt: prepared.prompt,
       credits: prepared.credits,
       settings: prepared.settings,
+      model: prepared.model,
       signingKey: assistantSigningKey(),
     },
     {
       // desistência (navegador fechou, "Parar") ou o teto de tempo cortam o provedor
       stream: (signal, usage) =>
-        streamAssistant(apiKey, prepared.prompt, usage, {
+        prepared.streamer({
+          apiKey: prepared.apiKey,
+          model: prepared.model,
+          prompt: prepared.prompt,
+          usage,
           signal: AbortSignal.any([signal, request.signal, AbortSignal.timeout(PROVIDER_TIMEOUT_MS)]),
         }),
       signal: request.signal,

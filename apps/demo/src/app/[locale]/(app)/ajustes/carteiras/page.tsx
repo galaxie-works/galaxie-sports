@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 
+import { FunctionsSection } from '@/components/admin/cosmos/functions-section';
 import { PackagesSection } from '@/components/admin/cosmos/packages-section';
 import { WalletsTable } from '@/components/admin/cosmos/wallets-table';
 import { SettingsArea } from '@/components/admin/settings-nav';
@@ -24,6 +25,7 @@ async function Wallets() {
     <div className="flex flex-col gap-6">
       <WalletsTable rows={data.rows} timeZone={timeZone} />
       <PackagesSection packages={data.packages} />
+      <FunctionsSection functions={data.functions} />
     </div>
   );
 }

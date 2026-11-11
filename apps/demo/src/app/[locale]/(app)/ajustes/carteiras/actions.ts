@@ -7,6 +7,8 @@
  */
 import {
   isCosmosError,
+  isCosmosProvider,
+  staffSaveFunction,
   staffCredit,
   staffSavePackage,
   staffSetBlocked,
@@ -42,6 +44,7 @@ async function run(tenantId: string | null, reason: string, fn: (userId: string)
   } catch (err) {
     if (isCosmosError(err, 'reason_required')) return { ok: false, error: e.reason };
     if (isCosmosError(err, 'invalid_amount')) return { ok: false, error: e.amount };
+    if (isCosmosError(err, 'invalid_model')) return { ok: false, error: e.model };
     if (isCosmosError(err, 'insufficient_credits')) return { ok: false, error: e.insufficient };
     console.error('[cosmos] ação da equipe falhou', err);
     return { ok: false, error: e.generic };
@@ -141,6 +144,50 @@ export async function savePackage(form: PackageForm): Promise<StaffActionResult>
       market: form.market.trim().toUpperCase(),
       active: form.active,
       sortOrder: Math.trunc(Number(form.sortOrder) || 0),
+      reason: form.reason,
+      userId,
+    }),
+  );
+}
+
+export interface FunctionForm {
+  name: string;
+  minCredits: number;
+  permission: string;
+  /** '' = o padrão da Cosmos. */
+  provider: string;
+  /** '' = o modelo leve do provedor. */
+  model: string;
+  active: boolean;
+  reason: string;
+}
+
+const FUNCTION_NAME = /^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$/;
+
+/**
+ * Função do catálogo da Cosmos (#1088): mínimo, permissão, provedor e modelo. O pacote recusa provedor fora da
+ * lista e modelo sem preço; aqui só a forma dos campos.
+ */
+export async function saveFunction(form: FunctionForm): Promise<StaffActionResult> {
+  const e = await texts();
+  const minCredits = Number(form.minCredits);
+  if (!(minCredits > 0)) return { ok: false, error: e.amount };
+  const raw = form.provider.trim();
+  const provider = isCosmosProvider(raw) ? raw : null;
+  if (
+    !FUNCTION_NAME.test(form.name.trim()) ||
+    !FUNCTION_NAME.test(form.permission.trim()) ||
+    (raw !== '' && provider === null)
+  )
+    return { ok: false, error: e.model };
+  return run(null, form.reason, (userId) =>
+    staffSaveFunction(builderDb(), {
+      name: form.name.trim(),
+      minCredits,
+      permission: form.permission.trim(),
+      active: form.active,
+      provider,
+      model: provider === null ? null : form.model.trim() || null,
       reason: form.reason,
       userId,
     }),

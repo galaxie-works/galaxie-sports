@@ -5,6 +5,7 @@
 import {
   getWallet,
   listAllPackages,
+  listFunctionDefs,
   listLedger,
   listPackages,
   listPurchasesInReview,
@@ -44,15 +45,22 @@ export interface StaffWalletRow extends WalletOverviewRow {
 export async function loadStaffWallets(): Promise<{
   rows: StaffWalletRow[];
   packages: Awaited<ReturnType<typeof listAllPackages>>;
+  functions: Awaited<ReturnType<typeof listFunctionDefs>>;
   usdBrl: number | null;
 }> {
   const db = builderDb();
-  const [rows, packages, usdBrl] = await Promise.all([
+  const [rows, packages, functions, usdBrl] = await Promise.all([
     walletsOverview(db),
     listAllPackages(db),
+    listFunctionDefs(db),
     readUsdBrl(),
   ]);
-  return { rows: rows.map((r) => ({ ...r, marginUsd: marginUsd(r, usdBrl) })), packages, usdBrl };
+  return {
+    rows: rows.map((r) => ({ ...r, marginUsd: marginUsd(r, usdBrl) })),
+    packages,
+    functions,
+    usdBrl,
+  };
 }
 
 export interface StaffWalletDetail {

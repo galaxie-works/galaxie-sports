@@ -3,19 +3,19 @@
  * créditos antes de rodar e a chamada ao modelo com resposta em fluxo. Toda chamada passa por `reserve` antes e
  * por `settle` (ou `release`) depois, como qualquer função da Cosmos.
  *
- * Padrões provisórios, fáceis de trocar (aguardando o Wagner): chave própria (COSMOS_ANTHROPIC_API_KEY), só o modelo
- * leve e busca por palavras na documentação, sem embeddings. O cliente nunca vê o modelo nem o custo técnico:
- * só créditos.
+ * Provedor e modelo vêm da função no catálogo (#1088, `models.ts`), com a chave da Cosmos naquele provedor
+ * (COSMOS_<PROVEDOR>_API_KEY). Busca por palavras na documentação, sem embeddings. O cliente nunca vê o modelo nem o
+ * custo técnico: só créditos.
  */
 import { ANTHROPIC_CACHE_WRITE_MULTIPLIER, estimateCostUsd } from '@galaxie/ai-ledger/pricing';
-import { AI_DEFAULT_MODELS } from '@galaxie/runtime-config';
 import { creditsFor } from './credits.js';
+import { defaultModelFor, type CosmosProvider } from './models.js';
 
 /** Função do catálogo (`cosmos.function_def`) que o assistente reserva. */
 export const ASSISTANT_FUNCTION = 'assistant.ask';
 
-/** Modelo do assistente nesta etapa: o leve da Anthropic no registro. Uma linha para trocar (ou ler de runtime_setting). */
-export const ASSISTANT_MODEL: string = AI_DEFAULT_MODELS.light.anthropic;
+/** Modelo do assistente quando a função não escolhe outro: o leve da Anthropic no registro. */
+export const ASSISTANT_MODEL: string = defaultModelFor('anthropic');
 
 /** Teto de resposta por pergunta (tokens de saída). */
 export const ASSISTANT_MAX_OUTPUT_TOKENS = 1024;
@@ -148,11 +148,13 @@ export function estimateAssistantCredits(input: {
   creditUsd: number | null;
   multiplier: number;
   minCredits: number;
+  /** Modelo da função (#1088); o preço sai da tabela do ai-ledger. */
+  model?: string;
 }): number {
   const inputTokens =
     approxTokens(input.system) + input.messages.reduce((s, m) => s + approxTokens(m.content), 0);
   const question = input.messages.at(-1)?.content ?? '';
-  const costUsd = estimateCostUsd(ASSISTANT_MODEL, {
+  const costUsd = estimateCostUsd(input.model ?? ASSISTANT_MODEL, {
     inputTokens,
     outputTokens: expectedOutputTokens(question),
   });
@@ -287,3 +289,21 @@ export function assistantCostUsd(usage: StreamUsage, model: string = ASSISTANT_M
     estimateCostUsd(model, { inputTokens: write, outputTokens: 0 }) * ANTHROPIC_CACHE_WRITE_MULTIPLIER;
   return Math.round((base + writeCost) * 1_000_000) / 1_000_000;
 }
+
+/** Uma chamada em fluxo a um provedor: pedaços do texto, e `usage` preenchido com os tokens reais. */
+export type AssistantStreamer = (args: {
+  apiKey: string;
+  model: string;
+  prompt: Pick<AssistantPrompt, 'fixed' | 'screen' | 'messages'>;
+  usage: StreamUsage;
+  signal?: AbortSignal;
+}) => AsyncIterable<string>;
+
+/**
+ * Provedores que o assistente já sabe chamar. Os outros (OpenAI, Gemini, DeepSeek) entram pelo cliente compartilhado
+ * `@galaxie/llm` (#1088); até lá, escolher um deles deixa a função indisponível, sem cobrar nada.
+ */
+export const ASSISTANT_STREAMERS: Partial<Record<CosmosProvider, AssistantStreamer>> = {
+  anthropic: ({ apiKey, model, prompt, usage, signal }) =>
+    streamAssistant(apiKey, prompt, usage, { model, ...(signal ? { signal } : {}) }),
+};

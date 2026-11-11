@@ -11,18 +11,20 @@ import { and, desc, eq, gte, sql } from 'drizzle-orm';
 import type { Database } from '@galaxie/db/client';
 import {
   creditPackage,
+  functionDef,
   ledger,
   purchaseIntent,
   rechargeAttempt,
   staffAction,
   tenant,
   wallet,
+  type StaffActionKind,
 } from '@galaxie/db/schema';
 import { CosmosError } from './errors.js';
 import { upsertPackage, type PackageInput } from './purchases.js';
 import { cancelPendingRecharges } from './recharge.js';
 import { isUuid } from './uuid.js';
-import { addEntry } from './wallet.js';
+import { addEntry, upsertFunctionDef, type FunctionDefInput } from './wallet.js';
 
 /** Motivo de toda ação da equipe: obrigatório, com pelo menos 5 caracteres (o banco confere também). */
 export const STAFF_REASON_MIN = 5;
@@ -188,7 +190,7 @@ async function logAction(
   tx: Pick<Database, 'insert'>,
   row: {
     tenantId: string | null;
-    action: 'multiplier' | 'block' | 'unblock' | 'package';
+    action: StaffActionKind;
     before: Record<string, unknown> | null;
     after: Record<string, unknown> | null;
     reason: string;
@@ -326,5 +328,44 @@ export async function staffSavePackage(
       userId,
     });
     return id;
+  });
+}
+
+/**
+ * Cadastra ou muda uma função do catálogo (#1088): mínimo, provedor, modelo e liga/desliga, com motivo e quem fez.
+ * Vale para as próximas reservas; a pergunta em andamento segue com o modelo e o preço dela.
+ */
+export async function staffSaveFunction(
+  db: Database,
+  input: FunctionDefInput & { reason: string; userId: string },
+): Promise<void> {
+  const reason = reasonOf(input.reason);
+  const { reason: _r, userId, ...def } = input;
+  await db.transaction(async (tx) => {
+    const [before] = await tx.select().from(functionDef).where(eq(functionDef.name, def.name)).for('update');
+    await upsertFunctionDef(tx, def);
+    await logAction(tx, {
+      tenantId: null,
+      action: 'function',
+      before: before
+        ? {
+            minCredits: Number(before.minCredits),
+            permission: before.permission,
+            active: before.active,
+            provider: before.provider,
+            model: before.model,
+          }
+        : null,
+      after: {
+        name: def.name,
+        minCredits: def.minCredits,
+        permission: def.permission,
+        active: def.active ?? true,
+        provider: def.provider ?? null,
+        model: def.model?.trim() || null,
+      },
+      reason,
+      userId,
+    });
   });
 }

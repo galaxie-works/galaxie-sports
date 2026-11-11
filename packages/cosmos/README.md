@@ -114,8 +114,16 @@ carteira.
 O cliente vê só créditos, nunca o modelo nem o custo técnico. A equipe Galaxie acompanhando um tenant não pergunta
 (não gasta os créditos do cliente), e o tenant precisa do módulo `cosmos_ai` no contrato.
 
-Para ligar: `COSMOS_ANTHROPIC_API_KEY` na demo (chave só da Cosmos, separada da dos agentes internos) e a função
-`assistant.ask` ativa em `cosmos.function_def`. O mínimo é o menor que o banco aceita (0,001 crédito, três casas):
-a pergunta paga o custo real convertido, e um "Olá" não paga como uma pergunta longa. Sem qualquer um dos dois,
-o painel responde "indisponível" e nada é reservado. Padrões provisórios, fáceis de trocar: chave própria, só o modelo
-leve do registro (`ASSISTANT_MODEL`) e busca por palavras.
+Para ligar: a função `assistant.ask` ativa em `cosmos.function_def` e a chave da Cosmos no provedor dela
+(`COSMOS_<PROVEDOR>_API_KEY`, separada das chaves dos agentes internos; hoje `COSMOS_ANTHROPIC_API_KEY`). O mínimo é
+o menor que o banco aceita (0,001 crédito, três casas): a pergunta paga o custo real convertido, e um "Olá" não paga
+como uma pergunta longa. Sem a função, sem a chave ou com um provedor que o assistente ainda não chama, o painel
+responde "indisponível" e nada é reservado. Busca por palavras na documentação, sem embeddings.
+
+### Provedor e modelo por função (#1088)
+
+Cada função do catálogo guarda o provedor (`anthropic`, `openai`, `gemini`, `deepseek`) e o modelo; vazio = o padrão
+(Anthropic, modelo leve do registro). A equipe Galaxie troca em Ajustes → Assinaturas e carteiras → Funções da Cosmos,
+com motivo (fica em `cosmos.staff_action`). O preço sai da tabela do ai-ledger, e o crédito do custo real: um modelo
+mais barato gasta menos créditos do cliente, sem mexer nos pacotes. Modelo sem preço na tabela é recusado. O
+assistente chama hoje a Anthropic (`ASSISTANT_STREAMERS`); OpenAI, Gemini e DeepSeek entram pelo `@galaxie/llm`.
