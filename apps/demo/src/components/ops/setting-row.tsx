@@ -118,8 +118,9 @@ export function SettingRow({ setting, timeZone, now, inheritPlan, aside, actions
 
   return (
     <div
+      id={def.key}
       data-setting={def.key}
-      className="flex flex-col gap-3 border-b px-4 py-4 last:border-b-0 lg:flex-row lg:items-start lg:justify-between lg:gap-6"
+      className="flex scroll-mt-20 flex-col gap-3 border-b px-4 py-4 last:border-b-0 lg:flex-row lg:items-start lg:justify-between lg:gap-6"
     >
       <div className="flex min-w-0 flex-1 flex-col gap-1.5">
         <div className="flex flex-wrap items-center gap-2">
