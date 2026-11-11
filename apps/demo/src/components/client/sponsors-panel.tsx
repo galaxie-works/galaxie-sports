@@ -1,6 +1,6 @@
 'use client';
 
-import { SPONSOR_CATEGORIES, type SponsorIssue } from '@galaxie/engage';
+import { SPONSOR_CATEGORIES, suggestsAlcohol, type SponsorIssue } from '@galaxie/engage';
 import { Archive, Pencil, Plus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
@@ -334,7 +334,12 @@ function SponsorDialog({
                 ))}
               </SelectContent>
             </Select>
-            {issue('category') ? <FieldError>{issue('category')}</FieldError> : null}
+            {issue('category') ? (
+              <FieldError>{issue('category')}</FieldError>
+            ) : category !== 'alcohol' && suggestsAlcohol(name, linkUrl) ? (
+              // só sugestão: quem cadastra decide a categoria
+              <FieldDescription>{F.alcoholHint}</FieldDescription>
+            ) : null}
           </Field>
           {text('sponsor-link', F.linkUrl, linkUrl, setLinkUrl, 'linkUrl', { type: 'url', optional: true })}
           <div className="grid gap-4 sm:grid-cols-2">

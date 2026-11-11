@@ -8,7 +8,7 @@ export default defineMessages(
     list: {
       title: 'Patrocinadores',
       description:
-        'Um cadastro só para a campanha de bolão, a sala do chat e as recompensas. Casa de aposta não entra, e a peça não aparece para menores de 13 anos nem, onde a lei do país proíbe, para menores de 18.',
+        'Um cadastro só para a campanha de bolão, a sala do chat e as recompensas. Casa de aposta não entra, e a peça não aparece para menores de 13 anos nem, onde a lei do país proíbe, para menores de 18. Bebida alcoólica só aparece para maiores de 18, em qualquer país.',
       add: 'Novo patrocinador',
       name: 'Nome',
       category: 'Categoria',
@@ -27,9 +27,10 @@ export default defineMessages(
       count: '{count} de {max} ativos',
     },
     categories: {
+      alcohol: 'Bebidas alcoólicas',
       apparel: 'Vestuário',
       automotive: 'Automotivo',
-      beverage: 'Bebidas',
+      beverage: 'Bebidas sem álcool',
       education: 'Educação',
       energy: 'Energia',
       finance: 'Finanças',
@@ -56,6 +57,8 @@ export default defineMessages(
       startsAt: 'Início',
       endsAt: 'Fim',
       optional: 'Opcional',
+      alcoholHint:
+        'Parece bebida alcoólica. Se for, escolha “Bebidas alcoólicas”: a peça só aparece para maiores de 18 anos.',
       cancel: 'Cancelar',
       save: 'Salvar',
       saved: '{name} salvo.',
@@ -110,7 +113,7 @@ export default defineMessages(
       list: {
         title: 'Sponsors',
         description:
-          'One registry for the prediction campaign, the chat room and rewards. Betting operators are not allowed, and the placement is never shown to children under 13 nor, where the country’s law forbids it, to minors under 18.',
+          'One registry for the prediction campaign, the chat room and rewards. Betting operators are not allowed, and the placement is never shown to children under 13 nor, where the country’s law forbids it, to minors under 18. Alcoholic beverages are only shown to adults (18+), in every country.',
         add: 'New sponsor',
         name: 'Name',
         category: 'Category',
@@ -129,9 +132,10 @@ export default defineMessages(
         count: '{count} of {max} active',
       },
       categories: {
+        alcohol: 'Alcoholic beverages',
         apparel: 'Apparel',
         automotive: 'Automotive',
-        beverage: 'Beverages',
+        beverage: 'Non-alcoholic beverages',
         education: 'Education',
         energy: 'Energy',
         finance: 'Finance',
@@ -158,6 +162,8 @@ export default defineMessages(
         startsAt: 'Start',
         endsAt: 'End',
         optional: 'Optional',
+        alcoholHint:
+          'This looks like an alcoholic beverage. If it is, choose “Alcoholic beverages”: the placement is only shown to adults (18+).',
         cancel: 'Cancel',
         save: 'Save',
         saved: '{name} saved.',
@@ -211,7 +217,7 @@ export default defineMessages(
       list: {
         title: 'Patrocinadores',
         description:
-          'Un solo registro para la campaña de prode, la sala del chat y las recompensas. Las casas de apuestas no entran, y la pieza no aparece para menores de 13 años ni, donde la ley del país lo prohíbe, para menores de 18.',
+          'Un solo registro para la campaña de prode, la sala del chat y las recompensas. Las casas de apuestas no entran, y la pieza no aparece para menores de 13 años ni, donde la ley del país lo prohíbe, para menores de 18. Las bebidas alcohólicas solo aparecen para mayores de 18, en cualquier país.',
         add: 'Nuevo patrocinador',
         name: 'Nombre',
         category: 'Categoría',
@@ -230,9 +236,10 @@ export default defineMessages(
         count: '{count} de {max} activos',
       },
       categories: {
+        alcohol: 'Bebidas alcohólicas',
         apparel: 'Indumentaria',
         automotive: 'Automotor',
-        beverage: 'Bebidas',
+        beverage: 'Bebidas sin alcohol',
         education: 'Educación',
         energy: 'Energía',
         finance: 'Finanzas',
@@ -259,6 +266,8 @@ export default defineMessages(
         startsAt: 'Inicio',
         endsAt: 'Fin',
         optional: 'Opcional',
+        alcoholHint:
+          'Parece una bebida alcohólica. Si lo es, elegí “Bebidas alcohólicas”: la pieza solo aparece para mayores de 18 años.',
         cancel: 'Cancelar',
         save: 'Guardar',
         saved: '{name} guardado.',
