@@ -66,6 +66,15 @@ for k in "${WARN_KEYS[@]}"; do
   needs "$k" && echo "WARN  $k vazio ou com o valor de exemplo: gere com openssl rand -hex 32 e suba o obs junto"
 done
 
+# Chave repetida com valores diferentes (ex.: o bloco do env.example colado embaixo, com SETTINGS_KEK= vazia): o compose
+# usa a última, mas a de cima pode ser o segredo em uso. Gerar apagaria as duas, então para e pede para deixar uma linha só
+for k in "${KEYS[@]}"; do
+  if [ "$(sed -n "s/^$k=//p" "$ENV_FILE" | sort -u | wc -l)" -gt 1 ]; then
+    echo "FAIL  $k aparece mais de uma vez no $ENV_FILE com valores diferentes; deixe uma linha só (a do valor em uso). Nada foi gerado"
+    exit 1
+  fi
+done
+
 missing=()
 for k in "${KEYS[@]}"; do
   needs "$k" && missing+=("$k")

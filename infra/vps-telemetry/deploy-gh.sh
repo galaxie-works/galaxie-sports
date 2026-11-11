@@ -336,7 +336,7 @@ case "$SCALE" in
     exit 1
     ;;
 esac
-# segredos internos vazios (FAN_TOKEN_SECRET, STREAM_TOKEN_SECRET, BETTER_AUTH_SECRET) são gerados no .env antes do
+# segredos internos vazios (FAN_TOKEN_SECRET, STREAM_TOKEN_SECRET, BETTER_AUTH_SECRET, SETTINGS_KEK) são gerados no .env antes do
 # .env.next; o que já existe nunca muda. Só no projeto apps: obs e dados não usam esses segredos
 if [ "$PROJECT" = apps ] && [ -f "$HERE/ensure-secrets.sh" ]; then
   ssh "$VPS" "cd $DIR && bash -s" < "$HERE/ensure-secrets.sh" ||

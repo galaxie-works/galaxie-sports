@@ -36,8 +36,9 @@ Domínios (registro A → IP da VPS): `DEMO_DOMAIN` (demo), `API_DOMAIN` (API p�
 - **`SETTINGS_KEK` nunca pode ser trocada nem perdida.** Ela abre as chaves gravadas em Ajustes → Credenciais
   (api-sports, provedores de IA, Stripe etc.; runbook `docs/runbooks/chaves-no-painel.md`, que chega com o #1089). Quando o deploy
   gera uma nova, a saída avisa: guarde uma cópia fora da VPS (cofre de senhas). Se ela for
-  perdida, apagada ou trocada, o deploy gera outra, e as chaves gravadas pelo painel não abrem mais: os serviços voltam
-  às do `.env` e cada chave precisa ser cadastrada de novo no painel. Trocar de propósito só pela rotação do runbook
+  perdida ou apagada, o deploy gera outra; se for trocada à mão por outro valor, vale o novo. Nos dois casos as chaves
+  gravadas pelo painel não abrem mais: os serviços voltam às do `.env` e cada chave precisa ser cadastrada de novo no
+  painel. Se ela aparecer em duas linhas com valores diferentes, o deploy para sem gerar nada. Trocar de propósito só pela rotação do runbook
   (`nova,antiga` e "Recifrar com a chave atual").
 - **Uma chave, um ingestor**: com o ingestor da VPS no ar, nenhum outro ambiente roda jobs com a mesma
   `APISPORTS_KEY` (a cota diária é por conta e por API).

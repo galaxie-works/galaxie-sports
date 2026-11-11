@@ -53,9 +53,29 @@ out2="$(cd "$WORK" && bash "$HERE/ensure-secrets.sh")"
 # SETTINGS_KEK em rotação (nova,antiga) é valor em uso: nunca muda, e sem aviso de chave nova
 printf 'FAN_TOKEN_SECRET=\nSETTINGS_KEK=nova-0123456789abcdef0123456789abcdef,antiga-0123456789abcdef0123456789ab\n' > "$WORK/kek.env"
 out3="$(cd "$WORK" && bash "$HERE/ensure-secrets.sh" kek.env)"
-[ "$(sed -n 's/^SETTINGS_KEK=//p' "$WORK/kek.env")" = nova-0123456789abcdef0123456789abcdef,antiga-0123456789abcdef0123456789ab ] &&
+[ "$(sed -n 's/^SETTINGS_KEK=//p' "$WORK/kek.env" | tail -n 1)" = nova-0123456789abcdef0123456789abcdef,antiga-0123456789abcdef0123456789ab ] &&
   ok "SETTINGS_KEK existente fica" || ko "SETTINGS_KEK existente mudou"
 [[ "$out3" != *"SETTINGS_KEK nova"* ]] && ok "sem aviso quando a KEK já existe" || ko "aviso de KEK nova com KEK existente"
+
+# SETTINGS_KEK presente e vazia, ou só com aspas: gera
+printf 'SETTINGS_KEK=\n' > "$WORK/kek-vazia.env"
+(cd "$WORK" && bash "$HERE/ensure-secrets.sh" kek-vazia.env >/dev/null)
+[[ "$(sed -n 's/^SETTINGS_KEK=//p' "$WORK/kek-vazia.env" | tail -n 1)" =~ ^[0-9a-f]{64}$ ]] && ok "SETTINGS_KEK= vazia vira 64 hex" ||
+  ko "SETTINGS_KEK= vazia não foi gerada"
+printf 'SETTINGS_KEK=""\n' > "$WORK/kek-aspas.env"
+(cd "$WORK" && bash "$HERE/ensure-secrets.sh" kek-aspas.env >/dev/null)
+[[ "$(sed -n 's/^SETTINGS_KEK=//p' "$WORK/kek-aspas.env" | tail -n 1)" =~ ^[0-9a-f]{64}$ ]] && ok 'SETTINGS_KEK="" vira 64 hex' ||
+  ko 'SETTINGS_KEK="" não foi gerada'
+
+# chave repetida com valores diferentes (valor em uso em cima, vazia colada embaixo): para sem apagar a de cima
+printf 'SETTINGS_KEK=em-uso-0123456789abcdef0123456789abcdef\nAPI_DOMAIN=x\nSETTINGS_KEK=\n' > "$WORK/dup.env"
+before="$(cat "$WORK/dup.env")"
+if (cd "$WORK" && bash "$HERE/ensure-secrets.sh" dup.env >/dev/null); then ko "duplicada passou"; else ok "duplicada falha"; fi
+[ "$(cat "$WORK/dup.env")" = "$before" ] && ok "duplicada: .env intocado" || ko "duplicada: .env mudou"
+# repetida com o mesmo valor não atrapalha
+printf 'FAN_TOKEN_SECRET=\nSTREAM_TOKEN_SECRET=igual\nSTREAM_TOKEN_SECRET=igual\n' > "$WORK/dup-igual.env"
+(cd "$WORK" && bash "$HERE/ensure-secrets.sh" dup-igual.env >/dev/null) && ok "repetida com o mesmo valor passa" ||
+  ko "repetida com o mesmo valor falhou"
 
 # forma que o compose aceita mas o script não troca com segurança: para sem mexer
 printf 'export STREAM_TOKEN_SECRET=em-uso\nFAN_TOKEN_SECRET=\n' > "$WORK/export.env"
