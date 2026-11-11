@@ -10,6 +10,7 @@ import {
   Trophy,
   Tv,
   Users,
+  Wallet,
   Webhook,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
@@ -30,11 +31,12 @@ export type SettingsNavGroupId = (typeof SETTINGS_NAV_GROUPS)[number];
 
 /**
  * Áreas de Ajustes (só a equipe Galaxie). O Sistema de antes (saúde, jobs, IA, fornecedor…) virou quatro áreas da
- * Plataforma, cada uma com as seções empilhadas; as Carteiras da Cosmos entram em Clientes com o #1002.
+ * Plataforma, cada uma com as seções empilhadas. As Carteiras da Cosmos (#1002) ficam em Clientes.
  */
 export const SETTINGS_NAV = [
   { id: 'users', href: '/ajustes/usuarios', icon: Users, group: 'clients' },
   { id: 'webhooks', href: '/ajustes/webhooks', icon: Webhook, group: 'clients' },
+  { id: 'wallets', href: '/ajustes/carteiras', icon: Wallet, group: 'clients' },
   { id: 'crests', href: '/ajustes/escudos', icon: Shield, group: 'data' },
   { id: 'features', href: '/ajustes/esportes', icon: Trophy, group: 'data' },
   { id: 'lineup', href: '/ajustes/grades', icon: Tv, group: 'data' },

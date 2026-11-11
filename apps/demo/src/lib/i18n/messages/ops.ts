@@ -30,6 +30,7 @@ export default defineMessages(
       crests: 'Escudos',
       webhooks: 'Webhooks',
       label: 'Seções dos ajustes',
+      wallets: 'Carteiras da Cosmos',
       ai: 'IA interna',
       operation: 'Operação',
       provider: 'Fornecedor',
@@ -1262,6 +1263,12 @@ export default defineMessages(
           'Custo real somado de todos os clientes no dia (UTC). Passou dele, a Cosmos recusa novas chamadas até a virada e a moderação volta para regras e pessoas.',
         unit: 'US$',
       },
+      COSMOS_USD_BRL: {
+        label: 'Cotação para a margem da Cosmos AI',
+        description:
+          'Reais por dólar, para comparar a receita em reais com o custo do provedor nas Carteiras da Cosmos. Vazio, a margem em reais fica sem valor.',
+        unit: 'R$ por US$',
+      },
       COSMOS_CREDIT_USD: {
         label: 'Valor de 1 crédito da Cosmos AI',
         description:
@@ -1305,6 +1312,7 @@ export default defineMessages(
         crests: 'Crests',
         webhooks: 'Webhooks',
         label: 'Settings sections',
+        wallets: 'Cosmos wallets',
         ai: 'Internal AI',
         operation: 'Operations',
         provider: 'Provider',
@@ -2519,6 +2527,12 @@ export default defineMessages(
             'Real cost summed across all clients for the day (UTC). Above it, Cosmos refuses new calls until the day rolls over and moderation falls back to rules and people.',
           unit: 'US$',
         },
+        COSMOS_USD_BRL: {
+          label: 'Exchange rate for the Cosmos AI margin',
+          description:
+            'Reais per dollar, to compare BRL revenue with provider cost in Cosmos wallets. Empty, the BRL margin shows no value.',
+          unit: 'R$ per US$',
+        },
         COSMOS_CREDIT_USD: {
           label: 'Value of 1 Cosmos AI credit',
           description:
@@ -2561,6 +2575,7 @@ export default defineMessages(
         crests: 'Escudos',
         webhooks: 'Webhooks',
         label: 'Secciones de ajustes',
+        wallets: 'Carteras de Cosmos',
         ai: 'IA interna',
         operation: 'Operación',
         provider: 'Proveedor',
@@ -3794,6 +3809,12 @@ export default defineMessages(
           description:
             'Costo real sumado de todos los clientes en el día (UTC). Si se supera, Cosmos rechaza nuevas llamadas hasta el cambio de día y la moderación vuelve a reglas y personas.',
           unit: 'US$',
+        },
+        COSMOS_USD_BRL: {
+          label: 'Cotización para el margen de Cosmos AI',
+          description:
+            'Reales por dólar, para comparar el ingreso en reales con el costo del proveedor en las carteras de Cosmos. Vacío, el margen en reales queda sin valor.',
+          unit: 'R$ por US$',
         },
         COSMOS_CREDIT_USD: {
           label: 'Valor de 1 crédito de Cosmos AI',
