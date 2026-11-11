@@ -304,7 +304,7 @@ describe('tema a partir do brandbook', () => {
         ),
       ),
     );
-    expect([a, b].filter((r) => r.ok)).toHaveLength(1);
-    expect([a, b].filter((r) => !r.ok)).toEqual([{ ok: false, error: 'busy' }]);
+    expect([a!, b!].filter((r) => r.ok)).toHaveLength(1);
+    expect([a!, b!].filter((r) => !r.ok)).toEqual([{ ok: false, error: 'busy' }]);
   });
 });
