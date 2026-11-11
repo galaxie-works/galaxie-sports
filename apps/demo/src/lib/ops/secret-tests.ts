@@ -11,6 +11,8 @@
  * As chaves vão sempre em cabeçalho (nunca na URL, que pode parar em log de proxy).
  */
 
+import { API_KEY_HEADER, API_STATUS_URL } from '@galaxie/apisports-client';
+
 export type SecretTestResult = 'ok' | 'rejected' | 'unreachable';
 
 interface ProviderTest {
@@ -25,8 +27,8 @@ const google = (value: string) => ({ 'x-goog-api-key': value });
 
 const PROVIDER_TESTS: Readonly<Record<string, ProviderTest>> = {
   APISPORTS_KEY: {
-    url: 'https://v3.football.api-sports.io/status',
-    headers: (value) => ({ 'x-apisports-key': value }),
+    url: API_STATUS_URL,
+    headers: (value) => ({ [API_KEY_HEADER]: value }),
     bodyRejects: (body) => {
       const errors = (body as { errors?: unknown } | null)?.errors;
       return Array.isArray(errors) ? errors.length > 0 : Boolean(errors && Object.keys(errors).length);
