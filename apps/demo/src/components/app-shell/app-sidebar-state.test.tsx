@@ -1,11 +1,17 @@
 // @vitest-environment happy-dom
 import { act, cleanup, render, screen } from '@testing-library/react';
 import { useState } from 'react';
+import { renderToString } from 'react-dom/server';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { useSidebar } from '@/components/ui/sidebar';
+import { Sidebar, useSidebar } from '@/components/ui/sidebar';
 
-import { AppSidebarStateProvider, appSidebarOpen, useSettingsSidebarMode } from './app-sidebar-state';
+import {
+  AppSidebarStateProvider,
+  SettingsSidebarPrepaint,
+  appSidebarOpen,
+  useSettingsSidebarMode,
+} from './app-sidebar-state';
 
 /** O estado do menu do app e um botão que faz o mesmo que o ⇤ do trilho (ou o ⌘B). */
 function Probe() {
@@ -88,5 +94,29 @@ describe('menu do app por rota (#1067)', () => {
     expect(state()).toBe('recolhido');
     go(false);
     expect(state()).toBe('aberto');
+  });
+
+  it('carga completa de Ajustes: o HTML do servidor já pinta o menu recolhido, antes de hidratar', () => {
+    // o shell prerenderizado não sabe a rota: o estado do servidor é "aberto"; o script da moldura de Ajustes recolhe
+    const html = renderToString(
+      <AppSidebarStateProvider>
+        <Sidebar collapsible="icon" data-app-sidebar="" />
+        <SettingsSidebarPrepaint />
+      </AppSidebarStateProvider>,
+    );
+    expect(html).toContain('data-state="expanded"');
+    expect(html).toContain('<script>');
+    document.body.innerHTML = html;
+    const script = document.querySelector('script')!.textContent!;
+    new Function(script)();
+    const sidebar = document.querySelector('[data-slot=sidebar]')!;
+    expect(sidebar.getAttribute('data-state')).toBe('collapsed');
+    expect(sidebar.getAttribute('data-collapsible')).toBe('icon');
+    document.body.innerHTML = '';
+  });
+
+  it('navegação pelo navegador: o script não é criado (o efeito do layout já recolhe)', () => {
+    const { container } = render(<SettingsSidebarPrepaint />);
+    expect(container.querySelector('script')).toBeNull();
   });
 });

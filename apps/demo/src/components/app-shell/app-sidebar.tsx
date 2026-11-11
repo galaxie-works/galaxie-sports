@@ -293,7 +293,8 @@ function LegalLinks() {
 
 export function AppSidebar() {
   return (
-    <Sidebar collapsible="icon">
+    // `data-app-sidebar`: o script de Ajustes acha este menu antes de hidratar (`SettingsSidebarPrepaint`)
+    <Sidebar collapsible="icon" data-app-sidebar="">
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>

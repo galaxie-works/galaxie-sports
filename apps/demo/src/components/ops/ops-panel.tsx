@@ -41,6 +41,7 @@ import { aiStateText, displayValue, formatDuration, settingText, tokenUsage } fr
 import { QualityTab } from './quality-tab';
 import { SettingRow, useOpsAction } from './setting-row';
 import { TasksTab } from './tasks-tab';
+import { useScrollToHashOnMount } from './use-scroll-to-hash';
 import { YoutubeQuotaCard, YoutubeYieldPanel } from './youtube-quota';
 
 import { SETTINGS_VIEWS, type PanelBlock, type SettingsView } from '@/lib/ops/panel-tabs';
@@ -85,6 +86,7 @@ export function OpsPanel({
   const f = useFormatters(timeZone);
   const router = useRouter();
   const [refreshing, startRefresh] = useTransition();
+  useScrollToHashOnMount();
 
   const content: Record<PanelBlock, () => ReactNode> = {
     status: () => <StatusTab snapshot={snapshot} timeZone={timeZone} />,

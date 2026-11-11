@@ -1,5 +1,6 @@
 /**
- * Painel de Operação (Ajustes → Operação): flags da operação, agenda dos jobs, status ao vivo e histórico.
+ * Painel de Operação, repartido nas páginas de Ajustes (Plataforma → Status dos serviços, Agenda dos jobs, Histórico e
+ * auditoria; Produtos → Ao vivo, Pós-jogo; Inteligência → IA interna…; o mapa ajuste → página é `lib/ops/setting-page.ts`).
  * Os rótulos e descrições das flags ficam aqui, em linguagem de negócio; a chave técnica aparece ao lado.
  */
 import { defineMessages } from '../define';

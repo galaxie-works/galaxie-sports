@@ -64,6 +64,41 @@ describe('menu de Ajustes (#1068)', () => {
     ]);
   });
 
+  // ordem escrita à mão (não o mesmo comparador do código): pega um sortByLabel que quebre num idioma
+  it.each([
+    [
+      'en',
+      [
+        'Channels',
+        'Commercial',
+        'Compliance',
+        'Customers',
+        'Data',
+        'Engagement',
+        'Intelligence',
+        'Platform',
+        'Products',
+      ],
+    ],
+    [
+      'es-AR',
+      [
+        'Canales',
+        'Clientes',
+        'Comercial',
+        'Cumplimiento',
+        'Datos',
+        'Inteligencia',
+        'Participación',
+        'Plataforma',
+        'Productos',
+      ],
+    ],
+  ] as const)('%s: a ordem dos grupos', (locale, expected) => {
+    const groups = settingsNavGroups(getDictionary(locale).ops.nav);
+    expect(groups.map((g) => g.label)).toEqual(expected);
+  });
+
   it('item aceso pelo caminho, com ou sem o prefixo de idioma', () => {
     expect(settingsNavIdOf('/ajustes')).toBe('home');
     expect(settingsNavIdOf('/pt-BR/ajustes/ao-vivo')).toBe('live');

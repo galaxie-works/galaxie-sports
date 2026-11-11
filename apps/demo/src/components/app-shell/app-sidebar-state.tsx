@@ -10,6 +10,7 @@ import {
 } from 'react';
 
 import { SidebarProvider } from '@/components/ui/sidebar';
+import { useHydrated } from '@/hooks/use-hydrated';
 
 /** O mesmo cookie do `SidebarProvider` (shadcn): o estado que a pessoa escolheu para o menu do app. */
 const SIDEBAR_COOKIE = 'sidebar_state';
@@ -74,4 +75,22 @@ export function useSettingsSidebarMode(): void {
   const enter = useContext(SettingsModeContext);
   // antes de pintar, para a navegação até Ajustes não mostrar o menu aberto por um quadro
   useLayoutEffect(() => enter?.(), [enter]);
+}
+
+/**
+ * Recolhe o menu do app no HTML, antes de hidratar: o shell do app é prerenderizado sem saber a rota (o estado só
+ * muda no `useLayoutEffect` de `useSettingsSidebarMode`), então a carga completa de uma página de Ajustes pintaria o
+ * menu aberto e recolheria depois. Muda só os atributos que o CSS do `Sidebar` lê; depois de hidratar o estado do
+ * React assume e diz o mesmo.
+ */
+export const SETTINGS_SIDEBAR_PREPAINT = `(function(){var c=document.querySelector('[data-app-sidebar]');var s=c&&c.closest('[data-slot=sidebar]');if(s&&s.getAttribute('data-state')==='expanded'){s.setAttribute('data-state','collapsed');s.setAttribute('data-collapsible','icon')}})()`;
+
+/**
+ * O script acima, no HTML do servidor e na hidratação (o mesmo elemento, sem diferença); some depois de hidratar e
+ * não é criado na navegação pelo navegador, quando o `useLayoutEffect` já recolhe o menu antes de pintar.
+ */
+export function SettingsSidebarPrepaint() {
+  const hydrated = useHydrated();
+  if (hydrated) return null;
+  return <script dangerouslySetInnerHTML={{ __html: SETTINGS_SIDEBAR_PREPAINT }} />;
 }

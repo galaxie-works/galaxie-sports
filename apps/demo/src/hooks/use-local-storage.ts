@@ -14,11 +14,15 @@ function subscribe(listener: () => void) {
   };
 }
 
-/** O que foi gravado nesta aba: vale mesmo quando o navegador recusa o armazenamento (janela anônima, bloqueio). */
+/**
+ * Reserva só para quando o navegador recusa o armazenamento (janela anônima, bloqueio, cota): aí a escolha vale nesta
+ * aba até recarregar. Com o `localStorage` funcionando, ele é a fonte, e o que outra aba grava chega pelo evento.
+ */
 const memory = new Map<string, string | null>();
 
 /** Leitura protegida: janela anônima, armazenamento bloqueado ou cheio não quebram a tela. */
 function read(key: string): string | null {
+  // só tem a chave quando a gravação falhou (gravar com sucesso tira ela daqui)
   if (memory.has(key)) return memory.get(key) ?? null;
   try {
     return window.localStorage.getItem(key);
@@ -39,12 +43,13 @@ export function useLocalStorage(key: string, fallback: string): [string, (value:
   );
   const set = useCallback(
     (next: string | null) => {
-      memory.set(key, next);
       try {
         if (next === null) window.localStorage.removeItem(key);
         else window.localStorage.setItem(key, next);
+        memory.delete(key);
       } catch {
         // sem armazenamento: a escolha vale só até recarregar
+        memory.set(key, next);
       }
       for (const l of listeners) l();
     },
