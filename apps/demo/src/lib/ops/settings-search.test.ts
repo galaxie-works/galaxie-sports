@@ -5,6 +5,7 @@ import { settingsNavGroups } from '@/components/admin/settings-nav';
 import { LOCALES } from '@/lib/i18n/config';
 import { clientDictionary } from '@/lib/i18n/dictionary';
 
+import { settingHref } from './setting-page';
 import {
   buildSettingsIndex,
   currentSettingsTabs,
@@ -58,6 +59,10 @@ describe('índice da busca de ajustes', () => {
       href: '/ajustes/fornecedor',
       section: 'sports',
     });
+    // LINEUP_* ficam na aba Ajustes de Grades e ofertas (a inicial é a Revisão)
+    expect(resolveSettingPage('LINEUP_PROMPT_MAX_CHARS')).toMatchObject({
+      href: '/ajustes/grades?aba=ajustes',
+    });
     expect(resolveSettingPage('NAO_EXISTE')).toBeUndefined();
   });
 
@@ -66,7 +71,21 @@ describe('índice da busca de ajustes', () => {
     const daily = index.find((e) => e.key === 'AI_DAILY_USD_BUDGET')!;
     expect(daily.crumbs).toEqual(['Inteligência', 'IA interna']);
     expect(daily.href).toBe('/ajustes/ia#AI_DAILY_USD_BUDGET');
-    for (const e of index) expect(e.href, e.key).not.toMatch(/\/ajustes\/(operacao|sistema|esportes)|\?aba=/);
+    for (const e of index) {
+      expect(e.href, e.key).not.toMatch(/\/ajustes\/(operacao|sistema|esportes)/);
+      // só os LINEUP_* levam aba (e é a de Ajustes)
+      if (!e.key.startsWith('LINEUP_')) expect(e.href, e.key).not.toMatch(/\?aba=/);
+    }
+  });
+
+  it('LINEUP_* levam à aba Ajustes de Grades e ofertas, igual ao settingHref', () => {
+    const { index } = setup();
+    const lineup = index.filter((e) => e.key.startsWith('LINEUP_'));
+    expect(lineup.length).toBeGreaterThan(0);
+    for (const e of lineup) {
+      expect(e.href).toBe(`/ajustes/grades?aba=ajustes#${e.key}`);
+      expect(e.href).toBe(settingHref(e.key));
+    }
   });
 });
 

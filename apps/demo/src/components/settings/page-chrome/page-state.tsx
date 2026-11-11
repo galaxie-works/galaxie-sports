@@ -39,10 +39,22 @@ const PageChromeContext = createContext<PageChromeState | null>(null);
  * da busca): assim o filtro vale para todo bloco da página sem que cada um precise saber dele.
  */
 function HiddenRows({ keys }: { keys: readonly string[] }) {
-  if (!keys.length) return null;
-  // chaves do registro: só maiúsculas, dígitos e `_` (seguras como seletor de id)
-  const css = `${keys.map((k) => `#${k}`).join(',')}{display:none}`;
-  return <style data-changed-filter="">{css}</style>;
+  const css = hiddenRowsCss(keys);
+  return css ? <style data-changed-filter="">{css}</style> : null;
+}
+
+/**
+ * CSS que esconde as linhas das chaves. As chaves do registro já são seguras como seletor (maiúsculas, dígitos e `_`),
+ * mas passam pelo `CSS.escape` mesmo assim: uma chave estranha não quebra a regra nem injeta outra. Sem `CSS.escape`
+ * (servidor), fica só o que é seguro sem escape.
+ */
+export function hiddenRowsCss(keys: readonly string[]): string | null {
+  const escape =
+    typeof CSS !== 'undefined' && typeof CSS.escape === 'function'
+      ? (k: string) => CSS.escape(k)
+      : (k: string) => (/^[A-Za-z_][\w-]*$/.test(k) ? k : null);
+  const selectors = keys.map(escape).filter((k): k is string => !!k);
+  return selectors.length ? `${selectors.map((k) => `#${k}`).join(',')}{display:none}` : null;
 }
 
 /** Estado do topo da página de Ajustes; monte um por página (o `SettingsArea` monta). */

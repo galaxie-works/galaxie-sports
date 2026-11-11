@@ -3,7 +3,7 @@
  * da Revisão, pedidos das operadoras, jobs, status, credenciais e gasto de IA). Puro: o servidor busca as fontes
  * (`data.ts`) e o teste confere as contas. As mesmas contagens alimentam os `Badge` do menu (#1068).
  */
-import { settingDef } from '@galaxie/runtime-config';
+import { AI_PROVIDERS, SETTINGS, settingDef } from '@galaxie/runtime-config';
 
 import { settingsHref } from '@/lib/ops/settings-items';
 import type { OpsSnapshot } from '@/lib/ops/types';
@@ -87,9 +87,63 @@ export const openAlerts = (ops: Pick<OpsSnapshot, 'services' | 'credit'>) =>
   ops.services.filter((s) => s.reportedAt !== null && !s.alive).length +
   (ops.credit?.status === 'fail' ? 1 : 0);
 
-/** Segredos do registro que o contêiner de referência não tem. */
+/**
+ * Segredos opcionais: sem eles a plataforma funciona e só uma feature fica indisponível ou cai num padrão. Não contam
+ * no "Credencial faltando":
+ * - `FEEDBACK_GITHUB_TOKEN`: as sugestões do app abrem issue no GitHub só se alguém configurar (e o token pode estar
+ *   no painel, não no env);
+ * - `STRIPE_SECRET_KEY` e `STRIPE_WEBHOOK_SECRET`: sem eles a compra da Cosmos AI fica indisponível, o resto segue;
+ * - `METRICS_TOKEN`: só protege o `/metrics`; sem ele as métricas ficam abertas na rede interna;
+ * - `QUALITY_API_KEY`: a qualidade dos dados cai na `GALAXIE_DEMO_KEY`.
+ */
+export const OPTIONAL_SECRETS: ReadonlySet<string> = new Set([
+  'FEEDBACK_GITHUB_TOKEN',
+  'STRIPE_SECRET_KEY',
+  'STRIPE_WEBHOOK_SECRET',
+  'METRICS_TOKEN',
+  'QUALITY_API_KEY',
+]);
+
+/** Chave de cada provedor de IA. */
+const AI_PROVIDER_KEY: Record<(typeof AI_PROVIDERS)[number], string> = {
+  openai: 'OPENAI_API_KEY',
+  anthropic: 'ANTHROPIC_API_KEY',
+  gemini: 'GEMINI_API_KEY',
+};
+
+/** Ajustes que escolhem um provedor de IA (`AI_PROVIDER`, `AI_REVIEW_PROVIDER`…), lidos do registro. */
+const PROVIDER_SETTINGS = SETTINGS.filter(
+  (d) => d.type === 'enum' && d.key.endsWith('_PROVIDER') && d.options === AI_PROVIDERS,
+).map((d) => d.key);
+
+/** Valor efetivo no retrato; sem a linha (ou vazia), o padrão do registro. */
+function effectiveValue(ops: Pick<OpsSnapshot, 'settings'>, key: string): string | null {
+  const row = ops.settings.find((s) => s.key === key);
+  return row?.value ?? row?.defaultValue ?? settingDef(key)?.default ?? null;
+}
+
+/**
+ * Segredo sem o qual a plataforma não funciona como está configurada:
+ * - os opcionais (`OPTIONAL_SECRETS`) nunca contam;
+ * - a chave de um provedor de IA só conta com a IA ligada (`AI_STATUS`) e quando algum `*_PROVIDER` usa esse
+ *   provedor (com a IA desligada, ou sem ninguém usando o provedor, a chave dele não faz falta);
+ * - todo o resto (fornecedor, armazenamento, login, e-mail, chaves da API, YouTube) conta.
+ */
+export function requiredSecret(ops: Pick<OpsSnapshot, 'settings'>, key: string): boolean {
+  if (OPTIONAL_SECRETS.has(key)) return false;
+  const provider = (Object.keys(AI_PROVIDER_KEY) as (keyof typeof AI_PROVIDER_KEY)[]).find(
+    (p) => AI_PROVIDER_KEY[p] === key,
+  );
+  if (!provider) return true;
+  if (effectiveValue(ops, 'AI_STATUS') === 'off') return false;
+  return PROVIDER_SETTINGS.some((k) => effectiveValue(ops, k) === provider);
+}
+
+/** Segredos obrigatórios (`requiredSecret`) que o contêiner de referência não tem. */
 export const missingCredentials = (ops: Pick<OpsSnapshot, 'settings'>) =>
-  ops.settings.filter((s) => settingDef(s.key)?.type === 'secret' && !s.configured).length;
+  ops.settings.filter(
+    (s) => settingDef(s.key)?.type === 'secret' && !s.configured && requiredSecret(ops, s.key),
+  ).length;
 
 /** % do teto diário em US$ gasto hoje; null sem teto (ou IA desligada). */
 export function aiCeilingPercent(ops: Pick<OpsSnapshot, 'llm'>): number | null {

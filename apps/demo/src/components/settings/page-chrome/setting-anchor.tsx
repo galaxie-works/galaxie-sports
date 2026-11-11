@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect } from 'react';
+import { usePathname, useSearchParams } from 'next/navigation';
+import { Suspense, useEffect } from 'react';
 
 /** Quanto tempo a linha fica destacada ao chegar pela busca. */
 export const HIGHLIGHT_MS = 2000;
@@ -10,17 +11,17 @@ const WAIT_MS = 8000;
 /** Classes do destaque; a linha precisa de `transition-colors` (sem `transition-all`) para o fade. */
 const HIGHLIGHT = ['bg-primary/5', 'transition-colors'];
 
-/** Evento que a paleta dispara quando leva a um ajuste da mesma página (o `router.push` de hash não gera `hashchange`). */
-export const SETTING_ANCHOR_EVENT = 'galaxie:setting-anchor';
-
-/** Avisa a página aberta que a âncora mudou (depois de um `router.push` para `#CHAVE` na mesma rota). */
-export function announceSettingAnchor() {
-  window.setTimeout(() => window.dispatchEvent(new Event(SETTING_ANCHOR_EVENT)), 0);
-}
-
-/** Chave da âncora (`#AI_DAILY_USD_BUDGET` → `AI_DAILY_USD_BUDGET`); só chaves do registro (maiúsculas, `_`). */
+/**
+ * Chave da âncora (`#AI_DAILY_USD_BUDGET` → `AI_DAILY_USD_BUDGET`); só chaves do registro (maiúsculas, `_`). Âncora
+ * mal formada (`#%`, que o `decodeURIComponent` recusa) não é chave: devolve null em vez de derrubar a página.
+ */
 export function anchorKey(hash: string): string | null {
-  const key = decodeURIComponent(hash.replace(/^#/, ''));
+  let key: string;
+  try {
+    key = decodeURIComponent(hash.replace(/^#/, ''));
+  } catch {
+    return null;
+  }
   return /^[A-Z][A-Z0-9_]*$/.test(key) ? key : null;
 }
 
@@ -79,11 +80,17 @@ export function revealSetting(row: HTMLElement, { smooth = true } = {}): () => v
 }
 
 /**
- * Chegada pela busca de ajustes (#1071): com `#CHAVE` na URL (ao carregar, no `hashchange` e no aviso da paleta),
- * acha a linha de `id` igual à chave, abre a seção que a contém, rola até ela e a destaca por 2 s. Se a linha ainda
- * não chegou (Suspense ou seção fechada, ver `settingKeysProps`), espera por ela até 8 s.
+ * Chegada pela busca de ajustes (#1071): com `#CHAVE` na URL, acha a linha de `id` igual à chave, abre a seção que a
+ * contém, rola até ela e a destaca por 2 s. Se a linha ainda não chegou (Suspense ou seção fechada, ver
+ * `settingKeysProps`), espera por ela até 8 s.
+ *
+ * Quando olhar a âncora: ao montar; no `hashchange` (a paleta, na mesma página, troca `location.hash`); e depois de
+ * cada navegação do roteador que mude o caminho ou a busca (`?aba=ajustes#CHAVE` sobre a mesma página não remonta o
+ * componente). O efeito roda depois de a navegação gravar a URL, então lê o hash novo, sem esperar timer.
  */
 export function useSettingAnchor() {
+  const pathname = usePathname();
+  const search = useSearchParams()?.toString() ?? '';
   useEffect(() => {
     let cleanup: (() => void) | null = null;
     let observer: MutationObserver | null = null;
@@ -121,18 +128,27 @@ export function useSettingAnchor() {
 
     arrive();
     window.addEventListener('hashchange', arrive);
-    window.addEventListener(SETTING_ANCHOR_EVENT, arrive);
     return () => {
       window.removeEventListener('hashchange', arrive);
-      window.removeEventListener(SETTING_ANCHOR_EVENT, arrive);
       stopWaiting();
       cleanup?.();
     };
-  }, []);
+  }, [pathname, search]);
 }
 
-/** Componente sem tela para páginas servidor: monte uma vez na página de Ajustes. */
-export function SettingAnchor() {
+function SettingAnchorInner() {
   useSettingAnchor();
   return null;
+}
+
+/**
+ * Componente sem tela para páginas servidor: monte uma vez na página de Ajustes. O Suspense é do `useSearchParams`
+ * (dado de URL), para não tirar a página do shell estático.
+ */
+export function SettingAnchor() {
+  return (
+    <Suspense fallback={null}>
+      <SettingAnchorInner />
+    </Suspense>
+  );
 }

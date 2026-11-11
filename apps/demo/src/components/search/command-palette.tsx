@@ -22,7 +22,6 @@ import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { Endpoint } from '@/components/docs/endpoint';
 import { Crest } from '@/components/sport/crest';
 import { Badge } from '@/components/reui/badge';
-import { announceSettingAnchor } from '@/components/settings/page-chrome/setting-anchor';
 import {
   CommandDialog,
   Command,
@@ -61,7 +60,8 @@ import { startTrailAt } from '@/lib/trail';
 
 import { rememberLocale } from '../app-shell/user-menu';
 import type { SearchMode } from './search-provider';
-import { isSettingsPath, SettingsResultGroups, useSettingsSearch } from './settings-results';
+import { isSettingsPath } from './settings-path';
+import type * as SettingsResults from './settings-results';
 
 const DEBOUNCE_MS = 200;
 const MIN_CHARS = 2;
@@ -271,6 +271,30 @@ function Kbd({ children }: { children: React.ReactNode }) {
   );
 }
 
+type SettingsResultsModule = typeof SettingsResults;
+
+/**
+ * Busca de ajustes sob demanda (#1071): o módulo traz o registro inteiro de `@galaxie/runtime-config` e os textos de
+ * Ajustes, e só a equipe usa. Quem não é da equipe nunca baixa; para a equipe, ele chega na primeira vez que a paleta
+ * abre (`load`) e fica.
+ * Import dinâmico (e não `React.lazy`): a paleta precisa saber, no mesmo render, se há resultado de ajuste (o "nada
+ * encontrado"), e os resultados aparecem em dois lugares da lista.
+ */
+function useSettingsResults(enabled: boolean, load: boolean): SettingsResultsModule | null {
+  const [mod, setMod] = useState<SettingsResultsModule | null>(null);
+  useEffect(() => {
+    if (!enabled || !load || mod) return;
+    let alive = true;
+    void import('./settings-results').then((m) => {
+      if (alive) setMod(m);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [enabled, load, mod]);
+  return enabled ? mod : null;
+}
+
 /**
  * Paleta de busca (⌘K) sobre o command do shadcn/ReUI (`@reui/c-command-1`): resultados reais da
  * API (times, competições, jogos, pessoas, estádios e países), a documentação e atalhos. Sem filtro
@@ -320,7 +344,11 @@ export function CommandPalette({
   const actions = settingsIdle
     ? []
     : filterEntries(actionEntries(T, locale, isAdmin, guides[0]?.description ?? ''), typed);
-  const settingsHits = useSettingsSearch(typed, isStaff);
+  const settingsResults = useSettingsResults(isStaff, open);
+  const settingsData = useMemo(() => settingsResults?.buildSettingsSearch(t) ?? null, [settingsResults, t]);
+  const settingsHits = settingsResults
+    ? settingsResults.runSettingsSearch(settingsData, typed)
+    : { settings: [], pages: [] };
   const hasSettingsHits = settingsHits.settings.length > 0 || settingsHits.pages.length > 0;
   const waiting = typed.length >= MIN_CHARS && (term !== typed || search.isFetching);
   const nothing = !!typed && !groups.length && !docHits.length && !actions.length && !hasSettingsHits;
@@ -346,18 +374,27 @@ export function CommandPalette({
 
   function goToSetting(href: string) {
     close(false);
+    const target = new URL(href, window.location.href);
+    if (target.pathname === window.location.pathname && target.search === window.location.search) {
+      // mesma página: troca o hash de verdade, e o `hashchange` leva à linha (useSettingAnchor). O mesmo hash de
+      // novo não dispara o evento; aí ele vai à mão, para a linha destacar outra vez.
+      if (target.hash === window.location.hash) window.dispatchEvent(new HashChangeEvent('hashchange'));
+      else window.location.hash = target.hash;
+      return;
+    }
+    // outra página ou outra aba: a página olha o hash depois que a navegação grava a URL (useSettingAnchor)
     router.push(href);
-    // mesma página, outra âncora: o push não gera hashchange; a página escuta este aviso (useSettingAnchor)
-    announceSettingAnchor();
   }
 
-  const settingsGroups = hasSettingsHits ? (
-    <SettingsResultGroups
-      settings={settingsHits.settings}
-      pages={settingsHits.pages}
-      onSelect={goToSetting}
-    />
-  ) : null;
+  const SettingsResultGroups = settingsResults?.SettingsResultGroups;
+  const settingsGroups =
+    hasSettingsHits && SettingsResultGroups ? (
+      <SettingsResultGroups
+        settings={settingsHits.settings}
+        pages={settingsHits.pages}
+        onSelect={goToSetting}
+      />
+    ) : null;
 
   const actionsGroup = actions.length ? (
     <>

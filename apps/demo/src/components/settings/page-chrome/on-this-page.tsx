@@ -6,6 +6,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useI18n } from '@/lib/i18n/client';
 import { cn } from '@/lib/utils';
 
+import { usePageChromeReport } from './page-state';
+
 export interface OnThisPageSection {
   /** `id` do elemento da seção na página. */
   id: string;
@@ -31,6 +33,10 @@ export function activeSection(
 /**
  * "Nesta página" (#1072): índice das seções na lateral direita, só em telas ≥ xl e com 2+ seções. Acende a seção
  * visível ao rolar (IntersectionObserver). Some no celular.
+ *
+ * As seções costumam chegar depois do índice (o conteúdo vem atrás de Suspense): sem elas na página, o índice espera
+ * por elas (MutationObserver) e só então liga o IntersectionObserver. Também religa quando o conteúdo conta um novo
+ * retrato (`updatedAt` do topo), porque o Suspense pode trocar os elementos das seções.
  */
 export function OnThisPage({
   sections,
@@ -42,13 +48,28 @@ export function OnThisPage({
   const { t } = useI18n();
   const [active, setActive] = useState<string | null>(sections[0]?.id ?? null);
   const ids = sections.map((s) => s.id).join(' ');
+  const updatedAt = usePageChromeReport()?.updatedAt;
+  // muda quando as seções aparecem na página, para o efeito abaixo rodar de novo
+  const [arrived, setArrived] = useState(0);
 
   useEffect(() => {
-    const els = ids
-      .split(' ')
-      .map((id) => document.getElementById(id))
-      .filter((el): el is HTMLElement => !!el);
-    if (els.length < 2) return;
+    const find = () =>
+      ids
+        .split(' ')
+        .map((id) => document.getElementById(id))
+        .filter((el): el is HTMLElement => !!el);
+    const els = find();
+    if (els.length < 2) {
+      if (ids.split(' ').length < 2) return;
+      // seções ainda não montadas: espera chegarem
+      const waiting = new MutationObserver(() => {
+        if (find().length < 2) return;
+        waiting.disconnect();
+        setArrived((n) => n + 1);
+      });
+      waiting.observe(document.body, { childList: true, subtree: true });
+      return () => waiting.disconnect();
+    }
     const update = () =>
       setActive(
         activeSection(
@@ -61,7 +82,7 @@ export function OnThisPage({
     els.forEach((el) => observer.observe(el));
     update();
     return () => observer.disconnect();
-  }, [ids]);
+  }, [ids, arrived, updatedAt]);
 
   if (!showOnThisPage(sections)) return null;
   return (

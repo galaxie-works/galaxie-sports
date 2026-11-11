@@ -1,12 +1,17 @@
 'use client';
 
+/**
+ * Resultados de ajustes na paleta (#1071). Pesado (o registro inteiro de `@galaxie/runtime-config` e os textos de
+ * Ajustes): a paleta só carrega este módulo sob demanda, para a equipe (`useSettingsResults` em `command-palette`).
+ */
+
 import { FileText, SlidersHorizontal } from 'lucide-react';
-import { useMemo } from 'react';
 
 import { settingsNavGroups } from '@/components/admin/settings-nav';
 import { Badge } from '@/components/reui/badge';
 import { CommandGroup, CommandItem } from '@/components/ui/command';
 import { useI18n } from '@/lib/i18n/client';
+import type { ClientDictionary } from '@/lib/i18n/dictionary';
 import {
   buildSettingsIndex,
   currentSettingsTabs,
@@ -18,28 +23,29 @@ import {
   type SettingsSearchPage,
 } from '@/lib/ops/settings-search';
 
-/** Rota de Ajustes (o caminho do navegador vem sem o idioma). */
-export const isSettingsPath = (pathname: string | null) =>
-  !!pathname && (pathname === '/ajustes' || pathname.startsWith('/ajustes/'));
+/** Índice da busca de ajustes num idioma: as páginas do menu (com as abas internas) e os ajustes do registro. */
+export interface SettingsSearchData {
+  pages: SettingsSearchPage[];
+  index: SettingsSearchEntry[];
+}
 
-/**
- * Ajustes e páginas de Ajustes que casam com o termo, no idioma da tela. O índice é montado uma vez por idioma (só
- * com `enabled`: quem não é da equipe nem monta).
- */
-export function useSettingsSearch(term: string, enabled: boolean, limits = { settings: 8, pages: 5 }) {
-  const { t } = useI18n();
-  const pages = useMemo(
-    () => (enabled ? settingsSearchPages(settingsNavGroups(t.ops.nav), currentSettingsTabs(t)) : []),
-    [enabled, t],
-  );
-  const index = useMemo(
-    () => (enabled ? buildSettingsIndex({ t: t.ops, pages }) : []),
-    [enabled, pages, t.ops],
-  );
+/** Monta o índice no idioma da tela; a paleta guarda o resultado (uma vez por idioma). */
+export function buildSettingsSearch(t: ClientDictionary): SettingsSearchData {
+  const pages = settingsSearchPages(settingsNavGroups(t.ops.nav), currentSettingsTabs(t));
+  return { pages, index: buildSettingsIndex({ t: t.ops, pages }) };
+}
+
+/** Ajustes e páginas de Ajustes que casam com o termo. */
+export function runSettingsSearch(
+  data: SettingsSearchData | null,
+  term: string,
+  limits = { settings: 8, pages: 5 },
+): { settings: SettingsSearchEntry[]; pages: SettingsSearchPage[] } {
   const typed = term.trim();
+  if (!data || !typed) return { settings: [], pages: [] };
   return {
-    settings: typed ? searchSettings(index, typed, limits.settings) : [],
-    pages: typed ? searchSettingsPages(pages, typed, limits.pages) : [],
+    settings: searchSettings(data.index, typed, limits.settings),
+    pages: searchSettingsPages(data.pages, typed, limits.pages),
   };
 }
 

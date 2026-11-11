@@ -18,7 +18,10 @@ import { settingsItem } from './settings-items';
 
 type OpsTexts = ClientDictionary['ops'];
 
-/** Onde um ajuste mora: item do menu (id), link da página, grupo do menu (id) e, se houver, a seção (id). */
+/**
+ * Onde um ajuste mora: item do menu (id), link da página (com a busca da aba, quando o ajuste não está na aba inicial:
+ * `/ajustes/grades?aba=ajustes`), grupo do menu (id) e, se houver, a seção (id).
+ */
 export interface SettingPageRef {
   item: string;
   href: string;
@@ -50,7 +53,7 @@ export interface SettingsSearchEntry {
   key: string;
   label: string;
   description: string;
-  /** `/ajustes/<item>#<CHAVE>` (a página rola até a linha, ver `useSettingAnchor`). */
+  /** `/ajustes/<item>[?aba=…]#<CHAVE>` (a página rola até a linha, ver `useSettingAnchor`). */
   href: string;
   /** Caminho: grupo › item › seção. */
   crumbs: string[];
@@ -71,7 +74,8 @@ export interface SettingsSearchEntry {
 }
 
 /**
- * Lugar de cada ajuste no menu de Ajustes, pelo `settingPage` do #1070: item, rota e grupo do menu. A seção (o bloco
+ * Lugar de cada ajuste no menu de Ajustes, pelo `settingPage` do #1070: item, rota (com a aba, como no `settingHref`:
+ * os `LINEUP_*` ficam na aba Ajustes de Grades e ofertas) e grupo do menu. A seção (o bloco
  * da página) só entra no caminho quando a página tem mais de um bloco (Fornecedor e cota › Esportes); com um só, ela
  * repetiria a página.
  */
@@ -80,7 +84,8 @@ export const resolveSettingPage: SettingPageResolver = (key) => {
   if (!page) return undefined;
   const item = settingsItem(page.item);
   const multi = SETTINGS_VIEWS[page.item].length > 1;
-  return { item: page.item, href: item.href, group: item.group, ...(multi ? { section: page.block } : {}) };
+  const href = page.query ? `${item.href}?${page.query}` : item.href;
+  return { item: page.item, href, group: item.group, ...(multi ? { section: page.block } : {}) };
 };
 
 /**

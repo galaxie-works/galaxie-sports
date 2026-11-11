@@ -17,6 +17,7 @@ import {
   anchorKey,
   countChanged,
   effectiveMode,
+  hiddenRowsCss,
   openAncestors,
   parseChangedMode,
   showOnThisPage,
@@ -26,7 +27,13 @@ import {
   type ChangedSource,
 } from './index';
 
-vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }) }));
+// a URL do roteador (caminho e busca), trocada nos testes para simular uma navegação
+const nav = vi.hoisted(() => ({ pathname: '/ajustes/grades', search: '' }));
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }),
+  usePathname: () => nav.pathname,
+  useSearchParams: () => new URLSearchParams(nav.search),
+}));
 
 afterEach(cleanup);
 
@@ -176,6 +183,13 @@ describe('chegada pela âncora', () => {
     expect(anchorKey('')).toBeNull();
   });
 
+  it('âncora mal formada não derruba a página', () => {
+    expect(() => anchorKey('#%')).not.toThrow();
+    expect(anchorKey('#%')).toBeNull();
+    expect(anchorKey('#%E0%A4%A')).toBeNull();
+    expect(anchorKey('#LIVE%5FFEATURED')).toBe('LIVE_FEATURED');
+  });
+
   it('abre o <details> fechado que contém a linha', () => {
     document.body.innerHTML = '<details><summary>x</summary><div id="LIVE_FEATURED"></div></details>';
     expect(openAncestors(document.getElementById('LIVE_FEATURED')!)).toBe(true);
@@ -200,5 +214,107 @@ describe('chegada pela âncora', () => {
     expect(row.classList.contains('bg-primary/5')).toBe(false);
     window.location.hash = '';
     vi.useRealTimers();
+  });
+
+  it('com #% na URL a página monta sem erro', () => {
+    window.location.hash = '#%';
+    function Page() {
+      useSettingAnchor();
+      return <p>ok</p>;
+    }
+    expect(() => render(<Page />)).not.toThrow();
+    expect(screen.getByText('ok')).toBeTruthy();
+    window.location.hash = '';
+  });
+
+  it('na mesma página, o hashchange leva à nova linha', () => {
+    vi.useFakeTimers();
+    document.body.innerHTML = '<div id="LIVE_FEATURED"></div><div id="LIVE_MIN_PRIORITY"></div>';
+    const second = document.getElementById('LIVE_MIN_PRIORITY')!;
+    second.scrollIntoView = vi.fn();
+    function Page() {
+      useSettingAnchor();
+      return null;
+    }
+    render(<Page />);
+    act(() => {
+      window.location.hash = '#LIVE_MIN_PRIORITY';
+      window.dispatchEvent(new HashChangeEvent('hashchange'));
+    });
+    act(() => vi.advanceTimersByTime(50));
+    expect(second.hasAttribute('data-highlighted')).toBe(true);
+    window.location.hash = '';
+    vi.useRealTimers();
+  });
+
+  it('depois de uma navegação que muda a busca (?aba=ajustes), lê o hash novo sem remontar', () => {
+    vi.useFakeTimers();
+    document.body.innerHTML = '<div id="LINEUP_PROMPT_MAX_CHARS"></div>';
+    const row = document.getElementById('LINEUP_PROMPT_MAX_CHARS')!;
+    row.scrollIntoView = vi.fn();
+    nav.search = '';
+    window.location.hash = '';
+    function Page() {
+      useSettingAnchor();
+      return null;
+    }
+    const { rerender } = render(<Page />);
+    act(() => vi.advanceTimersByTime(50));
+    expect(row.hasAttribute('data-highlighted')).toBe(false);
+    // o roteador grava a URL nova (sem hashchange) e a página re-renderiza com a busca nova
+    window.location.hash = '#LINEUP_PROMPT_MAX_CHARS';
+    nav.search = 'aba=ajustes';
+    rerender(<Page />);
+    act(() => vi.advanceTimersByTime(50));
+    expect(row.hasAttribute('data-highlighted')).toBe(true);
+    nav.search = '';
+    window.location.hash = '';
+    vi.useRealTimers();
+  });
+});
+
+describe('"Alterados" esconde as linhas com seletor seguro', () => {
+  it('escapa as chaves', () => {
+    expect(hiddenRowsCss(['LIVE_FEATURED', 'A'])).toBe('#LIVE_FEATURED,#A{display:none}');
+    const css = hiddenRowsCss(['X{}body{display:none']);
+    expect(css).not.toContain('X{}body');
+    expect(hiddenRowsCss([])).toBeNull();
+  });
+});
+
+describe('Nesta página com seções que chegam depois', () => {
+  it('liga o observador quando as seções aparecem (Suspense)', async () => {
+    const observed: Element[] = [];
+    const original = globalThis.IntersectionObserver;
+    globalThis.IntersectionObserver = class {
+      observe(el: Element) {
+        observed.push(el);
+      }
+      disconnect() {}
+      unobserve() {}
+      takeRecords() {
+        return [];
+      }
+    } as unknown as typeof IntersectionObserver;
+    document.body.innerHTML = '';
+    render(
+      wrap(
+        <OnThisPage
+          sections={[
+            { id: 'late-a', label: 'A' },
+            { id: 'late-b', label: 'B' },
+          ]}
+        />,
+      ),
+    );
+    expect(observed).toHaveLength(0);
+    await act(async () => {
+      const box = document.createElement('div');
+      box.innerHTML = '<section id="late-a"></section><section id="late-b"></section>';
+      document.body.appendChild(box);
+      await new Promise((r) => setTimeout(r, 0));
+    });
+    expect(observed.map((el) => el.id)).toEqual(['late-a', 'late-b']);
+    globalThis.IntersectionObserver = original;
   });
 });

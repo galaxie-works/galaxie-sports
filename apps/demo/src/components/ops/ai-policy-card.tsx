@@ -97,7 +97,8 @@ export function AiPolicyCard({ llm }: { llm: LlmSpend }) {
           {fill(T.day, { day: llm.budgetDay, start: llm.day.start, timeZone: llm.day.timeZone })}
         </p>
 
-        <div className="flex flex-col gap-4">
+        {/* id = chave: âncora da busca de ajustes (#1071) e do filtro "Alterados no painel" */}
+        <div id="AI_BAND_SHARES" className="flex scroll-mt-20 flex-col gap-4">
           {AI_BANDS.map((band) => {
             const text = T.bands[band];
             const limit = band === 'reserve' ? null : preview[band];
@@ -143,7 +144,7 @@ export function AiPolicyCard({ llm }: { llm: LlmSpend }) {
           </span>
         </div>
 
-        <div className="flex flex-col gap-1.5">
+        <div id="AI_DAILY_USD_BUDGET" className="flex scroll-mt-20 flex-col gap-1.5">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <label htmlFor="ai-daily-usd" className="text-sm font-medium">
               {T.dailyUsd.label}
@@ -176,7 +177,7 @@ export function AiPolicyCard({ llm }: { llm: LlmSpend }) {
           </span>
         </div>
 
-        <div className="flex flex-col gap-1.5">
+        <div id="AI_P0_MIN_AUDIENCE" className="flex scroll-mt-20 flex-col gap-1.5">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <label htmlFor="ai-p0-cut" className="text-sm font-medium">
               {T.minAudience.label}

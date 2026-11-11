@@ -3,7 +3,7 @@
  * pedidos das operadoras e o retrato do painel de Operação). Cada fonte falha sozinha: o cartão dela fica "Sem dados
  * agora" e os outros seguem. Quem chama já conferiu a sessão (`requireAdmin`).
  */
-import { lineupDb, listLineupReviewRequests } from '@/lib/lineup/store';
+import { countOpenLineupRequests } from '@/lib/lineup/server';
 import { readOpsSnapshot } from '@/lib/ops/data';
 import { listReviewItems } from '@/lib/review/store';
 import { parseFilters } from '@/lib/review/types';
@@ -24,9 +24,9 @@ async function readReviewPending(words: Dictionary['review']['summary']): Promis
   return { pending: data.counts.needs_review };
 }
 
+/** Os abertos filtrados no banco, a mesma contagem do selo do menu (`settingsNavCounts`). */
 async function readOpenRequests(): Promise<HomeSources['requests']> {
-  const all = await listLineupReviewRequests(lineupDb(), { limit: 1000 });
-  return { open: all.filter((r) => r.status === 'open').length };
+  return { open: await countOpenLineupRequests() };
 }
 
 /** `null` quando a fonte falha (tabela não migrada, banco fora), sem derrubar o Início. */

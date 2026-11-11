@@ -13,6 +13,7 @@ import {
   missingCredentials,
   openAlerts,
   recentChanges,
+  requiredSecret,
   type HomeSources,
 } from './home-cards';
 
@@ -93,6 +94,33 @@ describe('agregadores do Início', () => {
   it('credenciais faltando (só segredos do registro)', () => {
     expect(missingCredentials(ops())).toBe(2);
     expect(missingCredentials(ops({ settings: [setting('LIVE_FEATURED', false)] }))).toBe(0);
+  });
+
+  it('credenciais faltando: só as obrigatórias (opcionais e IA sem uso não contam)', () => {
+    const value = (key: string, v: string) =>
+      ({ ...setting(key, true), value: v }) as Ops['settings'][number];
+    // opcionais: Stripe, token do GitHub das sugestões, métricas, chave da qualidade
+    const optional = [
+      'STRIPE_SECRET_KEY',
+      'STRIPE_WEBHOOK_SECRET',
+      'FEEDBACK_GITHUB_TOKEN',
+      'METRICS_TOKEN',
+      'QUALITY_API_KEY',
+    ];
+    for (const key of optional) expect(requiredSecret(ops(), key), key).toBe(false);
+    expect(missingCredentials(ops({ settings: optional.map((k) => setting(k, false)) }))).toBe(0);
+    // obrigatórias
+    for (const key of ['APISPORTS_KEY', 'BETTER_AUTH_SECRET', 'S3_ACCESS_KEY', 'SMTP_HOST'])
+      expect(requiredSecret(ops(), key), key).toBe(true);
+    // IA: padrão do registro (ligada; OpenAI no AI_PROVIDER, Gemini na revisão e nos canais); Anthropic sem uso
+    const keys = ['OPENAI_API_KEY', 'GEMINI_API_KEY', 'ANTHROPIC_API_KEY'].map((k) => setting(k, false));
+    expect(missingCredentials(ops({ settings: keys }))).toBe(2);
+    // alguém passa a usar a Anthropic: a chave dela conta
+    expect(missingCredentials(ops({ settings: [...keys, value('AI_RIGHTS_PROVIDER', 'anthropic')] }))).toBe(
+      3,
+    );
+    // IA desligada: nenhuma chave de provedor faz falta
+    expect(missingCredentials(ops({ settings: [...keys, value('AI_STATUS', 'off')] }))).toBe(0);
   });
 
   it('IA perto do teto: % do teto em US$; sem teto ou desligada, nada', () => {

@@ -12,10 +12,8 @@ export {
 export { OnThisPage, activeSection, showOnThisPage, type OnThisPageSection } from './on-this-page';
 export {
   HIGHLIGHT_MS,
-  SETTING_ANCHOR_EVENT,
   SettingAnchor,
   anchorKey,
-  announceSettingAnchor,
   openAncestors,
   openSection,
   revealSetting,
@@ -25,6 +23,7 @@ export {
 export {
   PageChangedFilter,
   PageChromeProvider,
+  hiddenRowsCss,
   usePageChromeReport,
   useReportPageChrome,
   type PageChromeReport,
