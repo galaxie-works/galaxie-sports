@@ -656,7 +656,14 @@
     {
       "idx": 93,
       "version": "7",
-      "when": 1794446600000,
+      "when": 1794447867474,
+      "tag": "0098_patrocinador_alcool",
+      "breakpoints": true
+    },
+    {
+      "idx": 94,
+      "version": "7",
+      "when": 1794487936297,
       "tag": "0105_chat_salas",
       "breakpoints": true
     }
