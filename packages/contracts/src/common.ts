@@ -49,6 +49,20 @@ export const ERROR_CODES = [
 ] as const;
 export type ErrorCode = (typeof ERROR_CODES)[number];
 
+/** Motivos de recusa do portão de idade (#1106), na ordem em que ele confere. */
+export const AGE_GATE_DENIAL_REASONS = [
+  'no_policy',
+  'under_min_age',
+  'adult_only',
+  'frozen',
+  'guardian_consent',
+  'guardian_link',
+  'age_assurance',
+  'not_in_country',
+] as const;
+/** O que o cliente pode fazer para liberar: comprovar a idade, pedir a autorização ou vincular a conta. */
+export const AGE_GATE_NEXT_STEPS = ['verify_age', 'guardian_consent', 'guardian_link'] as const;
+
 /** Erro no formato RFC 9457 (`application/problem+json`). */
 export const Problem = z
   .object({
@@ -60,6 +74,13 @@ export const Problem = z
     instance: z.string().optional(),
     /** Detalhes de validação (INVALID_PARAMS). */
     errors: z.array(z.object({ path: z.string(), message: z.string() })).optional(),
+    /** Recusa do portão de idade (FAN_AGE_RESTRICTED, #1106): o motivo e o que o cliente pode fazer para liberar. */
+    age_gate: z
+      .object({
+        reason: z.enum(AGE_GATE_DENIAL_REASONS),
+        next: z.enum(AGE_GATE_NEXT_STEPS).optional(),
+      })
+      .optional(),
     /** MODULE_NOT_IN_PLAN: onde o cliente contrata o módulo que falta (plataforma comercial, #1137). */
     upgrade_url: z.string().meta({ example: 'https://example.com/console/plans?module=odds' }).optional(),
   })

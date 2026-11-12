@@ -12,7 +12,9 @@ export class ProblemError extends Error {
     readonly code: ErrorCode,
     readonly title: string,
     readonly detail?: string,
-    readonly extra: Pick<Problem, 'errors' | 'upgrade_url'> & { headers?: Record<string, string> } = {},
+    readonly extra: Pick<Problem, 'errors' | 'age_gate' | 'upgrade_url'> & {
+      headers?: Record<string, string>;
+    } = {},
   ) {
     super(title);
     this.name = 'ProblemError';
@@ -27,6 +29,7 @@ export class ProblemError extends Error {
       ...(this.detail ? { detail: this.detail } : {}),
       ...(instance ? { instance } : {}),
       ...(this.extra.errors ? { errors: this.extra.errors } : {}),
+      ...(this.extra.age_gate ? { age_gate: this.extra.age_gate } : {}),
       ...(this.extra.upgrade_url ? { upgrade_url: this.extra.upgrade_url } : {}),
     };
   }
@@ -87,8 +90,14 @@ export const problems = {
     detail = 'A chave publicável só faz leituras (GET) da API /v1. Use a chave secreta no seu backend.',
   ) =>
     new ProblemError(403, 'PUBLISHABLE_KEY_NOT_ALLOWED', 'Rota não disponível para chave publicável', detail),
-  fanAgeRestricted: (detail: string) =>
-    new ProblemError(403, 'FAN_AGE_RESTRICTED', 'A faixa etária do torcedor não permite esta ação', detail),
+  fanAgeRestricted: (detail: string, ageGate?: NonNullable<Problem['age_gate']>) =>
+    new ProblemError(
+      403,
+      'FAN_AGE_RESTRICTED',
+      'A faixa etária do torcedor não permite esta ação',
+      detail,
+      ageGate ? { age_gate: ageGate } : {},
+    ),
   invalidFanToken: (
     detail = 'Envie o token do torcedor em Authorization: Bearer gft_…; peça outro ao seu servidor se venceu.',
   ) => new ProblemError(401, 'INVALID_KEY', 'Token do torcedor ausente ou inválido', detail),

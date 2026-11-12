@@ -11,6 +11,8 @@ import { readRuntimeOverrides, type Database } from '@galaxie/db';
 import { resolveSetting, settingDef } from '@galaxie/runtime-config';
 import { problems, ProblemError } from '../errors.js';
 import type { RateLimiter } from '../rate-limit.js';
+import { isAgeCapability, type AgeGateReason } from '@galaxie/engage';
+import { AgeGateProfileGone, type FanAgeGate } from './age-gate.js';
 import { FAN_TOKEN_PREFIX, FAN_TOKEN_TTL_S, type FanTokenSigner } from './fan-token.js';
 
 /** Perfis excluídos: os tokens já emitidos para eles param de valer. */
@@ -101,11 +103,37 @@ export interface FanAuthDeps {
   revocations: FanRevocations;
   limiter: RateLimiter;
   windowMs: number;
+  /** Portão de idade (#1106); sem banco, as rotas que conferem idade respondem 503. */
+  gate: FanAgeGate | null;
 }
 
-/** Hook das rotas com `config.fan`: token válido, Perfil não excluído e limite por Perfil. */
+/** Texto da recusa do portão, para o detail do 403. */
+const AGE_DENIAL_DETAIL: Record<Exclude<AgeGateReason, 'ok'>, string> = {
+  no_policy: 'O país do torcedor não tem ficha de regras: só adultos leem, e nada mais.',
+  under_min_age: 'O Perfil está abaixo da idade mínima para os recursos sociais no país.',
+  adult_only: 'Este recurso é só para maiores de 18 anos.',
+  frozen: 'A faixa etária desceu e o Perfil vale como menor até comprovar a idade.',
+  guardian_consent: 'Falta a autorização do responsável para esta idade no país.',
+  guardian_link: 'Falta vincular a conta do torcedor à do responsável.',
+  age_assurance: 'A comprovação de idade está abaixo da que o país pede para este recurso.',
+  not_in_country: 'A ficha do país não libera este recurso.',
+};
+
+/**
+ * Hook das rotas com `config.fan`: token válido, Perfil não excluído, limite por Perfil e o portão de idade da
+ * capacidade em `config.age` (#1106). Rota do torcedor sem `config.age` derruba o boot: nenhum módulo decide idade
+ * sozinho, nem esquece de perguntar.
+ */
 export function registerFanAuth(app: FastifyInstance, deps: FanAuthDeps): void {
   app.decorateRequest('fan', null);
+  app.addHook('onRoute', (route) => {
+    const config = route.config as { fan?: boolean; age?: unknown } | undefined;
+    if (!config?.fan) return;
+    if (config.age !== 'exempt' && !isAgeCapability(config.age))
+      throw new Error(
+        `Rota do torcedor ${route.method} ${route.url} sem config.age: declare a capacidade que o portão de idade confere (#1106).`,
+      );
+  });
   app.addHook('onRequest', async (request, reply) => {
     if (!request.routeOptions.config?.fan) return;
     reply.header('cache-control', 'no-store');
@@ -151,6 +179,27 @@ export function registerFanAuth(app: FastifyInstance, deps: FanAuthDeps): void {
     } catch (err) {
       if (err instanceof ProblemError) throw err;
       request.log.warn({ err }, 'rate limit do torcedor indisponível');
+    }
+    const capability = request.routeOptions.config.age;
+    if (capability && capability !== 'exempt') {
+      // menor de 13 no token fica fora de tudo social, sem consultar o banco
+      if (claims.ageBand === 'under13') {
+        deps.gate?.denied({ reason: 'under_min_age', capability, country: claims.country });
+        throw problems.fanAgeRestricted(AGE_DENIAL_DETAIL.under_min_age, { reason: 'under_min_age' });
+      }
+      if (!deps.gate) throw problems.degraded('Banco de dados não configurado.');
+      let r;
+      try {
+        r = await deps.gate.check(claims, capability);
+      } catch (err) {
+        if (err instanceof AgeGateProfileGone) throw problems.invalidFanToken('Perfil excluído.');
+        throw err;
+      }
+      if (!r.allowed && r.reason !== 'ok')
+        throw problems.fanAgeRestricted(AGE_DENIAL_DETAIL[r.reason], {
+          reason: r.reason,
+          ...(r.next ? { next: r.next } : {}),
+        });
     }
     request.fan = claims;
   });
