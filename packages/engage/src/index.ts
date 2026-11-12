@@ -5,6 +5,7 @@ export * from './moderation.js';
 export { DEFAULT_MODERATION_LISTS } from './moderation-defaults.js';
 export * from './sponsors.js';
 export * from './moderation-queue.js';
+export * from './chat-room.js';
 export * from './fan-age.js';
 export * from './shop-order.js';
 export * from './shop-destination.js';
