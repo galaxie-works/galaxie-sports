@@ -20,8 +20,15 @@ import {
   type FanTokenResponse,
   type FanWallet,
 } from '@galaxie/contracts';
-import { screen, screenNotice } from '@galaxie/engage';
-import { isEngageModule, readLedger, readWallets, type Database } from '@galaxie/db';
+import { detailAgeBand, fanAgeStatus, screen, screenNotice, type CountryPolicy } from '@galaxie/engage';
+import {
+  auditFanEvent,
+  holdContent,
+  isEngageModule,
+  readLedger,
+  readWallets,
+  type Database,
+} from '@galaxie/db';
 import type { TenantContext } from '../auth/authenticator.js';
 import { problems } from '../errors.js';
 import { parseInput } from '../util.js';
@@ -30,6 +37,7 @@ import { fanCan, fanCapabilities } from './fan-rules.js';
 import type { FanTokenSigner } from './fan-token.js';
 import { eraseFan, patchFan, readFan, storedNickname, upsertFan, type FanProfileView } from './fans.js';
 import { ModerationLists } from './moderation.js';
+import { clocksFrom, policyForFan } from './moderation-routes.js';
 
 export interface FanRoutesDeps {
   db: Database | undefined;
@@ -47,13 +55,27 @@ function engageTenant(request: FastifyRequest): TenantContext {
   return tenant;
 }
 
-function meBody(p: FanProfileView): FanMe {
+function meBody(p: FanProfileView, policy: CountryPolicy | null): FanMe {
   return {
     data: {
       profile_id: p.profileId,
       nickname: p.nickname,
       avatar_url: p.avatarUrl,
       age_band: p.ageBand,
+      age_band_detail: p.ageBandDetail,
+      age_assurance: { method: p.ageAssurance, at: p.ageAssuranceAt?.toISOString() ?? null },
+      guardian: { status: p.guardianStatus, linked_account: p.guardianLinked },
+      age_status: fanAgeStatus(
+        {
+          // Perfil de antes do #1105 só tem a larga (`13_17` vale como 13); congelado vale a larga gravada, a menor
+          band: p.ageFrozenAt !== null ? p.ageBand : (p.ageBandDetail ?? p.ageBand),
+          assurance: p.ageAssurance,
+          guardianStatus: p.guardianStatus,
+          guardianLinked: p.guardianLinked,
+          frozen: p.ageFrozenAt !== null,
+        },
+        policy,
+      ),
       country: p.country,
       locale: p.locale,
       favorite_team_id: p.favoriteTeamId,
@@ -101,25 +123,77 @@ export async function fanRoutes(app: FastifyInstance, deps: FanRoutesDeps): Prom
           'Apelido não permitido pelas regras de moderação.',
         );
     }
-    const { accountId, profileId } = await upsertFan(database, {
-      tenantId: tenant.tenantId,
-      externalAccountId: body.externalAccountId,
-      externalProfileId: body.externalProfileId,
-      nickname: body.nickname,
-      avatarUrl: body.avatarUrl,
-      ageBand: body.ageBand,
-      country: body.country,
-      locale: body.locale,
-      holderAdult: body.holderAdult,
-      favoriteTeamId: body.favoriteTeamId,
-    });
+    // a ficha do país antes de gravar: a fila e a auditoria usam os relógios dela
+    const policy = await policyForFan(database, tenant.tenantId, body.country);
+    const upserted = await upsertFan(
+      database,
+      {
+        tenantId: tenant.tenantId,
+        externalAccountId: body.externalAccountId,
+        externalProfileId: body.externalProfileId,
+        nickname: body.nickname,
+        avatarUrl: body.avatarUrl,
+        ageBand: detailAgeBand(body.ageBand),
+        // sem o bloco, a idade é só declarada
+        ageAssurance: {
+          method: body.ageAssurance?.method ?? 'self',
+          at: body.ageAssurance ? new Date(body.ageAssurance.at) : null,
+          provider: body.ageAssurance?.provider ?? null,
+        },
+        guardian: {
+          status: body.guardian?.status ?? 'none',
+          consentId: body.guardian?.consentId ?? null,
+          linked: body.guardian?.linkedAccount ?? false,
+        },
+        country: body.country,
+        locale: body.locale,
+        holderAdult: body.holderAdult,
+        favoriteTeamId: body.favoriteTeamId,
+      },
+      // caso na fila e auditoria na mesma transação: falhou, nada fica gravado e a nova tentativa refaz tudo
+      async (tx, done) => {
+        if (!done.downgradedFrom && !done.guardianDeclared) return;
+        if (!policy) throw problems.degraded('Ficha do país não configurada para este cliente.');
+        const now = new Date();
+        const clocks = clocksFrom(policy, now);
+        if (done.downgradedFrom)
+          // descer de adulto para menor: as ações de adulto ficam congeladas e a equipe do cliente revê
+          await holdContent(tx, {
+            tenantId: tenant.tenantId,
+            targetType: 'profile',
+            targetId: done.profileId,
+            targetProfileId: done.profileId,
+            module: 'profile',
+            room: null,
+            community: null,
+            source: 'filter',
+            reasons: ['age_band_downgrade'],
+            severity: 60,
+            hide: false,
+            content: null,
+            detail: { from: done.downgradedFrom, to: body.ageBand },
+            clocks,
+            now,
+          });
+        if (done.guardianDeclared)
+          await auditFanEvent(tx, {
+            tenantId: tenant.tenantId,
+            actor: { id: `key:${tenant.keyPrefix}`, kind: 'system' },
+            action: 'guardian.declared',
+            clocks,
+            subjectProfileId: done.profileId,
+            reason: 'autorização declarada pelo cliente',
+          });
+      },
+    );
+    const { accountId, profileId } = upserted;
     const ttl = await deps.ttl.seconds();
     const { token, expiresAt } = sign.issue(
       {
         tenantId: tenant.tenantId,
         accountId,
         profileId,
-        ageBand: body.ageBand,
+        ageBand: upserted.ageBand,
         country: body.country,
         locale: body.locale,
         holderAdult: body.holderAdult,
@@ -138,7 +212,7 @@ export async function fanRoutes(app: FastifyInstance, deps: FanRoutesDeps): Prom
     const fan = request.fan!;
     const profile = await readFan(db(), fan.tenantId, fan.profileId);
     if (!profile) throw problems.invalidFanToken('Perfil excluído.');
-    return meBody(profile);
+    return meBody(profile, await policyForFan(db(), fan.tenantId, profile.country));
   });
 
   app.patch('/v1/fans/me', { config: { fan: true } }, async (request) => {
@@ -153,7 +227,7 @@ export async function fanRoutes(app: FastifyInstance, deps: FanRoutesDeps): Prom
     if (!changed) throw problems.invalidFanToken('Perfil excluído.');
     const profile = await readFan(db(), fan.tenantId, fan.profileId);
     if (!profile) throw problems.invalidFanToken('Perfil excluído.');
-    return meBody(profile);
+    return meBody(profile, await policyForFan(db(), fan.tenantId, profile.country));
   });
 
   /** Torcedor do token, com Perfil ativo e faixa que participa (menor de 13 fica fora, D1). */

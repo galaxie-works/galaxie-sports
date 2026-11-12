@@ -56,7 +56,19 @@ describe('POST /v1/fans/tokens', () => {
   it('recusa campo fora da lista (e-mail, nascimento) e faixa desconhecida', async () => {
     const { store, key } = await memoryTenant({ modules: ['core_data', 'live_chat'] });
     const app = buildServer({ tenantStore: store, usage: false, fanTokens: signer });
-    for (const extra of [{ email: 'a@b.c' }, { birthDate: '2010-01-01' }, { ageBand: 'adult' }]) {
+    for (const extra of [
+      { email: 'a@b.c' },
+      { birthDate: '2010-01-01' },
+      { document: '123.456.789-00' },
+      { ageBand: 'adult' },
+      { ageBand: '15' },
+      { ageAssurance: { method: 'document', at: '2026-11-01' } },
+      { ageAssurance: { method: 'verified', at: '2026-11-01', document: 'x' } },
+      { ageAssurance: { method: 'verified' } },
+      { ageAssurance: { method: 'verified', at: '2999-01-01' } },
+      { guardian: { status: 'granted', birthDate: '1980-01-01' } },
+      { guardian: { status: 'ok' } },
+    ]) {
       const res = await app.inject({
         method: 'POST',
         url: '/v1/fans/tokens',
