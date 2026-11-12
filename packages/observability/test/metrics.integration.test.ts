@@ -6,6 +6,7 @@ import {
   closeDb,
   createDb,
   event,
+  eventIncident,
   exploreSummary,
   jobRequest,
   jobRun,
@@ -188,6 +189,20 @@ beforeAll(async () => {
       },
     ])
     .returning({ id: event.id });
+  // VAR (#641): um veredito conhecido, um sem texto e dois lances com um texto novo
+  await db.insert(eventIncident).values(
+    [
+      [1, 'Var', 'Goal cancelled'],
+      [2, 'var', null],
+      [3, 'Var', 'Goal Disallowed - Unknown reason'],
+      [4, 'Var', 'Goal Disallowed - Unknown reason '],
+    ].map(([sequence, type, detail]) => ({
+      eventId: planned[0]!.id,
+      sequence: sequence as number,
+      type: type as string,
+      detail: detail as string | null,
+    })),
+  );
   await db.insert(event).values([
     {
       sport: 'football',
@@ -618,6 +633,12 @@ describe('frescor e ao vivo', () => {
     }
   });
 
+  it('VAR: só o detail sem veredito canônico vira galaxie_var_unknown_details (#641)', async () => {
+    const m = await scrape();
+    expect(m.get('galaxie_var_unknown_details', { detail: 'Goal Disallowed - Unknown reason' })).toBe(2);
+    expect(m.get('galaxie_var_unknown_details', { detail: 'Goal cancelled' })).toBeUndefined();
+  });
+
   it('coletores reportam saúde', async () => {
     const m = await scrape();
     for (const collector of [
@@ -630,6 +651,7 @@ describe('frescor e ao vivo', () => {
       'ops',
       'queue',
       'explore',
+      'var_details',
     ]) {
       expect(m.get('galaxie_metrics_collector_up', { collector })).toBe(1);
     }
