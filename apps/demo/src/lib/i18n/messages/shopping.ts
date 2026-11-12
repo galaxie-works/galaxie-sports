@@ -67,7 +67,9 @@ export default defineMessages(
     subtypes: {
       club: 'Time',
       national_team: 'Seleção',
-      athlete: 'Atleta ou piloto',
+      athlete: 'Atleta',
+      driver: 'Piloto',
+      fighter: 'Lutador',
       competition: 'Campeonato',
       person: 'Jogador',
     },
@@ -290,7 +292,9 @@ export default defineMessages(
       subtypes: {
         club: 'Team',
         national_team: 'National team',
-        athlete: 'Athlete or driver',
+        athlete: 'Athlete',
+        driver: 'Driver',
+        fighter: 'Fighter',
         competition: 'Competition',
         person: 'Player',
       },
@@ -511,7 +515,9 @@ export default defineMessages(
       subtypes: {
         club: 'Equipo',
         national_team: 'Selección',
-        athlete: 'Atleta o piloto',
+        athlete: 'Atleta',
+        driver: 'Piloto',
+        fighter: 'Luchador',
         competition: 'Torneo',
         person: 'Jugador',
       },

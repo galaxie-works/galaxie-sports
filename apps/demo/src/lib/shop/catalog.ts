@@ -50,7 +50,7 @@ export interface ShopEntityRefView {
   id: string;
   name: string;
   sport: string | null;
-  /** `club`, `national_team`, `athlete` (participante), `competition` ou `person`. */
+  /** `club`, `national_team`, `athlete`, `driver`, `fighter` (participante), `competition` ou `person`. */
   subtype: string;
   countryCode: string | null;
 }
@@ -107,7 +107,7 @@ const ENTITY_REFS = `
   select 'participant'::text as kind, p.id, p.name, p.short_name as alt, p.sport, p.kind::text as subtype,
          p.country_code
     from core.participant p
-   where p.kind in ('club', 'national_team', 'athlete')
+   where p.kind in ('club', 'national_team', 'athlete', 'driver', 'fighter')
   union all
   select 'competition', c.id, c.name, null, c.sport, 'competition', c.country_code from core.competition c
   union all
