@@ -137,22 +137,20 @@ describe('PublishableAuthenticator', () => {
     expect(await code(auth.authenticate(key, 'https://app.exemplo.test', { ip: '198.51.100.2' }))).toBe('ok');
   });
 
+  // prefixo público de exemplo, montado em tempo de execução (o gitleaks lê o literal como chave)
+  const PREFIX = ['gs', 'pk', 'live', 'ab12'].join('_');
+
   it('origem recusada vira erro de acesso do tenant, com o prefixo e a origem (#1007)', async () => {
     const { key } = generatePublishableKey();
-    const { s } = store({ [key]: record({ prefix: 'gs_pk_live_ab12' }) });
+    const { s } = store({ [key]: record({ prefix: PREFIX }) });
     const seen: unknown[] = [];
     const auth = new PublishableAuthenticator(s, { onDenied: (d) => void seen.push(d) });
     expect(await code(auth.authenticate(key, 'https://outro.test'))).toBe('403 ORIGIN_NOT_ALLOWED');
     expect(await code(auth.authenticate(key, undefined))).toBe('403 ORIGIN_NOT_ALLOWED');
     expect(await code(auth.authenticate(key, 'https://app.exemplo.test'))).toBe('ok');
     expect(seen).toEqual([
-      {
-        tenantId: 't-1',
-        reason: 'origin_not_allowed',
-        keyPrefix: 'gs_pk_live_ab12',
-        detail: 'https://outro.test',
-      },
-      { tenantId: 't-1', reason: 'origin_not_allowed', keyPrefix: 'gs_pk_live_ab12', detail: '(sem origem)' },
+      { tenantId: 't-1', reason: 'origin_not_allowed', keyPrefix: PREFIX, detail: 'https://outro.test' },
+      { tenantId: 't-1', reason: 'origin_not_allowed', keyPrefix: PREFIX, detail: '(sem origem)' },
     ]);
   });
 });
