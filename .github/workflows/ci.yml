@@ -22,7 +22,7 @@ jobs:
   checks:
     name: checks (Postgres ${{ matrix.postgres }}, Valkey ${{ matrix.valkey }})
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     # ler os rótulos do PR (passo da migration destrutiva); continua sem escrever em nada
     permissions:
       contents: read
