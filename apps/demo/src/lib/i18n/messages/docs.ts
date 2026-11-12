@@ -406,6 +406,14 @@ export default defineMessages(
         delivery: 'ID da entrega',
         attempt: 'Tentativa (1, 2, …)',
         idempotency: 'Igual em todas as tentativas: descarte duplicatas por ela',
+        topicsBody:
+          'Tópicos de webhook, do registro central: cada um aparece só para quem tem o módulo ligado. Os de engajamento levam só o `profile_id` opaco do torcedor, nunca e-mail ou documento.',
+        headTopic: 'Tópico',
+        headName: 'Nome',
+        headModule: 'Módulo',
+        headStatus: 'Situação',
+        live: 'Disponível',
+        soon: 'Em breve',
         retriesTitle: 'Retentativas',
         retries:
           'Qualquer resposta fora de 2xx (inclusive redirecionamento) ou demora acima de 10 s conta como falha. A Galaxie tenta de novo com espera exponencial (10 s, 20 s, 40 s…, até 1 h) por até 10 tentativas; depois, a entrega fica numa fila de reprocessamento. Responda rápido e processe de forma assíncrona.',
@@ -865,6 +873,14 @@ export default defineMessages(
           delivery: 'Delivery ID',
           attempt: 'Attempt (1, 2, …)',
           idempotency: 'Same across all attempts: use it to drop duplicates',
+          topicsBody:
+            'Webhook topics, from the central registry: each one shows up only for tenants with its module on. Engagement topics carry only the fan’s opaque `profile_id`, never an e-mail or ID document.',
+          headTopic: 'Topic',
+          headName: 'Name',
+          headModule: 'Module',
+          headStatus: 'Status',
+          live: 'Available',
+          soon: 'Coming soon',
           retriesTitle: 'Retries',
           retries:
             'Any response outside 2xx (redirects included) or taking longer than 10 s counts as a failure. Galaxie retries with exponential backoff (10 s, 20 s, 40 s…, up to 1 h) for up to 10 attempts; after that, the delivery goes to a reprocessing queue. Respond quickly and process asynchronously.',
@@ -1333,6 +1349,14 @@ export default defineMessages(
           delivery: 'ID de la entrega',
           attempt: 'Intento (1, 2, …)',
           idempotency: 'Igual en todos los intentos: descartá duplicados con él',
+          topicsBody:
+            'Tópicos de webhook, del registro central: cada uno aparece solo para quien tiene el módulo activo. Los de engagement llevan solo el `profile_id` opaco del hincha, nunca e-mail ni documento.',
+          headTopic: 'Tópico',
+          headName: 'Nombre',
+          headModule: 'Módulo',
+          headStatus: 'Estado',
+          live: 'Disponible',
+          soon: 'Próximamente',
           retriesTitle: 'Reintentos',
           retries:
             'Cualquier respuesta fuera de 2xx (incluso redirecciones) o una demora de más de 10 s cuenta como falla. Galaxie reintenta con espera exponencial (10 s, 20 s, 40 s…, hasta 1 h) durante hasta 10 intentos; después, la entrega queda en una cola de reprocesamiento. Respondé rápido y procesá de forma asíncrona.',

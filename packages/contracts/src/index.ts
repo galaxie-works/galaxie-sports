@@ -8,6 +8,7 @@ export * from './channel-list.js';
 export * from './channel-guide.js';
 export * from './related.js';
 export * from './realtime.js';
+export * from './webhook-topics.js';
 export * from './account.js';
 export * from './fans.js';
 export * from './teams.js';

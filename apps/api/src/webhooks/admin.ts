@@ -1,16 +1,14 @@
 import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import {
   PLANS_WITHOUT_REALTIME,
-  REALTIME_TOPICS,
   sealWebhookSecrets as sealSecrets,
   tenant,
   webhookDelivery,
   webhookEndpoint,
   type Database,
-  type RealtimeTopic,
   type WebhookFilters,
 } from '@galaxie/db';
-import { resolveTopic } from '@galaxie/contracts';
+import { isWebhookTopic, resolveTopic, WEBHOOK_TOPICS } from '@galaxie/contracts';
 import { WEBHOOK_KEK_ENV, type WebhookSecretBox } from './secret-box.js';
 import { generateWebhookSecret } from './signature.js';
 import { isBlockedAddress } from './transport.js';
@@ -50,10 +48,18 @@ export function validateWebhookUrl(raw: string, allowInsecure = false): string {
   return url.toString();
 }
 
-export function parseTopics(names: string[] = []): RealtimeTopic[] {
+/**
+ * Nomes curtos dos tópicos de dados (`score`...) ou o nome completo de qualquer tópico do registro
+ * (`@galaxie/contracts`, webhook-topics.ts). O módulo ligado no tenant é conferido pelo worker, que não enfileira
+ * tópico de módulo desligado.
+ */
+export function parseTopics(names: string[] = []): string[] {
   const topics = names.map((n) => {
-    const t = resolveTopic(n);
-    if (!t) throw new WebhookInputError(`Tópico desconhecido: ${n}. Use ${REALTIME_TOPICS.join(', ')}.`);
+    const t = resolveTopic(n) ?? (isWebhookTopic(n.trim()) ? n.trim() : undefined);
+    if (!t)
+      throw new WebhookInputError(
+        `Tópico desconhecido: ${n}. Use ${WEBHOOK_TOPICS.map((d) => d.topic).join(', ')}.`,
+      );
     return t;
   });
   return [...new Set(topics)];
@@ -67,7 +73,7 @@ export async function createWebhookEndpoint(
   db: Database,
   input: WebhookInput,
   secrets: WebhookSecretBox,
-): Promise<{ id: string; tenantId: string; secret: string; topics: RealtimeTopic[] }> {
+): Promise<{ id: string; tenantId: string; secret: string; topics: string[] }> {
   if (!secrets.configured)
     throw new WebhookInputError(
       `${WEBHOOK_KEK_ENV} não definida: sem ela o segredo do webhook ficaria em texto puro no banco. ` +

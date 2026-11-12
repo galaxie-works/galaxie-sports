@@ -27,6 +27,7 @@ import { ChampionsParams, ChampionsQuery, CompetitionChampions } from './champio
 import { ChannelGuide, ChannelGuideParams, ChannelGuideQuery } from './channel-guide.js';
 import { channelListPaths } from './channel-list.js';
 import { LocaleQuery, list, page, Problem } from './common.js';
+import { webhookPaths } from './webhook-topics-openapi.js';
 import { CompetitionContext, ContextParams, ContextQuery } from './context.js';
 import { Bracket, BracketParams } from './bracket.js';
 import {
@@ -248,6 +249,7 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
           'Fora da oferta comercial enquanto o licenciamento com a FEI e as federações não é concluído.',
       },
     ],
+    webhooks: webhookPaths(),
     paths: withPublishableKey({
       ...semanticPaths(),
       ...multisportPaths(),
@@ -778,6 +780,8 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
     },
   };
   for (const path of HIDDEN_PATHS) delete doc.paths?.[path];
+  // o webhook de vídeos relacionados segue a mesma regra das rotas
+  for (const topic of HIDDEN_ENUM_VALUES) delete doc.webhooks?.[topic];
   if (doc.tags) doc.tags = doc.tags.filter((tag) => tag.name !== HIDDEN_TAG);
   const document = createDocument(doc);
   withoutHiddenEnumValues(document);
