@@ -56,44 +56,51 @@ describe('portão de idade (#1106)', () => {
   });
 
   it('matriz país × faixa × método × responsável × capacidade: as regras fixas da Galaxie valem em todas', () => {
+    // sem um expect por combinação (são dezenas de milhares): junta as violações e confere no fim
+    const bad: string[] = [];
     let n = 0;
     for (const { country, policy, fan, capability, result } of matrix()) {
       n++;
-      const label = `${country} ${JSON.stringify(fan)} ${capability}`;
-      const floor = ageBandFloor(fan.band);
+      const fail = (why: string) => bad.push(`${country} ${JSON.stringify(fan)} ${capability}: ${why}`);
       if (!result.allowed) {
-        expect(result.reason, label).not.toBe('ok');
+        if (result.reason === 'ok') fail('recusa sem motivo');
         continue;
       }
-      expect(result.reason, label).toBe('ok');
-      expect(result.next, label).toBeUndefined();
+      if (result.reason !== 'ok' || result.next !== undefined) fail('liberado com motivo');
+      const floor = ageBandFloor(fan.band);
       // menor de 13 fora de tudo
-      expect(floor, label).toBeGreaterThanOrEqual(Math.max(13, policy.minAgeParticipate));
+      if (floor < Math.max(13, policy.minAgeParticipate)) fail('abaixo da idade para participar');
       // proteção e defesa: só a idade para participar
       if (capability === 'safety') continue;
       // só 18+ (e sem faixa congelada) nos recursos de adulto
-      if (ADULT_ONLY_CAPABILITIES.includes(capability)) {
-        expect(floor, label).toBe(18);
-        expect(fan.frozen, label).toBe(false);
-      }
+      if (ADULT_ONLY_CAPABILITIES.includes(capability) && (floor < 18 || fan.frozen))
+        fail('recurso de adulto');
       // a ficha: autorização, vínculo e comprovação
-      if (floor < policy.parentalConsentUnder) expect(fan.guardianStatus, label).toBe('granted');
-      if (policy.guardianLinkRequiredUnder !== null && floor < policy.guardianLinkRequiredUnder)
-        expect(fan.guardianLinked, label).toBe(true);
+      if (floor < policy.parentalConsentUnder && fan.guardianStatus !== 'granted') fail('sem autorização');
+      if (
+        policy.guardianLinkRequiredUnder !== null &&
+        floor < policy.guardianLinkRequiredUnder &&
+        !fan.guardianLinked
+      )
+        fail('sem vínculo');
       const feature = capability === 'viewRestrictedContent' ? 'restrictedContent' : 'social';
-      expect(assuranceAtLeast(fan.assurance, policy.ageAssuranceMin[feature]), label).toBe(true);
-      if (capability === 'marketplace') expect(policy.gamification.marketplace, label).toBe(true);
+      if (!assuranceAtLeast(fan.assurance, policy.ageAssuranceMin[feature])) fail('sem comprovação');
+      if (capability === 'marketplace' && !policy.gamification.marketplace) fail('marketplace desligado');
     }
+    expect(bad.slice(0, 5)).toEqual([]);
     expect(n).toBe(COUNTRIES.length * BANDS.length * 3 * 4 * 2 * 2 * AGE_CAPABILITIES.length);
   });
 
   it('o portão e o age_status do /v1/fans/me dizem a mesma coisa', () => {
-    for (const { policy, fan, capability, result } of matrix()) {
+    const bad: string[] = [];
+    for (const { country, policy, fan, capability, result } of matrix()) {
+      if (capability !== 'read' && capability !== 'write') continue;
       const status = fanAgeStatus(fan, policy);
-      if (capability === 'read')
-        expect(result.allowed).toBe(status === 'read_only' || status === 'can_write');
-      if (capability === 'write') expect(result.allowed).toBe(status === 'can_write');
+      const expected =
+        capability === 'read' ? status === 'read_only' || status === 'can_write' : status === 'can_write';
+      if (result.allowed !== expected) bad.push(`${country} ${JSON.stringify(fan)} ${capability} ${status}`);
     }
+    expect(bad.slice(0, 5)).toEqual([]);
   });
 
   it('o motivo da recusa aponta o que falta, na ordem em que o cliente resolve', () => {
