@@ -486,7 +486,7 @@ export function hardenPolicy(
   if (h.consentRenewalDays !== undefined) {
     const v = h.consentRenewalDays;
     const cur = out.consentRenewalDays;
-    if (Number.isInteger(v) && v >= 30 && (cur === null || v <= cur)) out.consentRenewalDays = v;
+    if (Number.isInteger(v) && v >= 30 && v <= 3650 && (cur === null || v <= cur)) out.consentRenewalDays = v;
     else rejected.push('consentRenewalDays');
   }
   return { policy: out, rejected };

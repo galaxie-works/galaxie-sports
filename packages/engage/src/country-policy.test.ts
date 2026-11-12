@@ -266,6 +266,7 @@ describe('o cliente só endurece', () => {
     // prazo: pôr prazo onde não havia endurece; alongar afrouxa
     const short = hardenPolicy(CL, { consentRenewalDays: 180 }).policy;
     expect(hardenPolicy(short, { consentRenewalDays: 365 }).rejected).toEqual(['consentRenewalDays']);
+    expect(hardenPolicy(CL, { consentRenewalDays: 3651 }).rejected).toEqual(['consentRenewalDays']);
     // vínculo acima da idade da autorização fica no teto (a ficha pode ter baixado depois que o cliente salvou)
     const capped = hardenPolicy(CL, { guardianLinkRequiredUnder: 16 });
     expect(capped.rejected).toEqual([]);
@@ -276,6 +277,10 @@ describe('o cliente só endurece', () => {
   it('subir a idade para participar leva junto a idade da autorização', () => {
     const p = hardenPolicy(INITIAL_COUNTRY_POLICIES.US!, { minAgeParticipate: 16 }).policy;
     expect(p.parentalConsentUnder).toBe(16);
+    // participar a partir de 20: a autorização fica em 18 e a ficha efetiva continua válida
+    const adult = hardenPolicy(INITIAL_COUNTRY_POLICIES.US!, { minAgeParticipate: 20 }).policy;
+    expect(adult.parentalConsentUnder).toBe(18);
+    expect(validatePolicy(adult)).toEqual([]);
     expect(validatePolicy(p)).toEqual([]);
   });
 
