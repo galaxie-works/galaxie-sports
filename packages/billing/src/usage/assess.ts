@@ -37,7 +37,8 @@ export const TIER_USAGE: Record<string, { module: ApiModule; metric: ModuleUsage
 export function levelOf(used: number, limit: number | null): UsageLevel {
   if (limit === null) return 'ok';
   if (used > limit) return 'over';
-  if (used === limit) return 'full';
+  // faixa zero sem uso não pede aviso
+  if (used === limit) return used > 0 ? 'full' : 'ok';
   if (used >= limit * USAGE_WARN_RATIO) return 'warn';
   return 'ok';
 }
@@ -52,12 +53,15 @@ const check = (key: string, used: number, limit: number | null): UsageCheck => (
 
 /**
  * Avalia o mês: as faixas dos módulos que o tenant tem e a faixa de capacidade (visualizações de widget somadas em
- * todos os módulos; pico ao mesmo tempo = maior `peak_connections` de qualquer módulo). Em ordem de chave.
+ * todos os módulos; pico ao mesmo tempo = maior `peak_connections` de qualquer módulo, uma aproximação enquanto só o
+ * chat mede conexões). Em ordem de chave.
  */
 export function assessUsage(
-  ent: Pick<Entitlements, 'modules' | 'tiers' | 'capacity'>,
+  ent: Pick<Entitlements, 'modules' | 'tiers' | 'capacity'> & Partial<Pick<Entitlements, 'isGalaxie'>>,
   readings: readonly UsageReading[],
 ): UsageCheck[] {
+  // o tenant da Galaxie (cliente zero) consome sem cobrança: nada de faixa nem excedente
+  if (ent.isGalaxie) return [];
   const value = (module: ApiModule, metric: ModuleUsageMetric) =>
     readings
       .filter((r) => r.module === module && r.metric === metric)

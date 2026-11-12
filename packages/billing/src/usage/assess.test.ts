@@ -18,6 +18,8 @@ describe('assessUsage (F6, #1138)', () => {
     expect(levelOf(100, 100)).toBe('full');
     expect(levelOf(101, 100)).toBe('over');
     expect(levelOf(10 ** 9, null)).toBe('ok');
+    expect(levelOf(0, 0)).toBe('ok');
+    expect(levelOf(1, 0)).toBe('over');
   });
 
   it('faixas dos módulos e capacidade da organização', () => {
@@ -34,6 +36,14 @@ describe('assessUsage (F6, #1138)', () => {
       { key: 'where_to_watch.markets', used: 4, limit: 3, level: 'over', overage: 1 },
     ]);
     expect(usageAlerts(checks)).toHaveLength(4);
+  });
+
+  it('tenant da Galaxie não tem faixa nem excedente', () => {
+    expect(
+      assessUsage({ ...ent, modules: [...ent.modules], isGalaxie: true }, [
+        { module: 'core_data', metric: 'widget_views', value: 10 ** 9 },
+      ]),
+    ).toEqual([]);
   });
 
   it('faixa de módulo que o tenant não tem fica de fora', () => {

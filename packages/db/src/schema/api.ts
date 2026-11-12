@@ -244,7 +244,8 @@ export const tenantModuleLimit = api.table(
 );
 
 /**
- * Uso por módulo de engajamento, tenant e mês (#1018). Os contadores vivem no Valkey durante o mês e são
+ * Uso por módulo (engajamento desde o #1018; dados e capacidade desde a F6, #1138), tenant e mês. As chaves no Valkey
+ * seguem em `engage:usage:` para não perder o que já foi medido. Os contadores vivem no Valkey durante o mês e são
  * consolidados aqui; `value` só cresce dentro do mês (o consolidado guarda o maior visto), então uma perda do
  * Valkey nunca diminui o que o cliente já viu.
  */

@@ -276,7 +276,8 @@ export const monthStart = (month: string) => `${month}-01`;
  *   o `greatest()` congelar o uso até o contador novo passar o antigo. Em `active_fans`, um torcedor visto
  *   antes e depois da perda conta duas vezes: o HLL antigo não existe mais para unir;
  * - época mais velha que a gravada (leitura feita antes de uma perda): ignorada;
- * - `peak_connections` é um máximo: sempre `greatest()`, em qualquer época.
+ * - `peak_connections` é um máximo e `active_markets` (países, base de excedente da faixa) também fica no `greatest()`
+ *   em qualquer época: perder a chave subestima por alguns minutos em vez de contar um país duas vezes e cobrar a mais.
  * O valor consolidado nunca cai. Perde-se só o que o Valkey mediu e ninguém consolidou antes da perda.
  */
 export async function persistModuleUsage(
@@ -318,13 +319,13 @@ export async function persistModuleUsage(
       ],
       set: {
         value: sql`case
-          when excluded.metric = 'peak_connections' or excluded.epoch is null or ${cur.epoch} is null
+          when excluded.metric in ('peak_connections', 'active_markets') or excluded.epoch is null or ${cur.epoch} is null
             then greatest(${cur.value}, excluded.value)
           when excluded.epoch = ${cur.epoch} then greatest(${cur.value}, ${cur.base} + excluded.value)
           when ${newer} then ${cur.value} + excluded.value
           else ${cur.value} end`,
         epochBase: sql`case
-          when excluded.metric = 'peak_connections' or excluded.epoch is null then ${cur.base}
+          when excluded.metric in ('peak_connections', 'active_markets') or excluded.epoch is null then ${cur.base}
           when ${cur.epoch} is null then greatest(${cur.value}, excluded.value) - excluded.value
           when excluded.epoch = ${cur.epoch} then ${cur.base}
           when ${newer} then ${cur.value}
