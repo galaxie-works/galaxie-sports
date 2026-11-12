@@ -22,7 +22,7 @@ import {
   TimelinePerson,
   VarOutcome,
 } from '@galaxie/contracts';
-import { narrate, narrationLang } from './narration.js';
+import { narrate, narrationLang, type NarrationOverrides } from '@galaxie/contracts';
 
 type Side = 'home' | 'away';
 export type TeamRef = { id: string | null; name: string | null; side: string | null; logo: string | null };
@@ -79,6 +79,8 @@ export interface TimelineInput {
   lastValidAt: Date | null;
   /** Idioma da narração dos lances (`narration`, #1167); padrão pt-BR. */
   locale?: string | undefined;
+  /** Frases editadas em Ajustes (`ops.narration_template`); o que faltar usa o padrão do catálogo. */
+  narrationOverrides?: NarrationOverrides | undefined;
   isStale: boolean;
   now: Date;
 }
@@ -621,7 +623,13 @@ export function buildTimelineDto(rawInput: TimelineInput): EventTimeline {
   const awayName = teamOf('away').name;
   let running = { home: 0, away: 0 };
   for (const i of incidents) {
-    i.narration = narrate(i, { lang, home: homeName, away: awayName, scoreBefore: running });
+    i.narration = narrate(i, {
+      lang,
+      home: homeName,
+      away: awayName,
+      scoreBefore: running,
+      overrides: input.narrationOverrides,
+    });
     if (i.score_after && i.clock.period !== 'penalty_shootout') running = i.score_after;
   }
 

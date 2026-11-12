@@ -1,6 +1,6 @@
 import { VAR_OUTCOMES } from '@galaxie/contracts';
 import { describe, expect, it } from 'vitest';
-import { narrationLang } from './narration.js';
+import { narrationLang } from '@galaxie/contracts';
 import { buildTimelineDto, type RawIncident, type TimelineInput } from './timeline.js';
 
 const PAL = { id: 'pal', name: 'Palmeiras', side: 'home', logo: null };
@@ -194,5 +194,38 @@ describe('narração por frase pronta (#1167)', () => {
 
   it('idioma pelo locale', () => {
     expect(['pt-BR', 'es-CO', 'en-US', 'fr'].map(narrationLang)).toEqual(['pt', 'es', 'en', 'en']);
+  });
+});
+
+describe('frases editadas em Ajustes (#1167)', () => {
+  it('o texto editado substitui o padrão só naquela chave e idioma; linha inválida é ignorada', async () => {
+    const { toNarrationOverrides } = await import('./narration-overrides.js');
+    const overrides = toNarrationOverrides([
+      { key: 'goal.lead', lang: 'pt', variants: ['GOOOL do {team}!'] },
+      { key: 'chave.que.nao.existe', lang: 'pt', variants: ['x'] },
+      { key: 'goal.lead', lang: 'fr', variants: ['But !'] },
+    ]);
+    expect(Object.keys(overrides)).toEqual(['goal.lead']);
+    seq = 0;
+    const t = (locale: string) =>
+      buildTimelineDto(
+        input({
+          locale,
+          score: { home: 1, away: 0 },
+          narrationOverrides: overrides,
+          incidents: [
+            inc({
+              type: 'goal',
+              detail: 'Normal Goal',
+              minute: 10,
+              team: PAL,
+              player: person('e', 'Estêvão'),
+            }),
+          ],
+        }),
+      ).incidents[0]!.narration;
+    expect(t('pt-BR')).toBe('GOOOL do Palmeiras! Estêvão abre o placar. Palmeiras 1 x 0 Fluminense.');
+    seq = 0;
+    expect(t('en')).toBe('Goal for Palmeiras! Estêvão opens the scoring. Palmeiras 1-0 Fluminense.');
   });
 });

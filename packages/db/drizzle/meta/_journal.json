@@ -687,6 +687,13 @@
       "when": 1794488041379,
       "tag": "0112_var_gol_anulado",
       "breakpoints": true
+    },
+    {
+      "idx": 98,
+      "version": "7",
+      "when": 1794497659548,
+      "tag": "0128_narracao_frases",
+      "breakpoints": true
     }
   ]
 }

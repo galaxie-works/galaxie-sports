@@ -1,3 +1,4 @@
+import { loadNarrationOverrides } from './narration-overrides.js';
 import { and, asc, eq, inArray } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import type { EventLineups, EventStats, EventTimeline, TimelinePerson } from '@galaxie/contracts';
@@ -205,9 +206,11 @@ export async function buildTimeline(
     return typeof d === 'string' ? d : null;
   };
 
+  const narration = await loadNarrationOverrides(db);
   return buildTimelineDto({
     eventId,
     locale,
+    narrationOverrides: narration.overrides,
     sport: ev.sport,
     status: head.status,
     statusDetail: head.statusDetail,

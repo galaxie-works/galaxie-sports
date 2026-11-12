@@ -270,6 +270,43 @@ export const runtimeSettingLog = ops.table(
 );
 
 /**
+ * Frases do lance a lance editadas em Ajustes (#1167). Uma linha por chave do catálogo (`NARRATION_CATALOG` em
+ * @galaxie/contracts) e idioma, com as variações. Sem linha, vale o padrão do código; "voltar ao padrão" apaga a linha.
+ */
+export const narrationTemplate = ops.table(
+  'narration_template',
+  {
+    key: text('key').notNull(),
+    /** pt, es ou en. */
+    lang: text('lang').notNull(),
+    variants: text('variants').array().notNull(),
+    version: integer('version').notNull().default(1),
+    /** Quem mudou (`galaxie:<id do usuário>`). */
+    updatedBy: text('updated_by').notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.key, t.lang] })],
+);
+
+/** Histórico das frases do lance a lance: uma linha por gravação ou volta ao padrão. */
+export const narrationTemplateLog = ops.table(
+  'narration_template_log',
+  {
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
+    key: text('key').notNull(),
+    lang: text('lang').notNull(),
+    /** set (gravou) | reset (voltou ao padrão). */
+    action: text('action').notNull(),
+    oldVariants: text('old_variants').array(),
+    newVariants: text('new_variants').array(),
+    changedBy: text('changed_by').notNull(),
+    reason: text('reason'),
+    changedAt: timestamp('changed_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('narration_template_log_changed_idx').on(t.changedAt)],
+);
+
+/**
  * O que cada contêiner tem no próprio env para as flags do registro (o painel roda em outro contêiner
  * e não enxerga esse env). Segredos só como `configured`; `value` fica nulo. `reported_at` é atualizado
  * a cada releitura do scheduler e serve de sinal de vida.

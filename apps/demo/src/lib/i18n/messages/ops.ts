@@ -121,6 +121,7 @@ export default defineMessages(
       lineup: 'Grades e ofertas',
       wtw: 'Onde assistir',
       postgame: 'Pós-jogo',
+      narration: 'Lance a lance',
       related: 'Vídeos relacionados',
       widgets: 'Widgets e Builder',
       groups: {
@@ -1935,6 +1936,7 @@ export default defineMessages(
         lineup: 'Lineups and offers',
         wtw: 'Where to watch',
         postgame: 'Post-game',
+        narration: 'Play-by-play',
         related: 'Related videos',
         widgets: 'Widgets and Builder',
         groups: {
@@ -3732,6 +3734,7 @@ export default defineMessages(
         lineup: 'Grillas y ofertas',
         wtw: 'Dónde ver',
         postgame: 'Pospartido',
+        narration: 'Jugada a jugada',
         related: 'Videos relacionados',
         widgets: 'Widgets y Builder',
         groups: {

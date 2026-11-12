@@ -109,6 +109,7 @@ export const SETTINGS_ITEMS = [
   { id: 'lineup', href: '/ajustes/grades', group: 'produtos' },
   { id: 'wtw', href: '/ajustes/onde-assistir', group: 'produtos' },
   { id: 'postgame', href: '/ajustes/pos-jogo', group: 'produtos' },
+  { id: 'narration', href: '/ajustes/lance-a-lance', group: 'produtos' },
   { id: 'related', href: '/ajustes/videos', group: 'produtos' },
   { id: 'widgets', href: '/ajustes/widgets', group: 'produtos', soon: { href: SETTINGS_EPIC_URL } },
 ] as const satisfies readonly SettingsItemDef[];

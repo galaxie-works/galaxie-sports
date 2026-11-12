@@ -16,6 +16,7 @@ import { assertSport } from '../../auth/authenticator.js';
 import { sendCached } from '../../cache/http.js';
 import { CACHE_TTL, STALE_SEC } from '../../cache/policy.js';
 import { requireDb, type AppContext } from '../../context.js';
+import { loadNarrationOverrides } from '../../events/narration-overrides.js';
 import { problems } from '../../errors.js';
 import { buildEvents, eventsTtl, type BuildContext } from '../../events/builder.js';
 import { buildLineups, buildStats, buildTimeline } from '../../events/detail.js';
@@ -281,15 +282,18 @@ export async function eventRoutes(app: FastifyInstance, ctx: AppContext): Promis
     path: string,
     build: (ev: { id: string; sport: string }, locale: string) => Promise<unknown>,
     liveTtl: number,
+    /** Partes a mais da chave do cache (ex.: a versão das frases do lance a lance). */
+    extraVary?: () => Promise<string[]>,
   ) =>
     app.get(path, { config: MODULE }, async (request, reply) => {
       const params = parseInput(EventParams, request.params);
       const query = parseInput(LocaleQuery, request.query);
       const locale = localeOf(request, query);
       reply.header('content-language', locale);
+      const extra = extraVary ? await extraVary() : [];
       return sendCached(request, reply, ctx.cache, {
         ttl: CACHE_TTL.standings,
-        vary: [locale],
+        vary: [locale, ...extra],
         check: sportCheck(request),
         load: async () => {
           const db = requireDb(ctx);
@@ -318,6 +322,8 @@ export async function eventRoutes(app: FastifyInstance, ctx: AppContext): Promis
         locale,
       ),
     CACHE_TTL.live,
+    // frases editadas em Ajustes (#1167): a versão entra na chave para o jogo encerrado também trocar a frase
+    async () => (ctx.db ? [`narr:${(await loadNarrationOverrides(ctx.db)).stamp}`] : []),
   );
   detailRoute(
     '/v1/events/:id/lineups',
