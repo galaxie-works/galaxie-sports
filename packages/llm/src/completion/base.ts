@@ -80,6 +80,18 @@ export function lastUserIndex(dialog: LlmMessage[]): number {
   return -1;
 }
 
+/**
+ * Onde vão os anexos: a última mensagem do usuário; -1 sem anexos. Anexo sem mensagem do usuário é erro de
+ * configuração (o modelo responderia sem ver o arquivo).
+ */
+export function attachmentIndex(dialog: LlmMessage[], files: readonly unknown[], provider: string): number {
+  if (!files.length) return -1;
+  const at = lastUserIndex(dialog);
+  if (at < 0)
+    throw new LlmError(`${provider}: anexo sem mensagem do usuário para ir junto.`, 'config', false);
+  return at;
+}
+
 /** Instruções de sistema (as do pedido e as mensagens `system`) e o diálogo. */
 export function splitCompletion(req: CompletionRequest): { system: string; dialog: LlmMessage[] } {
   const extra = req.messages.filter((m) => m.role === 'system').map((m) => m.content);

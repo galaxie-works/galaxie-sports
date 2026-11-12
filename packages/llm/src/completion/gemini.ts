@@ -10,7 +10,7 @@ import type { CompletionFinishReason, CompletionRequest, LlmProviderId } from '.
 import {
   eventJson,
   HttpCompletionClient,
-  lastUserIndex,
+  attachmentIndex,
   n,
   splitCompletion,
   type CompletionClientOptions,
@@ -78,7 +78,7 @@ export class GeminiCompletionClient extends HttpCompletionClient {
   wire(req: CompletionRequest, stream: boolean): WireRequest {
     const { system, dialog } = splitCompletion(req);
     const files = req.attachments ?? [];
-    const attachAt = files.length ? lastUserIndex(dialog) : -1;
+    const attachAt = attachmentIndex(dialog, files, 'gemini');
     const generationConfig: Record<string, unknown> = {};
     if (req.maxOutputTokens !== undefined) generationConfig.maxOutputTokens = req.maxOutputTokens;
     if (req.temperature !== undefined) generationConfig.temperature = req.temperature;

@@ -11,7 +11,7 @@ import {
   DEFAULT_COMPLETION_MAX_TOKENS,
   eventJson,
   HttpCompletionClient,
-  lastUserIndex,
+  attachmentIndex,
   n,
   splitCompletion,
   type CompletionClientOptions,
@@ -105,7 +105,7 @@ export class AnthropicCompletionClient extends HttpCompletionClient {
   wire(req: CompletionRequest, stream: boolean): WireRequest {
     const { system, dialog } = splitCompletion(req);
     const files = req.attachments ?? [];
-    const attachAt = files.length ? lastUserIndex(dialog) : -1;
+    const attachAt = attachmentIndex(dialog, files, this.provider);
     const body: Record<string, unknown> = {
       model: req.model,
       max_tokens: req.maxOutputTokens ?? DEFAULT_COMPLETION_MAX_TOKENS,

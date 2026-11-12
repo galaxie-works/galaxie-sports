@@ -14,7 +14,7 @@ import type { CompletionFinishReason, CompletionRequest, LlmProviderId } from '.
 import {
   eventJson,
   HttpCompletionClient,
-  lastUserIndex,
+  attachmentIndex,
   n,
   splitCompletion,
   type CompletionClientOptions,
@@ -101,7 +101,7 @@ export abstract class OpenAiCompatibleCompletionClient extends HttpCompletionCli
         'config',
         false,
       );
-    const attachAt = files.length ? lastUserIndex(dialog) : -1;
+    const attachAt = attachmentIndex(dialog, files, this.provider);
     const body: Record<string, unknown> = {
       model: req.model,
       messages: [

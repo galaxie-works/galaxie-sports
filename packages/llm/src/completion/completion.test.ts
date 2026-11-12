@@ -307,4 +307,18 @@ describe('anexos (PDF e imagem) na última mensagem do usuário', () => {
     };
     expect(body.messages[2]).toEqual({ role: 'user', content: 'leia a grade' });
   });
+
+  it('anexo sem mensagem do usuário é erro de configuração, nos três provedores (o arquivo não some calado)', () => {
+    const lone = {
+      model: 'm',
+      messages: [{ role: 'assistant' as const, content: 'ok' }],
+      attachments: files,
+    };
+    for (const client of [
+      new AnthropicCompletionClient(k),
+      new OpenAiCompletionClient(k),
+      new GeminiCompletionClient(k),
+    ])
+      expect(() => client.wire(lone, false)).toThrow(/anexo sem mensagem do usuário/);
+  });
 });
