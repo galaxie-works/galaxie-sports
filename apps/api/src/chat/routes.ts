@@ -53,11 +53,19 @@ import {
   type ChatTenantConfigRow,
 } from './rooms.js';
 import { ChatSettings, type ChatSettingsValues } from './settings.js';
+import { ChatHub } from './hub.js';
+import { MemoryChatPeak, type ChatPeak } from './peak.js';
+import { registerChatStream, type ChatStreamOptions } from './stream.js';
 
 export interface ChatRoutesDeps {
   db: Database | undefined;
   settings?: ChatSettings | undefined;
   now?: (() => Date) | undefined;
+  /** Lotes da sala (#964); sem ele, um hub local à instância. */
+  hub?: ChatHub | undefined;
+  /** Faixa de conexões e pico (D6); sem ele, em memória. */
+  peak?: ChatPeak | undefined;
+  stream?: ChatStreamOptions | undefined;
 }
 
 const MODULE = { module: 'live_chat' as const };
@@ -104,6 +112,12 @@ export async function chatRoutes(app: FastifyInstance, deps: ChatRoutesDeps): Pr
   const settings = deps.settings ?? new ChatSettings(deps.db);
   const moderation = deps.db ? new ModerationLists(deps.db) : null;
   const now = () => deps.now?.() ?? new Date();
+  const hub = deps.hub ?? new ChatHub();
+  const peak = deps.peak ?? new MemoryChatPeak(() => now().getTime());
+  if (!deps.hub) {
+    app.addHook('onReady', () => hub.start());
+    app.addHook('onClose', () => hub.stop());
+  }
   const db = () => {
     if (!deps.db) throw problems.degraded('Banco de dados não configurado.');
     return deps.db;
@@ -235,6 +249,23 @@ export async function chatRoutes(app: FastifyInstance, deps: ChatRoutesDeps): Pr
         },
       );
 
+    // pico da faixa (D6): quem já estava escrevendo continua; quem chegou depois lê
+    const peakFailOpen = (err: unknown) => {
+      request.log.warn({ err }, 'chat: pico indisponível');
+      return false;
+    };
+    if (
+      (await peak.inPeak(fan.tenantId).catch(peakFailOpen)) &&
+      !(await peak.hasSeat(fan.tenantId, fan.profileId).catch(() => true))
+    )
+      throw new ProblemError(
+        409,
+        'CONFLICT',
+        'Sala fechada para envio',
+        sendRefusalNotice('room_read_only_peak', fan.locale),
+        { errors: [{ path: 'refusal', message: 'room_read_only_peak' }] },
+      );
+
     const at = now();
     const [profile, sanctions, last, lists] = await Promise.all([
       readFan(database, fan.tenantId, fan.profileId),
@@ -334,22 +365,38 @@ export async function chatRoutes(app: FastifyInstance, deps: ChatRoutesDeps): Pr
         `Espere ${saved.retryAfterS} s para mandar outra mensagem.`,
         { headers: { 'retry-after': String(saved.retryAfterS) } },
       );
+    const view = messageView({
+      id: saved.id,
+      body: text,
+      profileId: fan.profileId,
+      nickname: profile.nickname,
+      avatarUrl: profile.avatarUrl,
+      avatarVisibility: profile.visibility.avatar,
+      createdAt: saved.createdAt,
+    });
+    // só a mensagem pública entra no lote; a retida fica com o autor (ele a vê pela resposta)
+    // Valkey fora: a mensagem já está gravada e aparece pelo GET; o envio não volta com erro (o torcedor não repete)
+    if (visibility === 'public')
+      await hub.enqueue(ChatHub.roomKey(fan.tenantId, fixtureId), view).catch((err: unknown) => {
+        request.log.warn({ err }, 'chat: fila do lote indisponível');
+      });
+    await peak.seat(fan.tenantId, fan.profileId).catch((err: unknown) => {
+      request.log.warn({ err }, 'chat: lugar do torcedor indisponível');
+    });
     reply.header('cache-control', 'no-store');
     const res: ChatMessageResponse = {
-      data: {
-        ...messageView({
-          id: saved.id,
-          body: text,
-          profileId: fan.profileId,
-          nickname: profile.nickname,
-          avatarUrl: profile.avatarUrl,
-          avatarVisibility: profile.visibility.avatar,
-          createdAt: saved.createdAt,
-        }),
-        status: visibility === 'public' ? 'published' : 'held',
-      },
+      data: { ...view, status: visibility === 'public' ? 'published' : 'held' },
     };
     return reply.code(201).send(res);
+  });
+
+  registerChatStream(app, {
+    db: deps.db,
+    hub,
+    peak,
+    options: deps.stream ?? {},
+    // leitura: não cria a sala (a chave publicável abre o stream); os lotes são por jogo e cliente
+    roomState: async (tenantId, fixtureId) => (await loadRoom(tenantId, fixtureId, false)).window.state,
   });
 
   async function configBody(tenantId: string): Promise<ChatConfig> {
