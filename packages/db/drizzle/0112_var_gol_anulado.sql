@@ -1,6 +1,7 @@
 -- #640: sinal explícito de gol anulado no SSE e nos webhooks. Recria as funções de captura da 0008:
 -- * core.event: `event.score_changed` passa a levar `previous.score` e, quando o total de gols do tempo de jogo
---   cai (o VAR anulou, a fonte voltou o placar), `data.goal_cancelled = true`;
+--   cai no futebol (o VAR anulou, a fonte voltou o placar), `data.goal_cancelled = true`. Nos outros esportes o
+--   placar guarda pontos, sets etc., e uma correção para baixo não é gol anulado;
 -- * core.event_incident: `event.incident_added` leva `data.goal_cancelled = true` quando o lance novo é um VAR de
 --   gol anulado (`Goal cancelled`, `Goal Disallowed - ...`), do fornecedor ou inferido pela Galaxie.
 -- Só acrescenta campos ao payload (contrato aditivo); os triggers continuam os mesmos.
@@ -31,7 +32,8 @@ BEGIN
   END IF;
   IF NEW.score IS DISTINCT FROM OLD.score THEN
     score_data := jsonb_build_object('score', NEW.score);
-    IF jsonb_typeof(NEW.score) = 'object' AND ops.score_goals(NEW.score) < ops.score_goals(OLD.score) THEN
+    IF NEW.sport = 'football' AND jsonb_typeof(NEW.score) = 'object'
+       AND ops.score_goals(NEW.score) < ops.score_goals(OLD.score) THEN
       score_data := score_data || jsonb_build_object('goal_cancelled', true);
     END IF;
     PERFORM ops.publish_change('event.score_changed', 'event', NEW.id::text, base || jsonb_build_object(

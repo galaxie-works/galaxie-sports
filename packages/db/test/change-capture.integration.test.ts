@@ -102,6 +102,7 @@ describe('triggers de captura → ops.change_feed', () => {
       competition_id: competitionId,
       changed: ['score'],
       data: { score: { home: 1, away: 0 } },
+      previous: { score: { home: 0, away: 0 } },
     });
     const status = rows.find((r) => r.topic === 'event.status_changed')!;
     expect(status.payload).toMatchObject({
@@ -109,6 +110,47 @@ describe('triggers de captura → ops.change_feed', () => {
       data: { status: 'live', clock: { minute: 31 } },
       previous: { status: 'live' },
     });
+  });
+
+  it('core.event: placar que cai sinaliza gol anulado só no futebol (#640)', async () => {
+    await db
+      .update(event)
+      .set({ score: { home: 0, away: 0 } })
+      .where(eq(event.id, eventId));
+    const [score] = (await changes()).filter((r) => r.topic === 'event.score_changed');
+    expect(score!.payload).toMatchObject({
+      data: { score: { home: 0, away: 0 }, goal_cancelled: true },
+      previous: { score: { home: 1, away: 0 } },
+    });
+    await db
+      .update(event)
+      .set({ score: { home: 1, away: 0 } })
+      .where(eq(event.id, eventId));
+
+    // basquete: pontos corrigidos para baixo não são gol anulado
+    await db
+      .insert(sport)
+      .values({ slug: 'basketball', name: { 'pt-BR': 'Basquete' } })
+      .onConflictDoNothing();
+    const [basket] = await db
+      .insert(event)
+      .values({
+        sport: 'basketball',
+        startsAt: new Date(Date.now() - 30 * 60_000),
+        endsAtExpected: new Date(Date.now() + 90 * 60_000),
+        status: 'live',
+        score: { home: 55, away: 50 },
+      })
+      .returning({ id: event.id });
+    await db
+      .update(event)
+      .set({ score: { home: 53, away: 50 } })
+      .where(eq(event.id, basket!.id));
+    const [corrected] = (await changes()).filter(
+      (r) => r.topic === 'event.score_changed' && r.entityId === basket!.id,
+    );
+    expect(corrected!.payload).toMatchObject({ previous: { score: { home: 55, away: 50 } } });
+    expect(corrected!.payload).not.toHaveProperty('data.goal_cancelled');
   });
 
   it('core.event: update sem mudança de estado não publica nada', async () => {
