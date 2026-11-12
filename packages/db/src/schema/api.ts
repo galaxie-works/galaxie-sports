@@ -450,8 +450,11 @@ export const webhookEndpoint = api.table(
       .references(() => tenant.id, { onDelete: 'cascade' }),
     url: text('url').notNull(),
     secret: text('secret').notNull(),
-    /** Tópicos assinados; lista vazia = todos os tópicos permitidos pelo plano. */
-    topics: text('topics').array().$type<RealtimeTopic[]>().notNull().default([]),
+    /**
+     * Tópicos assinados (nomes do registro em `@galaxie/contracts`, webhook-topics.ts); lista vazia = todos os
+     * tópicos emitidos dos módulos ligados no tenant.
+     */
+    topics: text('topics').array().$type<string[]>().notNull().default([]),
     filters: jsonb('filters').$type<WebhookFilters>().notNull().default({}),
     description: text('description'),
     active: boolean('active').notNull().default(true),
