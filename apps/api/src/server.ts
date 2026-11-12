@@ -18,6 +18,7 @@ import {
   RedisPresenceCounter,
   startPresencePurge,
 } from './engage/presence-routes.js';
+import { moderationRoutes } from './engage/moderation-routes.js';
 import type { FanTokenSigner } from './engage/fan-token.js';
 import { AdminGuard, type AdminGuardOptions } from './admin/guard.js';
 import { loadPlans, type PlanCatalog } from './admin/plans.js';
@@ -322,7 +323,13 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
   const fanRevocations =
     options.fanRevocations ??
     (options.redis ? new RedisFanRevocations(options.redis, prefix) : new MemoryFanRevocations());
-  registerFanAuth(app, { signer: options.fanTokens ?? null, revocations: fanRevocations, limiter, windowMs });
+  registerFanAuth(app, {
+    signer: options.fanTokens ?? null,
+    publishable,
+    revocations: fanRevocations,
+    limiter,
+    windowMs,
+  });
 
   // Autenticação, módulo do plano, uso e rate limit — rotas com `config.module` ou `config.authenticated`.
   // A chave secreta (`x-galaxie-key`) tem precedência; sem ela, vale a publicável, só para leitura.
@@ -478,6 +485,7 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
       const stopPurge = startPresencePurge(options.db, instance.log);
       instance.addHook('onClose', async () => stopPurge());
     }
+    await moderationRoutes(instance, { db: options.db, now: options.now });
   });
 
   // escopo próprio: o parser de corpo cru do webhook não vale para as outras rotas

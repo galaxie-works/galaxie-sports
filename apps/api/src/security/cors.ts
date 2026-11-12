@@ -33,10 +33,11 @@ declare module 'fastify' {
   }
 }
 
-const ALLOWED_METHODS = ['GET', 'HEAD', 'POST'];
+const ALLOWED_METHODS = ['GET', 'HEAD', 'POST', 'PATCH'];
 /** Chave publicável: só leitura. */
 const PUBLISHABLE_METHODS = ['GET', 'HEAD'];
 const ALLOWED_HEADERS = [
+  'authorization',
   'x-galaxie-key',
   'x-galaxie-publishable-key',
   'content-type',
@@ -94,6 +95,23 @@ export function registerCors(
   );
   const maxAge = String(options.maxAgeSec ?? 600);
 
+  // rotas do torcedor (`config.fan`): no navegador, o token vai com a chave publicável do site, inclusive em
+  // escrita; o preflight libera o método que a rota tem, para as origens de alguma chave ativa
+  const fanRoutes: Array<{ pattern: RegExp; methods: string[] }> = [];
+  app.addHook('onRoute', (route) => {
+    if (!route.config?.fan) return;
+    const methods = (Array.isArray(route.method) ? route.method : [route.method]).map((m) => m.toUpperCase());
+    const pattern = new RegExp(
+      `^${route.url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/:[^/]+/g, '[^/]+')}/?$`,
+    );
+    fanRoutes.push({ pattern, methods });
+  });
+  const fanMethods = (url: string): string[] | null => {
+    const path = url.split('?')[0] ?? '';
+    const methods = fanRoutes.filter((r) => r.pattern.test(path)).flatMap((r) => r.methods);
+    return methods.length ? [...new Set(['GET', 'HEAD', ...methods])] : null;
+  };
+
   const allowOrigin = (origin: string | undefined, url: string): string | null => {
     if (!origin || url.startsWith('/internal/')) return null;
     if (any) return '*';
@@ -135,17 +153,18 @@ export function registerCors(
     if (request.url.startsWith('/internal/')) return reply.callNotFound();
     const origin = request.headers.origin;
     const method = String(request.headers['access-control-request-method'] ?? '').toUpperCase();
+    const methods = fanMethods(request.url) ?? PUBLISHABLE_METHODS;
     if (
       publishable &&
       origin &&
       !allowOrigin(origin, request.url) &&
       request.url.startsWith('/v1/') &&
-      PUBLISHABLE_METHODS.includes(method) &&
+      methods.includes(method) &&
       (await publishable.isRegisteredOrigin(origin))
     ) {
       reply
         .header('access-control-allow-origin', origin)
-        .header('access-control-allow-methods', PUBLISHABLE_METHODS.join(', '))
+        .header('access-control-allow-methods', methods.join(', '))
         .header('access-control-allow-headers', ALLOWED_HEADERS.join(', '))
         .header('access-control-max-age', maxAge);
     }

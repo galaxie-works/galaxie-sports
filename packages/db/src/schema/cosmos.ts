@@ -18,6 +18,8 @@ import {
   jsonb,
   numeric,
   pgSchema,
+  primaryKey,
+  real,
   text,
   timestamp,
   uniqueIndex,
@@ -558,4 +560,23 @@ export const staffUsage = cosmos.table(
     index('staff_usage_user_idx').on(t.userId, t.createdAt.desc()),
     index('staff_usage_tenant_idx').on(t.tenantId, t.id.desc()),
   ],
+);
+
+// ─── base de conhecimento do assistente (busca por significado) ─────────────────────────────────────
+
+/**
+ * Vetores dos trechos da documentação (guias de /docs e contrato OpenAPI) por modelo de embeddings: calculados uma
+ * vez e reaproveitados entre processos. A chave é o hash do texto, então trecho mudado ganha vetor novo e o antigo
+ * só fica sem uso. Não tem dado de cliente.
+ */
+export const docEmbedding = cosmos.table(
+  'doc_embedding',
+  {
+    model: text('model').notNull(),
+    /** sha256 do texto do trecho. */
+    contentHash: text('content_hash').notNull(),
+    vector: real('vector').array().notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [primaryKey({ columns: [t.model, t.contentHash] })],
 );

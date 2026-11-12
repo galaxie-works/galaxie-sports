@@ -209,10 +209,6 @@ export default defineMessages(
           what: 'Guarda de 2 anos, legal hold e pedidos de exportação judicial com hash.',
           phase: 'Base do engajamento',
         },
-        moderation: {
-          what: 'Lista proibida global, regras fixas, Escada e Modo de entrada (teto), denúncias para ocultar.',
-          phase: 'Base do engajamento',
-        },
         secondAppeal: {
           what: 'Fila da Galaxie para cliente sem equipe própria, com prazo de 72 h.',
           phase: 'Base do engajamento',
@@ -1766,6 +1762,11 @@ export default defineMessages(
         label: 'Silêncio máximo da Cosmos (horas)',
         description: 'Duração máxima de um Silêncio aplicado pela Cosmos AI. Nunca passa de 24 horas.',
       },
+      COSMOS_EMBEDDINGS_PROVIDER: {
+        label: 'Busca por significado do assistente',
+        description:
+          'Provedor que lê o sentido da pergunta para achar o trecho certo da documentação. Automático usa o primeiro com chave da Cosmos (OpenAI, depois Gemini); desligado, o assistente busca só por palavras.',
+      },
       COSMOS_TRIAL_DAYS: {
         label: 'Validade dos créditos de teste',
         description: 'Em quantos dias os créditos de teste da Cosmos AI vencem.',
@@ -2020,10 +2021,6 @@ export default defineMessages(
           },
           legalHold: {
             what: 'Two-year retention, legal hold and court export requests with hash.',
-            phase: 'Engagement base',
-          },
-          moderation: {
-            what: 'Global block list, fixed rules, Ladder and Entry mode (cap), reports to hide.',
             phase: 'Engagement base',
           },
           secondAppeal: {
@@ -3562,6 +3559,11 @@ export default defineMessages(
           label: 'Longest Cosmos mute (hours)',
           description: 'Longest mute Cosmos AI can apply. Never more than 24 hours.',
         },
+        COSMOS_EMBEDDINGS_PROVIDER: {
+          label: 'Assistant search by meaning',
+          description:
+            'Provider that reads the meaning of the question to find the right part of the docs. Automatic uses the first one with a Cosmos key (OpenAI, then Gemini); off, the assistant searches by words only.',
+        },
         COSMOS_TRIAL_DAYS: {
           label: 'Trial credits validity',
           description: 'How many days until the Cosmos AI trial credits expire.',
@@ -3816,10 +3818,6 @@ export default defineMessages(
           },
           legalHold: {
             what: 'Custodia de 2 años, legal hold y pedidos de exportación judicial con hash.',
-            phase: 'Base de la participación',
-          },
-          moderation: {
-            what: 'Lista prohibida global, reglas fijas, Escalera y Modo de entrada (tope), denuncias para ocultar.',
             phase: 'Base de la participación',
           },
           secondAppeal: {
@@ -5382,6 +5380,11 @@ export default defineMessages(
         COSMOS_MOD_MUTE_MAX_HOURS: {
           label: 'Silencio máximo de Cosmos (horas)',
           description: 'Duración máxima de un Silencio aplicado por Cosmos AI. Nunca supera las 24 horas.',
+        },
+        COSMOS_EMBEDDINGS_PROVIDER: {
+          label: 'Búsqueda por significado del asistente',
+          description:
+            'Proveedor que lee el sentido de la pregunta para encontrar la parte correcta de la documentación. Automático usa el primero con clave de Cosmos (OpenAI, luego Gemini); apagado, el asistente busca solo por palabras.',
         },
         COSMOS_TRIAL_DAYS: {
           label: 'Vigencia de los créditos de prueba',

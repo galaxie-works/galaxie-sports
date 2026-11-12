@@ -58,13 +58,10 @@ export const problems = {
         ? `A origem ${origin} não está entre as origens permitidas da chave.`
         : 'Requisição sem Origin nem Referer: a chave publicável só vale a partir de uma página autorizada.',
     ),
-  publishableKeyNotAllowed: () =>
-    new ProblemError(
-      403,
-      'PUBLISHABLE_KEY_NOT_ALLOWED',
-      'Rota não disponível para chave publicável',
-      'A chave publicável só faz leituras (GET) da API /v1. Use a chave secreta no seu backend.',
-    ),
+  publishableKeyNotAllowed: (
+    detail = 'A chave publicável só faz leituras (GET) da API /v1. Use a chave secreta no seu backend.',
+  ) =>
+    new ProblemError(403, 'PUBLISHABLE_KEY_NOT_ALLOWED', 'Rota não disponível para chave publicável', detail),
   fanAgeRestricted: (detail: string) =>
     new ProblemError(403, 'FAN_AGE_RESTRICTED', 'A faixa etária do torcedor não permite esta ação', detail),
   invalidFanToken: (

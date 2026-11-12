@@ -135,6 +135,13 @@ export const auth = betterAuth({
        * (`/update-user`), então aceita entrada, mas só os três valores.
        */
       locale: { type: 'string', required: false, validator: { input: localeInput } },
+      /**
+       * Perfil de torcedor da demo (#1020): apelido, faixa etária e país, sem data de nascimento. Só a ação
+       * `saveFanProfile` grava (`input: false`); é o que a demo manda para emitir o token `gft_`.
+       */
+      fanNickname: { type: 'string', required: false, input: false, fieldName: 'fan_nickname' },
+      fanAgeBand: { type: 'string', required: false, input: false, fieldName: 'fan_age_band' },
+      fanCountry: { type: 'string', required: false, input: false, fieldName: 'fan_country' },
     },
   },
   session: {

@@ -3,11 +3,15 @@ import type { FastifyInstance } from 'fastify';
 import { Redis } from 'ioredis';
 import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { DEFAULT_MODERATION_LISTS, normalizeDomain, normalizeTerm } from '@galaxie/engage';
+import { eq, isNull } from 'drizzle-orm';
 import {
   closeDb,
   createDb,
   creditPoints,
   debitBalance,
+  fanProfile,
+  moderationList,
   revertPoints,
   runMigrations,
   type Database,
@@ -133,6 +137,55 @@ describe('identidade do torcedor (#937)', () => {
     const count = await sql`select count(*)::int as n from fan.profile where tenant_id = ${t.id}`;
     await sql.end();
     expect(count[0]!.n).toBe(1);
+  });
+
+  it('Apelido passa pelo filtro de moderação (#969): ofensa, aposta e lista do cliente recusam', async () => {
+    const t = await tenantKey('fans-mod', ['core_data', 'live_chat']);
+    for (const nickname of ['m4c4c0', 'bet365', 'porra']) {
+      const r = await issue(t.key, { ...base, externalProfileId: `mod_${nickname}`, nickname });
+      expect(r.statusCode, nickname).toBe(400);
+      expect(r.json()).toMatchObject({ code: 'INVALID_PARAMS', errors: [{ path: 'nickname' }] });
+    }
+    expect(
+      (await issue(t.key, { ...base, externalProfileId: 'mod_ok', nickname: 'Macaense_10' })).statusCode,
+    ).toBe(201);
+    // lista do cliente acrescenta termo (vale depois do cache de 60 s; aqui, um cliente novo)
+    const t2 = await tenantKey('fans-mod-2', ['core_data', 'live_chat']);
+    await db
+      .insert(moderationList)
+      .values({ tenantId: t2.id, list: 'hate', locale: 'pt', terms: ['gamba'], updatedBy: 'teste' });
+    const r = await issue(t2.key, { ...base, externalProfileId: 'mod_gamba', nickname: 'Gambá' });
+    expect(r.statusCode).toBe(400);
+    // Apelido que já estava gravado não é filtrado de novo: a lista nova não tranca o login de quem já tem
+    const ok = await issue(t2.key, { ...base, externalProfileId: 'mod_antigo', nickname: 'Tricolor' });
+    expect(ok.statusCode).toBe(201);
+    await db
+      .update(fanProfile)
+      .set({ nickname: 'Gambá' })
+      .where(eq(fanProfile.id, ok.json().data.profile_id));
+    expect(
+      (await issue(t2.key, { ...base, externalProfileId: 'mod_antigo', nickname: 'Gambá' })).statusCode,
+    ).toBe(201);
+    // mudar para um Apelido que o filtro pega continua recusado
+    expect(
+      (await issue(t2.key, { ...base, externalProfileId: 'mod_antigo', nickname: 'm4c4c0' })).statusCode,
+    ).toBe(400);
+  });
+
+  it('as listas iniciais gravadas pela migration 0093 são as de DEFAULT_MODERATION_LISTS', async () => {
+    const rows = await db.select().from(moderationList).where(isNull(moderationList.tenantId));
+    const got = Object.fromEntries(rows.map((r) => [`${r.list}:${r.locale}`, r.terms]));
+    const d = DEFAULT_MODERATION_LISTS;
+    const uniq = (a: string[]) => [...new Set(a.filter(Boolean))];
+    const want: Record<string, string[]> = {
+      'allowed_domains:all': uniq(d.allowedDomains!.map(normalizeDomain)),
+      'bet_domains:all': uniq(d.betDomains!.map(normalizeDomain)),
+      'exceptions:all': uniq(d.exceptions!.map(normalizeTerm)),
+    };
+    for (const [cat, byLocale] of Object.entries(d.terms))
+      for (const [loc, terms] of Object.entries(byLocale ?? {}))
+        want[`${cat}:${loc}`] = uniq(terms!.map(normalizeTerm));
+    expect(got).toEqual(want);
   });
 
   it('nenhuma coluna de e-mail, documento, telefone ou nascimento no schema fan', async () => {

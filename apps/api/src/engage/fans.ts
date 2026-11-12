@@ -4,6 +4,7 @@
  */
 import {
   erasePresence,
+  eraseModerationContent,
   fanAccount,
   fanErasureLog,
   fanPointsRevokedEvent,
@@ -96,6 +97,31 @@ export async function upsertFan(
   });
 }
 
+/** Apelido gravado do Perfil pelos ids do cliente (null se o Perfil ainda não existe ou foi excluído). */
+export async function storedNickname(
+  db: Database,
+  tenantId: string,
+  externalAccountId: string,
+  externalProfileId: string,
+): Promise<string | null> {
+  const [row] = await db
+    .select({ nickname: fanProfile.nickname })
+    .from(fanProfile)
+    .innerJoin(
+      fanAccount,
+      and(eq(fanAccount.tenantId, fanProfile.tenantId), eq(fanAccount.id, fanProfile.accountId)),
+    )
+    .where(
+      and(
+        eq(fanProfile.tenantId, tenantId),
+        eq(fanAccount.externalAccountId, externalAccountId),
+        eq(fanProfile.externalProfileId, externalProfileId),
+        isNull(fanProfile.deletedAt),
+      ),
+    );
+  return row?.nickname ?? null;
+}
+
 /** Perfil ativo do token; null se foi excluído (ou nunca existiu neste tenant). */
 export async function readFan(
   db: Database,
@@ -158,7 +184,8 @@ export async function patchFan(
  * coração; a linha fica para o que o Perfil escreveu continuar apontando para "torcedor excluído") e grava o
  * registro para repetir depois de um restore. Repetir a chamada não faz nada. Devolve o Perfil excluído agora.
  *
- * A carteira de pontos (#938) sai junto. Os módulos que guardam conteúdo do torcedor (chat, comunidades, palpites,
+ * A carteira de pontos (#938) sai junto; da moderação (#953) sai o conteúdo do torcedor e os bloqueios, e as decisões
+ * ficam sem o conteúdo até o relógio da ficha do país. Os módulos que guardam conteúdo do torcedor (chat, comunidades, palpites,
  * conquistas) entram aqui quando
  * chegarem, na mesma transação, e o tópico `fan.profile.deleted` sai pelo outbox (#1023).
  */
@@ -211,6 +238,7 @@ export async function eraseFan(
       );
     // presença ao vivo (#906): as janelas saem junto
     await erasePresence(tx, input.tenantId, target.profileId);
+    await eraseModerationContent(tx, input.tenantId, target.profileId);
     await tx.insert(fanErasureLog).values({
       tenantId: input.tenantId,
       profileId: target.profileId,

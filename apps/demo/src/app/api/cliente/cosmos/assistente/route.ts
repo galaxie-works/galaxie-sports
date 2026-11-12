@@ -10,7 +10,12 @@
  *
  * O navegador que fecha ou o "Parar" cortam o provedor, mas o acerto segue até o fim no servidor.
  */
-import { askAssistant, askAssistantAsStaff, type AssistantErrorCode } from '@galaxie/cosmos';
+import {
+  askAssistant,
+  askAssistantAsStaff,
+  assistantAdmissionError,
+  type AssistantErrorCode,
+} from '@galaxie/cosmos';
 
 import { builderDb } from '@/lib/builder/store';
 import { readClientContext } from '@/lib/client/session';
@@ -56,7 +61,20 @@ export async function POST(request: Request) {
   const req = parseAssistantRequest(await request.json().catch(() => null));
   if (!req) return fail('bad_request');
   const scope = { tenantId, userId: ctx.userId };
-  const prepared = await prepareQuestion(scope, req, await getRequestLocale());
+  const locale = await getRequestLocale();
+  // admissão antes da busca por significado: o vetor da pergunta é chamada paga, e quem seria recusado (limite,
+  // saldo, carteira) não chega a ela. Os créditos não dependem da busca, então a estimativa por palavras já serve.
+  if (ctx.role !== 'admin') {
+    const quick = await prepareQuestion(scope, req, locale);
+    if (!quick) return fail('unavailable');
+    const refused = await assistantAdmissionError(builderDb(), {
+      ...scope,
+      settings: quick.settings,
+      credits: quick.credits,
+    });
+    if (refused) return fail(refused);
+  }
+  const prepared = await prepareQuestion(scope, req, locale, { semantic: true, signal: request.signal });
   if (!prepared) return fail('unavailable');
 
   const deps = {

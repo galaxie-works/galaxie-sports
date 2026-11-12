@@ -17,3 +17,4 @@ export * from './cosmos.js';
 export * from './engage.js';
 export * from './fan.js';
 export * from './presence.js';
+export * from './moderation.js';

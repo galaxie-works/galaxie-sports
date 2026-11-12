@@ -9,6 +9,14 @@ export const authClient = createAuthClient({
     emailOTPClient(),
     adminClient(),
     // Campo próprio que a pessoa pode mudar sozinha: o idioma (o dos próximos e-mails).
-    inferAdditionalFields({ user: { locale: { type: 'string', required: false } } }),
+    // O perfil de torcedor (#1020) só chega para leitura: grava pela ação `saveFanProfile`.
+    inferAdditionalFields({
+      user: {
+        locale: { type: 'string', required: false },
+        fanNickname: { type: 'string', required: false, input: false },
+        fanAgeBand: { type: 'string', required: false, input: false },
+        fanCountry: { type: 'string', required: false, input: false },
+      },
+    }),
   ],
 });

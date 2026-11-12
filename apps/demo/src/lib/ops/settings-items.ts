@@ -1,5 +1,5 @@
 /**
- * Itens do menu de Ajustes (épico #1066): Início fixo no topo e 9 grupos com 44 itens, 23 que já existem e 21
+ * Itens do menu de Ajustes (épico #1066): Início fixo no topo e 9 grupos com 44 itens, 24 que já existem e 20
  * planejados com o selo "Em breve" (decisão A5). Puro (sem React nem servidor): o proxy, os redirecionamentos, o mapa
  * ajuste → página e os testes leem daqui; os ícones e os textos ficam em `components/admin/settings-nav.tsx` e no
  * dicionário (`ops.nav`).
@@ -71,7 +71,7 @@ export const SETTINGS_ITEMS = [
     group: 'conformidade',
     soon: { href: SETTINGS_EPIC_URL },
   },
-  { id: 'moderation', href: '/ajustes/moderacao', group: 'conformidade', soon: { href: SETTINGS_EPIC_URL } },
+  { id: 'moderation', href: '/ajustes/moderacao', group: 'conformidade' },
   {
     id: 'secondAppeal',
     href: '/ajustes/segunda-apelacao',
