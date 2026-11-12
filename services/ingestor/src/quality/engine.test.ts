@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { Database } from '@galaxie/db';
+import { WikimediaError } from '../assets/commons/client.js';
 import { createQualityContext } from './context.js';
 import { MAX_STORED_FAILURES, runRules, selectRules, splitBySport } from './engine.js';
 import { QUALITY_RULES } from './rules/index.js';
@@ -77,6 +78,31 @@ describe('runRules', () => {
       ['a.api', 'skipped', 'API não configurada (QUALITY_API_URL e QUALITY_API_KEY)'],
       ['b.boom', 'error', 'consulta quebrou'],
       ['c.ok', 'pass', null],
+    ]);
+  });
+
+  it('Wikimedia fora (maxlag, 429, 5xx) no meio da regra: skipped; erro nosso na consulta continua error', async () => {
+    const ctx = createQualityContext(db, { env: {} });
+    const boom = (err: Error) => async () => Promise.reject(err);
+    const rows = await runRules(
+      [
+        rule({
+          id: 'a.lag',
+          check: boom(new WikimediaError('Wikimedia: servidor atrasado (maxlag)', 200, 'maxlag')),
+        }),
+        rule({ id: 'b.429', check: boom(new WikimediaError('Wikimedia: HTTP 429', 429)) }),
+        rule({ id: 'c.503', check: boom(new WikimediaError('Wikimedia: HTTP 503', 503)) }),
+        rule({ id: 'd.404', check: boom(new WikimediaError('Wikimedia: HTTP 404', 404)) }),
+        rule({ id: 'e.api', check: boom(new WikimediaError('Wikimedia: badvalue: x', 200)) }),
+      ],
+      ctx,
+    );
+    expect(rows.map((r) => [r.ruleId, r.status, r.detail])).toEqual([
+      ['a.lag', 'skipped', 'fonte indisponível: Wikimedia: servidor atrasado (maxlag)'],
+      ['b.429', 'skipped', 'fonte indisponível: Wikimedia: HTTP 429'],
+      ['c.503', 'skipped', 'fonte indisponível: Wikimedia: HTTP 503'],
+      ['d.404', 'error', 'Wikimedia: HTTP 404'],
+      ['e.api', 'error', 'Wikimedia: badvalue: x'],
     ]);
   });
 
