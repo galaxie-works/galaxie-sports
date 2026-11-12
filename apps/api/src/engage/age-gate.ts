@@ -5,7 +5,7 @@
  * O portão relê o Perfil e a ficha do país do token a cada ação, com um cache de poucos segundos por processo: a
  * revogação da autorização, a mudança da ficha e a faixa congelada valem na próxima ação, sem esperar o token
  * vencer. O pedido de token (`POST /v1/fans/tokens`) e a exclusão limpam o cache do Perfil neste processo; nos
- * outros, o prazo do cache é o teto (bem abaixo de 1 minuto).
+ * outros, o prazo do cache é o teto (5 segundos, bem abaixo do 1 minuto do #1106).
  *
  * País: vale o do token (o que o servidor do cliente informou), nunca o do IP. O torcedor que viaja continua na
  * ficha do país dele.
@@ -51,6 +51,8 @@ interface Cached<T> {
 export class FanAgeGate {
   private readonly profiles = new Map<string, Cached<FanAgeFacts | null>>();
   private readonly policies = new Map<string, Cached<CountryPolicy | null>>();
+  /** Quando cada Perfil foi limpo: leitura iniciada antes disso não entra no cache. */
+  private readonly invalidated = new Map<string, number>();
   private readonly cacheMs: number;
   private readonly now: () => number;
 
@@ -64,7 +66,11 @@ export class FanAgeGate {
 
   /** O Perfil mudou neste processo (token pedido de novo, exclusão): a próxima ação relê. */
   invalidate(tenantId: string, profileId: string): void {
-    this.profiles.delete(`${tenantId}:${profileId}`);
+    const key = `${tenantId}:${profileId}`;
+    this.profiles.delete(key);
+    // leitura que começou antes da limpeza (e pode ter visto a linha antiga) não volta para o cache
+    if (this.invalidated.size >= MAX_ENTRIES) this.invalidated.clear();
+    this.invalidated.set(key, this.now());
   }
 
   async check(fan: Pick<FanTokenClaims, 'tenantId' | 'profileId' | 'country'>, capability: AgeCapability) {
@@ -92,6 +98,8 @@ export class FanAgeGate {
     const hit = map.get(key);
     if (hit && now - hit.at < this.cacheMs) return hit.value;
     const value = await load();
+    const cleared = map === this.profiles ? this.invalidated.get(key) : undefined;
+    if (cleared !== undefined && cleared >= now) return value;
     if (map.size >= MAX_ENTRIES) map.clear();
     map.set(key, { value, at: now });
     return value;

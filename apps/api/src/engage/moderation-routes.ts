@@ -186,7 +186,7 @@ export async function moderationRoutes(app: FastifyInstance, deps: ModerationRou
     return row !== undefined;
   }
 
-  app.post('/v1/moderation/reports', { config: { fan: true, age: 'read' } }, async (request, reply) => {
+  app.post('/v1/moderation/reports', { config: { fan: true, age: 'safety' } }, async (request, reply) => {
     const { fan, profile } = await activeFan(request);
     const body = parseInput(ModerationReportBody, request.body);
     // denúncia de Perfil: o alvo é o próprio Perfil, que tem de existir no mesmo cliente
@@ -232,7 +232,7 @@ export async function moderationRoutes(app: FastifyInstance, deps: ModerationRou
     return reply.code(201).send(out);
   });
 
-  app.get('/v1/fans/me/blocks', { config: { fan: true, age: 'read' } }, async (request, reply) => {
+  app.get('/v1/fans/me/blocks', { config: { fan: true, age: 'safety' } }, async (request, reply) => {
     const { fan } = await activeFan(request);
     const rows = await listBlocks(db(), fan.tenantId, fan.profileId);
     reply.header('cache-control', 'no-store');
@@ -242,22 +242,26 @@ export async function moderationRoutes(app: FastifyInstance, deps: ModerationRou
     return out;
   });
 
-  app.put('/v1/fans/me/blocks/:profileId', { config: { fan: true, age: 'read' } }, async (request, reply) => {
-    const { fan } = await activeFan(request);
-    const { profileId } = parseInput(FanBlockParams, request.params);
-    if (profileId === fan.profileId) throw problems.conflict('Não dá para bloquear o próprio Perfil.');
-    if (!(await profileExists(fan.tenantId, profileId))) throw problems.notFound('Perfil');
-    await blockFan(db(), {
-      tenantId: fan.tenantId,
-      blockerProfileId: fan.profileId,
-      blockedProfileId: profileId,
-    });
-    return reply.code(204).send();
-  });
+  app.put(
+    '/v1/fans/me/blocks/:profileId',
+    { config: { fan: true, age: 'safety' } },
+    async (request, reply) => {
+      const { fan } = await activeFan(request);
+      const { profileId } = parseInput(FanBlockParams, request.params);
+      if (profileId === fan.profileId) throw problems.conflict('Não dá para bloquear o próprio Perfil.');
+      if (!(await profileExists(fan.tenantId, profileId))) throw problems.notFound('Perfil');
+      await blockFan(db(), {
+        tenantId: fan.tenantId,
+        blockerProfileId: fan.profileId,
+        blockedProfileId: profileId,
+      });
+      return reply.code(204).send();
+    },
+  );
 
   app.delete(
     '/v1/fans/me/blocks/:profileId',
-    { config: { fan: true, age: 'read' } },
+    { config: { fan: true, age: 'safety' } },
     async (request, reply) => {
       const { fan } = await activeFan(request);
       const { profileId } = parseInput(FanBlockParams, request.params);
@@ -270,7 +274,7 @@ export async function moderationRoutes(app: FastifyInstance, deps: ModerationRou
     },
   );
 
-  app.get('/v1/fans/me/sanctions', { config: { fan: true, age: 'read' } }, async (request, reply) => {
+  app.get('/v1/fans/me/sanctions', { config: { fan: true, age: 'safety' } }, async (request, reply) => {
     const { fan } = await activeFan(request);
     const rows = await sanctionsForFan(db(), {
       tenantId: fan.tenantId,
@@ -313,7 +317,7 @@ export async function moderationRoutes(app: FastifyInstance, deps: ModerationRou
 
   app.post(
     '/v1/fans/me/sanctions/:sanctionId/appeals',
-    { config: { fan: true, age: 'read' } },
+    { config: { fan: true, age: 'safety' } },
     async (request, reply) => {
       const { fan, profile } = await activeFan(request);
       const { sanctionId } = parseInput(FanSanctionParams, request.params);

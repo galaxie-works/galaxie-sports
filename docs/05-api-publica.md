@@ -1058,7 +1058,7 @@ O `GET /v1/fans/me` devolve `age_band_detail`, `age_assurance`, `guardian` e `ag
 | `not_in_country` | A ficha do país não libera o recurso (marketplace desligado, publicidade para menores) | |
 | `no_policy` | O país não tem ficha: só o adulto lê | |
 
-O portão relê o Perfil e a ficha a cada ação, com um cache de 5 segundos: a autorização revogada vale na próxima ação, sem esperar o token vencer. Para revogar, peça um token novo para o Perfil com `guardian.status: "revoked"`; o token antigo para de valer na hora. As `capabilities` do `GET /v1/fans/me` são o que o portão libera hoje, e o próprio `GET /v1/fans/me` fica aberto para o cliente ver o estado. Um adulto do Brasil sem o bloco `ageAssurance` (vale `self`) não participa até mandar a estimativa.
+O portão relê o Perfil e a ficha a cada ação, com um cache de até 5 segundos: a autorização revogada vale em até 5 segundos, sem esperar o token vencer. Para revogar, peça um token novo para o Perfil com `guardian.status: "revoked"`; o token antigo para de valer em até 5 segundos. Denunciar, bloquear, ver as próprias punições e apelar não dependem da autorização nem da comprovação: só ficam fora os abaixo da idade para participar. As `capabilities` do `GET /v1/fans/me` são o que o portão libera hoje, e o próprio `GET /v1/fans/me` fica aberto para o cliente ver o estado. Um adulto do Brasil sem o bloco `ageAssurance` (vale `self`) não participa até mandar a estimativa.
 
 Faixa que desce de `18plus` para menor no mesmo Perfil congela as ações de adulto (escrever e resgatar) e abre um caso na fila de moderação do cliente (`age_band_downgrade`). Subir de faixa é normal; a congelada só volta a adulto com a correção da faixa (#1110).
 

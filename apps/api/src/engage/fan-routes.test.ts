@@ -265,6 +265,15 @@ describe('portão de idade em toda rota do torcedor (#1106)', () => {
     await app.close();
   });
 
+  it('a regra vale dentro dos plugins: rota esquecida num módulo derruba o boot', async () => {
+    const app = buildServer({ usage: false, fanTokens: signer });
+    app.register(async (instance) => {
+      instance.post('/v1/fans/me/modulo-novo', { config: { fan: true } }, async () => ({}));
+    });
+    await expect(app.ready()).rejects.toThrow(/config\.age/);
+    await app.close();
+  });
+
   it('menor de 13 no token é recusado sem consultar o banco, com o motivo', async () => {
     const app = buildServer({ usage: false, fanTokens: signer, fanRevocations: new MemoryFanRevocations() });
     const { token } = signer.issue(claims({ ageBand: 'under13' }), 900);

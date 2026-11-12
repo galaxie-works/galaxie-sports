@@ -69,6 +69,8 @@ describe('portão de idade (#1106)', () => {
       expect(result.next, label).toBeUndefined();
       // menor de 13 fora de tudo
       expect(floor, label).toBeGreaterThanOrEqual(Math.max(13, policy.minAgeParticipate));
+      // proteção e defesa: só a idade para participar
+      if (capability === 'safety') continue;
       // só 18+ (e sem faixa congelada) nos recursos de adulto
       if (ADULT_ONLY_CAPABILITIES.includes(capability)) {
         expect(floor, label).toBe(18);
@@ -175,5 +177,29 @@ describe('portão de idade (#1106)', () => {
   it('a ficha sobe o piso de participação, nunca desce', () => {
     expect(gate({ ...US, minAgeParticipate: 16 }, teen('14_15'), 'read').reason).toBe('under_min_age');
     expect(gate({ ...US, minAgeParticipate: 10 }, teen('under13'), 'read').reason).toBe('under_min_age');
+  });
+
+  it('denunciar, bloquear e apelar não dependem do responsável nem da comprovação', () => {
+    expect(gate(BR, teen('14_15', { guardianStatus: 'revoked', assurance: 'self' }), 'safety').allowed).toBe(
+      true,
+    );
+    expect(gate(null, teen('14_15'), 'safety').allowed).toBe(true);
+    expect(gate(BR, teen('under13'), 'safety').reason).toBe('under_min_age');
+    expect(gate({ ...US, minAgeParticipate: 16 }, teen('14_15'), 'safety').reason).toBe('under_min_age');
+  });
+
+  it('ficha que baixa a idade de escrever não libera o menor, e o age_status diz o mesmo', () => {
+    const low = { ...US, minAgeWrite: 16 };
+    const fan = teen('16_17');
+    expect(gate(low, fan, 'write').reason).toBe('adult_only');
+    expect(fanAgeStatus(fan, low)).toBe('read_only');
+    for (const band of BANDS)
+      for (const minAgeWrite of [13, 16, 18, 21]) {
+        const p = { ...US, minAgeWrite };
+        const f = { ...adult, band, assurance: 'self' as const, guardianStatus: 'granted' as const };
+        expect(gate(p, f, 'write').allowed, `${band} ${minAgeWrite}`).toBe(
+          fanAgeStatus(f, p) === 'can_write',
+        );
+      }
   });
 });

@@ -49,7 +49,6 @@ export const ERROR_CODES = [
 ] as const;
 export type ErrorCode = (typeof ERROR_CODES)[number];
 
-/** Erro no formato RFC 9457 (`application/problem+json`). */
 /** Motivos de recusa do portão de idade (#1106), na ordem em que ele confere. */
 export const AGE_GATE_DENIAL_REASONS = [
   'no_policy',
@@ -64,6 +63,7 @@ export const AGE_GATE_DENIAL_REASONS = [
 /** O que o cliente pode fazer para liberar: comprovar a idade, pedir a autorização ou vincular a conta. */
 export const AGE_GATE_NEXT_STEPS = ['verify_age', 'guardian_consent', 'guardian_link'] as const;
 
+/** Erro no formato RFC 9457 (`application/problem+json`). */
 export const Problem = z
   .object({
     type: z.string().meta({ example: 'https://docs.galaxie.sports/errors/invalid-key' }),

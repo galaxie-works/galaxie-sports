@@ -32,6 +32,7 @@ export const AGE_CAPABILITIES = [
   'receiveMarketing',
   'viewRestrictedContent',
   'directContact',
+  'safety',
 ] as const;
 export type AgeCapability = (typeof AGE_CAPABILITIES)[number];
 
@@ -94,12 +95,22 @@ const GALAXIE_MIN_PARTICIPATE = 13;
 const deny = (reason: Exclude<AgeGateReason, 'ok'>, next?: AgeGateNext): AgeGateResult =>
   next ? { allowed: false, reason, next } : { allowed: false, reason };
 
+/**
+ * `safety`: denunciar, bloquear, ver as próprias punições e apelar. Proteção e direito de defesa não dependem da
+ * autorização do responsável nem da comprovação: só ficam fora os abaixo da idade para participar.
+ */
+const SAFETY: AgeCapability = 'safety';
+
 const assuranceFeature = (c: AgeCapability): AgeAssuranceFeature =>
   c === 'viewRestrictedContent' ? 'restrictedContent' : 'social';
 
 /** O portão. Pura: a mesma entrada dá sempre a mesma resposta; quem chama lê a ficha e o Perfil frescos. */
 export function ageGate({ policy, fan, capability }: AgeGateInput): AgeGateResult {
   const floor = ageBandFloor(fan.band);
+  if (capability === SAFETY)
+    return floor >= Math.max(GALAXIE_MIN_PARTICIPATE, policy?.minAgeParticipate ?? 0)
+      ? { allowed: true, reason: 'ok' }
+      : deny('under_min_age');
   // sem ficha, nada protege o menor: só o adulto, e só lendo (o mesmo `read_only` do `age_status`)
   if (!policy)
     return floor >= ADULT && capability === 'read' ? { allowed: true, reason: 'ok' } : deny('no_policy');
