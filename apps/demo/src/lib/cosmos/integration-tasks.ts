@@ -8,7 +8,7 @@ import {
   listTenantUsageByRoute,
   listTenantWebhookFailures,
   sumTenantAccessErrors,
-} from '@galaxie/db';
+} from '@galaxie/db/access-errors';
 import { listTenantWebhooks } from '@galaxie/db/webhooks';
 import { activeFunctionMinCredits, parseModelJson, readCosmosSettings, runCosmosTask } from '@galaxie/cosmos';
 

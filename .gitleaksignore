@@ -27,3 +27,9 @@ aaa2a1b0d770ad5f0a6b0ca04a8adff071c70a9f:apps/demo/src/lib/cosmos/widget-install
 # prefixo público de exemplo no teste da origem recusada (#1007); o literal saiu no commit seguinte
 3fc791044359c20c740489c2494c0cd1aa1725a2:apps/api/src/auth/publishable.test.ts:generic-api-key:152
 3fc791044359c20c740489c2494c0cd1aa1725a2:apps/api/src/auth/publishable.test.ts:generic-api-key:155
+# prefixos de chave fictícios nos dados de teste do diagnóstico da Cosmos (#1007); só os 12 primeiros caracteres, sem segredo
+5c2f838a5e78f9061ba0076bf604194cad12c84c:apps/demo/src/lib/cosmos/integration-help.test.ts:generic-api-key:44
+5c2f838a5e78f9061ba0076bf604194cad12c84c:apps/demo/src/lib/cosmos/integration-help.test.ts:generic-api-key:45
+5c2f838a5e78f9061ba0076bf604194cad12c84c:apps/demo/src/lib/cosmos/integration-help.test.ts:generic-api-key:50
+5c2f838a5e78f9061ba0076bf604194cad12c84c:apps/demo/src/lib/cosmos/integration-help.test.ts:generic-api-key:57
+5c2f838a5e78f9061ba0076bf604194cad12c84c:apps/demo/src/lib/cosmos/integration-help.test.ts:generic-api-key:88
