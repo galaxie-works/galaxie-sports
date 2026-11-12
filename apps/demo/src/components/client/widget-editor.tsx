@@ -479,6 +479,10 @@ export function WidgetEditor({
   };
   const [saved, setSaved] = useState(savedInitial);
   const [savedSnapshot, setSavedSnapshot] = useState(savedInitial ? snapshot(initial) : null);
+  // o guia de instalação usa a última versão gravada (o comando baixa a gravada; o uso tem de casar com ela)
+  const [savedWidget, setSavedWidget] = useState(
+    savedInitial ? { kind: initial.kind, name: initial.name.trim() } : null,
+  );
   const [pending, startTransition] = useTransition();
   const kindTexts = useKindTexts();
   // dados de exemplo no jeito do esporte escolhido (placar com sets no vôlei, tabela por vitórias...)
@@ -543,6 +547,7 @@ export function WidgetEditor({
       toast.success(fill(e.saved, { n: res.widget.version }));
       setSaved({ id: res.widget.id, version: res.widget.version });
       setSavedSnapshot(snapshot(draft));
+      setSavedWidget({ kind: draft.kind, name: draft.name.trim() });
       if (!saved) router.replace(`/cliente/builder/${res.widget.id}`);
       else router.refresh();
     });
@@ -912,8 +917,8 @@ export function WidgetEditor({
                         <InstallGuide
                           widget={{
                             id: saved.id,
-                            kind: draft.kind,
-                            name: draft.name.trim() || kindTexts(draft.kind).name,
+                            kind: savedWidget?.kind ?? draft.kind,
+                            name: savedWidget?.name || kindTexts(savedWidget?.kind ?? draft.kind).name,
                           }}
                           minCredits={cosmosInstall.minCredits}
                         />

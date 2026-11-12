@@ -3,6 +3,7 @@
  * Tudo filtrado pelo tenant; o Perfil aponta para a Conta por chave composta (o banco recusa mistura).
  */
 import {
+  erasePresence,
   eraseModerationContent,
   fanAccount,
   fanErasureLog,
@@ -235,6 +236,8 @@ export async function eraseFan(
           eq(fanPointsRevokedEvent.profileId, target.profileId),
         ),
       );
+    // presença ao vivo (#906): as janelas saem junto
+    await erasePresence(tx, input.tenantId, target.profileId);
     await eraseModerationContent(tx, input.tenantId, target.profileId);
     await tx.insert(fanErasureLog).values({
       tenantId: input.tenantId,
