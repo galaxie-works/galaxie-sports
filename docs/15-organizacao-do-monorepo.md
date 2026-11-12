@@ -107,6 +107,7 @@ flowchart TB
   packages_core_writer --> packages_apisports_client & packages_db & packages_knowledge & packages_observability & packages_providers & packages_rules
   packages_cosmos --> packages_ai_ledger & packages_db & packages_engage & packages_llm & packages_runtime_config
   packages_crests --> packages_db
+  packages_db --> packages_contracts
   packages_explore --> packages_contracts & packages_db & packages_geo & packages_providers
   packages_knowledge --> packages_db
   packages_llm --> packages_ai_ledger
