@@ -589,12 +589,22 @@ export function strictestOf(a: CountryPolicy, b: CountryPolicy): CountryPolicy {
   return out;
 }
 
-/** Faixa etária do Perfil (no token, #937). */
-export type AgeBand = 'under13' | '13_17' | '18plus';
+/** Faixa etária do Perfil: a larga do token (#937) ou a fina (#1105). */
+export type AgeBand = 'under13' | '13_17' | '13' | '14_15' | '16_17' | '18plus';
 export type FanAction = 'participate' | 'write';
 
 /** Idade mínima garantida pela faixa: o cliente informa a faixa, não a idade. */
-const BAND_FLOOR: Record<AgeBand, number> = { under13: 0, '13_17': 13, '18plus': 18 };
+const BAND_FLOOR: Record<AgeBand, number> = {
+  under13: 0,
+  '13_17': 13,
+  '13': 13,
+  '14_15': 14,
+  '16_17': 16,
+  '18plus': 18,
+};
+
+/** Idade mínima que a faixa garante (a larga `13_17` vale como 13, a mais restritiva). */
+export const ageBandFloor = (band: AgeBand): number => BAND_FLOOR[band];
 
 /**
  * A faixa cumpre a ficha para a ação? Checagem do servidor em toda rota de escrita dos cinco módulos. Uma ficha com
