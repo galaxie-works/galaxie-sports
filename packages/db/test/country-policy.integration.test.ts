@@ -42,7 +42,7 @@ describe('ficha por país: idade e responsável (#1104)', () => {
       ['AR', 'BR', 'CA', 'CL', 'CO', 'DEFAULT', 'LATAM', 'MX', 'PE', 'US'].sort(),
     );
     expect(by.get('BR')).toMatchObject({
-      // 2 com a idade (0100) e 3 com apostas, marketing e guarda legal (0150)
+      // 2 com a idade (0100) e 3 com apostas, marketing e guarda legal (0152)
       version: 3,
       policy: {
         currency: 'BRL',
