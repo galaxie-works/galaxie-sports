@@ -25,9 +25,18 @@ describe('roomWindow', () => {
     expect(roomWindow({ ...base, event, now: start + 130 * MIN }).state).toBe('closed');
   });
 
-  it('jogo atrasado segue aberto até o fim previsto + margem', () => {
+  it('jogo em andamento não fecha a sala, mesmo passando do previsto', () => {
     const event = { ...base.event, status: 'live', updatedAt: start + 200 * MIN };
     expect(roomWindow({ ...base, event, now: start + 139 * MIN }).state).toBe('open');
+    expect(roomWindow({ ...base, event, now: start + 240 * MIN }).state).toBe('open');
+  });
+
+  it('terminado depois do previsto fecha pelo apito; o teto evita o updated_at tardio do espelho', () => {
+    const late = { ...base.event, status: 'finished', updatedAt: start + 150 * MIN };
+    expect(roomWindow({ ...base, event: late, now: start + 170 * MIN }).state).toBe('open');
+    expect(roomWindow({ ...base, event: late, now: start + 181 * MIN }).state).toBe('closed');
+    const touched = { ...base.event, status: 'finished', updatedAt: start + 48 * 60 * MIN };
+    expect(roomWindow({ ...base, event: touched, now: start + 7 * 60 * MIN }).state).toBe('closed');
   });
 
   it('adiado fecha a sala dentro da janela', () => {
@@ -39,7 +48,7 @@ describe('roomWindow', () => {
   it('o estado gravado vale dentro da janela', () => {
     expect(roomWindow({ ...base, storedState: 'frozen', now: start }).state).toBe('frozen');
     expect(roomWindow({ ...base, storedState: 'read_only_peak', now: start }).state).toBe('read_only_peak');
-    expect(roomWindow({ ...base, storedState: 'frozen', now: start + 200 * MIN }).state).toBe('closed');
+    expect(roomWindow({ ...base, storedState: 'frozen', now: start + 7 * 60 * MIN }).state).toBe('closed');
   });
 });
 

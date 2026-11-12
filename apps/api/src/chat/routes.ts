@@ -42,6 +42,7 @@ import {
   insertMessage,
   lastSentAt,
   patchRoom,
+  readRoom,
   readChatEvent,
   readTenantConfig,
   recentMessages,
@@ -134,18 +135,22 @@ export async function chatRoutes(app: FastifyInstance, deps: ChatRoutesDeps): Pr
     return new Date(at.getTime() + clocks.contentPurgeAt.getTime());
   }
 
-  async function loadRoom(tenantId: string, fixtureId: string) {
+  /**
+   * Sala do jogo com a janela calculada. `create = false` (leitura, aberta à chave publicável) não grava nada: sem
+   * sala ainda, responde a sala como ela nasceria. Só o envio e o ajuste do cliente criam a linha.
+   */
+  async function loadRoom(tenantId: string, fixtureId: string, create = true) {
     const database = db();
     const ev = await readChatEvent(database, fixtureId);
     if (!ev) throw problems.notFound('Jogo');
     const [room, cfg, g] = await Promise.all([
-      ensureRoom(database, tenantId, fixtureId),
+      create ? ensureRoom(database, tenantId, fixtureId) : readRoom(database, tenantId, fixtureId),
       readTenantConfig(database, tenantId),
       settings.get(),
     ]);
     const eff = effective(room, cfg, g);
     const window = roomWindow({
-      storedState: room.state,
+      storedState: room?.state ?? 'open',
       event: {
         startsAt: ev.startsAt.getTime(),
         endsAtExpected: ev.endsAtExpected.getTime(),
@@ -166,12 +171,13 @@ export async function chatRoutes(app: FastifyInstance, deps: ChatRoutesDeps): Pr
   ): Promise<ChatRoom> {
     const { room, eff, window } = loaded;
     const visible: ChatRoomState[] = ['open', 'frozen', 'read_only_peak', 'closed'];
-    const messages = visible.includes(window.state)
-      ? await recentMessages(db(), tenantId, room.id, eff.historyOnJoin)
-      : [];
+    const messages =
+      room && visible.includes(window.state)
+        ? await recentMessages(db(), tenantId, room.id, eff.historyOnJoin)
+        : [];
     return {
       data: {
-        room_id: room.id,
+        room_id: room?.id ?? null,
         fixture_id: fixtureId,
         state: window.state,
         opens_at: new Date(window.opensAt).toISOString(),
@@ -189,7 +195,7 @@ export async function chatRoutes(app: FastifyInstance, deps: ChatRoutesDeps): Pr
   app.get('/v1/chat/rooms/:fixtureId', { config: MODULE }, async (request, reply) => {
     const { fixtureId } = parseInput(ChatRoomParams, request.params);
     const tenantId = request.tenant!.tenantId;
-    const loaded = await loadRoom(tenantId, fixtureId);
+    const loaded = await loadRoom(tenantId, fixtureId, false);
     // mensagens do chat fora dos buscadores e de caches compartilhados (regra 10 do épico)
     reply.header('cache-control', 'no-store').header('x-robots-tag', 'noindex, nofollow');
     return roomBody(tenantId, fixtureId, loaded);
@@ -200,7 +206,18 @@ export async function chatRoutes(app: FastifyInstance, deps: ChatRoutesDeps): Pr
     const { fixtureId } = parseInput(ChatRoomParams, request.params);
     const body = parseInput(ChatRoomPatchBody, request.body);
     const before = await loadRoom(tenant.tenantId, fixtureId);
-    await patchRoom(db(), tenant.tenantId, before.room.id, body, `tenant:${tenant.keyPrefix}`);
+    // o cliente não sai do só leitura por pico (limite do plano, D6) nem reabre o que a Galaxie congelou
+    const room = before.room!;
+    if (
+      body.state !== undefined &&
+      (room.state === 'read_only_peak' || (room.state === 'frozen' && room.stateBy?.startsWith('galaxie:')))
+    )
+      throw problems.conflict(
+        room.state === 'read_only_peak'
+          ? 'A sala está só leitura pelo pico do plano; ela volta sozinha quando as conexões baixarem.'
+          : 'A sala foi congelada pela equipe da Galaxie.',
+      );
+    await patchRoom(db(), tenant.tenantId, room.id, body, `tenant:${tenant.keyPrefix}`);
     const after = await loadRoom(tenant.tenantId, fixtureId);
     reply.header('cache-control', 'no-store');
     return roomBody(tenant.tenantId, fixtureId, after);
@@ -217,7 +234,9 @@ export async function chatRoutes(app: FastifyInstance, deps: ChatRoutesDeps): Pr
     if (!fanCan(fan.ageBand, 'write'))
       throw problems.fanAgeRestricted(sendRefusalNotice('age_band', fan.locale));
 
-    const { room, eff, window } = await loadRoom(fan.tenantId, fixtureId);
+    const loaded = await loadRoom(fan.tenantId, fixtureId);
+    const room = loaded.room!;
+    const { eff, window } = loaded;
     const refusal = sendRefusal(window.state, fan.ageBand);
     if (refusal)
       throw new ProblemError(
@@ -262,6 +281,9 @@ export async function chatRoutes(app: FastifyInstance, deps: ChatRoutesDeps): Pr
       moderation!.forTenant(fan.tenantId),
     ]);
     if (!profile) throw problems.invalidFanToken('Perfil excluído.');
+    // a faixa do banco vale sobre a do token (mudou depois de o token sair)
+    if (!fanCan(profile.ageBand, 'write'))
+      throw problems.fanAgeRestricted(sendRefusalNotice('age_band', fan.locale));
 
     // Suspensão e Banimento valem em todas as salas do cliente; Silenciar, só onde aconteceu. O Silêncio oculto não
     // recusa: a mensagem fica só para o autor (ele não é avisado, é a exceção ao aviso)
@@ -322,15 +344,27 @@ export async function chatRoutes(app: FastifyInstance, deps: ChatRoutesDeps): Pr
       ...(shadowMuted ? ['muted'] : []),
     ];
     const purgeAt = await purgeAtFor(fan.tenantId, profile.country, at);
-    const saved = await insertMessage(database, {
-      tenantId: fan.tenantId,
-      roomId: room.id,
-      profileId: fan.profileId,
-      body: text,
-      visibility,
-      flags,
-      purgeAt,
-    });
+    const saved = await insertMessage(
+      database,
+      {
+        tenantId: fan.tenantId,
+        roomId: room.id,
+        profileId: fan.profileId,
+        body: text,
+        visibility,
+        flags,
+        purgeAt,
+      },
+      { seconds: eff.slowModeSeconds, now: at },
+    );
+    if (!saved.ok)
+      throw new ProblemError(
+        429,
+        'RATE_LIMITED',
+        'Modo lento',
+        `Espere ${saved.retryAfterS} s para mandar outra mensagem.`,
+        { headers: { 'retry-after': String(saved.retryAfterS) } },
+      );
     const view = messageView({
       id: saved.id,
       body: text,
@@ -341,7 +375,7 @@ export async function chatRoutes(app: FastifyInstance, deps: ChatRoutesDeps): Pr
       createdAt: saved.createdAt,
     });
     // só a mensagem pública entra no lote; a retida fica com o autor (ele a vê pela resposta)
-    if (visibility === 'public') await hub.enqueue(ChatHub.roomKey(fan.tenantId, room.id), view);
+    if (visibility === 'public') await hub.enqueue(ChatHub.roomKey(fan.tenantId, fixtureId), view);
     await peak.seat(fan.tenantId, fan.profileId).catch((err: unknown) => {
       request.log.warn({ err }, 'chat: lugar do torcedor indisponível');
     });
@@ -357,10 +391,8 @@ export async function chatRoutes(app: FastifyInstance, deps: ChatRoutesDeps): Pr
     hub,
     peak,
     options: deps.stream ?? {},
-    openRoom: async (tenantId, fixtureId) => {
-      const { room, window } = await loadRoom(tenantId, fixtureId);
-      return { roomId: room.id, state: window.state };
-    },
+    // leitura: não cria a sala (a chave publicável abre o stream); os lotes são por jogo e cliente
+    roomState: async (tenantId, fixtureId) => (await loadRoom(tenantId, fixtureId, false)).window.state,
   });
 
   async function configBody(tenantId: string): Promise<ChatConfig> {
@@ -374,7 +406,7 @@ export async function chatRoutes(app: FastifyInstance, deps: ChatRoutesDeps): Pr
         strictness: eff.strictness,
         custom: Object.entries(cfg)
           .filter(([, v]) => v !== null)
-          .map(([k]) => k),
+          .map(([k]) => k.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`)),
       },
     };
   }

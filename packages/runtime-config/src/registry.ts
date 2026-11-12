@@ -1014,6 +1014,17 @@ export const SETTINGS: readonly SettingDef[] = [
     default: '900',
   },
   secret('FAN_TOKEN_SECRET', 'engage', ['api']),
+  // jogos ao mesmo tempo em que um Perfil conta presença ao vivo (#906, antirrobô). O cliente só pode baixar
+  {
+    key: 'FAN_PRESENCE_MAX_GAMES',
+    section: 'engage',
+    type: 'int',
+    min: 1,
+    max: 10,
+    services: ['api'],
+    apply: 'refresh',
+    default: '3',
+  },
   // Chat ao vivo (#915, #959, #964): padrão e teto da Galaxie. O cliente ajusta a janela, o modo lento e o rigor dentro
   // destes limites (chat.tenant_config); tamanho e histórico ficam só aqui. Relidos a cada minuto
   {

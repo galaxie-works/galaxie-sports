@@ -36,7 +36,7 @@ interface Deps {
   hub: ChatHub;
   peak: ChatPeak;
   options: ChatStreamOptions;
-  openRoom(tenantId: string, fixtureId: string): Promise<{ roomId: string; state: ChatRoomState }>;
+  roomState(tenantId: string, fixtureId: string): Promise<ChatRoomState>;
 }
 
 const StreamQuery = z.object({ last_batch_id: z.coerce.number().int().min(0).optional() });
@@ -87,8 +87,8 @@ export function registerChatStream(app: FastifyInstance, deps: Deps): void {
       const lastBatchId = headerId ? Number(headerId) : q.last_batch_id;
 
       let tenant = request.tenant!;
-      const { roomId, state } = await deps.openRoom(tenant.tenantId, fixtureId);
-      const room = ChatHub.roomKey(tenant.tenantId, roomId);
+      const state = await deps.roomState(tenant.tenantId, fixtureId);
+      const room = ChatHub.roomKey(tenant.tenantId, fixtureId);
 
       if (reserved >= maxProcess)
         throw new ProblemError(

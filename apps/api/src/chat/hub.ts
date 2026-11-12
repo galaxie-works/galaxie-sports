@@ -14,13 +14,14 @@
  *
  * Sem Valkey, o mesmo desenho em memória, local à instância.
  *
- * A sala é a chave `<tenant>:<sala>`: o lote de um cliente nunca chega à conexão de outro.
+ * A sala é a chave `<tenant>:<jogo>` (uma sala por jogo e cliente): o lote de um cliente nunca chega à conexão de
+ * outro.
  */
 import type { Redis } from 'ioredis';
 import type { ChatMessage } from '@galaxie/contracts';
 
 export interface ChatBatch {
-  /** `<tenant>:<sala>`. */
+  /** `<tenant>:<jogo>`. */
   room: string;
   /** Sequencial por sala, começa em 1: o `id:` do evento SSE e o cursor da reconexão. */
   id: number;
@@ -80,8 +81,8 @@ export class ChatHub {
     this.maxPerBatch = options.maxPerBatch ?? 200;
   }
 
-  static roomKey(tenantId: string, roomId: string): string {
-    return `${tenantId}:${roomId}`;
+  static roomKey(tenantId: string, fixtureId: string): string {
+    return `${tenantId}:${fixtureId}`;
   }
 
   private k(name: string, room?: string): string {

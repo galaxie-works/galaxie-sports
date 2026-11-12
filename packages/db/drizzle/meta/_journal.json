@@ -649,7 +649,14 @@
     {
       "idx": 92,
       "version": "7",
-      "when": 1794447074648,
+      "when": 1794442180071,
+      "tag": "0097_presenca",
+      "breakpoints": true
+    },
+    {
+      "idx": 93,
+      "version": "7",
+      "when": 1794446600000,
       "tag": "0105_chat_salas",
       "breakpoints": true
     }

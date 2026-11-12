@@ -148,19 +148,22 @@ describe('Chat ao vivo: salas (#959)', () => {
     expect(sent.json().data.author).toMatchObject({ profile_id: fa.profileId, nickname: 'Torcedor1' });
 
     const again = await room(a.key, fixture);
-    expect(again.json().data.room_id).toBe(ra.json().data.room_id);
+    // a leitura não cria a sala; o primeiro envio cria
+    expect(ra.json().data.room_id).toBeNull();
+    const roomA = again.json().data.room_id as string;
+    expect(roomA).toMatch(/^[0-9a-f-]{36}$/);
     expect(again.json().data.messages.map((m: { body: string }) => m.body)).toEqual(['Vamos, time!']);
 
     const rb = await room(b.key, fixture);
     expect(rb.statusCode).toBe(200);
-    expect(rb.json().data.room_id).not.toBe(ra.json().data.room_id);
+    expect(rb.json().data.room_id).toBeNull();
     expect(rb.json().data.messages).toEqual([]);
 
     // o banco recusa mensagem do cliente B apontando para a sala do cliente A
     await expect(
       db.execute(
         sql`insert into chat.message (tenant_id, room_id, profile_id, body, purge_at)
-            values (${b.id}, ${ra.json().data.room_id}, ${fa.profileId}, 'x', now())`,
+            values (${b.id}, ${roomA}, ${fa.profileId}, 'x', now())`,
       ),
     ).rejects.toThrow();
   });
@@ -219,7 +222,8 @@ describe('Chat ao vivo: salas (#959)', () => {
     clock += 5_000;
     expect((await send(f.token, fixture, 'depois')).statusCode).toBe(201);
 
-    // fim previsto + 30 min de margem: encerrada, as mensagens continuam para leitura
+    // jogo encerrado + 30 min de margem: encerrada, as mensagens continuam para leitura
+    await db.execute(sql`update core.event set status = 'finished' where id = ${fixture}`);
     clock += 200 * MIN;
     const closed = await room(t.key, fixture);
     expect(closed.json().data.state).toBe('closed');
@@ -227,6 +231,18 @@ describe('Chat ao vivo: salas (#959)', () => {
     const late = await send(f.token, fixture, 'tarde');
     expect(late.statusCode).toBe(409);
     expect(late.json().errors[0].message).toBe('room_closed');
+  });
+
+  it('modo lento vale com envios paralelos do mesmo torcedor', async () => {
+    clock = Date.now();
+    const t = await tenantKey('chat-paralelo', ['core_data', 'live_chat']);
+    const fixture = await game(5);
+    const f = await fan(t.key, 1);
+    const codes = (await Promise.all([1, 2, 3, 4].map((n) => send(f.token, fixture, `msg ${n}`)))).map(
+      (r) => r.statusCode,
+    );
+    expect(codes.filter((c) => c === 201)).toHaveLength(1);
+    expect(codes.filter((c) => c === 429)).toHaveLength(3);
   });
 
   it('antes da janela a sala ainda não abriu; o cliente muda a janela', async () => {
@@ -247,7 +263,7 @@ describe('Chat ao vivo: salas (#959)', () => {
     expect(cfg.json().data).toMatchObject({
       open_before_minutes: 180,
       slow_mode_seconds: 0,
-      custom: ['openBeforeMinutes', 'slowModeSeconds'],
+      custom: ['open_before_minutes', 'slow_mode_seconds'],
     });
     expect((await room(t.key, fixture)).json().data.state).toBe('open');
     expect((await send(f.token, fixture, 'agora')).statusCode).toBe(201);
