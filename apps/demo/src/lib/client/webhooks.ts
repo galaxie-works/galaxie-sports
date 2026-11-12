@@ -4,13 +4,11 @@
  * A demo recebe a mesma `WEBHOOK_SIGNING_SECRET` do worker para cadastrar e rotacionar segredos (cifra com ela,
  * nunca grava texto puro). Sem a KEK, o cadastro e a rotação ficam indisponíveis; o resto do painel funciona.
  */
+import { WEBHOOK_TOPICS, webhookTopicsForModules } from '@galaxie/contracts';
 import { isPublicHttpUrl } from '@galaxie/net-guard';
-import {
-  REALTIME_TOPICS,
-  WebhookSecretBox,
-  type RealtimeTopic,
-  type WebhookFilters,
-} from '@galaxie/db/webhooks';
+import { WebhookSecretBox, type WebhookFilters } from '@galaxie/db/webhooks';
+
+import type { Locale } from '@/lib/i18n/config';
 
 let box: WebhookSecretBox | null | undefined;
 
@@ -50,7 +48,7 @@ export type WebhookFormError =
 export interface ParsedWebhookForm {
   url: string;
   description: string | null;
-  topics: RealtimeTopic[];
+  topics: string[];
   filters: WebhookFilters;
 }
 
@@ -60,11 +58,30 @@ const list = (raw: string) =>
     .map((s) => s.trim().toLowerCase())
     .filter(Boolean);
 
+const labelKey = (locale: Locale) => (locale.startsWith('es') ? 'es' : locale === 'en' ? 'en' : 'pt');
+
+/**
+ * Tópicos que o tenant pode marcar (emitidos e de módulo ligado), em ordem alfabética do idioma, e o nome de todo
+ * tópico do registro (para mostrar um tópico já gravado de um módulo que foi desligado).
+ */
+export function webhookTopicChoices(modules: readonly string[], locale: Locale) {
+  const key = labelKey(locale);
+  const options = webhookTopicsForModules(modules)
+    .map((d) => ({ topic: d.topic, label: d.label[key] }))
+    .sort((a, b) => a.label.localeCompare(b.label, locale));
+  const labels = Object.fromEntries(WEBHOOK_TOPICS.map((d) => [d.topic, d.label[key]]));
+  return { options, labels };
+}
+
 /**
  * Valida o formulário. A URL tem de ser `https://`, sem credenciais, sem nome privado nem IP privado literal; o DNS
  * é conferido de novo pelo worker em cada entrega, no endereço que o socket usa.
  */
-export function parseWebhookForm(input: WebhookFormInput): ParsedWebhookForm | WebhookFormError {
+export function parseWebhookForm(
+  input: WebhookFormInput,
+  /** Módulos ligados no tenant da sessão: tópico de módulo desligado (ou ainda não emitido) é recusado. */
+  modules: readonly string[],
+): ParsedWebhookForm | WebhookFormError {
   const raw = input.url.trim();
   let url: URL;
   try {
@@ -79,8 +96,8 @@ export function parseWebhookForm(input: WebhookFormInput): ParsedWebhookForm | W
   if (label.length > LABEL_MAX) return { kind: 'label' };
 
   const topics = [...new Set(input.topics)];
-  if (!topics.every((t): t is RealtimeTopic => (REALTIME_TOPICS as readonly string[]).includes(t)))
-    return { kind: 'topics' };
+  const allowed = new Set(webhookTopicsForModules(modules).map((d) => d.topic));
+  if (!topics.every((t) => allowed.has(t))) return { kind: 'topics' };
 
   const filters: WebhookFilters = {};
   const sports = list(input.sports);

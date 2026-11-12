@@ -21,6 +21,7 @@ import {
   startPresencePurge,
 } from './engage/presence-routes.js';
 import { moderationRoutes } from './engage/moderation-routes.js';
+import { chatRoutes } from './chat/routes.js';
 import type { FanTokenSigner } from './engage/fan-token.js';
 import { AdminGuard, type AdminGuardOptions } from './admin/guard.js';
 import { loadPlans, type PlanCatalog } from './admin/plans.js';
@@ -71,6 +72,7 @@ import { StreamTokenSigner } from './realtime/stream-token.js';
 import { docsRoutes } from './routes/docs.js';
 import { cosmosStripeRoutes } from './routes/internal/cosmos-stripe.js';
 import { internalShopRoutes } from './routes/internal/shop.js';
+import { ShopClickRecorder, shopClickRoutes } from './shop/clicks.js';
 import { ShopOffers } from './shop/offers.js';
 import { internalWhereToWatchRoutes } from './routes/internal/where-to-watch.js';
 import { Lineup, type LineupOptions } from './lineup/availability.js';
@@ -106,6 +108,8 @@ export interface ServerOptions {
   /** Shopping (#916): fetch dos conectores de loja (testes) e cofre das credenciais das lojas. */
   shopFetch?: ShopFetch;
   shopSecretBox?: Pick<SettingsSecretBox, 'open'>;
+  /** Fila dos cliques do Shopping (#918); nos testes, para gravar na hora. */
+  shopClickRecorder?: ShopClickRecorder;
   logger?: boolean;
   tenantStore?: TenantStore;
   authenticator?: AuthenticatorOptions;
@@ -522,6 +526,13 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
           })
         : undefined,
     });
+    await shopClickRoutes(instance, {
+      db: options.db,
+      limiter,
+      now: ctx.now,
+      ...(options.shopClickRecorder ? { recorder: options.shopClickRecorder } : {}),
+      ...(options.shopSecretBox ? { box: options.shopSecretBox } : {}),
+    });
     await accountRoutes(instance, { db: options.db, usage: usageBackend });
     await fanRoutes(instance, {
       db: options.db,
@@ -539,6 +550,7 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
       instance.addHook('onClose', async () => stopPurge());
     }
     await moderationRoutes(instance, { db: options.db, now: options.now });
+    await chatRoutes(instance, { db: options.db, now: options.now });
   });
 
   // escopo próprio: o parser de corpo cru do webhook não vale para as outras rotas

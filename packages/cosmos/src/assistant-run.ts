@@ -14,6 +14,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 import { and, count, eq, gt, gte, sql } from 'drizzle-orm';
 import type { Database } from '@galaxie/db/client';
 import { ledger, reservation, staffUsage } from '@galaxie/db/schema';
+import { attachmentMetaError, type AttachmentMeta } from './assistant-attachments.js';
 import {
   approxTokens,
   ASSISTANT_FUNCTION,
@@ -56,6 +57,10 @@ export type AssistantErrorCode =
   | 'busy'
   | 'rate_limited'
   | 'tenant_limit'
+  /** Anexo fora dos limites (tipo, tamanho, páginas, quantidade), recusado antes de reservar. */
+  | 'attachment'
+  /** O provedor da função não lê imagem nem PDF (#1065). */
+  | 'attachment_unsupported'
   | 'failed';
 
 export type AssistantEvent =
@@ -165,6 +170,8 @@ export interface AskInput {
   model?: string;
   /** Chave para assinar a resposta (histórico); sem chave, a resposta sai sem assinatura. */
   signingKey?: string | null;
+  /** Tipo e tamanho dos anexos (#1065): conferidos antes de reservar e levados ao extrato, sem o conteúdo. */
+  attachments?: readonly AttachmentMeta[];
 }
 
 export interface AskDeps {
@@ -176,6 +183,18 @@ export interface AskDeps {
   /** Esperas entre as tentativas do acerto (ms). */
   settleBackoffMs?: readonly number[];
 }
+
+/** Anexos no extrato: só o tipo, o tamanho e as páginas (o conteúdo nunca é guardado). */
+const attachmentsMeta = (files: readonly AttachmentMeta[] | undefined) =>
+  files?.length
+    ? {
+        attachments: files.map((f) => ({
+          kind: f.kind,
+          bytes: f.bytes,
+          ...(f.pages ? { pages: f.pages } : {}),
+        })),
+      }
+    : {};
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -229,6 +248,11 @@ export async function* askAssistant(
   deps: AskDeps,
 ): AsyncGenerator<AssistantEvent> {
   const now = deps.now ?? (() => new Date());
+  // anexo fora dos limites nunca chega a reservar
+  if (input.attachments?.length && attachmentMetaError(input.attachments)) {
+    yield { type: 'error', code: 'attachment' };
+    return;
+  }
   const limited = await assistantLimitError(db, input, now());
   if (limited) {
     yield { type: 'error', code: limited };
@@ -308,7 +332,12 @@ export async function* askAssistant(
               tokensCached: usage.cachedInputTokens,
               tokensOut: usage.outputTokens,
               model: input.model ?? ASSISTANT_MODEL,
-              metadata: { route: input.route, partial: true, undelivered: true },
+              metadata: {
+                route: input.route,
+                partial: true,
+                undelivered: true,
+                ...attachmentsMeta(input.attachments),
+              },
             },
             { now: now() },
           )
@@ -325,7 +354,8 @@ export async function* askAssistant(
   if (usage.inputTokens === 0) {
     usage.inputTokens =
       approxTokens(input.prompt.system) +
-      input.prompt.messages.reduce((sum, m) => sum + approxTokens(m.content), 0);
+      input.prompt.messages.reduce((sum, m) => sum + approxTokens(m.content), 0) +
+      (input.prompt.fileTokens ?? 0);
     usage.cachedInputTokens = 0;
   }
   const backoff = deps.settleBackoffMs ?? [200, 800];
@@ -346,6 +376,7 @@ export async function* askAssistant(
           metadata: {
             route: input.route,
             ...(failed ? { partial: true } : {}),
+            ...attachmentsMeta(input.attachments),
             ...(usage.cacheWriteTokens ? { cache_write_tokens: usage.cacheWriteTokens } : {}),
           },
         },
@@ -385,6 +416,7 @@ export interface StaffAskInput {
   provider: string;
   model: string;
   signingKey?: string | null;
+  attachments?: readonly AttachmentMeta[];
 }
 
 /**
@@ -398,6 +430,10 @@ export async function* askAssistantAsStaff(
   deps: Pick<AskDeps, 'stream' | 'signal' | 'now'>,
 ): AsyncGenerator<AssistantEvent> {
   const now = deps.now ?? (() => new Date());
+  if (input.attachments?.length && attachmentMetaError(input.attachments)) {
+    yield { type: 'error', code: 'attachment' };
+    return;
+  }
   const at = now();
   const [recent] = await db
     .select({ n: count() })
@@ -445,7 +481,8 @@ export async function* askAssistantAsStaff(
   if (usage.inputTokens === 0) {
     usage.inputTokens =
       approxTokens(input.prompt.system) +
-      input.prompt.messages.reduce((sum, m) => sum + approxTokens(m.content), 0);
+      input.prompt.messages.reduce((sum, m) => sum + approxTokens(m.content), 0) +
+      (input.prompt.fileTokens ?? 0);
     usage.cachedInputTokens = 0;
   }
   if (row)

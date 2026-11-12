@@ -1,6 +1,6 @@
 {
   "id": "b9ae8914-4bb6-4a26-824f-c5d93b7f5938",
-  "prevId": "8e49e6a3-99a6-44ac-bcd1-b1bbc0454be8",
+  "prevId": "fd175bc7-849a-467b-bb91-23c7cacbd443",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -22893,6 +22893,440 @@
       },
       "isRLSEnabled": false
     },
+    "chat.message": {
+      "name": "message",
+      "schema": "chat",
+      "columns": {
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "room_id": {
+          "name": "room_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "public.uuid_generate_v7()"
+        },
+        "profile_id": {
+          "name": "profile_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "body": {
+          "name": "body",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "visibility": {
+          "name": "visibility",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'public'"
+        },
+        "flags": {
+          "name": "flags",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::text[]"
+        },
+        "purge_at": {
+          "name": "purge_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "message_room_idx": {
+          "name": "message_room_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "room_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "message_author_idx": {
+          "name": "message_author_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "room_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "profile_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "message_purge_idx": {
+          "name": "message_purge_idx",
+          "columns": [
+            {
+              "expression": "purge_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "message_tenant_id_tenant_id_fk": {
+          "name": "message_tenant_id_tenant_id_fk",
+          "tableFrom": "message",
+          "tableTo": "tenant",
+          "schemaTo": "api",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "message_room_fk": {
+          "name": "message_room_fk",
+          "tableFrom": "message",
+          "tableTo": "room",
+          "schemaTo": "chat",
+          "columnsFrom": [
+            "tenant_id",
+            "room_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "message_profile_fk": {
+          "name": "message_profile_fk",
+          "tableFrom": "message",
+          "tableTo": "profile",
+          "schemaTo": "fan",
+          "columnsFrom": [
+            "tenant_id",
+            "profile_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "message_pkey": {
+          "name": "message_pkey",
+          "columns": [
+            "tenant_id",
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "message_visibility": {
+          "name": "message_visibility",
+          "value": "visibility in ('public', 'shadow', 'hidden')"
+        },
+        "message_body_len": {
+          "name": "message_body_len",
+          "value": "length(\"chat\".\"message\".\"body\") between 1 and 2000"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "chat.room": {
+      "name": "room",
+      "schema": "chat",
+      "columns": {
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "public.uuid_generate_v7()"
+        },
+        "event_id": {
+          "name": "event_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "state": {
+          "name": "state",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'open'"
+        },
+        "slow_mode_seconds": {
+          "name": "slow_mode_seconds",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "strictness": {
+          "name": "strictness",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "state_by": {
+          "name": "state_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "state_at": {
+          "name": "state_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "room_event_uq": {
+          "name": "room_event_uq",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "event_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "room_tenant_id_tenant_id_fk": {
+          "name": "room_tenant_id_tenant_id_fk",
+          "tableFrom": "room",
+          "tableTo": "tenant",
+          "schemaTo": "api",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "room_pkey": {
+          "name": "room_pkey",
+          "columns": [
+            "tenant_id",
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "room_state": {
+          "name": "room_state",
+          "value": "state in ('open', 'frozen', 'read_only_peak')"
+        },
+        "room_strictness": {
+          "name": "room_strictness",
+          "value": "\"chat\".\"room\".\"strictness\" is null or strictness in ('standard', 'strict')"
+        },
+        "room_slow_mode": {
+          "name": "room_slow_mode",
+          "value": "\"chat\".\"room\".\"slow_mode_seconds\" is null or \"chat\".\"room\".\"slow_mode_seconds\" between 0 and 600"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "chat.tenant_config": {
+      "name": "tenant_config",
+      "schema": "chat",
+      "columns": {
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "open_before_minutes": {
+          "name": "open_before_minutes",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "close_after_minutes": {
+          "name": "close_after_minutes",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "slow_mode_seconds": {
+          "name": "slow_mode_seconds",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "strictness": {
+          "name": "strictness",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by": {
+          "name": "updated_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "tenant_config_tenant_id_tenant_id_fk": {
+          "name": "tenant_config_tenant_id_tenant_id_fk",
+          "tableFrom": "tenant_config",
+          "tableTo": "tenant",
+          "schemaTo": "api",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "tenant_config_open": {
+          "name": "tenant_config_open",
+          "value": "\"chat\".\"tenant_config\".\"open_before_minutes\" is null or \"chat\".\"tenant_config\".\"open_before_minutes\" between 0 and 1440"
+        },
+        "tenant_config_close": {
+          "name": "tenant_config_close",
+          "value": "\"chat\".\"tenant_config\".\"close_after_minutes\" is null or \"chat\".\"tenant_config\".\"close_after_minutes\" between 0 and 1440"
+        },
+        "tenant_config_slow": {
+          "name": "tenant_config_slow",
+          "value": "\"chat\".\"tenant_config\".\"slow_mode_seconds\" is null or \"chat\".\"tenant_config\".\"slow_mode_seconds\" between 0 and 600"
+        },
+        "tenant_config_strictness": {
+          "name": "tenant_config_strictness",
+          "value": "\"chat\".\"tenant_config\".\"strictness\" is null or strictness in ('standard', 'strict')"
+        }
+      },
+      "isRLSEnabled": false
+    },
     "billing.catalog_version": {
       "name": "catalog_version",
       "schema": "billing",
@@ -23266,6 +23700,209 @@
         "tenant_override_revoked": {
           "name": "tenant_override_revoked",
           "value": "(\"billing\".\"tenant_override\".\"revoked_at\" is null) = (\"billing\".\"tenant_override\".\"revoked_by\" is null)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "engage.shop_click": {
+      "name": "shop_click",
+      "schema": "engage",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "public.uuid_generate_v7()"
+        },
+        "clicked_at": {
+          "name": "clicked_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "event_id": {
+          "name": "event_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "entity_kind": {
+          "name": "entity_kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "entity_id": {
+          "name": "entity_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "product_id": {
+          "name": "product_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "store_id": {
+          "name": "store_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "origin": {
+          "name": "origin",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "widget_id": {
+          "name": "widget_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "country": {
+          "name": "country",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "locale": {
+          "name": "locale",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "shop_click_event_idx": {
+          "name": "shop_click_event_idx",
+          "columns": [
+            {
+              "expression": "event_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "clicked_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "shop_click_entity_idx": {
+          "name": "shop_click_entity_idx",
+          "columns": [
+            {
+              "expression": "entity_kind",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "entity_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "clicked_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "shop_click_store_idx": {
+          "name": "shop_click_store_idx",
+          "columns": [
+            {
+              "expression": "store_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "clicked_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "shop_click_tenant_idx": {
+          "name": "shop_click_tenant_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "clicked_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "shop_click_origin": {
+          "name": "shop_click_origin",
+          "value": "origin in ('client', 'galaxie_app', 'galaxie_site')"
+        },
+        "shop_click_entity_kind": {
+          "name": "shop_click_entity_kind",
+          "value": "entity_kind in ('competition', 'participant', 'person')"
+        },
+        "shop_click_client_tenant": {
+          "name": "shop_click_client_tenant",
+          "value": "(\"engage\".\"shop_click\".\"origin\" = 'client') = (\"engage\".\"shop_click\".\"tenant_id\" is not null)"
+        },
+        "shop_click_country": {
+          "name": "shop_click_country",
+          "value": "\"engage\".\"shop_click\".\"country\" is null or \"engage\".\"shop_click\".\"country\" ~ '^[A-Z]{2}$'"
+        },
+        "shop_click_locale": {
+          "name": "shop_click_locale",
+          "value": "\"engage\".\"shop_click\".\"locale\" is null or length(\"engage\".\"shop_click\".\"locale\") between 2 and 10"
+        },
+        "shop_click_widget_len": {
+          "name": "shop_click_widget_len",
+          "value": "\"engage\".\"shop_click\".\"widget_id\" is null or length(\"engage\".\"shop_click\".\"widget_id\") between 1 and 80"
         }
       },
       "isRLSEnabled": false
@@ -24304,6 +24941,7 @@
     "cosmos": "cosmos",
     "engage": "engage",
     "fan": "fan",
+    "chat": "chat",
     "billing": "billing"
   },
   "sequences": {},

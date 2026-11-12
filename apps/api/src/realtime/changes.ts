@@ -1,19 +1,23 @@
-import { CHANGE_TOPICS, type ChangeTopic, type RealtimeChange } from '@galaxie/contracts';
+import {
+  CHANGE_TOPICS,
+  webhookTopic,
+  type ChangeTopic,
+  type RealtimeChange,
+  type WebhookModule,
+} from '@galaxie/contracts';
 import { REALTIME_TOPICS, type ApiModule } from '@galaxie/db';
 
 // Os tópicos do banco (triggers) e os do contrato precisam ser idênticos.
 type Same<A, B> = [A] extends [B] ? ([B] extends [A] ? true : never) : never;
 export const TOPICS_MATCH: Same<(typeof REALTIME_TOPICS)[number], ChangeTopic> = true;
 
-/** Módulo do plano exigido por tópico (docs/05 §1.1). */
-export const TOPIC_MODULE: Record<ChangeTopic, ApiModule> = {
-  'event.status_changed': 'core_data',
-  'event.score_changed': 'core_data',
-  'event.incident_added': 'core_data',
-  'where_to_watch.changed': 'where_to_watch',
-  'event.context_published': 'live_intelligence',
-  'event.related_content_changed': 'related_content',
-};
+/** Os módulos do registro de webhooks são módulos da API (`API_MODULES`). */
+export const WEBHOOK_MODULES_MATCH: [WebhookModule] extends [ApiModule] ? true : never = true;
+
+/** Módulo do plano exigido por tópico de dados (docs/05 §1.1), lido do registro de tópicos de webhook. */
+export const TOPIC_MODULE = Object.fromEntries(
+  CHANGE_TOPICS.map((t) => [t, webhookTopic(t)!.modules[0]]),
+) as Record<ChangeTopic, ApiModule>;
 
 export function isChangeTopic(topic: string): topic is ChangeTopic {
   return (CHANGE_TOPICS as readonly string[]).includes(topic);

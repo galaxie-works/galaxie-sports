@@ -386,6 +386,18 @@ export default defineMessages(
       retry: 'Perguntar de novo',
       enable: 'Ligar a Cosmos AI',
       recharge: 'Recarregar créditos',
+      attach: 'Anexar arquivo',
+      attachments: 'Arquivos anexados',
+      removeAttachment: 'Remover {name}',
+      attachedCount: '{count} de {max} arquivos anexados',
+      attachHint: 'Imagem, PDF ou texto, até {max} arquivos. O arquivo não fica guardado.',
+      attachmentErrors: {
+        type: '{name}: o assistente lê imagem (JPEG, PNG, WebP), PDF e texto (TXT, MD, CSV, JSON, LOG, XML, YAML).',
+        size: '{name}: passa de {mb} MB.',
+        pages: '{name}: o PDF passa de {pages} páginas.',
+        count: 'Anexe até {max} arquivos por pergunta.',
+        total: 'Os anexos juntos passam de {mb} MB.',
+      },
       suggestions: {
         general: {
           explain: 'O que esta tela mostra?',
@@ -419,6 +431,9 @@ export default defineMessages(
         busy: 'Espere a resposta anterior terminar antes de perguntar de novo.',
         rate_limited: 'Muitas perguntas em pouco tempo. Espere um minuto e tente de novo.',
         tenant_limit: 'Esta conta chegou ao limite de uso do assistente por hoje. Volta amanhã.',
+        attachment: 'Um dos anexos passa dos limites. Nenhum crédito foi gasto.',
+        attachment_unsupported:
+          'O assistente não lê imagem nem PDF agora. Mande a pergunta sem esses arquivos ou anexe texto.',
       },
     },
   },
@@ -814,6 +829,18 @@ export default defineMessages(
         retry: 'Ask again',
         enable: 'Turn on Cosmos AI',
         recharge: 'Top up credits',
+        attach: 'Attach file',
+        attachments: 'Attached files',
+        removeAttachment: 'Remove {name}',
+        attachedCount: '{count} of {max} files attached',
+        attachHint: 'Image, PDF or text, up to {max} files. The file is not stored.',
+        attachmentErrors: {
+          type: '{name}: the assistant reads images (JPEG, PNG, WebP), PDF and text (TXT, MD, CSV, JSON, LOG, XML, YAML).',
+          size: '{name}: larger than {mb} MB.',
+          pages: '{name}: the PDF has more than {pages} pages.',
+          count: 'Attach up to {max} files per question.',
+          total: 'The attachments together exceed {mb} MB.',
+        },
         suggestions: {
           general: {
             explain: 'What does this screen show?',
@@ -847,6 +874,9 @@ export default defineMessages(
           busy: 'Wait for the previous answer to finish before asking again.',
           rate_limited: 'Too many questions in a short time. Wait a minute and try again.',
           tenant_limit: 'This account reached today’s assistant usage limit. It resets tomorrow.',
+          attachment: 'One of the attachments is over the limits. No credits were spent.',
+          attachment_unsupported:
+            'The assistant cannot read images or PDFs right now. Send the question without those files, or attach text.',
         },
       },
     },
@@ -1250,6 +1280,18 @@ export default defineMessages(
         retry: 'Preguntar de nuevo',
         enable: 'Activar Cosmos AI',
         recharge: 'Recargar créditos',
+        attach: 'Adjuntar archivo',
+        attachments: 'Archivos adjuntos',
+        removeAttachment: 'Quitar {name}',
+        attachedCount: '{count} de {max} archivos adjuntos',
+        attachHint: 'Imagen, PDF o texto, hasta {max} archivos. El archivo no se guarda.',
+        attachmentErrors: {
+          type: '{name}: el asistente lee imágenes (JPEG, PNG, WebP), PDF y texto (TXT, MD, CSV, JSON, LOG, XML, YAML).',
+          size: '{name}: supera los {mb} MB.',
+          pages: '{name}: el PDF tiene más de {pages} páginas.',
+          count: 'Adjunta hasta {max} archivos por pregunta.',
+          total: 'Los adjuntos juntos superan los {mb} MB.',
+        },
         suggestions: {
           general: {
             explain: '¿Qué muestra esta pantalla?',
@@ -1284,6 +1326,9 @@ export default defineMessages(
           busy: 'Espera a que termine la respuesta anterior antes de preguntar de nuevo.',
           rate_limited: 'Demasiadas preguntas en poco tiempo. Espera un minuto e intenta de nuevo.',
           tenant_limit: 'Esta cuenta llegó al límite de uso del asistente por hoy. Se renueva mañana.',
+          attachment: 'Uno de los adjuntos supera los límites. No se gastaron créditos.',
+          attachment_unsupported:
+            'El asistente no lee imágenes ni PDF ahora. Envía la pregunta sin esos archivos o adjunta texto.',
         },
       },
     },

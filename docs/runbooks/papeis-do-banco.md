@@ -8,7 +8,7 @@ Leitura larga, escrita estreita. `schema.tabela` limita a escrita àquela tabela
 
 | Papel | Lê | Escreve | Conexões (teto) |
 | --- | --- | --- | --- |
-| `galaxie_api` | todos os schemas da aplicação e `demo_auth.cache_feed_cursor` | `api`, `enrich`, `ops`, `fan`, `engage`; na Cosmos, só o que o webhook do Stripe grava (ver abaixo) | 45 |
+| `galaxie_api` | todos os schemas da aplicação e `demo_auth.cache_feed_cursor` | `api`, `enrich`, `ops`, `fan`, `engage`, `chat`; na Cosmos, só o que o webhook do Stripe grava (ver abaixo) | 45 |
 | `galaxie_demo` | todos, menos `raw` | `ops`, `semantic`, `enrich`, `api`, `engage`, `core.asset`, `core.participant`, `core.competition`; na Cosmos, tabela por tabela (ver abaixo); é dono do `demo_auth` | 60 |
 | `galaxie_ingestor` | todos e `demo_auth.cache_feed_cursor` | `raw`, `core`, `ops`, `semantic`, `enrich`, `multisport`, `equestrian`; na Cosmos, só a manutenção da carteira (ver abaixo); poda (só `SELECT` e `DELETE`) em `api.webhook_delivery` | 55 |
 | `galaxie_agents` | todos | `enrich`, `semantic`, `ops`, `core.asset`, `api.tenant_channel_list` | 25 |
