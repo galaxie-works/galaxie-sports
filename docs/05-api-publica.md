@@ -1069,7 +1069,9 @@ O portão relê o Perfil e a ficha a cada ação, com um cache de até 5 segundo
 
 O `GET /v1/fans/me` de um menor traz `minor_protections`, a lista dessas proteções com o texto no idioma do torcedor (pt-BR, es, en, fr-CA) e `guardian_can_relax`, as que o responsável pode desligar pelo painel dele (Idade 8, #1111), com o que muda em `relaxed`. Para adulto, a lista vem vazia. Ao completar 18 nada muda sozinho: o torcedor escolhe o que liga. Os Perfis de menores que já existiam antes do #1107 tiveram a foto e a visibilidade zeradas pela migration `0138_menor_padrao`, para que uma escolha pública antiga não volte aos 18.
 
-Faixa que desce de `18plus` para menor no mesmo Perfil congela as ações de adulto (escrever e resgatar) e abre um caso na fila de moderação do cliente (`age_band_downgrade`). Subir de faixa é normal; a congelada só volta a adulto com a correção da faixa (#1110).
+Faixa que desce de `18plus` para menor no mesmo Perfil congela as ações de adulto (escrever e resgatar) e abre um caso na fila de moderação do cliente (`age_band_downgrade`). Subir de faixa é normal. A congelada não volta a adulto só porque o token voltou a dizer `18plus`: precisa de `ageAssurance` `estimated` ou `verified` com `at` depois do congelamento (e não no futuro). Aí o Perfil volta a adulto e o caso da fila é fechado como resolvido (#1110).
+
+**Mudança de faixa (#1110).** O cliente reemite o token com a faixa nova (aniversário ou correção); o Galaxie não guarda data de nascimento, e a auditoria registra só a troca (`age.band_changed`, de qual faixa para qual). Ao passar de `parentalConsentUnder` ou de `guardianLinkRequiredUnder` da ficha, o portão deixa de pedir a autorização ou o vínculo na hora (a prova da autorização continua guardada pelo prazo da Idade 9). Aos 18 libera escrever e resgatar conforme a ficha, mas o Perfil continua privado e sem foto até o torcedor escolher. Se o país do token muda, vale a ficha do país novo: uma autorização dispensada no Brasil aos 16 volta a ser pedida no México.
 
 **Rotas.**
 

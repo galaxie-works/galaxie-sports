@@ -33,6 +33,7 @@ import {
 } from '@galaxie/engage';
 import {
   auditFanEvent,
+  closeAgeDowngradeCases,
   holdContent,
   isEngageModule,
   readLedger,
@@ -177,7 +178,7 @@ export async function fanRoutes(app: FastifyInstance, deps: FanRoutesDeps): Prom
       },
       // caso na fila e auditoria na mesma transação: falhou, nada fica gravado e a nova tentativa refaz tudo
       async (tx, done) => {
-        if (!done.downgradedFrom && !done.guardianDeclared) return;
+        if (!done.downgradedFrom && !done.guardianDeclared && !done.unfrozen && !done.bandChange) return;
         if (!policy) throw problems.degraded('Ficha do país não configurada para este cliente.');
         const now = new Date();
         const clocks = clocksFrom(policy, now);
@@ -200,6 +201,36 @@ export async function fanRoutes(app: FastifyInstance, deps: FanRoutesDeps): Prom
             clocks,
             now,
           });
+        const system = { id: `key:${tenant.keyPrefix}`, kind: 'system' } as const;
+        // aniversário ou correção: fica na auditoria só a troca de faixa, nunca a data de nascimento (#1110)
+        if (done.bandChange)
+          await auditFanEvent(tx, {
+            tenantId: tenant.tenantId,
+            actor: system,
+            action: 'age.band_changed',
+            clocks,
+            subjectProfileId: done.profileId,
+            rules: { from: done.bandChange.from, to: done.bandChange.to },
+          });
+        if (done.unfrozen) {
+          // a comprovação nova corrige a faixa: o caso de `age_band_downgrade` sai da fila da equipe do cliente
+          await auditFanEvent(tx, {
+            tenantId: tenant.tenantId,
+            actor: system,
+            action: 'age.unfrozen',
+            clocks,
+            subjectProfileId: done.profileId,
+            reason: 'age.reassured',
+            rules: { method: body.ageAssurance?.method ?? 'self' },
+          });
+          await closeAgeDowngradeCases(tx, {
+            tenantId: tenant.tenantId,
+            profileId: done.profileId,
+            actor: system,
+            clocks,
+            now,
+          });
+        }
         if (done.guardianDeclared)
           await auditFanEvent(tx, {
             tenantId: tenant.tenantId,

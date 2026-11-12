@@ -710,6 +710,49 @@ export async function closeCase(
   });
 }
 
+/**
+ * A faixa congelada voltou a adulto com uma comprovação nova (#1110): fecha como `resolved` os casos abertos de
+ * `age_band_downgrade` do Perfil, com o código fixo `age.reassured`. Devolve quantos fechou.
+ */
+export async function closeAgeDowngradeCases(
+  db: Executor,
+  input: {
+    tenantId: string;
+    profileId: string;
+    actor: ModerationActor;
+    clocks: ModerationClocks;
+    now?: Date;
+  },
+): Promise<number> {
+  const open = await db
+    .select({ id: moderationCase.id })
+    .from(moderationCase)
+    .where(
+      and(
+        eq(moderationCase.tenantId, input.tenantId),
+        eq(moderationCase.targetProfileId, input.profileId),
+        eq(moderationCase.status, 'open'),
+        sql`'age_band_downgrade' = any(${moderationCase.reasons})`,
+      ),
+    );
+  let closed = 0;
+  for (const c of open)
+    if (
+      await closeCase(db, {
+        tenantId: input.tenantId,
+        caseId: c.id,
+        status: 'resolved',
+        actor: input.actor,
+        reason: 'age.reassured',
+        note: null,
+        clocks: input.clocks,
+        ...(input.now ? { now: input.now } : {}),
+      })
+    )
+      closed++;
+  return closed;
+}
+
 // ---------------------------------------------------------------------------------------------------------------
 // Bloqueio
 
