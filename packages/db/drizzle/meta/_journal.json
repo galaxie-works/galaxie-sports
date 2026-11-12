@@ -698,15 +698,22 @@
     {
       "idx": 99,
       "version": "7",
-      "when": 1794505204227,
-      "tag": "0134_shopping_catalogo",
+      "when": 1794505125801,
+      "tag": "0140_plataforma_comercial",
       "breakpoints": true
     },
     {
       "idx": 100,
       "version": "7",
-      "when": 1794505241529,
-      "tag": "0135_shopping_conectores",
+      "when": 1794511062565,
+      "tag": "0144_shopping_catalogo",
+      "breakpoints": true
+    },
+    {
+      "idx": 101,
+      "version": "7",
+      "when": 1794511111999,
+      "tag": "0145_shopping_conectores",
       "breakpoints": true
     },
     {

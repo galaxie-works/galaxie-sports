@@ -39,6 +39,7 @@ export const APP_SCHEMAS = [
   'cosmos',
   'engage',
   'fan',
+  'billing',
 ] as const;
 
 /**
@@ -85,7 +86,12 @@ export const ROLE_GRANTS: Record<RoleService, RoleGrants> = {
     // a compra e a recarga automática já existem quando o pagamento chega: a API só muda o estado
     update: ['cosmos.purchase_intent', 'cosmos.auto_recharge'],
     // lançamento negativo (estorno) passa por evaluateBalance, que grava alerta e abre tentativa de recarga
-    append: ['cosmos.ledger', 'cosmos.balance_alert'],
+    append: [
+      'cosmos.ledger',
+      'cosmos.balance_alert',
+      // plataforma comercial (#1137): a API grava a versão do catálogo que carregou ao subir
+      'billing.catalog_version',
+    ],
   },
   // demo (painel de Ajustes): revisão semântica, grades e logos, escudos de time e competição, vídeos,
   // operação, widgets e chaves
@@ -119,6 +125,10 @@ export const ROLE_GRANTS: Record<RoleService, RoleGrants> = {
       'cosmos.recharge_attempt',
       'cosmos.credit_request',
       'cosmos.staff_usage',
+      // plataforma comercial (#1137): preço muda por linha nova (a antiga sai com active = false) e a exceção do
+      // tenant é revogada com revoked_at, nunca apagada
+      'billing.price',
+      'billing.tenant_override',
     ],
     // o que foi escrito não muda: extrato, alertas de saldo, ações da equipe e o histórico da moderação
     append: [
