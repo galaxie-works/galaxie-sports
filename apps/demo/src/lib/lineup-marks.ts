@@ -48,6 +48,8 @@ export function lineupMarks(timeline: EventTimeline | null | undefined): MarksLo
   };
   for (const i of timeline?.incidents ?? []) {
     if (i.clock.period === 'penalty_shootout') continue;
+    // gol anulado pelo VAR não vale gol nem assistência
+    if (i.disallowed) continue;
     const minute = i.clock.display ?? (i.minute != null ? `${i.minute}'` : '');
     switch (i.kind) {
       case 'goal':

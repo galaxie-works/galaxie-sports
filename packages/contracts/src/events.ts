@@ -874,7 +874,8 @@ export const TimelineIncident = z
     flags: z.array(z.enum(TIMELINE_FLAGS)).meta({
       description:
         '`opener` (1º gol), `go_ahead` (põe na frente o time de `scoring_team`), `equalizer` (empata), ' +
-        '`decisive` (gol da vitória ou cobrança que decide os pênaltis; só com o jogo encerrado).',
+        '`decisive` (gol da vitória ou cobrança que decide os pênaltis; só com o jogo encerrado). ' +
+        'O gol anulado (`disallowed`) não recebe nenhuma.',
     }),
     score_after: ScorePair.nullable().meta({
       description: 'Placar depois do gol (na disputa de pênaltis, o placar da disputa).',
@@ -882,8 +883,22 @@ export const TimelineIncident = z
     scoring_team: TeamSideRef.nullable().meta({
       description:
         'Time que somou o gol (no gol contra, o beneficiado; na disputa, quem converteu). ' +
-        'Null fora dos gols ou com o lado desconhecido.',
+        'Null fora dos gols, no gol anulado ou com o lado desconhecido.',
     }),
+    disallowed: z.boolean().meta({
+      description:
+        'Gol anulado pelo VAR que continua na lista do fornecedor: não soma em `score_after` nem recebe bandeiras ' +
+        '(o VAR que o anulou está em `cancelled_by`). false nos demais lances.',
+    }),
+    cancelled_by: z
+      .number()
+      .int()
+      .nullable()
+      .meta({
+        description:
+          'Gol anulado: `sequence` do lance de VAR que o anulou (`Goal cancelled`, `Goal Disallowed - ...`). ' +
+          'Null nos demais lances.',
+      }),
     player_in: TimelinePerson.nullable().meta({ description: 'Substituição: quem entra.' }),
     player_out: TimelinePerson.nullable().meta({ description: 'Substituição: quem sai.' }),
   })
