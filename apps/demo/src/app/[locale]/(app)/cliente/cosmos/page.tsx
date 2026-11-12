@@ -9,6 +9,7 @@ import { CosmosArea } from '@/components/cosmos/cosmos-area';
 import { CosmosModeration } from '@/components/cosmos/cosmos-moderation';
 import { CosmosOverview } from '@/components/cosmos/cosmos-overview';
 import { CosmosUsage } from '@/components/cosmos/cosmos-usage';
+import { ModerationPreview } from '@/components/cosmos/moderation-preview';
 import { CreditRequests } from '@/components/cosmos/credit-requests';
 import { Skeleton } from '@/components/ui/skeleton';
 import { can } from '@/lib/client/permissions';
@@ -99,11 +100,15 @@ async function Cosmos({
             moderation={
               moderation ? (
                 // a versão na chave: depois de salvar (ou de um conflito), o formulário recomeça do que está gravado
-                <CosmosModeration
-                  key={moderation.version}
-                  data={moderation}
-                  canEdit={can(ctx, 'settings.manage')}
-                />
+                <div className="flex flex-col gap-6">
+                  <CosmosModeration
+                    key={moderation.version}
+                    data={moderation}
+                    canEdit={can(ctx, 'settings.manage')}
+                  />
+                  {/* testar gasta créditos: só quem configura (o servidor confere de novo) */}
+                  {can(ctx, 'settings.manage') ? <ModerationPreview /> : null}
+                </div>
               ) : null
             }
           />

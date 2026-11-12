@@ -1,6 +1,6 @@
 {
-  "id": "adb43cc4-f49f-4a6e-8d2d-91474324fe3d",
-  "prevId": "82f35c23-7a2b-4895-a7a4-f955a64d12b7",
+  "id": "54e9c22e-d6a1-41dc-89eb-54df25891935",
+  "prevId": "9fc30042-a942-4f7b-9329-de25021d288e",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -17632,88 +17632,6 @@
       },
       "isRLSEnabled": false
     },
-    "cosmos.brand_voice": {
-      "name": "brand_voice",
-      "schema": "cosmos",
-      "columns": {
-        "tenant_id": {
-          "name": "tenant_id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "tone": {
-          "name": "tone",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "avoid": {
-          "name": "avoid",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'[]'::jsonb"
-        },
-        "length": {
-          "name": "length",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "updated_by": {
-          "name": "updated_by",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "brand_voice_tenant_id_tenant_id_fk": {
-          "name": "brand_voice_tenant_id_tenant_id_fk",
-          "tableFrom": "brand_voice",
-          "tableTo": "tenant",
-          "schemaTo": "api",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "brand_voice_tone": {
-          "name": "brand_voice_tone",
-          "value": "\"cosmos\".\"brand_voice\".\"tone\" in ('formal', 'fan', 'young')"
-        },
-        "brand_voice_length": {
-          "name": "brand_voice_length",
-          "value": "\"cosmos\".\"brand_voice\".\"length\" in ('short', 'medium', 'long')"
-        }
-      },
-      "isRLSEnabled": false
-    },
     "cosmos.package": {
       "name": "package",
       "schema": "cosmos",
@@ -20164,7 +20082,7 @@
       "checkConstraints": {
         "sponsor_category": {
           "name": "sponsor_category",
-          "value": "category in ('apparel', 'automotive', 'beverage', 'education', 'energy', 'finance', 'food', 'health', 'media', 'retail', 'technology', 'telecom', 'travel', 'other')"
+          "value": "category in ('alcohol', 'apparel', 'automotive', 'beverage', 'education', 'energy', 'finance', 'food', 'health', 'media', 'retail', 'technology', 'telecom', 'travel', 'other')"
         },
         "sponsor_name_len": {
           "name": "sponsor_name_len",

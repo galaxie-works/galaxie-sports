@@ -656,15 +656,43 @@
     {
       "idx": 93,
       "version": "7",
-      "when": 1794487982379,
-      "tag": "0101_cosmos_funcoes_widget",
+      "when": 1794447867474,
+      "tag": "0098_patrocinador_alcool",
       "breakpoints": true
     },
     {
       "idx": 94,
       "version": "7",
+      "when": 1794487933533,
+      "tag": "0099_ficha_default",
+      "breakpoints": true
+    },
+    {
+      "idx": 95,
+      "version": "7",
+      "when": 1794487965765,
+      "tag": "0100_ficha_idade",
+      "breakpoints": true
+    },
+    {
+      "idx": 96,
+      "version": "7",
+      "when": 1794487981379,
+      "tag": "0107_idade_token",
+      "breakpoints": true
+    },
+    {
+      "idx": 97,
+      "version": "7",
+      "when": 1794487982379,
+      "tag": "0121_cosmos_funcoes_widget",
+      "breakpoints": true
+    },
+    {
+      "idx": 98,
+      "version": "7",
       "when": 1794487987379,
-      "tag": "0114_cosmos_texto_do_jogo",
+      "tag": "0133_cosmos_texto_do_jogo",
       "breakpoints": true
     }
   ]
