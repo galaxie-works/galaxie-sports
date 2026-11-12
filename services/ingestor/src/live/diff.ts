@@ -49,11 +49,18 @@ export interface LiveChange {
   removedIncidents: number;
   /** O placar mudou ou entrou um gol na timeline. */
   goal: boolean;
+  /**
+   * Um gol foi desfeito: o total de gols do placar caiu ou entrou um VAR de gol anulado (do fornecedor ou inferido
+   * pela Galaxie). Quem mostrou "GOL!" deve desfazer.
+   */
+  goalCancelled: boolean;
   /** O evento passou a `finished` nesta mudança. */
   finished: boolean;
 }
 
 const GOAL_TYPES = new Set(['goal', 'own_goal', 'penalty']);
+/** Veredito de VAR que anula gol (`Goal cancelled`, `Goal Disallowed - offside`...). */
+const GOAL_CANCELLING_VAR = /^goal (cancel+ed|disallowed)\b/i;
 
 function pairKey(p: { home: number | null; away: number | null } | null | undefined): string {
   return p ? `${p.home ?? '-'}:${p.away ?? '-'}` : '';
@@ -101,6 +108,15 @@ export function diffSnapshot(before: EventSnapshot | undefined, after: EventSnap
     before != null &&
     (goals(after.score) > goals(before.score) ||
       changedIncidents.some((i) => GOAL_TYPES.has(i.type) && !prevIncidents.has(i.sequence)));
+  const goalCancelled =
+    before != null &&
+    ((after.score != null && goals(after.score) < goals(before.score)) ||
+      changedIncidents.some(
+        (i) =>
+          i.type === 'var' &&
+          !prevIncidents.has(i.sequence) &&
+          GOAL_CANCELLING_VAR.test((i.detail ?? '').trim()),
+      ));
   return {
     eventId: after.eventId,
     providerEventId: after.providerEventId,
@@ -117,6 +133,7 @@ export function diffSnapshot(before: EventSnapshot | undefined, after: EventSnap
     incidents: changedIncidents,
     removedIncidents,
     goal,
+    goalCancelled,
     finished: after.status === 'finished' && before?.status !== 'finished',
   };
 }

@@ -793,7 +793,18 @@ Versões editoriais **travam** a chave (região × emissora × meio): o agente n
 }
 ```
 
-`data` por tópico: `status`/`status_detail`/`clock` (+ `previous.status`); `score`; `incidents: [{ id, sequence, minute, extra, type, detail, participant_id, person_id }]`; `countries: ["BR"]` (países afetados — recortados aos mercados do tenant); `contexts: [{ locale, kind, review_status }]`; `added`/`removed`/`changed` (ids dos vídeos) no conteúdo relacionado.
+`data` por tópico: `status`/`status_detail`/`clock` (+ `previous.status`); `score` (+ `previous.score`); `incidents: [{ id, sequence, minute, extra, type, detail, participant_id, person_id }]`; `countries: ["BR"]` (países afetados — recortados aos mercados do tenant); `contexts: [{ locale, kind, review_status }]`; `added`/`removed`/`changed` (ids dos vídeos) no conteúdo relacionado.
+
+**Gol anulado (`goal_cancelled`).** Quem mostrou "GOL!" recebe um sinal explícito para desfazer, sem comparar placares: `data.goal_cancelled: true` no `event.score_changed` quando o total de gols do tempo de jogo (`home` + `away`) cai em relação a `previous.score`, e no `event.incident_added` quando o lance novo é um VAR de gol anulado (`Goal cancelled`, `Goal Disallowed - ...`), do fornecedor ou inferido pela Galaxie quando a fonte apaga o gol sem mandar o VAR (sequence a partir de 100000). Os dois saem na mesma gravação quando a anulação é confirmada; o campo só aparece quando é `true`. Na REST, a timeline marca o gol com `disallowed` (§3.2.1).
+
+```json
+{
+  "topic": "event.score_changed",
+  "changed": ["score"],
+  "data": { "score": { "home": 0, "away": 0 }, "goal_cancelled": true },
+  "previous": { "score": { "home": 0, "away": 1 } }
+}
+```
 
 **Ao vivo (Live Poller, #55) — sem tópico próprio.** O poller (`services/ingestor/src/live`) aplica cada tick pela normalização, que grava `core.event` e `core.event_incident`; os triggers de captura publicam então `event.score_changed`, `event.status_changed` e `event.incident_added` — o mesmo caminho de qualquer outro writer, uma vez só por mudança. O sinal `topic = live` que o poller também publica no change feed (gol, encerramento, fonte *stale*/recuperada) é **interno**: purga as tags `live`, `competition:<id>` e `season:<id>` e serve à operação, mas não sai no SSE nem nos webhooks (não é um tópico público), o que evita entregas duplicadas. A fonte fora do ar não gera mudança pública: o último placar válido fica e `data_freshness.is_stale` aparece na REST. Medido (teste `tests/integration/test/live-sse.integration.test.ts`: `fixtures?live=` falso → `LivePoller.tick` → cliente SSE): gol no stream em ~80 ms (meta ≤ 5 s).
 

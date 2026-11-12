@@ -86,7 +86,7 @@ describe('LivePoller', () => {
   });
 
   it('gol que a fonte apaga sem mandar VAR vira VAR de gol anulado só depois de 45 s fora', async () => {
-    const { provider, poller, tracked } = setup([match]);
+    const { store, provider, poller, tracked } = setup([match]);
     const annulledAt = (at: Date) => {
       const batch = batchAt([match], at);
       const ev = batch.events[0]!;
@@ -117,11 +117,14 @@ describe('LivePoller', () => {
     expect(left.score).toMatchObject({ home: 0, away: 0 });
     expect(left.incidents).toEqual([]);
     expect(left.removedIncidents).toBe(1);
+    // São Paulo x Corinthians (#640): o placar caiu, e o sinal de anulação sai no mesmo tick
+    expect(left.goalCancelled).toBe(true);
     expect((await tick(t3)).changes.flatMap((c) => c.incidents)).toEqual([]);
     // 45 s fora: agora é lance
     expect((await tick(t4)).changes.flatMap((c) => c.incidents)).toEqual([
       expect.objectContaining({ type: 'var', detail: 'Goal cancelled', minute: 21, sequence: 100_000 }),
     ]);
+    expect(store.published.filter((c) => c.goalCancelled)).toHaveLength(2);
   });
 
   it('falha da fonte: last-known-good (stale) sem inventar placar', async () => {

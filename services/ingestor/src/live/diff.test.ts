@@ -49,6 +49,30 @@ describe('diffSnapshot', () => {
     const c = diffSnapshot(withGoal, { ...base })!;
     expect(c.kinds).toEqual(['score', 'incident']);
     expect(c.removedIncidents).toBe(1);
+    expect(c).toMatchObject({ goal: false, goalCancelled: true });
+  });
+
+  it('VAR de gol anulado com o gol ainda na lista dá o sinal; gol novo e VAR que confirma, não', () => {
+    const goal = {
+      sequence: 0,
+      type: 'goal',
+      detail: 'Normal Goal',
+      minute: 62,
+      extra: null,
+      participantId: 'p2',
+    };
+    const withGoal: EventSnapshot = { ...base, score: { home: 0, away: 1 }, incidents: [goal] };
+    const offside = { ...goal, sequence: 1, type: 'var', detail: 'Goal Disallowed - offside', minute: 64 };
+    // o VAR chega antes de o placar cair
+    expect(diffSnapshot(withGoal, { ...withGoal, incidents: [goal, offside] })).toMatchObject({
+      goal: false,
+      goalCancelled: true,
+    });
+    expect(diffSnapshot(base, withGoal)).toMatchObject({ goal: true, goalCancelled: false });
+    const confirmed = { ...offside, detail: 'Goal confirmed' };
+    expect(diffSnapshot(withGoal, { ...withGoal, incidents: [goal, confirmed] })?.goalCancelled).toBe(false);
+    // placar que some (fonte sem dados) não é anulação
+    expect(diffSnapshot(withGoal, { ...withGoal, score: null })?.goalCancelled).toBe(false);
   });
 
   it('encerramento, stale e recuperação', () => {
