@@ -30,7 +30,8 @@ export type QuotaProduct = (typeof QUOTA_PRODUCTS)[number];
 /** Até quantas cotas por tenant. */
 export const QUOTAS_MAX = 50;
 
-const SCOPE = /^(chat|community|pool)(?::([A-Za-z0-9_.-]{1,120}))?$/;
+// o id segue o contrato da moderação (`Ref` em @galaxie/contracts): até 128 caracteres, com . _ : @ | -
+const SCOPE = /^(chat|community|pool)(?::([\w.:@|-]{1,128}))?$/;
 
 export interface Quota {
   scope: string;
@@ -153,7 +154,8 @@ export async function assertQuota(
 
 /**
  * As cotas do produto do escopo (a do produto e as das salas dele); vazio quando o escopo não tem cota possível. A
- * reserva lê isto antes de travar a carteira: sem cota que valha, nem trava.
+ * reserva lê isto depois de travar a carteira, a mesma trava de quem muda as cotas: uma mudança já gravada sempre
+ * vale para a reserva seguinte.
  */
 export async function quotaCandidates(
   db: Reader,
