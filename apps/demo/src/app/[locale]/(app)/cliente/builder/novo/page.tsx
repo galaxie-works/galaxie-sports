@@ -32,11 +32,20 @@ async function NewWidget({
           entityTypes: (kind) => ENTITY_TYPES[kind],
           sports: tenant.sports,
         });
+        // tema da marca que não é deste tenant (URL editada à mão): fica o tema salvo no rascunho, sem o vínculo
+        let cosmosDraft = fromCosmos.ok ? fromCosmos.value : null;
+        const foreignTheme = cosmosDraft?.config.brandThemeId;
+        if (cosmosDraft && foreignTheme && !brandThemes.some((b) => b.id === foreignTheme)) {
+          const config = { ...cosmosDraft.config };
+          delete config.brandThemeId;
+          delete config.themeOverrides;
+          cosmosDraft = { ...cosmosDraft, config };
+        }
         return (
           <WidgetEditor
             initial={
-              fromCosmos.ok
-                ? await draftOf(fromCosmos.value, locale)
+              cosmosDraft
+                ? await draftOf(cosmosDraft, locale)
                 : newDraft(
                     typeof tipo === 'string' ? tipo : undefined,
                     tenant,

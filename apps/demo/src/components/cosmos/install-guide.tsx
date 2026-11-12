@@ -15,6 +15,7 @@ import { Textarea } from '@/components/ui/textarea';
 import type { WidgetKind } from '@/lib/builder/types';
 import {
   checkPublishableKey,
+  checkAppOrigin,
   INSTALL_SITE_MAX,
   INSTALL_TARGETS,
   installFiles,
@@ -49,13 +50,15 @@ export function InstallGuide({
 
   const key = checkPublishableKey(rawKey);
   const keyValue = key.ok ? key.key : null;
+  const appOrigin = checkAppOrigin(origin);
+  const originValue = appOrigin.ok ? appOrigin.origin : null;
   const files = useMemo(
     () =>
       installFiles(target, widget, {
         key: keyValue,
-        ...(origin.trim() ? { origin: origin.trim() } : {}),
+        ...(originValue ? { origin: originValue } : {}),
       }),
-    [target, widget, keyValue, origin],
+    [target, widget, keyValue, originValue],
   );
 
   const run = () =>
@@ -106,15 +109,20 @@ export function InstallGuide({
         </Field>
       </div>
       {target === 'webview' ? (
-        <Field>
+        <Field data-invalid={!appOrigin.ok || undefined}>
           <FieldLabel htmlFor={`${ids}-origin`}>{T.origin}</FieldLabel>
           <Input
             id={`${ids}-origin`}
             value={origin}
             placeholder="https://app.exemplo.com"
+            aria-invalid={!appOrigin.ok || undefined}
             onChange={(e) => setOrigin(e.target.value)}
           />
-          <FieldDescription>{T.originHint}</FieldDescription>
+          {appOrigin.ok ? (
+            <FieldDescription>{T.originHint}</FieldDescription>
+          ) : (
+            <FieldError>{T.originInvalid}</FieldError>
+          )}
         </Field>
       ) : null}
       {files.map((f) => (

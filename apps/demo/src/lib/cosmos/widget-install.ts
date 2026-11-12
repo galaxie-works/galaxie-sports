@@ -84,6 +84,21 @@ function webviewPage(id: string, key: string, base: string) {
 }
 
 /**
+ * Origem do app (WebView) digitada pelo cliente: só https, reduzida à origem (`https://app.exemplo.com`). Vazia =
+ * o exemplo do código; inválida = recusa (a base errada faz a API negar a chave sem explicação).
+ */
+export function checkAppOrigin(raw: string): { ok: true; origin: string | null } | { ok: false } {
+  const v = raw.trim();
+  if (!v) return { ok: true, origin: null };
+  try {
+    const url = new URL(v);
+    return url.protocol === 'https:' && url.hostname ? { ok: true, origin: url.origin } : { ok: false };
+  } catch {
+    return { ok: false };
+  }
+}
+
+/**
  * O código de cada alvo. `origin` (WebView): a origem que a página finge ter, que precisa estar nas origens
  * permitidas da chave (`https://app.exemplo.com`).
  */
@@ -181,7 +196,7 @@ export function installFiles(
             `const html = ${js};`,
             '',
             'export function GalaxieWidget() {',
-            `  return <WebView originWhitelist={['*']} source={{ html, baseUrl: ${JSON.stringify(`${origin}/`)} }} />;`,
+            `  return <WebView originWhitelist={['https://*']} source={{ html, baseUrl: ${JSON.stringify(`${origin}/`)} }} />;`,
             '}',
           ].join('\n'),
         },

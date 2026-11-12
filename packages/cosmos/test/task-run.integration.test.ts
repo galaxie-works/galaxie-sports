@@ -136,6 +136,23 @@ describe('tarefa de uma chamada da Cosmos (#1005)', () => {
     expect(await usage(t)).toHaveLength(0);
   });
 
+  it('conferência que quebra depois da resposta: o custo vai para o extrato sem débito', async () => {
+    const t = await newTenant();
+    const before = (await getWallet(db, t))!.available;
+    const r = await runCosmosTask(
+      db,
+      input(t, {
+        evaluate: async () => {
+          throw new Error('busca caiu');
+        },
+      }),
+      { client: fakeClient('{"widgets":["x"]}'), env, settings },
+    );
+    expect(r).toEqual({ ok: false, error: 'unreadable' });
+    expect(await getWallet(db, t)).toMatchObject({ available: before, reserved: 0 });
+    expect((await usage(t))[0]!.metadata).toMatchObject({ usable: false });
+  });
+
   it('sem saldo: nem chama o provedor', async () => {
     const t = await newTenant(0);
     const seen: CompletionRequest[] = [];

@@ -34,6 +34,7 @@ import {
   COMPOSE_MAX_WIDGETS,
   composeKinds,
   composeMaxOutputTokens,
+  composeSport,
   composePrompt,
   encodeDraftParam,
   parseComposeAnswer,
@@ -92,6 +93,9 @@ export interface ComposeRejected {
   reason: 'entity' | 'invalid';
 }
 
+/** Prazo de cada busca de entidade: a tarefa roda dentro da reserva e não pode ficar pendurada. */
+const SEARCH_TIMEOUT_MS = 5_000;
+
 /** Primeiro resultado da busca no tipo pedido (o melhor casamento vem primeiro). */
 async function findEntity(
   type: WidgetEntityType,
@@ -100,13 +104,17 @@ async function findEntity(
   locale: Locale,
 ): Promise<{ id: string; name: string } | null> {
   try {
-    const res = await galaxieGet<SearchResponse>('/v1/search', {
-      q: query,
-      types: type,
-      limit: 1,
-      locale: apiLocale(locale),
-      ...(sport ? { sport } : {}),
-    });
+    const res = await galaxieGet<SearchResponse>(
+      '/v1/search',
+      {
+        q: query,
+        types: type,
+        limit: 1,
+        locale: apiLocale(locale),
+        ...(sport ? { sport } : {}),
+      },
+      { signal: AbortSignal.timeout(SEARCH_TIMEOUT_MS) },
+    );
     const hit = res.data.find((r) => r.type === type);
     return hit ? { id: hit.id, name: hit.name } : null;
   } catch {
@@ -140,11 +148,10 @@ export async function composeWidgets(
   const max = input.mode === 'page' ? COMPOSE_MAX_WIDGETS : 1;
 
   const evaluate = async (text: string) => {
-    const specs = parseComposeAnswer(parseModelJson(text), max);
+    const specs = parseComposeAnswer(parseModelJson(text), max, composeKinds(tenant.sports));
     const widgets: ComposedWidget[] = [];
     const rejected: ComposeRejected[] = [];
-    for (const spec of specs) {
-      const one = await toWidget(spec);
+    for (const one of await Promise.all(specs.map(toWidget))) {
       if ('reason' in one) rejected.push(one);
       else widgets.push(one);
     }
@@ -153,8 +160,15 @@ export async function composeWidgets(
 
   const toWidget = async (spec: ComposeSpec): Promise<ComposedWidget | ComposeRejected> => {
     const found = spec.entity
-      ? await findEntity(spec.entity.type, spec.entity.query, searchSport(spec.kind, spec.sport), locale)
+      ? await findEntity(
+          spec.entity.type,
+          spec.entity.query,
+          searchSport(spec.kind, composeSport(spec.kind, spec.sport, tenant.sports)),
+          locale,
+        )
       : null;
+    // entidade pedida e não achada: o widget genérico não é o que o cliente pediu (e não é cobrado)
+    if (spec.entity && !found) return { kind: spec.kind, why: spec.why, reason: 'entity' };
     const raw = specToRawInput(spec, {
       entity: found && spec.entity ? { type: spec.entity.type, id: found.id } : null,
       brandThemes,
@@ -173,7 +187,7 @@ export async function composeWidgets(
       return {
         kind: spec.kind,
         why: spec.why,
-        reason: parsed.error === 'entityRequired' || (spec.entity && !found) ? 'entity' : 'invalid',
+        reason: parsed.error === 'entityRequired' ? 'entity' : 'invalid',
       };
     return {
       input: parsed.value,

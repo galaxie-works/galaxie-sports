@@ -65,6 +65,20 @@ export function composeKinds(tenantSports: readonly string[]): WidgetKind[] {
   });
 }
 
+/** Tipos de opção que o modelo pode ligar: os de valor simples (as que pedem um id ou texto livre ficam para o editor). */
+const SIMPLE_OPTION_TYPES = new Set(['boolean', 'number', 'enum', 'multi']);
+
+/** Só as opções de valor simples do tipo: id, slug ou texto livre vindos do modelo caem. */
+export function simpleOptions(
+  kind: WidgetKind,
+  options: Record<string, unknown> | null,
+): Record<string, unknown> {
+  const allowed = new Set(
+    (WIDGET_OPTIONS[kind] ?? []).filter((o) => SIMPLE_OPTION_TYPES.has(o.type)).map((o) => o.key),
+  );
+  return Object.fromEntries(Object.entries(options ?? {}).filter(([k]) => allowed.has(k)));
+}
+
 /** Opções que o modelo pode ligar: as de valor simples (as que pedem um id ficam para o editor). */
 function optionLine(kind: WidgetKind): string {
   const parts = (WIDGET_OPTIONS[kind] ?? []).flatMap((spec) => {
@@ -127,7 +141,14 @@ export function composePrompt(input: {
     '',
     `Languages: ${WIDGET_LOCALES.join('|')} (default ${input.screenLocale}).`,
     `Markets (ISO country): ${input.markets.length ? input.markets.join('|') : 'any ISO2 code'}.`,
-    `Themes: ${THEME_PRESET_IDS.join('|')}${input.brandThemes.length ? `, or the client's brand theme by name: ${input.brandThemes.map((n) => JSON.stringify(n)).join(', ')}` : ''}.`,
+    `Themes: ${THEME_PRESET_IDS.join('|')}${
+      input.brandThemes.length
+        ? `, or the client's brand theme by name: ${input.brandThemes
+            .map((n) => JSON.stringify(promptThemeName(n)))
+            .filter((n) => n !== '""')
+            .join(', ')}`
+        : ''
+    }.`,
     'standings extra: {"showLegend": boolean} (zones legend). live_list extra: {"mode": "all"|"live"|"upcoming"|"finished", "groupByCompetition": boolean}.',
     '',
     'Answer with JSON only, in this shape:',
@@ -166,10 +187,17 @@ function parseEntity(kind: WidgetKind, v: unknown): ComposeSpec['entity'] {
   return type ? { type, query } : null;
 }
 
-/** Resposta do modelo → os widgets pedidos, sem os de tipo fora do catálogo; no máximo `max`. */
-export function parseComposeAnswer(answer: Record<string, unknown> | null, max: number): ComposeSpec[] {
+/**
+ * Resposta do modelo → os widgets pedidos, sem os de tipo fora do catálogo (ou fora de `kinds`, os do plano); no
+ * máximo `max`.
+ */
+export function parseComposeAnswer(
+  answer: Record<string, unknown> | null,
+  max: number,
+  kinds: readonly WidgetKind[] = OFFERED_WIDGET_KINDS,
+): ComposeSpec[] {
   const list = Array.isArray(answer?.widgets) ? (answer.widgets as unknown[]) : [];
-  const offered = new Set<string>(OFFERED_WIDGET_KINDS);
+  const offered = new Set<string>(kinds);
   return list
     .flatMap((raw): ComposeSpec[] => {
       const w = obj(raw);
@@ -186,7 +214,7 @@ export function parseComposeAnswer(answer: Record<string, unknown> | null, max: 
           entity: parseEntity(kind, w.entity),
           sport: typeof w.sport === 'string' ? w.sport : null,
           theme: parseTheme(w.theme),
-          options: obj(w.options) ?? {},
+          options: simpleOptions(kind, obj(w.options)),
           standings: kind === 'standings' ? obj(w.standings) : null,
           liveList: kind === 'live_list' ? obj(w.liveList) : null,
           why: str(w.why, WHY_MAX),
@@ -196,8 +224,26 @@ export function parseComposeAnswer(answer: Record<string, unknown> | null, max: 
     .slice(0, max);
 }
 
-/** Nome da marca casado sem caixa nem espaços sobrando. */
-const sameName = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
+/** Esporte pedido, se for do tipo, do menu do Builder e do plano; senão null (fica o padrão do tipo). */
+export function composeSport(
+  kind: WidgetKind,
+  sport: string | null,
+  tenantSports: readonly string[],
+): string | null {
+  const s = sportOf(kind, sport);
+  return s && sportChoices(tenantSports, kind).some((c) => c.sport === s) ? s : null;
+}
+
+/** Nome do tema da marca como entra no prompt: só letras, números e pontuação simples, curto. */
+export const promptThemeName = (name: string) =>
+  name
+    .replace(/[^\p{L}\p{N} ._-]/gu, '')
+    .trim()
+    .slice(0, 40);
+
+/** Nome da marca casado sem caixa nem espaços sobrando (e como o prompt mostra o nome). */
+const sameName = (a: string, b: string) =>
+  promptThemeName(a).toLowerCase() === promptThemeName(b).toLowerCase();
 
 /**
  * Um widget da resposta + a entidade achada na busca → o corpo que `parseWidgetInput` confere. Tema da marca pedido
@@ -223,10 +269,7 @@ export function specToRawInput(
         ? undefined
         : only;
   const preset = spec.theme && 'preset' in spec.theme ? spec.theme.preset : 'dark';
-  // esporte fora do tipo, do menu do Builder ou do plano: fica o padrão do tipo
-  const sport = sportOf(spec.kind, spec.sport);
-  const sportOk =
-    sport && sportChoices(ctx.tenantSports, spec.kind).some((c) => c.sport === sport) ? sport : null;
+  const sportOk = composeSport(spec.kind, spec.sport, ctx.tenantSports);
   const market =
     spec.market && (!ctx.markets.length || ctx.markets.includes(spec.market)) ? spec.market : ctx.markets[0];
   return {

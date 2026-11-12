@@ -7,6 +7,7 @@ import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
 import {
+  checkAppOrigin,
   checkPublishableKey,
   INSTALL_TARGETS,
   installFiles,
@@ -119,6 +120,7 @@ describe('código de instalação nos cinco alvos (#1005)', () => {
     expect(tsxErrors(rn)).toEqual([]);
     expect(JSON.parse(/const html = (".*");$/m.exec(rn)![1]!)).toBe(page);
     expect(rn).toContain('baseUrl: "https://app.portal.com/"');
+    expect(rn).toContain("originWhitelist={['https://*']}");
   });
 
   it('id ou base estranhos não quebram o HTML nem o PHP', () => {
@@ -176,5 +178,18 @@ describe('passo a passo da Cosmos', () => {
     expect(
       parseInstallAnswer({ steps: Array.from({ length: 12 }, (_, i) => `Passo ${i}`) })!.steps,
     ).toHaveLength(8);
+  });
+});
+
+describe('origem do app na WebView', () => {
+  it('só https, reduzida à origem; vazia fica o exemplo', () => {
+    expect(checkAppOrigin(' https://app.portal.com/caminho?x=1 ')).toEqual({
+      ok: true,
+      origin: 'https://app.portal.com',
+    });
+    expect(checkAppOrigin('')).toEqual({ ok: true, origin: null });
+    expect(checkAppOrigin('app.portal.com')).toEqual({ ok: false });
+    expect(checkAppOrigin('http://app.portal.com')).toEqual({ ok: false });
+    expect(checkAppOrigin('javascript:alert(1)')).toEqual({ ok: false });
   });
 });

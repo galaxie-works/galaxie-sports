@@ -93,9 +93,9 @@ export function WidgetComposer({ minCredits }: { minCredits: number | null }) {
           <div className="flex flex-col gap-2" aria-live="polite">
             <span className="text-sm font-medium">{T.results}</span>
             <ul className="flex flex-col gap-2">
-              {result.widgets.map((w) => (
+              {result.widgets.map((w, i) => (
                 <li
-                  key={w.draft}
+                  key={`${i}:${w.kind}`}
                   className="flex flex-col gap-2 rounded-lg border p-3 text-sm sm:flex-row sm:items-center"
                 >
                   <div className="flex min-w-0 flex-1 flex-col gap-1">

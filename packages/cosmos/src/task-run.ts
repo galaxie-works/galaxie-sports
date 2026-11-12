@@ -24,7 +24,10 @@ import { activeFunction, getWallet, release, reserve, settle } from './wallet.js
 
 /** Limites das tarefas de uma chamada. Fora daqui, nada; ajustar é mudar estes números. */
 export const TASK_LIMITS = {
-  /** Pedidos por pessoa por minuto, em cada função. */
+  /**
+   * Pedidos por pessoa por minuto, em cada função. A contagem vem antes da reserva, então pedidos simultâneos podem
+   * passar juntos: o saldo segue protegido pela reserva, só o ritmo vaza (aceito).
+   */
   userPerMinute: 6,
   /** Tempo máximo da chamada ao provedor (ms). */
   timeoutMs: 45_000,
@@ -217,16 +220,22 @@ export async function runCosmosTask<T>(
   }
 
   let result: CompletionResult;
-  let evaluated: { usable: boolean; value: T };
   try {
     result = await call();
-    evaluated = await input.evaluate(result.text);
   } catch (err) {
     await release(db, { tenantId: input.tenantId, reservationId: held.id }).catch((e) =>
       console.error('[cosmos] reserva da tarefa não voltou', { fn: input.functionName, e }),
     );
-    console.error('[cosmos] tarefa falhou no provedor ou na conferência', { fn: input.functionName, err });
+    console.error('[cosmos] tarefa falhou no provedor', { fn: input.functionName, err });
     return { ok: false, error: 'failed' };
+  }
+  // o provedor já respondeu (e cobrou): falha na conferência vira resposta que não serve, com o custo no extrato
+  let evaluated: { usable: boolean; value: T | null };
+  try {
+    evaluated = await input.evaluate(result.text);
+  } catch (err) {
+    console.error('[cosmos] conferência da tarefa falhou', { fn: input.functionName, err });
+    evaluated = { usable: false, value: null };
   }
 
   const costUsd = costOf(fn.model, result);
@@ -264,7 +273,7 @@ export async function runCosmosTask<T>(
     }
   }
   if (!evaluated.usable) return { ok: false, error: 'unreadable' };
-  return { ok: true, value: evaluated.value, usable: true, charged };
+  return { ok: true, value: evaluated.value as T, usable: true, charged };
 }
 
 async function runAsStaff<T>(

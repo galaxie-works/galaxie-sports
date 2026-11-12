@@ -475,6 +475,7 @@ export default defineMessages(
           'Cole a chave publicável (gs_pk_…) para o código sair pronto. Ela fica só no seu navegador e nunca vai para a Cosmos.',
         keyInvalid: 'Isso não é uma chave publicável. Nunca use a chave secreta em site ou app.',
         origin: 'Origem do app',
+        originInvalid: 'Use o endereço completo com https, como https://app.seusite.com.',
         originHint:
           'Uma das origens permitidas da chave: a WebView abre a página como se fosse desse endereço.',
         site: 'Como é o seu site (opcional)',
@@ -1132,6 +1133,7 @@ export default defineMessages(
             'Paste the publishable key (gs_pk_…) to get ready-to-use code. It stays in your browser and never goes to Cosmos.',
           keyInvalid: 'That is not a publishable key. Never use the secret key on a site or app.',
           origin: 'App origin',
+          originInvalid: 'Use the full https address, like https://app.yoursite.com.',
           originHint:
             'One of the key allowed origins: the WebView opens the page as if it came from that address.',
           site: 'What your site is like (optional)',
@@ -1802,6 +1804,7 @@ export default defineMessages(
             'Pegá la clave publicable (gs_pk_…) para que el código salga listo. Queda solo en tu navegador y nunca va a Cosmos.',
           keyInvalid: 'Eso no es una clave publicable. Nunca uses la clave secreta en un sitio o app.',
           origin: 'Origen de la app',
+          originInvalid: 'Usá la dirección completa con https, como https://app.tusitio.com.',
           originHint:
             'Uno de los orígenes permitidos de la clave: la WebView abre la página como si fuera de esa dirección.',
           site: 'Cómo es tu sitio (opcional)',
