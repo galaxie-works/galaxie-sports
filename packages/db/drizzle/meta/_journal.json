@@ -698,8 +698,15 @@
     {
       "idx": 99,
       "version": "7",
-      "when": 1794488102379,
-      "tag": "0139_cosmos_cota_por_sala",
+      "when": 1794505125801,
+      "tag": "0140_plataforma_comercial",
+      "breakpoints": true
+    },
+    {
+      "idx": 100,
+      "version": "7",
+      "when": 1794505185801,
+      "tag": "0147_cosmos_cota_por_sala",
       "breakpoints": true
     }
   ]
