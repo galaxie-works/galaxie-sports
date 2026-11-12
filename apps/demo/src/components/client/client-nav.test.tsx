@@ -70,6 +70,10 @@ describe('áreas por cargo e módulo (#1018, #1019)', () => {
   it('Cosmos AI exige cosmos.view (saldo e extrato não aparecem para Moderador nem Voluntário)', () => {
     expect(navRequirement('cosmos')).toEqual({ action: 'cosmos.view' });
   });
+
+  it('a fila de moderação abre para quem modera uma sala só (escopo)', () => {
+    expect(navRequirement('moderation')).toEqual({ action: 'moderation.queue.view', scoped: true });
+  });
 });
 
 describe('ClientSideNav', () => {
