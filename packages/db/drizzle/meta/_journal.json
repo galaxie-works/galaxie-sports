@@ -684,7 +684,14 @@
     {
       "idx": 97,
       "version": "7",
-      "when": 1794496317650,
+      "when": 1794487982379,
+      "tag": "0121_cosmos_funcoes_widget",
+      "breakpoints": true
+    },
+    {
+      "idx": 98,
+      "version": "7",
+      "when": 1794500667511,
       "tag": "0125_ficha_juridico",
       "breakpoints": true
     }
