@@ -10,9 +10,9 @@ import type { CompletionFinishReason, CompletionRequest, LlmProviderId } from '.
 import {
   eventJson,
   HttpCompletionClient,
-  lastUserIndex,
   n,
   splitCompletion,
+  attachmentTarget,
   type CompletionClientOptions,
   type ParsedEvent,
   type ParsedResult,
@@ -77,18 +77,17 @@ export class GeminiCompletionClient extends HttpCompletionClient {
 
   wire(req: CompletionRequest, stream: boolean): WireRequest {
     const { system, dialog } = splitCompletion(req);
-    const files = req.attachments ?? [];
-    const attachAt = files.length ? lastUserIndex(dialog) : -1;
     const generationConfig: Record<string, unknown> = {};
     if (req.maxOutputTokens !== undefined) generationConfig.maxOutputTokens = req.maxOutputTokens;
     if (req.temperature !== undefined) generationConfig.temperature = req.temperature;
     if (req.json) generationConfig.responseMimeType = 'application/json';
+    const at = attachmentTarget(req, dialog);
     const body: Record<string, unknown> = {
       contents: dialog.map((m, i) => ({
         role: m.role === 'assistant' ? 'model' : 'user',
         parts: [
-          ...(i === attachAt
-            ? files.map((f) => ({ inline_data: { mime_type: f.mediaType, data: f.data } }))
+          ...(i === at
+            ? req.attachments!.map((a) => ({ inlineData: { mimeType: a.mediaType, data: a.data } }))
             : []),
           { text: m.content },
         ],

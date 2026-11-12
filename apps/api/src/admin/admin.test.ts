@@ -4,7 +4,7 @@ import { AdminGuard, generateAdminKey, hashAdminKey, normalizeIp, parseIpAllowli
 import { loadPlans, parsePlans, PlansConfigError } from './plans.js';
 import { invalidScopes, resolveTenantValues } from './tenants.js';
 
-describe('config/plans.yaml', () => {
+describe('config/catalog/plans.yaml', () => {
   it('tem um modelo válido para cada plano, coerente com os módulos padrão do schema', () => {
     const plans = loadPlans();
     for (const p of API_PLANS) {

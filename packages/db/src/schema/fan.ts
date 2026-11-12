@@ -16,6 +16,7 @@
 import { sql } from 'drizzle-orm';
 import {
   bigint,
+  boolean,
   check,
   foreignKey,
   index,
@@ -35,6 +36,25 @@ export const fan = pgSchema('fan');
 /** Faixa etária informada pela plataforma do cliente (D1 da revisão dos épicos). */
 export const FAN_AGE_BANDS = ['under13', '13_17', '18plus'] as const;
 export type FanAgeBand = (typeof FAN_AGE_BANDS)[number];
+
+/**
+ * Faixa fina (#1105), para os limites de 14 e 16 anos da ficha por país. A coluna `age_band` guarda a faixa larga
+ * (as rotas de hoje leem só ela); `age_band_detail` guarda a fina, null em Perfil gravado antes do #1105.
+ */
+export const FAN_AGE_BANDS_DETAIL = ['under13', '13', '14_15', '16_17', '18plus'] as const;
+export type FanAgeBandDetail = (typeof FAN_AGE_BANDS_DETAIL)[number];
+
+/** Faixa larga da faixa fina. */
+export const coarseAgeBand = (band: FanAgeBandDetail): FanAgeBand =>
+  band === 'under13' || band === '18plus' ? band : '13_17';
+
+/** Como o cliente comprovou a idade (#1105, #1109): declarada, estimada ou verificada. */
+export const FAN_AGE_ASSURANCE = ['self', 'estimated', 'verified'] as const;
+export type FanAgeAssurance = (typeof FAN_AGE_ASSURANCE)[number];
+
+/** Autorização do responsável legal (#1105, #1108). */
+export const FAN_GUARDIAN_STATUS = ['none', 'pending', 'granted', 'revoked'] as const;
+export type FanGuardianStatus = (typeof FAN_GUARDIAN_STATUS)[number];
 
 /** O Titular da Conta é adulto? `unknown` = o cliente não disse (Prêmio fica pendente com o cliente). */
 export const FAN_HOLDER_ADULT = ['yes', 'no', 'unknown'] as const;
@@ -86,6 +106,23 @@ export const fanProfile = fan.table(
     nickname: text('nickname'),
     avatarUrl: text('avatar_url'),
     ageBand: text('age_band').$type<FanAgeBand>().notNull(),
+    /** Faixa fina (#1105); null = Perfil gravado antes, só com a faixa larga. */
+    ageBandDetail: text('age_band_detail').$type<FanAgeBandDetail>(),
+    /** Comprovação da idade declarada pelo cliente; sem o bloco no pedido, `self`. */
+    ageAssurance: text('age_assurance').$type<FanAgeAssurance>().notNull().default('self'),
+    ageAssuranceAt: timestamp('age_assurance_at', { withTimezone: true }),
+    /** Quem estimou ou verificou (nome do fornecedor, nunca o resultado nem o documento). */
+    ageAssuranceProvider: text('age_assurance_provider'),
+    guardianStatus: text('guardian_status').$type<FanGuardianStatus>().notNull().default('none'),
+    /** Id da autorização guardada no Galaxie (#1108); sem ele, a prova é do cliente (contrato B11). */
+    guardianConsentId: text('guardian_consent_id'),
+    /** A conta do menor está vinculada à do responsável no sistema do cliente. */
+    guardianLinked: boolean('guardian_linked').notNull().default(false),
+    /**
+     * Faixa desceu de `18plus` para menor: as ações de adulto ficam congeladas e o caso vai para a fila de
+     * moderação. Só a correção da faixa (#1110) libera.
+     */
+    ageFrozenAt: timestamp('age_frozen_at', { withTimezone: true }),
     /** ISO 3166-1 alfa-2, maiúsculo. */
     country: text('country').notNull(),
     locale: text('locale').notNull(),
@@ -109,6 +146,20 @@ export const fanProfile = fan.table(
     index('profile_account_idx').on(t.tenantId, t.accountId),
     check('profile_age_band', sql`${t.ageBand} in ('under13', '13_17', '18plus')`),
     check('profile_country', sql`${t.country} ~ '^[A-Z]{2}$'`),
+    check(
+      'profile_age_band_detail',
+      sql`${t.ageBandDetail} is null or ${t.ageBandDetail} in ('under13', '13', '14_15', '16_17', '18plus')`,
+    ),
+    check('profile_age_assurance', sql`${t.ageAssurance} in ('self', 'estimated', 'verified')`),
+    check(
+      'profile_age_assurance_provider',
+      sql`${t.ageAssuranceProvider} is null or length(${t.ageAssuranceProvider}) between 1 and 64`,
+    ),
+    check('profile_guardian_status', sql`${t.guardianStatus} in ('none', 'pending', 'granted', 'revoked')`),
+    check(
+      'profile_guardian_consent',
+      sql`${t.guardianConsentId} is null or length(${t.guardianConsentId}) between 1 and 128`,
+    ),
     // excluído não guarda nada que identifique; ativo sempre tem o id do cliente
     check(
       'profile_erased',

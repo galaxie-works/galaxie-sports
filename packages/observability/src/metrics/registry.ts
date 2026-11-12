@@ -1,5 +1,6 @@
 import { performance } from 'node:perf_hooks';
 import { API_SPORTS, utcDayString, type QuotaPolicy } from '@galaxie/apisports-client';
+import { varOutcomeOf } from '@galaxie/contracts';
 import type { Database } from '@galaxie/db';
 import { collectDefaultMetrics, Counter, Gauge, Histogram, Registry } from 'prom-client';
 import { aiBudget, effectiveOpsSettings, jobExpectations, type JobExpectation } from './ops.js';
@@ -8,6 +9,7 @@ import {
   changeFeedConsumers,
   dbSizes,
   exploreSummaryAge,
+  recentVarDetails,
   jobStats,
   ledgerCounts,
   liveEvents,
@@ -67,6 +69,10 @@ export interface GalaxieMetrics {
   gapsAbandoned: Counter<'consumer' | 'reason'>;
   /** Respostas das rotas cacheadas: `hit`, `miss`, `stale` (valor anterior durante o recálculo), `coalesced`. */
   cacheResults: Counter<'result'>;
+  /** Consultas aos conectores do Shopping (#916) por loja e resultado: `ok`, `error`, `cache` (servida do cache). */
+  shopConnectorRequests: Counter<'store' | 'outcome'>;
+  /** Latência das consultas aos conectores do Shopping por loja (só as que foram à loja). */
+  shopConnectorDuration: Histogram<'store'>;
 }
 
 /** Buckets alinhados ao NFR de p95 ≤ 150 ms (docs/02 §7). */
@@ -186,12 +192,32 @@ export function createMetrics(options: MetricsOptions = {}): GalaxieMetrics {
     labelNames: ['result'],
     registers: [registry],
   });
+  const shopConnectorRequests = new Counter<'store' | 'outcome'>({
+    name: 'galaxie_shop_connector_requests_total',
+    help: 'Consultas aos conectores de loja do Shopping por loja e resultado: ok, error e cache (servida do cache)',
+    labelNames: ['store', 'outcome'],
+    registers: [registry],
+  });
+  const shopConnectorDuration = new Histogram<'store'>({
+    name: 'galaxie_shop_connector_duration_seconds',
+    help: 'Latência das consultas aos conectores de loja do Shopping, por loja',
+    labelNames: ['store'],
+    buckets: [0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10],
+    registers: [registry],
+  });
   // séries criadas em 0: sem isso, o increase() dos alertas não vê o primeiro incremento de uma série nova
   for (const reason of ['process_limit', 'tenant_limit']) sseRejected.inc({ reason }, 0);
   for (const consumer of ['sse', 'cache-purge'])
     for (const reason of ['timeout', 'max_seen']) gapsAbandoned.inc({ consumer, reason }, 0);
   for (const result of ['hit', 'miss', 'stale', 'coalesced']) cacheResults.inc({ result }, 0);
-  const runtime = { sseConnections, sseRejected, gapsAbandoned, cacheResults };
+  const runtime = {
+    sseConnections,
+    sseRejected,
+    gapsAbandoned,
+    cacheResults,
+    shopConnectorRequests,
+    shopConnectorDuration,
+  };
 
   const livePoll = new Gauge({
     name: 'galaxie_live_poll_interval_seconds',
@@ -282,6 +308,13 @@ export function createMetrics(options: MetricsOptions = {}): GalaxieMetrics {
   const webhooks = new CollectorGroup<WebhookStats>('webhooks', () => webhookStats(db), ttl, onError);
   const queue = new CollectorGroup<QueueStats>('queue', () => queueStats(db), ttl, onError);
   const explore = new CollectorGroup<number | null>('explore', () => exploreSummaryAge(db), ttl, onError);
+  // vereditos de VAR que o contrato ainda não conhece: muda devagar, uma leitura a cada 5 min basta
+  const varDetails = new CollectorGroup<{ detail: string; n: number }[]>(
+    'var_details',
+    () => recentVarDetails(db),
+    Math.max(ttl, 300_000),
+    onError,
+  );
   const groups = [
     quota,
     jobs,
@@ -293,6 +326,7 @@ export function createMetrics(options: MetricsOptions = {}): GalaxieMetrics {
     ops,
     queue,
     explore,
+    varDetails,
   ] as CollectorGroup<unknown>[];
 
   // ── cota (fonte: ops.quota_ledger / quota_snapshot / quota_budget) ──────────────────────────────
@@ -648,6 +682,20 @@ export function createMetrics(options: MetricsOptions = {}): GalaxieMetrics {
     'Idade do resumo da home Explorar pré-calculado (s; +Inf = nunca gravado). Acima de 30 min a API calcula na requisição',
     [],
     (g, age) => g.set(age ?? Number.POSITIVE_INFINITY),
+  );
+
+  // ── vereditos de VAR desconhecidos (fonte: core.event_incident dos jogos dos últimos 7 dias; #641)
+  dbGauge(
+    registry,
+    varDetails,
+    'galaxie_var_unknown_details',
+    'Lances de VAR dos últimos 7 dias com `detail` sem veredito canônico (VAR_DETAILS do contrato), por texto',
+    ['detail'],
+    (g, rows) => {
+      // rótulo cortado em 80 caracteres: textos que só diferem depois disso somam no mesmo rótulo
+      for (const r of rows)
+        if (varOutcomeOf(r.detail) === 'other') g.inc({ detail: r.detail.slice(0, 80) }, r.n);
+    },
   );
 
   // ── sinais de vida, agenda esperada e IA (fonte: ops.runtime_env, ops.runtime_setting, ops.runtime_check, ops.llm_usage)
