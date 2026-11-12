@@ -645,6 +645,20 @@
       "when": 1794437372812,
       "tag": "0096_cosmos_base_conhecimento",
       "breakpoints": true
+    },
+    {
+      "idx": 92,
+      "version": "7",
+      "when": 1794442180071,
+      "tag": "0097_presenca",
+      "breakpoints": true
+    },
+    {
+      "idx": 93,
+      "version": "7",
+      "when": 1794447867474,
+      "tag": "0098_patrocinador_alcool",
+      "breakpoints": true
     }
   ]
 }

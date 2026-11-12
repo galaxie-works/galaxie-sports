@@ -25,3 +25,23 @@ export const can = (
   action: TenantAction,
   target: Omit<ActionTarget, 'tenantId'> = {},
 ) => allowed(ctx, action, target).ok;
+
+/**
+ * Pode fazer `action` em algum lugar: no tenant inteiro ou em ao menos uma Sala ou Comunidade do escopo. Para as áreas
+ * que trabalham por lugar (a fila de moderação): o membro com escopo entra e vê só o que é do lugar dele.
+ */
+export function canSomewhere(ctx: PermissionContext, action: TenantAction): boolean {
+  if (can(ctx, action)) return true;
+  const scope = ctx.actor?.kind === 'member' ? ctx.actor.scope : null;
+  if (!scope) return false;
+  return (
+    (scope.rooms ?? []).some((room) => can(ctx, action, { room })) ||
+    (scope.communities ?? []).some((community) => can(ctx, action, { community }))
+  );
+}
+
+/** O lugar de um item (Sala ou Comunidade) como alvo do `can()`. */
+export const placeOf = (item: { room: string | null; community: string | null }) => ({
+  ...(item.community ? { community: item.community } : {}),
+  ...(item.room ? { room: item.room } : {}),
+});
