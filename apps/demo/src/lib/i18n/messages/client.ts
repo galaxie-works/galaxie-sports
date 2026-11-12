@@ -63,7 +63,6 @@ export default defineMessages(
       engage: 'Engajamento do torcedor',
       needsPlan: 'A partir do plano {plans}',
       trialDays: 'Teste de {days} dias',
-      contact: 'Falar com a Galaxie',
       states: {
         included: 'Incluído',
         trial: 'Em teste',
@@ -72,8 +71,11 @@ export default defineMessages(
         contract: 'Sob contrato',
         soon: 'Em breve',
         closed: 'Indisponível',
+        blocked: 'Bloqueado',
       },
       unavailable: 'Não foi possível ler os direitos do tenant agora. Tente de novo em instantes.',
+      blockedNotice:
+        'Este tenant está sem acesso no momento (suspenso ou com o teste encerrado). Fale com o time da Galaxie para regularizar.',
     },
     overview: {
       plan: 'Plano',
@@ -787,7 +789,6 @@ export default defineMessages(
         engage: 'Fan engagement',
         needsPlan: 'From the {plans} plan',
         trialDays: '{days}-day trial',
-        contact: 'Talk to Galaxie',
         states: {
           included: 'Included',
           trial: 'On trial',
@@ -796,8 +797,11 @@ export default defineMessages(
           contract: 'By contract',
           soon: 'Coming soon',
           closed: 'Unavailable',
+          blocked: 'Blocked',
         },
         unavailable: "We could not read this tenant's entitlements right now. Try again in a moment.",
+        blockedNotice:
+          'This tenant has no access right now (suspended or trial ended). Talk to the Galaxie team to sort it out.',
       },
       overview: {
         plan: 'Plan',
@@ -1510,13 +1514,12 @@ export default defineMessages(
       planStore: {
         title: 'Planes y módulos',
         description:
-          'Lo que incluye tu plan y lo que puedes contratar. Para cambiar de plan o activar un módulo, habla con el equipo de Galaxie.',
+          'Lo que incluye tu plan y lo que podés contratar. Para cambiar de plan o activar un módulo, hablá con el equipo de Galaxie.',
         current: 'Plan actual',
         data: 'Datos deportivos',
         engage: 'Interacción con la afición',
         needsPlan: 'Desde el plan {plans}',
         trialDays: 'Prueba de {days} días',
-        contact: 'Hablar con Galaxie',
         states: {
           included: 'Incluido',
           trial: 'En prueba',
@@ -1525,8 +1528,11 @@ export default defineMessages(
           contract: 'Bajo contrato',
           soon: 'Próximamente',
           closed: 'No disponible',
+          blocked: 'Bloqueado',
         },
-        unavailable: 'No pudimos leer los derechos del tenant ahora. Inténtalo de nuevo en un momento.',
+        unavailable: 'No pudimos leer los derechos del tenant ahora. Probá de nuevo en un momento.',
+        blockedNotice:
+          'Este tenant no tiene acceso por ahora (suspendido o con la prueba terminada). Hablá con el equipo de Galaxie para regularizarlo.',
       },
       overview: {
         plan: 'Plan',

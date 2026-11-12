@@ -37,4 +37,26 @@ describe('storeView (loja de features, #1137)', () => {
     );
     expect(v.odds?.state).toBe('included');
   });
+
+  it('tenant sem acesso: tudo bloqueado, sem oferta de plano', () => {
+    for (const state of ['suspended', 'trial_expired', 'cancelled'] as const) {
+      const items = storeView(catalog, { plan: 'core_data', modules: [], state });
+      expect(new Set(items.map((i) => i.state))).toEqual(new Set(['blocked']));
+    }
+  });
+
+  it('plano maior só acima do atual; módulo do próprio plano retirado vira contrato', () => {
+    const v = byModule(
+      storeView(catalog, {
+        plan: 'live_intelligence',
+        modules: ['core_data', 'semantic', 'live_intelligence', 'multisport'],
+        state: 'active',
+      }),
+    );
+    expect(v.where_to_watch?.state).toBe('contract');
+    const f = byModule(
+      storeView(catalog, { plan: 'fan_experience', modules: ['core_data'], state: 'active' }),
+    );
+    expect(f.multisport).toMatchObject({ state: 'needs_plan', plans: ['live_intelligence'] });
+  });
 });

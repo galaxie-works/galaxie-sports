@@ -1,6 +1,6 @@
 import { API_PLANS, type ApiModule, type ApiPlan } from '@galaxie/db/schema';
 import { meetsRequirement, type Catalog } from '../catalog/catalog.js';
-import type { Entitlements } from '../entitlements/resolve.js';
+import { STATES_WITHOUT_ACCESS, type Entitlements } from '../entitlements/resolve.js';
 
 /**
  * A loja de features (plataforma comercial, #1137): cada módulo do catálogo cruzado com os direitos do tenant. É a
@@ -21,6 +21,8 @@ export const STORE_STATES = [
   'soon',
   /** Fechado até decisão do dono. */
   'closed',
+  /** O tenant está sem acesso (suspenso, cancelado, teste vencido): nada se contrata pela loja até regularizar. */
+  'blocked',
 ] as const;
 export type StoreState = (typeof STORE_STATES)[number];
 
@@ -35,9 +37,10 @@ export type StoreItem = {
   trialDays: number | null;
 };
 
-/** Planos de dados que incluem o módulo, na ordem do catálogo (do menor para o maior). */
-function plansWithModule(catalog: Catalog, m: ApiModule): ApiPlan[] {
-  return API_PLANS.filter((p) => catalog.plans[p].modules.includes(m));
+/** Planos acima do atual, vendáveis pela loja, que passam no filtro; na ordem do catálogo (do menor para o maior). */
+function upgradePlans(catalog: Catalog, current: ApiPlan, keep: (p: ApiPlan) => boolean): ApiPlan[] {
+  const from = API_PLANS.indexOf(current);
+  return API_PLANS.filter((p, i) => i > from && catalog.plans[p].selfService && keep(p));
 }
 
 /** Um cartão por módulo do catálogo, na ordem do catálogo (dados primeiro, depois engajamento). */
@@ -46,8 +49,13 @@ export function storeView(
   ent: Pick<Entitlements, 'plan' | 'modules' | 'state'>,
 ): StoreItem[] {
   const out: StoreItem[] = [];
+  const blocked = STATES_WITHOUT_ACCESS.includes(ent.state);
   for (const [m, def] of Object.entries(catalog.modules) as [ApiModule, Catalog['modules'][ApiModule]][]) {
     const base = { module: m, kind: def.kind, name: def.name, trialDays: def.trialDays };
+    if (blocked) {
+      out.push({ ...base, state: 'blocked' });
+      continue;
+    }
     if (ent.modules.includes(m)) {
       out.push({ ...base, state: ent.state === 'trial' ? 'trial' : 'included' });
       continue;
@@ -57,14 +65,22 @@ export function storeView(
       continue;
     }
     if (def.kind === 'data') {
-      // módulo de dados vem pelo plano: o primeiro plano vendável pela loja que o inclui
-      const plans = plansWithModule(catalog, m).filter((p) => catalog.plans[p].selfService);
+      // módulo de dados vem pelo plano: os planos acima do atual, vendáveis pela loja, que o incluem. Sem nenhum (o plano
+      // atual já o inclui e ele foi retirado por acordo, ou só o Enterprise o tem): por contrato
+      const plans = upgradePlans(catalog, ent.plan, (p) => catalog.plans[p].modules.includes(m));
       out.push(plans.length ? { ...base, state: 'needs_plan', plans } : { ...base, state: 'contract' });
       continue;
     }
     if (!meetsRequirement(def.requires, ent.plan, ent.modules)) {
-      const plans = def.requires?.plans?.filter((p) => catalog.plans[p].selfService);
-      out.push(plans?.length ? { ...base, state: 'needs_plan', plans } : { ...base, state: 'contract' });
+      const required = def.requires?.plans;
+      const planOk = !required || required.includes(ent.plan);
+      if (planOk) {
+        // falta outro módulo (dependência), não plano: contratável, junto com o que falta
+        out.push({ ...base, state: 'available' });
+        continue;
+      }
+      const plans = upgradePlans(catalog, ent.plan, (p) => required.includes(p));
+      out.push(plans.length ? { ...base, state: 'needs_plan', plans } : { ...base, state: 'contract' });
       continue;
     }
     out.push({ ...base, state: 'available' });

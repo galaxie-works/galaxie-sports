@@ -19,13 +19,18 @@ const STATE_VARIANT: Record<StoreState, BadgeVariant> = {
   contract: 'outline',
   soon: 'secondary',
   closed: 'outline',
+  blocked: 'outline',
 };
 
 /** Loja de features do tenant: cada módulo do catálogo com o estado para este tenant (#1137). */
 export async function PlansPanel({ tenant, t }: { tenant: TenantInfo; t: Dictionary }) {
   const p = t.client.planStore;
   const o = t.client.overview;
-  const store = await getTenantPlanStore(tenant.id).catch(() => null);
+  const store = await getTenantPlanStore(tenant.id).catch((err: unknown) => {
+    // catálogo ausente ou inválido, banco fora: aparece no log, não só na tela
+    console.error('Planos e módulos: não foi possível ler os direitos do tenant', err);
+    return null;
+  });
   if (!store) return <p className="text-muted-foreground text-sm">{p.unavailable}</p>;
 
   const planName = (plan: string) => o.plans[plan as keyof typeof o.plans] ?? plan;
@@ -48,15 +53,22 @@ export async function PlansPanel({ tenant, t }: { tenant: TenantInfo; t: Diction
             <span className="text-muted-foreground">{p.current}</span>
             <Badge variant="secondary">{planName(store.entitlements.plan)}</Badge>
           </div>
+          {store.items.some((i) => i.state === 'blocked') ? (
+            <p role="status" className="text-warning-foreground text-sm">
+              {p.blockedNotice}
+            </p>
+          ) : null}
         </FramePanel>
       </Frame>
       {groups.map((g) => (
         <Frame key={g.id}>
           <FramePanel className="flex flex-col gap-3">
             <FrameHeader className="p-0">
-              <FrameTitle>{g.title}</FrameTitle>
+              <FrameTitle>
+                <h2 id={`planos-${g.id}`}>{g.title}</h2>
+              </FrameTitle>
             </FrameHeader>
-            <ul className="divide-border flex flex-col divide-y">
+            <ul aria-labelledby={`planos-${g.id}`} className="divide-border flex flex-col divide-y">
               {g.items.map((item) => (
                 <li key={item.module} className="flex flex-wrap items-center justify-between gap-2 py-2.5">
                   <div className="flex flex-col gap-0.5">

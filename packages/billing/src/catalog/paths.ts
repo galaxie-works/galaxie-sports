@@ -1,3 +1,4 @@
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 /**
@@ -5,5 +6,10 @@ import { fileURLToPath } from 'node:url';
  * Na imagem, o pacote fica no node_modules do deploy e o caminho relativo não vale: o Dockerfile define `CATALOG_DIR`.
  */
 export function defaultCatalogDir(): string {
-  return process.env.CATALOG_DIR ?? fileURLToPath(new URL('../../../../config/catalog', import.meta.url));
+  // sem `new URL('<relativo>', import.meta.url)`: o empacotador do Next trata isso como asset e tenta resolver a pasta no
+  // build
+  return (
+    process.env.CATALOG_DIR ??
+    join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..', 'config', 'catalog')
+  );
 }
