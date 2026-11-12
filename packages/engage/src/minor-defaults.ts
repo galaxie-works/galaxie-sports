@@ -69,7 +69,7 @@ export const MINOR_PROTECTION_DEFS: Readonly<Record<MinorProtection, MinorProtec
       es: { title: 'Sin foto propia: el perfil usa un avatar del catálogo de la app.', relaxed: null },
       en: { title: "No personal photo: the profile uses an avatar from the app's catalog.", relaxed: null },
       'fr-CA': {
-        title: "Pas de photo personnelle : le profil utilise un avatar du catalogue de l'appli.",
+        title: "Pas de photo personnelle : le profil utilise un avatar du catalogue de l'appli.",
         relaxed: null,
       },
     },
@@ -110,13 +110,14 @@ export const MINOR_PROTECTION_DEFS: Readonly<Record<MinorProtection, MinorProtec
       },
       en: {
         title: 'Suggestions come only from the game and the chosen team, never from a behavior profile.',
-        relaxed: 'Suggestions also take into account what the fan used in the app, never for advertising.',
+        relaxed:
+          'Suggestions also take into account what the fan has done in the app, never for advertising.',
       },
       'fr-CA': {
         title:
           "Les suggestions viennent seulement du match et de l'équipe choisie, jamais d'un profil de comportement.",
         relaxed:
-          "Les suggestions tiennent aussi compte de ce que le partisan a utilisé dans l'appli, sans publicité.",
+          "Les suggestions tiennent aussi compte de ce que le partisan a fait dans l'appli, jamais à des fins publicitaires.",
       },
     },
   },
@@ -156,12 +157,16 @@ export const MINOR_PROTECTION_DEFS: Readonly<Record<MinorProtection, MinorProtec
         relaxed: null,
       },
       es: {
-        title: 'Sin correo, push ni SMS de marketing hasta los 18 años, aunque haya opt-in.',
+        title: 'Sin correo, push ni SMS de marketing hasta los 18 años, aunque se haya aceptado recibirlos.',
         relaxed: null,
       },
-      en: { title: 'No marketing email, push or SMS until 18, even with opt-in.', relaxed: null },
+      en: {
+        title: 'No marketing email, push notifications or SMS until 18, even with opt-in.',
+        relaxed: null,
+      },
       'fr-CA': {
-        title: 'Pas de courriel, de notification ni de texto marketing avant 18 ans, même avec consentement.',
+        title:
+          'Pas de courriel, de notification ni de texto promotionnel avant 18 ans, même avec consentement.',
         relaxed: null,
       },
     },

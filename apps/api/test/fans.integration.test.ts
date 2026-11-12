@@ -530,5 +530,18 @@ describe('padrão protetivo para menores (#1107)', () => {
     expect((await me(adult, 'PATCH', { visibility: { level: 'public' } })).json().data.visibility.level).toBe(
       'public',
     );
+    // a faixa desce: o que estava aberto volta ao padrão na gravação, e nada reabre sozinho depois
+    await issue(t.key, { ...teen, externalProfileId: 'prof_maior', ageBand: '16_17' });
+    const [row] = await db
+      .select({ visibility: fanProfile.visibility, avatarUrl: fanProfile.avatarUrl })
+      .from(fanProfile)
+      .where(eq(fanProfile.externalProfileId, 'prof_maior'));
+    expect(row).toEqual({ visibility: {}, avatarUrl: null });
+    // foto gravada antes do #1107 num Perfil de menor não sai no /me
+    await db
+      .update(fanProfile)
+      .set({ avatarUrl: 'https://cdn.exemplo.com/antiga.jpg' })
+      .where(eq(fanProfile.externalProfileId, 'prof_menor'));
+    expect((await me(token)).json().data.avatar_url).toBeNull();
   });
 });

@@ -1062,8 +1062,8 @@ O portão relê o Perfil e a ficha a cada ação, com um cache de até 5 segundo
 
 **Padrão protetivo para menores (#1107).** Para `13`, `14_15`, `16_17` (e a faixa congelada), em todos os países, o servidor já começa no modo mais protetivo, como pede o ECA Digital:
 
-- o Perfil fica privado para os outros torcedores (`visibility` vem tudo `private`, e o `PATCH /v1/fans/me` que tenta abrir responde 403 `adult_only`); os outros veem só o Apelido;
-- sem foto própria: o `avatarUrl` de um menor não é guardado, e o widget mostra um avatar do catálogo;
+- o Perfil fica privado para os outros torcedores (`visibility` vem tudo `private`, e o `PATCH /v1/fans/me` que tenta abrir responde 403 `adult_only`, recusando o pedido inteiro; o que estava aberto volta ao padrão no próximo token); os outros veem só o Apelido;
+- sem foto própria: o `avatarUrl` de um menor não é guardado nem devolvido, e o widget mostra um avatar do catálogo;
 - sem contato direto, marketing (mesmo com opt-in), publicidade direcionada nem conteúdo restrito (o portão recusa `directContact`, `receiveMarketing` e `viewRestrictedContent` como `adult_only`);
 - recomendação só pelo contexto (jogo, time escolhido), localização só pelo país do token, e a Cosmos não analisa emoção nem comportamento de menor para fins comerciais.
 

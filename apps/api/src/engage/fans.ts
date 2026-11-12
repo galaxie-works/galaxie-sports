@@ -181,6 +181,8 @@ export async function upsertFan(
         set: {
           nickname: input.nickname,
           avatarUrl,
+          // menor volta ao padrão protetivo: aos 18 nada abre sozinho, o torcedor escolhe (#1107)
+          ...(ageBand === '18plus' ? {} : { visibility: {} }),
           ...ageFields,
           country: input.country,
           locale: input.locale,
@@ -265,6 +267,8 @@ export async function patchFan(
     favoriteTeamId?: string | null | undefined;
     visibility?: { [K in keyof FanVisibility]?: FanVisibility[K] | undefined } | undefined;
   },
+  /** Só grava se o Perfil ainda for adulto e não congelado (abrir a visibilidade, #1107), na mesma instrução. */
+  opts: { adultOnly?: boolean } = {},
 ): Promise<boolean> {
   const set: Partial<typeof fanProfile.$inferInsert> = {};
   if (patch.favoriteTeamId !== undefined) set.favoriteTeamId = patch.favoriteTeamId;
@@ -278,7 +282,14 @@ export async function patchFan(
   const rows = await db
     .update(fanProfile)
     .set({ ...set, updatedAt: sql`now()` as never })
-    .where(and(eq(fanProfile.tenantId, tenantId), eq(fanProfile.id, profileId), isNull(fanProfile.deletedAt)))
+    .where(
+      and(
+        eq(fanProfile.tenantId, tenantId),
+        eq(fanProfile.id, profileId),
+        isNull(fanProfile.deletedAt),
+        ...(opts.adultOnly ? [eq(fanProfile.ageBand, '18plus'), isNull(fanProfile.ageFrozenAt)] : []),
+      ),
+    )
     .returning({ id: fanProfile.id });
   return rows.length > 0;
 }

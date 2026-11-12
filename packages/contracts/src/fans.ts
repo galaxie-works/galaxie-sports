@@ -317,7 +317,7 @@ export const fanPaths: ZodOpenApiPathsObject = {
     patch: {
       summary: 'Muda a visibilidade e o time do coração',
       description:
-        'Apelido e avatar vêm do seu servidor, no pedido do token. `under13` recebe 403 (FAN_AGE_RESTRICTED).',
+        'Apelido e avatar vêm do seu servidor, no pedido do token. `under13` recebe 403 (FAN_AGE_RESTRICTED); menor de 18 que tenta abrir a visibilidade também (`age_gate.reason = adult_only`), e o pedido inteiro é recusado.',
       tags: [TAG],
       security: fanAuth,
       requestBody: { content: json(FanMePatchBody) },
