@@ -29,6 +29,8 @@ export interface ChatStreamOptions {
   /** Bytes enfileirados para um cliente lento antes de derrubar. Padrão 256 KiB. */
   maxBufferBytes?: number;
   retryMs?: number;
+  /** Faixa de conexões fixa no lugar da do cliente (testes). */
+  peakLimitOverride?: number;
 }
 
 interface Deps {
@@ -54,6 +56,7 @@ export function registerChatStream(app: FastifyInstance, deps: Deps): void {
   // faixa do cliente, relida no máximo a cada minuto
   const tiers = new Map<string, { at: number; value: number }>();
   async function peakLimit(tenantId: string, modules: readonly string[]): Promise<number> {
+    if (deps.options.peakLimitOverride != null) return deps.options.peakLimitOverride;
     const hit = tiers.get(tenantId);
     if (hit && Date.now() - hit.at < 60_000) return hit.value;
     let value = hit?.value ?? DEFAULT_PEAK;

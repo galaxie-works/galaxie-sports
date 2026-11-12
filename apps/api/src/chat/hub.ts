@@ -148,7 +148,14 @@ export class ChatHub {
 
   async start(): Promise<void> {
     const { redis } = this.options;
-    if (redis) {
+    if (redis) await this.listenBatches(redis);
+    this.timer = setInterval(() => void this.tick(), this.intervalMs);
+    this.timer.unref();
+  }
+
+  /** Assina o canal dos lotes; falha (Valkey fora no boot) não trava a subida: o ioredis reassina ao reconectar. */
+  private async listenBatches(redis: Redis): Promise<void> {
+    try {
       this.subscriber = redis.duplicate({
         enableOfflineQueue: true,
         maxRetriesPerRequest: null,
@@ -168,9 +175,9 @@ export class ChatHub {
           .catch((err) => this.options.logger?.warn({ err }, 'chat: SUBSCRIBE falhou')),
         new Promise((r) => setTimeout(r, 5_000).unref()),
       ]);
+    } catch (err) {
+      this.options.logger?.warn({ err }, 'chat: assinatura dos lotes indisponível');
     }
-    this.timer = setInterval(() => void this.tick(), this.intervalMs);
-    this.timer.unref();
   }
 
   async stop(): Promise<void> {
