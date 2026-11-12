@@ -381,6 +381,51 @@ describe('fila única da moderação (B8, #953)', () => {
     ]);
   });
 
+  it('fechar o caso e punir na mesma transação: se a punição falha, o caso volta aberto (#999)', async () => {
+    const author = await profile();
+    const { caseId } = await holdContent(db, {
+      ...target(author.id),
+      source: 'filter',
+      reasons: ['hate'],
+      severity: 50,
+      hide: false,
+      content: 'x',
+      detail: {},
+      clocks: clocks(),
+    });
+    const fail = db.transaction(async (tx) => {
+      const ok = await closeCase(tx, {
+        tenantId,
+        caseId,
+        status: 'resolved',
+        actor: person('mod'),
+        reason: 'queue.ban',
+        note: null,
+        clocks: clocks(),
+        hide: true,
+      });
+      expect(ok).toBe(true);
+      // punição que falha (perfil de outro cliente: a FK composta recusa)
+      await applySanction(tx, {
+        tenantId,
+        profileId: '00000000-0000-7000-8000-000000000000',
+        accountId: null,
+        level: 'ban',
+        hidden: false,
+        scope: 'tenant',
+        scopeId: null,
+        reason: 'hate',
+        caseId,
+        actor: person('mod'),
+        endsAt: null,
+        clocks: clocks(),
+      });
+    });
+    await expect(fail).rejects.toThrow();
+    const [c] = await db.select().from(moderationCase).where(eq(moderationCase.id, caseId));
+    expect(c).toMatchObject({ status: 'open', hiddenAt: null });
+  });
+
   it('Silêncio oculto não aparece para o torcedor e não aceita apelação', async () => {
     const fan = await profile();
     const s = await applySanction(db, {
