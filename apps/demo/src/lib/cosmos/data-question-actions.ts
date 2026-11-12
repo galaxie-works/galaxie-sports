@@ -18,11 +18,16 @@ import {
 import { DATA_QUESTION_MAX } from './data-questions';
 
 /** Se o modo aparece no painel e o mínimo da função (0 = equipe Galaxie, que não gasta créditos do cliente). */
-export async function dataQuestionMode(): Promise<{ available: boolean; minCredits: number }> {
+export async function dataQuestionMode(): Promise<{
+  available: boolean;
+  minCredits: number;
+  /** Recusado pelo limite (passageiro): o painel pergunta de novo na próxima abertura. */
+  retry?: boolean;
+}> {
   const ctx = await readClientContext();
   if (!ctx || assistantAccessError(ctx)) return { available: false, minCredits: 0 };
   // a consulta lê o catálogo da Cosmos: com o mesmo limite da estimativa do painel
-  if (!allowEstimate(ctx.userId)) return { available: false, minCredits: 0 };
+  if (!allowEstimate(ctx.userId)) return { available: false, minCredits: 0, retry: true };
   const min = await dataQuestionMinCredits();
   if (min === null) return { available: false, minCredits: 0 };
   return { available: true, minCredits: ctx.role === 'admin' ? 0 : min };

@@ -11,7 +11,10 @@ import {
   judgeDataAnswer,
   numbersIn,
   runDataLoop,
+  OutOfPlanError,
+  scopeCatalog,
   scopeResult,
+  spelledNumbers,
   toApiRequest,
   unverifiedNumbers,
   widgetFor,
@@ -478,6 +481,41 @@ describe('chamadas pedidas pelo modelo', () => {
     });
   });
 
+  it('rotas presas a esporte ou módulo fora do plano saem do catálogo', () => {
+    const paths = (scope: DataScope) => scopeCatalog(CATALOG, scope).map((r) => r.path);
+    const football = paths({ sports: ['football'], markets: ['BR'], modules: ['core_data'] });
+    expect(football.some((p) => p.startsWith('/v1/equestrian'))).toBe(false);
+    expect(football.some((p) => p.startsWith('/v1/multisport'))).toBe(false);
+    expect(football).not.toContain('/v1/sports/formula-1/legends');
+    expect(football).not.toContain('/v1/events/{id}/where-to-watch');
+    expect(football).toContain('/v1/events');
+    const all = paths({ sports: [], markets: [], modules: ['core_data', 'where_to_watch', 'multisport'] });
+    expect(all).toContain('/v1/sports/formula-1/legends');
+    expect(all).toContain('/v1/events/{id}/where-to-watch');
+  });
+
+  it('mercado do plano entra no lugar do padrão da chave da demonstração', () => {
+    const scope = { sports: [], markets: ['AR', 'BR'] };
+    expect(checkCall({ path: `/v1/events/${EV}/odds` }, CATALOG, scope)!.query).toEqual({ market: 'AR' });
+    expect(checkCall({ path: '/v1/broadcasters' }, CATALOG, scope)!.query).toEqual({ country: 'AR' });
+    expect(checkCall({ path: '/v1/broadcasters', query: { country: 'BR' } }, CATALOG, scope)!.query).toEqual({
+      country: 'BR',
+    });
+  });
+
+  it('entidade de outro esporte: o item sai inteiro (com as estatísticas); a raiz recusa a resposta', () => {
+    const scope = { sports: ['Football'], markets: [] };
+    expect(
+      scopeResult(
+        { data: [{ team: { sport: 'basketball' }, stats: { pts: 110 } }, { team: { sport: 'football' } }] },
+        scope,
+      ),
+    ).toEqual({ data: [{ team: { sport: 'football' } }] });
+    expect(() =>
+      scopeResult({ data: { team: { sport: 'basketball' }, stats: { pts: 110 } } }, scope),
+    ).toThrow(OutOfPlanError);
+  });
+
   it('itens de outro esporte saem da resposta da API antes de ir ao modelo', () => {
     const out = scopeResult(
       {
@@ -530,7 +568,49 @@ describe('chamadas pedidas pelo modelo', () => {
       today: TODAY,
     });
     expect(loop.steps[0]!.result).toBe('{"error":404}');
-    expect(judgeDataAnswer(loop, { question: 'placar?', today: TODAY }).status).toBe('no_data');
+    const verdict = judgeDataAnswer(loop, { question: 'placar?', today: TODAY });
+    // "sem dado" nunca leva o texto do modelo (que não passou pela conferência)
+    expect(verdict).toEqual({ status: 'no_data', steps: [] });
+  });
+
+  it('resposta sem nenhuma consulta não vira conversa livre: é "sem dado", sem o texto do modelo', async () => {
+    for (const reply of [
+      { answer: 'O Flamengo fez 42 gols e 7 vitórias.' },
+      { answer: 'Fez 99 gols', noData: true },
+    ]) {
+      const loop = await runDataLoop(scripted([reply]), api({}).fetchData, {
+        question: 'gols?',
+        context: { route: '/', title: '' },
+        catalog: CATALOG,
+        scope: ALL,
+        locale: 'pt-BR',
+        today: TODAY,
+      });
+      const verdict = judgeDataAnswer(loop, { question: 'gols?', today: TODAY });
+      expect(verdict).toEqual({ status: 'no_data', steps: [] });
+      expect(JSON.stringify(verdict)).not.toContain('42');
+    }
+  });
+
+  it('prazo do laço: passou, a rodada seguinte é a última (só responde)', async () => {
+    let t = 0;
+    const ask = scripted([
+      calls({ path: `/v1/teams/${FLA}` }),
+      calls({ path: `/v1/teams/${PAL}` }),
+      answer('ok', [0]),
+    ]);
+    const loop = await runDataLoop(ask, api({ [`/v1/teams/${FLA}`]: { data: {} } }).fetchData, {
+      question: 'x',
+      context: { route: '/', title: '' },
+      catalog: CATALOG,
+      scope: ALL,
+      locale: 'pt-BR',
+      today: TODAY,
+      deadline: 100,
+      now: () => (t += 60),
+    });
+    expect(loop.steps).toHaveLength(1);
+    expect(loop.reply).toBeNull();
   });
 });
 
@@ -557,6 +637,8 @@ describe('prompt', () => {
 describe('números da resposta', () => {
   it('lista numerada, milhar, decimal e data/hora são lidos como o JSON escreve', () => {
     expect(numbersIn('1. Flamengo\n2. Palmeiras')).toEqual([]);
+    // marcador só quando é mesmo uma lista: "99." sozinho é número a conferir
+    expect(numbersIn('99. Flamengo com 12 gols')).toEqual(['99', '12']);
     expect(numbersIn('78.838 pessoas')).toEqual(['78838']);
     expect(numbersIn('1,5 gol')).toEqual(['1.5']);
     expect(numbersIn('16/11 às 16:00')).toEqual(['16', '11', '16', '00']);
@@ -566,6 +648,12 @@ describe('números da resposta', () => {
     expect(unverifiedNumbers('7 gols e 1,50 de média', ['{"goals":7,"avg":1.5}'])).toEqual([]);
     expect(unverifiedNumbers('dia 09', ['"2026-11-09T19:00:00Z"'])).toEqual([]);
     expect(unverifiedNumbers('8 gols', ['{"goals":7}'])).toEqual(['8']);
+  });
+
+  it('ids e cursores não são evidência; número por extenso conta como inventado', () => {
+    expect(unverifiedNumbers('12 gols', ['{"id":12,"teamId":"12","cursor":"12","goals":3}'])).toEqual(['12']);
+    expect(spelledNumbers('fez doze gols e Twenty assists')).toEqual(['doze', 'twenty']);
+    expect(unverifiedNumbers('fez doze gols', ['{"goals":12}'])).toEqual(['doze']);
   });
 });
 

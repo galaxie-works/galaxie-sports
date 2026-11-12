@@ -179,8 +179,11 @@ export function requestSnippets(
     `    CURLOPT_TIMEOUT => 10,`,
     `]);`,
     `$body = curl_exec($ch);`,
-    `curl_close($ch);`,
+    `$status = curl_getinfo($ch, CURLINFO_RESPONSE_CODE);`,
     `// ${text.raise}`,
+    `if ($body === false || $status >= 400) {`,
+    `    throw new RuntimeException("HTTP $status: " . ($body ?: curl_error($ch)));`,
+    `}`,
     `$data = json_decode($body, true);`,
   ].join('\n');
 

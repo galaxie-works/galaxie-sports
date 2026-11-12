@@ -369,8 +369,9 @@ async function runAsStaff<T>(
         inputTokens: usage.inputTokens,
         outputTokens: usage.outputTokens,
         costUsd: costOf(fn.model, usage).toFixed(6),
-        outcome: error || !evaluated?.usable ? 'error' : 'ok',
-        error: error ?? (evaluated?.usable ? null : 'unreadable'),
+        // com keepUnusable, "não serve" é resultado (sem dado, número não conferido), não erro: fica 'ok' com a nota
+        outcome: error || (!evaluated?.usable && !input.keepUnusable) ? 'error' : 'ok',
+        error: error ?? (evaluated?.usable ? null : input.keepUnusable ? 'unusable' : 'unreadable'),
       })
       .where(eq(staffUsage.id, row.id))
       .catch((err) => console.error('[cosmos] uso da tarefa da equipe não foi registrado', err));

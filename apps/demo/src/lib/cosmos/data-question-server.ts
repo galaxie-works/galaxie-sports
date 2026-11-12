@@ -11,6 +11,7 @@ import { DEFAULT_THEMES, WIDGET_CATALOG } from '@galaxie/widgets';
 import { ENTITY_TYPES, marketsFor, parseWidgetInput, toWidgetLocale } from '@/lib/builder/config';
 import { brandThemeItems } from '@/lib/builder/editor';
 import { builderDb } from '@/lib/builder/store';
+import { can } from '@/lib/client/permissions';
 import type { ClientContext } from '@/lib/client/session';
 import { galaxieGet } from '@/lib/galaxie/server';
 import type { ApiRequest } from '@/lib/galaxie/request';
@@ -29,6 +30,7 @@ import {
   judgeDataAnswer,
   RESULT_CHARS,
   runDataLoop,
+  scopeCatalog,
   toApiRequest,
   widgetFor,
   type DataRoute,
@@ -59,13 +61,15 @@ export interface DataSource {
 
 export type DataAnswer =
   | { status: 'answered'; answer: string; sources: DataSource[]; charged: number }
-  /** A API não tem o dado (ou o plano não cobre): não cobra. */
-  | { status: 'no_data'; answer: string; sources: DataSource[] }
+  /** A API não tem o dado (ou o plano não cobre): não cobra, e a tela mostra a frase fixa. */
+  | { status: 'no_data'; sources: DataSource[] }
   /** O modelo citou número que não está nos dados: a resposta não aparece e não cobra. */
   | { status: 'unverified' };
 
 /** Prazo de cada consulta à API dentro do laço (a tarefa roda dentro da reserva). */
 const API_TIMEOUT_MS = 8_000;
+/** Prazo do laço inteiro, abaixo da validade da reserva (180 s): passou, a próxima rodada só responde. */
+export const DATA_LOOP_DEADLINE_MS = 120_000;
 
 let catalog: DataRoute[] | null = null;
 const routes = () => (catalog ??= dataCatalog(openApiDocument()));
@@ -96,12 +100,13 @@ export async function askDataQuestion(
   const tenant = ctx.tenant!;
   const db = builderDb();
   const timeZone = await getTimeZone(locale);
-  const scope: DataScope = { sports: tenant.sports, markets: tenant.markets };
+  const scope: DataScope = { sports: tenant.sports, markets: tenant.markets, modules: tenant.modules };
+  const catalog = scopeCatalog(routes(), scope);
   const today = new Intl.DateTimeFormat('en-CA', { timeZone }).format(new Date());
   const first = dataPrompt({
     question: input.question,
     context: input.context,
-    catalog: routes(),
+    catalog,
     steps: [],
     locale,
     today,
@@ -132,7 +137,7 @@ export async function askDataQuestion(
               { ...call.query, locale: apiLocale(locale), tz: timeZone },
               { signal: AbortSignal.timeout(API_TIMEOUT_MS) },
             ),
-          { ...input, catalog: routes(), scope, locale, today },
+          { ...input, catalog, scope, locale, today, deadline: Date.now() + DATA_LOOP_DEADLINE_MS },
         );
         const verdict = judgeDataAnswer(loop, { question: input.question, today });
         return { usable: verdict.status === 'answered', value: verdict };
@@ -147,8 +152,8 @@ export async function askDataQuestion(
   const v = r.value;
   if (!v || v.status === 'unreadable') return { ok: false, error: 'unreadable' };
   if (v.status === 'unverified') return { ok: true, result: { status: 'unverified' } };
-  const sources = await sourcesOf(v.steps, ctx, locale);
-  if (v.status === 'no_data') return { ok: true, result: { status: 'no_data', answer: v.answer, sources } };
+  const sources = await sourcesOf(v.steps, ctx, locale).catch(() => []);
+  if (v.status === 'no_data') return { ok: true, result: { status: 'no_data', sources } };
   return { ok: true, result: { status: 'answered', answer: v.answer, sources, charged: r.charged } };
 }
 
@@ -157,29 +162,35 @@ async function sourcesOf(steps: DataStep[], ctx: ClientContext, locale: Locale):
   const tenant = ctx.tenant!;
   const brandThemes = await brandThemeItems(tenant.id).catch(() => []);
   const markets = marketsFor(tenant.markets);
+  // atalho do Builder só para quem pode criar widget
+  const builder = can(ctx, 'settings.manage');
   return steps.map((s): DataSource => {
-    const w = widgetFor(s.call);
+    const w = builder ? widgetFor(s.call) : null;
     let widget: DataSource['widget'] = null;
-    if (w) {
-      const raw = specToRawInput(
-        { ...EMPTY_SPEC, kind: w.kind },
-        {
-          entity: w.entity,
-          brandThemes,
-          presets: DEFAULT_THEMES,
-          fallbackName: WIDGET_CATALOG[w.kind].name[toWidgetLocale(locale)],
-          defaultLocale: toWidgetLocale(locale),
-          markets,
-          tenantSports: tenant.sports,
-        },
-      );
-      const parsed = parseWidgetInput(raw, {
-        markets: tenant.markets,
-        entityTypes: (kind) => ENTITY_TYPES[kind],
-        sports: tenant.sports,
-      });
-      if (parsed.ok) widget = { kind: w.kind, draft: encodeDraftParam(parsed.value) };
-    }
+    // o atalho é extra: falha ao montá-lo não pode derrubar a resposta já cobrada
+    if (w)
+      try {
+        const raw = specToRawInput(
+          { ...EMPTY_SPEC, kind: w.kind },
+          {
+            entity: w.entity,
+            brandThemes,
+            presets: DEFAULT_THEMES,
+            fallbackName: WIDGET_CATALOG[w.kind].name[toWidgetLocale(locale)],
+            defaultLocale: toWidgetLocale(locale),
+            markets,
+            tenantSports: tenant.sports,
+          },
+        );
+        const parsed = parseWidgetInput(raw, {
+          markets: tenant.markets,
+          entityTypes: (kind) => ENTITY_TYPES[kind],
+          sports: tenant.sports,
+        });
+        if (parsed.ok) widget = { kind: w.kind, draft: encodeDraftParam(parsed.value) };
+      } catch {
+        widget = null;
+      }
     return { request: toApiRequest(s.call, `GET ${s.call.route}`), widget };
   });
 }

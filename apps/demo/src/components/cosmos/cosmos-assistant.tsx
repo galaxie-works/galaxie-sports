@@ -116,10 +116,15 @@ export function CosmosAssistant({
   const [estimating, setEstimating] = useState(false);
   const [route, setRoute] = useState('/');
   const [mode, setMode] = useState<Mode>('docs');
-  const [dataMode, setDataMode] = useState<{ available: boolean; minCredits: number } | null>(null);
+  const [dataMode, setDataMode] = useState<{
+    available: boolean;
+    minCredits: number;
+    retry?: boolean;
+  } | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const counter = useRef(0);
   const busy = turns.some((x) => x.status === 'waiting' || x.status === 'streaming');
+  const dataBusy = turns.some((x) => x.mode === 'data' && x.status === 'waiting');
   // a estimativa só muda com a conversa já fechada, não a cada pedaço da resposta
   const turnsRef = useRef(turns);
   useEffect(() => {
@@ -133,17 +138,19 @@ export function CosmosAssistant({
     if (open) setRoute(routeOf(window.location.pathname));
   }, [open, pathname]);
 
-  // o modo "Dados da API" aparece se a função estiver no catálogo e o cargo puder perguntar (lido uma vez)
+  // o modo "Dados da API" aparece se a função estiver no catálogo e o cargo puder perguntar (lido uma vez; recusa
+  // passageira, pelo limite ou pela rede, é lida de novo na próxima abertura do painel)
+  const modeKnown = dataMode !== null && !dataMode.retry;
   useEffect(() => {
-    if (!open || dataMode) return;
+    if (!open || modeKnown) return;
     let live = true;
     dataQuestionMode()
       .then((r) => live && setDataMode(r))
-      .catch(() => live && setDataMode({ available: false, minCredits: 0 }));
+      .catch(() => live && setDataMode({ available: false, minCredits: 0, retry: true }));
     return () => {
       live = false;
     };
-  }, [open, dataMode]);
+  }, [open, modeKnown]);
   const dataOn = mode === 'data' && !!dataMode?.available;
   const maxLength = dataOn ? DATA_QUESTION_MAX : QUESTION_MAX;
 
@@ -185,6 +192,7 @@ export function CosmosAssistant({
     setTurns((all) => all.map((x) => (x.id === id ? { ...x, ...change } : x)));
 
   async function askData(q: string) {
+    if (busy) return;
     const round = counter.current++;
     const answerId = `a${round}`;
     setDraft('');
@@ -216,7 +224,8 @@ export function CosmosAssistant({
       else
         patch(answerId, {
           status: 'done',
-          text: v.answer,
+          // "sem dado": a frase fixa, nunca o texto do modelo
+          text: v.status === 'answered' ? v.answer : D.noDataAnswer,
           sources: v.sources,
           ...(v.status === 'answered' && dataMode?.minCredits ? { charged: v.charged } : {}),
           ...(v.status === 'no_data' ? { note: D.noData } : {}),
@@ -398,7 +407,12 @@ export function CosmosAssistant({
                 variant="outline"
                 size="sm"
                 value={[mode]}
-                onValueChange={(next) => next[0] && setMode(next[0] as Mode)}
+                onValueChange={(next) => {
+                  if (!next[0]) return;
+                  setMode(next[0] as Mode);
+                  // o modo dados aceita menos texto: o rascunho maior seria recusado sem aviso
+                  if (next[0] === 'data') setDraft((d) => d.slice(0, DATA_QUESTION_MAX));
+                }}
                 aria-label={T.data.modeLabel}
               >
                 <ToggleGroupItem value="docs">{T.data.modeDocs}</ToggleGroupItem>
@@ -430,8 +444,10 @@ export function CosmosAssistant({
                     variant="outline"
                     size="icon-xs"
                     className="ml-auto"
-                    aria-label={T.stop}
-                    title={T.stop}
+                    // a consulta à API não tem como parar no meio (roda no servidor): o botão fica, desligado
+                    aria-label={dataBusy ? T.data.notStoppable : T.stop}
+                    title={dataBusy ? T.data.notStoppable : T.stop}
+                    disabled={dataBusy}
                     onClick={() => abortRef.current?.abort()}
                   >
                     <SquareIcon className="size-3.5" aria-hidden />

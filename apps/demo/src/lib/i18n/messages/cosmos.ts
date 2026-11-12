@@ -389,6 +389,8 @@ export default defineMessages(
         sources: 'De onde veio cada número',
         toWidget: 'Transformar em widget',
         noData: 'Nenhum crédito foi gasto.',
+        noDataAnswer: 'Não encontrei esse dado na API, dentro do seu plano.',
+        notStoppable: 'A consulta segue até o fim.',
         unverified:
           'A resposta citou números que não estão nos dados consultados, então não foi mostrada. Nenhum crédito foi gasto.',
         unreadable: 'A Cosmos não conseguiu montar uma resposta com os dados. Nenhum crédito foi gasto.',
@@ -789,6 +791,8 @@ export default defineMessages(
           sources: 'Where each number came from',
           toWidget: 'Turn into a widget',
           noData: 'No credits were spent.',
+          noDataAnswer: 'I could not find that data in the API, within your plan.',
+          notStoppable: 'The query runs to the end.',
           unverified:
             'The answer cited numbers that are not in the data it fetched, so it was not shown. No credits were spent.',
           unreadable: 'Cosmos could not put together an answer from the data. No credits were spent.',
@@ -1198,6 +1202,8 @@ export default defineMessages(
           sources: 'De dónde salió cada número',
           toWidget: 'Convertir en widget',
           noData: 'No se gastó ningún crédito.',
+          noDataAnswer: 'No encontré ese dato en la API, dentro de tu plan.',
+          notStoppable: 'La consulta sigue hasta el final.',
           unverified:
             'La respuesta citó números que no están en los datos consultados, así que no se mostró. No se gastó ningún crédito.',
           unreadable: 'Cosmos no pudo armar una respuesta con los datos. No se gastó ningún crédito.',
