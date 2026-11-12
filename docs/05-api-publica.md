@@ -795,14 +795,16 @@ Versões editoriais **travam** a chave (região × emissora × meio): o agente n
 
 `data` por tópico: `status`/`status_detail`/`clock` (+ `previous.status`); `score` (+ `previous.score`); `incidents: [{ id, sequence, minute, extra, type, detail, participant_id, person_id }]`; `countries: ["BR"]` (países afetados — recortados aos mercados do tenant); `contexts: [{ locale, kind, review_status }]`; `added`/`removed`/`changed` (ids dos vídeos) no conteúdo relacionado.
 
-**Gol anulado (`goal_cancelled`).** Quem mostrou "GOL!" recebe um sinal explícito para desfazer, sem comparar placares: `data.goal_cancelled: true` no `event.score_changed` quando o total de gols do tempo de jogo (`home` + `away`) cai em relação a `previous.score`, e no `event.incident_added` quando o lance novo é um VAR de gol anulado (`Goal cancelled`, `Goal Disallowed - ...`), do fornecedor ou inferido pela Galaxie quando a fonte apaga o gol sem mandar o VAR (sequence a partir de 100000). Os dois saem na mesma gravação quando a anulação é confirmada; o campo só aparece quando é `true`. Na REST, a timeline marca o gol com `disallowed` (§3.2.1).
+**Gol anulado (`goal_cancelled`).** Quem mostrou "GOL!" recebe um sinal explícito para desfazer: `data.goal_cancelled: true` no `event.incident_added` quando o lance novo é um VAR de gol anulado (`Goal cancelled`, `Goal Disallowed - ...`), do fornecedor ou inferido pela Galaxie quando a fonte apaga o gol sem mandar o VAR (sequence a partir de 100000, depois de o gol ficar 45 s fora da timeline). Só o lance confirma a anulação: o placar do fornecedor oscila sozinho (resposta atrasada, gol que volta), então o `event.score_changed` não leva o sinal, só o placar novo e o anterior (`previous.score`). O campo só aparece quando é `true`. Na REST, a timeline marca o gol com `disallowed` (§3.2.1).
 
 ```json
 {
-  "topic": "event.score_changed",
-  "changed": ["score"],
-  "data": { "score": { "home": 0, "away": 0 }, "goal_cancelled": true },
-  "previous": { "score": { "home": 0, "away": 1 } }
+  "topic": "event.incident_added",
+  "changed": ["incidents"],
+  "data": {
+    "incidents": [{ "sequence": 100000, "minute": 62, "type": "var", "detail": "Goal cancelled" }],
+    "goal_cancelled": true
+  }
 }
 ```
 

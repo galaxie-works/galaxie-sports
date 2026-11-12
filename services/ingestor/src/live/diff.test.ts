@@ -49,7 +49,8 @@ describe('diffSnapshot', () => {
     const c = diffSnapshot(withGoal, { ...base })!;
     expect(c.kinds).toEqual(['score', 'incident']);
     expect(c.removedIncidents).toBe(1);
-    expect(c).toMatchObject({ goal: false, goalCancelled: true });
+    // sem o VAR, a queda do placar sozinha não confirma a anulação (o placar oscila)
+    expect(c).toMatchObject({ goal: false, goalCancelled: false });
   });
 
   it('VAR de gol anulado com o gol ainda na lista dá o sinal; gol novo e VAR que confirma, não', () => {

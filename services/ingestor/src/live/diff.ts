@@ -50,8 +50,8 @@ export interface LiveChange {
   /** O placar mudou ou entrou um gol na timeline. */
   goal: boolean;
   /**
-   * Um gol foi desfeito: o total de gols do placar caiu ou entrou um VAR de gol anulado (do fornecedor ou inferido
-   * pela Galaxie). Quem mostrou "GOL!" deve desfazer.
+   * Um gol foi desfeito: entrou um VAR de gol anulado (do fornecedor ou inferido pela Galaxie quando a fonte apaga o
+   * gol). Queda de placar sozinha não conta: o placar do fornecedor oscila sem anulação.
    */
   goalCancelled: boolean;
   /** O evento passou a `finished` nesta mudança. */
@@ -110,13 +110,12 @@ export function diffSnapshot(before: EventSnapshot | undefined, after: EventSnap
       changedIncidents.some((i) => GOAL_TYPES.has(i.type) && !prevIncidents.has(i.sequence)));
   const goalCancelled =
     before != null &&
-    ((after.score != null && goals(after.score) < goals(before.score)) ||
-      changedIncidents.some(
-        (i) =>
-          i.type === 'var' &&
-          !prevIncidents.has(i.sequence) &&
-          GOAL_CANCELLING_VAR.test((i.detail ?? '').trim()),
-      ));
+    changedIncidents.some(
+      (i) =>
+        i.type === 'var' &&
+        !prevIncidents.has(i.sequence) &&
+        GOAL_CANCELLING_VAR.test((i.detail ?? '').trim()),
+    );
   return {
     eventId: after.eventId,
     providerEventId: after.providerEventId,

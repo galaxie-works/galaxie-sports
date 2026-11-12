@@ -112,45 +112,22 @@ describe('triggers de captura → ops.change_feed', () => {
     });
   });
 
-  it('core.event: placar que cai sinaliza gol anulado só no futebol (#640)', async () => {
+  it('core.event: placar que cai traz o anterior e não manda desfazer gol (#640)', async () => {
     await db
       .update(event)
       .set({ score: { home: 0, away: 0 } })
       .where(eq(event.id, eventId));
     const [score] = (await changes()).filter((r) => r.topic === 'event.score_changed');
     expect(score!.payload).toMatchObject({
-      data: { score: { home: 0, away: 0 }, goal_cancelled: true },
+      data: { score: { home: 0, away: 0 } },
       previous: { score: { home: 1, away: 0 } },
     });
+    // o placar do fornecedor oscila sozinho: só o lance de VAR confirma a anulação
+    expect(score!.payload).not.toHaveProperty('data.goal_cancelled');
     await db
       .update(event)
       .set({ score: { home: 1, away: 0 } })
       .where(eq(event.id, eventId));
-
-    // basquete: pontos corrigidos para baixo não são gol anulado
-    await db
-      .insert(sport)
-      .values({ slug: 'basketball', name: { 'pt-BR': 'Basquete' } })
-      .onConflictDoNothing();
-    const [basket] = await db
-      .insert(event)
-      .values({
-        sport: 'basketball',
-        startsAt: new Date(Date.now() - 30 * 60_000),
-        endsAtExpected: new Date(Date.now() + 90 * 60_000),
-        status: 'live',
-        score: { home: 55, away: 50 },
-      })
-      .returning({ id: event.id });
-    await db
-      .update(event)
-      .set({ score: { home: 53, away: 50 } })
-      .where(eq(event.id, basket!.id));
-    const [corrected] = (await changes()).filter(
-      (r) => r.topic === 'event.score_changed' && r.entityId === basket!.id,
-    );
-    expect(corrected!.payload).toMatchObject({ previous: { score: { home: 55, away: 50 } } });
-    expect(corrected!.payload).not.toHaveProperty('data.goal_cancelled');
   });
 
   it('core.event: update sem mudança de estado não publica nada', async () => {
@@ -209,6 +186,18 @@ describe('triggers de captura → ops.change_feed', () => {
         set: { minute: 13 },
       });
     expect(await changes()).toHaveLength(0);
+  });
+
+  it('core.event_incident: VAR de gol anulado leva goal_cancelled; VAR que confirma não (#640)', async () => {
+    await db
+      .insert(eventIncident)
+      .values({ eventId, sequence: 2, minute: 14, type: 'var', detail: 'Goal confirmed' });
+    expect((await changes())[0]!.payload).not.toHaveProperty('data.goal_cancelled');
+    mark = Number((await db.select({ max: sql<string>`max(id)` }).from(changeFeed))[0]!.max);
+    await db
+      .insert(eventIncident)
+      .values({ eventId, sequence: 3, minute: 15, type: 'var', detail: 'Goal Disallowed - offside' });
+    expect((await changes())[0]!.payload).toMatchObject({ data: { goal_cancelled: true } });
   });
 
   it('enrich.broadcast_option: inclusão, correção e remoção → where_to_watch.changed; reverificação não', async () => {
