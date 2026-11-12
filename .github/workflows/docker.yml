@@ -157,7 +157,7 @@ jobs:
             const env = process.env;
             const need = {
               api: [env.RULES_CONFIG_DIR + "/default.yaml", env.WTW_CONFIG_DIR + "/broadcasters", env.KNOWLEDGE_DIR + "/glossary",
-                    env.MEDIA_DENYLIST_PATH, env.GEO_CONFIG_DIR + "/market-audience.yaml", "/srv/config/plans.yaml"],
+                    env.MEDIA_DENYLIST_PATH, env.GEO_CONFIG_DIR + "/market-audience.yaml", env.CATALOG_DIR + "/plans.yaml", env.CATALOG_DIR + "/modules.yaml"],
               ingestor: [env.RULES_CONFIG_DIR + "/default.yaml", env.WTW_CONFIG_DIR + "/broadcasters",
                          env.WTW_CONFIG_DIR + "/related-content", "/srv/config/competitions", "/srv/data/knowledge",
                          env.GEO_CONFIG_DIR + "/market-audience.yaml",
