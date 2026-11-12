@@ -372,6 +372,27 @@ export async function holdContent(
   });
 }
 
+/**
+ * Decisão que não abre caso nem pune (a Cosmos leu e deixou publicado; o lote caiu e o texto seguiu as regras): só a
+ * linha da auditoria, com o relógio de decisões da ficha (#954, D5).
+ */
+export async function recordModerationDecision(
+  db: Database,
+  input: {
+    tenantId: string;
+    actor: ModerationActor;
+    action: string;
+    clocks: ModerationClocks;
+    subjectProfileId?: string | null;
+    caseId?: string | null;
+    reason?: string | null;
+    rules?: Record<string, unknown> | null;
+    content?: string | null;
+  },
+): Promise<void> {
+  await audit(db, input);
+}
+
 export interface QueueFilter {
   status?: 'open' | 'resolved' | 'dismissed';
   module?: string;
