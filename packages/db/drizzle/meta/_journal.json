@@ -684,7 +684,14 @@
     {
       "idx": 97,
       "version": "7",
-      "when": 1794496324200,
+      "when": 1794487982379,
+      "tag": "0121_cosmos_funcoes_widget",
+      "breakpoints": true
+    },
+    {
+      "idx": 98,
+      "version": "7",
+      "when": 1794500680989,
       "tag": "0123_chat_salas",
       "breakpoints": true
     }

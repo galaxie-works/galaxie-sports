@@ -36,9 +36,21 @@ export class WikimediaError extends Error {
   constructor(
     message: string,
     readonly status: number | null,
+    /** `maxlag`: o servidor seguiu atrasado depois das tentativas; `network`: sem resposta. */
+    readonly code: string | null = null,
   ) {
     super(message);
     this.name = 'WikimediaError';
+  }
+
+  /** A fonte está fora (atraso, rede, limite de taxa, erro do servidor), não a nossa consulta: tentar outro dia. */
+  get sourceUnavailable(): boolean {
+    return (
+      this.code === 'maxlag' ||
+      this.code === 'network' ||
+      this.status === 429 ||
+      (this.status !== null && this.status >= 500)
+    );
   }
 }
 
@@ -90,7 +102,7 @@ export class WikimediaClient {
     if (err instanceof WikimediaError) throw err;
     const message = err instanceof Error ? err.message : String(err);
     if (attempt >= maxRetries)
-      throw new WikimediaError(`Wikimedia: falha de rede em ${where} (${message})`, null);
+      throw new WikimediaError(`Wikimedia: falha de rede em ${where} (${message})`, null, 'network');
     this.options.log?.(`rede: ${message} em ${where}; nova tentativa`);
     await this.sleep(2 ** attempt * 1000);
   }
@@ -128,7 +140,7 @@ export class WikimediaClient {
             ? (this.options.wikidataMaxLagRetries ?? 3)
             : (this.options.maxLagRetries ?? 10))
         )
-          throw new WikimediaError('Wikimedia: servidor atrasado (maxlag)', 200);
+          throw new WikimediaError('Wikimedia: servidor atrasado (maxlag)', 200, 'maxlag');
         const wait = Math.min(60, Math.max(retryAfter || 5, 5 * (attempt + 1)));
         this.options.log?.(`maxlag: esperando ${wait} s`);
         await this.sleep(wait * 1000);
