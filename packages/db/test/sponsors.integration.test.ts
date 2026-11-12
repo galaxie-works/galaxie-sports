@@ -71,6 +71,8 @@ const rejectsWith = async (p: Promise<unknown>, constraint: RegExp) => {
 describe('patrocinadores (B10, #1021)', () => {
   it('o banco recusa categoria de aposta e link sem https', async () => {
     await rejectsWith(add('Casa X', tenantId, 'betting'), /sponsor_category/);
+    // bebida alcoólica é categoria própria (0098)
+    await expect(add('Cervejaria Z', tenantId, 'alcohol')).resolves.toBeDefined();
     await expect(
       db
         .insert(sponsor)

@@ -100,7 +100,7 @@ O Galaxie Sports Builder gera widgets que a operadora instala no app dela como c
 | Origens | `allowed_origins` da chave: origem exata (`https://app.exemplo.com`; `http://localhost:3000` só na chave de teste) ou curinga de subdomínio (`https://*.exemplo.com`, que aceita `app.exemplo.com` e `a.b.exemplo.com`, mas não `exemplo.com`). Esquema e porta precisam bater. A API confere o `Origin` (ou, sem ele, a origem do `Referer`); fora da lista ou sem nenhum dos dois → 403 `ORIGIN_NOT_ALLOWED` |
 | Widget | `widget_id` opcional prende a chave a um widget: a chave só alcança os módulos daquele tipo (`WIDGET_KIND_MODULES`: `match_card` e `where_to_watch` → `core_data` + `where_to_watch`; `live_list` e `standings` → `core_data`) e deixa de valer quando o widget é arquivado (arquivar revoga, na mesma transação, as chaves presas a ele: o painel passa a mostrá-las como revogadas) |
 | Rate limit | Próprio, por **chave × IP** (todas as rotas somadas), janela de 60 s, padrão 60 req (`PUBLISHABLE_RATE_LIMIT_PER_MINUTE`), nunca acima de `rate_limit_per_minute` do tenant. Não consome o limite tenant × rota da chave secreta. Mesmos headers `x-ratelimit-*` e 429 `RATE_LIMITED` |
-| CORS | A resposta só leva `Access-Control-Allow-Origin` (a própria origem, sem credenciais) quando a origem bateu com a chave usada. O preflight (`OPTIONS`, que chega sem chave) é respondido com `GET, HEAD` para as origens de alguma chave ativa; vale também sem `CORS_ORIGINS` |
+| CORS | A resposta só leva `Access-Control-Allow-Origin` (a própria origem, sem credenciais) quando a origem bateu com a chave usada. O preflight (`OPTIONS`, que chega sem chave) é respondido com `GET, HEAD` para as origens de alguma chave ativa, e nas rotas do torcedor também com o método da rota e o cabeçalho `Authorization` (§9.1); vale também sem `CORS_ORIGINS` |
 | Revogação | `revoked_at`; vale em até 60 s (cache da verificação por instância, positivo e negativo). Chave revogada, inexistente ou de tenant suspenso → 401 `INVALID_KEY` |
 | Uso | `last_used_at` atualizado no máximo a cada 5 min; as requisições entram nos contadores de uso do tenant (§1.2) |
 
@@ -1012,7 +1012,7 @@ Formato RFC 9457 (`application/problem+json`):
 
 A identidade única do torcedor nos módulos de engajamento (#937): Chat ao vivo, Comunidades, Gamificação, Shop the game e Cosmos AI usam o mesmo token. O servidor do cliente pede um token curto (`gft_`) com a chave secreta e o entrega ao widget ou app. Só exige um módulo de engajamento no plano (§1.1).
 
-**O que o Galaxie guarda.** Só o id da Conta e do Perfil no sistema do cliente (pseudônimos), Apelido, avatar, faixa etária, país, idioma, time do coração e se o Titular da Conta é adulto. Nunca e-mail, documento, telefone, senha ou data de nascimento: campo fora da lista é 400. O cliente é o controlador dos dados e o Galaxie o operador (#1022). Tabelas no schema `fan` (`account`, `profile`, `erasure_log`, `wallet`, `points_ledger`), escritas só pela API; agentes de IA e ingestor não leem esse schema.
+**O que o Galaxie guarda.** Só o id da Conta e do Perfil no sistema do cliente (pseudônimos), Apelido, avatar, faixa etária, país, idioma, time do coração e se o Titular da Conta é adulto. Nunca e-mail, documento, telefone, senha ou data de nascimento: campo fora da lista é 400. O cliente é o controlador dos dados e o Galaxie o operador (#1022). Tabelas no schema `fan` (`account`, `profile`, `erasure_log`, `wallet`, `points_ledger`, `presence_window`), escritas só pela API; agentes de IA e ingestor não leem esse schema.
 
 **Conta e Perfil.** Uma Conta (`externalAccountId`) pode ter vários Perfis (`externalProfileId`), cada um com a própria faixa. O Perfil palpita, pontua e escreve; o Prêmio vai para o Titular da Conta, e sem `holderAdult: "yes"` ele fica pendente com o cliente. Pedir um token de novo para o mesmo Perfil atualiza Apelido, avatar, faixa, país e idioma, sem criar outro Perfil.
 
@@ -1021,8 +1021,29 @@ A identidade única do torcedor nos módulos de engajamento (#937): Chat ao vivo
 | Faixa | Pode |
 |---|---|
 | `under13` | Recebe token, mas toda rota social responde 403 `FAN_AGE_RESTRICTED` |
-| `13_17` | Ler, palpitar, votar, trivia, ganhar pontos e conquistas. Não escreve texto livre e não resgata |
+| `13`, `14_15`, `16_17` | Ler, palpitar, votar, trivia, ganhar pontos e conquistas. Não escreve texto livre e não resgata |
 | `18plus` | Tudo |
+
+As rotas e as `capabilities` usam a faixa larga (`under13`, `13_17`, `18plus`); a fina vale para os limites de 14 e 16 anos da ficha por país. `13_17` ainda é aceito no pedido do token e vale como `13`, a mais restritiva.
+
+**Comprovação de idade e responsável (#1105).** O pedido do token pode trazer dois blocos opcionais, sempre sem data de nascimento, documento ou foto (campo fora da lista é 400):
+
+- `ageAssurance: { method, at, provider? }`: `self` (declarada), `estimated` (estimativa) ou `verified` (verificação), a data e quem comprovou. Sem o bloco, vale `self`.
+- `guardian: { status, consentId?, linkedAccount? }`: `none`, `pending`, `granted` ou `revoked`. Com `consentId`, a prova da autorização fica no Galaxie; sem ele, fica com o cliente (contrato), e a autorização entra na auditoria como "autorização declarada pelo cliente".
+
+O `GET /v1/fans/me` devolve `age_band_detail`, `age_assurance`, `guardian` e `age_status`, o que falta para o Perfil usar os recursos sociais no país dele, pela ficha por país:
+
+| `age_status` | Quer dizer |
+|---|---|
+| `blocked` | Abaixo da idade para participar |
+| `needs_guardian` | Falta a autorização do responsável ou o vínculo com a conta dele |
+| `needs_verification` | A comprovação está abaixo da que a ficha pede (no Brasil, estimativa) |
+| `read_only` | Participa, mas não escreve |
+| `can_write` | Participa e escreve |
+
+Por enquanto o `age_status` só informa: as rotas ainda liberam pelas `capabilities` da faixa larga, e o portão único de todos os módulos pela ficha do país vem na Idade 3 (#1106). Um adulto do Brasil sem o bloco `ageAssurance` aparece como `needs_verification` e ainda escreve.
+
+Faixa que desce de `18plus` para menor no mesmo Perfil congela as ações de adulto (escrever e resgatar) e abre um caso na fila de moderação do cliente (`age_band_downgrade`). Subir de faixa é normal; a congelada só volta a adulto com a correção da faixa (#1110).
 
 **Rotas.**
 
@@ -1034,6 +1055,8 @@ A identidade única do torcedor nos módulos de engajamento (#937): Chat ao vivo
 | `GET /v1/fans/me/wallet` | Widget ou app | Token do torcedor. Pontos e Saldo, um item por país de programa |
 | `GET /v1/fans/me/wallet/ledger` | Widget ou app | Token do torcedor. Extrato do programa (`country`, padrão o do Perfil), paginado por `before` |
 | `DELETE /v1/fans/{externalAccountId}/profiles/{externalProfileId}` | Servidor do cliente | Chave secreta. Idempotente (204) |
+| `POST /v1/fans/me/presence` | Widget ou app | Token do torcedor. Sinal de presença ao vivo, a cada 30 s com o jogo na tela |
+| `GET /v1/events/{eventId}/presence` | Widget ou app | Token do torcedor. Quantos torcedores do cliente estão no jogo agora |
 | `POST /v1/moderation/reports` | Widget ou app | Token do torcedor. Denúncia de conteúdo ou Perfil, com motivo |
 | `GET /v1/fans/me/blocks` | Widget ou app | Token do torcedor. Perfis bloqueados |
 | `PUT` e `DELETE /v1/fans/me/blocks/{profileId}` | Widget ou app | Token do torcedor. Bloqueia e desbloqueia (204, idempotente) |
@@ -1045,6 +1068,8 @@ A identidade única do torcedor nos módulos de engajamento (#937): Chat ao vivo
 **Exclusão.** O `DELETE` anonimiza o Perfil (some o id do cliente, o Apelido, o avatar e o time do coração; a linha fica para o que ele escreveu apontar para "torcedor excluído"), grava `fan.erasure_log` para repetir a exclusão depois de um restore e invalida na hora os tokens já emitidos (marca no Valkey por 1 hora, o maior prazo de um token). Se o torcedor voltar, o próximo token cria um Perfil novo. Conteúdo dos módulos (mensagens, posts, palpites, conquistas) entra na mesma exclusão quando cada módulo chegar; o da moderação já entra (#953).
 
 **Carteira de pontos (#938).** Uma por Perfil e programa (cliente + país), em `fan.wallet` e `fan.points_ledger`. **Pontos** só sobem (palpites, conquistas, presença, enquetes, trivia) e definem Nível e Ranking; **Saldo** sobe junto e é o que se gasta no resgate, que nunca mexe nos Pontos. Compra e clique na loja nunca dão pontos (o banco recusa a origem `shopping`); pontos não se compram, não se transferem e não viram dinheiro. `13_17` ganha Pontos mas não resgata; `under13` fica fora (403). Os módulos lançam pelo serviço interno `creditPoints`, `debitBalance` e `revertPoints` (`@galaxie/db`): cada evento de origem lança uma vez só (reprocessar devolve o mesmo lançamento) e o estorno tira os Pontos inteiros e o Saldo que sobrou. Evento estornado não credita mais, nem quando o estorno chega antes do crédito; o recálculo de um palpite usa um id de evento novo. O extrato é append-only, com o valor depois de cada lançamento. Na exclusão do Perfil, a carteira e o extrato saem junto.
+
+**Presença ao vivo (#906).** O widget, ou o app do cliente pelo mesmo contrato, manda `POST /v1/fans/me/presence` com o `eventId` e `visible` (`document.visibilityState`) a cada `heartbeat_s` (30 s) enquanto o jogo está na tela. O servidor grava janelas de presença em `fan.presence_window` pelo relógio do banco; o relógio do aparelho nunca vale (campo a mais no corpo é 400). Só conta com a aba visível e o jogo começando, ao vivo ou no intervalo (fora disso, 409). Sem toque do torcedor por 15 minutos o sinal deixa de contar (`interaction_needed`) até chegar um sinal com `interacted: true`; o `interaction_due` avisa um minuto antes. Sumir e voltar não zera esse relógio: a janela nova herda o último toque no jogo. O `interacted` é a palavra do widget, uma barreira contra aba esquecida e robô simples, não contra quem forja o sinal. Cada Perfil conta presença em até 3 jogos ao mesmo tempo (`FAN_PRESENCE_MAX_GAMES` no painel, de 1 a 10; o cliente só pode baixar, em `engage.presence_limit`; a tela do painel do cliente chega com o grupo Engajamento); acima disso, `too_many_games`. Um módulo pergunta "estava lá no minuto do gol" com `wasPresentAt` (`@galaxie/db`): vale a janela que começou antes do lance e durou até ele, então quem abre o app depois não ganha o lance. A contagem de presentes por jogo (sinal nos últimos 90 s) fica no Valkey, por cliente, para a sala do chat e o painel. Na exclusão do Perfil, as janelas saem junto; fora isso, ficam 90 dias depois do último sinal (a API apaga de hora em hora). `under13` fica fora (403).
 
 **Denúncia, bloqueio e apelação (#953).** A denúncia, o conteúdo segurado pelo filtro, a sugestão da Cosmos e a apelação entram na mesma fila do cliente (`engage.moderation_case`), por gravidade (ameaça e ódio no topo); nenhum módulo cria outra fila. O torcedor denuncia o mesmo conteúdo uma vez (a segunda responde `duplicate`), não denuncia o próprio conteúdo (409) e faz até 20 denúncias por hora (429). Com três denunciantes diferentes a mensagem, o comentário ou o post fica oculto até a revisão; Perfil e comportamento não se ocultam. O texto denunciado vem do módulo, nunca de quem denuncia. O bloqueio vale nos dois sentidos, só entre Perfis do mesmo cliente. A Escada de punições (Advertência, Silenciar, Suspensão, Expulsão, Banimento) é aplicada pela equipe do cliente; o Silêncio oculto não aparece para o torcedor e não aceita apelação. Cada punição aceita uma apelação, julgada por quem não aplicou; se a resposta veio da Cosmos, cabe uma segunda, julgada por uma pessoa da equipe com `moderation.appeal.second` ou, sem ninguém, pela fila da Galaxie. Prazo padrão de 72 horas. Toda ação grava o registro de auditoria (`engage.moderation_audit`), que só cresce (o banco recusa UPDATE, DELETE e TRUNCATE). O conteúdo removido e as decisões saem pelos relógios da ficha do país (`removedContentDays` e `moderationDecisionsDays`); na exclusão do Perfil, o conteúdo dele, as observações das denúncias e os bloqueios saem na hora, e as decisões ficam sem o conteúdo. Sem ficha do país para o torcedor, a denúncia e a apelação respondem 503. `under13` fica fora (403).
 
@@ -1058,7 +1083,11 @@ const res = await fetch('https://api.galaxie.sports/v1/fans/tokens', {
     externalAccountId: user.accountId,
     externalProfileId: user.profileId,
     nickname: user.nickname,
-    ageBand: user.isAdult ? '18plus' : user.age >= 13 ? '13_17' : 'under13',
+    // faixa, nunca a idade nem a data de nascimento
+    ageBand: user.age >= 18 ? '18plus' : user.age >= 16 ? '16_17' : user.age >= 14 ? '14_15' : user.age >= 13 ? '13' : 'under13',
+    ageAssurance: { method: 'estimated', at: user.ageCheckedAt, provider: 'Estimador X' },
+    // menor com autorização guardada por você: sem consentId, a prova é sua
+    guardian: user.isMinor ? { status: 'granted', linkedAccount: true } : undefined,
     country: 'BR',
     locale: 'pt-BR',
     holderAdult: account.holderIsAdult ? 'yes' : 'no',
@@ -1097,6 +1126,15 @@ O caminho é sempre o mesmo: o servidor do site pede o token com a chave secreta
 **No navegador**, o widget manda o token em `Authorization: Bearer` junto da chave publicável do site (`x-galaxie-publishable-key`). A API confere a origem da página contra a chave e exige que o cliente da chave seja o do token: token de outro cliente recebe 401 (`Token de outro cliente.`). A chave e a origem são conferidas antes do token, então qualquer 401 (token vencido, inválido ou de outro cliente) leva o CORS da origem conferida, e o widget consegue ler a recusa e pedir outro token. Só a chave publicável do site leva o token: chave presa a um widget recebe 403 (`PUBLISHABLE_KEY_NOT_ALLOWED`), e o widget mostra o recurso do torcedor como indisponível, sem pedir outro token. O preflight libera `Authorization` e o método de cada rota do torcedor (inclusive `PATCH`) para as origens de alguma chave ativa. Do servidor ou do app nativo, sem chave publicável, vale só o token.
 
 **O que o widget mostra.** Lê `GET /v1/fans/me` e usa as `capabilities` da faixa: sem token, "Entre para participar" (com o botão "Entrar" quando o site trata o login); `13_17`, só leitura onde o recurso escreve; `under13`, recurso indisponível; `18plus`, tudo. Token recusado ou vencido mostra "Sua sessão terminou". Com uma função que busca token novo, o widget pede outro um minuto antes de vencer e de novo se a API recusar (recusas ao mesmo tempo dividem um pedido). Quando o torcedor entra ou sai sem recarregar a página, o site dispara `galaxie:fan-token-changed` no `document` (ou chama `useFanSession().refresh()` no React, `el.refreshFanToken()` no embed), e os widgets pedem o token de novo.
+
+**Estado de idade no embed (#1105).** O `<galaxie-widget>` mostra o `age_status` do torcedor no atributo `fan-status` e dispara `galaxie:fan-status` (sobe até o documento, `detail.status`) quando ele muda, para o site abrir a autorização do responsável (`needs_guardian`) ou a comprovação de idade (`needs_verification`). Sem torcedor, o atributo some e `detail.status` vem `null`. No React, o mesmo valor está em `useFanSession().me?.age_status`.
+
+```js
+document.addEventListener('galaxie:fan-status', (e) => {
+  if (e.detail.status === 'needs_guardian') abrirAutorizacaoDoResponsavel();
+  if (e.detail.status === 'needs_verification') abrirComprovacaoDeIdade();
+});
+```
 
 **HTML puro (embed).** A função na página vale para todos os widgets; o atributo `fan-token` serve para um token fixo. O clique em "Entrar" dispara o evento `galaxie:fan-sign-in`. A função é lida na hora de cada pedido, então pode ser definida depois do `embed.js`.
 
