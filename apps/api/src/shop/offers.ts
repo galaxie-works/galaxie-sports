@@ -141,7 +141,10 @@ export class ShopOffers {
     return new Map(this.stores.list.map((s) => [s.id, s]));
   }
 
-  /** A chave leva o modo do conector: ligar a API da loja não fica servindo a oferta curada antiga. */
+  /**
+   * A chave leva a rede e o modo do conector: trocar a rede da loja ou ligar a API dela não fica servindo a oferta
+   * da configuração anterior.
+   */
   private cacheKey(mode: string, storeId: string, productId: string) {
     return `${this.opts.keyPrefix ?? ''}shop:offer:${mode}:${storeId}:${productId}`;
   }
@@ -204,7 +207,7 @@ export class ShopOffers {
       const offers = new Map<string, ShopOffer>();
       const missing = [];
       for (const { p } of linked) {
-        const hit = await this.cached(connector.mode, store.id, p.id);
+        const hit = await this.cached(`${store.network}.${connector.mode}`, store.id, p.id);
         if (hit) offers.set(p.id, hit);
         else missing.push(p);
       }
@@ -219,7 +222,7 @@ export class ShopOffers {
           this.opts.metrics?.shopConnectorRequests.inc({ store: store.id, outcome: 'ok' });
           for (const o of fresh) {
             offers.set(o.productId, o);
-            await this.remember(connector.mode, store.id, o);
+            await this.remember(`${store.network}.${connector.mode}`, store.id, o);
           }
         } catch (err) {
           stop?.();
