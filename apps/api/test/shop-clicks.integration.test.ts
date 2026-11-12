@@ -14,7 +14,7 @@ import {
 import { shopStoreSecretKey } from '@galaxie/engage';
 import { SettingsSecretBox } from '@galaxie/runtime-config/sealed';
 import { buildServer } from '../src/server.js';
-import { CLICKS_PER_MINUTE, ShopClickRecorder, isBot } from '../src/shop/clicks.js';
+import { CLICKS_PER_MINUTE, ShopClickRecorder, isBot, originKey } from '../src/shop/clicks.js';
 
 const adminUrl = process.env.DATABASE_URL;
 if (!adminUrl) throw new Error('DATABASE_URL é obrigatória para os testes de integração (pnpm infra:up).');
@@ -114,7 +114,8 @@ describe('cliques do Shopping (#918)', () => {
     const rows = await clicks();
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({
-      event_id: eventId,
+      // o jogo não existe no core: não infla a estatística
+      event_id: null,
       entity_kind: 'participant',
       entity_id: teamId,
       product_id: productId,
@@ -160,5 +161,71 @@ describe('cliques do Shopping (#918)', () => {
     expect((await click(randomUUID())).statusCode).toBe(404);
     expect((await click('nao-e-uuid')).statusCode).toBe(400);
     expect((await click(productId, '?origin=client')).statusCode).toBe(400);
+  });
+
+  it('HEAD não é rota (verificador de link não conta clique)', async () => {
+    const before = (await clicks()).length;
+    const res = await app.inject({
+      method: 'HEAD',
+      url: `/go/shop/${productId}`,
+      headers: { 'user-agent': BROWSER },
+    });
+    expect(res.statusCode).toBe(404);
+    expect((await clicks()).length).toBe(before);
+  });
+
+  it('pré-carregamento do navegador vai sem código e não conta', async () => {
+    const before = (await clicks()).length;
+    const res = await app.inject({
+      method: 'GET',
+      url: `/go/shop/${productId}`,
+      remoteAddress: '10.5.5.5',
+      headers: { 'user-agent': BROWSER, 'sec-purpose': 'prefetch' },
+    });
+    expect(res.headers.location).toBe('https://a.example/dp/B1');
+    expect((await clicks()).length).toBe(before);
+  });
+
+  it('idioma fora do formato não quebra o redirecionamento', async () => {
+    const res = await click(productId, '?lang=xx_YY_zz', BROWSER, '10.6.6.6');
+    expect(res.statusCode).toBe(302);
+  });
+
+  it('chave da origem: /24 no IPv4, /64 no IPv6, IPv4 mapeado igual ao IPv4', () => {
+    expect(originKey('10.1.2.3')).toBe(originKey('10.1.2.99'));
+    expect(originKey('10.1.2.3')).not.toBe(originKey('10.1.3.3'));
+    expect(originKey('::ffff:10.1.2.3')).toBe(originKey('10.1.2.200'));
+    expect(originKey('2001:db8::1')).toBe(originKey('2001:0db8:0:0:ffff::2'));
+    expect(originKey('2001:db8::1')).not.toBe(originKey('2001:db8:0:1::1'));
+  });
+});
+
+describe('fila de cliques', () => {
+  it('lote que falha volta à fila e é gravado na tentativa seguinte; flushes não correm juntos', async () => {
+    let fail = true;
+    const errors: unknown[] = [];
+    const fake = {
+      insert: () => ({
+        values: async () => {
+          if (fail) {
+            fail = false;
+            throw new Error('banco fora');
+          }
+        },
+      }),
+    } as unknown as Database;
+    const r = new ShopClickRecorder(fake, { flushMs: 60_000, onError: (e) => errors.push(e) });
+    const row = {
+      entityKind: 'participant',
+      entityId: teamId,
+      productId,
+      storeId: 'amazon_br',
+      origin: 'galaxie_site',
+    };
+    r.add(row);
+    await Promise.all([r.flush(), r.flush(), r.flush()]);
+    expect(errors).toHaveLength(1);
+    await r.close();
+    expect(errors).toHaveLength(1);
   });
 });
