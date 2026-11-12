@@ -12,6 +12,7 @@ import { marketsFor } from '@/lib/builder/config';
 import { brandThemeItems, draftOf, guideChannelChoices } from '@/lib/builder/editor';
 import { builderDb, getWidget } from '@/lib/builder/store';
 import { requireClientContext } from '@/lib/client/session';
+import { widgetTaskAccess, widgetTaskMinimums } from '@/lib/cosmos/widget-tasks';
 import { isUuid } from '@/lib/client/tenants';
 import { getI18n, getT } from '@/lib/i18n/server';
 
@@ -40,17 +41,26 @@ async function Editor({ params }: { params: Params }) {
       />
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 p-4 md:p-6">
         <ClientArea section="builder">
-          {async ({ tenant }) => (
-            <WidgetEditor
-              key={`${widget.id}:${widget.version}`}
-              initial={await draftOf(widget, locale)}
-              saved={{ id: widget.id, version: widget.version }}
-              markets={marketsFor(tenant.markets)}
-              sports={tenant.sports}
-              guideChannels={await guideChannelChoices(tenant.id)}
-              brandThemes={await brandThemeItems(tenant.id)}
-            />
-          )}
+          {async ({ tenant }) => {
+            // instalação com a Cosmos (#1005): só para quem pode usar e com a função cadastrada no catálogo
+            const minimums = widgetTaskAccess(ctx) ? null : await widgetTaskMinimums();
+            return (
+              <WidgetEditor
+                key={`${widget.id}:${widget.version}`}
+                initial={await draftOf(widget, locale)}
+                saved={{ id: widget.id, version: widget.version }}
+                markets={marketsFor(tenant.markets)}
+                sports={tenant.sports}
+                guideChannels={await guideChannelChoices(tenant.id)}
+                brandThemes={await brandThemeItems(tenant.id)}
+                cosmosInstall={
+                  minimums?.install != null
+                    ? { minCredits: ctx.role === 'admin' ? null : minimums.install }
+                    : null
+                }
+              />
+            );
+          }}
         </ClientArea>
       </div>
     </>

@@ -247,3 +247,41 @@ describe('GeminiCompletionClient (generateContent)', () => {
     });
   });
 });
+
+describe('anexo PDF na última mensagem da pessoa', () => {
+  const pdf = { mediaType: 'application/pdf' as const, data: 'JVBERi0=', name: 'marca.pdf' };
+  const req = { model: 'm', messages: [{ role: 'user' as const, content: 'leia' }], attachments: [pdf] };
+
+  it('Anthropic: bloco document em base64 antes do texto', () => {
+    const c = new AnthropicCompletionClient({ apiKey: 'k', retry: noSleep });
+    const body = c.wire(req, false).body as { messages: { content: unknown }[] };
+    expect(body.messages[0]!.content).toEqual([
+      { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: 'JVBERi0=' } },
+      { type: 'text', text: 'leia' },
+    ]);
+  });
+
+  it('Gemini: inlineData antes do texto', () => {
+    const c = new GeminiCompletionClient({ apiKey: 'k', retry: noSleep });
+    const body = c.wire(req, false).body as { contents: { parts: unknown[] }[] };
+    expect(body.contents[0]!.parts).toEqual([
+      { inlineData: { mimeType: 'application/pdf', data: 'JVBERi0=' } },
+      { text: 'leia' },
+    ]);
+  });
+
+  it('OpenAI: parte file com data URL e nome', () => {
+    const c = new OpenAiCompletionClient({ apiKey: 'k', retry: noSleep });
+    const body = c.wire(req, false).body as { messages: { content: unknown }[] };
+    expect(body.messages[0]!.content).toEqual([
+      { type: 'file', file: { filename: 'marca.pdf', file_data: 'data:application/pdf;base64,JVBERi0=' } },
+      { type: 'text', text: 'leia' },
+    ]);
+  });
+
+  it('sem anexo, a mensagem continua texto simples', () => {
+    const c = new AnthropicCompletionClient({ apiKey: 'k', retry: noSleep });
+    const body = c.wire({ model: 'm', messages: MSG }, false).body as { messages: { content: unknown }[] };
+    expect(body.messages[0]!.content).toBe('oi');
+  });
+});
