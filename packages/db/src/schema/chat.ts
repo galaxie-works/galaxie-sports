@@ -178,6 +178,8 @@ export interface ChatGameData {
   score: { home: number; away: number } | null;
   /** Gol anulado pelo VAR: a mensagem do gol fica, marcada como anulada (não some sem rastro). */
   cancelled?: boolean;
+  /** Vermelho por segundo amarelo. */
+  secondYellow?: boolean;
 }
 
 /**

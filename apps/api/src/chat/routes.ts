@@ -396,6 +396,25 @@ export async function chatRoutes(app: FastifyInstance, deps: ChatRoutesDeps): Pr
     return reply.code(201).send(res);
   });
 
+  // reconexão em massa (deploy, pico): a lista do jogo e os tipos do cliente vêm de um cache curto
+  const shortCache = <T>(ttlMs: number, load: (k: string) => Promise<T>) => {
+    const map = new Map<string, { at: number; value: Promise<T> }>();
+    return (k: string): Promise<T> => {
+      const hit = map.get(k);
+      if (hit && Date.now() - hit.at < ttlMs) return hit.value;
+      const value = load(k);
+      value.catch(() => map.delete(k));
+      if (map.size > 10_000) map.clear();
+      map.set(k, { at: Date.now(), value });
+      return value;
+    };
+  };
+  const cachedGame = shortCache(1_000, (fixtureId) => gameMessages(db(), fixtureId));
+  const cachedKinds = shortCache(
+    30_000,
+    async (tenantId) => (await readTenantConfig(db(), tenantId)).eventKinds,
+  );
+
   registerChatStream(app, {
     db: deps.db,
     hub,
@@ -403,8 +422,8 @@ export async function chatRoutes(app: FastifyInstance, deps: ChatRoutesDeps): Pr
     options: deps.stream ?? {},
     // leitura: não cria a sala (a chave publicável abre o stream); os lotes são por jogo e cliente
     roomState: async (tenantId, fixtureId) => (await loadRoom(tenantId, fixtureId, false)).window.state,
-    gameKinds: async (tenantId) => (await readTenantConfig(db(), tenantId)).eventKinds,
-    gameSnapshot: (fixtureId) => gameMessages(db(), fixtureId),
+    gameKinds: (tenantId) => cachedKinds(tenantId),
+    gameSnapshot: (fixtureId) => cachedGame(fixtureId),
   });
 
   async function configBody(tenantId: string): Promise<ChatConfig> {

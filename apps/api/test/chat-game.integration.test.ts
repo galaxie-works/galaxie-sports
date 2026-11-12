@@ -9,6 +9,7 @@ import {
   createDb,
   event,
   eventIncident,
+  eventParticipant,
   participant,
   person,
   runMigrations,
@@ -140,6 +141,10 @@ async function game(): Promise<string> {
       score: { home: 0, away: 0 },
     })
     .returning({ id: event.id });
+  await db.insert(eventParticipant).values([
+    { eventId: row!.id, participantId: home, side: 'home' },
+    { eventId: row!.id, participantId: away, side: 'away' },
+  ]);
   return row!.id;
 }
 
@@ -150,10 +155,9 @@ const incident = (
   detail: string,
   participantId = home,
   personId: string | null = scorer,
-) =>
-  db
-    .insert(eventIncident)
-    .values({ eventId, type, detail, participantId, personId, minute: 23, sequence: ++seq });
+  minute = 23,
+  sequence = ++seq,
+) => db.insert(eventIncident).values({ eventId, type, detail, participantId, personId, minute, sequence });
 
 async function stream(key: string, fixture: string) {
   const c = await openSse(`${baseB}/v1/chat/rooms/${fixture}/stream`, { 'x-galaxie-key': key });
@@ -186,17 +190,19 @@ describe('Chat ao vivo: o jogo dentro do chat (#965)', () => {
       .set({ score: { home: 1, away: 0 } })
       .where(eq(event.id, fixture));
     const at = Date.now();
-    await incident(fixture, 'Goal', 'Normal Goal');
+    await incident(fixture, 'goal', 'Normal Goal');
     const got = await reader.waitFor(live, 4_000);
     expect(got.receivedAt - at).toBeLessThanOrEqual(2_000);
     const [goal] = games(reader);
     expect(goal).toMatchObject({ kind: 'goal', cancelled: false, team: { name: 'Palmeiras' } });
-    expect(goal!.text['pt-BR']).toBe("23' ⚽ Gol do Palmeiras (Estêvão). 1-0");
+    expect(goal!.text['pt-BR']).toBe("23' ⚽ Gol: Palmeiras (Estêvão). 1-0");
     // duas instâncias receberam a mudança: uma mensagem só
     await new Promise((r) => setTimeout(r, 1_500));
     expect(games(reader).filter((g) => g.kind === 'goal')).toHaveLength(1);
 
-    await incident(fixture, 'Var', 'Goal cancelled', home, null);
+    // VAR inferido pelo writer e, depois, o do próprio fornecedor: um gol anulado, um VAR só
+    await incident(fixture, 'var', 'Goal cancelled', home, null, 24, 100_000);
+    await incident(fixture, 'var', 'Goal cancelled', home, null, 25);
     await reader.waitFor(() => games(reader).some((g) => g.kind === 'goal' && g.cancelled), 4_000);
     const fixed = games(reader)
       .filter((g) => g.id === goal!.id)
@@ -226,13 +232,50 @@ describe('Chat ao vivo: o jogo dentro do chat (#965)', () => {
     const quiet = await stream(noCards, fixture);
     const loud = await stream(all, fixture);
 
-    await incident(fixture, 'Card', 'Yellow Card', away);
-    await incident(fixture, 'Card', 'Red Card', away);
+    await incident(fixture, 'card', 'Yellow Card', away);
+    await incident(fixture, 'card', 'Red Card', away);
     await loud.waitFor(live, 4_000);
     expect(games(loud).map((g) => g.kind)).toEqual(['red_card']);
 
     await db.update(event).set({ status: 'finished' }).where(eq(event.id, fixture));
     await quiet.waitFor(live, 4_000);
     expect(games(quiet).map((g) => g.kind)).toEqual(['full_time']);
+  });
+
+  it('gol que o fornecedor regravou por UPDATE (sem lance novo) entra na mudança de placar; gol antigo não volta', async () => {
+    const key = await tenantKey('jogo-update');
+    const fixture = await game();
+    const reader = await stream(key, fixture);
+    await incident(fixture, 'subst', 'Substitution 1', home, scorer, 46, 1);
+    await new Promise((r) => setTimeout(r, 1_000));
+    // a linha da substituição vira o gol de 45+2 (lance atrasado entrou no meio da lista)
+    await db
+      .update(eventIncident)
+      .set({ type: 'goal', detail: 'Normal Goal', minute: 45, extra: 2 })
+      .where(eq(eventIncident.eventId, fixture));
+    await db
+      .update(event)
+      .set({ score: { home: 1, away: 0 } })
+      .where(eq(event.id, fixture));
+    await reader.waitFor(() => games(reader).some((g) => g.kind === 'goal'), 4_000);
+    // a mesma linha agora em outra posição (lance atrasado antes dela): nenhuma mensagem nova
+    await db.update(eventIncident).set({ sequence: 9 }).where(eq(eventIncident.eventId, fixture));
+    await incident(fixture, 'card', 'Yellow Card', away, null, 10, 2);
+    await new Promise((r) => setTimeout(r, 1_500));
+    expect(games(reader).filter((g) => g.kind === 'goal')).toHaveLength(1);
+  });
+
+  it('jogo encerrado sem acompanhamento ao vivo não despeja gols no chat', async () => {
+    const key = await tenantKey('jogo-tardio');
+    const fixture = await game();
+    await db.update(event).set({ status: 'finished' }).where(eq(event.id, fixture));
+    await incident(fixture, 'goal', 'Normal Goal');
+    await new Promise((r) => setTimeout(r, 1_500));
+    const room = await appA.inject({
+      method: 'GET',
+      url: `/v1/chat/rooms/${fixture}`,
+      headers: { 'x-galaxie-key': key },
+    });
+    expect(room.json().data.game_messages).toEqual([]);
   });
 });

@@ -592,7 +592,8 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
       assetsBaseUrl: options.assetsBaseUrl,
       logger: app.log,
     });
-    app.realtime?.subscribe(gameFeed.handle);
+    if (app.realtime) app.realtime.subscribe(gameFeed.handle);
+    else app.log.warn('chat: tempo real desligado, o jogo não entra no chat');
   }
 
   return app;

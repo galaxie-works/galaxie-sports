@@ -238,11 +238,16 @@ export function registerChatStream(app: FastifyInstance, deps: Deps): void {
         chain = chain.then(() => deliver(b)).catch(() => {});
       };
       const unsubscribe = deps.hub.subscribe(room, (b) => (replaying ? backlog.push(b) : enqueueDelivery(b)));
-      // jogo: sem cursor (são poucas e a abertura manda a lista inteira); filtra pelos tipos do cliente
-      let kinds: readonly string[] | null = null;
+      // Jogo: sem cursor (são poucas e a abertura manda a lista inteira). Os lotes que chegam antes da lista inteira
+      // esperam e saem depois dela (a lista podia ter sido lida antes deles). Filtra pelos tipos do cliente; sem
+      // conseguir ler os tipos, não manda nada do jogo (o cliente que desligou cartões nunca recebe cartão)
+      let kinds: readonly string[] | null = [];
+      let gameReady = false;
+      const gameBacklog: object[] = [];
       const gameOf = (list: object[]) =>
         (list as { kind: string }[]).filter((m) => !kinds || kinds.includes(m.kind));
       const unsubscribeGame = deps.hub.subscribe(gameRoomKey(fixtureId), (b) => {
+        if (!gameReady) return void gameBacklog.push(...b.messages);
         const messages = gameOf(b.messages);
         if (messages.length && !conn.closed) conn.write(formatSse('chat.game', { messages }));
       });
@@ -330,8 +335,12 @@ export function registerChatStream(app: FastifyInstance, deps: Deps): void {
           formatSse('chat.game', { messages: gameOf(await deps.gameSnapshot(fixtureId)), snapshot: true }),
         );
       } catch (err) {
+        kinds = [];
         request.log.warn({ err }, 'chat SSE: mensagens do jogo indisponíveis');
       }
+      gameReady = true;
+      const late = gameOf(gameBacklog.splice(0));
+      if (late.length) conn.write(formatSse('chat.game', { messages: late }));
       replaying = false;
       backlog.sort((a, b) => a.id - b.id);
       for (const b of backlog.splice(0)) enqueueDelivery(b);
