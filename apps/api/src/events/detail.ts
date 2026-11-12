@@ -95,6 +95,7 @@ export async function buildTimeline(
   now: Date,
   customLogos = false,
   nameOptions?: TeamNameOptions,
+  locale?: string,
 ): Promise<EventTimeline> {
   const eventId = ev.id;
   const homeTeam = alias(participant, 'home_team');
@@ -206,6 +207,7 @@ export async function buildTimeline(
 
   return buildTimelineDto({
     eventId,
+    locale,
     sport: ev.sport,
     status: head.status,
     statusDetail: head.statusDetail,

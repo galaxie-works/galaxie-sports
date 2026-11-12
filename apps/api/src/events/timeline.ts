@@ -22,6 +22,7 @@ import {
   TimelinePerson,
   VarOutcome,
 } from '@galaxie/contracts';
+import { narrate, narrationLang } from './narration.js';
 
 type Side = 'home' | 'away';
 export type TeamRef = { id: string | null; name: string | null; side: string | null; logo: string | null };
@@ -76,6 +77,8 @@ export interface TimelineInput {
   lineupRole?: (personId: string | null) => 'starter' | 'sub' | null;
   venueTimezone: string | null;
   lastValidAt: Date | null;
+  /** Idioma da narração dos lances (`narration`, #1167); padrão pt-BR. */
+  locale?: string | undefined;
   isStale: boolean;
   now: Date;
 }
@@ -536,6 +539,7 @@ export function buildTimelineDto(rawInput: TimelineInput): EventTimeline {
       var_outcome: varOutcome,
       disallowed: cancelledBy != null,
       cancelled_by: cancelledBy,
+      narration: null,
       player_in: playerIn,
       player_out: playerOut,
     };
@@ -609,6 +613,16 @@ export function buildTimelineDto(rawInput: TimelineInput): EventTimeline {
       inc.key_moment = true;
     }
     shootout = { first_kicker: kicks[0]!.team, score: final, winner_side: winner, kicks: out };
+  }
+
+  // ─ narração por frase pronta (#1167): depois das bandeiras, do decisivo e da disputa ─
+  const lang = narrationLang(input.locale ?? 'pt-BR');
+  const homeName = teamOf('home').name;
+  const awayName = teamOf('away').name;
+  let running = { home: 0, away: 0 };
+  for (const i of incidents) {
+    i.narration = narrate(i, { lang, home: homeName, away: awayName, scoreBefore: running });
+    if (i.score_after && i.clock.period !== 'penalty_shootout') running = i.score_after;
   }
 
   // ─ marcos ─

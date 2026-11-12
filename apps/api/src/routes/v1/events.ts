@@ -315,6 +315,7 @@ export async function eventRoutes(app: FastifyInstance, ctx: AppContext): Promis
         ctx.now(),
         ctx.logos.enabled(),
         teamNameOptions(ctx, locale),
+        locale,
       ),
     CACHE_TTL.live,
   );
