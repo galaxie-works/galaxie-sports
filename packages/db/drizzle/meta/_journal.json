@@ -659,6 +659,13 @@
       "when": 1794444581027,
       "tag": "0100_ficha_idade",
       "breakpoints": true
+    },
+    {
+      "idx": 94,
+      "version": "7",
+      "when": 1794447243427,
+      "tag": "0109_ficha_juridico",
+      "breakpoints": true
     }
   ]
 }
