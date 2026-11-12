@@ -21,6 +21,7 @@ import {
   startPresencePurge,
 } from './engage/presence-routes.js';
 import { moderationRoutes } from './engage/moderation-routes.js';
+import { chatRoutes } from './chat/routes.js';
 import type { FanTokenSigner } from './engage/fan-token.js';
 import { AdminGuard, type AdminGuardOptions } from './admin/guard.js';
 import { loadPlans, type PlanCatalog } from './admin/plans.js';
@@ -566,6 +567,7 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
       instance.addHook('onClose', async () => stopPurge());
     }
     await moderationRoutes(instance, { db: options.db, now: options.now });
+    await chatRoutes(instance, { db: options.db, now: options.now });
   });
 
   // escopo próprio: o parser de corpo cru do webhook não vale para as outras rotas

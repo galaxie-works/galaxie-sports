@@ -1204,7 +1204,21 @@ webView.configuration.userContentController.addUserScript(
 
 Ainda não: tópico `fan.profile.deleted` pelo outbox (#1023).
 
-## 10. Shopping (`/v1/shop`, módulo `shopping`)
+## 10. Chat ao vivo (`/v1/chat`)
+
+A Sala do Jogo (#915, #959): uma sala por jogo e por cliente, criada no primeiro acesso. Torcidas de clientes diferentes nunca se misturam (o banco recusa mensagem de um cliente na sala de outro). Exige o módulo `live_chat`.
+
+**Ler é livre.** `GET /v1/chat/rooms/{jogo}` devolve o estado, a janela, os ajustes e as últimas mensagens (quantidade em `CHAT_HISTORY_ON_JOIN`). No navegador vai com a chave publicável, sem login; a resposta sai com `cache-control: no-store` e `x-robots-tag: noindex` (mensagens fora dos buscadores). O id do jogo é o mesmo de `/v1/events/{id}`.
+
+**Estados.** `scheduled` (ainda não abriu), `open`, `frozen` (congelada pela moderação), `read_only_peak` (só leitura para quem entra, pico do plano estourado, D6) e `closed` (encerrada, só leitura). A sala abre `CHAT_ROOM_OPEN_BEFORE_MINUTES` antes do início e fecha `CHAT_ROOM_CLOSE_AFTER_MINUTES` depois do fim (o apito, ou o fim previsto se o jogo atrasar). Jogo adiado ou cancelado fecha a sala.
+
+**Enviar.** `POST /v1/chat/rooms/{jogo}/messages` com o token `gft_`. Só `18plus` escreve; `13_17` e `under13` recebem 403 `FAN_AGE_RESTRICTED`. Sala fora de `open` ou punição ativa (Silenciar na sala, Suspensão, Banimento) responde 409 com o motivo em `errors` (`path: refusal`). A mensagem passa pela base de regras (#969): link de fora, dado pessoal e aposta voltam com 400 e o aviso no idioma do torcedor; abuso e Silêncio oculto ficam só para o autor (`status: held`). Modo lento: 429 com `Retry-After`. O texto é apagado pelo relógio de conteúdo da ficha do país (#954).
+
+**Ajustes.** Com a chave secreta: `PATCH /v1/chat/rooms/{jogo}` congela, reabre e muda modo lento e rigor da sala; `GET`/`PUT /v1/chat/config` mudam o padrão do cliente (janela, modo lento, rigor) dentro do teto da Galaxie. `null` volta ao padrão. Rigor `strict` recusa também o palavrão leve.
+
+As mensagens chegam às outras telas em lotes de 1 s pelo canal ao vivo (#964).
+
+## 11. Shopping (`/v1/shop`, módulo `shopping`)
 
 `GET /v1/shop/{kind}/{id}?country=BR&event=<uuid>&origin=site&lang=pt-BR` devolve os produtos oficiais de uma entidade da página (`kind`: `participant` para time, seleção, atleta ou piloto; `competition`; `person`), por loja de afiliado ligada, com preço, imagem (da própria loja) e a data e a hora da consulta (`fetched_at`, cache de no máximo 24 h). Sem produto, a lista vem vazia e o bloco não deve aparecer.
 

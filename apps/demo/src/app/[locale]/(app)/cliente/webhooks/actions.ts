@@ -80,7 +80,7 @@ export async function createWebhook(input: WebhookFormInput): Promise<WebhookAct
   const r = await tenantOrError();
   if ('error' in r) return { ok: false, error: r.error };
   const { t } = r;
-  const parsed = parseWebhookForm(input);
+  const parsed = parseWebhookForm(input, r.tenant.modules);
   if ('kind' in parsed) {
     if (parsed.kind === 'ids') return { ok: false, error: fill(t.errors.ids, { field: t[parsed.field] }) };
     return { ok: false, error: t.errors[parsed.kind] };
