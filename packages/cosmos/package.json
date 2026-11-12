@@ -14,6 +14,10 @@
     "./moderation-rules": {
       "types": "./dist/moderation-rules.d.ts",
       "default": "./dist/moderation-rules.js"
+    },
+    "./moderation-engine": {
+      "types": "./dist/moderation-engine.d.ts",
+      "default": "./dist/moderation-engine.js"
     }
   },
   "files": [
