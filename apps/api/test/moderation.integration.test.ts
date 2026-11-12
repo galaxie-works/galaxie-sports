@@ -185,6 +185,22 @@ describe('moderação do torcedor (#953)', () => {
     ).toBe(403);
   });
 
+  it('menor denuncia e bloqueia mesmo sem o responsável, mas sem texto livre (#1106)', async () => {
+    const t = await tenantKey('mod-teen', ['core_data', 'live_chat']);
+    const teen = await fan(t.key, 12, '14_15');
+    const other = await fan(t.key, 13);
+    expect((await call(teen.token, 'PUT', `/v1/fans/me/blocks/${other.profileId}`)).statusCode).toBe(204);
+    const report = { targetType: 'message', targetId: 'm-teen', module: 'chat', reason: 'spam' };
+    expect((await call(teen.token, 'POST', '/v1/moderation/reports', report)).statusCode).toBe(201);
+    const withNote = await call(teen.token, 'POST', '/v1/moderation/reports', {
+      ...report,
+      targetId: 'm-teen-2',
+      note: 'ele me xingou',
+    });
+    expect(withNote.statusCode).toBe(403);
+    expect(withNote.json().age_gate.reason).toBe('adult_only');
+  });
+
   it('bloqueia, lista e desbloqueia; não bloqueia a si nem Perfil de outro cliente', async () => {
     const t = await tenantKey('mod-c', ['core_data', 'live_chat']);
     const other = await tenantKey('mod-d', ['core_data', 'live_chat']);

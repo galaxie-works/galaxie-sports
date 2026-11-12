@@ -61,6 +61,7 @@ import {
 import { and, eq, isNotNull, isNull, or } from 'drizzle-orm';
 import { problems } from '../errors.js';
 import { parseInput } from '../util.js';
+import type { FanAgeGate } from './age-gate.js';
 import { readFan } from './fans.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -68,6 +69,8 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export interface ModerationRoutesDeps {
   db: Database | undefined;
   now?: (() => Date) | undefined;
+  /** Portão de idade: o texto livre da denúncia e da apelação é escrita, só para quem escreve (#1106). */
+  gate?: FanAgeGate | null;
 }
 
 /** Ficha que vale para o torcedor do cliente (com o que o cliente endureceu); null se não há ficha que sirva. */
@@ -175,6 +178,21 @@ export async function moderationRoutes(app: FastifyInstance, deps: ModerationRou
     return { fan, profile };
   }
 
+  /**
+   * Denunciar e apelar valem para todo Perfil que participa (`safety`), mas o texto livre que vai junto é escrita:
+   * quem o portão não deixa escrever manda sem o texto.
+   */
+  async function freeText(request: FastifyRequest, field: string, text: string | undefined) {
+    if (!text) return;
+    if (!deps.gate) throw problems.degraded('Banco de dados não configurado.');
+    const r = await deps.gate.check(request.fan!, 'write');
+    if (!r.allowed && r.reason !== 'ok')
+      throw problems.fanAgeRestricted(
+        `Texto livre só para quem escreve (18+). Envie sem \`${field}\`.`,
+        r.next ? { reason: r.reason, next: r.next } : { reason: r.reason },
+      );
+  }
+
   /** O Perfil existe e é do mesmo cliente (e não foi excluído)? */
   async function profileExists(tenantId: string, profileId: string) {
     const [row] = await db()
@@ -189,6 +207,7 @@ export async function moderationRoutes(app: FastifyInstance, deps: ModerationRou
   app.post('/v1/moderation/reports', { config: { fan: true, age: 'safety' } }, async (request, reply) => {
     const { fan, profile } = await activeFan(request);
     const body = parseInput(ModerationReportBody, request.body);
+    await freeText(request, 'note', body.note);
     // denúncia de Perfil: o alvo é o próprio Perfil, que tem de existir no mesmo cliente
     // o id do Perfil vai em minúsculas: o mesmo Perfil não vira dois casos
     const targetId = body.targetType === 'profile' ? body.targetId.toLowerCase() : body.targetId;
@@ -322,6 +341,7 @@ export async function moderationRoutes(app: FastifyInstance, deps: ModerationRou
       const { fan, profile } = await activeFan(request);
       const { sanctionId } = parseInput(FanSanctionParams, request.params);
       const body = parseInput(FanAppealBody, request.body ?? {});
+      await freeText(request, 'statement', body.statement);
       // a punição tem de ser do torcedor e visível para ele (o Silêncio oculto responde 404, como se não existisse)
       const [owned] = await db()
         .select({ decidedBy: moderationSanction.decidedBy })

@@ -494,7 +494,7 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
       const stopPurge = startPresencePurge(options.db, instance.log);
       instance.addHook('onClose', async () => stopPurge());
     }
-    await moderationRoutes(instance, { db: options.db, now: options.now });
+    await moderationRoutes(instance, { db: options.db, now: options.now, gate: fanAgeGate });
   });
 
   // escopo próprio: o parser de corpo cru do webhook não vale para as outras rotas
