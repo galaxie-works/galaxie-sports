@@ -74,12 +74,6 @@ export interface StreamState {
 /** O que um evento do provedor produz: pedaço de texto ou "o uso mudou" (evento de uso parcial). */
 export type ParsedEvent = { type: 'text'; delta: string } | { type: 'usage' };
 
-/** Índice da última mensagem do usuário no diálogo (onde vão os anexos); -1 se não houver. */
-export function lastUserIndex(dialog: LlmMessage[]): number {
-  for (let i = dialog.length - 1; i >= 0; i--) if (dialog[i]!.role === 'user') return i;
-  return -1;
-}
-
 /** Instruções de sistema (as do pedido e as mensagens `system`) e o diálogo. */
 export function splitCompletion(req: CompletionRequest): { system: string; dialog: LlmMessage[] } {
   const extra = req.messages.filter((m) => m.role === 'system').map((m) => m.content);
@@ -87,6 +81,16 @@ export function splitCompletion(req: CompletionRequest): { system: string; dialo
     system: [req.system, ...extra].filter(Boolean).join('\n\n'),
     dialog: req.messages.filter((m) => m.role !== 'system'),
   };
+}
+
+/**
+ * Índice da mensagem que recebe os anexos: a última da pessoa. Sem anexo, -1; com anexo e sem mensagem da pessoa,
+ * erro de configuração (o pedido não tem onde pôr o arquivo).
+ */
+export function attachmentTarget(req: CompletionRequest, dialog: readonly LlmMessage[]): number {
+  if (!req.attachments?.length) return -1;
+  for (let i = dialog.length - 1; i >= 0; i--) if (dialog[i]!.role === 'user') return i;
+  throw new LlmError('anexo sem mensagem da pessoa para levá-lo', 'config', false);
 }
 
 export abstract class HttpCompletionClient implements CompletionClient {
