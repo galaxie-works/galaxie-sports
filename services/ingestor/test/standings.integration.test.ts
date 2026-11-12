@@ -1029,7 +1029,8 @@ describe('prévia do recálculo (#880)', () => {
         updatedAt: new Date(Date.now() + 60_000),
       })),
     );
-    expect(await seasonsWithProviderTable(db)).toContain(s.seasonId);
+    // os jogos semeados têm data fixa (set/2026): a janela de temporada atual é alargada até eles
+    expect(await seasonsWithProviderTable(db, 3650)).toContain(s.seasonId);
     const { report, diff } = await simulateSeasonStandings(db, s.seasonId);
     expect(report).toMatchObject({ outcome: 'written', rows: 2 });
     expect(diff).toMatchObject({ providerReplaced: 2, moved: 2, maxShift: 1 });

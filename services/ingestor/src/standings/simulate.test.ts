@@ -7,7 +7,8 @@ const row = (
   rank: number,
   source = 'computed',
   points = 0,
-): StandingSnapshotRow => ({ group, participantId, rank, points, source });
+  played = 0,
+): StandingSnapshotRow => ({ group, participantId, rank, points, played, source });
 
 describe('diffStandings (prévia do #880)', () => {
   it('conta posições mudadas, maior salto e linhas do fornecedor trocadas', () => {
@@ -16,6 +17,9 @@ describe('diffStandings (prévia do #880)', () => {
     expect(diffStandings(before, after)).toEqual({
       moved: 3,
       maxShift: 2,
+      pointsChanged: 0,
+      maxPointsDelta: 0,
+      playedChanged: 0,
       providerReplaced: 3,
       added: 0,
       removed: 0,
@@ -28,6 +32,9 @@ describe('diffStandings (prévia do #880)', () => {
     expect(diffStandings(before, after)).toEqual({
       moved: 0,
       maxShift: 0,
+      pointsChanged: 0,
+      maxPointsDelta: 0,
+      playedChanged: 0,
       providerReplaced: 0,
       added: 1,
       removed: 1,
@@ -38,5 +45,16 @@ describe('diffStandings (prévia do #880)', () => {
     const before = [row('A', 't', 1, 'provider')];
     const after = [row('A', 't', 1), row('Anual', 't', 4)];
     expect(diffStandings(before, after)).toMatchObject({ providerReplaced: 1, added: 1, moved: 0 });
+  });
+
+  it('mesma ordem com pontos ou jogos diferentes aparece (punição que só o fornecedor tinha)', () => {
+    const before = [row('', 'a', 1, 'provider', 30, 12), row('', 'b', 2, 'provider', 20, 12)];
+    const after = [row('', 'a', 1, 'computed', 36, 12), row('', 'b', 2, 'computed', 20, 11)];
+    expect(diffStandings(before, after)).toMatchObject({
+      moved: 0,
+      pointsChanged: 1,
+      maxPointsDelta: 6,
+      playedChanged: 1,
+    });
   });
 });

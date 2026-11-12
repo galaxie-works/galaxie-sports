@@ -6,7 +6,8 @@
  *
  * Com resultado encerrado e regulamento (o genérico também conta), a tabela é sempre a calculada, mesmo que a
  * do provedor (ex.: bootstrap Pro) seja mais nova que o último resultado: a calculada a substitui, com os mesmos
- * nomes de grupo (#880). A do provedor só vale no mata-mata e na temporada sem jogo.
+ * nomes de grupo (#880). A do provedor só vale no mata-mata e na temporada sem jogo. O beisebol fica de fora:
+ * a calculada é uma tabela única e a do fornecedor vem por divisão (`recomputeWinPct`).
  */
 import { and, eq, gte, inArray, isNotNull, sql } from 'drizzle-orm';
 import {
@@ -47,6 +48,7 @@ const COMPUTED_SPORTS = ['football', 'baseball'];
 
 export type StandingsOutcome =
   | 'written'
+  | 'provider_fresh'
   | 'knockout'
   | 'no_results'
   | 'no_groups'
@@ -82,7 +84,7 @@ export interface SeasonStandingsReport {
 /**
  * Relatório que pede atenção da operação: tabela parada (grupo ambíguo, regulamento ou entrada inválidos),
  * tabela do regulamento sem recálculo ou grupo que o regulamento não reconhece. O resto (tabela do
- * fornecedor mais nova, mata-mata, sem resultado) é o normal.
+ * fornecedor mais nova no beisebol, mata-mata, sem resultado) é o normal.
  */
 export function needsAttention(r: SeasonStandingsReport): boolean {
   return (
@@ -583,8 +585,9 @@ async function dropStaleComputedRows(
 
 /**
  * Beisebol: tabela única por aproveitamento com os jogos da fase regular (sem fase ou fase de tabela; os
- * playoffs ficam de fora). Com resultado, a tabela é sempre a calculada, como no futebol (#880); a do
- * fornecedor só vale na temporada sem jogo.
+ * playoffs ficam de fora). Fica fora do #880: a calculada é uma tabela única, e a do fornecedor vem por liga
+ * e divisão, então a do fornecedor mais nova que o último resultado continua prevalecendo (gravar a calculada
+ * por cima criaria uma tabela paralela de 30 times ao lado das divisões).
  */
 async function recomputeWinPct(
   db: Database,
@@ -593,6 +596,23 @@ async function recomputeWinPct(
   report: (outcome: StandingsOutcome, extra?: Partial<SeasonStandingsReport>) => SeasonStandingsReport,
   options: RecomputeOptions,
 ): Promise<SeasonStandingsReport> {
+  const [provider] = await db
+    .select({ at: sql<string | null>`max(${standing.updatedAt})` })
+    .from(standing)
+    .where(and(eq(standing.seasonId, seasonId), eq(standing.source, 'provider')));
+  const [latest] = await db
+    .select({ at: sql<string | null>`max(${event.updatedAt})` })
+    .from(event)
+    .where(and(eq(event.seasonId, seasonId), eq(event.status, 'finished')));
+  const [computed] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(standing)
+    .where(and(eq(standing.seasonId, seasonId), eq(standing.source, 'computed')));
+  // grupo com tabela calculada: o writer não grava mais a do fornecedor nele, então só o recálculo o mantém
+  if (provider?.at && latest?.at && !computed?.n && new Date(provider.at) >= new Date(latest.at)) {
+    return report('provider_fresh');
+  }
+
   const playoffs = await db
     .select({ id: event.id })
     .from(event)
