@@ -67,6 +67,8 @@ export interface GalaxieMetrics {
   gapsAbandoned: Counter<'consumer' | 'reason'>;
   /** Respostas das rotas cacheadas: `hit`, `miss`, `stale` (valor anterior durante o recálculo), `coalesced`. */
   cacheResults: Counter<'result'>;
+  /** Recusas do portão de idade (#1106) por motivo, capacidade e país; sem identificar o torcedor. */
+  fanAgeDenied: Counter<'reason' | 'capability' | 'country'>;
 }
 
 /** Buckets alinhados ao NFR de p95 ≤ 150 ms (docs/02 §7). */
@@ -186,12 +188,18 @@ export function createMetrics(options: MetricsOptions = {}): GalaxieMetrics {
     labelNames: ['result'],
     registers: [registry],
   });
+  const fanAgeDenied = new Counter<'reason' | 'capability' | 'country'>({
+    name: 'galaxie_fan_age_denied_total',
+    help: 'Ações do torcedor recusadas pelo portão de idade, por motivo, capacidade e país do token (#1106)',
+    labelNames: ['reason', 'capability', 'country'],
+    registers: [registry],
+  });
   // séries criadas em 0: sem isso, o increase() dos alertas não vê o primeiro incremento de uma série nova
   for (const reason of ['process_limit', 'tenant_limit']) sseRejected.inc({ reason }, 0);
   for (const consumer of ['sse', 'cache-purge'])
     for (const reason of ['timeout', 'max_seen']) gapsAbandoned.inc({ consumer, reason }, 0);
   for (const result of ['hit', 'miss', 'stale', 'coalesced']) cacheResults.inc({ result }, 0);
-  const runtime = { sseConnections, sseRejected, gapsAbandoned, cacheResults };
+  const runtime = { sseConnections, sseRejected, gapsAbandoned, cacheResults, fanAgeDenied };
 
   const livePoll = new Gauge({
     name: 'galaxie_live_poll_interval_seconds',

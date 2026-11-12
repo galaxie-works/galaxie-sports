@@ -10,6 +10,7 @@ import {
   registerFanAuth,
   type FanRevocations,
 } from './engage/fan-auth.js';
+import { FanAgeGate } from './engage/age-gate.js';
 import { fanRoutes } from './engage/fan-routes.js';
 import {
   MemoryPresenceCounter,
@@ -323,12 +324,19 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
   const fanRevocations =
     options.fanRevocations ??
     (options.redis ? new RedisFanRevocations(options.redis, prefix) : new MemoryFanRevocations());
+  const fanAgeGate = options.db
+    ? new FanAgeGate(options.db, {
+        onDenied: (d) =>
+          metrics.fanAgeDenied.inc({ reason: d.reason, capability: d.capability, country: d.country }),
+      })
+    : null;
   registerFanAuth(app, {
     signer: options.fanTokens ?? null,
     publishable,
     revocations: fanRevocations,
     limiter,
     windowMs,
+    gate: fanAgeGate,
   });
 
   // Autenticação, módulo do plano, uso e rate limit — rotas com `config.module` ou `config.authenticated`.
@@ -475,6 +483,7 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
       signer: options.fanTokens ?? null,
       ttl: new FanTokenTtl(options.db),
       revocations: fanRevocations,
+      gate: fanAgeGate,
     });
     await presenceRoutes(instance, {
       db: options.db,

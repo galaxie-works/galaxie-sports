@@ -94,6 +94,8 @@ const fan = async (key: string, n: number, ageBand = '18plus') => {
     ageBand,
     country: 'br',
     locale: 'pt-BR',
+    // o Brasil pede comprovação estimada para os recursos sociais (ficha do #1104, portão do #1106)
+    ageAssurance: { method: 'estimated', at: '2026-11-01' },
   });
   expect(res.statusCode).toBe(201);
   return { token: res.json().data.token as string, profileId: res.json().data.profile_id as string };

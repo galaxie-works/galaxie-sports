@@ -61,7 +61,6 @@ import {
 import { and, eq, isNotNull, isNull, or } from 'drizzle-orm';
 import { problems } from '../errors.js';
 import { parseInput } from '../util.js';
-import { fanCan } from './fan-rules.js';
 import { readFan } from './fans.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -168,11 +167,9 @@ export async function moderationRoutes(app: FastifyInstance, deps: ModerationRou
   };
   const now = () => deps.now?.() ?? new Date();
 
-  /** Torcedor do token, com Perfil ativo e faixa que participa (menor de 13 fica fora, D1). */
+  /** Torcedor do token, com Perfil ativo (a idade, o portão já conferiu no hook do token, #1106). */
   async function activeFan(request: FastifyRequest) {
     const fan = request.fan!;
-    if (!fanCan(fan.ageBand, 'read'))
-      throw problems.fanAgeRestricted('Perfis com menos de 13 anos não usam os recursos sociais.');
     const profile = await readFan(db(), fan.tenantId, fan.profileId);
     if (!profile) throw problems.invalidFanToken('Perfil excluído.');
     return { fan, profile };
@@ -189,7 +186,7 @@ export async function moderationRoutes(app: FastifyInstance, deps: ModerationRou
     return row !== undefined;
   }
 
-  app.post('/v1/moderation/reports', { config: { fan: true } }, async (request, reply) => {
+  app.post('/v1/moderation/reports', { config: { fan: true, age: 'read' } }, async (request, reply) => {
     const { fan, profile } = await activeFan(request);
     const body = parseInput(ModerationReportBody, request.body);
     // denúncia de Perfil: o alvo é o próprio Perfil, que tem de existir no mesmo cliente
@@ -235,7 +232,7 @@ export async function moderationRoutes(app: FastifyInstance, deps: ModerationRou
     return reply.code(201).send(out);
   });
 
-  app.get('/v1/fans/me/blocks', { config: { fan: true } }, async (request, reply) => {
+  app.get('/v1/fans/me/blocks', { config: { fan: true, age: 'read' } }, async (request, reply) => {
     const { fan } = await activeFan(request);
     const rows = await listBlocks(db(), fan.tenantId, fan.profileId);
     reply.header('cache-control', 'no-store');
@@ -245,7 +242,7 @@ export async function moderationRoutes(app: FastifyInstance, deps: ModerationRou
     return out;
   });
 
-  app.put('/v1/fans/me/blocks/:profileId', { config: { fan: true } }, async (request, reply) => {
+  app.put('/v1/fans/me/blocks/:profileId', { config: { fan: true, age: 'read' } }, async (request, reply) => {
     const { fan } = await activeFan(request);
     const { profileId } = parseInput(FanBlockParams, request.params);
     if (profileId === fan.profileId) throw problems.conflict('Não dá para bloquear o próprio Perfil.');
@@ -258,18 +255,22 @@ export async function moderationRoutes(app: FastifyInstance, deps: ModerationRou
     return reply.code(204).send();
   });
 
-  app.delete('/v1/fans/me/blocks/:profileId', { config: { fan: true } }, async (request, reply) => {
-    const { fan } = await activeFan(request);
-    const { profileId } = parseInput(FanBlockParams, request.params);
-    await unblockFan(db(), {
-      tenantId: fan.tenantId,
-      blockerProfileId: fan.profileId,
-      blockedProfileId: profileId,
-    });
-    return reply.code(204).send();
-  });
+  app.delete(
+    '/v1/fans/me/blocks/:profileId',
+    { config: { fan: true, age: 'read' } },
+    async (request, reply) => {
+      const { fan } = await activeFan(request);
+      const { profileId } = parseInput(FanBlockParams, request.params);
+      await unblockFan(db(), {
+        tenantId: fan.tenantId,
+        blockerProfileId: fan.profileId,
+        blockedProfileId: profileId,
+      });
+      return reply.code(204).send();
+    },
+  );
 
-  app.get('/v1/fans/me/sanctions', { config: { fan: true } }, async (request, reply) => {
+  app.get('/v1/fans/me/sanctions', { config: { fan: true, age: 'read' } }, async (request, reply) => {
     const { fan } = await activeFan(request);
     const rows = await sanctionsForFan(db(), {
       tenantId: fan.tenantId,
@@ -310,71 +311,76 @@ export async function moderationRoutes(app: FastifyInstance, deps: ModerationRou
     return out;
   });
 
-  app.post('/v1/fans/me/sanctions/:sanctionId/appeals', { config: { fan: true } }, async (request, reply) => {
-    const { fan, profile } = await activeFan(request);
-    const { sanctionId } = parseInput(FanSanctionParams, request.params);
-    const body = parseInput(FanAppealBody, request.body ?? {});
-    // a punição tem de ser do torcedor e visível para ele (o Silêncio oculto responde 404, como se não existisse)
-    const [owned] = await db()
-      .select({ decidedBy: moderationSanction.decidedBy })
-      .from(moderationSanction)
-      .where(
-        and(
-          eq(moderationSanction.tenantId, fan.tenantId),
-          eq(moderationSanction.id, sanctionId),
-          or(
-            eq(moderationSanction.profileId, fan.profileId),
-            eq(moderationSanction.accountId, fan.accountId),
+  app.post(
+    '/v1/fans/me/sanctions/:sanctionId/appeals',
+    { config: { fan: true, age: 'read' } },
+    async (request, reply) => {
+      const { fan, profile } = await activeFan(request);
+      const { sanctionId } = parseInput(FanSanctionParams, request.params);
+      const body = parseInput(FanAppealBody, request.body ?? {});
+      // a punição tem de ser do torcedor e visível para ele (o Silêncio oculto responde 404, como se não existisse)
+      const [owned] = await db()
+        .select({ decidedBy: moderationSanction.decidedBy })
+        .from(moderationSanction)
+        .where(
+          and(
+            eq(moderationSanction.tenantId, fan.tenantId),
+            eq(moderationSanction.id, sanctionId),
+            or(
+              eq(moderationSanction.profileId, fan.profileId),
+              eq(moderationSanction.accountId, fan.accountId),
+            ),
+            eq(moderationSanction.hidden, false),
           ),
-          eq(moderationSanction.hidden, false),
-        ),
-      );
-    if (!owned) throw problems.notFound('Punição');
-    const judges = await appealJudges(db(), fan.tenantId, sanctionId);
-    const last = judges.at(-1);
-    if (last?.status === 'pending') throw problems.conflict('Já existe uma apelação pendente desta punição.');
-    const stage = last ? 2 : 1;
-    if (stage === 2 && (last!.stage !== 1 || last!.status !== 'upheld'))
-      throw problems.conflict('Esta punição não aceita outra apelação.');
-    const route = appealRoute(stage, {
-      firstDecidedBy: last?.decidedByKind === 'cosmos' ? 'cosmos' : 'person',
-      teamCanJudge:
-        stage === 2
-          ? await teamCanJudgeSecond(db(), fan.tenantId, [owned.decidedBy, last?.decidedBy ?? ''])
-          : true,
-    });
-    if (!route)
-      throw problems.conflict('A segunda apelação só existe quando a primeira resposta veio da Cosmos.');
-    const at = now();
-    const dueAt = new Date(at.getTime() + APPEAL_DUE_DEFAULT_H * 3600_000);
-    const res = await fileAppeal(db(), {
-      tenantId: fan.tenantId,
-      profileId: fan.profileId,
-      accountId: fan.accountId,
-      sanctionId,
-      stage,
-      route: route.to,
-      statement: body.statement ?? null,
-      dueAt,
-      clocks: await clocksFor(db(), fan.tenantId, profile.country, at),
-      severity: REASON_SEVERITY.other,
-      now: at,
-    });
-    if (!res.ok) {
-      if (res.reason === 'already') throw problems.conflict('Esta etapa da apelação já foi pedida.');
-      if (res.reason === 'closed') throw problems.conflict('A punição já foi revogada.');
-      throw problems.notFound('Punição');
-    }
-    const appeal = await readAppeal(db(), fan.tenantId, res.appealId);
-    reply.header('cache-control', 'no-store');
-    const out: FanAppealResponse = {
-      data: {
-        appeal_id: res.appealId,
+        );
+      if (!owned) throw problems.notFound('Punição');
+      const judges = await appealJudges(db(), fan.tenantId, sanctionId);
+      const last = judges.at(-1);
+      if (last?.status === 'pending')
+        throw problems.conflict('Já existe uma apelação pendente desta punição.');
+      const stage = last ? 2 : 1;
+      if (stage === 2 && (last!.stage !== 1 || last!.status !== 'upheld'))
+        throw problems.conflict('Esta punição não aceita outra apelação.');
+      const route = appealRoute(stage, {
+        firstDecidedBy: last?.decidedByKind === 'cosmos' ? 'cosmos' : 'person',
+        teamCanJudge:
+          stage === 2
+            ? await teamCanJudgeSecond(db(), fan.tenantId, [owned.decidedBy, last?.decidedBy ?? ''])
+            : true,
+      });
+      if (!route)
+        throw problems.conflict('A segunda apelação só existe quando a primeira resposta veio da Cosmos.');
+      const at = now();
+      const dueAt = new Date(at.getTime() + APPEAL_DUE_DEFAULT_H * 3600_000);
+      const res = await fileAppeal(db(), {
+        tenantId: fan.tenantId,
+        profileId: fan.profileId,
+        accountId: fan.accountId,
+        sanctionId,
         stage,
-        route: res.route,
-        due_at: (appeal?.dueAt ?? dueAt).toISOString(),
-      },
-    };
-    return reply.code(201).send(out);
-  });
+        route: route.to,
+        statement: body.statement ?? null,
+        dueAt,
+        clocks: await clocksFor(db(), fan.tenantId, profile.country, at),
+        severity: REASON_SEVERITY.other,
+        now: at,
+      });
+      if (!res.ok) {
+        if (res.reason === 'already') throw problems.conflict('Esta etapa da apelação já foi pedida.');
+        if (res.reason === 'closed') throw problems.conflict('A punição já foi revogada.');
+        throw problems.notFound('Punição');
+      }
+      const appeal = await readAppeal(db(), fan.tenantId, res.appealId);
+      reply.header('cache-control', 'no-store');
+      const out: FanAppealResponse = {
+        data: {
+          appeal_id: res.appealId,
+          stage,
+          route: res.route,
+          due_at: (appeal?.dueAt ?? dueAt).toISOString(),
+        },
+      };
+      return reply.code(201).send(out);
+    },
+  );
 }

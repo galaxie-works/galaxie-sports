@@ -249,3 +249,32 @@ describe('token do torcedor no navegador (widget, embed; #1020)', () => {
     expect(other.headers['access-control-allow-origin']).toBeUndefined();
   });
 });
+
+describe('portão de idade em toda rota do torcedor (#1106)', () => {
+  it('rota do torcedor sem config.age não sobe; com a capacidade ou exempt, sobe', async () => {
+    const app = buildServer({ usage: false, fanTokens: signer });
+    expect(() => app.get('/v1/fans/me/esquecida', { config: { fan: true } }, async () => ({}))).toThrow(
+      /config\.age/,
+    );
+    expect(() =>
+      app.get('/v1/fans/me/errada', { config: { fan: true, age: 'tudo' as never } }, async () => ({})),
+    ).toThrow(/config\.age/);
+    app.get('/v1/fans/me/lida', { config: { fan: true, age: 'read' } }, async () => ({}));
+    app.get('/v1/fans/me/estado', { config: { fan: true, age: 'exempt' } }, async () => ({}));
+    await app.ready();
+    await app.close();
+  });
+
+  it('menor de 13 no token é recusado sem consultar o banco, com o motivo', async () => {
+    const app = buildServer({ usage: false, fanTokens: signer, fanRevocations: new MemoryFanRevocations() });
+    const { token } = signer.issue(claims({ ageBand: 'under13' }), 900);
+    const res = await app.inject({
+      method: 'GET',
+      url: '/v1/fans/me/wallet',
+      headers: { authorization: `Bearer ${token}` },
+    });
+    expect(res.statusCode).toBe(403);
+    expect(res.json()).toMatchObject({ code: 'FAN_AGE_RESTRICTED', age_gate: { reason: 'under_min_age' } });
+    await app.close();
+  });
+});
