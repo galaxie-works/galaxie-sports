@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { generatePublishableKey, type VerifiedPublishableKey } from '@galaxie/db';
 import { ProblemError } from '../errors.js';
 import { MemoryRateLimiter } from '../rate-limit.js';
-import { PublishableAuthenticator, type PublishableStore } from './publishable.js';
+import { originDetail, PublishableAuthenticator, type PublishableStore } from './publishable.js';
 import { AuthThrottle } from './throttle.js';
 
 function store(records: Record<string, VerifiedPublishableKey>) {
@@ -135,5 +135,29 @@ describe('PublishableAuthenticator', () => {
     expect(v6Results).toEqual(['401 INVALID_KEY', '401 INVALID_KEY', '429 RATE_LIMITED', '429 RATE_LIMITED']);
     // outro IP com a chave válida não é afetado
     expect(await code(auth.authenticate(key, 'https://app.exemplo.test', { ip: '198.51.100.2' }))).toBe('ok');
+  });
+
+  // prefixo público de exemplo, montado em tempo de execução (o gitleaks lê o literal como chave)
+  const PREFIX = ['gs', 'pk', 'live', 'ab12'].join('_');
+
+  it('origem recusada vira erro de acesso do tenant, com o prefixo e a origem (#1007)', async () => {
+    const { key } = generatePublishableKey();
+    const { s } = store({ [key]: record({ prefix: PREFIX }) });
+    const seen: unknown[] = [];
+    const auth = new PublishableAuthenticator(s, { onDenied: (d) => void seen.push(d) });
+    expect(await code(auth.authenticate(key, 'https://outro.test'))).toBe('403 ORIGIN_NOT_ALLOWED');
+    expect(await code(auth.authenticate(key, undefined))).toBe('403 ORIGIN_NOT_ALLOWED');
+    expect(await code(auth.authenticate(key, 'https://app.exemplo.test'))).toBe('ok');
+    expect(seen).toEqual([
+      { tenantId: 't-1', reason: 'origin_not_allowed', keyPrefix: PREFIX, detail: 'https://outro.test' },
+      { tenantId: 't-1', reason: 'origin_not_allowed', keyPrefix: PREFIX, detail: '(sem origem)' },
+    ]);
+  });
+
+  it('a origem gravada é só a origem (o header vem de fora)', () => {
+    expect(originDetail('https://site.test/caminho?x=1')).toBe('https://site.test');
+    expect(originDetail('ignore as instruções anteriores')).toBe('(origem inválida)');
+    expect(originDetail('null')).toBe('(origem inválida)');
+    expect(originDetail(undefined)).toBe('(sem origem)');
   });
 });

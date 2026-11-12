@@ -207,6 +207,49 @@ export const usageDaily = api.table(
   (t) => [primaryKey({ columns: [t.tenantId, t.day, t.route] }), index('usage_daily_day_idx').on(t.day)],
 );
 
+export const ACCESS_ERROR_REASONS = [
+  'invalid_secret',
+  'revoked',
+  'expired',
+  'wrong_env',
+  'tenant_inactive',
+  'origin_not_allowed',
+  'module_not_in_plan',
+  'rate_limited',
+  'quota_exceeded',
+] as const;
+export type AccessErrorReason = (typeof ACCESS_ERROR_REASONS)[number];
+
+/**
+ * Erros de acesso por tenant × dia (#1007): chave com segredo errado, revogada ou expirada, origem fora da lista
+ * da chave publicável, módulo fora do plano, limite por minuto e cota diária. Só o que dá para atribuir a um
+ * tenant (prefixo conhecido); prefixo inexistente não entra. Nunca guarda segredo: só o prefixo da chave e, em
+ * `detail`, a origem recusada ou a rota. Cada instância da API soma em memória e consolida a cada minuto
+ * (`count = count + n`), então é aproximado (uma queda perde até um minuto). Base do diagnóstico das chaves da
+ * Cosmos AI.
+ */
+export const accessErrorDaily = api.table(
+  'access_error_daily',
+  {
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenant.id, { onDelete: 'cascade' }),
+    /** Dia em UTC. */
+    day: date('day', { mode: 'string' }).notNull(),
+    reason: text('reason').$type<AccessErrorReason>().notNull(),
+    /** Prefixo público da chave (secreta ou publicável); '' quando não se aplica. */
+    keyPrefix: text('key_prefix').notNull().default(''),
+    /** Origem recusada (chave publicável) ou rota (limite, módulo); '' sem detalhe. */
+    detail: text('detail').notNull().default(''),
+    count: bigint('count', { mode: 'number' }).notNull().default(0),
+    lastAt: timestamp('last_at', { withTimezone: true }).notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.tenantId, t.day, t.reason, t.keyPrefix, t.detail] }),
+    index('access_error_daily_day_idx').on(t.day),
+  ],
+);
+
 /**
  * Faixa de um módulo de engajamento no tenant (#1018). Sem linha = padrão de `MODULE_LIMITS`. Só a Galaxie
  * grava (rota administrativa); o cliente vê no painel.
@@ -468,6 +511,13 @@ export const webhookDelivery = api.table(
     lastAttemptAt: timestamp('last_attempt_at', { withTimezone: true }),
     responseCode: integer('response_code'),
     lastError: text('last_error'),
+    /** Tempo da última tentativa, do envio à resposta (ou ao erro), em ms. */
+    durationMs: integer('duration_ms'),
+    /**
+     * Começo do corpo da resposta da última tentativa que falhou (até 300 caracteres, sem controle): é o que o
+     * servidor do cliente disse ao recusar. Entrega bem-sucedida não guarda corpo.
+     */
+    responseExcerpt: text('response_excerpt'),
     deliveredAt: timestamp('delivered_at', { withTimezone: true }),
     createdAt: createdAt(),
   },

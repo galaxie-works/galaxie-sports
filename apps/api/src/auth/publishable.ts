@@ -7,6 +7,7 @@ import {
   touchPublishableKey,
   verifyPublishableKey,
   WIDGET_KIND_MODULES,
+  type AccessErrorReason,
   type Database,
   type VerifiedPublishableKey,
 } from '@galaxie/db';
@@ -45,6 +46,13 @@ export interface PublishableAuthenticatorOptions {
   touchIntervalMs?: number;
   /** Limite por IP das verificações fora do cache (cada uma é uma consulta ao banco). */
   throttle?: AuthThrottle;
+  /** Origem recusada de uma chave válida (#1007: diagnóstico no painel). Não pode lançar. */
+  onDenied?: (denied: {
+    tenantId: string;
+    reason: AccessErrorReason;
+    keyPrefix: string;
+    detail: string;
+  }) => void;
   now?: () => Date;
 }
 
@@ -63,7 +71,7 @@ export class PublishableAuthenticator {
 
   constructor(
     private readonly store: PublishableStore,
-    options: PublishableAuthenticatorOptions = {},
+    private readonly options: PublishableAuthenticatorOptions = {},
   ) {
     this.cacheTtlMs = options.cacheTtlMs ?? 60_000;
     this.touchIntervalMs = options.touchIntervalMs ?? 5 * 60_000;
@@ -94,7 +102,19 @@ export class PublishableAuthenticator {
     }
     const key = entry.value;
     if (!key) throw problems.invalidKey('Chave publicável inválida ou revogada.');
-    if (!isOriginAllowed(origin, key.allowedOrigins)) throw problems.originNotAllowed(origin);
+    if (!isOriginAllowed(origin, key.allowedOrigins)) {
+      try {
+        this.options.onDenied?.({
+          tenantId: key.tenant.id,
+          reason: 'origin_not_allowed',
+          keyPrefix: key.prefix ?? '',
+          detail: originDetail(origin),
+        });
+      } catch {
+        // diagnóstico nunca derruba a autenticação
+      }
+      throw problems.originNotAllowed(origin);
+    }
 
     // chave presa a um widget: só os módulos que aquele tipo de widget consome
     const modules = withoutClosedModules(
@@ -110,6 +130,8 @@ export class PublishableAuthenticator {
       slug: key.tenant.slug,
       plan: key.tenant.plan,
       keyId: key.keyId,
+      // só para o diagnóstico (#1007): o token do SSE e as rotas de torcedor exigem keyKind 'secret'
+      ...(key.prefix ? { keyPrefix: key.prefix } : {}),
       keyKind: 'publishable',
       env: key.env,
       widgetId: key.widgetId,
@@ -135,6 +157,17 @@ export class PublishableAuthenticator {
     if (this.lastTouch.size > 10_000) this.lastTouch.clear();
     this.lastTouch.set(keyId, now.getTime());
     this.store.touch(keyId, now).catch(() => {});
+  }
+}
+
+/** Origem recusada no formato de origem (esquema, host, porta), ou um marcador: o header vem de fora. */
+export function originDetail(origin: string | undefined): string {
+  if (!origin) return '(sem origem)';
+  try {
+    const o = new URL(origin).origin;
+    return o && o !== 'null' ? o : '(origem inválida)';
+  } catch {
+    return '(origem inválida)';
   }
 }
 

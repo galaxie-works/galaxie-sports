@@ -292,3 +292,69 @@ describe('trial (docs/politica-de-chaves.md §3)', () => {
     });
   });
 });
+
+describe('erros de acesso para o diagnóstico (#1007)', () => {
+  type Denied = { tenantId: string; reason: string; keyPrefix: string };
+  const recorder = () => {
+    const seen: Denied[] = [];
+    return { seen, onDenied: (d: Denied) => void seen.push(d) };
+  };
+
+  it('segredo errado, revogada, expirada e ambiente trocado chegam com tenant e prefixo, nunca o segredo', async () => {
+    const { store, key, prefix } = await memoryTenant();
+    const tenantId = store.keys.get(prefix)!.tenant.id;
+    const r = recorder();
+    const auth = new Authenticator(store, { onDenied: r.onDenied });
+    const wrong = withRandomSecret(key);
+    await expect(auth.authenticate(wrong)).rejects.toMatchObject({ code: 'INVALID_KEY' });
+    // o cache negativo do segredo errado também conta
+    await expect(auth.authenticate(wrong)).rejects.toMatchObject({ code: 'INVALID_KEY' });
+    const p = parseApiKey(key)!;
+    await expect(auth.authenticate(formatApiKey('test', prefix, p.secret))).rejects.toMatchObject({
+      code: 'INVALID_KEY',
+    });
+    store.keys.get(prefix)!.revokedAt = new Date(Date.now() - 1);
+    const fresh = new Authenticator(store, { onDenied: r.onDenied });
+    await expect(fresh.authenticate(key)).rejects.toMatchObject({ code: 'INVALID_KEY' });
+    // prefixo em cache negativo: repete o motivo
+    await expect(fresh.authenticate(key)).rejects.toMatchObject({ code: 'INVALID_KEY' });
+    expect(r.seen.map((d) => d.reason)).toEqual([
+      'invalid_secret',
+      'invalid_secret',
+      'wrong_env',
+      'revoked',
+      'revoked',
+    ]);
+    expect(r.seen.every((d) => d.tenantId === tenantId && d.keyPrefix === prefix)).toBe(true);
+    expect(JSON.stringify(r.seen)).not.toContain(p.secret);
+  });
+
+  it('expirada e tenant suspenso têm motivo próprio; prefixo desconhecido não chama (sem tenant)', async () => {
+    const { store, key, prefix } = await memoryTenant();
+    const r = recorder();
+    store.keys.get(prefix)!.expiresAt = new Date(Date.now() - 1);
+    await expect(new Authenticator(store, { onDenied: r.onDenied }).authenticate(key)).rejects.toMatchObject({
+      code: 'INVALID_KEY',
+    });
+    store.keys.get(prefix)!.expiresAt = null;
+    store.keys.get(prefix)!.tenant.status = 'suspended';
+    await expect(new Authenticator(store, { onDenied: r.onDenied }).authenticate(key)).rejects.toMatchObject({
+      code: 'INVALID_KEY',
+    });
+    await expect(
+      new Authenticator(store, { onDenied: r.onDenied }).authenticate(generateApiKey('live').key),
+    ).rejects.toMatchObject({ code: 'INVALID_KEY' });
+    expect(r.seen.map((d) => d.reason)).toEqual(['expired', 'tenant_inactive']);
+  });
+
+  it('um onDenied que lança não muda a resposta', async () => {
+    const { store, key } = await memoryTenant();
+    const auth = new Authenticator(store, {
+      onDenied: () => {
+        throw new Error('banco fora');
+      },
+    });
+    await expect(auth.authenticate(withRandomSecret(key))).rejects.toMatchObject({ code: 'INVALID_KEY' });
+    await expect(auth.authenticate(key)).resolves.toMatchObject({ slug: 'teste' });
+  });
+});

@@ -131,7 +131,7 @@ export const ROLE_GRANTS: Record<RoleService, RoleGrants> = {
     ],
   },
   // ingestor (agendador e CLIs manuais, inclusive o seed semântico do pós-deploy); o cursor do cache da demo é
-  // piso da poda do change feed (change-feed-prune). Em `api`, só a poda das entregas de webhook (data-retention,
+  // piso da poda do change feed (change-feed-prune). Em `api`, só a poda das entregas de webhook e dos erros de acesso (data-retention,
   // ops-retention.ts): DELETE sem INSERT/UPDATE, para o ingestor não forjar entrega que o worker assina e envia
   ingestor: {
     read: [
@@ -144,7 +144,7 @@ export const ROLE_GRANTS: Record<RoleService, RoleGrants> = {
     // reservas vencidas e recarga automática: só muda o estado do que a demo criou
     update: ['cosmos.reservation', 'cosmos.auto_recharge'],
     append: ['cosmos.ledger', 'cosmos.balance_alert'],
-    prune: ['api.webhook_delivery'],
+    prune: ['api.webhook_delivery', 'api.access_error_daily'],
   },
   // agentes de IA (mesma imagem do ingestor, perfil agents)
   agents: {

@@ -79,12 +79,37 @@ export interface WebhookPost {
   allowPrivateTargets?: boolean;
 }
 
+/** Resposta de uma entrega: status e, só em falha, o começo do corpo (diagnóstico no painel, #1007). */
+export interface WebhookResponse {
+  status: number;
+  /** Até `WEBHOOK_EXCERPT_CHARS` caracteres do corpo, sem controle; só quando o status não é 2xx. */
+  excerpt?: string;
+}
+
+/** Quanto do corpo de uma resposta com falha é lido (bytes) e guardado (caracteres). */
+export const WEBHOOK_EXCERPT_BYTES = 1024;
+export const WEBHOOK_EXCERPT_CHARS = 300;
+
+/** Trecho legível do corpo: sem caracteres de controle, espaços colapsados. */
+export function webhookExcerpt(raw: Buffer): string {
+  return (
+    raw
+      .toString('utf8')
+      // eslint-disable-next-line no-control-regex -- tira caracteres de controle de propósito
+      .replace(/[\u0000-\u001f\u007f\ufffd]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, WEBHOOK_EXCERPT_CHARS)
+  );
+}
+
 /**
- * POST de uma entrega: devolve o status HTTP (sem seguir redirects; corpo da resposta descartado).
+ * POST de uma entrega: devolve o status HTTP (sem seguir redirects). Corpo da resposta descartado em 2xx; em falha,
+ * só o primeiro KiB é lido (o resto é cortado), para o painel mostrar o que o receptor respondeu.
  * Sem `allowPrivateTargets`, destinos em rede privada/reservada falham com BlockedTargetError — no IP
  * literal da URL e em cada resolução de DNS do socket.
  */
-export function postWebhook(url: string, post: WebhookPost): Promise<number> {
+export function postWebhookResponse(url: string, post: WebhookPost): Promise<WebhookResponse> {
   return new Promise((resolve, reject) => {
     const target = new URL(url);
     const host = target.hostname.replace(/^\[|\]$/g, '');
@@ -99,11 +124,47 @@ export function postWebhook(url: string, post: WebhookPost): Promise<number> {
         ...(post.allowPrivateTargets ? {} : { lookup: guardedLookup }),
       },
       (res) => {
-        res.resume();
-        resolve(res.statusCode ?? 0);
+        const status = res.statusCode ?? 0;
+        if (status >= 200 && status < 300) {
+          res.resume();
+          return resolve({ status });
+        }
+        // corpo comprimido não vira texto legível: só o aviso
+        const encoding = String(res.headers['content-encoding'] ?? '').toLowerCase();
+        if (encoding && encoding !== 'identity') {
+          res.destroy();
+          return resolve({ status, excerpt: `(corpo comprimido: ${encoding.slice(0, 20)})` });
+        }
+        const chunks: Buffer[] = [];
+        let size = 0;
+        let done = false;
+        const finish = () => {
+          if (done) return;
+          done = true;
+          const excerpt = webhookExcerpt(Buffer.concat(chunks).subarray(0, WEBHOOK_EXCERPT_BYTES));
+          resolve(excerpt ? { status, excerpt } : { status });
+        };
+        res.on('data', (chunk: Buffer) => {
+          if (done) return;
+          chunks.push(chunk);
+          size += chunk.length;
+          if (size >= WEBHOOK_EXCERPT_BYTES) {
+            finish();
+            res.destroy();
+          }
+        });
+        res.on('end', finish);
+        // corpo cortado ou timeout no meio: fica o que chegou (o status já veio)
+        res.on('error', finish);
+        res.on('close', finish);
       },
     );
     req.on('error', reject);
     req.end(post.body);
   });
+}
+
+/** Só o status (compatível com o transporte antigo). */
+export function postWebhook(url: string, post: WebhookPost): Promise<number> {
+  return postWebhookResponse(url, post).then((r) => r.status);
 }
