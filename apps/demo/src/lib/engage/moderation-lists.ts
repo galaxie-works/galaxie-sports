@@ -9,6 +9,7 @@ import {
   MODERATION_LISTS,
   TERM_CATEGORIES,
   compileLists,
+  DEFAULT_MODERATION_LISTS,
   normalizeDomain,
   normalizeTerm,
   type CompiledLists,
@@ -205,4 +206,27 @@ export function toListSet(
 /** Filtro com a base da Galaxie, para o "testar um texto" da tela. */
 export async function compiledBaseLists(): Promise<CompiledLists> {
   return compileLists(toListSet(await listBaseLists()));
+}
+
+/**
+ * Filtro do cliente: a base da Galaxie com a lista do tenant por cima (a mesma regra da API). Banco sem a base vale a
+ * lista inicial, nunca o filtro vazio.
+ */
+export async function compiledTenantLists(tenantId: string): Promise<CompiledLists> {
+  const { rows } = await pool.query<{
+    tenant_id: string | null;
+    list: ModerationListName;
+    locale: ListLocale;
+    terms: string[];
+  }>(
+    `select tenant_id, list, locale, terms from engage.moderation_list
+      where tenant_id is null or tenant_id = $1`,
+    [tenantId],
+  );
+  const base = rows.filter((r) => r.tenant_id === null);
+  const own = rows.filter((r) => r.tenant_id !== null);
+  return compileLists(
+    base.length ? toListSet(base) : DEFAULT_MODERATION_LISTS,
+    own.length ? toListSet(own) : null,
+  );
 }
