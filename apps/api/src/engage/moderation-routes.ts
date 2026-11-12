@@ -71,13 +71,12 @@ export interface ModerationRoutesDeps {
   now?: (() => Date) | undefined;
 }
 
-/** Relógios da ficha que vale para o torcedor; sem ficha, recusa (o módulo não guarda o que não sabe apagar). */
-async function clocksFor(
+/** Ficha que vale para o torcedor do cliente (com o que o cliente endureceu); null se não há ficha que sirva. */
+export async function policyForFan(
   db: Database,
   tenantId: string,
   fanCountry: string,
-  at: Date,
-): Promise<ModerationClocks> {
+): Promise<CountryPolicy | null> {
   const [policies, countries] = await Promise.all([
     db.select({ country: countryPolicy.country, policy: countryPolicy.policy }).from(countryPolicy),
     db
@@ -98,9 +97,24 @@ async function clocksFor(
       hardening: (c.hardening as PolicyHardening | null) ?? null,
     })),
   );
-  if (!resolved) throw problems.degraded('Ficha do país não configurada para este cliente.');
-  const d = retentionDeadlines(resolved.policy, at.getTime());
+  return resolved?.policy ?? null;
+}
+
+/** Relógios da ficha que vale para o torcedor; sem ficha, recusa (o módulo não guarda o que não sabe apagar). */
+export function clocksFrom(policy: CountryPolicy, at: Date): ModerationClocks {
+  const d = retentionDeadlines(policy, at.getTime());
   return { contentPurgeAt: new Date(d.contentPurgeAt), decisionPurgeAt: new Date(d.decisionPurgeAt) };
+}
+
+export async function clocksFor(
+  db: Database,
+  tenantId: string,
+  fanCountry: string,
+  at: Date,
+): Promise<ModerationClocks> {
+  const policy = await policyForFan(db, tenantId, fanCountry);
+  if (!policy) throw problems.degraded('Ficha do país não configurada para este cliente.');
+  return clocksFrom(policy, at);
 }
 
 /**

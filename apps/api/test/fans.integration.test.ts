@@ -139,6 +139,80 @@ describe('identidade do torcedor (#937)', () => {
     expect(count[0]!.n).toBe(1);
   });
 
+  it('faixa fina, comprovação e responsável (#1105): o estado sai da ficha do país', async () => {
+    const t = await tenantKey('fans-idade', ['core_data', 'live_chat']);
+    const teen = {
+      ...base,
+      externalProfileId: 'prof_teen',
+      ageBand: '14_15',
+      ageAssurance: { method: 'estimated', at: '2026-11-01', provider: 'Estimador X' },
+      guardian: { status: 'granted', linkedAccount: true },
+    };
+    const res = await issue(t.key, teen);
+    expect(res.statusCode).toBe(201);
+    const read = (await me(res.json().data.token)).json().data;
+    expect(read).toMatchObject({
+      age_band: '13_17',
+      age_band_detail: '14_15',
+      age_assurance: { method: 'estimated', at: '2026-11-01T00:00:00.000Z' },
+      guardian: { status: 'granted', linked_account: true },
+      age_status: 'read_only',
+      capabilities: ['read', 'predict'],
+    });
+    // sem vínculo, no Brasil (vínculo abaixo de 16), falta o responsável
+    const unlinked = await issue(t.key, { ...teen, guardian: { status: 'granted' } });
+    expect((await me(unlinked.json().data.token)).json().data.age_status).toBe('needs_guardian');
+    // autorização declarada pelo cliente (sem consentId) fica na auditoria, uma vez
+    const sql = postgres(testUrl, { max: 1 });
+    const rows = await sql`select action, reason from engage.moderation_audit
+      where tenant_id = ${t.id} and action = 'guardian.declared'`;
+    // faixa larga antiga vale como 13; adulto declarado no Brasil precisa comprovar
+    const legacy = await issue(t.key, { ...base, externalProfileId: 'prof_legacy', ageBand: '13_17' });
+    const adult = await issue(t.key, { ...base, externalProfileId: 'prof_adult' });
+    await sql.end();
+    expect(rows).toEqual([{ action: 'guardian.declared', reason: 'autorização declarada pelo cliente' }]);
+    expect((await me(legacy.json().data.token)).json().data).toMatchObject({
+      age_band: '13_17',
+      age_band_detail: '13',
+      age_status: 'needs_guardian',
+    });
+    expect((await me(adult.json().data.token)).json().data.age_status).toBe('needs_verification');
+  });
+
+  it('faixa que desce de adulto congela e vai para a fila de moderação (#1105)', async () => {
+    const t = await tenantKey('fans-desce', ['core_data', 'live_chat']);
+    const who = {
+      ...base,
+      externalProfileId: 'prof_desce',
+      ageAssurance: { method: 'verified', at: '2026-11-01' },
+    };
+    const first = await issue(t.key, who);
+    const profileId = first.json().data.profile_id;
+    expect((await me(first.json().data.token)).json().data.age_status).toBe('can_write');
+    await issue(t.key, { ...who, ageBand: '14_15' });
+    // o cliente sobe de novo para adulto: continua sem escrever nem resgatar até a correção da faixa
+    const back = await issue(t.key, who);
+    expect((await me(back.json().data.token)).json().data).toMatchObject({
+      age_band: '13_17',
+      age_band_detail: '18plus',
+      age_status: 'read_only',
+      capabilities: ['read', 'predict'],
+    });
+    const sql = postgres(testUrl, { max: 1 });
+    const cases = await sql`select source, target_type, target_id, reasons, detail from engage.moderation_case
+      where tenant_id = ${t.id}`;
+    await sql.end();
+    expect(cases).toEqual([
+      {
+        source: 'filter',
+        target_type: 'profile',
+        target_id: profileId,
+        reasons: ['age_band_downgrade'],
+        detail: { filter: { from: '18plus', to: '14_15' } },
+      },
+    ]);
+  });
+
   it('Apelido passa pelo filtro de moderação (#969): ofensa, aposta e lista do cliente recusam', async () => {
     const t = await tenantKey('fans-mod', ['core_data', 'live_chat']);
     for (const nickname of ['m4c4c0', 'bet365', 'porra']) {

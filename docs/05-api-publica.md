@@ -1021,8 +1021,27 @@ A identidade única do torcedor nos módulos de engajamento (#937): Chat ao vivo
 | Faixa | Pode |
 |---|---|
 | `under13` | Recebe token, mas toda rota social responde 403 `FAN_AGE_RESTRICTED` |
-| `13_17` | Ler, palpitar, votar, trivia, ganhar pontos e conquistas. Não escreve texto livre e não resgata |
+| `13`, `14_15`, `16_17` | Ler, palpitar, votar, trivia, ganhar pontos e conquistas. Não escreve texto livre e não resgata |
 | `18plus` | Tudo |
+
+As rotas e as `capabilities` usam a faixa larga (`under13`, `13_17`, `18plus`); a fina vale para os limites de 14 e 16 anos da ficha por país. `13_17` ainda é aceito no pedido do token e vale como `13`, a mais restritiva.
+
+**Comprovação de idade e responsável (#1105).** O pedido do token pode trazer dois blocos opcionais, sempre sem data de nascimento, documento ou foto (campo fora da lista é 400):
+
+- `ageAssurance: { method, at, provider? }`: `self` (declarada), `estimated` (estimativa) ou `verified` (verificação), a data e quem comprovou. Sem o bloco, vale `self`.
+- `guardian: { status, consentId?, linkedAccount? }`: `none`, `pending`, `granted` ou `revoked`. Com `consentId`, a prova da autorização fica no Galaxie; sem ele, fica com o cliente (contrato), e a autorização entra na auditoria como "autorização declarada pelo cliente".
+
+O `GET /v1/fans/me` devolve `age_band_detail`, `age_assurance`, `guardian` e `age_status`, o que falta para o Perfil usar os recursos sociais no país dele, pela ficha por país:
+
+| `age_status` | Quer dizer |
+|---|---|
+| `blocked` | Abaixo da idade para participar |
+| `needs_guardian` | Falta a autorização do responsável ou o vínculo com a conta dele |
+| `needs_verification` | A comprovação está abaixo da que a ficha pede (no Brasil, estimativa) |
+| `read_only` | Participa, mas não escreve |
+| `can_write` | Participa e escreve |
+
+Faixa que desce de `18plus` para menor no mesmo Perfil congela as ações de adulto (escrever e resgatar) e abre um caso na fila de moderação do cliente (`age_band_downgrade`). Subir de faixa é normal; a congelada só volta a adulto com a correção da faixa (#1110).
 
 **Rotas.**
 
@@ -1058,7 +1077,11 @@ const res = await fetch('https://api.galaxie.sports/v1/fans/tokens', {
     externalAccountId: user.accountId,
     externalProfileId: user.profileId,
     nickname: user.nickname,
-    ageBand: user.isAdult ? '18plus' : user.age >= 13 ? '13_17' : 'under13',
+    // faixa, nunca a idade nem a data de nascimento
+    ageBand: user.age >= 18 ? '18plus' : user.age >= 16 ? '16_17' : user.age >= 14 ? '14_15' : user.age >= 13 ? '13' : 'under13',
+    ageAssurance: { method: 'estimated', at: user.ageCheckedAt, provider: 'Estimador X' },
+    // menor com autorização guardada por você: sem consentId, a prova é sua
+    guardian: user.isMinor ? { status: 'granted', linkedAccount: true } : undefined,
     country: 'BR',
     locale: 'pt-BR',
     holderAdult: account.holderIsAdult ? 'yes' : 'no',
@@ -1097,6 +1120,15 @@ O caminho é sempre o mesmo: o servidor do site pede o token com a chave secreta
 **No navegador**, o widget manda o token em `Authorization: Bearer` junto da chave publicável do site (`x-galaxie-publishable-key`). A API confere a origem da página contra a chave e exige que o cliente da chave seja o do token: token de outro cliente recebe 401 (`Token de outro cliente.`). A chave e a origem são conferidas antes do token, então qualquer 401 (token vencido, inválido ou de outro cliente) leva o CORS da origem conferida, e o widget consegue ler a recusa e pedir outro token. Só a chave publicável do site leva o token: chave presa a um widget recebe 403 (`PUBLISHABLE_KEY_NOT_ALLOWED`), e o widget mostra o recurso do torcedor como indisponível, sem pedir outro token. O preflight libera `Authorization` e o método de cada rota do torcedor (inclusive `PATCH`) para as origens de alguma chave ativa. Do servidor ou do app nativo, sem chave publicável, vale só o token.
 
 **O que o widget mostra.** Lê `GET /v1/fans/me` e usa as `capabilities` da faixa: sem token, "Entre para participar" (com o botão "Entrar" quando o site trata o login); `13_17`, só leitura onde o recurso escreve; `under13`, recurso indisponível; `18plus`, tudo. Token recusado ou vencido mostra "Sua sessão terminou". Com uma função que busca token novo, o widget pede outro um minuto antes de vencer e de novo se a API recusar (recusas ao mesmo tempo dividem um pedido). Quando o torcedor entra ou sai sem recarregar a página, o site dispara `galaxie:fan-token-changed` no `document` (ou chama `useFanSession().refresh()` no React, `el.refreshFanToken()` no embed), e os widgets pedem o token de novo.
+
+**Estado de idade no embed (#1105).** O `<galaxie-widget>` mostra o `age_status` do torcedor no atributo `fan-status` e dispara `galaxie:fan-status` (sobe até o documento, `detail.status`) quando ele muda, para o site abrir a autorização do responsável (`needs_guardian`) ou a comprovação de idade (`needs_verification`). Sem torcedor, o atributo some e `detail.status` vem `null`. No React, o mesmo valor está em `useFanSession().me?.age_status`.
+
+```js
+document.addEventListener('galaxie:fan-status', (e) => {
+  if (e.detail.status === 'needs_guardian') abrirAutorizacaoDoResponsavel();
+  if (e.detail.status === 'needs_verification') abrirComprovacaoDeIdade();
+});
+```
 
 **HTML puro (embed).** A função na página vale para todos os widgets; o atributo `fan-token` serve para um token fixo. O clique em "Entrar" dispara o evento `galaxie:fan-sign-in`. A função é lida na hora de cada pedido, então pode ser definida depois do `embed.js`.
 

@@ -372,6 +372,25 @@ export async function holdContent(
   });
 }
 
+/**
+ * Evento do Perfil que não é caso da fila, só auditoria (ex.: autorização do responsável declarada pelo cliente,
+ * #1105). Os mesmos relógios da ficha do país.
+ */
+export async function auditFanEvent(
+  db: Database,
+  row: {
+    tenantId: string;
+    actor: ModerationActor;
+    action: string;
+    clocks: ModerationClocks;
+    subjectProfileId: string;
+    reason?: string | null;
+    rules?: Record<string, unknown> | null;
+  },
+): Promise<void> {
+  await audit(db, row);
+}
+
 export interface QueueFilter {
   status?: 'open' | 'resolved' | 'dismissed';
   module?: string;

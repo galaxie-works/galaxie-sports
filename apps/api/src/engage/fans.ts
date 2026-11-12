@@ -9,8 +9,12 @@ import {
   fanPointsRevokedEvent,
   fanProfile,
   fanWallet,
+  coarseAgeBand,
   type Database,
+  type FanAgeAssurance,
   type FanAgeBand,
+  type FanAgeBandDetail,
+  type FanGuardianStatus,
   type FanHolderAdult,
   type FanVisibility,
 } from '@galaxie/db';
@@ -22,11 +26,25 @@ export interface FanUpsert {
   externalProfileId: string;
   nickname: string;
   avatarUrl?: string | undefined;
-  ageBand: FanAgeBand;
+  /** Faixa fina (#1105); a larga sai dela. */
+  ageBand: FanAgeBandDetail;
+  ageAssurance: { method: FanAgeAssurance; at: Date | null; provider: string | null };
+  guardian: { status: FanGuardianStatus; consentId: string | null; linked: boolean };
   country: string;
   locale: string;
   holderAdult: FanHolderAdult;
   favoriteTeamId?: string | undefined;
+}
+
+export interface FanUpsertResult {
+  accountId: string;
+  profileId: string;
+  /** Faixa larga que vale para o token: a congelada não volta a `18plus` até a correção (#1110). */
+  ageBand: FanAgeBand;
+  /** A faixa desceu de `18plus` agora: congela e vai para a fila de moderação. */
+  downgradedFrom: FanAgeBand | null;
+  /** A autorização passou a valer agora, declarada pelo cliente (sem `consentId`). */
+  guardianDeclared: boolean;
 }
 
 export interface FanProfileView {
@@ -35,6 +53,12 @@ export interface FanProfileView {
   nickname: string;
   avatarUrl: string | null;
   ageBand: FanAgeBand;
+  ageBandDetail: FanAgeBandDetail | null;
+  ageAssurance: FanAgeAssurance;
+  ageAssuranceAt: Date | null;
+  guardianStatus: FanGuardianStatus;
+  guardianLinked: boolean;
+  ageFrozenAt: Date | null;
   country: string;
   locale: string;
   favoriteTeamId: string | null;
@@ -47,10 +71,7 @@ export interface FanProfileView {
  * do país, do idioma, do Apelido e do avatar; o time do coração só muda quando vem no pedido (o torcedor também
  * muda em PATCH /v1/fans/me).
  */
-export async function upsertFan(
-  db: Database,
-  input: FanUpsert,
-): Promise<{ accountId: string; profileId: string }> {
+export async function upsertFan(db: Database, input: FanUpsert): Promise<FanUpsertResult> {
   return db.transaction(async (tx) => {
     const [account] = await tx
       .insert(fanAccount)
@@ -65,6 +86,44 @@ export async function upsertFan(
       })
       .returning({ id: fanAccount.id });
     const accountId = account!.id;
+    // o Perfil de antes (trava a linha): descer de `18plus` congela; a congelada não volta a adulto pelo token
+    const [before] = await tx
+      .select({
+        ageBand: fanProfile.ageBand,
+        ageFrozenAt: fanProfile.ageFrozenAt,
+        guardianStatus: fanProfile.guardianStatus,
+        guardianConsentId: fanProfile.guardianConsentId,
+      })
+      .from(fanProfile)
+      .where(
+        and(
+          eq(fanProfile.tenantId, input.tenantId),
+          eq(fanProfile.accountId, accountId),
+          eq(fanProfile.externalProfileId, input.externalProfileId),
+        ),
+      )
+      .for('update');
+    const requested = coarseAgeBand(input.ageBand);
+    const downgradedFrom = before?.ageBand === '18plus' && requested !== '18plus' ? before.ageBand : null;
+    const frozen = downgradedFrom !== null || before?.ageFrozenAt != null;
+    const ageBand: FanAgeBand = frozen && requested === '18plus' ? '13_17' : requested;
+    // a faixa fina fica como o cliente mandou; a larga (a que libera escrever e resgatar) é que fica presa
+    const ageBandDetail: FanAgeBandDetail = input.ageBand;
+    const guardianDeclared =
+      input.guardian.status === 'granted' &&
+      input.guardian.consentId === null &&
+      (before?.guardianStatus !== 'granted' || before.guardianConsentId !== null);
+    const ageFields = {
+      ageBand,
+      ageBandDetail,
+      ageAssurance: input.ageAssurance.method,
+      ageAssuranceAt: input.ageAssurance.at,
+      ageAssuranceProvider: input.ageAssurance.provider,
+      guardianStatus: input.guardian.status,
+      guardianConsentId: input.guardian.consentId,
+      guardianLinked: input.guardian.linked,
+      ...(downgradedFrom ? { ageFrozenAt: sql`now()` as never } : {}),
+    };
     const [profile] = await tx
       .insert(fanProfile)
       .values({
@@ -73,7 +132,7 @@ export async function upsertFan(
         externalProfileId: input.externalProfileId,
         nickname: input.nickname,
         avatarUrl: input.avatarUrl ?? null,
-        ageBand: input.ageBand,
+        ...ageFields,
         country: input.country,
         locale: input.locale,
         favoriteTeamId: input.favoriteTeamId ?? null,
@@ -84,7 +143,7 @@ export async function upsertFan(
         set: {
           nickname: input.nickname,
           avatarUrl: input.avatarUrl ?? null,
-          ageBand: input.ageBand,
+          ...ageFields,
           country: input.country,
           locale: input.locale,
           ...(input.favoriteTeamId ? { favoriteTeamId: input.favoriteTeamId } : {}),
@@ -92,7 +151,7 @@ export async function upsertFan(
         },
       })
       .returning({ id: fanProfile.id });
-    return { accountId, profileId: profile!.id };
+    return { accountId, profileId: profile!.id, ageBand, downgradedFrom, guardianDeclared };
   });
 }
 
@@ -134,6 +193,12 @@ export async function readFan(
       nickname: fanProfile.nickname,
       avatarUrl: fanProfile.avatarUrl,
       ageBand: fanProfile.ageBand,
+      ageBandDetail: fanProfile.ageBandDetail,
+      ageAssurance: fanProfile.ageAssurance,
+      ageAssuranceAt: fanProfile.ageAssuranceAt,
+      guardianStatus: fanProfile.guardianStatus,
+      guardianLinked: fanProfile.guardianLinked,
+      ageFrozenAt: fanProfile.ageFrozenAt,
       country: fanProfile.country,
       locale: fanProfile.locale,
       favoriteTeamId: fanProfile.favoriteTeamId,
@@ -219,6 +284,8 @@ export async function eraseFan(
         avatarUrl: null,
         favoriteTeamId: null,
         visibility: {},
+        ageAssuranceProvider: null,
+        guardianConsentId: null,
         deletedAt: sql`now()` as never,
         updatedAt: sql`now()` as never,
       })

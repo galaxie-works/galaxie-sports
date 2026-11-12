@@ -8,7 +8,20 @@ import { Problem } from './common.js';
  * idioma. Campos fora da lista são recusados: nunca e-mail, documento, telefone, senha ou data de nascimento.
  */
 
-export const FAN_TOKEN_AGE_BANDS = ['under13', '13_17', '18plus'] as const;
+/** Faixas do token (#1105). `13_17` é a faixa larga de antes: ainda aceita, vale como `13` (a mais restritiva). */
+export const FAN_TOKEN_AGE_BANDS = ['under13', '13', '14_15', '16_17', '18plus', '13_17'] as const;
+/** Faixa larga (a que as rotas e os widgets de hoje leem). */
+export const FAN_AGE_BANDS_COARSE = ['under13', '13_17', '18plus'] as const;
+export const FAN_AGE_BANDS_DETAIL = ['under13', '13', '14_15', '16_17', '18plus'] as const;
+export const FAN_AGE_ASSURANCE_METHODS = ['self', 'estimated', 'verified'] as const;
+export const FAN_GUARDIAN_STATUSES = ['none', 'pending', 'granted', 'revoked'] as const;
+export const FAN_AGE_STATUSES = [
+  'blocked',
+  'needs_guardian',
+  'needs_verification',
+  'read_only',
+  'can_write',
+] as const;
 
 const ExternalId = z
   .string()
@@ -60,9 +73,44 @@ export const FanTokenBody = z
     avatarUrl: HttpsUrl.optional(),
     ageBand: z.enum(FAN_TOKEN_AGE_BANDS).meta({
       description:
-        'Faixa etária do Perfil, informada pela sua plataforma. `under13` recebe token, mas toda rota social ' +
-        'responde 403; `13_17` lê e palpita, não escreve nem resgata; `18plus` tudo.',
+        'Faixa etária do Perfil, informada pela sua plataforma (nunca a data de nascimento). `under13` recebe ' +
+        'token, mas toda rota social responde 403; de `13` a `16_17` lê e palpita, não escreve nem resgata; ' +
+        '`18plus` tudo, conforme a ficha do país. `13_17` (faixa antiga) ainda é aceito e vale como `13`.',
     }),
+    ageAssurance: z
+      .strictObject({
+        method: z.enum(FAN_AGE_ASSURANCE_METHODS).meta({
+          description: '`self` = declarada; `estimated` = estimativa de idade; `verified` = verificação.',
+        }),
+        at: z.union([z.iso.date(), z.iso.datetime({ offset: true })]).meta({
+          description: 'Quando a idade foi comprovada (ISO 8601).',
+          example: '2026-11-01',
+        }),
+        provider: z
+          .string()
+          .trim()
+          .min(1)
+          .max(64)
+          .regex(/^[\w .:-]+$/, 'use só letras, números, espaço e . _ : -')
+          .optional()
+          .meta({ description: 'Quem estimou ou verificou. Nunca o documento nem a foto.' }),
+      })
+      .optional()
+      .meta({ description: 'Como a idade foi comprovada. Sem o bloco, vale `self`.' }),
+    guardian: z
+      .strictObject({
+        status: z.enum(FAN_GUARDIAN_STATUSES),
+        consentId: ExternalId.optional().meta({
+          description:
+            'Id da autorização guardada no Galaxie. Sem ele, a prova da autorização fica com você (contrato).',
+        }),
+        linkedAccount: z
+          .boolean()
+          .optional()
+          .meta({ description: 'A conta do menor está vinculada à do responsável no seu sistema.' }),
+      })
+      .optional()
+      .meta({ description: 'Autorização do responsável legal. Sem o bloco, `none`.' }),
     country: Country,
     locale: Locale,
     holderAdult: z.enum(['yes', 'no', 'unknown']).default('unknown').meta({
@@ -107,7 +155,24 @@ export const FanMe = z
       profile_id: z.uuid(),
       nickname: z.string(),
       avatar_url: z.string().nullable(),
-      age_band: z.enum(FAN_TOKEN_AGE_BANDS),
+      age_band: z.enum(FAN_AGE_BANDS_COARSE),
+      age_band_detail: z
+        .enum(FAN_AGE_BANDS_DETAIL)
+        .nullable()
+        .meta({ description: 'Faixa fina; null em Perfil gravado antes dela, só com a faixa larga.' }),
+      age_assurance: z.object({
+        method: z.enum(FAN_AGE_ASSURANCE_METHODS),
+        at: z.string().nullable().meta({ description: 'ISO 8601.' }),
+      }),
+      guardian: z.object({
+        status: z.enum(FAN_GUARDIAN_STATUSES),
+        linked_account: z.boolean(),
+      }),
+      age_status: z.enum(FAN_AGE_STATUSES).meta({
+        description:
+          'O que falta para o Perfil usar os recursos sociais no país dele: `blocked`, `needs_guardian`, ' +
+          '`needs_verification`, `read_only` ou `can_write`.',
+      }),
       country: z.string(),
       locale: z.string(),
       favorite_team_id: z.uuid().nullable(),
