@@ -6,8 +6,10 @@ import { PageHeader } from '@/components/app-shell/page-header';
 import { FormCardSkeleton } from '@/components/app-shell/skeletons';
 import { ChannelListPortal } from '@/components/channel-list/portal';
 import { ClientArea } from '@/components/client/client-area';
+import { ChannelImport } from '@/components/cosmos/channel-import';
 import { readChannelListPortal } from '@/lib/channel-list/server';
-import { WTW_MARKETS } from '@/lib/channel-list/types';
+import { unmatchedChannels, WTW_MARKETS } from '@/lib/channel-list/types';
+import { channelImportAccess, channelImportMinimum } from '@/lib/cosmos/channel-import-tasks';
 import { getT, getTimeZone } from '@/lib/i18n/server';
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -19,13 +21,29 @@ async function Channels() {
   const timeZone = await getTimeZone();
   return (
     <ClientArea section="channels">
-      {async ({ tenant }) => {
+      {async (ctx) => {
+        const { tenant } = ctx;
         // O tenant vem da sessão (ClientArea): o cliente só vê e muda a lista dele.
-        const view = await readChannelListPortal(tenant.id);
+        // Cosmos (#1008): ler a grade de PDF, print ou planilha, para quem pode usar e com a função ativa
+        const [view, cosmosMin] = await Promise.all([
+          readChannelListPortal(tenant.id),
+          channelImportAccess(ctx) ? null : channelImportMinimum(),
+        ]);
         const markets = tenant.markets.length
           ? WTW_MARKETS.filter((m) => tenant.markets.includes(m))
           : [...WTW_MARKETS];
-        return <ChannelListPortal view={view} markets={markets} timeZone={timeZone} />;
+        return (
+          <div className="flex flex-col gap-4">
+            {cosmosMin != null ? (
+              <ChannelImport
+                minCredits={ctx.role === 'admin' ? null : cosmosMin}
+                country={markets.length === 1 ? markets[0]! : null}
+                unmatched={view ? unmatchedChannels(view).map((c) => c.name) : []}
+              />
+            ) : null}
+            <ChannelListPortal view={view} markets={markets} timeZone={timeZone} />
+          </div>
+        );
       }}
     </ClientArea>
   );
