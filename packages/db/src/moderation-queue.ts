@@ -320,7 +320,7 @@ export async function fileReport(
  * conteúdo se já houver. `hide` oculta até a revisão (o filtro já não publicou).
  */
 export async function holdContent(
-  db: Database,
+  db: Executor,
   input: CaseTarget & {
     source: 'filter' | 'cosmos';
     reasons: string[];
@@ -333,7 +333,8 @@ export async function holdContent(
   },
 ): Promise<{ caseId: string }> {
   const now = input.now ?? new Date();
-  return db.transaction(async (tx) => {
+  // dentro de outra transação (ex.: o pedido do token, #1105) vira savepoint: o caso entra junto ou nada entra
+  return (db as Database).transaction(async (tx) => {
     const c = await openCase(tx, input, {
       source: input.source,
       severity: input.severity,
@@ -372,6 +373,25 @@ export async function holdContent(
     });
     return { caseId: c.id };
   });
+}
+
+/**
+ * Evento do Perfil que não é caso da fila, só auditoria (ex.: autorização do responsável declarada pelo cliente,
+ * #1105). Os mesmos relógios da ficha do país.
+ */
+export async function auditFanEvent(
+  db: Executor,
+  row: {
+    tenantId: string;
+    actor: ModerationActor;
+    action: string;
+    clocks: ModerationClocks;
+    subjectProfileId: string;
+    reason?: string | null;
+    rules?: Record<string, unknown> | null;
+  },
+): Promise<void> {
+  await audit(db, row);
 }
 
 /**
