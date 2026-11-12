@@ -684,8 +684,22 @@
     {
       "idx": 97,
       "version": "7",
-      "when": 1794496338304,
-      "tag": "0122_plataforma_comercial",
+      "when": 1794487982379,
+      "tag": "0121_cosmos_funcoes_widget",
+      "breakpoints": true
+    },
+    {
+      "idx": 98,
+      "version": "7",
+      "when": 1794488042379,
+      "tag": "0127_var_gol_anulado",
+      "breakpoints": true
+    },
+    {
+      "idx": 99,
+      "version": "7",
+      "when": 1794505125801,
+      "tag": "0140_plataforma_comercial",
       "breakpoints": true
     }
   ]

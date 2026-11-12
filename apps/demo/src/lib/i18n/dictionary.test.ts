@@ -1,3 +1,4 @@
+import { VAR_DETAILS } from '@galaxie/contracts';
 import { describe, expect, it } from 'vitest';
 
 import { LOCALES } from './config';
@@ -45,5 +46,12 @@ describe.each(namespaces)('dicionário %s', (_name, messages) => {
       .filter(([, text]) => /[ãõçÃÕÇ]/.test(text))
       .map(([key, text]) => `${key}: ${text}`);
     expect(leftovers).toEqual([]);
+  });
+});
+
+describe('vereditos do VAR (#641)', () => {
+  it.each(LOCALES)('%s traduz todo detail de VAR que a api-sports manda', (locale) => {
+    const known = (NAMESPACES.live[locale] as { timeline: { var: Record<string, string> } }).timeline.var;
+    expect(Object.keys(VAR_DETAILS).filter((d) => !known[d])).toEqual([]);
   });
 });
