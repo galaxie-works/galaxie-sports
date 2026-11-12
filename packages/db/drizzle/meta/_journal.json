@@ -659,6 +659,13 @@
       "when": 1794447867474,
       "tag": "0098_patrocinador_alcool",
       "breakpoints": true
+    },
+    {
+      "idx": 94,
+      "version": "7",
+      "when": 1794487933533,
+      "tag": "0099_ficha_default",
+      "breakpoints": true
     }
   ]
 }
