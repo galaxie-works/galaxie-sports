@@ -20,3 +20,22 @@ export function allowEstimate(userId: string, now: number = Date.now()): boolean
   if (windows.size > 10_000) for (const [k, v] of windows) if (!v.some((t) => t > since)) windows.delete(k);
   return true;
 }
+
+/** Testes da moderação por pessoa por minuto (cada um chama o modelo e gasta créditos). */
+export const PREVIEWS_PER_MINUTE = 6;
+const previews = new Map<string, number[]>();
+
+/** Mesma janela de um minuto, para o "testar com uma mensagem" (#999). */
+export function allowPreview(userId: string, now: number = Date.now()): boolean {
+  const since = now - 60_000;
+  const recent = (previews.get(userId) ?? []).filter((t) => t > since);
+  if (recent.length >= PREVIEWS_PER_MINUTE) {
+    previews.set(userId, recent);
+    return false;
+  }
+  recent.push(now);
+  previews.set(userId, recent);
+  if (previews.size > 10_000)
+    for (const [k, v] of previews) if (!v.some((t) => t > since)) previews.delete(k);
+  return true;
+}
