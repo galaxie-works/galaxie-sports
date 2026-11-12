@@ -6,3 +6,5 @@ export * from './catalog/schema.js';
 export * from './catalog/plans.js';
 export * from './catalog/catalog.js';
 export { defaultCatalogDir } from './catalog/paths.js';
+export * from './entitlements/resolve.js';
+export * from './entitlements/load.js';

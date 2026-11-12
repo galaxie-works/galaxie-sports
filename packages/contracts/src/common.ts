@@ -81,6 +81,8 @@ export const Problem = z
         next: z.enum(AGE_GATE_NEXT_STEPS).optional(),
       })
       .optional(),
+    /** MODULE_NOT_IN_PLAN: onde o cliente contrata o módulo que falta (plataforma comercial, #1137). */
+    upgrade_url: z.string().meta({ example: 'https://example.com/console/plans?module=odds' }).optional(),
   })
   .meta({ id: 'Problem', description: 'Erro RFC 9457 (application/problem+json)' });
 export type Problem = z.infer<typeof Problem>;
