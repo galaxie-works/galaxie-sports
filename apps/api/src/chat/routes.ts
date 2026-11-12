@@ -20,9 +20,10 @@ import {
   type ChatMessageResponse,
   type ChatRoom,
 } from '@galaxie/contracts';
-import { activeSanctions, type ChatStrictness, type Database } from '@galaxie/db';
+import { activeSanctions, CHAT_GAME_KINDS, type ChatStrictness, type Database } from '@galaxie/db';
 import {
   canReadRoom,
+  gameKindEnabled,
   roomWindow,
   screen,
   screenNotice,
@@ -54,6 +55,7 @@ import {
 } from './rooms.js';
 import { ChatSettings, type ChatSettingsValues } from './settings.js';
 import { ChatHub } from './hub.js';
+import { gameMessages } from './game.js';
 import { MemoryChatPeak, type ChatPeak } from './peak.js';
 import { registerChatStream, type ChatStreamOptions } from './stream.js';
 
@@ -79,6 +81,7 @@ function effective(room: ChatRoomRow | null, cfg: ChatTenantConfigRow, g: ChatSe
     strictness: (room?.strictness ?? cfg.strictness ?? 'standard') as ChatStrictness,
     maxChars: g.maxChars,
     historyOnJoin: g.historyOnJoin,
+    eventKinds: cfg.eventKinds,
   };
 }
 
@@ -171,10 +174,12 @@ export async function chatRoutes(app: FastifyInstance, deps: ChatRoutesDeps): Pr
   ): Promise<ChatRoom> {
     const { room, eff, window } = loaded;
     const visible: ChatRoomState[] = ['open', 'frozen', 'read_only_peak', 'closed'];
-    const messages =
+    const [messages, game] = await Promise.all([
       room && visible.includes(window.state)
-        ? await recentMessages(db(), tenantId, room.id, eff.historyOnJoin)
-        : [];
+        ? recentMessages(db(), tenantId, room.id, eff.historyOnJoin)
+        : Promise.resolve([]),
+      gameMessages(db(), fixtureId),
+    ]);
     return {
       data: {
         room_id: room?.id ?? null,
@@ -188,6 +193,7 @@ export async function chatRoutes(app: FastifyInstance, deps: ChatRoutesDeps): Pr
           max_chars: eff.maxChars,
         },
         messages: messages.map(messageView),
+        game_messages: game.filter((m) => gameKindEnabled(eff.eventKinds, m.kind)),
       },
     };
   }
@@ -397,6 +403,8 @@ export async function chatRoutes(app: FastifyInstance, deps: ChatRoutesDeps): Pr
     options: deps.stream ?? {},
     // leitura: não cria a sala (a chave publicável abre o stream); os lotes são por jogo e cliente
     roomState: async (tenantId, fixtureId) => (await loadRoom(tenantId, fixtureId, false)).window.state,
+    gameKinds: async (tenantId) => (await readTenantConfig(db(), tenantId)).eventKinds,
+    gameSnapshot: (fixtureId) => gameMessages(db(), fixtureId),
   });
 
   async function configBody(tenantId: string): Promise<ChatConfig> {
@@ -408,6 +416,7 @@ export async function chatRoutes(app: FastifyInstance, deps: ChatRoutesDeps): Pr
         close_after_minutes: eff.closeAfterMinutes,
         slow_mode_seconds: eff.slowModeSeconds,
         strictness: eff.strictness,
+        event_kinds: eff.eventKinds ?? [...CHAT_GAME_KINDS],
         custom: Object.entries(cfg)
           .filter(([, v]) => v !== null)
           .map(([k]) => k.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`)),

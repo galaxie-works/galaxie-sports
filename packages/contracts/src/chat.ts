@@ -10,6 +10,38 @@ import { Problem } from './common.js';
 
 export const CHAT_ROOM_STATES = ['scheduled', 'open', 'frozen', 'read_only_peak', 'closed'] as const;
 export const CHAT_STRICTNESS_VALUES = ['standard', 'strict'] as const;
+export const CHAT_GAME_KIND_VALUES = [
+  'kickoff',
+  'goal',
+  'red_card',
+  'var',
+  'half_time',
+  'full_time',
+] as const;
+
+/** Mensagem do jogo (#965): gol, cartão vermelho, VAR, início, intervalo e fim. Não se denuncia nem se apaga. */
+export const ChatGameMessage = z
+  .object({
+    id: z.uuid(),
+    kind: z.enum(CHAT_GAME_KIND_VALUES),
+    minute: z.number().int().nullable(),
+    extra: z.number().int().nullable(),
+    team: z
+      .object({ id: z.uuid(), name: z.string(), crest_url: z.string().nullable() })
+      .nullable()
+      .meta({ description: 'Time do lance, com o escudo.' }),
+    player: z.string().nullable(),
+    score: z.object({ home: z.number().int(), away: z.number().int() }).nullable(),
+    cancelled: z
+      .boolean()
+      .meta({ description: 'Gol anulado pelo VAR: a mensagem fica, marcada como anulada.' }),
+    text: z.object({ 'pt-BR': z.string(), es: z.string(), en: z.string() }),
+    created_at: z.string(),
+    updated_at: z.string(),
+  })
+  .meta({ id: 'ChatGameMessage' });
+export type ChatGameMessage = z.infer<typeof ChatGameMessage>;
+
 export const CHAT_SEND_REFUSALS = [
   'age_band',
   'room_scheduled',
@@ -72,6 +104,10 @@ export const ChatRoom = z
       messages: z
         .array(ChatMessage)
         .meta({ description: 'Últimas mensagens, da mais antiga para a mais nova.' }),
+      game_messages: z.array(ChatGameMessage).meta({
+        description:
+          'O jogo dentro do chat, só com os tipos que o cliente ligou, da mais antiga para a mais nova.',
+      }),
     }),
   })
   .meta({ id: 'ChatRoom' });
@@ -114,6 +150,15 @@ export const ChatConfigBody = z
     closeAfterMinutes: z.number().int().min(0).max(1440).nullable().optional(),
     slowModeSeconds: z.number().int().min(0).max(600).nullable().optional(),
     strictness: z.enum(CHAT_STRICTNESS_VALUES).nullable().optional(),
+    eventKinds: z
+      .array(z.enum(CHAT_GAME_KIND_VALUES))
+      .max(CHAT_GAME_KIND_VALUES.length)
+      .nullable()
+      .optional()
+      .meta({
+        description:
+          'Tipos de mensagem do jogo nas salas; `null` = todos. Lista vazia desliga o jogo no chat.',
+      }),
   })
   .meta({ id: 'ChatConfigBody' });
 export type ChatConfigBody = z.infer<typeof ChatConfigBody>;
@@ -125,6 +170,7 @@ export const ChatConfig = z
       close_after_minutes: z.number().int(),
       slow_mode_seconds: z.number().int(),
       strictness: z.enum(CHAT_STRICTNESS_VALUES),
+      event_kinds: z.array(z.enum(CHAT_GAME_KIND_VALUES)),
       custom: z
         .array(z.string())
         .meta({ description: 'Campos com valor próprio do cliente (o resto é padrão).' }),

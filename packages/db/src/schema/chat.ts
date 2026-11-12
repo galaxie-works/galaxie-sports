@@ -8,7 +8,9 @@
  * - `message`: o texto que passou pela base de regras (#969). `visibility` = `public` (entra no lote para todos),
  *   `shadow` (só o autor vê: abuso ou Silêncio oculto) ou `hidden` (tirada pela moderação). `purge_at` vem do relógio
  *   de conteúdo da ficha do país (#954).
- * - `tenant_config`: o padrão do cliente para as salas (janela, modo lento, rigor), dentro do teto da Galaxie.
+ * - `tenant_config`: o padrão do cliente para as salas (janela, modo lento, rigor, tipos de lance), dentro do teto da
+ *   Galaxie.
+ * - `game_message`: o jogo dentro do chat (#965), uma linha por lance e por jogo, igual para todos os clientes.
  *
  * `tenant_id` abre a chave primária e todos os índices, e a mensagem aponta para a sala e para o Perfil por chave
  * composta: o banco recusa mensagem de um cliente numa sala de outro, mesmo com bug no código. O jogo
@@ -20,6 +22,7 @@ import {
   foreignKey,
   index,
   integer,
+  jsonb,
   pgSchema,
   primaryKey,
   text,
@@ -135,6 +138,8 @@ export const chatTenantConfig = chat.table(
     closeAfterMinutes: integer('close_after_minutes'),
     slowModeSeconds: integer('slow_mode_seconds'),
     strictness: text('strictness').$type<ChatStrictness>(),
+    /** Tipos de mensagem do jogo nas salas (#965); null = todos. */
+    eventKinds: text('event_kinds').array().$type<ChatGameKind[]>(),
     updatedBy: text('updated_by').notNull(),
     updatedAt: updatedAt(),
   },
@@ -152,5 +157,52 @@ export const chatTenantConfig = chat.table(
       'tenant_config_strictness',
       sql`${t.strictness} is null or ${inList('strictness', CHAT_STRICTNESS)}`,
     ),
+  ],
+);
+
+/**
+ * Tipos de mensagem do jogo dentro do chat (#965). O cliente escolhe quais entram nas salas dele
+ * (`tenant_config.event_kinds`; null = todos).
+ */
+export const CHAT_GAME_KINDS = ['kickoff', 'goal', 'red_card', 'var', 'half_time', 'full_time'] as const;
+export type ChatGameKind = (typeof CHAT_GAME_KINDS)[number];
+
+/** O que a mensagem do jogo mostra; o texto nos três idiomas sai disto (`@galaxie/engage`, `chat-game.ts`). */
+export interface ChatGameData {
+  minute: number | null;
+  extra: number | null;
+  /** Detalhe do fornecedor (Normal Goal, Own Goal, Penalty, Red Card, Goal cancelled...). */
+  detail: string | null;
+  team: { id: string; name: string; crest_url: string | null } | null;
+  player: string | null;
+  score: { home: number; away: number } | null;
+  /** Gol anulado pelo VAR: a mensagem do gol fica, marcada como anulada (não some sem rastro). */
+  cancelled?: boolean;
+}
+
+/**
+ * Mensagem do jogo (gol, cartão vermelho, VAR, início, intervalo, fim), uma por lance e por jogo, igual para todos os
+ * clientes (não tem dado de torcedor). `source_key` é o lance de origem (`incident:<id>`, `status:<estado>`): duas
+ * instâncias que recebem a mesma mudança gravam uma vez só. Não pode ser denunciada nem apagada por moderador; o
+ * cliente só escolhe os tipos.
+ */
+export const chatGameMessage = chat.table(
+  'game_message',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .default(sql`public.uuid_generate_v7()`),
+    /** `core.event.id`, sem chave estrangeira. */
+    eventId: uuid('event_id').notNull(),
+    sourceKey: text('source_key').notNull(),
+    kind: text('kind').$type<ChatGameKind>().notNull(),
+    data: jsonb('data').$type<ChatGameData>().notNull(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex('game_message_source_uq').on(t.eventId, t.sourceKey),
+    index('game_message_event_idx').on(t.eventId, t.id),
+    check('game_message_kind', inList('kind', CHAT_GAME_KINDS)),
   ],
 );

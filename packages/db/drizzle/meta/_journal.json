@@ -666,6 +666,13 @@
       "when": 1794487936297,
       "tag": "0105_chat_salas",
       "breakpoints": true
+    },
+    {
+      "idx": 95,
+      "version": "7",
+      "when": 1794495161237,
+      "tag": "0106_chat_eventos_jogo",
+      "breakpoints": true
     }
   ]
 }
