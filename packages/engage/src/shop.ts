@@ -20,6 +20,42 @@ export type ShopClientPath = (typeof SHOP_CLIENT_PATHS)[number];
 /** Redes em que a sub-rede existe (repasse com clickref por cliente). Amazon e Mercado Livre não permitem. */
 export const SUBNETWORK_NETWORKS = ['awin', 'impact', 'direct'] as const;
 
+/** Redes cujo link sai de um modelo entregue pelo programa (`linkTemplate`). */
+export const TEMPLATE_NETWORKS = ['impact', 'direct'] as const;
+
+/**
+ * Parâmetros de rastreio de afiliado que podem ter vindo colados no link curado: saem antes de montar o link, para o
+ * código de uma conta nunca vazar para o link de outra.
+ */
+export const AFFILIATE_PARAMS = [
+  'ascsubtag',
+  'awinaffid',
+  'awinmid',
+  'camp',
+  'clickref',
+  'creative',
+  'creativeasin',
+  'irclickid',
+  'irgwc',
+  'irpid',
+  'linkcode',
+  'linkid',
+  'matt_tool',
+  'matt_word',
+  'sharedid',
+  'subid1',
+  'subid2',
+  'subid3',
+  'tag',
+] as const;
+
+export function stripAffiliateParams(url: URL): URL {
+  const out = new URL(url.toString());
+  for (const k of [...out.searchParams.keys()])
+    if ((AFFILIATE_PARAMS as readonly string[]).includes(k.toLowerCase())) out.searchParams.delete(k);
+  return out;
+}
+
 export type ShopNetworkName = 'amazon' | 'awin' | 'direct' | 'impact' | 'mercado_livre';
 
 /**
@@ -131,6 +167,9 @@ export function resolveAffiliateCode(
   }
   if (!store.clientPaths.includes(dest.path)) return { ok: false, reason: 'path_not_allowed' };
   if (dest.path === 'client_code') {
+    // o modelo do link (Impact, contrato direto) é da conta da Galaxie: o código do cliente não cabe nele
+    if ((TEMPLATE_NETWORKS as readonly string[]).includes(store.network))
+      return { ok: false, reason: 'path_not_allowed' };
     if (!isToken(dest.clientCode)) return { ok: false, reason: 'missing_code' };
     return { ok: true, code: dest.clientCode };
   }
@@ -156,8 +195,9 @@ export function buildAffiliateLink(
   product: Pick<ShopProductRef, 'url'>,
   dest: ShopDestination,
 ): ShopLinkResult {
-  const target = parseHttps(product.url);
-  if (!target) return { ok: false, reason: 'bad_url' };
+  const parsed = parseHttps(product.url);
+  if (!parsed) return { ok: false, reason: 'bad_url' };
+  const target = stripAffiliateParams(parsed);
   const r = resolveAffiliateCode(store, dest);
   if (!r.ok) return r;
   switch (store.network) {
@@ -184,8 +224,9 @@ export function buildAffiliateLink(
     case 'direct': {
       // o programa entrega o modelo do link de rastreio; aqui só se preenche
       const tpl = store.config.linkTemplate;
-      if (!tpl || !tpl.includes('{url}') || !parseHttps(tpl.replace(/\{[a-z]+\}/g, 'x')))
-        return { ok: false, reason: 'missing_credentials' };
+      if (!validLinkTemplate(tpl)) return { ok: false, reason: 'missing_credentials' };
+      // sub-rede sem lugar para o clickref do cliente: a comissão não teria como ser conciliada
+      if (r.clickref && !tpl.includes('{clickref}')) return { ok: false, reason: 'missing_code' };
       const url = tpl
         .replaceAll('{code}', encodeURIComponent(r.code))
         .replaceAll('{clickref}', encodeURIComponent(r.clickref ?? ''))
@@ -193,6 +234,13 @@ export function buildAffiliateLink(
       return parseHttps(url) ? { ok: true, url } : { ok: false, reason: 'bad_url' };
     }
   }
+}
+
+/** Modelo do link de rastreio: https, com `{url}` e `{code}` (o código vem sempre daqui, nunca fixo no modelo). */
+export function validLinkTemplate(tpl: string | undefined): tpl is string {
+  return (
+    !!tpl && tpl.includes('{url}') && tpl.includes('{code}') && !!parseHttps(tpl.replace(/\{[a-z]+\}/g, 'x'))
+  );
 }
 
 /** Horas do cache de preço: a configurada, dentro de 1 a 24 (o teto do épico). */
@@ -277,6 +325,7 @@ export function mercadoLivreConnector(
       if (!token) return curatedConnector.offers(store, products, now);
       const ids = products.map((p) => p.storeProductId.toUpperCase()).filter((id) => MELI_ID.test(id));
       const out: ShopOffer[] = [];
+      const failures: number[] = [];
       // a API aceita até 20 ids por chamada
       for (let i = 0; i < ids.length; i += 20) {
         const chunk = ids.slice(i, i + 20);
@@ -285,7 +334,19 @@ export function mercadoLivreConnector(
           headers: { authorization: `Bearer ${token}`, 'user-agent': 'galaxie-sports/0.1' },
           signal: AbortSignal.timeout(opts.timeoutMs ?? 5_000),
         });
-        if (!res.ok) throw new Error(`mercado livre: HTTP ${res.status}`);
+        if (!res.ok) {
+          // token vencido (o do Mercado Livre é OAuth) ou loja fora: este lote fica no link curado
+          failures.push(res.status);
+          const ids = new Set(chunk);
+          out.push(
+            ...(await curatedConnector.offers(
+              store,
+              products.filter((p) => ids.has(p.storeProductId.toUpperCase())),
+              now,
+            )),
+          );
+          continue;
+        }
         const body = (await res.json()) as Array<{ code?: number; body?: MeliItem }>;
         for (const entry of Array.isArray(body) ? body : []) {
           const item = entry?.body;
@@ -305,9 +366,22 @@ export function mercadoLivreConnector(
           });
         }
       }
+      if (failures.length && !out.some((o) => o.source === 'live'))
+        throw new ShopConnectorError(`mercado livre: HTTP ${failures.join(', ')}`, out);
       return out;
     },
   };
+}
+
+/** A loja falhou; `fallback` traz o que dá para mostrar mesmo assim (link curado). */
+export class ShopConnectorError extends Error {
+  constructor(
+    message: string,
+    readonly fallback: ShopOffer[] = [],
+  ) {
+    super(message);
+    this.name = 'ShopConnectorError';
+  }
 }
 
 /**

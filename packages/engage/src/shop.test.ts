@@ -280,4 +280,85 @@ describe('conectores', () => {
     expect(connectorFor('awin', f).mode).toBe('curated');
     expect(connectorFor('mercado_livre', f).mode).toBe('live');
   });
+
+  it('Mercado Livre: lote com erro cai no curado, o que veio da API fica', async () => {
+    let n = 0;
+    const many = Array.from({ length: 25 }, (_, i) => ({
+      id: `p${i}`,
+      storeProductId: `MLB${1000 + i}`,
+      title: `P${i}`,
+      url: `https://produto.example/${i}`,
+    }));
+    const fetchFn: ShopFetch = async () => {
+      n++;
+      if (n === 2) return { ok: false, status: 401, json: async () => null };
+      return {
+        ok: true,
+        status: 200,
+        json: async () =>
+          many.slice(0, 20).map((p) => ({
+            code: 200,
+            body: {
+              id: p.storeProductId,
+              title: p.title,
+              price: 10,
+              available_quantity: 1,
+              status: 'active',
+            },
+          })),
+      };
+    };
+    const s = store({ network: 'mercado_livre', credentials: { apiToken: 'tok' } });
+    const offers = await mercadoLivreConnector(fetchFn).offers(s, many, now);
+    expect(offers.filter((o) => o.source === 'live')).toHaveLength(20);
+    expect(offers.filter((o) => o.source === 'curated').map((o) => o.productId)).toEqual([
+      'p20',
+      'p21',
+      'p22',
+      'p23',
+      'p24',
+    ]);
+  });
+});
+
+describe('revisão do #1158', () => {
+  it('modelo sem {code}: sem link (o código da Galaxie não pode vir fixo no modelo)', () => {
+    const s = store({ network: 'impact', config: { linkTemplate: 'https://galaxie.example/c/123?u={url}' } });
+    expect(buildAffiliateLink(s, product, galaxie)).toEqual({ ok: false, reason: 'missing_credentials' });
+  });
+
+  it('código do cliente não vale em rede de modelo', () => {
+    const s = store({
+      network: 'impact',
+      clientPaths: ['client_code'],
+      config: { linkTemplate: 'https://t.example/c/{code}?u={url}' },
+    });
+    expect(buildAffiliateLink(s, product, client())).toEqual({ ok: false, reason: 'path_not_allowed' });
+  });
+
+  it('sub-rede em modelo sem {clickref}: sem link', () => {
+    const s = store({
+      network: 'impact',
+      clientPaths: ['subnetwork'],
+      config: { linkTemplate: 'https://t.example/c/{code}?u={url}' },
+    });
+    expect(buildAffiliateLink(s, product, client({ path: 'subnetwork' }))).toEqual({
+      ok: false,
+      reason: 'missing_code',
+    });
+  });
+
+  it('parâmetros de afiliado colados no link curado saem antes de montar', () => {
+    const dirty = { url: 'https://loja.example/dp/B1?tag=galaxie-20&ascsubtag=x&matt_tool=9&ref=keep' };
+    const s = store({ clientPaths: ['client_code'] });
+    const r = buildAffiliateLink(s, dirty, client());
+    expect(r).toEqual({ ok: true, url: 'https://loja.example/dp/B1?ref=keep&tag=cliente-20' });
+    const m = store({ network: 'mercado_livre', clientPaths: ['client_code'] });
+    expect((buildAffiliateLink(m, dirty, client()) as { url: string }).url).not.toContain('matt_tool');
+    const a = store({ network: 'awin', clientPaths: ['subnetwork'], config: { advertiserId: '1' } });
+    const ued = new URL(
+      (buildAffiliateLink(a, dirty, client({ path: 'subnetwork' })) as { url: string }).url,
+    ).searchParams.get('ued');
+    expect(ued).toBe('https://loja.example/dp/B1?ref=keep');
+  });
 });

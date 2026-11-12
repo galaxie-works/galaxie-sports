@@ -60,7 +60,8 @@ export type ShopInputError =
   | 'advertiser_id'
   | 'link_template'
   | 'affiliate_id'
-  | 'api_token';
+  | 'api_token'
+  | 'client_code';
 
 export type Parsed<T> = { ok: true; value: T } | { ok: false; error: ShopInputError };
 
@@ -215,15 +216,24 @@ export function parseConnectorInput(
   const clientPaths = SHOP_CLIENT_PATHS.filter((p) => paths.includes(p));
   if (clientPaths.includes('subnetwork') && !SUBNETWORK_NETWORKS.includes(network))
     return { ok: false, error: 'subnetwork' };
+  // o modelo do link é da conta da Galaxie: o código do cliente não cabe nele
+  if (clientPaths.includes('client_code') && TEMPLATE_NETWORKS.includes(network))
+    return { ok: false, error: 'client_code' };
   const config: ConnectorInput['config'] = {};
   const advertiserId = str(raw.advertiserId);
-  if (network === 'awin' && advertiserId) {
+  if (network === 'awin') {
+    // sem o anunciante, a Awin não gera link nenhum
     if (!TOKEN.test(advertiserId)) return { ok: false, error: 'advertiser_id' };
     config.advertiserId = advertiserId;
   }
   const linkTemplate = str(raw.linkTemplate);
   if (TEMPLATE_NETWORKS.includes(network) && linkTemplate) {
-    if (!linkTemplate.includes('{url}') || !cleanHttpsUrl(linkTemplate.replace(/\{[a-z]+\}/g, 'x')))
+    if (
+      !linkTemplate.includes('{url}') ||
+      !linkTemplate.includes('{code}') ||
+      (clientPaths.includes('subnetwork') && !linkTemplate.includes('{clickref}')) ||
+      !cleanHttpsUrl(linkTemplate.replace(/\{[a-z]+\}/g, 'x'))
+    )
       return { ok: false, error: 'link_template' };
     config.linkTemplate = linkTemplate;
   }
@@ -237,12 +247,17 @@ export interface CredentialsInput {
   apiSecret?: string;
 }
 
-/** Código e ferramenta de afiliado no formato curto; token e segredo da API como vierem (até 2.000 caracteres). */
+/**
+ * Código e ferramenta de afiliado no formato curto; token e segredo da API como vierem (até 2.000 caracteres). Campo
+ * vazio não muda o que está gravado (a tela é só de gravação e começa vazia).
+ */
 export function parseCredentialsInput(raw: Record<string, unknown>): Parsed<CredentialsInput> {
   const out: CredentialsInput = {};
   const affiliateId = str(raw.affiliateId);
-  if (!TOKEN.test(affiliateId)) return { ok: false, error: 'affiliate_id' };
-  out.affiliateId = affiliateId;
+  if (affiliateId) {
+    if (!TOKEN.test(affiliateId)) return { ok: false, error: 'affiliate_id' };
+    out.affiliateId = affiliateId;
+  }
   const affiliateTool = str(raw.affiliateTool);
   if (affiliateTool) {
     if (!TOKEN.test(affiliateTool)) return { ok: false, error: 'affiliate_id' };

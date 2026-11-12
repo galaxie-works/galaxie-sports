@@ -132,8 +132,21 @@ describe('entrada da curadoria do Shopping (#914)', () => {
       value: { clientPaths: ['subnetwork'], config: { advertiserId: '123' } },
     });
     expect(parseConnectorInput('awin', { advertiserId: '1 2' })).toMatchObject({ error: 'advertiser_id' });
+    expect(parseConnectorInput('awin', {})).toMatchObject({ error: 'advertiser_id' });
+    expect(parseConnectorInput('impact', { clientPaths: ['client_code'] })).toMatchObject({
+      error: 'client_code',
+    });
     expect(
-      parseConnectorInput('impact', { linkTemplate: 'https://t.example/c?u={url}&s={clickref}' }),
+      parseConnectorInput('impact', { linkTemplate: 'https://galaxie.example/c/123?u={url}' }),
+    ).toMatchObject({ error: 'link_template' });
+    expect(
+      parseConnectorInput('impact', {
+        clientPaths: ['subnetwork'],
+        linkTemplate: 'https://t.example/c/{code}?u={url}',
+      }),
+    ).toMatchObject({ error: 'link_template' });
+    expect(
+      parseConnectorInput('impact', { linkTemplate: 'https://t.example/c/{code}?u={url}&s={clickref}' }),
     ).toMatchObject({
       ok: true,
     });
@@ -150,7 +163,8 @@ describe('entrada da curadoria do Shopping (#914)', () => {
       ok: true,
       value: { affiliateId: 'galaxie-20', apiToken: 'abc' },
     });
-    expect(parseCredentialsInput({ affiliateId: '' })).toMatchObject({ error: 'affiliate_id' });
+    // vazio mantém o gravado
+    expect(parseCredentialsInput({ affiliateId: '' })).toEqual({ ok: true, value: {} });
     expect(parseCredentialsInput({ affiliateId: 'a&b' })).toMatchObject({ error: 'affiliate_id' });
     expect(parseCredentialsInput({ affiliateId: 'ok', apiToken: 'com espaco' })).toMatchObject({
       error: 'api_token',

@@ -22,8 +22,18 @@ export interface ShopConnectorView {
   advertiserId: string | null;
   linkTemplate: string | null;
   hasCredentials: boolean;
+  /** Muda a cada gravação: a tela remonta o cartão e não mostra o valor velho. */
+  updatedAt: string;
   credentialsHint: string | null;
   credentialsUpdatedAt: string | null;
+}
+
+/** Sem código de afiliado (nem gravado antes, nem agora). */
+export class ShopCredentialsError extends Error {
+  constructor() {
+    super('affiliate_id');
+    this.name = 'ShopCredentialsError';
+  }
 }
 
 export class ShopSecretError extends Error {
@@ -45,9 +55,10 @@ export async function listShopConnectors(): Promise<ShopConnectorView[]> {
     has_credentials: boolean;
     credentials_hint: string | null;
     credentials_updated_at: Date | null;
+    updated_at: Date;
   }>(
     `select id, name, country, network, active, client_paths, config, credentials_sealed is not null as has_credentials,
-            credentials_hint, credentials_updated_at
+            credentials_hint, credentials_updated_at, updated_at
        from engage.shop_store order by country, position, name`,
   );
   return rows.map((r) => ({
@@ -62,6 +73,7 @@ export async function listShopConnectors(): Promise<ShopConnectorView[]> {
     hasCredentials: r.has_credentials,
     credentialsHint: r.credentials_hint,
     credentialsUpdatedAt: r.credentials_updated_at?.toISOString() ?? null,
+    updatedAt: r.updated_at.toISOString(),
   }));
 }
 
@@ -95,10 +107,31 @@ export function credentialsHint(affiliateId: string | undefined): string | null 
   return affiliateId && affiliateId.length >= 8 ? `…${affiliateId.slice(-4)}` : null;
 }
 
+/**
+ * Grava as credenciais juntando com as que já estão gravadas: campo vazio mantém o valor (corrigir o código não
+ * apaga o token da API). O código de afiliado é obrigatório no resultado.
+ */
 export async function saveShopCredentials(id: string, input: CredentialsInput, actor: string): Promise<void> {
   const box = settingsSecrets();
   if (!box) throw new ShopSecretError();
-  const sealed = box.seal(shopStoreSecretKey(id), JSON.stringify(input));
+  const { rows } = await pool.query<{ sealed: string | null }>(
+    `select credentials_sealed as sealed from engage.shop_store where id = $1`,
+    [id],
+  );
+  if (!rows[0]) throw new ShopCatalogError('not_found');
+  let current: CredentialsInput = {};
+  const opened = rows[0].sealed ? box.open(shopStoreSecretKey(id), rows[0].sealed) : null;
+  if (opened) {
+    try {
+      current = JSON.parse(opened) as CredentialsInput;
+    } catch {
+      current = {};
+    }
+  }
+  const merged: CredentialsInput = { ...current, ...input };
+  if (!merged.affiliateId) throw new ShopCredentialsError();
+  const sealed = box.seal(shopStoreSecretKey(id), JSON.stringify(merged));
+  input = merged;
   const { rowCount } = await pool.query(
     `update engage.shop_store set credentials_sealed = $2, credentials_hint = $3, credentials_updated_at = now(),
             credentials_updated_by = $4, updated_by = $4, updated_at = now()

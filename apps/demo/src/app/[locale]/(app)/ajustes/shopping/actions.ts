@@ -33,6 +33,7 @@ import {
   parseCredentialsInput,
 } from '@/lib/shop/catalog-input';
 import {
+  ShopCredentialsError,
   ShopSecretError,
   clearShopCredentials,
   saveShopConnector,
@@ -63,6 +64,7 @@ async function run(ref: EntityRef | null, fn: (actor: string) => Promise<void>):
     if (err instanceof ShopCatalogError) return { ok: false, error: t[err.code] };
     if (err instanceof InputError) return { ok: false, error: t.input[err.code] };
     if (err instanceof ShopSecretError) return { ok: false, error: t.no_kek };
+    if (err instanceof ShopCredentialsError) return { ok: false, error: t.input.affiliate_id };
     // só o nome e o código: a mensagem do driver pode citar parâmetros (e as credenciais cifradas)
     console.error(
       'ajustes/shopping: gravação falhou',

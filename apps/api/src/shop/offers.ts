@@ -18,7 +18,9 @@ import {
 import {
   SHOP_CLIENT_PATHS,
   buildAffiliateLink,
+  ShopConnectorError,
   connectorFor,
+  curatedConnector,
   offerFresh,
   priceCacheHours,
   shopStoreSecretKey,
@@ -102,12 +104,16 @@ export interface ShopOffersOptions {
   redis?: Redis | null;
   keyPrefix?: string;
   metrics?: GalaxieMetrics | undefined;
+  log?: { warn(obj: object, msg: string): void };
   fetch?: ShopFetch;
   now?: () => Date;
   /** Horas do cache de preço (`SHOP_PRICE_CACHE_HOURS`); teto de 24. */
   cacheHours?: number;
   box?: Pick<SettingsSecretBox, 'open'>;
 }
+
+/** Ofertas guardadas na memória quando não há Redis. */
+const MEMORY_MAX = 5_000;
 
 /** Lojas relidas do banco no máximo a cada minuto (liga/desliga e credenciais da tela valem sem deploy). */
 const STORES_TTL_MS = 60_000;
@@ -135,16 +141,22 @@ export class ShopOffers {
     return new Map(this.stores.list.map((s) => [s.id, s]));
   }
 
-  private cacheKey(storeId: string, productId: string) {
-    return `${this.opts.keyPrefix ?? ''}shop:offer:${storeId}:${productId}`;
+  /** A chave leva o modo do conector: ligar a API da loja não fica servindo a oferta curada antiga. */
+  private cacheKey(mode: string, storeId: string, productId: string) {
+    return `${this.opts.keyPrefix ?? ''}shop:offer:${mode}:${storeId}:${productId}`;
   }
 
-  private async cached(storeId: string, productId: string): Promise<ShopOffer | null> {
-    const key = this.cacheKey(storeId, productId);
+  private async cached(mode: string, storeId: string, productId: string): Promise<ShopOffer | null> {
+    const key = this.cacheKey(mode, storeId, productId);
     let offer: ShopOffer | null;
     if (this.opts.redis) {
       const raw = await this.opts.redis.get(key).catch(() => null);
-      offer = raw ? (JSON.parse(raw) as ShopOffer) : null;
+      try {
+        offer = raw ? (JSON.parse(raw) as ShopOffer) : null;
+      } catch {
+        // chave corrompida ou de formato antigo: vale como ausente
+        offer = null;
+      }
     } else {
       const hit = this.memory.get(key);
       offer = hit && hit.until > this.now().getTime() ? hit.offer : null;
@@ -153,11 +165,19 @@ export class ShopOffers {
     return offer && (offer.source === 'curated' || offerFresh(offer, this.now(), this.hours)) ? offer : null;
   }
 
-  private async remember(storeId: string, offer: ShopOffer): Promise<void> {
-    const key = this.cacheKey(storeId, offer.productId);
+  private async remember(mode: string, storeId: string, offer: ShopOffer): Promise<void> {
+    const key = this.cacheKey(mode, storeId, offer.productId);
     const seconds = this.hours * 3600;
     if (this.opts.redis) await this.opts.redis.set(key, JSON.stringify(offer), 'EX', seconds).catch(() => {});
-    else this.memory.set(key, { until: this.now().getTime() + seconds * 1000, offer });
+    else {
+      // sem Redis (dev, testes): a memória não cresce sem fim; as vencidas saem primeiro
+      if (this.memory.size >= MEMORY_MAX) {
+        const t = this.now().getTime();
+        for (const [k, v] of this.memory) if (v.until <= t) this.memory.delete(k);
+        if (this.memory.size >= MEMORY_MAX) this.memory.clear();
+      }
+      this.memory.set(key, { until: this.now().getTime() + seconds * 1000, offer });
+    }
   }
 
   /** Ofertas da entidade para o destino, por loja ligada (ordem do catálogo). Entidade sem cadastro: null. */
@@ -180,27 +200,40 @@ export class ShopOffers {
         .filter((x): x is typeof x & { link: { ok: true; url: string } } => x.link.ok);
       if (!linked.length) continue;
 
+      const connector = connectorFor(store.network, fetchFn);
       const offers = new Map<string, ShopOffer>();
       const missing = [];
       for (const { p } of linked) {
-        const hit = await this.cached(store.id, p.id);
+        const hit = await this.cached(connector.mode, store.id, p.id);
         if (hit) offers.set(p.id, hit);
         else missing.push(p);
       }
-      if (offers.size) this.opts.metrics?.shopConnectorRequests.inc({ store: store.id, outcome: 'cache' });
+      // uma por produto servido do cache (a proporção cache × loja fica certa)
+      if (offers.size)
+        this.opts.metrics?.shopConnectorRequests.inc({ store: store.id, outcome: 'cache' }, offers.size);
       if (missing.length) {
         const stop = this.opts.metrics?.shopConnectorDuration.startTimer({ store: store.id });
         try {
-          const fresh = await connectorFor(store.network, fetchFn).offers(store, missing, this.now());
+          const fresh = await connector.offers(store, missing, this.now());
           stop?.();
           this.opts.metrics?.shopConnectorRequests.inc({ store: store.id, outcome: 'ok' });
           for (const o of fresh) {
             offers.set(o.productId, o);
-            await this.remember(store.id, o);
+            await this.remember(connector.mode, store.id, o);
           }
-        } catch {
+        } catch (err) {
           stop?.();
           this.opts.metrics?.shopConnectorRequests.inc({ store: store.id, outcome: 'error' });
+          // a loja falhou: os produtos dela ficam no link curado (sem preço), sem ir para o cache
+          this.opts.log?.warn(
+            { store: store.id, err: err instanceof Error ? err.message : 'erro' },
+            'shop: conector falhou; link curado',
+          );
+          const fallback =
+            err instanceof ShopConnectorError && err.fallback.length
+              ? err.fallback
+              : await curatedConnector.offers(store, missing, this.now());
+          for (const o of fallback) offers.set(o.productId, o);
         }
       }
 
