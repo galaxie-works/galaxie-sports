@@ -2,7 +2,13 @@ import { crc32, deflateRawSync } from 'node:zlib';
 
 import { describe, expect, it } from 'vitest';
 
-import { channelImportPrompt, importKind, parseChannelImportAnswer, sniffMatches } from './channel-import';
+import {
+  channelImportPrompt,
+  importKind,
+  parseChannelImportAnswer,
+  sheetText,
+  sniffMatches,
+} from './channel-import';
 import { xlsxText } from './xlsx-text';
 
 /** Zip mínimo (deflate), para montar .xlsx de teste sem biblioteca. */
@@ -63,6 +69,28 @@ describe('arquivo da grade', () => {
     expect(sniffMatches('xlsx', bytes(0x50, 0x4b, 3, 4), 'a.xlsx')).toBe(true);
     expect(sniffMatches('sheet', new TextEncoder().encode('ESPN\nFox'), 'a.csv')).toBe(true);
     expect(sniffMatches('sheet', new Uint8Array([0x41, 0, 0x42]), 'a.csv')).toBe(false);
+    // "Texto Unicode" do Excel: UTF-16 com BOM tem bytes nulos e é texto
+    const wide = new Uint8Array([0xff, 0xfe, ...Buffer.from('Canal 4\nNoticias', 'utf16le')]);
+    expect(sniffMatches('sheet', wide, 'a.txt')).toBe(true);
+    expect(sheetText(wide)).toBe('Canal 4\nNoticias');
+  });
+
+  it('CSV salvo no Windows (1252) não vira caractere quebrado', () => {
+    expect(sheetText(new Uint8Array([0x53, 0xe3, 0x6f, 0x20, 0x50, 0x61, 0x75, 0x6c, 0x6f]))).toBe(
+      'São Paulo',
+    );
+    expect(sheetText(new TextEncoder().encode('São Paulo'))).toBe('São Paulo');
+  });
+
+  it('.xlsx malicioso: abertura sem fechamento não trava e entidade inválida não derruba', () => {
+    const open = zip({ 'xl/worksheets/sheet1.xml': `<worksheet><sheetData>${'<row>'.repeat(1_500_000)}` });
+    const t0 = performance.now();
+    expect(xlsxText(open)).toBe('');
+    expect(performance.now() - t0).toBeLessThan(2000);
+    const bad = zip({
+      'xl/worksheets/sheet1.xml': sheetXml(['<c t="inlineStr"><is><t>A&#99999999;B</t></is></c>']),
+    });
+    expect(xlsxText(bad)).toBe('A\uFFFDB');
   });
 
   it('.xlsx vira texto: textos compartilhados, inline, números e várias abas (grade de MX)', () => {
@@ -74,7 +102,10 @@ describe('arquivo da grade', () => {
         '<c t="s"><v>2</v></c><c t="s"><v>4</v></c>',
         '<c t="s"><v>3</v></c><c><v>210</v></c>',
       ]),
-      'xl/worksheets/sheet2.xml': sheetXml(['<c t="inlineStr"><is><t>TUDN</t></is></c>', '<c/>']),
+      'xl/worksheets/sheet2.xml': sheetXml([
+        '<c t="inlineStr"><is><t>TUDN</t><rPh><t>ignorado</t></rPh></is></c>',
+        '<c/>',
+      ]),
     });
     expect(xlsxText(file)).toBe('Canal\tPaquete\nESPN\tBásico & Plus\nFox Sports\t210\nTUDN');
     expect(xlsxText(file, 20)).toBe('Canal\tPaquete');
@@ -111,12 +142,17 @@ describe('resposta do modelo', () => {
         { name: 'Premiere', note: 'Veja www.premiere.com' },
         'TNT Sports',
         { name: '' },
+        'Canal Local',
       ],
+      notes: { ' canal  LOCAL ': 'Canal local: costuma não ter emissora.', Premiere: 'https://x' },
       note: 'A última página estava cortada.',
     });
     expect(r).toEqual({
-      names: ['SporTV 2', 'Globo SP', 'CBN', 'Premiere', 'TNT Sports'],
-      notes: { CBN: 'Rádio: não entra no onde assistir.' },
+      names: ['SporTV 2', 'Globo SP', 'CBN', 'Premiere', 'TNT Sports', 'Canal Local'],
+      notes: {
+        CBN: 'Rádio: não entra no onde assistir.',
+        'Canal Local': 'Canal local: costuma não ter emissora.',
+      },
       note: 'A última página estava cortada.',
     });
     expect(parseChannelImportAnswer({ channels: [{ name: 'https://x' }] })).toBeNull();

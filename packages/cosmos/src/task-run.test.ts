@@ -29,6 +29,14 @@ describe('reserva com anexos', () => {
   it('conta as páginas do PDF (sem confundir com /Pages) e uma imagem por arquivo', () => {
     expect(pdfPages(pdf(3))).toBe(3);
     expect(pdfPages(Buffer.from('sem páginas').toString('base64'))).toBe(1);
+    // object streams (PDF 1.5+): as páginas ficam compactadas; vale o /Count da árvore ou o piso pelo tamanho
+    const packed = (extra: string, size: number) =>
+      Buffer.concat([
+        Buffer.from(`%PDF-1.7\n<< /Type /ObjStm >>${extra}`, 'latin1'),
+        Buffer.alloc(size),
+      ]).toString('base64');
+    expect(pdfPages(packed(' << /Type /Pages /Count 7 >>', 1000))).toBe(7);
+    expect(pdfPages(packed('', 450 * 1024))).toBe(5);
     expect(
       attachmentTokens([
         { mediaType: 'application/pdf', data: pdf(2) },

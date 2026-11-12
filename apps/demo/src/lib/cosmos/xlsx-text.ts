@@ -6,7 +6,7 @@
 import { inflateRawSync } from 'node:zlib';
 
 /** Teto do XML descompactado de cada parte (contra zip bomba). */
-const PART_MAX_BYTES = 20 * 1024 * 1024;
+const PART_MAX_BYTES = 8 * 1024 * 1024;
 const SHEETS_MAX = 5;
 
 interface ZipEntry {
@@ -61,21 +61,84 @@ function readEntry(buf: Buffer, e: ZipEntry): string | null {
   return null;
 }
 
+const entity = (code: number) => (code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : '�');
+
 const decode = (s: string) =>
   s
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')
     .replace(/&apos;/g, "'")
-    .replace(/&#(\d+);/g, (_, d: string) => String.fromCodePoint(Number(d)))
-    .replace(/&#x([0-9a-f]+);/gi, (_, h: string) => String.fromCodePoint(parseInt(h, 16)))
+    .replace(/&#(\d{1,8});/g, (_, d: string) => entity(Number(d)))
+    .replace(/&#x([0-9a-f]{1,8});/gi, (_, h: string) => entity(parseInt(h, 16)))
     .replace(/&amp;/g, '&');
 
-/** Texto de um `<si>` ou `<is>`: junta os `<t>` (inclusive os de rich text). */
-const runs = (xml: string) =>
-  [...xml.matchAll(/<t(?:\s[^>]*)?>([\s\S]*?)<\/t>/g)].map((m) => decode(m[1]!)).join('');
+interface Block {
+  /** Atributos da marca de abertura. */
+  attrs: string;
+  /** Conteúdo entre a abertura e o fechamento ('' na marca vazia `<x/>`). */
+  body: string;
+}
 
-/** Linhas de texto da planilha (células separadas por tabulação); null se não for um .xlsx legível. */
+/**
+ * Elementos `<tag …>…</tag>` (ou `<tag …/>`) em ordem, numa varredura linear com indexOf. Sem regex com `[\s\S]*?`:
+ * num XML sem fechamento, a regex volta ao fim do texto a cada abertura (tempo quadrático, um .xlsx de 30 KB trava o
+ * servidor). Aqui, abertura sem fechamento encerra a varredura.
+ */
+function* blocks(xml: string, tag: string): Generator<Block> {
+  const open = `<${tag}`;
+  const close = `</${tag}>`;
+  let i = 0;
+  for (;;) {
+    const at = xml.indexOf(open, i);
+    if (at < 0) return;
+    const next = xml.charCodeAt(at + open.length);
+    // `<row` não pode casar `<rowBreaks`: depois do nome vem espaço, `>` ou `/`
+    if (next !== 0x3e && next !== 0x2f && next !== 0x20 && next !== 0x09 && next !== 0x0a && next !== 0x0d) {
+      i = at + open.length;
+      continue;
+    }
+    const gt = xml.indexOf('>', at);
+    if (gt < 0) return;
+    const attrs = xml.slice(at + open.length, xml.charCodeAt(gt - 1) === 0x2f ? gt - 1 : gt);
+    if (xml.charCodeAt(gt - 1) === 0x2f) {
+      yield { attrs, body: '' };
+      i = gt + 1;
+      continue;
+    }
+    const end = xml.indexOf(close, gt + 1);
+    if (end < 0) return;
+    yield { attrs, body: xml.slice(gt + 1, end) };
+    i = end + close.length;
+  }
+}
+
+/** Texto de um `<si>` ou `<is>`: junta os `<t>` (inclusive os de rich text; o fonético `<rPh>` fica de fora). */
+function runs(xml: string): string {
+  let plain = '';
+  let i = 0;
+  for (;;) {
+    const at = xml.indexOf('<rPh', i);
+    if (at < 0) break;
+    plain += xml.slice(i, at);
+    const end = xml.indexOf('</rPh>', at);
+    if (end < 0) return decodeRuns(plain);
+    i = end + 6;
+  }
+  return decodeRuns(plain + xml.slice(i));
+}
+
+function decodeRuns(xml: string): string {
+  let text = '';
+  for (const t of blocks(xml, 't')) text += decode(t.body);
+  return text;
+}
+
+/**
+ * Linhas de texto da planilha (células separadas por tabulação); null se não for um .xlsx legível. Limites: as abas
+ * vão pela ordem do nome do arquivo (sheet1, sheet2…), célula vazia omitida não abre coluna e marca com prefixo de
+ * namespace (`<x:row>`) não é lida. Para uma lista de nomes de canais, basta.
+ */
 export function xlsxText(buf: Buffer, maxChars = 60_000): string | null {
   const entries = zipEntries(buf);
   if (!entries) return null;
@@ -85,7 +148,7 @@ export function xlsxText(buf: Buffer, maxChars = 60_000): string | null {
   if (sst) {
     const xml = readEntry(buf, sst);
     if (xml === null) return null;
-    for (const m of xml.matchAll(/<si>([\s\S]*?)<\/si>/g)) shared.push(runs(m[1]!));
+    for (const si of blocks(xml, 'si')) shared.push(runs(si.body));
   }
   const sheets = entries
     .filter((e) => /^xl\/worksheets\/sheet\d+\.xml$/.test(e.name))
@@ -97,16 +160,14 @@ export function xlsxText(buf: Buffer, maxChars = 60_000): string | null {
   for (const sheet of sheets) {
     const xml = readEntry(buf, sheet);
     if (xml === null) continue;
-    for (const row of xml.matchAll(/<row\b[^>]*>([\s\S]*?)<\/row>/g)) {
+    for (const row of blocks(xml, 'row')) {
       const cells: string[] = [];
-      for (const c of row[1]!.matchAll(/<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g)) {
-        const attrs = c[1] ?? '';
-        const body = c[2] ?? '';
-        const type = attrs.match(/\bt="([^"]+)"/)?.[1];
-        const v = body.match(/<v>([\s\S]*?)<\/v>/)?.[1];
+      for (const c of blocks(row.body, 'c')) {
+        const type = /\bt="([^"]+)"/.exec(c.attrs)?.[1];
+        const v = blocks(c.body, 'v').next().value?.body;
         let text = '';
         if (type === 's' && v !== undefined) text = shared[Number(v)] ?? '';
-        else if (type === 'inlineStr') text = runs(body);
+        else if (type === 'inlineStr') text = runs(c.body);
         else if (v !== undefined) text = decode(v);
         cells.push(text.trim());
       }

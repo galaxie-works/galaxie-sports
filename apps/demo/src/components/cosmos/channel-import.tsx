@@ -13,12 +13,19 @@ import { Field, FieldDescription, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
-import { IMPORT_ACCEPT, IMPORT_MAX_BYTES, type ChannelImport as Result } from '@/lib/cosmos/channel-import';
+import {
+  IMAGE_MAX_BYTES,
+  IMPORT_ACCEPT,
+  IMPORT_MAX_BYTES,
+  importKind,
+  type ChannelImport as Result,
+} from '@/lib/cosmos/channel-import';
 import { importChannelsWithCosmos } from '@/lib/cosmos/channel-import-actions';
 import { useI18n } from '@/lib/i18n/client';
 import { fill } from '@/lib/i18n/text';
 
 const MAX_LABEL = `${IMPORT_MAX_BYTES / 1024 / 1024} MB`;
+const IMAGE_MAX_LABEL = `${IMAGE_MAX_BYTES / 1024 / 1024} MB`;
 
 /**
  * "Ler a grade com a Cosmos" na Minha lista de canais (#1008): PDF, print ou planilha viram a lista de nomes, que o
@@ -43,8 +50,10 @@ export function ChannelImport({
   const [file, setFile] = useState<File | null>(null);
   const [result, setResult] = useState<Result | null>(null);
   const [list, setList] = useState('');
-  // notas da última leitura enviada, para explicar os canais que não casaram depois do envio
-  const [sentNotes, setSentNotes] = useState<Record<string, string> | null>(null);
+  // o que foi enviado da última leitura (nomes e notas), para explicar só esses canais quando não casarem
+  const [sent, setSent] = useState<{ names: Set<string>; notes: Record<string, string> } | null>(null);
+  // troca a chave do campo de arquivo para limpá-lo depois do envio
+  const [inputKey, setInputKey] = useState(0);
   const [reading, startRead] = useTransition();
   const [sending, startSend] = useTransition();
   const asked = useRef(0);
@@ -53,6 +62,8 @@ export function ChannelImport({
     if (!file) return;
     if (file.size > IMPORT_MAX_BYTES)
       return void toast.error(fill(T.errors.fileTooLarge, { max: MAX_LABEL }));
+    if (importKind(file.name) === 'image' && file.size > IMAGE_MAX_BYTES)
+      return void toast.error(fill(T.errors.imageTooLarge, { max: IMAGE_MAX_LABEL }));
     const n = ++asked.current;
     startRead(async () => {
       const form = new FormData();
@@ -74,22 +85,22 @@ export function ChannelImport({
 
   const send = () =>
     startSend(async () => {
-      const content = list
+      const names = list
         .split(/\r?\n/)
         .map((l) => l.trim())
-        .filter(Boolean)
-        .join('\n');
-      const r = await uploadChannels({ content, format: 'text', defaultCountry: country });
+        .filter(Boolean);
+      const r = await uploadChannels({ content: names.join('\n'), format: 'text', defaultCountry: country });
       if (!r.ok) return void toast.error(r.error ?? T.errors.failed);
       toast.success(T.sent);
-      setSentNotes(result?.notes ?? {});
+      setSent({ names: new Set(names.map((n) => n.toLocaleLowerCase())), notes: result?.notes ?? {} });
       discard();
       setFile(null);
+      setInputKey((k) => k + 1);
       router.refresh();
     });
 
   const lines = list.split(/\r?\n/).filter((l) => l.trim()).length;
-  const explained = sentNotes ? unmatched.slice(0, 50) : [];
+  const explained = sent ? unmatched.filter((n) => sent.names.has(n.toLocaleLowerCase())).slice(0, 50) : [];
 
   return (
     <Frame id="cosmos-import">
@@ -103,11 +114,13 @@ export function ChannelImport({
           <Field className="min-w-0 flex-1">
             <FieldLabel htmlFor={`${ids}-file`}>{T.file}</FieldLabel>
             <Input
+              key={inputKey}
               id={`${ids}-file`}
               type="file"
               accept={IMPORT_ACCEPT}
               onChange={(e) => {
                 setFile(e.target.files?.[0] ?? null);
+                setSent(null);
                 discard();
               }}
             />
@@ -152,7 +165,7 @@ export function ChannelImport({
                 <li key={name} className="flex flex-col rounded-lg border p-2 text-sm">
                   <span className="font-medium">{name}</span>
                   <span className="text-muted-foreground text-xs">
-                    {sentNotes?.[name] ?? T.unmatchedGeneric}
+                    {sent?.notes[name] ?? T.unmatchedGeneric}
                   </span>
                 </li>
               ))}

@@ -140,10 +140,21 @@ export const IMAGE_TOKENS = 1_800;
 /** Tokens de entrada por página de PDF na reserva (o texto e a imagem da página). */
 export const PDF_PAGE_TOKENS = 3_000;
 
-/** Páginas de um PDF em base64 (contagem dos objetos `/Type /Page`); pelo menos 1. */
+/** Bytes por página no piso da contagem: PDF compactado esconde as páginas, o tamanho não. */
+const PDF_BYTES_PER_PAGE = 100 * 1024;
+
+/**
+ * Páginas de um PDF em base64, para a reserva: o maior entre os objetos `/Type /Page` visíveis, o maior `/Count` da
+ * árvore de páginas e um piso pelo tamanho do arquivo. Em PDF com object streams (1.5+), as páginas ficam
+ * compactadas e a contagem direta dá 0; o piso pelo tamanho segura a reserva. Pelo menos 1.
+ */
 export function pdfPages(base64: string): number {
-  const text = Buffer.from(base64, 'base64').toString('latin1');
-  return Math.max(1, (text.match(/\/Type\s*\/Page(?![a-z])/g) ?? []).length);
+  const bytes = Buffer.from(base64, 'base64');
+  const text = bytes.toString('latin1');
+  const objects = (text.match(/\/Type\s*\/Page(?![a-z])/g) ?? []).length;
+  let tree = 0;
+  for (const m of text.matchAll(/\/Count\s+(\d{1,6})\b/g)) tree = Math.max(tree, Number(m[1]));
+  return Math.max(1, objects, tree, Math.ceil(bytes.length / PDF_BYTES_PER_PAGE));
 }
 
 /** Tokens de entrada estimados dos anexos, para a reserva cobrir a chamada. */
