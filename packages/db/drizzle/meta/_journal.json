@@ -645,6 +645,13 @@
       "when": 1794437372812,
       "tag": "0096_cosmos_base_conhecimento",
       "breakpoints": true
+    },
+    {
+      "idx": 92,
+      "version": "7",
+      "when": 1794446913963,
+      "tag": "0103_shopping_catalogo",
+      "breakpoints": true
     }
   ]
 }

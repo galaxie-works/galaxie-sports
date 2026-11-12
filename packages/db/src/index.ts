@@ -261,3 +261,4 @@ export {
 } from './fan-wallet.js';
 export * from './sponsors.js';
 export * from './moderation-queue.js';
+export * from './shop.js';

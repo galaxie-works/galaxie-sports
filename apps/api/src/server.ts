@@ -58,6 +58,7 @@ import {
 import { StreamTokenSigner } from './realtime/stream-token.js';
 import { docsRoutes } from './routes/docs.js';
 import { cosmosStripeRoutes } from './routes/internal/cosmos-stripe.js';
+import { internalShopRoutes } from './routes/internal/shop.js';
 import { internalWhereToWatchRoutes } from './routes/internal/where-to-watch.js';
 import { Lineup, type LineupOptions } from './lineup/availability.js';
 import { ClientChannelLists } from './channel-list/lists.js';
@@ -462,6 +463,7 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
     await v1Routes(instance, ctx);
     await mirrorRoutes(instance, ctx);
     await internalWhereToWatchRoutes(instance, ctx);
+    await internalShopRoutes(instance, ctx);
     await accountRoutes(instance, { db: options.db, usage: usageBackend });
     await fanRoutes(instance, {
       db: options.db,
