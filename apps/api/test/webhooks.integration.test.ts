@@ -11,6 +11,7 @@ import {
   competition,
   createDb,
   event,
+  publishWebhookEvent,
   runMigrations,
   sport,
   tenant,
@@ -331,6 +332,43 @@ describe('webhooks assinados', () => {
       topic: 'where_to_watch.changed',
       data: { countries: ['AR'] },
     });
+  });
+
+  it('evento de engajamento (#1023): só para o tenant dele, com o módulo ligado, sem dado pessoal', async () => {
+    const profileId = '0192c7e2-6c1f-7a33-9a51-5b3e0f7c2d10';
+    const com = await upsertTenant(db, {
+      slug: 'com-chat',
+      name: 'Com chat',
+      plan: 'enterprise',
+      modules: ['core_data', 'live_chat'],
+    });
+    const sem = await upsertTenant(db, {
+      slug: 'sem-engajamento',
+      name: 'Sem engajamento',
+      plan: 'enterprise',
+      modules: ['core_data'],
+    });
+    await create({ tenantSlug: 'com-chat', url: `${base}/fan-on`, topics: ['fan.profile.deleted'] });
+    await create({ tenantSlug: 'sem-engajamento', url: `${base}/fan-off`, topics: ['fan.profile.deleted'] });
+    // sem tópico marcado: tópico "em breve" não entra no "todos"
+    await create({ tenantSlug: 'com-chat', url: `${base}/fan-all` });
+
+    for (const t of [com, sem])
+      await publishWebhookEvent(db, {
+        tenantId: t.id,
+        topic: 'fan.profile.deleted',
+        data: { profile_id: profileId, email: 'torcedor@exemplo.com' },
+      });
+    await expect.poll(() => hits('/fan-on').length, { timeout: 5_000 }).toBe(1);
+    await new Promise((r) => setTimeout(r, 300));
+    expect(hits('/fan-off')).toHaveLength(0);
+    expect(hits('/fan-all')).toHaveLength(0);
+    const hit = hits('/fan-on')[0]!;
+    expect(hit.headers['x-galaxie-event']).toBe('fan.profile.deleted');
+    const body = JSON.parse(hit.body);
+    expect(body).toMatchObject({ topic: 'fan.profile.deleted', data: { profile_id: profileId } });
+    expect(hit.body).not.toContain('torcedor@exemplo.com');
+    expect(hit.body).not.toContain(com.id);
   });
 
   it('plano trial não tem webhooks: cadastro recusado', async () => {
