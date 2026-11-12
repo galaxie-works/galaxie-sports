@@ -146,6 +146,20 @@ export interface CompletionRequest {
   signal?: AbortSignal;
   /** Identifica a tarefa nos logs e no ledger (ex.: `cosmos:moderation:<tenant>`). */
   purpose?: string;
+  /**
+   * Arquivos que vão junto da última mensagem da pessoa (ex.: o PDF do brandbook). OpenAI, Anthropic e Gemini leem
+   * PDF; a DeepSeek não lê arquivo e recusa o pedido (`config`).
+   */
+  attachments?: CompletionAttachment[];
+}
+
+/** Arquivo anexado ao pedido, em base64. */
+export interface CompletionAttachment {
+  mediaType: 'application/pdf';
+  /** Conteúdo em base64, sem o prefixo `data:`. */
+  data: string;
+  /** Nome do arquivo (a OpenAI pede um). */
+  name?: string;
 }
 
 export interface CompletionResult {

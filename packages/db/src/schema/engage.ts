@@ -4,7 +4,7 @@
  *
  * Ficha por país:
  *
- * - `country_policy`: uma ficha por país (ISO 3166-1 alfa-2, ou `LATAM` para os demais da América Latina), global
+ * - `country_policy`: uma ficha por país (ISO 3166-1 alfa-2), `LATAM` (demais da América Latina) ou `DEFAULT` (#1104),
  *   da Galaxie, com versão. O conteúdo e as regras ficam em `@galaxie/engage` (`CountryPolicy`); aqui o JSON;
  * - `country_policy_log`: cada versão gravada, com quem mudou e por quê (só cresce);
  * - `tenant_country`: os países onde o cliente opera, o país principal (fallback quando o torcedor vem de um país
@@ -32,7 +32,7 @@ import { tenant } from './api.js';
 
 export const engage = pgSchema('engage');
 
-const policyKeyCheck = (col: unknown) => sql`${col} ~ '^([A-Z]{2}|LATAM)$'`;
+const policyKeyCheck = (col: unknown) => sql`${col} ~ '^([A-Z]{2}|LATAM|DEFAULT)$'`;
 
 export const countryPolicy = engage.table(
   'country_policy',
@@ -168,6 +168,7 @@ export const moderationListLog = engage.table(
  * (`validateSponsor`, `sponsorVisible`); o banco repete as categorias para recusar aposta gravada por fora da tela.
  */
 const SPONSOR_CATEGORY_NAMES = [
+  'alcohol',
   'apparel',
   'automotive',
   'beverage',
