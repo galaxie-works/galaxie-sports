@@ -80,40 +80,56 @@ export const PLAN_MODULES: Record<ApiPlan, readonly ApiModule[]> = {
 export const tenantStatus = api.enum('tenant_status', ['active', 'suspended']);
 
 /** Cliente da API: plano, módulos, mercados (países) e esportes contratados. */
-export const tenant = api.table('tenant', {
-  id: pkUuidV7(),
-  slug: text('slug').notNull().unique(),
-  name: text('name').notNull(),
-  plan: text('plan').$type<ApiPlan>().notNull(),
-  modules: text('modules').array().$type<ApiModule[]>().notNull(),
-  /** Países (ISO2) contratados; lista vazia = todos os mercados. */
-  markets: text('markets').array().notNull().default([]),
-  /** Esportes contratados (slug); lista vazia = todos. */
-  sports: text('sports').array().notNull().default([]),
-  /** Requisições por minuto, por rota. */
-  rateLimitPerMinute: integer('rate_limit_per_minute').notNull().default(120),
-  /**
-   * Cota diária de requisições de produção (todas as rotas; a chave de teste fica fora); null = sem cota.
-   * Aviso a partir de 80% e 429 QUOTA_EXCEEDED a partir de 110%, até a virada do dia UTC.
-   */
-  dailyRequestQuota: integer('daily_request_quota'),
-  /** Fim do trial (plano `trial`): depois dele nenhuma chave do tenant autentica. null = sem prazo. */
-  trialEndsAt: timestamp('trial_ends_at', { withTimezone: true }),
-  status: tenantStatus('status').notNull().default('active'),
-  /** Plataforma (enrich.platform) quando o cliente é uma operadora/streaming da grade. */
-  operatorPlatformId: uuid('operator_platform_id').references((): AnyPgColumn => platform.id, {
-    onDelete: 'set null',
-  }),
-  /** No onde assistir do cliente operadora, mostra também as outras plataformas (padrão: só a dele). */
-  showOtherOperators: boolean('show_other_operators').notNull().default(false),
-  /** Domínios de e-mail da operadora (sem @), para ligar usuários do portal ao tenant. */
-  operatorEmailDomains: text('operator_email_domains')
-    .array()
-    .notNull()
-    .default(sql`'{}'::text[]`),
-  createdAt: createdAt(),
-  updatedAt: updatedAt(),
-});
+export const tenant = api.table(
+  'tenant',
+  {
+    id: pkUuidV7(),
+    slug: text('slug').notNull().unique(),
+    name: text('name').notNull(),
+    plan: text('plan').$type<ApiPlan>().notNull(),
+    modules: text('modules').array().$type<ApiModule[]>().notNull(),
+    /** Países (ISO2) contratados; lista vazia = todos os mercados. */
+    markets: text('markets').array().notNull().default([]),
+    /** Esportes contratados (slug); lista vazia = todos. */
+    sports: text('sports').array().notNull().default([]),
+    /** Requisições por minuto, por rota. */
+    rateLimitPerMinute: integer('rate_limit_per_minute').notNull().default(120),
+    /**
+     * Cota diária de requisições de produção (todas as rotas; a chave de teste fica fora); null = sem cota.
+     * Aviso a partir de 80% e 429 QUOTA_EXCEEDED a partir de 110%, até a virada do dia UTC.
+     */
+    dailyRequestQuota: integer('daily_request_quota'),
+    /** Fim do trial (plano `trial`): depois dele nenhuma chave do tenant autentica. null = sem prazo. */
+    trialEndsAt: timestamp('trial_ends_at', { withTimezone: true }),
+    status: tenantStatus('status').notNull().default('active'),
+    /** Plataforma (enrich.platform) quando o cliente é uma operadora/streaming da grade. */
+    operatorPlatformId: uuid('operator_platform_id').references((): AnyPgColumn => platform.id, {
+      onDelete: 'set null',
+    }),
+    /** No onde assistir do cliente operadora, mostra também as outras plataformas (padrão: só a dele). */
+    showOtherOperators: boolean('show_other_operators').notNull().default(false),
+    /** Domínios de e-mail da operadora (sem @), para ligar usuários do portal ao tenant. */
+    operatorEmailDomains: text('operator_email_domains')
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
+    /**
+     * Versão do catálogo comercial que o tenant assinou (`billing.catalog_version`, plataforma comercial #1137): o preço
+     * vale até a renovação. null = tenant anterior ao catálogo.
+     */
+    catalogVersion: text('catalog_version'),
+    /** Faixa de capacidade contratada (C1 a C4, `config/catalog/capacity.yaml`); null = padrão do catálogo. */
+    capacityTier: text('capacity_tier').$type<'C1' | 'C2' | 'C3' | 'C4'>(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    check(
+      'tenant_capacity_tier',
+      sql`${t.capacityTier} is null or ${t.capacityTier} in ('C1', 'C2', 'C3', 'C4')`,
+    ),
+  ],
+);
 
 /**
  * Chave de acesso (`gs_live_<prefixo>_<segredo>`). Só o prefixo fica em claro (busca);
