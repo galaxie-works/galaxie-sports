@@ -19,6 +19,7 @@ export * from './moderation-run.js';
 export * from './purchases.js';
 export * from './recharge.js';
 export * from './settings.js';
+export * from './task-run.js';
 export * from './staff.js';
 export * from './statement.js';
 export * from './stripe.js';
