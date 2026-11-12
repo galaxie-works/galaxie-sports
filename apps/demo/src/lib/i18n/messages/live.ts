@@ -249,6 +249,7 @@ export default defineMessages(
         opener: 'Abre o placar',
         equalizer: 'Empata',
         go_ahead: 'Põe na frente',
+        disallowed: 'Anulado',
       } as Record<string, string>,
       positions: { G: 'Goleiro', D: 'Defensor', M: 'Meio-campista', F: 'Atacante' } as Record<string, string>,
       markers: {
@@ -517,6 +518,7 @@ export default defineMessages(
           opener: 'Opener',
           equalizer: 'Equalizer',
           go_ahead: 'Go-ahead goal',
+          disallowed: 'Disallowed',
         },
         positions: { G: 'Goalkeeper', D: 'Defender', M: 'Midfielder', F: 'Forward' },
         markers: {
@@ -787,6 +789,7 @@ export default defineMessages(
           opener: 'Abre el marcador',
           equalizer: 'Empata',
           go_ahead: 'Lo pone adelante',
+          disallowed: 'Anulado',
         },
         positions: { G: 'Arquero', D: 'Defensor', M: 'Mediocampista', F: 'Delantero' },
         markers: {

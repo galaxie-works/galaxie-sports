@@ -260,6 +260,15 @@ export function currentClock(
 
 const SCORING_KINDS: ReadonlySet<TimelineKind> = new Set(['goal', 'own_goal', 'penalty_goal']);
 
+/** Veredito de VAR que anula gol (`Goal cancelled`, `Goal Disallowed - offside`, `Goal Disallowed - foul`…). */
+export const isGoalCancellingVar = (detail: string | null) =>
+  /^goal (cancel+ed|disallowed)\b/i.test((detail ?? '').trim());
+/** Distância máxima (min) entre o gol e o VAR que o anula (a mesma do core-writer). */
+const VAR_PAIR_WINDOW_MIN = 5;
+const minuteOf = (i: Pick<RawIncident, 'minute' | 'extra'>) => (i.minute ?? 0) + (i.extra ?? 0) / 100;
+const sameTeam = (a: TeamRef | null, b: TeamRef | null) =>
+  !!a && !!b && ((a.id != null && a.id === b.id) || (a.id == null && a.side != null && a.side === b.side));
+
 /** Lado que soma o gol; no gol contra, o oposto ao time do incidente quando essa é a convenção. */
 function creditedSide(raw: RawIncident, kind: TimelineKind, ownGoalForOpponent: boolean): Side | null {
   const side = raw.team?.side;
@@ -332,6 +341,55 @@ export function placeInferredIncidents<T extends Pick<RawIncident, 'sequence' | 
   return out;
 }
 
+/**
+ * Gols que um VAR de gol anulado derrubou e continuam na timeline do fornecedor (#639). A api-sports às vezes
+ * apaga o gol (a Galaxie infere o VAR, ver `retracted-goals.ts`), às vezes mantém o `Goal` e acrescenta um `Var`
+ * com `Goal cancelled` / `Goal Disallowed - ...`. Cada VAR derruba no máximo um gol: do mesmo time, fora da
+ * disputa de pênaltis, a até `VAR_PAIR_WINDOW_MIN` minutos, preferindo o mesmo jogador e o mais próximo antes
+ * do VAR.
+ *
+ * O VAR também chega quando o gol anulado já saiu da timeline; aí o gol válido de minutos antes não pode cair.
+ * Por isso, com o placar do jogo conhecido, o gol só cai se o time tiver mais gols na timeline que no placar.
+ * No ao vivo, se o placar ainda não caiu, o gol cai na leitura seguinte, junto com o placar.
+ *
+ * Devolve, por índice do gol anulado, o `sequence` do VAR que o anulou.
+ */
+export function cancelledGoals(
+  incidents: readonly RawIncident[],
+  score: TimelineInput['score'],
+  ownGoalForOpponent: boolean,
+): Map<number, number> {
+  const out = new Map<number, number>();
+  const kinds = incidents.map(kindOf);
+  const tally = { home: 0, away: 0 };
+  for (const [idx, raw] of incidents.entries()) {
+    if (!SCORING_KINDS.has(kinds[idx]!)) continue;
+    const side = creditedSide(raw, kinds[idx]!, ownGoalForOpponent);
+    if (side) tally[side] += 1;
+  }
+  for (const [vIdx, v] of incidents.entries()) {
+    if (kinds[vIdx] !== 'var' || !isGoalCancellingVar(v.detail) || isShootout(v)) continue;
+    const vPlayer = personKey(v.player);
+    let best: { idx: number; rank: number } | null = null;
+    for (const [gIdx, g] of incidents.entries()) {
+      if (!SCORING_KINDS.has(kinds[gIdx]!) || out.has(gIdx) || !sameTeam(g.team, v.team)) continue;
+      const dist = minuteOf(v) - minuteOf(g);
+      if (Math.abs(dist) > VAR_PAIR_WINDOW_MIN) continue;
+      // mesmo jogador primeiro, depois o gol antes do VAR, depois o mais perto
+      const samePlayer = vPlayer != null && personKey(g.player) === vPlayer;
+      const rank = (samePlayer ? 0 : 1000) + (dist >= 0 ? 0 : 100) + Math.abs(dist);
+      if (!best || rank < best.rank) best = { idx: gIdx, rank };
+    }
+    if (!best) continue;
+    const side = creditedSide(incidents[best.idx]!, kinds[best.idx]!, ownGoalForOpponent);
+    const official = side ? score[side] : null;
+    if (side && official != null && tally[side] <= official) continue;
+    out.set(best.idx, v.sequence);
+    if (side) tally[side] -= 1;
+  }
+  return out;
+}
+
 export function buildTimelineDto(rawInput: TimelineInput): EventTimeline {
   const input = { ...rawInput, incidents: placeInferredIncidents(rawInput.incidents) };
   const anchors = periodAnchors(input);
@@ -361,6 +419,7 @@ export function buildTimelineDto(rawInput: TimelineInput): EventTimeline {
 
   // ─ lances: tipo, relógio, instante, placar parcial e bandeiras ─
   const ownGoalForOpponent = ownGoalCountsForOpponent(input.incidents, input.score, finished);
+  const cancelled = cancelledGoals(input.incidents, input.score, ownGoalForOpponent);
   const yellows = new Set<string>();
   let home = 0;
   let away = 0;
@@ -389,7 +448,12 @@ export function buildTimelineDto(rawInput: TimelineInput): EventTimeline {
 
     const flags: TimelineFlag[] = [];
     let scoreAfter: { home: number; away: number } | null = null;
-    if (SCORING_KINDS.has(kind)) {
+    const cancelledBy = cancelled.get(idx) ?? null;
+    if (cancelledBy != null) {
+      // gol anulado: não soma nem ganha bandeira de placar; o momento-chave é o VAR que o anulou
+      flags.push('disallowed');
+      weight = KIND_WEIGHT.var;
+    } else if (SCORING_KINDS.has(kind)) {
       const side = creditedSide(raw, kind, ownGoalForOpponent);
       credited[idx] = side;
       if (side) {
@@ -435,6 +499,7 @@ export function buildTimelineDto(rawInput: TimelineInput): EventTimeline {
       flags,
       score_after: scoreAfter,
       scoring_team: credited[idx] ? teamOf(credited[idx]) : null,
+      cancelled_by: cancelledBy,
       player_in: playerIn,
       player_out: playerOut,
     };

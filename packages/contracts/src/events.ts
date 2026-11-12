@@ -791,7 +791,7 @@ export const TIMELINE_MARKERS = [
 ] as const;
 export type TimelineMarkerKind = (typeof TIMELINE_MARKERS)[number];
 
-export const TIMELINE_FLAGS = ['decisive', 'opener', 'equalizer', 'go_ahead'] as const;
+export const TIMELINE_FLAGS = ['decisive', 'opener', 'equalizer', 'go_ahead', 'disallowed'] as const;
 export type TimelineFlag = (typeof TIMELINE_FLAGS)[number];
 
 /** De onde veio o instante UTC de um lance ou marco. */
@@ -874,7 +874,8 @@ export const TimelineIncident = z
     flags: z.array(z.enum(TIMELINE_FLAGS)).meta({
       description:
         '`opener` (1º gol), `go_ahead` (põe na frente o time de `scoring_team`), `equalizer` (empata), ' +
-        '`decisive` (gol da vitória ou cobrança que decide os pênaltis; só com o jogo encerrado).',
+        '`decisive` (gol da vitória ou cobrança que decide os pênaltis; só com o jogo encerrado), ' +
+        '`disallowed` (gol anulado pelo VAR: fica na lista, mas não soma no placar parcial; ver `cancelled_by`).',
     }),
     score_after: ScorePair.nullable().meta({
       description: 'Placar depois do gol (na disputa de pênaltis, o placar da disputa).',
@@ -882,8 +883,18 @@ export const TimelineIncident = z
     scoring_team: TeamSideRef.nullable().meta({
       description:
         'Time que somou o gol (no gol contra, o beneficiado; na disputa, quem converteu). ' +
-        'Null fora dos gols ou com o lado desconhecido.',
+        'Null fora dos gols, no gol anulado ou com o lado desconhecido.',
     }),
+    cancelled_by: z
+      .number()
+      .int()
+      .nullable()
+      .meta({
+        description:
+          'Gol anulado: `sequence` do lance de VAR que o anulou (`Goal cancelled`, `Goal Disallowed - ...`). ' +
+          'O gol não soma em `score_after`, não recebe bandeiras de placar e leva `disallowed` em `flags`. ' +
+          'Null nos demais lances.',
+      }),
     player_in: TimelinePerson.nullable().meta({ description: 'Substituição: quem entra.' }),
     player_out: TimelinePerson.nullable().meta({ description: 'Substituição: quem sai.' }),
   })

@@ -655,3 +655,118 @@ describe('gol anulado inferido (a fonte apagou o gol sem mandar o VAR)', () => {
     expect(cancelled.player?.name).toBe('Matheus Bidu');
   });
 });
+
+describe('gol anulado que fica na timeline junto com o VAR (#639)', () => {
+  /** Formato da api-sports: o `Goal` continua e entra um `Var` do mesmo time com o veredito em `detail`. */
+  const game = (
+    score: TimelineInput['score'],
+    extra: RawIncident[] = [],
+    status: Partial<TimelineInput> = {},
+  ) => {
+    seq = 0;
+    return input({
+      score,
+      incidents: [
+        inc({ type: 'goal', detail: 'Normal Goal', minute: 20, team: PAL, player: person('vitor') }),
+        inc({ type: 'goal', detail: 'Normal Goal', minute: 62, team: FLU, player: person('bidu') }),
+        inc({ type: 'subst', detail: 'Substitution 1', minute: 63, team: PAL, player: person('a') }),
+        inc({
+          type: 'var',
+          detail: 'Goal Disallowed - offside',
+          minute: 64,
+          team: FLU,
+          player: person('bidu'),
+        }),
+        ...extra,
+      ],
+      ...status,
+    });
+  };
+
+  it('o gol anulado não soma, perde as bandeiras e aponta o VAR; o último placar bate com o do jogo', () => {
+    const t = buildTimelineDto(
+      game({ home: 2, away: 0 }, [
+        inc({ type: 'goal', detail: 'Normal Goal', minute: 80, team: PAL, player: person('vitor') }),
+      ]),
+    );
+    const [g1, cancelled, , varCall, g2] = t.incidents;
+    expect(g1).toMatchObject({
+      score_after: { home: 1, away: 0 },
+      flags: ['opener', 'go_ahead', 'decisive'],
+    });
+    expect(cancelled).toMatchObject({
+      kind: 'goal',
+      score_after: null,
+      scoring_team: null,
+      flags: ['disallowed'],
+      cancelled_by: varCall!.sequence,
+      key_moment: false,
+    });
+    expect(varCall).toMatchObject({ kind: 'var', weight: 65, key_moment: true, cancelled_by: null });
+    // sem o gol anulado, o placar parcial fecha no do jogo (e o 1º gol segue como o decisivo)
+    expect(g2).toMatchObject({ score_after: { home: 2, away: 0 }, flags: [] });
+    expect(t.incidents.filter((i) => i.score_after).at(-1)?.score_after).toEqual(t.score);
+  });
+
+  it('aceita "Goal cancelled" e o VAR antes do gol, e pareia pelo jogador quando o time marcou duas vezes', () => {
+    seq = 0;
+    const t = buildTimelineDto(
+      input({
+        score: { home: 1, away: 0 },
+        incidents: [
+          inc({ type: 'goal', detail: 'Normal Goal', minute: 30, team: PAL, player: person('a') }),
+          inc({ type: 'var', detail: 'Goal cancelled', minute: 33, team: PAL, player: person('b') }),
+          inc({ type: 'goal', detail: 'Normal Goal', minute: 33, team: PAL, player: person('b') }),
+        ],
+      }),
+    );
+    expect(t.incidents.map((i) => [i.player?.id, i.score_after, i.cancelled_by])).toEqual([
+      ['a', { home: 1, away: 0 }, null],
+      ['b', null, null],
+      ['b', null, 1],
+    ]);
+  });
+
+  it('VAR de gol que já saiu da timeline não derruba o gol válido de minutos antes', () => {
+    // o gol dos 62' foi apagado pela fonte; ficou o VAR, e o gol dos 60' segue valendo no placar 1 x 1
+    seq = 0;
+    const t = buildTimelineDto(
+      input({
+        score: { home: 1, away: 1 },
+        incidents: [
+          inc({ type: 'goal', detail: 'Normal Goal', minute: 20, team: PAL }),
+          inc({ type: 'goal', detail: 'Normal Goal', minute: 60, team: FLU, player: person('x') }),
+          inc({ type: 'var', detail: 'Goal cancelled', minute: 63, team: FLU, player: person('y') }),
+        ],
+      }),
+    );
+    expect(t.incidents[1]).toMatchObject({ score_after: { home: 1, away: 1 }, flags: ['equalizer'] });
+    expect(t.incidents[1]?.cancelled_by).toBeNull();
+  });
+
+  it('no ao vivo, espera o placar cair para anular; "Goal confirmed" e VAR de outro time não anulam', () => {
+    const live = { status: 'live' as const, statusDetail: '2H', clock: { minute: 65, extra: null } };
+    // o placar ainda tem o gol: o gol segue valendo nesta leitura
+    expect(buildTimelineDto(game({ home: 1, away: 1 }, [], live)).incidents[1]?.cancelled_by).toBeNull();
+    // o placar caiu: o gol cai junto
+    expect(buildTimelineDto(game({ home: 1, away: 0 }, [], live)).incidents[1]?.cancelled_by).toBe(3);
+
+    seq = 0;
+    const t = buildTimelineDto(
+      input({
+        score: { home: 1, away: 0 },
+        incidents: [
+          inc({ type: 'goal', detail: 'Normal Goal', minute: 50, team: PAL }),
+          inc({ type: 'var', detail: 'Goal confirmed', minute: 51, team: PAL }),
+          inc({ type: 'var', detail: 'Goal cancelled', minute: 51, team: FLU }),
+        ],
+      }),
+    );
+    expect(t.incidents[0]).toMatchObject({ score_after: { home: 1, away: 0 }, cancelled_by: null });
+  });
+
+  it('sem placar conhecido, o par basta', () => {
+    const t = buildTimelineDto(game({ home: null, away: null }));
+    expect(t.incidents[1]).toMatchObject({ cancelled_by: 3, score_after: null });
+  });
+});
