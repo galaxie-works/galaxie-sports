@@ -6,7 +6,7 @@ import { requireClientContext, type ClientContext } from '@/lib/client/session';
 import type { TenantInfo } from '@/lib/client/tenants';
 import { getT } from '@/lib/i18n/server';
 
-import { can } from '@/lib/client/permissions';
+import { can, canSomewhere } from '@/lib/client/permissions';
 
 import { CLIENT_NAV, ClientNavSheet, ClientSideNav, navRequirement, type ClientSection } from './client-nav';
 import { TenantSwitcher } from './tenant-switcher';
@@ -29,7 +29,7 @@ export async function ClientArea({
   // áreas que o cargo (#1019) e os módulos do tenant (#1018) abrem; o resto some do menu e a página mostra o aviso
   const opens = (id: ClientSection) => {
     const req = navRequirement(id);
-    if (req.action && !can(ctx, req.action)) return false;
+    if (req.action && !(req.scoped ? canSomewhere(ctx, req.action) : can(ctx, req.action))) return false;
     if (req.module && !tenant?.modules.includes(req.module)) return false;
     return true;
   };

@@ -168,6 +168,7 @@ export const moderationListLog = engage.table(
  * (`validateSponsor`, `sponsorVisible`); o banco repete as categorias para recusar aposta gravada por fora da tela.
  */
 const SPONSOR_CATEGORY_NAMES = [
+  'alcohol',
   'apparel',
   'automotive',
   'beverage',

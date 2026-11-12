@@ -123,9 +123,8 @@ export const RealtimeChange = z
     data: z.record(z.string(), z.unknown()).meta({
       description:
         'Novos valores: `score`; `status`/`status_detail`/`clock`; `incidents` (lances novos); ' +
-        '`countries` (onde assistir); `contexts` (locale/kind publicados). `goal_cancelled: true` sinaliza gol ' +
-        'desfeito: em `event.score_changed` quando o total de gols do tempo de jogo cai, em ' +
-        '`event.incident_added` quando o lance novo é um VAR de gol anulado.',
+        '`countries` (onde assistir); `contexts` (locale/kind publicados). `goal_cancelled: true` no ' +
+        '`event.incident_added` sinaliza gol anulado (lance de VAR de gol anulado, do fornecedor ou inferido).',
     }),
     previous: z
       .record(z.string(), z.unknown())

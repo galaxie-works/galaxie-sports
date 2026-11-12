@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_MODERATION_LISTS } from './moderation-defaults.js';
 import { compileLists } from './moderation.js';
-import { SPONSOR_CATEGORIES, sponsorVisible, validateSponsor, type SponsorInput } from './sponsors.js';
+import {
+  SPONSOR_CATEGORIES,
+  sponsorVisible,
+  suggestsAlcohol,
+  validateSponsor,
+  type SponsorInput,
+} from './sponsors.js';
 
 const lists = compileLists(DEFAULT_MODERATION_LISTS);
 const input = (over: Partial<SponsorInput> = {}): SponsorInput => ({
@@ -264,7 +270,12 @@ describe('cadastro de patrocinador (B10, #1021)', () => {
 });
 
 describe('quem vê a peça do patrocinador', () => {
-  const sp = { countries: ['BR'], startsAt: '2026-11-01T00:00:00Z', endsAt: '2027-01-01T00:00:00Z' };
+  const sp = {
+    category: 'beverage' as const,
+    countries: ['BR'],
+    startsAt: '2026-11-01T00:00:00Z',
+    endsAt: '2027-01-01T00:00:00Z',
+  };
   const now = new Date('2026-12-01T00:00:00Z');
   const adult = { country: 'br', ageBand: '18plus' as const, now };
 
@@ -285,5 +296,62 @@ describe('quem vê a peça do patrocinador', () => {
     expect(sponsorVisible(sp, { ...adult, now: new Date('2026-10-01T00:00:00Z') }, null)).toBe(false);
     expect(sponsorVisible({ ...sp, archived: true }, adult, null)).toBe(false);
     expect(sponsorVisible({ ...sp, countries: [] }, { ...adult, country: 'AR' }, null)).toBe(true);
+  });
+});
+
+describe('bebida alcoólica', () => {
+  const now = new Date('2026-12-01T00:00:00Z');
+  const alcohol = { category: 'alcohol' as const, countries: [], startsAt: null, endsAt: null };
+
+  it('é categoria própria, separada de bebida sem álcool', () => {
+    expect(SPONSOR_CATEGORIES).toContain('alcohol');
+    expect(SPONSOR_CATEGORIES).toContain('beverage');
+  });
+
+  it('13 a 17 não vê, em nenhum país, mesmo onde a ficha permite publicidade a menores', () => {
+    for (const country of ['BR', 'AR', 'US', 'PT', 'MX'])
+      expect(sponsorVisible(alcohol, { country, ageBand: '13_17', now }, { adsToMinors: true })).toBe(false);
+    expect(sponsorVisible(alcohol, { country: 'BR', ageBand: 'under13', now }, { adsToMinors: true })).toBe(
+      false,
+    );
+  });
+
+  it('adulto vê; bebida sem álcool continua seguindo a ficha', () => {
+    expect(sponsorVisible(alcohol, { country: 'BR', ageBand: '18plus', now }, null)).toBe(true);
+    expect(
+      sponsorVisible(
+        { ...alcohol, category: 'beverage' },
+        { country: 'BR', ageBand: '13_17', now },
+        { adsToMinors: true },
+      ),
+    ).toBe(true);
+  });
+
+  it('o filtro sugere a categoria pelo nome ou pelo link, sem recusar', () => {
+    expect(suggestsAlcohol('Cervejaria do Vale')).toBe(true);
+    expect(suggestsAlcohol('Bodega Andina', 'https://bodega.example/vinos')).toBe(true);
+    expect(suggestsAlcohol('Gin Tônica Clube')).toBe(true);
+    expect(suggestsAlcohol('Destilería Sur')).toBe(true);
+    expect(suggestsAlcohol('Ginástica Total')).toBe(false);
+    expect(suggestsAlcohol('Cerveza Sin Alcohol')).toBe(true);
+    expect(suggestsAlcohol('Vinícola Serra', 'https://serra.example/vinhos')).toBe(true);
+    expect(suggestsAlcohol('Wine Club')).toBe(true);
+    for (const name of [
+      'Vinícius Calçados',
+      'Brewster Imóveis',
+      'Brewing Coffee Co',
+      'Ron Sports',
+      'Chopper Motos',
+      'For the sake of sport',
+      'Whiskas',
+      'Licorice Doces',
+      'Vínculo',
+      'Ronaldo',
+      'Rumo',
+      'Cervantes',
+    ])
+      expect(suggestsAlcohol(name), name).toBe(false);
+    expect(suggestsAlcohol('Suco Natural', 'https://suco.example/laranja')).toBe(false);
+    expect(validateSponsor(input({ name: 'Cervejaria do Vale', category: 'beverage' }), lists).ok).toBe(true);
   });
 });

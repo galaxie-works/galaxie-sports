@@ -295,19 +295,18 @@ describe('sinal de gol anulado no SSE e nos webhooks (#640)', () => {
   const ofTopic = (rows: { topic: string; payload: unknown }[], topic: string) =>
     rows.filter((r) => r.topic === topic).map((r) => r.payload as Payload);
 
-  it('São Paulo x Corinthians: a fonte apaga o gol sem VAR; a confirmação traz placar e lance com goal_cancelled', async () => {
+  it('São Paulo x Corinthians: a fonte apaga o gol sem VAR; o sinal sai só com o VAR inferido', async () => {
     await poll(8101, 0, { score: [0, 1], minute: 62, events: [goalEvent(62)] });
     const id = await eventIdOf(8101);
     const feed = await lastFeedId(id);
     await poll(8101, 15, { score: [0, 0], minute: 63, events: [] });
+    // gol fora da timeline, ainda sem confirmação: nada manda desfazer
+    const pending = await feedSince(feed, id);
+    expect(JSON.stringify(pending)).not.toContain('goal_cancelled');
+    const mid = await lastFeedId(id);
     await poll(8101, 60, { score: [0, 0], minute: 64, events: [] });
-    const published = await feedSince(feed, id);
-    const [score] = ofTopic(published, 'event.score_changed');
-    expect(score).toMatchObject({
-      data: { score: { home: 0, away: 0 }, goal_cancelled: true },
-      previous: { score: { home: 0, away: 1 } },
-    });
-    expect(ofTopic(published, 'event.incident_added')).toEqual([
+    const confirmed = await feedSince(mid, id);
+    expect(ofTopic(confirmed, 'event.incident_added')).toEqual([
       expect.objectContaining({
         data: expect.objectContaining({
           goal_cancelled: true,
@@ -315,9 +314,14 @@ describe('sinal de gol anulado no SSE e nos webhooks (#640)', () => {
         }),
       }),
     ]);
+    // a queda do placar, quando sai, traz o placar anterior e nunca o sinal
+    for (const p of ofTopic([...pending, ...confirmed], 'event.score_changed')) {
+      expect(p).toMatchObject({ previous: { score: { home: 0, away: 1 } } });
+      expect(p.data).not.toHaveProperty('goal_cancelled');
+    }
   });
 
-  it('VAR do fornecedor com o gol na lista: o lance e a queda do placar levam o sinal', async () => {
+  it('VAR do fornecedor com o gol na lista: o lance leva o sinal', async () => {
     await poll(8102, 0, { score: [0, 1], minute: 62, events: [goalEvent(62)] });
     const id = await eventIdOf(8102);
     const feed = await lastFeedId(id);
@@ -327,8 +331,8 @@ describe('sinal de gol anulado no SSE e nos webhooks (#640)', () => {
       events: [goalEvent(62), varEvent(64, 'Goal Disallowed - offside')],
     });
     const published = await feedSince(feed, id);
-    expect(ofTopic(published, 'event.score_changed')[0]?.data).toMatchObject({ goal_cancelled: true });
     expect(ofTopic(published, 'event.incident_added')[0]?.data).toMatchObject({ goal_cancelled: true });
+    expect(ofTopic(published, 'event.score_changed')[0]?.data).not.toHaveProperty('goal_cancelled');
   });
 
   it('gol novo e VAR que confirma o gol não levam o sinal', async () => {

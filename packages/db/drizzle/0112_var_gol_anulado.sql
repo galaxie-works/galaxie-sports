@@ -1,25 +1,15 @@
 -- #640: sinal explícito de gol anulado no SSE e nos webhooks. Recria as funções de captura da 0008:
--- * core.event: `event.score_changed` passa a levar `previous.score` e, quando o total de gols do tempo de jogo
---   cai no futebol (o VAR anulou, a fonte voltou o placar), `data.goal_cancelled = true`. Nos outros esportes o
---   placar guarda pontos, sets etc., e uma correção para baixo não é gol anulado;
 -- * core.event_incident: `event.incident_added` leva `data.goal_cancelled = true` quando o lance novo é um VAR de
---   gol anulado (`Goal cancelled`, `Goal Disallowed - ...`), do fornecedor ou inferido pela Galaxie.
+--   gol anulado (`Goal cancelled`, `Goal Disallowed - ...`), do fornecedor ou inferido pela Galaxie depois de o gol
+--   ficar fora da timeline (packages/core-writer/src/retracted-goals.ts). Só o lance confirma a anulação: o placar do
+--   fornecedor oscila sozinho (resposta velha, gol que volta), e uma queda de placar não basta para mandar desfazer.
+-- * core.event: `event.score_changed` passa a levar `previous.score`, para o cliente comparar sem guardar estado.
 -- Só acrescenta campos ao payload (contrato aditivo); os triggers continuam os mesmos.
--- Gols do tempo de jogo no placar (`home` + `away`; prorrogação e pênaltis ficam em chaves próprias).
--- Placar ausente ou lado nulo conta zero.
-CREATE OR REPLACE FUNCTION ops.score_goals(s jsonb) RETURNS integer
-LANGUAGE sql IMMUTABLE AS $$
-  SELECT CASE WHEN s IS NULL OR jsonb_typeof(s) <> 'object' THEN 0 ELSE
-    COALESCE(CASE WHEN jsonb_typeof(s -> 'home') = 'number' THEN (s ->> 'home')::numeric::integer END, 0) +
-    COALESCE(CASE WHEN jsonb_typeof(s -> 'away') = 'number' THEN (s ->> 'away')::numeric::integer END, 0)
-  END
-$$;--> statement-breakpoint
 CREATE OR REPLACE FUNCTION ops.capture_event_change() RETURNS trigger
 LANGUAGE plpgsql AS $$
 DECLARE
   base jsonb := jsonb_build_object('event_id', NEW.id, 'sport', NEW.sport, 'competition_id', NEW.competition_id);
   changed text[] := '{}';
-  score_data jsonb;
 BEGIN
   IF NEW.status IS DISTINCT FROM OLD.status THEN changed := changed || 'status'::text; END IF;
   IF NEW.status_detail IS DISTINCT FROM OLD.status_detail THEN changed := changed || 'status_detail'::text; END IF;
@@ -31,14 +21,9 @@ BEGIN
       'previous', jsonb_build_object('status', OLD.status)));
   END IF;
   IF NEW.score IS DISTINCT FROM OLD.score THEN
-    score_data := jsonb_build_object('score', NEW.score);
-    IF NEW.sport = 'football' AND jsonb_typeof(NEW.score) = 'object'
-       AND ops.score_goals(NEW.score) < ops.score_goals(OLD.score) THEN
-      score_data := score_data || jsonb_build_object('goal_cancelled', true);
-    END IF;
     PERFORM ops.publish_change('event.score_changed', 'event', NEW.id::text, base || jsonb_build_object(
       'changed', '["score"]'::jsonb,
-      'data', score_data,
+      'data', jsonb_build_object('score', NEW.score),
       'previous', jsonb_build_object('score', OLD.score)));
   END IF;
   RETURN NULL;
