@@ -15,6 +15,7 @@ export default defineMessages(
       editTheme: 'Editar tema da marca',
       cosmos: 'Cosmos AI',
       moderation: 'Fila de moderação',
+      plans: 'Planos e módulos',
     },
     title: 'Painel do cliente',
     nav: {
@@ -30,6 +31,7 @@ export default defineMessages(
       themes: 'Temas',
       cosmos: 'Cosmos AI',
       moderation: 'Fila de moderação',
+      plans: 'Planos e módulos',
       groups: {
         account: 'Conta',
         content: 'Conteúdo',
@@ -51,6 +53,27 @@ export default defineMessages(
     },
     cosmos: {
       button: 'Cosmos AI',
+    },
+    planStore: {
+      title: 'Planos e módulos',
+      description:
+        'O que o seu plano inclui e o que dá para contratar. Para mudar de plano ou ativar um módulo, fale com o time da Galaxie.',
+      current: 'Plano atual',
+      data: 'Dados esportivos',
+      engage: 'Engajamento do torcedor',
+      needsPlan: 'A partir do plano {plans}',
+      trialDays: 'Teste de {days} dias',
+      contact: 'Falar com a Galaxie',
+      states: {
+        included: 'Incluído',
+        trial: 'Em teste',
+        available: 'Disponível',
+        needs_plan: 'Precisa de plano maior',
+        contract: 'Sob contrato',
+        soon: 'Em breve',
+        closed: 'Indisponível',
+      },
+      unavailable: 'Não foi possível ler os direitos do tenant agora. Tente de novo em instantes.',
     },
     overview: {
       plan: 'Plano',
@@ -717,6 +740,7 @@ export default defineMessages(
         editTheme: 'Edit brand theme',
         cosmos: 'Cosmos AI',
         moderation: 'Moderation queue',
+        plans: 'Plans and modules',
       },
       title: 'Client panel',
       nav: {
@@ -732,6 +756,7 @@ export default defineMessages(
         themes: 'Themes',
         cosmos: 'Cosmos AI',
         moderation: 'Moderation queue',
+        plans: 'Plans and modules',
         groups: {
           account: 'Account',
           content: 'Content',
@@ -752,6 +777,27 @@ export default defineMessages(
       },
       cosmos: {
         button: 'Cosmos AI',
+      },
+      planStore: {
+        title: 'Plans and modules',
+        description:
+          'What your plan includes and what you can add. To change plans or turn on a module, talk to the Galaxie team.',
+        current: 'Current plan',
+        data: 'Sports data',
+        engage: 'Fan engagement',
+        needsPlan: 'From the {plans} plan',
+        trialDays: '{days}-day trial',
+        contact: 'Talk to Galaxie',
+        states: {
+          included: 'Included',
+          trial: 'On trial',
+          available: 'Available',
+          needs_plan: 'Needs a higher plan',
+          contract: 'By contract',
+          soon: 'Coming soon',
+          closed: 'Unavailable',
+        },
+        unavailable: "We could not read this tenant's entitlements right now. Try again in a moment.",
       },
       overview: {
         plan: 'Plan',
@@ -1422,6 +1468,7 @@ export default defineMessages(
         editTheme: 'Editar tema de marca',
         cosmos: 'Cosmos AI',
         moderation: 'Cola de moderación',
+        plans: 'Planes y módulos',
       },
       title: 'Panel del cliente',
       nav: {
@@ -1437,6 +1484,7 @@ export default defineMessages(
         themes: 'Temas',
         cosmos: 'Cosmos AI',
         moderation: 'Cola de moderación',
+        plans: 'Planes y módulos',
         groups: {
           account: 'Cuenta',
           content: 'Contenido',
@@ -1458,6 +1506,27 @@ export default defineMessages(
       },
       cosmos: {
         button: 'Cosmos AI',
+      },
+      planStore: {
+        title: 'Planes y módulos',
+        description:
+          'Lo que incluye tu plan y lo que puedes contratar. Para cambiar de plan o activar un módulo, habla con el equipo de Galaxie.',
+        current: 'Plan actual',
+        data: 'Datos deportivos',
+        engage: 'Interacción con la afición',
+        needsPlan: 'Desde el plan {plans}',
+        trialDays: 'Prueba de {days} días',
+        contact: 'Hablar con Galaxie',
+        states: {
+          included: 'Incluido',
+          trial: 'En prueba',
+          available: 'Disponible',
+          needs_plan: 'Requiere un plan superior',
+          contract: 'Bajo contrato',
+          soon: 'Próximamente',
+          closed: 'No disponible',
+        },
+        unavailable: 'No pudimos leer los derechos del tenant ahora. Inténtalo de nuevo en un momento.',
       },
       overview: {
         plan: 'Plan',
