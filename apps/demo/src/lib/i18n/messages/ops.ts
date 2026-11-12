@@ -1801,6 +1801,12 @@ export default defineMessages(
           'Em quantos jogos um Perfil pode contar presença ao mesmo tempo. Acima disso, o sinal do jogo novo não conta (antirrobô). O cliente só pode baixar este número.',
         unit: 'jogos',
       },
+      SHOP_PRICE_CACHE_HOURS: {
+        label: 'Cache do preço no Shopping',
+        description:
+          'Por quantas horas o preço e o estoque de um produto valem antes de consultar a loja de novo. O teto é 24 horas; a data e a hora da consulta aparecem ao lado do preço.',
+        unit: 'horas',
+      },
       FAN_TOKEN_SECRET: { label: 'Segredo do token do torcedor (.env)' },
       CHAT_ROOM_OPEN_BEFORE_MINUTES: {
         label: 'Chat: abertura da sala',
@@ -3625,6 +3631,12 @@ export default defineMessages(
           description:
             'How many games a Profile can count presence in at once. Above that, the signal from a new game does not count (anti-bot). Clients can only lower this number.',
           unit: 'games',
+        },
+        SHOP_PRICE_CACHE_HOURS: {
+          label: 'Shopping price cache',
+          description:
+            'For how many hours a product price and stock stay valid before the store is asked again. The ceiling is 24 hours; the date and time of the check appear next to the price.',
+          unit: 'hours',
         },
         FAN_TOKEN_SECRET: { label: 'Fan token secret (.env)' },
         CHAT_ROOM_OPEN_BEFORE_MINUTES: {
@@ -5475,6 +5487,12 @@ export default defineMessages(
           description:
             'En cuántos partidos un Perfil puede contar presencia a la vez. Por encima de eso, la señal del partido nuevo no cuenta (antirrobot). El cliente solo puede bajar este número.',
           unit: 'partidos',
+        },
+        SHOP_PRICE_CACHE_HOURS: {
+          label: 'Caché del precio en Shopping',
+          description:
+            'Por cuántas horas el precio y el stock de un producto valen antes de consultar la tienda de nuevo. El tope es de 24 horas; la fecha y la hora de la consulta aparecen junto al precio.',
+          unit: 'horas',
         },
         FAN_TOKEN_SECRET: { label: 'Secreto del token del hincha (.env)' },
         CHAT_ROOM_OPEN_BEFORE_MINUTES: {
