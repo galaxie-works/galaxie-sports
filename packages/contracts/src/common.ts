@@ -60,6 +60,8 @@ export const Problem = z
     instance: z.string().optional(),
     /** Detalhes de validação (INVALID_PARAMS). */
     errors: z.array(z.object({ path: z.string(), message: z.string() })).optional(),
+    /** MODULE_NOT_IN_PLAN: onde o cliente contrata o módulo que falta (plataforma comercial, #1137). */
+    upgrade_url: z.string().meta({ example: 'https://example.com/console/plans?module=odds' }).optional(),
   })
   .meta({ id: 'Problem', description: 'Erro RFC 9457 (application/problem+json)' });
 export type Problem = z.infer<typeof Problem>;
