@@ -114,7 +114,8 @@ export class AnthropicCompletionClient extends HttpCompletionClient {
               role: m.role,
               content: [
                 ...req.attachments!.map((a) => ({
-                  type: 'document',
+                  // PDF vira `document`; imagem, `image` (os dois em base64, antes do texto)
+                  type: a.mediaType === 'application/pdf' ? 'document' : 'image',
                   source: { type: 'base64', media_type: a.mediaType, data: a.data },
                 })),
                 { type: 'text', text: m.content },
