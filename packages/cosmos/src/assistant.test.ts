@@ -75,6 +75,14 @@ describe('créditos antes de rodar', () => {
     expect(estimateAssistantCredits({ ...prompt, creditUsd: null, multiplier: 1, minCredits: 3 })).toBe(3);
   });
 
+  it('o orçamento da documentação conta como entrada: mesma conta que o prompt com a documentação inteira', () => {
+    const base = { creditUsd: 0.00001, multiplier: 1, minCredits: 0.001, messages: [{ content: 'Oi' }] };
+    const withDocs = estimateAssistantCredits({ ...base, system: 'x'.repeat(1000) + 'd'.repeat(4800) });
+    const budget = estimateAssistantCredits({ ...base, system: 'x'.repeat(1000), extraInputChars: 4800 });
+    expect(budget).toBe(withDocs);
+    expect(budget).toBeGreaterThan(estimateAssistantCredits({ ...base, system: 'x'.repeat(1000) }));
+  });
+
   it('pergunta curta custa menos que pergunta longa; com o piso de 0,001, sem valor fixo', () => {
     const base = { system: 'x'.repeat(4000), creditUsd: 0.0001, multiplier: 1, minCredits: 0.001 };
     const hello = estimateAssistantCredits({ ...base, messages: [{ content: 'Olá, Cosmos' }] });

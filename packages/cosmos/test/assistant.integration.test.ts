@@ -7,6 +7,7 @@ import {
   addEntry,
   askAssistant,
   askAssistantAsStaff,
+  assistantAdmissionError,
   assistantLimitError,
   ASSISTANT_FUNCTION,
   ASSISTANT_LIMITS,
@@ -365,6 +366,29 @@ describe('pergunta ao assistente', () => {
         settings: { ...settings, dailyUsdCeiling: ceiling * 10 },
       }),
     ).toBeNull();
+  });
+
+  it('admissão sem reservar: limites, carteira e saldo, antes de qualquer chamada paga', async () => {
+    const t = await newTenant(10);
+    const base = { tenantId: t, userId: 'adm', settings };
+    expect(await assistantAdmissionError(db, { ...base, credits: 5 })).toBeNull();
+    expect(await assistantAdmissionError(db, { ...base, credits: 50 })).toBe('insufficient');
+    // nada reservado: a consulta não mexe no saldo
+    expect((await getWallet(db, t))!.available).toBe(10);
+    expect(await statuses(t)).toEqual([]);
+
+    for (let i = 0; i < ASSISTANT_LIMITS.userPerMinute; i++)
+      await run(t, fakeStream(['ok']), { userId: 'adm', credits: 0.01 });
+    expect(await assistantAdmissionError(db, { ...base, credits: 0.01 })).toBe('rate_limited');
+
+    const slug = `t-${randomBytes(4).toString('hex')}`;
+    const [bare] = await db
+      .insert(tenant)
+      .values({ slug, name: slug, plan: 'enterprise', modules: ['core_data'] })
+      .returning({ id: tenant.id });
+    expect(
+      await assistantAdmissionError(db, { tenantId: bare!.id, userId: 'adm', settings, credits: 1 }),
+    ).toBe('no_wallet');
   });
 });
 

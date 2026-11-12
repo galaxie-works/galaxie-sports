@@ -638,6 +638,13 @@
       "when": 1794437312812,
       "tag": "0095_denuncias",
       "breakpoints": true
+    },
+    {
+      "idx": 91,
+      "version": "7",
+      "when": 1794437372812,
+      "tag": "0096_cosmos_base_conhecimento",
+      "breakpoints": true
     }
   ]
 }
