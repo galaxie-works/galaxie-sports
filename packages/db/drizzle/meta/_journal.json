@@ -649,7 +649,21 @@
     {
       "idx": 92,
       "version": "7",
-      "when": 1794447695904,
+      "when": 1794442180071,
+      "tag": "0097_presenca",
+      "breakpoints": true
+    },
+    {
+      "idx": 93,
+      "version": "7",
+      "when": 1794447867474,
+      "tag": "0098_patrocinador_alcool",
+      "breakpoints": true
+    },
+    {
+      "idx": 94,
+      "version": "7",
+      "when": 1794488224766,
       "tag": "0102_plataforma_comercial",
       "breakpoints": true
     }

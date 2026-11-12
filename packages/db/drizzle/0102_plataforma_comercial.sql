@@ -53,4 +53,5 @@ ALTER TABLE "billing"."price" ADD CONSTRAINT "price_catalog_version_catalog_vers
 ALTER TABLE "billing"."tenant_override" ADD CONSTRAINT "tenant_override_tenant_id_tenant_id_fk" FOREIGN KEY ("tenant_id") REFERENCES "api"."tenant"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 CREATE UNIQUE INDEX "price_active_uq" ON "billing"."price" USING btree ("item_kind","item_key",coalesce("tier_value", -1),"market","currency","interval") WHERE "billing"."price"."active";--> statement-breakpoint
 CREATE INDEX "price_item_idx" ON "billing"."price" USING btree ("item_kind","item_key");--> statement-breakpoint
-CREATE INDEX "tenant_override_tenant_idx" ON "billing"."tenant_override" USING btree ("tenant_id","valid_until");
+CREATE INDEX "tenant_override_tenant_idx" ON "billing"."tenant_override" USING btree ("tenant_id","valid_until");--> statement-breakpoint
+ALTER TABLE "api"."tenant" ADD CONSTRAINT "tenant_capacity_tier" CHECK ("api"."tenant"."capacity_tier" is null or "api"."tenant"."capacity_tier" in ('C1', 'C2', 'C3', 'C4'));

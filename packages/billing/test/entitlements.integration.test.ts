@@ -90,6 +90,23 @@ describe('entitlements() com o banco', () => {
     expect(cache.ttl.get(entitlementsCacheKey(catalog.version, id))).toBeLessThanOrEqual(60);
   });
 
+  it('o cache não passa do vencimento de uma exceção que vence antes do TTL padrão', async () => {
+    const id = await newTenant('ent-ttl');
+    await db.insert(tenantOverride).values({
+      tenantId: id,
+      kind: 'module_grant',
+      key: 'odds',
+      reason: 'degustação curta',
+      grantedBy: 'cli:teste',
+      validUntil: new Date(Date.now() + 20_000),
+    });
+    const cache = memoryCache();
+    await entitlements({ db, catalog, cache }, id);
+    const ttl = cache.ttl.get(entitlementsCacheKey(catalog.version, id));
+    expect(ttl).toBeGreaterThan(0);
+    expect(ttl).toBeLessThanOrEqual(20);
+  });
+
   it('exceção revogada ou vencida não entra', async () => {
     const id = await newTenant('ent-b');
     await db.insert(tenantOverride).values([

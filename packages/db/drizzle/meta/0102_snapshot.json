@@ -1,6 +1,6 @@
 {
-  "id": "7389d7ae-ec7d-4dbb-947f-a1e06d40bb65",
-  "prevId": "786dd2a0-38d1-4109-9af8-6481cc0cb636",
+  "id": "8564d69f-6bdf-4926-b684-57ccc96c7179",
+  "prevId": "54e9c22e-d6a1-41dc-89eb-54df25891935",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -15636,7 +15636,12 @@
         }
       },
       "policies": {},
-      "checkConstraints": {},
+      "checkConstraints": {
+        "tenant_capacity_tier": {
+          "name": "tenant_capacity_tier",
+          "value": "\"api\".\"tenant\".\"capacity_tier\" is null or \"api\".\"tenant\".\"capacity_tier\" in ('C1', 'C2', 'C3', 'C4')"
+        }
+      },
       "isRLSEnabled": false
     },
     "api.tenant_member": {
@@ -20094,7 +20099,7 @@
       "checkConstraints": {
         "sponsor_category": {
           "name": "sponsor_category",
-          "value": "category in ('apparel', 'automotive', 'beverage', 'education', 'energy', 'finance', 'food', 'health', 'media', 'retail', 'technology', 'telecom', 'travel', 'other')"
+          "value": "category in ('alcohol', 'apparel', 'automotive', 'beverage', 'education', 'energy', 'finance', 'food', 'health', 'media', 'retail', 'technology', 'telecom', 'travel', 'other')"
         },
         "sponsor_name_len": {
           "name": "sponsor_name_len",
@@ -21219,6 +21224,262 @@
         "wallet_balance_nonneg": {
           "name": "wallet_balance_nonneg",
           "value": "\"fan\".\"wallet\".\"balance\" >= 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "fan.presence_window": {
+      "name": "presence_window",
+      "schema": "fan",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "public.uuid_generate_v7()"
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "profile_id": {
+          "name": "profile_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "event_id": {
+          "name": "event_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "started_at": {
+          "name": "started_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "last_seen_at": {
+          "name": "last_seen_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "last_interaction_at": {
+          "name": "last_interaction_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "heartbeats": {
+          "name": "heartbeats",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        }
+      },
+      "indexes": {
+        "presence_window_lookup_idx": {
+          "name": "presence_window_lookup_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "profile_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "event_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "last_seen_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "presence_window_open_idx": {
+          "name": "presence_window_open_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "profile_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "last_seen_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "presence_window_purge_idx": {
+          "name": "presence_window_purge_idx",
+          "columns": [
+            {
+              "expression": "last_seen_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "presence_window_tenant_id_tenant_id_fk": {
+          "name": "presence_window_tenant_id_tenant_id_fk",
+          "tableFrom": "presence_window",
+          "tableTo": "tenant",
+          "schemaTo": "api",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "presence_window_profile_fk": {
+          "name": "presence_window_profile_fk",
+          "tableFrom": "presence_window",
+          "tableTo": "profile",
+          "schemaTo": "fan",
+          "columnsFrom": [
+            "tenant_id",
+            "profile_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "presence_window_pkey": {
+          "name": "presence_window_pkey",
+          "columns": [
+            "tenant_id",
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "presence_window_order": {
+          "name": "presence_window_order",
+          "value": "\"fan\".\"presence_window\".\"last_seen_at\" >= \"fan\".\"presence_window\".\"started_at\""
+        },
+        "presence_window_interaction": {
+          "name": "presence_window_interaction",
+          "value": "\"fan\".\"presence_window\".\"last_interaction_at\" <= \"fan\".\"presence_window\".\"last_seen_at\""
+        },
+        "presence_window_heartbeats": {
+          "name": "presence_window_heartbeats",
+          "value": "\"fan\".\"presence_window\".\"heartbeats\" >= 1"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "engage.presence_limit": {
+      "name": "presence_limit",
+      "schema": "engage",
+      "columns": {
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "max_games": {
+          "name": "max_games",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_by": {
+          "name": "updated_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "presence_limit_tenant_id_tenant_id_fk": {
+          "name": "presence_limit_tenant_id_tenant_id_fk",
+          "tableFrom": "presence_limit",
+          "tableTo": "tenant",
+          "schemaTo": "api",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "presence_limit_range": {
+          "name": "presence_limit_range",
+          "value": "\"engage\".\"presence_limit\".\"max_games\" between 1 and 10"
         }
       },
       "isRLSEnabled": false
