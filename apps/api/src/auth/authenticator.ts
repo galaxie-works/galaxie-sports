@@ -22,6 +22,11 @@ export interface TenantContext {
   widgetId?: string | null;
   /** Módulos efetivos: os do tenant, restritos pelos escopos da chave. */
   modules: ApiModule[];
+  /**
+   * O que a chave restringe por conta própria (escopos da secreta, tipo de widget da publicável); null = nada. Usado
+   * para refazer `modules` a partir dos direitos do tenant (`withEntitlements`, #1137).
+   */
+  keyAllows?: readonly ApiModule[] | null;
   /** Países contratados; vazio = todos. */
   markets: string[];
   /** Esportes contratados; vazio = todos. */
@@ -29,6 +34,8 @@ export interface TenantContext {
   rateLimitPerMinute: number;
   /** Cota diária de produção do tenant; null/ausente = sem cota (docs/politica-de-chaves.md §4). */
   dailyRequestQuota?: number | null;
+  /** Features ligadas pelos direitos do tenant (presente quando a API resolve os direitos). */
+  features?: string[];
 }
 
 export interface AuthenticatorOptions {
@@ -259,11 +266,30 @@ function contextOf(record: KeyRecord, prefix: string): TenantContext {
     keyKind: 'secret',
     env: record.env,
     modules,
+    keyAllows: record.scopes ?? null,
     markets: record.tenant.markets,
     sports: record.tenant.sports,
     rateLimitPerMinute: record.tenant.rateLimitPerMinute,
     dailyRequestQuota: record.tenant.dailyRequestQuota ?? null,
   };
+}
+
+/**
+ * Refaz os módulos do contexto a partir dos direitos do tenant (plataforma comercial, #1137): as exceções do acordo
+ * (módulo concedido ou retirado) passam a valer na API, sempre dentro do que a chave restringe e sem os módulos
+ * fechados. Leva também as features (ex.: `realtime.sse`).
+ */
+export function withEntitlements(
+  ctx: TenantContext,
+  ent: { modules: readonly ApiModule[]; features: readonly string[] },
+): TenantContext {
+  const allows = ctx.keyAllows;
+  const modules = withoutClosedModules(
+    ent.modules.filter((m) => !allows || allows.includes(m)),
+    ctx.slug,
+    ctx.keyKind,
+  );
+  return { ...ctx, modules, features: [...ent.features] };
 }
 
 export function assertModule(ctx: TenantContext, module: ApiModule): void {

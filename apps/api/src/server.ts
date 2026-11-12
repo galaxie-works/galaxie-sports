@@ -27,12 +27,15 @@ import type { ChatStreamOptions } from './chat/stream.js';
 import type { FanTokenSigner } from './engage/fan-token.js';
 import { AdminGuard, type AdminGuardOptions } from './admin/guard.js';
 import { loadPlans, type PlanCatalog } from './admin/plans.js';
+import { entitlementsResolver } from './auth/entitlements.js';
+import type { Entitlements } from '@galaxie/billing';
 import { adminRoutes } from './admin/routes.js';
 import {
   assertModule,
   Authenticator,
   type AuthenticatorOptions,
   type TenantContext,
+  withEntitlements,
 } from './auth/authenticator.js';
 import {
   assertPublishableRoute,
@@ -104,6 +107,12 @@ export interface ServerOptions {
   logger?: boolean;
   tenantStore?: TenantStore;
   authenticator?: AuthenticatorOptions;
+  /**
+   * Direitos do tenant (plataforma comercial, #1137): módulos com as exceções do acordo e features. Padrão: o
+   * catálogo de `config/catalog` e o banco, com cache no Valkey, quando há db; `false` desliga (os módulos vêm só das
+   * colunas do tenant, como antes).
+   */
+  entitlements?: ((tenantId: string) => Promise<Pick<Entitlements, 'modules' | 'features'> | null>) | false;
   /** Chaves publicáveis (`x-galaxie-publishable-key`); padrão: Postgres, quando há db. */
   publishableStore?: PublishableStore;
   publishableAuthenticator?: PublishableAuthenticatorOptions;
@@ -240,6 +249,7 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
           onError: (err) => app.log.warn({ err }, 'limite de tentativas de autenticação indisponível'),
         });
   const store = options.tenantStore ?? (options.db ? new PgTenantStore(options.db) : undefined);
+  const resolveEntitlements = entitlementsResolver(options, prefix, app.log);
   const authenticator = store
     ? new Authenticator(store, {
         ...(throttle ? { throttle } : {}),
@@ -306,7 +316,7 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
   const quotaEvent = (
     request: FastifyRequest,
     tenant: TenantContext,
-    level: 'warn' | 'blocked',
+    level: 'warn' | 'over' | 'blocked',
     limit: number,
   ) => {
     const k = `${utcDay()}|${tenant.tenantId}|${level}`;
@@ -314,10 +324,16 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
     if (quotaEvents.size > 10_000) quotaEvents.clear();
     quotaEvents.add(k);
     request.log.warn(
-      { tenant: tenant.slug, quota: limit, event: level === 'warn' ? 'quota.warning' : 'quota.exceeded' },
+      {
+        tenant: tenant.slug,
+        quota: limit,
+        event: level === 'warn' ? 'quota.warning' : level === 'over' ? 'quota.overage' : 'quota.exceeded',
+      },
       level === 'warn'
         ? 'cota diária: tenant passou de 80%'
-        : 'cota diária: tenant passou de 110% (bloqueado)',
+        : level === 'over'
+          ? 'cota diária: widgets passaram de 110% (excedente, sem bloqueio)'
+          : 'cota diária: tenant bloqueado (110% na chave secreta ou teto da publicável)',
     );
   };
 
@@ -383,6 +399,20 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
       authenticate = (maxAgeMs?: number) =>
         authenticator.authenticate(secretKey, { ip: request.ip, maxAgeMs });
     }
+    if (resolveEntitlements) {
+      const raw = authenticate;
+      authenticate = async (maxAgeMs?: number) => {
+        const ctx = await raw(maxAgeMs);
+        try {
+          const ent = await resolveEntitlements.resolve(ctx.tenantId);
+          return ent ? withEntitlements(ctx, ent) : ctx;
+        } catch (err) {
+          // direitos indisponíveis: segue com os módulos das colunas do tenant (fail-open, como o rate limit)
+          request.log.warn({ err }, 'direitos do tenant indisponíveis');
+          return ctx;
+        }
+      };
+    }
     const tenant = await authenticate();
     if (secretKey && queryKeyUsed(request)) {
       // `?key=` aceito até o Sunset; o cliente troca para o token curto (docs/05 §5.1)
@@ -409,10 +439,12 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
     if (module) assertModule(tenant, module);
 
     const route = `${request.method} ${request.routeOptions.url ?? request.url}`;
-    // cota diária de produção (a chave de teste fica fora): aviso a partir de 80%, 429 a partir de 110%
+    // cota diária de produção (a chave de teste fica fora): aviso a partir de 80%, 429 a partir de 110%. A chave
+    // publicável (widgets) só recebe o aviso: acima da cota vira excedente, nunca bloqueio (#1137)
     if (quota && tenant.env === 'live' && tenant.dailyRequestQuota) {
+      const enforce = tenant.keyKind === 'secret';
       try {
-        const q = await quota.check(tenant.tenantId, tenant.dailyRequestQuota);
+        const q = await quota.check(tenant.tenantId, tenant.dailyRequestQuota, { enforce });
         reply
           .header('x-galaxie-quota-limit', String(q.limit))
           .header('x-galaxie-quota-remaining', String(Math.max(0, q.limit - q.used)));
@@ -522,7 +554,13 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
   if (options.admin?.keyHashes.length && options.db) {
     const guard = adminGuard!;
     const plans = options.admin.plans ?? loadPlans();
-    app.register(adminRoutes, { db: options.db, guard, plans, usage: usageBackend });
+    app.register(adminRoutes, {
+      db: options.db,
+      guard,
+      plans,
+      usage: usageBackend,
+      ...(resolveEntitlements ? { onTenantChanged: (id: string) => resolveEntitlements.invalidate(id) } : {}),
+    });
   }
 
   if (usage) {
