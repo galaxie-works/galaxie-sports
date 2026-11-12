@@ -9,6 +9,7 @@ import {
   type Database,
   type RealtimeTopic,
   type WebhookFilters,
+  webhookReactivation,
 } from '@galaxie/db';
 import { resolveTopic } from '@galaxie/contracts';
 import { WEBHOOK_KEK_ENV, type WebhookSecretBox } from './secret-box.js';
@@ -129,7 +130,7 @@ export async function listWebhookEndpoints(db: Database, tenantSlug?: string) {
 export async function setWebhookActive(db: Database, id: string, active: boolean): Promise<boolean> {
   const rows = await db
     .update(webhookEndpoint)
-    .set({ active, updatedAt: new Date() })
+    .set({ active, updatedAt: new Date(), ...webhookReactivation(active) })
     .where(eq(webhookEndpoint.id, id))
     .returning({ id: webhookEndpoint.id });
   return rows.length > 0;

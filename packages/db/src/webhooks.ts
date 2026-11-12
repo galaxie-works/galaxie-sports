@@ -38,6 +38,15 @@ export const WEBHOOK_TOPIC_MODULE: Record<RealtimeTopic, ApiModule> = {
   'event.related_content_changed': 'related_content',
 };
 
+/**
+ * Campos que a reativação zera: a sequência de falhas e a marca do circuit breaker (#360). Desativar à mão mantém
+ * o que já havia.
+ */
+export function webhookReactivation(active: boolean) {
+  return active ? { failingSince: null, autoDisabledAt: null, autoDisabledReason: null } : {};
+}
+const REACTIVATE = webhookReactivation;
+
 /** Endpoints por tenant (ativos ou não). Acima disso, fale com a Galaxie. */
 export const MAX_WEBHOOKS_PER_TENANT = 5;
 
@@ -61,6 +70,9 @@ export interface TenantWebhook {
   topics: RealtimeTopic[];
   filters: WebhookFilters;
   active: boolean;
+  /** Desativado pelo circuit breaker (#360): quando e com qual erro. */
+  autoDisabledAt: Date | null;
+  autoDisabledReason: string | null;
   createdAt: Date;
   pending: number;
   dead: number;
@@ -78,6 +90,8 @@ export async function listTenantWebhooks(db: Database, tenantId: string): Promis
     topics: RealtimeTopic[];
     filters: WebhookFilters;
     active: boolean;
+    auto_disabled_at: string | Date | null;
+    auto_disabled_reason: string | null;
     created_at: string | Date;
     pending: number;
     dead: number;
@@ -86,7 +100,8 @@ export async function listTenantWebhooks(db: Database, tenantId: string): Promis
     last_failure_at: string | Date | null;
     last_error: string | null;
   }>(sql`
-    select e.id::text, e.url, e.description, e.topics, e.filters, e.active, e.created_at,
+    select e.id::text, e.url, e.description, e.topics, e.filters, e.active, e.auto_disabled_at,
+           e.auto_disabled_reason, e.created_at,
            (select count(*)::int from api.webhook_delivery d where d.endpoint_id = e.id and d.status = 'pending')
              as pending,
            (select count(*)::int from api.webhook_delivery d where d.endpoint_id = e.id and d.status = 'dead') as dead,
@@ -111,6 +126,8 @@ export async function listTenantWebhooks(db: Database, tenantId: string): Promis
     topics: r.topics ?? [],
     filters: r.filters ?? {},
     active: r.active,
+    autoDisabledAt: date(r.auto_disabled_at),
+    autoDisabledReason: r.auto_disabled_reason,
     createdAt: new Date(r.created_at),
     pending: Number(r.pending),
     dead: Number(r.dead),
@@ -239,7 +256,7 @@ export async function setTenantWebhookActive(
 ): Promise<boolean> {
   const rows = await db
     .update(webhookEndpoint)
-    .set({ active, updatedAt: new Date() })
+    .set({ active, updatedAt: new Date(), ...REACTIVATE(active) })
     .where(and(eq(webhookEndpoint.id, endpointId), eq(webhookEndpoint.tenantId, tenantId)))
     .returning({ id: webhookEndpoint.id });
   return rows.length > 0;

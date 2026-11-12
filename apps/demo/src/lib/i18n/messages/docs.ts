@@ -408,7 +408,7 @@ export default defineMessages(
         idempotency: 'Igual em todas as tentativas: descarte duplicatas por ela',
         retriesTitle: 'Retentativas',
         retries:
-          'Qualquer resposta fora de 2xx (inclusive redirecionamento) ou demora acima de 10 s conta como falha. A Galaxie tenta de novo com espera exponencial (10 s, 20 s, 40 s…, até 1 h) por até 10 tentativas; depois, a entrega fica numa fila de reprocessamento. Responda rápido e processe de forma assíncrona.',
+          'Qualquer resposta fora de 2xx (inclusive redirecionamento) ou demora acima de 10 s conta como falha. A Galaxie tenta de novo com espera exponencial (10 s, 20 s, 40 s…, até 1 h) por até 10 tentativas; depois, a entrega fica numa fila de reprocessamento. Um webhook que passa 24 h só falhando é desativado e aparece como "Desativado por falhas" no portal; corrija, reative e reenvie a fila. Responda rápido e processe de forma assíncrona.',
         code: {
           verify: 'Verifica x-galaxie-signature sobre o corpo BRUTO (antes do JSON.parse).',
           verifyPy: 'Verifica x-galaxie-signature sobre o corpo BRUTO (antes do json.loads).',
@@ -867,7 +867,7 @@ export default defineMessages(
           idempotency: 'Same across all attempts: use it to drop duplicates',
           retriesTitle: 'Retries',
           retries:
-            'Any response outside 2xx (redirects included) or taking longer than 10 s counts as a failure. Galaxie retries with exponential backoff (10 s, 20 s, 40 s…, up to 1 h) for up to 10 attempts; after that, the delivery goes to a reprocessing queue. Respond quickly and process asynchronously.',
+            'Any response outside 2xx (redirects included) or taking longer than 10 s counts as a failure. Galaxie retries with exponential backoff (10 s, 20 s, 40 s…, up to 1 h) for up to 10 attempts; after that, the delivery goes to a reprocessing queue. A webhook that keeps failing for 24 h is disabled and shows as "Disabled after failures" in the portal; fix it, re-enable it and replay the queue. Respond quickly and process asynchronously.',
           code: {
             verify: 'Verifies x-galaxie-signature over the RAW body (before JSON.parse).',
             verifyPy: 'Verifies x-galaxie-signature over the RAW body (before json.loads).',
@@ -1335,7 +1335,7 @@ export default defineMessages(
           idempotency: 'Igual en todos los intentos: descartá duplicados con él',
           retriesTitle: 'Reintentos',
           retries:
-            'Cualquier respuesta fuera de 2xx (incluso redirecciones) o una demora de más de 10 s cuenta como falla. Galaxie reintenta con espera exponencial (10 s, 20 s, 40 s…, hasta 1 h) durante hasta 10 intentos; después, la entrega queda en una cola de reprocesamiento. Respondé rápido y procesá de forma asíncrona.',
+            'Cualquier respuesta fuera de 2xx (incluso redirecciones) o una demora de más de 10 s cuenta como falla. Galaxie reintenta con espera exponencial (10 s, 20 s, 40 s…, hasta 1 h) durante hasta 10 intentos; después, la entrega queda en una cola de reprocesamiento. Un webhook que falla sin parar durante 24 h se desactiva y aparece como "Desactivado por fallas" en el portal; corrígelo, reactívalo y reenvía la cola. Responde rápido y procesa de forma asíncrona.',
           code: {
             verify: 'Verifica x-galaxie-signature sobre el cuerpo CRUDO (antes del JSON.parse).',
             verifyPy: 'Verifica x-galaxie-signature sobre el cuerpo CRUDO (antes del json.loads).',

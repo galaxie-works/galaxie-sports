@@ -71,6 +71,9 @@ export interface WebhookRow {
   topics: string[];
   filters: { events?: string[]; competitions?: string[]; sports?: string[] };
   active: boolean;
+  /** Desativado pelo circuit breaker (falhando sem parar): quando e com qual erro. */
+  autoDisabledAt: string | null;
+  autoDisabledReason: string | null;
   createdAt: string;
   pending: number;
   dead: number;
@@ -647,9 +650,23 @@ export function WebhooksPanel({
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant={row.active ? 'success-light' : 'secondary'} radius="full">
-                        {row.active ? w.active : w.inactive}
-                      </Badge>
+                      {!row.active && row.autoDisabledAt ? (
+                        <div className="flex flex-col gap-0.5">
+                          <Badge variant="destructive-light" radius="full">
+                            {w.autoDisabled}
+                          </Badge>
+                          <span
+                            className="text-muted-foreground max-w-48 text-xs"
+                            title={row.autoDisabledReason ?? undefined}
+                          >
+                            {fill(w.autoDisabledHint, { when: f.relative(row.autoDisabledAt) })}
+                          </span>
+                        </div>
+                      ) : (
+                        <Badge variant={row.active ? 'success-light' : 'secondary'} radius="full">
+                          {row.active ? w.active : w.inactive}
+                        </Badge>
+                      )}
                     </TableCell>
                     <TableCell className="text-sm">
                       <div className="flex flex-col gap-0.5">

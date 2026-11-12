@@ -247,6 +247,7 @@ export {
   WebhookSecretError,
 } from './webhook-secret-box.js';
 export * from './webhooks-admin.js';
+export { webhookReactivation } from './webhooks.js';
 export {
   creditPoints,
   debitBalance,

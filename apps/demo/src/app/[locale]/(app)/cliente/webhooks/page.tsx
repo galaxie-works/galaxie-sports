@@ -42,6 +42,8 @@ async function Webhooks() {
               topics: w.topics,
               filters: w.filters,
               active: w.active,
+              autoDisabledAt: iso(w.autoDisabledAt),
+              autoDisabledReason: w.autoDisabledReason,
               createdAt: w.createdAt.toISOString(),
               pending: w.pending,
               dead: w.dead,

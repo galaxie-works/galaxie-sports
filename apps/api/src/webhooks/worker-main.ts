@@ -39,8 +39,14 @@ const db = createDb(url, { max: 5, applicationName: 'galaxie-webhooks' });
 const maxAttempts = num('WEBHOOK_MAX_ATTEMPTS');
 const baseDelayMs = num('WEBHOOK_RETRY_BASE_MS');
 const timeoutMs = num('WEBHOOK_TIMEOUT_MS');
+// circuit breaker (#360): horas de falha seguida até desativar o endpoint; 0 desliga
+const breakerHours = num('WEBHOOK_BREAKER_HOURS');
+// rate limit por endpoint (#360): entregas por minuto; 0 desliga
+const endpointRatePerMinute = num('WEBHOOK_ENDPOINT_RATE_PER_MIN');
 const worker = new WebhookWorker(db, {
   ...(maxAttempts ? { maxAttempts } : {}),
+  ...(breakerHours != null ? { breakerAfterMs: breakerHours * 3_600_000 } : {}),
+  ...(endpointRatePerMinute != null ? { endpointRatePerMinute } : {}),
   ...(baseDelayMs ? { baseDelayMs } : {}),
   ...(timeoutMs ? { timeoutMs } : {}),
   secrets,
