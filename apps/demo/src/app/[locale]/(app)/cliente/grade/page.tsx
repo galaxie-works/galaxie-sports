@@ -6,8 +6,10 @@ import { LoadingStatus } from '@/components/app-shell/loading-status';
 import { PageHeader } from '@/components/app-shell/page-header';
 import { TableCardSkeleton } from '@/components/app-shell/skeletons';
 import { ClientArea } from '@/components/client/client-area';
+import { LineupReviewComposer } from '@/components/cosmos/lineup-review-composer';
 import { LineupPortal } from '@/components/lineup/portal';
 import { getT, getTimeZone } from '@/lib/i18n/server';
+import { lineupReviewAccess, lineupReviewMinimum } from '@/lib/cosmos/lineup-review-tasks';
 import { readOperatorPortal } from '@/lib/lineup/server';
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -19,22 +21,31 @@ async function Lineup() {
   const [t, timeZone] = await Promise.all([getT(), getTimeZone()]);
   return (
     <ClientArea section="lineup">
-      {async ({ tenant }) => {
+      {async (ctx) => {
         // O tenant vem da sessão (ClientArea): a operadora só vê a grade e os pedidos dela.
-        const data = await readOperatorPortal(tenant.id);
+        // Cosmos (#1008): pedido de revisão em texto livre, para quem pode usar e com a função ativa
+        const [data, cosmosMin] = await Promise.all([
+          readOperatorPortal(ctx.tenant.id),
+          lineupReviewAccess(ctx) ? null : lineupReviewMinimum(),
+        ]);
         if (!data.operator?.platformId)
           return (
             <EmptyState title={t.lineup.portal.emptyTitle} description={t.lineup.portal.emptyDescription} />
           );
         return (
-          <LineupPortal
-            lineup={data.lineup}
-            showOtherOperators={data.operator.showOtherOperators}
-            pending={data.pending}
-            requests={data.requests}
-            library={data.library}
-            timeZone={timeZone}
-          />
+          <div className="flex flex-col gap-4">
+            {data.lineup && cosmosMin != null ? (
+              <LineupReviewComposer minCredits={ctx.role === 'admin' ? null : cosmosMin} />
+            ) : null}
+            <LineupPortal
+              lineup={data.lineup}
+              showOtherOperators={data.operator.showOtherOperators}
+              pending={data.pending}
+              requests={data.requests}
+              library={data.library}
+              timeZone={timeZone}
+            />
+          </div>
         );
       }}
     </ClientArea>
