@@ -5,6 +5,8 @@
  * O worker (`apps/api/src/webhooks/worker.ts`) é quem entrega: o teste e o reenvio só põem entregas na fila, e a
  * checagem de destino (SSRF), a assinatura e as retentativas são as mesmas de uma mudança real.
  */
+import { randomUUID } from 'node:crypto';
+import { isEngageWebhookTopic, webhookTopic } from '@galaxie/contracts';
 import { and, desc, eq, notInArray, sql } from 'drizzle-orm';
 import type { Database } from './client.js';
 import {
@@ -12,11 +14,10 @@ import {
   tenant,
   webhookDelivery,
   webhookEndpoint,
-  type ApiModule,
-  type RealtimeTopic,
   type WebhookDeliveryStatus,
   type WebhookFilters,
 } from './schema/index.js';
+import { publishChange, WEBHOOK_EVENT_ENTITY } from './change-feed.js';
 import { generateWebhookSecret, type WebhookSecretBox } from './webhook-secret-box.js';
 
 export { WEBHOOK_KEK_ENV, WebhookSecretBox, WebhookSecretError } from './webhook-secret-box.js';
@@ -27,16 +28,6 @@ export {
   type RealtimeTopic,
   type WebhookFilters,
 } from './schema/index.js';
-
-/** Módulo do plano que cada tópico exige (o mesmo `TOPIC_MODULE` da API, conferido no teste dela). */
-export const WEBHOOK_TOPIC_MODULE: Record<RealtimeTopic, ApiModule> = {
-  'event.status_changed': 'core_data',
-  'event.score_changed': 'core_data',
-  'event.incident_added': 'core_data',
-  'where_to_watch.changed': 'where_to_watch',
-  'event.context_published': 'live_intelligence',
-  'event.related_content_changed': 'related_content',
-};
 
 /** Endpoints por tenant (ativos ou não). Acima disso, fale com a Galaxie. */
 export const MAX_WEBHOOKS_PER_TENANT = 5;
@@ -58,7 +49,7 @@ export interface TenantWebhook {
   id: string;
   url: string;
   description: string | null;
-  topics: RealtimeTopic[];
+  topics: string[];
   filters: WebhookFilters;
   active: boolean;
   createdAt: Date;
@@ -75,7 +66,7 @@ export async function listTenantWebhooks(db: Database, tenantId: string): Promis
     id: string;
     url: string;
     description: string | null;
-    topics: RealtimeTopic[];
+    topics: string[];
     filters: WebhookFilters;
     active: boolean;
     created_at: string | Date;
@@ -164,8 +155,8 @@ export async function listTenantWebhookDeliveries(
 export interface TenantWebhookInput {
   /** Já validada pelo chamador (https, sem credenciais, sem IP privado). */
   url: string;
-  /** Vazio = todos os tópicos do plano. */
-  topics: RealtimeTopic[];
+  /** Já validados pelo chamador contra o registro e os módulos do tenant. Vazio = todos os tópicos emitidos. */
+  topics: string[];
   filters: WebhookFilters;
   description: string | null;
 }
@@ -323,4 +314,47 @@ export async function replayTenantWebhookDead(
        and d.status = 'dead'
     returning d.id`);
   return rows.length;
+}
+
+export interface WebhookEventInput {
+  tenantId: string;
+  /** Tópico de engajamento do registro (`@galaxie/contracts`, webhook-topics.ts), ex.: `game.points.expiring`. */
+  topic: string;
+  /** O `data` do payload do tópico. Campo que o registro não declara é descartado pelo worker antes de sair. */
+  data: Record<string, unknown>;
+}
+
+/**
+ * Publica um evento de engajamento para os webhooks do tenant (#1023). Vai para o `ops.change_feed` como qualquer
+ * mudança; o worker confere o tópico no registro, o módulo ligado no tenant e o schema do payload antes de
+ * enfileirar. Aceita uma transação aberta: o evento só sai se o commit acontecer.
+ *
+ * Cada chamada é uma linha nova (entidade com id próprio): dois eventos do mesmo tópico na mesma transação não se
+ * fundem, como aconteceria com `publishChange` na mesma entidade.
+ */
+export async function publishWebhookEvent(
+  db: Pick<Database, 'execute'>,
+  event: WebhookEventInput,
+): Promise<number> {
+  return publishChange(db, {
+    topic: event.topic,
+    entityType: WEBHOOK_EVENT_ENTITY,
+    entityId: randomUUID(),
+    payload: { tenant_id: event.tenantId, data: checkWebhookEventData(event.topic, event.data) },
+  });
+}
+
+/**
+ * Confere o evento no registro antes de ele entrar no change feed: tópico de engajamento conhecido e `data` no
+ * schema dele. Devolve só os campos declarados, então dado pessoal passado por engano não fica gravado no change
+ * feed (nem nos backups). Erro aqui é bug de quem chama: falha na hora, em vez de sumir no worker.
+ */
+export function checkWebhookEventData(topic: string, data: Record<string, unknown>): Record<string, unknown> {
+  const def = webhookTopic(topic);
+  if (!def || !isEngageWebhookTopic(topic))
+    throw new Error(`publishWebhookEvent: ${topic} não é um tópico de engajamento do registro de webhooks.`);
+  const parsed = def.payload.safeParse({ id: '0', topic, occurred_at: new Date(0).toISOString(), data });
+  if (!parsed.success)
+    throw new Error(`publishWebhookEvent: payload de ${topic} fora do schema: ${parsed.error.message}`);
+  return (parsed.data as { data: Record<string, unknown> }).data;
 }

@@ -1,5 +1,6 @@
 import { parseArgs } from 'node:util';
-import { closeDb, createDb, REALTIME_TOPICS } from '@galaxie/db';
+import { WEBHOOK_TOPICS } from '@galaxie/contracts';
+import { closeDb, createDb } from '@galaxie/db';
 import {
   createWebhookEndpoint,
   listDeadDeliveries,
@@ -29,8 +30,10 @@ Comandos:
 O segredo de assinatura fica cifrado no banco com a KEK WEBHOOK_SIGNING_SECRET (create e seal-secrets
 exigem a variável; várias KEKs separadas por vírgula: a primeira cifra, todas decifram).
 
-Tópicos: score, status, incidents, where_to_watch, context, related (ou ${REALTIME_TOPICS.join(', ')}).
-Sem --topics, o webhook recebe todos os tópicos do plano do tenant.
+Tópicos: score, status, incidents, where_to_watch, context, related, ou o nome completo de um tópico do registro:
+${WEBHOOK_TOPICS.map((d) => d.topic).join(', ')}.
+Sem --topics, o webhook recebe todos os tópicos emitidos dos módulos ligados no tenant. Tópico de módulo
+desligado não dispara.
 `;
 
 const csv = (v: string | undefined) =>
