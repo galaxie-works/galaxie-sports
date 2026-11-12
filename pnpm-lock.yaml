@@ -68,6 +68,9 @@ importers:
       '@galaxie/knowledge':
         specifier: workspace:*
         version: link:../../packages/knowledge
+      '@galaxie/net-guard':
+        specifier: workspace:*
+        version: link:../../packages/net-guard
       '@galaxie/observability':
         specifier: workspace:*
         version: link:../../packages/observability

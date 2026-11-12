@@ -36,6 +36,7 @@
     "@galaxie/explore": "workspace:*",
     "@galaxie/geo": "workspace:*",
     "@galaxie/knowledge": "workspace:*",
+    "@galaxie/net-guard": "workspace:*",
     "@galaxie/observability": "workspace:*",
     "@galaxie/providers": "workspace:*",
     "@galaxie/rules": "workspace:*",

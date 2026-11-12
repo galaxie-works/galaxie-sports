@@ -156,6 +156,14 @@ export const FanMe = z
       profile_id: z.uuid(),
       nickname: z.string(),
       avatar_url: z.string().nullable(),
+      avatar_status: z
+        .enum(['pending', 'visible', 'held'])
+        .nullable()
+        .meta({
+          description:
+            'Foto na moderação de imagem: `pending` (em análise), `visible` (liberada) ou `held` (fora do ar até a ' +
+            'equipe decidir). Só o próprio torcedor vê a foto que não está `visible`. null = sem foto.',
+        }),
       age_band: z.enum(FAN_AGE_BANDS_COARSE),
       age_band_detail: z
         .enum(FAN_AGE_BANDS_DETAIL)

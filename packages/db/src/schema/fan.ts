@@ -65,6 +65,13 @@ export const FAN_VISIBLE_FIELDS = ['avatar', 'favorite_team', 'level', 'badges']
 export type FanVisibleField = (typeof FAN_VISIBLE_FIELDS)[number];
 export type FanVisibility = Partial<Record<FanVisibleField, 'public' | 'private'>>;
 
+/**
+ * Foto de perfil na moderação de imagem (#1025): `pending` (esperando a Cosmos), `visible` (liberada) ou `held`
+ * (fora do ar até a equipe decidir). Só o próprio torcedor vê a foto que não está `visible`.
+ */
+export const FAN_AVATAR_STATUS = ['pending', 'visible', 'held'] as const;
+export type FanAvatarStatus = (typeof FAN_AVATAR_STATUS)[number];
+
 const fanId = () =>
   uuid('id')
     .notNull()
@@ -105,6 +112,12 @@ export const fanProfile = fan.table(
     /** Apelido; null depois da exclusão. */
     nickname: text('nickname'),
     avatarUrl: text('avatar_url'),
+    /** Estado da foto na moderação de imagem; null = sem foto, ou foto gravada antes do #1025 (ainda não vista). */
+    avatarStatus: text('avatar_status').$type<FanAvatarStatus>(),
+    /** Id da foto na moderação (o alvo do caso na fila); muda a cada foto nova. */
+    avatarRef: text('avatar_ref'),
+    /** Quando a foto entrou em `pending` ou recebeu a decisão. */
+    avatarCheckedAt: timestamp('avatar_checked_at', { withTimezone: true }),
     ageBand: text('age_band').$type<FanAgeBand>().notNull(),
     /** Faixa fina (#1105); null = Perfil gravado antes, só com a faixa larga. */
     ageBandDetail: text('age_band_detail').$type<FanAgeBandDetail>(),
@@ -146,6 +159,10 @@ export const fanProfile = fan.table(
     index('profile_account_idx').on(t.tenantId, t.accountId),
     check('profile_age_band', sql`${t.ageBand} in ('under13', '13_17', '18plus')`),
     check('profile_country', sql`${t.country} ~ '^[A-Z]{2}$'`),
+    check(
+      'profile_avatar_status',
+      sql`${t.avatarStatus} is null or ${t.avatarStatus} in ('pending', 'visible', 'held')`,
+    ),
     check(
       'profile_age_band_detail',
       sql`${t.ageBandDetail} is null or ${t.ageBandDetail} in ('under13', '13', '14_15', '16_17', '18plus')`,

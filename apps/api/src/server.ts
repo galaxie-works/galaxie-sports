@@ -12,7 +12,7 @@ import {
   registerFanAuth,
   type FanRevocations,
 } from './engage/fan-auth.js';
-import { fanRoutes } from './engage/fan-routes.js';
+import { fanRoutes, type FanRoutesDeps } from './engage/fan-routes.js';
 import {
   MemoryPresenceCounter,
   PresenceMaxGames,
@@ -178,6 +178,8 @@ export interface ServerOptions {
    * respondem 503 (um segredo aleatório por processo não vale com várias instâncias).
    */
   fanTokens?: FanTokenSigner | null;
+  /** Moderação da foto de perfil (#1025); os testes passam a própria para esperar o resultado. */
+  fanAvatarCheck?: FanRoutesDeps['avatarCheck'];
   /** Marca de Perfil excluído (Valkey; memória sem Valkey). */
   fanRevocations?: FanRevocations;
   /** Diretório dos regulamentos (padrão: config/rules do monorepo). */
@@ -528,6 +530,7 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
       signer: options.fanTokens ?? null,
       ttl: new FanTokenTtl(options.db),
       revocations: fanRevocations,
+      ...(options.fanAvatarCheck ? { avatarCheck: options.fanAvatarCheck } : {}),
     });
     await presenceRoutes(instance, {
       db: options.db,
