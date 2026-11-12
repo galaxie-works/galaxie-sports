@@ -387,6 +387,23 @@ export interface ChangeFeedConsumerRow {
  * Idade (s) do resumo da home "Explorar" pré-calculado em `core.explore_summary` (job `explore-summary`, #596); null
  * quando ainda não há resumo gravado. A linha de controle (`*`,`*`) leva o mesmo `generated_at` das outras.
  */
+/**
+ * Lances de VAR dos jogos dos últimos 7 dias por `detail` (#641). A métrica fica só com os textos que o contrato
+ * ainda não conhece (`VAR_DETAILS`): um texto novo da api-sports precisa de veredito, peso e tradução.
+ */
+export async function recentVarDetails(db: Database): Promise<{ detail: string; n: number }[]> {
+  const rows = await db.execute<{ detail: string; n: number | string }>(sql`
+    select btrim(i.detail) as detail, count(*)::int as n
+      from core.event_incident i
+      join core.event e on e.id = i.event_id
+     where e.starts_at > now() - interval '7 days'
+       and lower(i.type) = 'var'
+       and nullif(btrim(i.detail), '') is not null
+     group by 1
+  `);
+  return rows.map((r) => ({ detail: r.detail, n: Number(r.n) }));
+}
+
 export async function exploreSummaryAge(db: Database): Promise<number | null> {
   const [row] = await db.execute<{ age: number | string | null }>(sql`
     select extract(epoch from now() - max(generated_at))::float8 as age
