@@ -186,7 +186,7 @@ describe('Chat ao vivo: lotes pelo SSE (#964)', () => {
     expect(batches(reader).flatMap((b) => b.messages.map((m) => m.body))).toEqual(['Golaço!', 'Que jogo']);
     // as duas mensagens do mesmo segundo saem num lote só
     expect(batches(reader)).toHaveLength(1);
-    expect(got.id).toBe(String(batches(reader)[0]!.batch_id));
+    expect(got.id).toBe(`${got.id!.split('-')[0]}-${batches(reader)[0]!.batch_id}`);
 
     // o outro cliente, no mesmo jogo e na mesma instância, não recebe nada
     await new Promise((r) => setTimeout(r, 1_500));
@@ -216,8 +216,30 @@ describe('Chat ao vivo: lotes pelo SSE (#964)', () => {
 
     // cursor antigo fora do histórico: chat.reset
     await redis.del(`${keyPrefix}chat:h:${tenantIds.get(key)}:${fixture}`);
-    const lost = await stream(baseA, key, fixture, { 'last-event-id': '0' });
+    const epoch = b1.id!.split('-')[0]!;
+    const lost = await stream(baseA, key, fixture, { 'last-event-id': `${epoch}-0` });
     await lost.waitFor((m) => m.event === 'chat.reset');
+    // id fora do formato: 400
+    const bad = await stream(baseA, key, fixture, { 'last-event-id': 'abc' });
+    expect(bad.status).toBe(400);
+  });
+
+  it('sequência perdida no Valkey: a conexão aberta recebe chat.reset e segue recebendo', async () => {
+    const key = await tenantKey('lote-epoca');
+    const fixture = await game();
+    const token = await fan(key, 1);
+    const reader = await stream(baseB, key, fixture);
+    await reader.waitFor((m) => m.event === 'ready');
+    await send(baseA, token, fixture, 'antes');
+    await reader.waitFor((m) => m.event === 'chat.batch', 3_000);
+    const room = `${tenantIds.get(key)}:${fixture}`;
+    await redis.del(`${keyPrefix}chat:seq:${room}`, `${keyPrefix}chat:epoch:${room}`);
+    await send(baseA, token, fixture, 'depois');
+    await reader.waitFor((m) => m.event === 'chat.reset', 3_000);
+    await reader.waitFor(
+      () => batches(reader).some((b) => b.messages.some((m) => m.body === 'depois')),
+      3_000,
+    );
   });
 
   it('faixa de conexões estourada: quem entra lê em só leitura e torcedor novo não escreve (D6)', async () => {

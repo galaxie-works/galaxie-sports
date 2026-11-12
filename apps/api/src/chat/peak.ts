@@ -4,6 +4,8 @@
  * leitura para quem chega depois, com aviso no painel.
  *
  * - **Conexões**: o mesmo lease por conexão do `/v1/stream` (`ConnectionLimiter`), num espaço próprio do chat.
+ * Pico e lugar valem para o cliente inteiro (todas as salas dele), como a faixa.
+ *
  * - **Pico**: conexão recusada pela faixa marca o cliente em pico (`<prefixo>chat:peak:<tenant>`, 90 s, renovado
  *   pelo heartbeat de cada conexão excedente). Some sozinho quando elas fecham.
  * - **Lugar**: quem enviou mensagem há pouco (10 min) tem lugar (`chat:seat:<tenant>`, score = validade). Em pico,
@@ -21,6 +23,11 @@ export const SEAT_MS = 10 * 60_000;
 
 export interface ChatPeak {
   readonly connections: ConnectionLimiter;
+  /**
+   * Streams simultâneos por chave publicável e IP: a chave é pública, e sem teto poucos IPs esgotariam a faixa do
+   * cliente e poriam a sala em só leitura para todo torcedor novo.
+   */
+  readonly perClient: ConnectionLimiter;
   markPeak(tenantId: string): Promise<void>;
   inPeak(tenantId: string): Promise<boolean>;
   /** Guarda (ou renova) o lugar do torcedor. */
@@ -30,12 +37,14 @@ export interface ChatPeak {
 
 export class RedisChatPeak implements ChatPeak {
   readonly connections: ConnectionLimiter;
+  readonly perClient: ConnectionLimiter;
   constructor(
     private readonly redis: Redis,
     private readonly prefix = 'gs:',
     private readonly now: () => number = Date.now,
   ) {
     this.connections = new RedisConnectionLimiter(redis, `${prefix}chat:`, 60_000, now);
+    this.perClient = new RedisConnectionLimiter(redis, `${prefix}chat:pk:`, 60_000, now);
   }
   async markPeak(tenantId: string): Promise<void> {
     await this.redis.set(`${this.prefix}chat:peak:${tenantId}`, String(this.now()), 'PX', PEAK_FLAG_MS);
@@ -61,6 +70,7 @@ export class RedisChatPeak implements ChatPeak {
 
 export class MemoryChatPeak implements ChatPeak {
   readonly connections = new MemoryConnectionLimiter();
+  readonly perClient = new MemoryConnectionLimiter();
   private readonly peaks = new Map<string, number>();
   private readonly seats = new Map<string, number>();
   constructor(private readonly now: () => number = Date.now) {}
@@ -71,7 +81,8 @@ export class MemoryChatPeak implements ChatPeak {
     return (this.peaks.get(tenantId) ?? 0) > this.now();
   }
   async seat(tenantId: string, profileId: string): Promise<void> {
-    if (this.seats.size > 100_000) this.seats.clear();
+    if (this.seats.size > 100_000)
+      for (const [k, until] of this.seats) if (until <= this.now()) this.seats.delete(k);
     this.seats.set(`${tenantId}:${profileId}`, this.now() + SEAT_MS);
   }
   async hasSeat(tenantId: string, profileId: string): Promise<boolean> {

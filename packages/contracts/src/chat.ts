@@ -208,16 +208,21 @@ export const chatPaths: ZodOpenApiPathsObject = {
     get: {
       summary: 'Mensagens da sala em lotes (SSE)',
       description:
-        'Server-Sent Events. Um evento `chat.batch` por lote (no máximo um por segundo), com `id:` = número do ' +
-        'lote e `data: {"batch_id", "messages": [ChatMessage]}`. Ao abrir vem `chat.state` (estado da sala; ' +
-        '`read_only_peak` quando a faixa de conexões do cliente estourou) e `ready` com `last_batch_id`. ' +
-        'Reconexão: `Last-Event-ID` (ou `?last_batch_id=`) reenvia os lotes perdidos do histórico curto; se o ' +
-        'buraco saiu dele, vem `chat.reset` e o cliente relê a sala pelo GET. No navegador use um cliente SSE sobre ' +
-        '`fetch` com a chave publicável no header (a chave nunca vai na URL). Exige o módulo `live_chat`.',
+        'Server-Sent Events. Um evento `chat.batch` por lote, com `id:` = `<época>-<lote>` e ' +
+        '`data: {"batch_id", "messages": [ChatMessage]}`; nunca uma mensagem por vez. Ao abrir vem `chat.state` ' +
+        '(`{state, reason?}`; `read_only_peak` com `reason: peak` quando a faixa de conexões do cliente estourou) e ' +
+        '`ready` com `last_event_id`. Reconexão: header `Last-Event-ID` (ou `?last_event_id=`) reenvia os lotes ' +
+        'perdidos do histórico curto; se não dá para emendar (buraco fora do histórico, numeração recomeçada), vem ' +
+        '`chat.reset` e o cliente relê a sala pelo GET. `access_revoked` antes de fechar quando a chave ou o módulo ' +
+        'deixam de valer. No navegador use um cliente SSE sobre `fetch` com a chave publicável no header (a chave ' +
+        'nunca vai na URL); máximo de 20 streams por chave publicável e IP (429). Exige o módulo `live_chat`.',
       tags: [TAG],
       requestParams: {
         path: ChatRoomParams,
-        query: z.object({ last_batch_id: z.number().int().min(0).optional() }),
+        query: z.object({
+          last_event_id: z.string().optional().meta({ description: 'Mesmo valor do header Last-Event-ID.' }),
+        }),
+        header: z.object({ 'last-event-id': z.string().optional() }),
       },
       responses: {
         '200': {
@@ -226,6 +231,7 @@ export const chatPaths: ZodOpenApiPathsObject = {
         },
         '404': problem('Jogo não encontrado (NOT_FOUND)'),
         ...keyErrors,
+        '429': problem('Limite de streams por chave publicável e IP (RATE_LIMITED)'),
         '503': problem('Limite de conexões da instância (DEGRADED), com Retry-After'),
       },
     },

@@ -23,9 +23,28 @@ import type { ChatMessage } from '@galaxie/contracts';
 export interface ChatBatch {
   /** `<tenant>:<jogo>`. */
   room: string;
-  /** Sequencial por sala, começa em 1: o `id:` do evento SSE e o cursor da reconexão. */
+  /**
+   * Época da sequência: muda se o Valkey perder a sequência (reinício sem persistência, expiração). Com ela o cliente
+   * sabe que o número recomeçou e relê a sala, em vez de descartar os lotes novos por número "velho".
+   */
+  epoch: string;
+  /** Sequencial por sala dentro da época, começa em 1. O `id:` do evento SSE é `<época>-<número>`. */
   id: number;
   messages: ChatMessage[];
+}
+
+/** Onde a conexão está: época e último lote entregue (0 = nenhum). */
+export interface ChatCursor {
+  epoch: string;
+  id: number;
+}
+
+/** `<época>-<número>`, o `id:` do evento SSE. */
+export const formatCursor = (c: ChatCursor): string => `${c.epoch}-${c.id}`;
+export function parseCursor(raw: string | undefined): ChatCursor | null | undefined {
+  if (raw == null || raw === '') return undefined;
+  const m = /^(\d{1,16})-(\d{1,12})$/.exec(raw);
+  return m ? { epoch: m[1]!, id: Number(m[2]) } : null;
 }
 
 export type ChatBatchListener = (batch: ChatBatch) => void;
@@ -39,19 +58,33 @@ export interface ChatHubOptions {
   historySize?: number;
   /** Máximo de mensagens num lote; o resto fica para o próximo. Padrão 200. */
   maxPerBatch?: number;
+  /**
+   * Teto da fila da sala. Acima dele saem as mais antigas (já estão no banco e no GET): a fila nunca cresce sem limite
+   * nem atrasa a sala em minutos. Padrão 2000 (10 lotes cheios).
+   */
+  maxQueue?: number;
+  now?: () => number;
   logger?: { warn(obj: object, msg?: string): void };
 }
 
-// KEYS: fila, conjunto de salas pendentes, sequência, histórico, canal
-// ARGV: sala, máximo por lote, tamanho do histórico, ttl do histórico (ms)
+// KEYS: fila, conjunto de salas pendentes, sequência, histórico, canal, época
+// ARGV: sala, máximo por lote, tamanho do histórico, ttl do histórico (ms), época nova (ms agora)
 const TAKE_SCRIPT = `
 local items = redis.call('LRANGE', KEYS[1], 0, tonumber(ARGV[2]) - 1)
 if #items == 0 then redis.call('SREM', KEYS[2], ARGV[1]) return 0 end
 redis.call('LTRIM', KEYS[1], #items, -1)
 if redis.call('LLEN', KEYS[1]) == 0 then redis.call('SREM', KEYS[2], ARGV[1]) end
 local id = redis.call('INCR', KEYS[3])
+local epoch = redis.call('GET', KEYS[6])
+if id == 1 or not epoch then
+  epoch = ARGV[5]
+  redis.call('SET', KEYS[6], epoch)
+  if id ~= 1 then id = 1 redis.call('SET', KEYS[3], 1) end
+  redis.call('DEL', KEYS[4])
+end
 redis.call('PEXPIRE', KEYS[3], tonumber(ARGV[4]) * 10)
-local batch = '{"room":' .. cjson.encode(ARGV[1]) .. ',"id":' .. id .. ',"messages":[' .. table.concat(items, ',') .. ']}'
+redis.call('PEXPIRE', KEYS[6], tonumber(ARGV[4]) * 10)
+local batch = '{"room":' .. cjson.encode(ARGV[1]) .. ',"epoch":' .. cjson.encode(epoch) .. ',"id":' .. id .. ',"messages":[' .. table.concat(items, ',') .. ']}'
 redis.call('ZADD', KEYS[4], id, batch)
 redis.call('ZREMRANGEBYRANK', KEYS[4], 0, -1 - tonumber(ARGV[3]))
 redis.call('PEXPIRE', KEYS[4], tonumber(ARGV[4]))
@@ -71,7 +104,9 @@ export class ChatHub {
   private running: Promise<void> | undefined;
   // sem Valkey
   private readonly memQueue = new Map<string, ChatMessage[]>();
-  private readonly memSeq = new Map<string, number>();
+  private readonly memSeq = new Map<string, ChatCursor>();
+  private readonly maxQueue: number;
+  private readonly now: () => number;
   private readonly memHistory = new Map<string, ChatBatch[]>();
 
   constructor(private readonly options: ChatHubOptions = {}) {
@@ -79,6 +114,8 @@ export class ChatHub {
     this.intervalMs = options.intervalMs ?? 1_000;
     this.historySize = options.historySize ?? 120;
     this.maxPerBatch = options.maxPerBatch ?? 200;
+    this.maxQueue = options.maxQueue ?? 2_000;
+    this.now = options.now ?? Date.now;
   }
 
   static roomKey(tenantId: string, fixtureId: string): string {
@@ -111,39 +148,50 @@ export class ChatHub {
     if (!redis) {
       const q = this.memQueue.get(room) ?? [];
       q.push(message);
+      if (q.length > this.maxQueue) q.splice(0, q.length - this.maxQueue);
       this.memQueue.set(room, q);
       return;
     }
     await redis
       .multi()
       .rpush(this.k('q', room), JSON.stringify(message))
+      .ltrim(this.k('q', room), -this.maxQueue, -1)
       .pexpire(this.k('q', room), HISTORY_TTL_MS)
       .sadd(this.k('q:rooms'), room)
       .exec();
   }
 
-  /** Último lote da sala (0 = nenhum ainda): o ponto de partida de quem entra agora. */
-  async latestId(room: string): Promise<number> {
+  /** Último lote da sala (`id` 0 = nenhum ainda): o ponto de partida de quem entra agora. */
+  async latest(room: string): Promise<ChatCursor> {
     const { redis } = this.options;
-    if (!redis) return this.memSeq.get(room) ?? 0;
-    return Number((await redis.get(this.k('seq', room))) ?? 0);
+    if (!redis) return this.memSeq.get(room) ?? { epoch: '0', id: 0 };
+    const [seq, epoch] = await redis.mget(this.k('seq', room), this.k('epoch', room));
+    return seq && epoch ? { epoch, id: Number(seq) } : { epoch: '0', id: 0 };
   }
 
   /**
-   * Lotes depois de `afterId`, em ordem. `complete = false` quando parte deles já saiu do histórico curto (o cliente
-   * relê a sala pelo GET).
+   * Lotes depois do cursor, em ordem. `complete = false` quando não dá para emendar: parte saiu do histórico curto,
+   * a época mudou (a sequência recomeçou) ou o cursor está à frente da sala. O cliente relê a sala pelo GET.
    */
-  async since(room: string, afterId: number): Promise<{ batches: ChatBatch[]; complete: boolean }> {
+  async since(
+    room: string,
+    after: ChatCursor,
+  ): Promise<{ batches: ChatBatch[]; complete: boolean; latest: ChatCursor }> {
     const { redis } = this.options;
-    let batches: ChatBatch[];
-    if (!redis) batches = (this.memHistory.get(room) ?? []).filter((b) => b.id > afterId);
-    else {
-      const raw = await redis.zrangebyscore(this.k('h', room), `(${afterId}`, '+inf');
-      batches = raw.map((r) => JSON.parse(r) as ChatBatch);
+    const latest = await this.latest(room);
+    if (latest.id === 0) return { batches: [], complete: after.id === 0, latest };
+    if (after.epoch !== latest.epoch || after.id > latest.id) {
+      // época nova: tudo o que está no histórico é desta época; o cliente relê e segue daqui
+      return { batches: [], complete: false, latest };
     }
-    const latest = await this.latestId(room);
-    const complete = afterId >= latest || batches[0]?.id === afterId + 1;
-    return { batches, complete };
+    let batches: ChatBatch[];
+    if (!redis) batches = (this.memHistory.get(room) ?? []).filter((b) => b.id > after.id);
+    else {
+      const raw = await redis.zrangebyscore(this.k('h', room), `(${after.id}`, '+inf');
+      batches = raw.map((r) => JSON.parse(r) as ChatBatch).filter((b) => b.epoch === latest.epoch);
+    }
+    const complete = after.id >= latest.id || batches[0]?.id === after.id + 1;
+    return { batches, complete, latest };
   }
 
   async start(): Promise<void> {
@@ -206,9 +254,10 @@ export class ChatHub {
         const messages = queue.splice(0, this.maxPerBatch);
         if (!queue.length) this.memQueue.delete(room);
         if (!messages.length) continue;
-        const id = (this.memSeq.get(room) ?? 0) + 1;
-        this.memSeq.set(room, id);
-        const batch: ChatBatch = { room, id, messages };
+        const prev = this.memSeq.get(room);
+        const cur = prev ? { epoch: prev.epoch, id: prev.id + 1 } : { epoch: String(this.now()), id: 1 };
+        this.memSeq.set(room, cur);
+        const batch: ChatBatch = { room, epoch: cur.epoch, id: cur.id, messages };
         const h = this.memHistory.get(room) ?? [];
         h.push(batch);
         if (h.length > this.historySize) h.splice(0, h.length - this.historySize);
@@ -221,16 +270,18 @@ export class ChatHub {
     for (const room of rooms)
       await redis.eval(
         TAKE_SCRIPT,
-        5,
+        6,
         this.k('q', room),
         this.k('q:rooms'),
         this.k('seq', room),
         this.k('h', room),
         this.k('batches'),
+        this.k('epoch', room),
         room,
         this.maxPerBatch,
         this.historySize,
         HISTORY_TTL_MS,
+        this.now(),
       );
   }
 

@@ -375,7 +375,11 @@ export async function chatRoutes(app: FastifyInstance, deps: ChatRoutesDeps): Pr
       createdAt: saved.createdAt,
     });
     // só a mensagem pública entra no lote; a retida fica com o autor (ele a vê pela resposta)
-    if (visibility === 'public') await hub.enqueue(ChatHub.roomKey(fan.tenantId, fixtureId), view);
+    // Valkey fora: a mensagem já está gravada e aparece pelo GET; o envio não volta com erro (o torcedor não repete)
+    if (visibility === 'public')
+      await hub.enqueue(ChatHub.roomKey(fan.tenantId, fixtureId), view).catch((err: unknown) => {
+        request.log.warn({ err }, 'chat: fila do lote indisponível');
+      });
     await peak.seat(fan.tenantId, fan.profileId).catch((err: unknown) => {
       request.log.warn({ err }, 'chat: lugar do torcedor indisponível');
     });
