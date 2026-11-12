@@ -486,6 +486,7 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
             redis: options.redis ?? null,
             keyPrefix: prefix,
             metrics: app.metrics,
+            log: app.log,
             now: ctx.now,
             ...(options.shopFetch ? { fetch: options.shopFetch } : {}),
             ...(options.shopSecretBox ? { box: options.shopSecretBox } : {}),

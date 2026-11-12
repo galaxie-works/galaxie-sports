@@ -64,7 +64,7 @@ export function ShoppingConnectors({ stores, timeZone }: { stores: ShopConnector
       </Link>
       <p className="text-muted-foreground text-sm">{T.description}</p>
       {stores.length ? (
-        stores.map((s) => <ConnectorCard key={s.id} store={s} timeZone={timeZone} />)
+        stores.map((s) => <ConnectorCard key={`${s.id}:${s.updatedAt}`} store={s} timeZone={timeZone} />)
       ) : (
         <p className="text-muted-foreground text-sm">{T.empty}</p>
       )}
@@ -82,7 +82,8 @@ function ConnectorCard({ store, timeZone }: { store: ShopConnectorView; timeZone
   const [linkTemplate, setLinkTemplate] = useState(store.linkTemplate ?? '');
   const [creds, setCreds] = useState({ affiliateId: '', affiliateTool: '', apiToken: '', apiSecret: '' });
   const canSubnetwork = SUBNETWORK_NETWORKS.includes(store.network);
-  const live = store.network === 'mercado_livre';
+  // a consulta à loja só acontece com o token gravado; sem ele, o Mercado Livre também fica no link curado
+  const live = store.network === 'mercado_livre' && store.hasCredentials;
   const id = (k: string) => `shop-conn-${store.id}-${k}`;
 
   return (
@@ -112,7 +113,9 @@ function ConnectorCard({ store, timeZone }: { store: ShopConnectorView; timeZone
           <div className="flex flex-col gap-3">
             <p className="text-sm font-medium">{T.paths}</p>
             {SHOP_CLIENT_PATHS.map((p) => {
-              const disabled = p === 'subnetwork' && !canSubnetwork;
+              const disabled =
+                (p === 'subnetwork' && !canSubnetwork) ||
+                (p === 'client_code' && TEMPLATE_NETWORKS.includes(store.network));
               return (
                 <label key={p} className="flex items-center gap-2 text-sm">
                   <Checkbox
@@ -124,7 +127,9 @@ function ConnectorCard({ store, timeZone }: { store: ShopConnectorView; timeZone
                   />
                   {T.clientPaths[p]}
                   {disabled ? (
-                    <span className="text-muted-foreground text-xs">({T.subnetworkOff})</span>
+                    <span className="text-muted-foreground text-xs">
+                      ({p === 'subnetwork' ? T.subnetworkOff : T.clientCodeOff})
+                    </span>
                   ) : null}
                 </label>
               );
@@ -173,7 +178,9 @@ function ConnectorCard({ store, timeZone }: { store: ShopConnectorView; timeZone
               <p className="text-sm font-medium">{T.credentials}</p>
               {store.hasCredentials ? (
                 <Badge variant="success-light">
-                  {fill(T.credentialsSet, { when: f.relative(store.credentialsUpdatedAt ?? '') })}
+                  {fill(T.credentialsSet, {
+                    when: f.relative(store.credentialsUpdatedAt ?? store.updatedAt),
+                  })}
                   {store.credentialsHint ? ` · ${store.credentialsHint}` : ''}
                 </Badge>
               ) : (
@@ -198,7 +205,7 @@ function ConnectorCard({ store, timeZone }: { store: ShopConnectorView; timeZone
             </div>
             <div className="flex flex-wrap gap-2">
               <Button
-                disabled={pending || !creds.affiliateId.trim()}
+                disabled={pending || (!store.hasCredentials && !creds.affiliateId.trim())}
                 onClick={() =>
                   go(
                     () => saveCredentialsAction(store.id, creds),
