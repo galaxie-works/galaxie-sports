@@ -1,6 +1,6 @@
 {
-  "id": "84d67fa9-d930-44e9-ba51-b6f391992db6",
-  "prevId": "8e49e6a3-99a6-44ac-bcd1-b1bbc0454be8",
+  "id": "fd175bc7-849a-467b-bb91-23c7cacbd443",
+  "prevId": "f3a1bcee-d5fb-45b4-9970-11dfe0b6a3a4",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -23700,6 +23700,209 @@
         "tenant_override_revoked": {
           "name": "tenant_override_revoked",
           "value": "(\"billing\".\"tenant_override\".\"revoked_at\" is null) = (\"billing\".\"tenant_override\".\"revoked_by\" is null)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "engage.shop_click": {
+      "name": "shop_click",
+      "schema": "engage",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "public.uuid_generate_v7()"
+        },
+        "clicked_at": {
+          "name": "clicked_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "event_id": {
+          "name": "event_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "entity_kind": {
+          "name": "entity_kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "entity_id": {
+          "name": "entity_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "product_id": {
+          "name": "product_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "store_id": {
+          "name": "store_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "origin": {
+          "name": "origin",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "widget_id": {
+          "name": "widget_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "country": {
+          "name": "country",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "locale": {
+          "name": "locale",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "shop_click_event_idx": {
+          "name": "shop_click_event_idx",
+          "columns": [
+            {
+              "expression": "event_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "clicked_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "shop_click_entity_idx": {
+          "name": "shop_click_entity_idx",
+          "columns": [
+            {
+              "expression": "entity_kind",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "entity_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "clicked_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "shop_click_store_idx": {
+          "name": "shop_click_store_idx",
+          "columns": [
+            {
+              "expression": "store_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "clicked_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "shop_click_tenant_idx": {
+          "name": "shop_click_tenant_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "clicked_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "shop_click_origin": {
+          "name": "shop_click_origin",
+          "value": "origin in ('client', 'galaxie_app', 'galaxie_site')"
+        },
+        "shop_click_entity_kind": {
+          "name": "shop_click_entity_kind",
+          "value": "entity_kind in ('competition', 'participant', 'person')"
+        },
+        "shop_click_client_tenant": {
+          "name": "shop_click_client_tenant",
+          "value": "(\"engage\".\"shop_click\".\"origin\" = 'client') = (\"engage\".\"shop_click\".\"tenant_id\" is not null)"
+        },
+        "shop_click_country": {
+          "name": "shop_click_country",
+          "value": "\"engage\".\"shop_click\".\"country\" is null or \"engage\".\"shop_click\".\"country\" ~ '^[A-Z]{2}$'"
+        },
+        "shop_click_locale": {
+          "name": "shop_click_locale",
+          "value": "\"engage\".\"shop_click\".\"locale\" is null or length(\"engage\".\"shop_click\".\"locale\") between 2 and 10"
+        },
+        "shop_click_widget_len": {
+          "name": "shop_click_widget_len",
+          "value": "\"engage\".\"shop_click\".\"widget_id\" is null or length(\"engage\".\"shop_click\".\"widget_id\") between 1 and 80"
         }
       },
       "isRLSEnabled": false

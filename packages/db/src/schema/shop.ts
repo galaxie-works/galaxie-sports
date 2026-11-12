@@ -218,3 +218,45 @@ export const shopProduct = engage.table(
     check('shop_product_position', sql`${t.position} >= 0`),
   ],
 );
+
+/** De onde veio o clique (#918): o site ou o app Galaxie, ou o widget de um cliente. */
+export const SHOP_CLICK_ORIGINS = ['client', 'galaxie_app', 'galaxie_site'] as const;
+export type ShopClickOrigin = (typeof SHOP_CLICK_ORIGINS)[number];
+
+/**
+ * Cliques no "Comprar" (#918), um por linha, para medir conversão, conferir o relatório das lojas e mostrar ao
+ * cliente quanto o widget rendeu (#930). Sem dado pessoal: nada de IP, e-mail ou id do torcedor. Nunca vira ponto,
+ * selo ou prêmio: nenhum outro módulo lê esta tabela para gamificação.
+ */
+export const shopClick = engage.table(
+  'shop_click',
+  {
+    id: pkUuidV7(),
+    clickedAt: timestamp('clicked_at', { withTimezone: true }).notNull().defaultNow(),
+    /** Jogo da página (`core.event.id`), quando o clique veio de uma partida. */
+    eventId: uuid('event_id'),
+    entityKind: text('entity_kind').notNull(),
+    entityId: uuid('entity_id').notNull(),
+    productId: uuid('product_id').notNull(),
+    storeId: text('store_id').notNull(),
+    origin: text('origin').notNull(),
+    /** Cliente e widget, quando a origem é `client`. */
+    tenantId: uuid('tenant_id'),
+    widgetId: text('widget_id'),
+    /** País (ISO alfa-2) e idioma da página, quando vêm. */
+    country: text('country'),
+    locale: text('locale'),
+  },
+  (t) => [
+    index('shop_click_event_idx').on(t.eventId, t.clickedAt),
+    index('shop_click_entity_idx').on(t.entityKind, t.entityId, t.clickedAt),
+    index('shop_click_store_idx').on(t.storeId, t.clickedAt),
+    index('shop_click_tenant_idx').on(t.tenantId, t.clickedAt),
+    check('shop_click_origin', inList('origin', SHOP_CLICK_ORIGINS)),
+    check('shop_click_entity_kind', inList('entity_kind', SHOP_ENTITY_KINDS)),
+    check('shop_click_client_tenant', sql`(${t.origin} = 'client') = (${t.tenantId} is not null)`),
+    check('shop_click_country', sql`${t.country} is null or ${t.country} ~ '^[A-Z]{2}$'`),
+    check('shop_click_locale', sql`${t.locale} is null or length(${t.locale}) between 2 and 10`),
+    check('shop_click_widget_len', sql`${t.widgetId} is null or length(${t.widgetId}) between 1 and 80`),
+  ],
+);

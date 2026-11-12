@@ -75,6 +75,7 @@ import { StreamTokenSigner } from './realtime/stream-token.js';
 import { docsRoutes } from './routes/docs.js';
 import { cosmosStripeRoutes } from './routes/internal/cosmos-stripe.js';
 import { internalShopRoutes } from './routes/internal/shop.js';
+import { ShopClickRecorder, shopClickRoutes } from './shop/clicks.js';
 import { ShopOffers } from './shop/offers.js';
 import { internalWhereToWatchRoutes } from './routes/internal/where-to-watch.js';
 import { Lineup, type LineupOptions } from './lineup/availability.js';
@@ -110,6 +111,8 @@ export interface ServerOptions {
   /** Shopping (#916): fetch dos conectores de loja (testes) e cofre das credenciais das lojas. */
   shopFetch?: ShopFetch;
   shopSecretBox?: Pick<SettingsSecretBox, 'open'>;
+  /** Fila dos cliques do Shopping (#918); nos testes, para gravar na hora. */
+  shopClickRecorder?: ShopClickRecorder;
   logger?: boolean;
   tenantStore?: TenantStore;
   authenticator?: AuthenticatorOptions;
@@ -537,6 +540,13 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
             ...(options.shopSecretBox ? { box: options.shopSecretBox } : {}),
           })
         : undefined,
+    });
+    await shopClickRoutes(instance, {
+      db: options.db,
+      limiter,
+      now: ctx.now,
+      ...(options.shopClickRecorder ? { recorder: options.shopClickRecorder } : {}),
+      ...(options.shopSecretBox ? { box: options.shopSecretBox } : {}),
     });
     await accountRoutes(instance, { db: options.db, usage: usageBackend });
     await fanRoutes(instance, {
