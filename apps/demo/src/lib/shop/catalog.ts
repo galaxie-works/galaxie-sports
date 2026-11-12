@@ -4,6 +4,8 @@
  * entrada ficam em `catalog-input.ts`; a leitura para a API, em `@galaxie/db` (`shopAnchors`). Nada de imagem nem
  * preço: os dois vêm do conector da loja (#916).
  */
+import type { PoolClient } from 'pg';
+
 import { pool } from '@/lib/auth/db';
 
 import {
@@ -20,7 +22,7 @@ import {
 } from './catalog-input';
 
 export class ShopCatalogError extends Error {
-  constructor(readonly code: 'not_found' | 'duplicate' | 'store' | 'limit') {
+  constructor(readonly code: 'not_found' | 'duplicate' | 'duplicate_store' | 'store' | 'limit') {
     super(code);
     this.name = 'ShopCatalogError';
   }
@@ -156,16 +158,29 @@ export async function listShopStores(): Promise<ShopStoreView[]> {
   }));
 }
 
-/** Cria a loja ou atualiza nome, país, rede, endereço e ordem. Ligar e desligar fica com os conectores (#916). */
-export async function saveShopStore(input: StoreInput, actor: string): Promise<void> {
-  await pool.query(
-    `insert into engage.shop_store (id, name, country, network, home_url, position, updated_by)
-     values ($1, $2, $3, $4, $5, $6, $7)
-     on conflict (id) do update set name = excluded.name, country = excluded.country, network = excluded.network,
-       home_url = excluded.home_url, position = excluded.position, updated_by = excluded.updated_by,
-       updated_at = now()`,
-    [input.id, input.name, input.country, input.network, input.homeUrl, input.position, actor],
-  );
+/**
+ * Cria a loja (`create`: código já usado é recusado, nunca sobrescreve outra loja) ou atualiza nome, país, rede,
+ * endereço e ordem de uma que existe. Ligar e desligar fica com os conectores (#916).
+ */
+export async function saveShopStore(
+  input: StoreInput,
+  actor: string,
+  opts: { create: boolean },
+): Promise<void> {
+  const values = [input.id, input.name, input.country, input.network, input.homeUrl, input.position, actor];
+  const { rowCount } = opts.create
+    ? await pool.query(
+        `insert into engage.shop_store (id, name, country, network, home_url, position, updated_by)
+         values ($1, $2, $3, $4, $5, $6, $7) on conflict (id) do nothing`,
+        values,
+      )
+    : await pool.query(
+        `update engage.shop_store set name = $2, country = $3, network = $4, home_url = $5, position = $6,
+                updated_by = $7, updated_at = now()
+          where id = $1`,
+        values,
+      );
+  if (!rowCount) throw new ShopCatalogError(opts.create ? 'duplicate_store' : 'not_found');
 }
 
 /** Entidades já curadas, com quantos produtos aprovados e sugeridos têm (as que mais precisam de olho primeiro). */
@@ -374,7 +389,26 @@ export async function removeShopLookup(kind: ShopEntityKind, id: string, storeId
   );
 }
 
-/** Produto curado por uma pessoa: entra aprovado, no fim da fila da loja. */
+/** Transação no pool da demo: commit no fim, rollback se der erro. */
+async function inTransaction<T>(fn: (client: PoolClient) => Promise<T>): Promise<T> {
+  const client = await pool.connect();
+  try {
+    await client.query('begin');
+    const out = await fn(client);
+    await client.query('commit');
+    return out;
+  } catch (err) {
+    await client.query('rollback').catch(() => {});
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+/**
+ * Produto curado por uma pessoa: entra aprovado, no fim da fila da loja. A ficha fica travada durante a conta, para
+ * duas inclusões ao mesmo tempo não passarem do teto nem pegarem a mesma posição.
+ */
 export async function addShopProduct(
   kind: ShopEntityKind,
   id: string,
@@ -382,31 +416,34 @@ export async function addShopProduct(
   actor: string,
 ): Promise<void> {
   const entityId = await ensureEntity(kind, id, actor);
-  const { rows } = await pool.query<{ n: string; next: number }>(
-    `select count(*) as n,
-            coalesce(max(position) filter (where store_id = $2), -1) + 1 as next
-       from engage.shop_product where entity_id = $1 and status <> 'rejected'`,
-    [entityId, input.storeId],
-  );
-  if (Number(rows[0]?.n ?? 0) >= MAX_PRODUCTS_PER_ENTITY) throw new ShopCatalogError('limit');
   try {
-    await pool.query(
-      `insert into engage.shop_product
-         (entity_id, store_id, store_product_id, product_type, title, season, url, position, status,
-          reviewed_by, reviewed_at, updated_by)
-       values ($1, $2, $3, $4, $5, $6, $7, $8, 'approved', $9, now(), $9)`,
-      [
-        entityId,
-        input.storeId,
-        input.storeProductId,
-        input.productType,
-        input.title,
-        input.season,
-        input.url,
-        rows[0]?.next ?? 0,
-        actor,
-      ],
-    );
+    await inTransaction(async (client) => {
+      await client.query(`select 1 from engage.shop_entity where id = $1 for update`, [entityId]);
+      const { rows } = await client.query<{ n: string; next: number }>(
+        `select count(*) filter (where status <> 'rejected') as n,
+                coalesce(max(position) filter (where store_id = $2 and status <> 'rejected'), -1) + 1 as next
+           from engage.shop_product where entity_id = $1`,
+        [entityId, input.storeId],
+      );
+      if (Number(rows[0]?.n ?? 0) >= MAX_PRODUCTS_PER_ENTITY) throw new ShopCatalogError('limit');
+      await client.query(
+        `insert into engage.shop_product
+           (entity_id, store_id, store_product_id, product_type, title, season, url, position, status,
+            reviewed_by, reviewed_at, updated_by)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, 'approved', $9, now(), $9)`,
+        [
+          entityId,
+          input.storeId,
+          input.storeProductId,
+          input.productType,
+          input.title,
+          input.season,
+          input.url,
+          rows[0]?.next ?? 0,
+          actor,
+        ],
+      );
+    });
   } catch (err) {
     if (pgCode(err) === '23505') throw new ShopCatalogError('duplicate');
     if (pgCode(err) === '23503') throw new ShopCatalogError('store');
@@ -414,56 +451,78 @@ export async function addShopProduct(
   }
 }
 
+/** Filtro do produto pela entidade da página: um id de outra entidade (aba antiga, id trocado) não muda nada. */
+const OF_ENTITY = `entity_id = (select e.id from engage.shop_entity e where e.entity_kind = $2 and e.entity_id = $3)`;
+
 /** Corrige tipo, nome, temporada e link. Loja e id do produto na loja não mudam (outro produto = outra linha). */
 export async function updateShopProduct(
+  kind: ShopEntityKind,
+  id: string,
   productId: string,
   input: Pick<ProductInput, 'productType' | 'title' | 'season' | 'url'>,
   actor: string,
 ): Promise<void> {
   const { rowCount } = await pool.query(
-    `update engage.shop_product set product_type = $2, title = $3, season = $4, url = $5, updated_by = $6,
+    `update engage.shop_product set product_type = $4, title = $5, season = $6, url = $7, updated_by = $8,
             updated_at = now()
-      where id = $1`,
-    [productId, input.productType, input.title, input.season, input.url, actor],
+      where id = $1 and ${OF_ENTITY}`,
+    [productId, kind, id, input.productType, input.title, input.season, input.url, actor],
   );
   if (!rowCount) throw new ShopCatalogError('not_found');
 }
 
-export async function setShopProductActive(productId: string, active: boolean, actor: string): Promise<void> {
+export async function setShopProductActive(
+  kind: ShopEntityKind,
+  id: string,
+  productId: string,
+  active: boolean,
+  actor: string,
+): Promise<void> {
   const { rowCount } = await pool.query(
-    `update engage.shop_product set active = $2, updated_by = $3, updated_at = now() where id = $1`,
-    [productId, active, actor],
+    `update engage.shop_product set active = $4, updated_by = $5, updated_at = now()
+      where id = $1 and ${OF_ENTITY}`,
+    [productId, kind, id, active, actor],
   );
   if (!rowCount) throw new ShopCatalogError('not_found');
 }
 
-/** Aprova ou recusa uma sugestão da IA. Recusada fica guardada para não voltar como sugestão. */
+/**
+ * Aprova ou recusa. Recusar vale para sugestão e aprovado; recusado fica guardado para a IA não sugerir de novo e
+ * pode ser aprovado depois (recusa por engano), voltando ao fim da fila da loja.
+ */
 export async function reviewShopProduct(
+  kind: ShopEntityKind,
+  id: string,
   productId: string,
   verdict: 'approved' | 'rejected',
   actor: string,
 ): Promise<void> {
+  const from = verdict === 'approved' ? ['suggested', 'rejected'] : ['suggested', 'approved'];
   const { rowCount } = await pool.query(
-    `update engage.shop_product set status = $2, reviewed_by = $3, reviewed_at = now(), updated_by = $3,
-            updated_at = now()
-      where id = $1 and status = 'suggested'`,
-    [productId, verdict, actor],
+    `update engage.shop_product p set status = $4, reviewed_by = $5, reviewed_at = now(), updated_by = $5,
+            updated_at = now(),
+            position = case when p.status = 'rejected' then coalesce((
+              select max(o.position) + 1 from engage.shop_product o
+               where o.entity_id = p.entity_id and o.store_id = p.store_id and o.status <> 'rejected'), 0)
+              else p.position end
+      where p.id = $1 and p.${OF_ENTITY} and p.status = any($6::text[])`,
+    [productId, kind, id, verdict, actor, from],
   );
   if (!rowCount) throw new ShopCatalogError('not_found');
 }
 
 /** Sobe ou desce o produto entre os da mesma loja e regrava as posições sem buraco (0..n-1). */
 export async function moveShopProduct(
+  kind: ShopEntityKind,
+  id: string,
   productId: string,
   direction: 'up' | 'down',
   actor: string,
 ): Promise<void> {
-  const client = await pool.connect();
-  try {
-    await client.query('begin');
+  await inTransaction(async (client) => {
     const { rows: me } = await client.query<{ entity_id: string; store_id: string }>(
-      `select entity_id, store_id from engage.shop_product where id = $1 for update`,
-      [productId],
+      `select entity_id, store_id from engage.shop_product where id = $1 and ${OF_ENTITY} for update`,
+      [productId, kind, id],
     );
     if (!me[0]) throw new ShopCatalogError('not_found');
     const { rows } = await client.query<{ id: string }>(
@@ -483,11 +542,5 @@ export async function moveShopProduct(
           where p.id = o.id and p.position <> o.pos - 1`,
         [next, actor],
       );
-    await client.query('commit');
-  } catch (err) {
-    await client.query('rollback').catch(() => {});
-    throw err;
-  } finally {
-    client.release();
-  }
+  });
 }

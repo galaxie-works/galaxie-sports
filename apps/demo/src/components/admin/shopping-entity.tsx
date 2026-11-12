@@ -351,9 +351,29 @@ function StoreCard({
                           </Button>
                         </div>
                       ) : (
-                        <Badge variant={p.status === 'approved' ? 'success-light' : 'secondary'}>
-                          {T.statuses[p.status]}
-                        </Badge>
+                        <div className="flex items-center gap-1">
+                          <Badge variant={p.status === 'approved' ? 'success-light' : 'secondary'}>
+                            {T.statuses[p.status]}
+                          </Badge>
+                          {/* recusa por engano volta pela aprovação; aprovado pode ser recusado */}
+                          <Button
+                            size="icon-sm"
+                            variant="ghost"
+                            disabled={pending}
+                            aria-label={p.status === 'rejected' ? T.products.approve : T.products.reject}
+                            onClick={() =>
+                              go(() =>
+                                reviewProductAction(
+                                  entityRef,
+                                  p.id,
+                                  p.status === 'rejected' ? 'approved' : 'rejected',
+                                ),
+                              )
+                            }
+                          >
+                            {p.status === 'rejected' ? <Check /> : <X />}
+                          </Button>
+                        </div>
                       )}
                     </TableCell>
                     <TableCell>

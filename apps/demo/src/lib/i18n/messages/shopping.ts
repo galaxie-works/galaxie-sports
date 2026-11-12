@@ -160,6 +160,7 @@ export default defineMessages(
     errors: {
       not_found: 'Não encontrado. Recarregue a página.',
       duplicate: 'Este produto já está nesta loja.',
+      duplicate_store: 'Já existe uma loja com este código.',
       store: 'Loja desconhecida.',
       limit: 'Esta entidade já tem produtos demais. Desligue ou recuse os que não servem.',
       generic: 'Não foi possível gravar. Tente de novo.',
@@ -341,6 +342,7 @@ export default defineMessages(
       errors: {
         not_found: 'Not found. Reload the page.',
         duplicate: 'This product is already in this store.',
+        duplicate_store: 'A store with this code already exists.',
         store: 'Unknown store.',
         limit: 'This entity already has too many products. Turn off or reject the ones that do not fit.',
         generic: 'Could not save. Try again.',
@@ -520,6 +522,7 @@ export default defineMessages(
       errors: {
         not_found: 'No encontrado. Recargá la página.',
         duplicate: 'Este producto ya está en esta tienda.',
+        duplicate_store: 'Ya existe una tienda con este código.',
         store: 'Tienda desconocida.',
         limit: 'Esta entidad ya tiene demasiados productos. Desactivá o rechazá los que no sirven.',
         generic: 'No se pudo guardar. Probá de nuevo.',

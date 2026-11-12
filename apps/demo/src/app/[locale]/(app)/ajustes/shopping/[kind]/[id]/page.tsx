@@ -19,6 +19,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const t = await getT();
   const { kind, id } = await params;
   if (!isShopEntityRef(kind, id)) return { title: t.shopping.meta.title };
+  await requireAdmin();
   const detail = await getShopEntity(kind, id).catch(() => null);
   return {
     title: detail ? fill(t.shopping.meta.entityTitle, { name: detail.entity.name }) : t.shopping.meta.title,

@@ -233,7 +233,7 @@ function StoreDialog({
 
   const submit = () =>
     start(async () => {
-      const r = await saveStoreAction(form);
+      const r = await saveStoreAction(form, !current);
       if (!r.ok) return void toast.error(r.error ?? T.errors.generic);
       toast.success(F.saved);
       onClose();

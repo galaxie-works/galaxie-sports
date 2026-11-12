@@ -83,8 +83,13 @@ function productId(id: unknown): string {
 
 const obj = (v: unknown) => (v && typeof v === 'object' ? (v as Record<string, unknown>) : {});
 
-export async function saveStoreAction(input: Record<string, unknown>): Promise<ShopActionResult> {
-  return run(null, (actor) => saveShopStore(value(parseStoreInput(obj(input))), actor));
+export async function saveStoreAction(
+  input: Record<string, unknown>,
+  create: boolean,
+): Promise<ShopActionResult> {
+  return run(null, (actor) =>
+    saveShopStore(value(parseStoreInput(obj(input))), actor, { create: create === true }),
+  );
 }
 
 export async function saveProfileAction(
@@ -130,10 +135,10 @@ export async function updateProductAction(
   input: Record<string, unknown>,
 ): Promise<ShopActionResult> {
   return run(ref, async (actor) => {
-    entity(ref);
+    const e = entity(ref);
     // a loja e o id na loja não mudam: só para passar na mesma validação
     const p = value(parseProductInput({ ...obj(input), storeId: 'xx', storeProductId: 'x' }));
-    await updateShopProduct(productId(id), p, actor);
+    await updateShopProduct(e.kind, e.id, productId(id), p, actor);
   });
 }
 
@@ -143,8 +148,8 @@ export async function setProductActiveAction(
   active: boolean,
 ): Promise<ShopActionResult> {
   return run(ref, async (actor) => {
-    entity(ref);
-    await setShopProductActive(productId(id), active === true, actor);
+    const e = entity(ref);
+    await setShopProductActive(e.kind, e.id, productId(id), active === true, actor);
   });
 }
 
@@ -154,8 +159,14 @@ export async function reviewProductAction(
   verdict: 'approved' | 'rejected',
 ): Promise<ShopActionResult> {
   return run(ref, async (actor) => {
-    entity(ref);
-    await reviewShopProduct(productId(id), verdict === 'approved' ? 'approved' : 'rejected', actor);
+    const e = entity(ref);
+    await reviewShopProduct(
+      e.kind,
+      e.id,
+      productId(id),
+      verdict === 'approved' ? 'approved' : 'rejected',
+      actor,
+    );
   });
 }
 
@@ -165,7 +176,7 @@ export async function moveProductAction(
   direction: 'up' | 'down',
 ): Promise<ShopActionResult> {
   return run(ref, async (actor) => {
-    entity(ref);
-    await moveShopProduct(productId(id), direction === 'up' ? 'up' : 'down', actor);
+    const e = entity(ref);
+    await moveShopProduct(e.kind, e.id, productId(id), direction === 'up' ? 'up' : 'down', actor);
   });
 }
