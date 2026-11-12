@@ -162,7 +162,7 @@ export function MatchCard({
     ? venueTimeText(event, intlLocale(locale, market), timeZone ?? localTimeZone())
     : null;
   const incidents = (timeline.data?.incidents ?? []).filter(
-    (i) => (showGoals && GOAL_KINDS.has(i.kind)) || (showRedCards && RED_KINDS.has(i.kind)),
+    (i) => (showGoals && GOAL_KINDS.has(i.kind) && !i.disallowed) || (showRedCards && RED_KINDS.has(i.kind)),
   );
   const formations = showFormation
     ? [home, away].map(

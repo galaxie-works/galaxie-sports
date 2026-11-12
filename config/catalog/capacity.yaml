@@ -1,0 +1,35 @@
+# Faixas de capacidade da organização (plataforma comercial F1): o tamanho da audiência que a organização contrata,
+# escolhido no onboarding pela calculadora. Vale para todas as marcas da organização; o pico é medido por marca (PL23).
+# Valores são hipótese até o teste de carga (#85, PL22). Preço e excedente ficam no banco (billing.price).
+#
+# Campos:
+#   viewsPerMonth   visualizações de widget por mês
+#   peakConcurrent  pessoas ao mesmo tempo no pico
+#   chatWriters     pessoas escrevendo no chat no pico
+#   null            sem teto no catálogo: sob reserva, por contrato com capacidade dedicada
+#
+# Acima da faixa: aviso em 80% e 100%, excedente por mil visualizações e o widget nunca é desligado.
+
+default: C1
+
+tiers:
+  C1:
+    viewsPerMonth: 1000000
+    peakConcurrent: 5000
+    chatWriters: 1000
+    selfService: true
+  C2:
+    viewsPerMonth: 10000000
+    peakConcurrent: 50000
+    chatWriters: 10000
+    selfService: true
+  C3:
+    viewsPerMonth: 50000000
+    peakConcurrent: 250000
+    chatWriters: 50000
+    selfService: true
+  C4:
+    viewsPerMonth: null
+    peakConcurrent: null
+    chatWriters: null
+    selfService: false
