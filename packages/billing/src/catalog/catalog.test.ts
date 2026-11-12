@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
@@ -55,7 +55,17 @@ describe('config/catalog', () => {
   });
 
   it('nenhum preço no catálogo: a repo é pública', () => {
-    for (const text of Object.values(realTexts())) expect(text).not.toMatch(/\b(price|preco|usd|brl)\s*:/i);
+    const dir = defaultCatalogDir();
+    const files = readdirSync(dir).filter((f) => f.endsWith('.yaml'));
+    expect(files.sort()).toEqual([...CATALOG_FILES].sort());
+    for (const f of files) {
+      const text = readFileSync(join(dir, f), 'utf8');
+      // chave com cara de preço (em qualquer posição do nome) e símbolo de moeda seguido de número
+      expect(text, f).not.toMatch(
+        /^\s*[\w.-]*(price|preç|prec|amount|cost|custo|valor|currency|moeda)[\w.-]*\s*:/im,
+      );
+      expect(text, f).not.toMatch(/(US\$|R\$|\$\s*\d)/);
+    }
   });
 
   describe('transição: o catálogo bate com as constantes que o código ainda usa', () => {
@@ -210,6 +220,40 @@ describe('consistência do catálogo', () => {
     );
   });
 
+  it('campo desconhecido em plans.yaml reprova', () => {
+    const p = problemsOf(
+      withFile('plans.yaml', (s) =>
+        s.replace('    selfService: true\n\n  fan_experience', '    selfservice: true\n\n  fan_experience'),
+      ),
+    );
+    expect(p.some((x) => x.includes('plans.yaml'))).toBe(true);
+  });
+
+  it('valor fixo repetido, add-on fora do prefixo e feature com plano que o módulo não aceita', () => {
+    expect(
+      problemsOf(
+        withFile('modules.yaml', (s) =>
+          s.replace('values: [5000, 25000, 100000]', 'values: [5000, 5000, 100000]'),
+        ),
+      ),
+    ).toContain('faixa live_chat.peak_connections: valor fixo repetido');
+    expect(
+      problemsOf(
+        withFile('addons.yaml', (s) => s.replace('  where_to_watch.extra_markets:', '  odds.extra_markets:')),
+      ),
+    ).toContain('add-on odds.extra_markets fora do prefixo do módulo where_to_watch');
+    expect(
+      problemsOf(
+        withFile('modules.yaml', (s) =>
+          s.replace(
+            '      shopping.links: {}',
+            '      shopping.links:\n        requires:\n          plans: [trial]',
+          ),
+        ),
+      ),
+    ).toContain('feature shopping.links exige o plano trial, que o módulo shopping não aceita');
+  });
+
   it('campo desconhecido reprova (sem erro de digitação passando calado)', () => {
     const p = problemsOf(
       withFile('modules.yaml', (s) =>
@@ -220,8 +264,7 @@ describe('consistência do catálogo', () => {
   });
 });
 
-it('o pacote importa o @galaxie/db só por subcaminhos (o índice traz o migrator, que o Next não empacota)', async () => {
-  const { readdirSync } = await import('node:fs');
+it('o pacote importa o @galaxie/db só por subcaminhos (o índice traz o migrator, que o Next não empacota)', () => {
   const dir = join(import.meta.dirname, '..');
   const files = readdirSync(dir, { recursive: true, encoding: 'utf8' }).filter((f) => f.endsWith('.ts'));
   for (const f of files) expect(readFileSync(join(dir, f), 'utf8'), f).not.toMatch(/from '@galaxie\/db'/);

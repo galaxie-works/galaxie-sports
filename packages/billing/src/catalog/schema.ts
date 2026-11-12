@@ -66,24 +66,26 @@ export type ModuleDef = z.output<typeof ModuleDef>;
 export const ModulesFile = z.object({ modules: z.partialRecord(moduleId, ModuleDef) }).strict();
 
 /** Modelo de plano de dados (`config/catalog/plans.yaml`), copiado para o tenant no onboarding. */
-export const PlanTemplate = z.object({
-  name: z.string().min(1),
-  modules: z.array(moduleId).min(1),
-  markets: z.array(z.string().regex(/^[A-Za-z]{2}$/, 'país ISO2')).default([]),
-  sports: z.array(z.string().regex(/^[a-z0-9-]+$/, 'slug de esporte')).default([]),
-  rateLimitPerMinute: z.number().int().positive(),
-  dailyRequestQuota: z.number().int().positive().nullable().default(null),
-  defaultKeyEnv: z.enum(['live', 'test']).default('live'),
-  /** Plano com prazo (trial): dias a partir do onboarding; null = sem prazo. */
-  trialDays: z.number().int().positive().nullable().default(null),
-  /** O cliente contrata sozinho, pela loja; false = só por contrato. */
-  selfService: z.boolean().default(false),
-  /** Faixas que o plano fixa para os módulos dele (`modulo.faixa` → valor). */
-  tiers: z.record(dottedKey, z.number().int().nonnegative()).default({}),
-});
+export const PlanTemplate = z
+  .object({
+    name: z.string().min(1),
+    modules: z.array(moduleId).min(1),
+    markets: z.array(z.string().regex(/^[A-Za-z]{2}$/, 'país ISO2')).default([]),
+    sports: z.array(z.string().regex(/^[a-z0-9-]+$/, 'slug de esporte')).default([]),
+    rateLimitPerMinute: z.number().int().positive(),
+    dailyRequestQuota: z.number().int().positive().nullable().default(null),
+    defaultKeyEnv: z.enum(['live', 'test']).default('live'),
+    /** Plano com prazo (trial): dias a partir do onboarding; null = sem prazo. */
+    trialDays: z.number().int().positive().nullable().default(null),
+    /** O cliente contrata sozinho, pela loja; false = só por contrato. */
+    selfService: z.boolean().default(false),
+    /** Faixas que o plano fixa para os módulos dele (`modulo.faixa` → valor). */
+    tiers: z.record(dottedKey, z.number().int().nonnegative()).default({}),
+  })
+  .strict();
 export type PlanTemplate = z.output<typeof PlanTemplate>;
 
-export const PlansFile = z.object({ plans: z.partialRecord(planId, PlanTemplate) });
+export const PlansFile = z.object({ plans: z.partialRecord(planId, PlanTemplate) }).strict();
 
 export const CAPACITY_TIERS = ['C1', 'C2', 'C3', 'C4'] as const;
 export type CapacityTier = (typeof CAPACITY_TIERS)[number];

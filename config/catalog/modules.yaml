@@ -78,7 +78,7 @@ modules:
   related_content:
     kind: data
     name: Related Content
-    # fechado até a decisão do dono sobre a API do YouTube
+    # fechado até decisão do dono
     status: closed
     trialDays: null
     features:

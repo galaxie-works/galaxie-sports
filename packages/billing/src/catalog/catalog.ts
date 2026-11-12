@@ -151,6 +151,8 @@ export function checkConsistency(catalog: Omit<Catalog, 'version'>): string[] {
       if (t.min > t.max) problems.push(`faixa ${key}: min maior que max`);
       if (t.values?.some((v) => v < t.min || v > t.max))
         problems.push(`faixa ${key}: valor fixo fora de min e max`);
+      if (t.values && new Set(t.values).size !== t.values.length)
+        problems.push(`faixa ${key}: valor fixo repetido`);
       if (!isValidTierValue(t, t.default))
         problems.push(`faixa ${key}: padrão ${t.default} não é um valor aceito`);
     }
@@ -161,6 +163,10 @@ export function checkConsistency(catalog: Omit<Catalog, 'version'>): string[] {
       featureOwner.set(key, m);
       if (requirementModules(f.requires).includes(m))
         problems.push(`feature ${key} exige o próprio módulo ${m}`);
+      const modulePlans = def.requires?.plans;
+      for (const p of f.requires?.plans ?? [])
+        if (modulePlans && !modulePlans.includes(p))
+          problems.push(`feature ${key} exige o plano ${p}, que o módulo ${m} não aceita`);
       for (const p of f.plans ?? [])
         if (!catalog.plans[p].modules.includes(m))
           problems.push(`feature ${key} limitada ao plano ${p}, que não inclui o módulo ${m}`);
@@ -206,13 +212,13 @@ export function checkConsistency(catalog: Omit<Catalog, 'version'>): string[] {
   }
 
   for (const [key, a] of Object.entries(catalog.addons)) {
+    if (!key.startsWith(`${a.module}.`)) problems.push(`add-on ${key} fora do prefixo do módulo ${a.module}`);
     const t = tiers.get(a.tier);
     if (!t) problems.push(`add-on ${key}: faixa ${a.tier} não existe em modules.yaml`);
     else if (t.module !== a.module)
       problems.push(`add-on ${key}: faixa ${a.tier} não é do módulo ${a.module}`);
   }
 
-  if (!catalog.capacity.tiers[catalog.capacity.default]) problems.push(`capacity.yaml: padrão sem faixa`);
   let prev: CapacityDef | undefined;
   for (const c of CAPACITY_TIERS) {
     const cur = catalog.capacity.tiers[c];
