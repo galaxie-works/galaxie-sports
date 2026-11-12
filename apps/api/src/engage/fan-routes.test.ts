@@ -65,6 +65,7 @@ describe('POST /v1/fans/tokens', () => {
       { ageAssurance: { method: 'document', at: '2026-11-01' } },
       { ageAssurance: { method: 'verified', at: '2026-11-01', document: 'x' } },
       { ageAssurance: { method: 'verified' } },
+      { ageAssurance: { method: 'verified', at: '2999-01-01' } },
       { guardian: { status: 'granted', birthDate: '1980-01-01' } },
       { guardian: { status: 'ok' } },
     ]) {

@@ -195,7 +195,8 @@ describe('identidade do torcedor (#937)', () => {
     expect((await me(back.json().data.token)).json().data).toMatchObject({
       age_band: '13_17',
       age_band_detail: '18plus',
-      age_status: 'read_only',
+      // congelado vale a faixa larga gravada (13): no Brasil, sem responsável
+      age_status: 'needs_guardian',
       capabilities: ['read', 'predict'],
     });
     const sql = postgres(testUrl, { max: 1 });

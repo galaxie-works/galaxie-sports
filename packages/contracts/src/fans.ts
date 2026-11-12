@@ -82,10 +82,11 @@ export const FanTokenBody = z
         method: z.enum(FAN_AGE_ASSURANCE_METHODS).meta({
           description: '`self` = declarada; `estimated` = estimativa de idade; `verified` = verificação.',
         }),
-        at: z.union([z.iso.date(), z.iso.datetime({ offset: true })]).meta({
-          description: 'Quando a idade foi comprovada (ISO 8601).',
-          example: '2026-11-01',
-        }),
+        at: z
+          .union([z.iso.date(), z.iso.datetime({ offset: true })])
+          // comprovação no futuro não existe (um dia de folga para fuso e relógio)
+          .refine((v) => Date.parse(v) <= Date.now() + 86_400_000, 'data no futuro')
+          .meta({ description: 'Quando a idade foi comprovada (ISO 8601).', example: '2026-11-01' }),
         provider: z
           .string()
           .trim()

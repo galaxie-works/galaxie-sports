@@ -187,6 +187,17 @@ function FanStatusMirror({ host }: { host: HTMLElement }) {
       new CustomEvent(FAN_STATUS_EVENT, { bubbles: true, composed: true, detail: { status } }),
     );
   }, [host, status]);
+  // widget trocado ou indisponível: o estado do torcedor sai do elemento
+  useEffect(
+    () => () => {
+      if (!host.hasAttribute('fan-status')) return;
+      host.removeAttribute('fan-status');
+      host.dispatchEvent(
+        new CustomEvent(FAN_STATUS_EVENT, { bubbles: true, composed: true, detail: { status: null } }),
+      );
+    },
+    [host],
+  );
   return null;
 }
 

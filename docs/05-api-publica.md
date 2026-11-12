@@ -1041,6 +1041,8 @@ O `GET /v1/fans/me` devolve `age_band_detail`, `age_assurance`, `guardian` e `ag
 | `read_only` | Participa, mas não escreve |
 | `can_write` | Participa e escreve |
 
+Por enquanto o `age_status` só informa: as rotas ainda liberam pelas `capabilities` da faixa larga, e o portão único de todos os módulos pela ficha do país vem na Idade 3 (#1106). Um adulto do Brasil sem o bloco `ageAssurance` aparece como `needs_verification` e ainda escreve.
+
 Faixa que desce de `18plus` para menor no mesmo Perfil congela as ações de adulto (escrever e resgatar) e abre um caso na fila de moderação do cliente (`age_band_downgrade`). Subir de faixa é normal; a congelada só volta a adulto com a correção da faixa (#1110).
 
 **Rotas.**

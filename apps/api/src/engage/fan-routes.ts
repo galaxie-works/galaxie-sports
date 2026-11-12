@@ -67,8 +67,8 @@ function meBody(p: FanProfileView, policy: CountryPolicy | null): FanMe {
       guardian: { status: p.guardianStatus, linked_account: p.guardianLinked },
       age_status: fanAgeStatus(
         {
-          // Perfil de antes do #1105 só tem a larga: `13_17` vale como 13
-          band: p.ageBandDetail ?? p.ageBand,
+          // Perfil de antes do #1105 só tem a larga (`13_17` vale como 13); congelado vale a larga gravada, a menor
+          band: p.ageFrozenAt !== null ? p.ageBand : (p.ageBandDetail ?? p.ageBand),
           assurance: p.ageAssurance,
           guardianStatus: p.guardianStatus,
           guardianLinked: p.guardianLinked,
@@ -123,48 +123,46 @@ export async function fanRoutes(app: FastifyInstance, deps: FanRoutesDeps): Prom
           'Apelido não permitido pelas regras de moderação.',
         );
     }
-    const upserted = await upsertFan(database, {
-      tenantId: tenant.tenantId,
-      externalAccountId: body.externalAccountId,
-      externalProfileId: body.externalProfileId,
-      nickname: body.nickname,
-      avatarUrl: body.avatarUrl,
-      ageBand: detailAgeBand(body.ageBand),
-      // sem o bloco, a idade é só declarada
-      ageAssurance: {
-        method: body.ageAssurance?.method ?? 'self',
-        at: body.ageAssurance ? new Date(body.ageAssurance.at) : null,
-        provider: body.ageAssurance?.provider ?? null,
+    // a ficha do país antes de gravar: a fila e a auditoria usam os relógios dela
+    const policy = await policyForFan(database, tenant.tenantId, body.country);
+    const upserted = await upsertFan(
+      database,
+      {
+        tenantId: tenant.tenantId,
+        externalAccountId: body.externalAccountId,
+        externalProfileId: body.externalProfileId,
+        nickname: body.nickname,
+        avatarUrl: body.avatarUrl,
+        ageBand: detailAgeBand(body.ageBand),
+        // sem o bloco, a idade é só declarada
+        ageAssurance: {
+          method: body.ageAssurance?.method ?? 'self',
+          at: body.ageAssurance ? new Date(body.ageAssurance.at) : null,
+          provider: body.ageAssurance?.provider ?? null,
+        },
+        guardian: {
+          status: body.guardian?.status ?? 'none',
+          consentId: body.guardian?.consentId ?? null,
+          linked: body.guardian?.linkedAccount ?? false,
+        },
+        country: body.country,
+        locale: body.locale,
+        holderAdult: body.holderAdult,
+        favoriteTeamId: body.favoriteTeamId,
       },
-      guardian: {
-        status: body.guardian?.status ?? 'none',
-        consentId: body.guardian?.consentId ?? null,
-        linked: body.guardian?.linkedAccount ?? false,
-      },
-      country: body.country,
-      locale: body.locale,
-      holderAdult: body.holderAdult,
-      favoriteTeamId: body.favoriteTeamId,
-    });
-    const { accountId, profileId } = upserted;
-    if (upserted.downgradedFrom || upserted.guardianDeclared) {
-      // fila e auditoria com os relógios da ficha do país; sem ficha, só o log (o token sai mesmo assim)
-      const policy = await policyForFan(database, tenant.tenantId, body.country);
-      const now = new Date();
-      if (!policy)
-        request.log.warn(
-          { tenant: tenant.slug, profile: profileId },
-          'faixa ou autorização do torcedor sem ficha do país: fora da fila e da auditoria',
-        );
-      else {
+      // caso na fila e auditoria na mesma transação: falhou, nada fica gravado e a nova tentativa refaz tudo
+      async (tx, done) => {
+        if (!done.downgradedFrom && !done.guardianDeclared) return;
+        if (!policy) throw problems.degraded('Ficha do país não configurada para este cliente.');
+        const now = new Date();
         const clocks = clocksFrom(policy, now);
-        if (upserted.downgradedFrom)
+        if (done.downgradedFrom)
           // descer de adulto para menor: as ações de adulto ficam congeladas e a equipe do cliente revê
-          await holdContent(database, {
+          await holdContent(tx, {
             tenantId: tenant.tenantId,
             targetType: 'profile',
-            targetId: profileId,
-            targetProfileId: profileId,
+            targetId: done.profileId,
+            targetProfileId: done.profileId,
             module: 'profile',
             room: null,
             community: null,
@@ -173,21 +171,22 @@ export async function fanRoutes(app: FastifyInstance, deps: FanRoutesDeps): Prom
             severity: 60,
             hide: false,
             content: null,
-            detail: { from: upserted.downgradedFrom, to: body.ageBand },
+            detail: { from: done.downgradedFrom, to: body.ageBand },
             clocks,
             now,
           });
-        if (upserted.guardianDeclared)
-          await auditFanEvent(database, {
+        if (done.guardianDeclared)
+          await auditFanEvent(tx, {
             tenantId: tenant.tenantId,
             actor: { id: `key:${tenant.keyPrefix}`, kind: 'system' },
             action: 'guardian.declared',
             clocks,
-            subjectProfileId: profileId,
+            subjectProfileId: done.profileId,
             reason: 'autorização declarada pelo cliente',
           });
-      }
-    }
+      },
+    );
+    const { accountId, profileId } = upserted;
     const ttl = await deps.ttl.seconds();
     const { token, expiresAt } = sign.issue(
       {

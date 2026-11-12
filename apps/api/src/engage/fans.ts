@@ -71,7 +71,17 @@ export interface FanProfileView {
  * do país, do idioma, do Apelido e do avatar; o time do coração só muda quando vem no pedido (o torcedor também
  * muda em PATCH /v1/fans/me).
  */
-export async function upsertFan(db: Database, input: FanUpsert): Promise<FanUpsertResult> {
+type Tx = Parameters<Parameters<Database['transaction']>[0]>[0];
+
+/**
+ * `effects` roda na mesma transação (caso na fila e auditoria, #1105): se falhar, nada fica gravado e a nova
+ * tentativa do cliente vê a mesma descida de faixa.
+ */
+export async function upsertFan(
+  db: Database,
+  input: FanUpsert,
+  effects?: (tx: Tx, result: FanUpsertResult) => Promise<void>,
+): Promise<FanUpsertResult> {
   return db.transaction(async (tx) => {
     const [account] = await tx
       .insert(fanAccount)
@@ -86,6 +96,10 @@ export async function upsertFan(db: Database, input: FanUpsert): Promise<FanUpse
       })
       .returning({ id: fanAccount.id });
     const accountId = account!.id;
+    // dois pedidos do mesmo Perfil ao mesmo tempo: um de cada vez (o FOR UPDATE não trava a linha que ainda não existe)
+    await tx.execute(
+      sql`select pg_advisory_xact_lock(hashtextextended(${`fan.profile:${input.tenantId}:${accountId}:${input.externalProfileId}`}, 0))`,
+    );
     // o Perfil de antes (trava a linha): descer de `18plus` congela; a congelada não volta a adulto pelo token
     const [before] = await tx
       .select({
@@ -110,6 +124,7 @@ export async function upsertFan(db: Database, input: FanUpsert): Promise<FanUpse
     // a faixa fina fica como o cliente mandou; a larga (a que libera escrever e resgatar) é que fica presa
     const ageBandDetail: FanAgeBandDetail = input.ageBand;
     const guardianDeclared =
+      input.ageBand !== '18plus' &&
       input.guardian.status === 'granted' &&
       input.guardian.consentId === null &&
       (before?.guardianStatus !== 'granted' || before.guardianConsentId !== null);
@@ -151,7 +166,9 @@ export async function upsertFan(db: Database, input: FanUpsert): Promise<FanUpse
         },
       })
       .returning({ id: fanProfile.id });
-    return { accountId, profileId: profile!.id, ageBand, downgradedFrom, guardianDeclared };
+    const result = { accountId, profileId: profile!.id, ageBand, downgradedFrom, guardianDeclared };
+    if (effects) await effects(tx, result);
+    return result;
   });
 }
 
