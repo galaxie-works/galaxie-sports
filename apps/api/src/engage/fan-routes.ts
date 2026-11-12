@@ -23,7 +23,10 @@ import {
 import {
   ageGate,
   detailAgeBand,
+  effectiveVisibility,
   fanAgeStatus,
+  minorDefaultsApply,
+  minorProtections,
   screen,
   screenNotice,
   type CountryPolicy,
@@ -88,7 +91,16 @@ function meBody(p: FanProfileView, policy: CountryPolicy | null): FanMe {
       country: p.country,
       locale: p.locale,
       favorite_team_id: p.favoriteTeamId,
-      visibility: p.visibility,
+      // o que vale para os outros torcedores: menor fica privado (#1107)
+      visibility: effectiveVisibility(facts, p.visibility),
+      minor_protections: minorDefaultsApply(facts)
+        ? minorProtections(p.locale).map((m) => ({
+            id: m.id,
+            title: m.title,
+            relaxed: m.relaxed,
+            guardian_can_relax: m.guardianCanRelax,
+          }))
+        : [],
       // o que o portão (#1106) libera hoje, para o widget esconder botões
       capabilities: FAN_CAPABILITIES.filter(
         (capability) => ageGate({ policy, fan: facts, capability }).allowed,
@@ -233,6 +245,18 @@ export async function fanRoutes(app: FastifyInstance, deps: FanRoutesDeps): Prom
   app.patch('/v1/fans/me', { config: { fan: true, age: 'read' } }, async (request) => {
     const fan = request.fan!;
     const body = parseInput(FanMePatchBody, request.body);
+    if (body.visibility && Object.values(body.visibility).includes('public')) {
+      const current = await readFan(db(), fan.tenantId, fan.profileId);
+      if (!current) throw problems.invalidFanToken('Perfil excluído.');
+      // Perfil de menor fica privado para os outros torcedores (#1107); o responsável liberar vem na Idade 8
+      if (minorDefaultsApply(profileAgeFacts(current)))
+        throw problems.fanAgeRestricted(
+          'Perfil de menor de 18 anos fica privado para os outros torcedores.',
+          {
+            reason: 'adult_only',
+          },
+        );
+    }
     const changed = await patchFan(db(), fan.tenantId, fan.profileId, {
       favoriteTeamId: body.favoriteTeamId,
       visibility: body.visibility,

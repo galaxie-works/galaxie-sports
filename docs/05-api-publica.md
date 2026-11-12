@@ -1050,15 +1050,24 @@ O `GET /v1/fans/me` devolve `age_band_detail`, `age_assurance`, `guardian` e `ag
 | `age_gate.reason` | Quer dizer | `next` |
 |---|---|---|
 | `under_min_age` | Abaixo da idade para participar (13, ou mais se a ficha pedir) | |
-| `adult_only` | Recurso só para 18+: escrever texto livre, resgatar, marketplace, receber Prêmio, contato direto, conteúdo restrito | |
+| `adult_only` | Recurso só para 18+: escrever texto livre, resgatar, marketplace, receber Prêmio, contato direto, marketing (mesmo com opt-in), conteúdo restrito | |
 | `frozen` | A faixa desceu de `18plus` e vale como menor até comprovar a idade | `verify_age` |
 | `guardian_consent` | Falta a autorização do responsável para a idade no país | `guardian_consent` |
 | `guardian_link` | Falta vincular a conta à do responsável | `guardian_link` |
 | `age_assurance` | A comprovação está abaixo da que o país pede para o recurso (no Brasil, estimativa; conteúdo restrito, verificação) | `verify_age` |
-| `not_in_country` | A ficha do país não libera o recurso (marketplace desligado, publicidade para menores) | |
+| `not_in_country` | A ficha do país não libera o recurso (marketplace desligado) | |
 | `no_policy` | O país não tem ficha: só o adulto lê | |
 
 O portão relê o Perfil e a ficha a cada ação, com um cache de até 5 segundos: a autorização revogada vale em até 5 segundos, sem esperar o token vencer. Para revogar, peça um token novo para o Perfil com `guardian.status: "revoked"`; o token antigo para de valer em até 5 segundos. Denunciar, bloquear, ver as próprias punições e apelar não dependem da autorização nem da comprovação: só ficam fora os abaixo da idade para participar. O texto livre que vai junto (`note` da denúncia, `statement` da apelação) é escrita: quem não escreve manda sem ele. As `capabilities` do `GET /v1/fans/me` são o que o portão libera hoje, e o próprio `GET /v1/fans/me` fica aberto para o cliente ver o estado. Um adulto do Brasil sem o bloco `ageAssurance` (vale `self`) não participa até mandar a estimativa.
+
+**Padrão protetivo para menores (#1107).** Para `13`, `14_15`, `16_17` (e a faixa congelada), em todos os países, o servidor já começa no modo mais protetivo, como pede o ECA Digital:
+
+- o Perfil fica privado para os outros torcedores (`visibility` vem tudo `private`, e o `PATCH /v1/fans/me` que tenta abrir responde 403 `adult_only`); os outros veem só o Apelido;
+- sem foto própria: o `avatarUrl` de um menor não é guardado, e o widget mostra um avatar do catálogo;
+- sem contato direto, marketing (mesmo com opt-in), publicidade direcionada nem conteúdo restrito (o portão recusa `directContact`, `receiveMarketing` e `viewRestrictedContent` como `adult_only`);
+- recomendação só pelo contexto (jogo, time escolhido), localização só pelo país do token, e a Cosmos não analisa emoção nem comportamento de menor para fins comerciais.
+
+O `GET /v1/fans/me` de um menor traz `minor_protections`, a lista dessas proteções com o texto no idioma do torcedor (pt-BR, es, en, fr-CA) e `guardian_can_relax`, as que o responsável pode desligar pelo painel dele (Idade 8, #1111), com o que muda em `relaxed`. Para adulto, a lista vem vazia. Ao completar 18 nada muda sozinho: o torcedor escolhe o que liga.
 
 Faixa que desce de `18plus` para menor no mesmo Perfil congela as ações de adulto (escrever e resgatar) e abre um caso na fila de moderação do cliente (`age_band_downgrade`). Subir de faixa é normal; a congelada só volta a adulto com a correção da faixa (#1110).
 
@@ -1068,7 +1077,7 @@ Faixa que desce de `18plus` para menor no mesmo Perfil congela as ações de adu
 |---|---|---|
 | `POST /v1/fans/tokens` | Servidor do cliente | Chave secreta (`x-galaxie-key`). A publicável recebe 403 |
 | `GET /v1/fans/me` | Widget ou app | `Authorization: Bearer gft_…` |
-| `PATCH /v1/fans/me` | Widget ou app | Token do torcedor. Muda só a visibilidade (`avatar`, `favorite_team`, `level`, `badges`) e o time do coração |
+| `PATCH /v1/fans/me` | Widget ou app | Token do torcedor. Muda só a visibilidade (`avatar`, `favorite_team`, `level`, `badges`; menor só fecha) e o time do coração |
 | `GET /v1/fans/me/wallet` | Widget ou app | Token do torcedor. Pontos e Saldo, um item por país de programa |
 | `GET /v1/fans/me/wallet/ledger` | Widget ou app | Token do torcedor. Extrato do programa (`country`, padrão o do Perfil), paginado por `before` |
 | `DELETE /v1/fans/{externalAccountId}/profiles/{externalProfileId}` | Servidor do cliente | Chave secreta. Idempotente (204) |

@@ -178,6 +178,19 @@ export const FanMe = z
       locale: z.string(),
       favorite_team_id: z.uuid().nullable(),
       visibility: FanVisibilityBody,
+      minor_protections: z
+        .array(
+          z.object({
+            id: z.string(),
+            title: z.string(),
+            relaxed: z.string().nullable(),
+            guardian_can_relax: z.boolean(),
+          }),
+        )
+        .meta({
+          description:
+            'Proteções do padrão para menores de 18 (#1107), com o texto no idioma do torcedor; vazio para adulto.',
+        }),
       capabilities: z.array(z.enum(['read', 'predict', 'write', 'redeem'])).meta({
         description: 'O que a faixa permite, para o widget esconder o que o Perfil não pode usar.',
       }),

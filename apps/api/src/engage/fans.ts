@@ -149,6 +149,8 @@ export async function upsertFan(
       input.guardian.status === 'granted' &&
       input.guardian.consentId === null &&
       (before?.guardianStatus !== 'granted' || before.guardianConsentId !== null);
+    // menor (ou faixa congelada) não tem foto própria: o widget mostra um avatar do catálogo (#1107)
+    const avatarUrl = ageBand === '18plus' ? (input.avatarUrl ?? null) : null;
     const ageFields = {
       ageBand,
       ageBandDetail,
@@ -167,7 +169,7 @@ export async function upsertFan(
         accountId,
         externalProfileId: input.externalProfileId,
         nickname: input.nickname,
-        avatarUrl: input.avatarUrl ?? null,
+        avatarUrl,
         ...ageFields,
         country: input.country,
         locale: input.locale,
@@ -178,7 +180,7 @@ export async function upsertFan(
         targetWhere: sql`${fanProfile.externalProfileId} is not null`,
         set: {
           nickname: input.nickname,
-          avatarUrl: input.avatarUrl ?? null,
+          avatarUrl,
           ...ageFields,
           country: input.country,
           locale: input.locale,
