@@ -181,6 +181,46 @@ export async function moderateBatch(
   return out;
 }
 
+/**
+ * As barreiras antes do modelo, iguais no lote e no "testar com uma mensagem": recurso desligado, sem Leitura total,
+ * decidido pelas regras, decidido pelo classificador. null = o item vai ao modelo.
+ */
+export function triage(
+  item: ModerationItem,
+  config: ModerationConfig,
+  ceiling: ModerationCeiling,
+): ModerationOutcome | null {
+  const skip = (by: 'fallback' | 'skipped', fallback: FallbackReason): ModerationOutcome => ({
+    item,
+    by,
+    verdict: null,
+    plan: null,
+    fallback,
+  });
+  if (!config.features[featureFor(item.module)]) return skip('fallback', 'feature_off');
+  // a Leitura total é conferida aqui, não só no cache de quem chamou: sem ela, só vai ao modelo o que as regras
+  // marcaram (ou foi denunciado)
+  const marked = item.source === 'report' || item.rules.suspect || item.rules.action !== 'allow';
+  if (!marked && !config.features.full_read) return skip('skipped', 'not_contracted');
+  // bloqueado pelas regras e sem lugar (apelido, nome de liga): não publicou e não há onde silenciar
+  if (item.source === 'filter' && item.rules.action === 'block' && !item.room && !item.community)
+    return skip('skipped', 'rules_decided');
+  // com a Leitura total, o classificador decide o que é claro sem gastar
+  if (config.features.full_read) {
+    const c = classify(item.text, item.rules);
+    if (c.outcome === 'violation' && c.verdict)
+      return {
+        item,
+        by: 'classifier',
+        verdict: c.verdict,
+        plan: planModeration(c.verdict, config, ceiling, item.authorRole),
+      };
+    // limpo e sem marca das regras: não há dúvida para pagar
+    if (c.outcome === 'clean' && !marked) return skip('skipped', 'not_contracted');
+  }
+  return null;
+}
+
 async function moderateGroup(
   db: Database,
   items: ModerationItem[],
@@ -198,32 +238,9 @@ async function moderateGroup(
   const outcomes: (ModerationOutcome | null)[] = items.map(() => null);
   const toModel: number[] = [];
   items.forEach((item, i) => {
-    const skip = (by: 'fallback' | 'skipped', fallback: FallbackReason) =>
-      (outcomes[i] = { item, by, verdict: null, plan: null, fallback });
-    if (!config.features[featureFor(item.module)]) return skip('fallback', 'feature_off');
-    // a Leitura total é conferida aqui, não só no cache de quem chamou: sem ela, só vai ao modelo o que as regras
-    // marcaram (ou foi denunciado)
-    const marked = item.source === 'report' || item.rules.suspect || item.rules.action !== 'allow';
-    if (!marked && !config.features.full_read) return skip('skipped', 'not_contracted');
-    // bloqueado pelas regras e sem lugar (apelido, nome de liga): não publicou e não há onde silenciar
-    if (item.source === 'filter' && item.rules.action === 'block' && !item.room && !item.community)
-      return skip('skipped', 'rules_decided');
-    // com a Leitura total, o classificador decide o que é claro sem gastar
-    if (config.features.full_read) {
-      const c = classify(item.text, item.rules);
-      if (c.outcome === 'violation' && c.verdict) {
-        outcomes[i] = {
-          item,
-          by: 'classifier',
-          verdict: c.verdict,
-          plan: planModeration(c.verdict, config, ceiling, item.authorRole),
-        };
-        return;
-      }
-      // limpo e sem marca das regras: não há dúvida para pagar
-      if (c.outcome === 'clean' && !marked) return skip('skipped', 'not_contracted');
-    }
-    toModel.push(i);
+    const decided = triage(item, config, ceiling);
+    if (decided) outcomes[i] = decided;
+    else toModel.push(i);
   });
 
   if (toModel.length > 0) {
@@ -585,7 +602,8 @@ async function apply(
       caseId,
       status: 'resolved',
       actor: { id: 'cosmos', kind: 'cosmos' },
-      note: reason,
+      reason,
+      note: null,
       clocks: item.clocks,
       now: at,
     });
@@ -655,17 +673,12 @@ export async function previewModeration(
     clocks: { contentPurgeAt: new Date(0), decisionPurgeAt: new Date(0) },
   };
   const { effective: config } = await loadModerationConfig(db, input.tenantId, ceiling, scopeOf(item));
-  if (config.features.full_read) {
-    const c = classify(input.text, rules);
-    if (c.outcome === 'violation' && c.verdict)
-      return {
-        rules,
-        by: 'classifier',
-        verdict: c.verdict,
-        plan: planModeration(c.verdict, config, ceiling),
-        credits: 0,
-      };
-  }
+  // as mesmas barreiras do lote: o que não iria ao modelo no uso real também não vai (nem cobra) no teste
+  const decided = triage(item, config, ceiling);
+  if (decided)
+    return decided.by === 'classifier'
+      ? { rules, by: 'classifier', verdict: decided.verdict, plan: decided.plan, credits: 0 }
+      : { rules, by: null, verdict: null, plan: null, credits: 0, fallback: decided.fallback! };
   const [o] = await askModel(db, [item], config, ceiling, settings, deps.env ?? process.env, deps, {
     test: true,
   });

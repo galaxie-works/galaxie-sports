@@ -26,7 +26,7 @@ export async function clocksFor(
     ),
     profileId
       ? pool.query<{ country: string | null }>(
-          'select country from fan.profile where tenant_id = $1 and id = $2',
+          'select country from fan.profile where tenant_id = $1 and id = $2 and deleted_at is null',
           [tenantId, profileId],
         )
       : Promise.resolve({ rows: [] as { country: string | null }[] }),

@@ -7,22 +7,36 @@
  */
 import {
   applySanction,
+  automaticSanctionsOf,
   closeCase,
   readCase,
   undoDecision,
   type ModerationActor,
 } from '@galaxie/db/moderation-queue';
-import { SANCTION_SCOPE, checkSanction } from '@galaxie/engage';
+import {
+  SANCTION_LEVELS,
+  SANCTION_SCOPE,
+  checkSanction,
+  sanctionAction,
+  type SanctionLevel,
+} from '@galaxie/engage';
 
 import { builderDb } from '@/lib/builder/store';
-import { allowed } from '@/lib/client/permissions';
+import { allowed, canSomewhere, placeOf } from '@/lib/client/permissions';
 import { readClientContext } from '@/lib/client/session';
 import { getDictionary } from '@/lib/i18n/dictionary';
 import { getRequestLocale } from '@/lib/i18n/server';
 
 import { clocksFor, NoPolicyError } from './clocks';
 import { loadDecisions, type DecisionItem } from './queue-data';
-import { MUTE_HOURS, SUSPEND_DAYS, decisionAction, isQueueDecision, type QueueDecision } from './queue-utils';
+import {
+  MUTE_HOURS,
+  SUSPEND_DAYS,
+  decisionAction,
+  isQueueDecision,
+  pickHistoryFilters,
+  type QueueDecision,
+} from './queue-utils';
 
 export interface QueueActionResult {
   ok: boolean;
@@ -31,6 +45,7 @@ export interface QueueActionResult {
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const NOTE_MAX = 500;
+const isSanctionLevel = (v: string): v is SanctionLevel => (SANCTION_LEVELS as readonly string[]).includes(v);
 
 async function session() {
   const [ctx, locale] = await Promise.all([readClientContext(), getRequestLocale()]);
@@ -73,8 +88,7 @@ export async function decideCase(input: {
 
   // o cargo vale no lugar do caso (escopo do moderador) e, no silêncio, com o teto de duração do cargo
   const gate = allowed(ctx, decisionAction(input.decision), {
-    ...(c.community ? { community: c.community } : {}),
-    ...(c.room ? { room: c.room } : {}),
+    ...placeOf(c),
     ...(input.decision === 'mute' ? { durationSec: hours * 3600 } : {}),
   });
   if (!gate.ok) return { ok: false, error: T.role };
@@ -90,6 +104,16 @@ export async function decideCase(input: {
 
   try {
     if (input.decision === 'undo') {
+      // desfazer revoga as punições da Cosmos: quem desfaz precisa poder aplicar cada uma (cargo, lugar e duração)
+      for (const s of await automaticSanctionsOf(db, ctx.tenant.id, c.id, now)) {
+        const level = isSanctionLevel(s.level) ? s.level : 'ban';
+        const left = s.endsAt ? Math.ceil((s.endsAt.getTime() - now.getTime()) / 1000) : undefined;
+        const ok = allowed(ctx, sanctionAction(level, s.hidden), {
+          ...placeOf(c),
+          ...(left !== undefined ? { durationSec: left } : {}),
+        }).ok;
+        if (!ok) return { ok: false, error: T.role };
+      }
       const r = await undoDecision(db, { tenantId: ctx.tenant.id, caseId: c.id, actor, note, clocks, now });
       return r.ok
         ? { ok: true }
@@ -103,12 +127,14 @@ export async function decideCase(input: {
         caseId: c.id,
         status: 'dismissed',
         actor,
+        reason: 'queue.approve',
         note,
         clocks,
         now,
       });
       return done ? { ok: true } : { ok: false, error: T.closed };
     }
+    let sanction: Parameters<typeof applySanction>[1] | null = null;
     if (input.decision !== 'remove') {
       if (!c.targetProfileId) return { ok: false, error: T.noAuthor };
       const level = input.decision === 'mute' ? 'mute' : input.decision === 'suspend' ? 'suspension' : 'ban';
@@ -127,7 +153,7 @@ export async function decideCase(input: {
         { now: now.getTime(), hiddenEnabled: false, policy: null },
       );
       if (problems.length) return { ok: false, error: T.invalid };
-      await applySanction(db, {
+      sanction = {
         tenantId: ctx.tenant.id,
         profileId: c.targetProfileId,
         accountId: null,
@@ -135,26 +161,30 @@ export async function decideCase(input: {
         hidden: false,
         scope,
         scopeId: scope === 'place' ? place : null,
-        reason: note ?? (c.reasons.join(', ') || level),
+        // código fixo (a categoria do caso): a auditoria não muda depois, e a nota livre fica com o caso
+        reason: c.reasons[0] ?? `queue.${input.decision}`,
         caseId: c.id,
         actor,
         endsAt,
         clocks,
         rules: { from: 'queue' },
         now,
-      });
+      };
     }
-    // remover e punir tiram o conteúdo do ar e fecham o caso
-    await closeCase(db, {
+    // fecha primeiro: se outra pessoa decidiu antes, ninguém é punido duas vezes nem num caso já arquivado
+    const closed = await closeCase(db, {
       tenantId: ctx.tenant.id,
       caseId: c.id,
       status: 'resolved',
       actor,
+      reason: `queue.${input.decision}`,
       note,
       clocks,
       hide: true,
       now,
     });
+    if (!closed) return { ok: false, error: T.closed };
+    if (sanction) await applySanction(db, sanction);
     return { ok: true };
   } catch (err) {
     console.error('[moderação] decisão da fila falhou', { tenantId: ctx.tenant.id, caseId: c.id, err });
@@ -162,7 +192,7 @@ export async function decideCase(input: {
   }
 }
 
-/** Próxima página do histórico, com os mesmos filtros. Sem o cargo, nada volta. */
+/** Próxima página do histórico, com os mesmos filtros (só os da lista fechada). Sem o cargo, nada volta. */
 export async function moreDecisions(input: {
   before: string;
   module?: string;
@@ -172,12 +202,13 @@ export async function moreDecisions(input: {
 }): Promise<{ items: DecisionItem[]; next: string | null } | null> {
   const s = await session();
   if ('error' in s) return null;
-  if (!allowed(s.ctx, 'audit.view').ok || !UUID.test(input.before)) return null;
-  return loadDecisions(s.ctx.tenant.id, {
-    before: input.before,
-    ...(input.module ? { module: input.module } : {}),
-    ...(input.category ? { category: input.category } : {}),
-    ...(input.action ? { action: input.action } : {}),
-    ...(input.actorKind ? { actorKind: input.actorKind } : {}),
-  });
+  if (!canSomewhere(s.ctx, 'audit.view') || !UUID.test(input.before)) return null;
+  const page = await loadDecisions(s.ctx.tenant.id, { before: input.before, ...pickHistoryFilters(input) });
+  // membro com escopo: só as decisões da sala ou comunidade dele
+  return {
+    ...page,
+    items: page.items
+      .filter((d) => allowed(s.ctx, 'audit.view', placeOf(d)).ok)
+      .map((d) => ({ ...d, undoable: d.undoable && allowed(s.ctx, 'moderation.hide', placeOf(d)).ok })),
+  };
 }

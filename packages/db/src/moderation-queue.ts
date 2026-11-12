@@ -497,6 +497,32 @@ export async function readCase(
   };
 }
 
+/** Punições automáticas (Cosmos ou filtro) ainda ativas de um caso: quem desfaz precisa poder aplicar cada uma. */
+export async function automaticSanctionsOf(
+  db: Pick<Database, 'select'>,
+  tenantId: string,
+  caseId: string,
+  now: Date = new Date(),
+): Promise<{ id: string; level: string; hidden: boolean; endsAt: Date | null }[]> {
+  return db
+    .select({
+      id: moderationSanction.id,
+      level: moderationSanction.level,
+      hidden: moderationSanction.hidden,
+      endsAt: moderationSanction.endsAt,
+    })
+    .from(moderationSanction)
+    .where(
+      and(
+        eq(moderationSanction.tenantId, tenantId),
+        eq(moderationSanction.caseId, caseId),
+        inArray(moderationSanction.decidedByKind, ['cosmos', 'system']),
+        isNull(moderationSanction.revokedAt),
+        or(isNull(moderationSanction.endsAt), gt(moderationSanction.endsAt, now)),
+      ),
+    );
+}
+
 export type UndoResult =
   { ok: true; revoked: number } | { ok: false; reason: 'not_found' | 'not_automatic' | 'appeal' };
 
@@ -557,7 +583,9 @@ export async function undoDecision(
         subjectProfileId: s.profileId,
         caseId: c.id,
         sanctionId: s.id,
-        reason: input.note,
+        // a nota de quem desfez é texto livre: vai em `content`, que a exclusão do torcedor apaga
+        reason: 'undo',
+        content: input.note,
       });
     await tx
       .update(moderationCase)
@@ -577,7 +605,8 @@ export async function undoDecision(
       clocks: input.clocks,
       subjectProfileId: c.targetProfileId,
       caseId: c.id,
-      reason: input.note,
+      reason: 'undo',
+      content: input.note,
       rules: { revoked: revoked.length, previous: c.status },
     });
     return { ok: true, revoked: revoked.length } as const;
@@ -586,7 +615,9 @@ export async function undoDecision(
 
 /**
  * Fecha o caso: `resolved` (houve ação) ou `dismissed` (sem ação; o conteúdo volta se estava oculto). Com `hide`, o
- * `resolved` também tira o conteúdo do ar (a equipe removeu da fila), com a linha `hide` na auditoria.
+ * `resolved` também tira o conteúdo do ar (a equipe removeu da fila), com a linha `hide` na auditoria quando ele ainda
+ * estava no ar. `reason` é um código fixo (a auditoria não muda depois); a nota livre de quem decidiu vai em `content`,
+ * que a exclusão do torcedor apaga. false = o caso não estava mais aberto (outra pessoa decidiu antes).
  */
 export async function closeCase(
   db: Database,
@@ -595,6 +626,9 @@ export async function closeCase(
     caseId: string;
     status: 'resolved' | 'dismissed';
     actor: ModerationActor;
+    /** Código fixo (`queue.remove`, a régua da Cosmos); nunca texto livre. */
+    reason?: string | null;
+    /** Texto livre de quem decidiu. */
     note: string | null;
     clocks: ModerationClocks;
     hide?: boolean;
@@ -603,6 +637,12 @@ export async function closeCase(
 ): Promise<boolean> {
   const now = input.now ?? new Date();
   return db.transaction(async (tx) => {
+    const [before] = await tx
+      .select({ status: moderationCase.status, hiddenAt: moderationCase.hiddenAt })
+      .from(moderationCase)
+      .where(and(eq(moderationCase.tenantId, input.tenantId), eq(moderationCase.id, input.caseId)))
+      .for('update');
+    if (!before || before.status !== 'open') return false;
     const [row] = await tx
       .update(moderationCase)
       .set({
@@ -625,7 +665,8 @@ export async function closeCase(
       )
       .returning({ id: moderationCase.id, targetProfileId: moderationCase.targetProfileId });
     if (!row) return false;
-    if (input.status === 'resolved' && input.hide)
+    const reason = input.reason ?? null;
+    if (input.status === 'resolved' && input.hide && !before.hiddenAt)
       await audit(tx, {
         tenantId: input.tenantId,
         actor: input.actor,
@@ -633,7 +674,7 @@ export async function closeCase(
         clocks: input.clocks,
         subjectProfileId: row.targetProfileId,
         caseId: row.id,
-        reason: input.note,
+        reason,
       });
     await audit(tx, {
       tenantId: input.tenantId,
@@ -642,7 +683,8 @@ export async function closeCase(
       clocks: input.clocks,
       subjectProfileId: row.targetProfileId,
       caseId: row.id,
-      reason: input.note,
+      reason,
+      content: input.note,
     });
     return true;
   });

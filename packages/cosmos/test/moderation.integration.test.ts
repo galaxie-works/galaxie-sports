@@ -10,7 +10,13 @@ import {
   type Database,
 } from '@galaxie/db';
 import type { CompletionClient, CompletionRequest } from '@galaxie/llm';
-import { fileReport, listDecisions, listQueue, undoDecision } from '@galaxie/db/moderation-queue';
+import {
+  eraseModerationContent,
+  fileReport,
+  listDecisions,
+  listQueue,
+  undoDecision,
+} from '@galaxie/db/moderation-queue';
 import { DEFAULT_MODERATION_LISTS, compileLists } from '@galaxie/engage';
 import { and, eq, sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -544,6 +550,23 @@ describe('motor de moderação', () => {
     const page = await listDecisions(db, t, { limit: 2 });
     const next = await listDecisions(db, t, { limit: 2, before: page[1]!.id });
     expect(next[0]!.id < page[1]!.id).toBe(true);
+    // a nota livre de quem desfez não vai para o motivo (imutável): fica em `content`, que a exclusão apaga
+    const notes = await db
+      .select({
+        action: moderationAudit.action,
+        reason: moderationAudit.reason,
+        content: moderationAudit.content,
+      })
+      .from(moderationAudit)
+      .where(and(eq(moderationAudit.tenantId, t), eq(moderationAudit.caseId, c!.id)));
+    for (const row of notes) expect(row.reason ?? '').not.toContain('ironia');
+    expect(notes.find((r) => r.action === 'undo')).toMatchObject({ reason: 'undo', content: 'era ironia' });
+    await db.transaction((tx) => eraseModerationContent(tx, t, author));
+    const erased = await db
+      .select({ content: moderationAudit.content })
+      .from(moderationAudit)
+      .where(and(eq(moderationAudit.tenantId, t), eq(moderationAudit.caseId, c!.id)));
+    expect(erased.every((r) => r.content === null)).toBe(true);
     // decisão de pessoa não se desfaz por aqui
     expect(
       await undoDecision(db, {
@@ -570,7 +593,14 @@ describe('motor de moderação', () => {
     const lists = compileLists(DEFAULT_MODERATION_LISTS);
     const out = await previewModeration(
       db,
-      { tenantId: t, text: 'texto de teste', kind: 'chat_message', module: 'chat', room: 'sala-1' },
+      // o link marca o texto para a Cosmos (sem a Leitura total, só o que as regras marcam vai ao modelo)
+      {
+        tenantId: t,
+        text: 'compre em https://loja-falsa.example',
+        kind: 'chat_message',
+        module: 'chat',
+        room: 'sala-1',
+      },
       lists,
       { client: fakeClient(answer([{ category: 'offense', severity: 3 }])), env, settings, ceiling },
     );
@@ -582,10 +612,27 @@ describe('motor de moderação', () => {
     const [u] = await usageOf(t);
     expect(u!.metadata).toMatchObject({ kind: 'moderation', test: true, items: 1 });
 
+    // texto que as regras não marcaram, sem a Leitura total: no uso real não iria ao modelo, então o teste não cobra
+    const usedBefore = (await usageOf(t)).length;
+    const plain = await previewModeration(
+      db,
+      { tenantId: t, text: 'texto de teste', kind: 'chat_message', module: 'chat', room: 'sala-1' },
+      lists,
+      { client: fakeClient(answer([{ category: 'offense', severity: 3 }])), env, settings, ceiling },
+    );
+    expect(plain).toMatchObject({ by: null, fallback: 'not_contracted', credits: 0 });
+    expect(await usageOf(t)).toHaveLength(usedBefore);
+
     const broke = await newTenant(0);
     const none = await previewModeration(
       db,
-      { tenantId: broke, text: 'oi', kind: 'chat_message', module: 'chat' },
+      {
+        tenantId: broke,
+        text: 'veja https://loja-falsa.example',
+        kind: 'chat_message',
+        module: 'chat',
+        room: 'sala-1',
+      },
       lists,
       { client: fakeClient('[]'), env, settings, ceiling },
     );

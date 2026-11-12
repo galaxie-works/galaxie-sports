@@ -20,6 +20,7 @@ import {
 
 import { builderDb } from '@/lib/builder/store';
 import { can } from '@/lib/client/permissions';
+import { allowPreview } from '@/lib/cosmos/assistant-limits';
 import { readClientContext } from '@/lib/client/session';
 import { getDictionary } from '@/lib/i18n/dictionary';
 import { getRequestLocale } from '@/lib/i18n/server';
@@ -111,6 +112,7 @@ export async function previewCosmosModeration(input: {
   const [ctx, locale] = await Promise.all([readClientContext(), getRequestLocale()]);
   const T = getDictionary(locale).moderation.preview.errors;
   if (!ctx?.tenant || !ctx.actor || !can(ctx, 'settings.manage')) return { ok: false, error: T.forbidden };
+  if (!allowPreview(ctx.userId)) return { ok: false, error: T.rateLimited };
   const text = typeof input.text === 'string' ? input.text.trim() : '';
   if (!text) return { ok: false, error: T.empty };
   if ([...text].length > PREVIEW_MAX) return { ok: false, error: fill(T.tooLong, { max: PREVIEW_MAX }) };

@@ -35,7 +35,8 @@ const NOTE_MAX = 500;
 const DUE_VARIANT = { overdue: 'destructive-light', soon: 'warning-light', ok: 'secondary' } as const;
 const DESTRUCTIVE: readonly QueueDecision[] = ['remove', 'mute', 'suspend', 'ban'];
 
-export type QueueRow = QueueItem & { decisions: QueueDecision[] };
+/** Item da fila com as decisões que o cargo abre e as durações de silêncio dentro do teto do cargo. */
+export type QueueRow = QueueItem & { decisions: QueueDecision[]; muteHours: number[] };
 
 /**
  * Fila de revisão (#999): os itens da fila única da base (#953), do mais grave, com a sugestão da Cosmos, o prazo e as
@@ -66,7 +67,7 @@ export function ReviewQueue({ items, module }: { items: QueueRow[]; module: stri
 
   const open = (item: QueueRow, decision: QueueDecision) => {
     setNote('');
-    setDuration(decision === 'suspend' ? SUSPEND_DAYS[0] : MUTE_HOURS[0]);
+    setDuration(decision === 'suspend' ? SUSPEND_DAYS[0] : (item.muteHours[0] ?? MUTE_HOURS[0]));
     setDeciding({ item, decision });
   };
 
@@ -193,7 +194,7 @@ export function ReviewQueue({ items, module }: { items: QueueRow[]; module: stri
   };
 
   const d = deciding?.decision;
-  const options = d === 'mute' ? MUTE_HOURS : d === 'suspend' ? SUSPEND_DAYS : null;
+  const options = d === 'mute' ? (deciding?.item.muteHours ?? []) : d === 'suspend' ? SUSPEND_DAYS : null;
 
   return (
     <SettingsSection

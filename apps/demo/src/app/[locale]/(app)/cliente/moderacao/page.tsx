@@ -9,13 +9,14 @@ import { ModerationArea } from '@/components/moderation/moderation-area';
 import { ReviewQueue } from '@/components/moderation/review-queue';
 import { SafetyNote } from '@/components/settings';
 import { Skeleton } from '@/components/ui/skeleton';
-import { allowed, can } from '@/lib/client/permissions';
+import { allowed, canSomewhere, placeOf } from '@/lib/client/permissions';
 import { getT } from '@/lib/i18n/server';
 import { loadDecisions, loadModerationQueue } from '@/lib/moderation/queue-data';
 import {
   applicableDecisions,
   decisionAction,
   MODERATION_TABS,
+  MUTE_HOURS,
   pickHistoryFilters,
   QUEUE_MODULES,
   type ModerationTab,
@@ -50,34 +51,50 @@ async function Moderation({
   return (
     <ClientArea section="moderation">
       {async (ctx) => {
-        // o tenant vem da sessão (ClientArea, que já exigiu `moderation.queue.view`)
-        const canAudit = can(ctx, 'audit.view');
+        // o tenant vem da sessão (ClientArea já exigiu `moderation.queue.view` em algum lugar do escopo)
+        const canAudit = canSomewhere(ctx, 'audit.view');
         const [queue, history] = await Promise.all([
           tab === 'queue' ? loadModerationQueue(ctx.tenant.id, module ? { module } : {}) : [],
           tab === 'history' && canAudit ? loadDecisions(ctx.tenant.id, filters) : null,
         ]);
-        // decisões que o cargo abre no lugar de cada item (o servidor confere de novo ao decidir)
-        const rows = queue.map((item) => ({
-          ...item,
-          decisions: applicableDecisions(item).filter(
-            (d) =>
-              allowed(ctx, decisionAction(d), {
-                ...(item.community ? { community: item.community } : {}),
-                ...(item.room ? { room: item.room } : {}),
-                ...(d === 'mute' ? { durationSec: 3600 } : {}),
-              }).ok,
-          ),
-        }));
+        // membro com escopo: só o que é da sala ou da comunidade dele
+        const visible = queue.filter((item) => allowed(ctx, 'moderation.queue.view', placeOf(item)).ok);
+        // decisões que o cargo abre no lugar de cada item e as durações de silêncio dentro do teto do cargo (o
+        // servidor confere de novo ao decidir)
+        const rows = visible.map((item) => {
+          const muteHours = MUTE_HOURS.filter(
+            (h) => allowed(ctx, 'moderation.mute', { ...placeOf(item), durationSec: h * 3600 }).ok,
+          );
+          return {
+            ...item,
+            muteHours,
+            decisions: applicableDecisions(item).filter((d) =>
+              d === 'mute' ? muteHours.length > 0 : allowed(ctx, decisionAction(d), placeOf(item)).ok,
+            ),
+          };
+        });
+        const decisions = history
+          ? {
+              ...history,
+              items: history.items
+                .filter((d) => allowed(ctx, 'audit.view', placeOf(d)).ok)
+                // desfazer daqui: só onde o cargo esconde conteúdo (o servidor confere as punições de novo)
+                .map((d) => ({
+                  ...d,
+                  undoable: d.undoable && allowed(ctx, 'moderation.hide', placeOf(d)).ok,
+                })),
+            }
+          : null;
         return (
           <ModerationArea
             tab={tab}
             queue={<ReviewQueue items={rows} module={module} />}
             history={
-              history ? (
+              decisions ? (
                 <DecisionHistory
                   key={JSON.stringify(filters)}
-                  items={history.items}
-                  next={history.next}
+                  items={decisions.items}
+                  next={decisions.next}
                   filters={filters}
                 />
               ) : (

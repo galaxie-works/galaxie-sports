@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useI18n } from '@/lib/i18n/client';
 import { fill } from '@/lib/i18n/text';
-import { moreDecisions } from '@/lib/moderation/queue-actions';
+import { decideCase, moreDecisions } from '@/lib/moderation/queue-actions';
 import type { DecisionItem } from '@/lib/moderation/queue-data';
 import { HISTORY_FILTERS, type HistoryFilterKey, type HistoryFilters } from '@/lib/moderation/queue-utils';
 
@@ -65,6 +65,20 @@ export function DecisionHistory({
       }
       setItems((cur) => [...cur, ...r.items]);
       setNext(r.next);
+    });
+
+  // desfaz um fechamento automático (Cosmos ou filtro): o conteúdo volta e as punições dele caem
+  const undo = (d: DecisionItem) =>
+    d.caseId &&
+    startTransition(async () => {
+      const r = await decideCase({ caseId: d.caseId!, decision: 'undo' });
+      if (!r.ok) {
+        toast.error(r.error);
+        return;
+      }
+      toast.success(Q.done);
+      setItems((cur) => cur.map((x) => (x.caseId === d.caseId ? { ...x, undoable: false } : x)));
+      router.refresh();
     });
 
   const actor = (d: DecisionItem) =>
@@ -125,6 +139,13 @@ export function DecisionHistory({
                 {d.credits ? <span>{fill(T.credits, { credits: d.credits })}</span> : null}
               </div>
               {d.reason ? <p className="text-xs">{d.reason}</p> : null}
+              {d.undoable ? (
+                <div className="flex justify-end">
+                  <Button size="sm" variant="outline" disabled={pending} onClick={() => undo(d)}>
+                    {Q.decisions.undo}
+                  </Button>
+                </div>
+              ) : null}
             </li>
           ))}
         </ol>

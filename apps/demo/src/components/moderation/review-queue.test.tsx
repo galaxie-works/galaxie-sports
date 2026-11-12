@@ -52,6 +52,7 @@ const row = (patch: Partial<QueueRow> = {}): QueueRow => ({
   },
   automatic: true,
   decisions: ['approve', 'remove', 'undo', 'mute'],
+  muteHours: [1, 6],
   ...patch,
 });
 

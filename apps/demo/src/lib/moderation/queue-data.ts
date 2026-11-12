@@ -37,6 +37,9 @@ export interface QueueItem {
 
 export interface DecisionItem {
   id: string;
+  caseId: string | null;
+  /** Fechamento automático (Cosmos ou filtro) que a equipe pode desfazer daqui (o servidor confere de novo). */
+  undoable: boolean;
   at: string;
   action: string;
   actorKind: string;
@@ -123,13 +126,17 @@ export async function loadDecisions(
     const pid = personId(r.actor);
     return {
       id: r.id,
+      caseId: r.caseId,
+      undoable:
+        r.action === 'case.resolve' && (r.actorKind === 'cosmos' || r.actorKind === 'system') && !!r.caseId,
       at: r.createdAt.toISOString(),
       action: r.action,
       actorKind: r.actorKind,
       // só o nome: o e-mail de quem decidiu não aparece
       who: pid ? who.get(pid)?.name?.trim() || null : null,
       subject: r.subjectProfileId ? (nick.get(r.subjectProfileId) ?? null) : null,
-      reason: r.reason,
+      // de pessoa, o motivo é um código fixo (a nota livre fica com o caso); da Cosmos, a régua da hora
+      reason: r.actorKind === 'cosmos' || r.actorKind === 'system' ? r.reason : null,
       category: rulesStr(r.rules, 'category'),
       level: rulesNum(r.rules, 'level'),
       credits: rulesNum(r.rules, 'credits'),
