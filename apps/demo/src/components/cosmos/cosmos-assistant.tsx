@@ -31,7 +31,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 
 import { IconStack } from '@/components/reui/icon-stack';
 import {
@@ -90,7 +90,6 @@ import { CosmosIcon } from './cosmos-icon';
 /** Mesmo limite do servidor (`QUESTION_MAX`). */
 const QUESTION_MAX = 2000;
 const ESTIMATE_DELAY_MS = 600;
-const MB = (bytes: number) => Math.round((bytes / 1_000_000) * 100) / 100;
 
 /** Anexo lido no navegador: o que a estimativa precisa e o conteúdo em base64 para a pergunta. */
 interface PendingFile {
@@ -108,6 +107,9 @@ function toBase64(bytes: Uint8Array): string {
   return btoa(bin);
 }
 
+/** Anexo na conversa: o nome e o tipo; o conteúdo só fica enquanto a resposta pode ser pedida de novo. */
+type TurnFile = Omit<PendingFile, 'data'> & { data?: string };
+
 const metaOf = (f: PendingFile) => ({ kind: f.kind, bytes: f.bytes, ...(f.pages ? { pages: f.pages } : {}) });
 
 interface Turn {
@@ -123,8 +125,11 @@ interface Turn {
   sig?: string;
   /** Pergunta que gerou a resposta (para "perguntar de novo"). */
   question?: string;
-  /** Anexos da pergunta: os nomes na conversa e, na resposta, os arquivos para "perguntar de novo". */
-  files?: PendingFile[];
+  /**
+   * Anexos da pergunta: os nomes na conversa e, na resposta que falhou, os arquivos para "perguntar de novo". Numa
+   * resposta pronta o conteúdo sai da memória.
+   */
+  files?: TurnFile[];
 }
 
 const history = (turns: Turn[]) =>
@@ -149,7 +154,12 @@ export function CosmosAssistant({
   const [route, setRoute] = useState('/');
   const [files, setFiles] = useState<PendingFile[]>([]);
   const [fileError, setFileError] = useState<string | null>(null);
+  const [reading, setReading] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
+  const attachButton = useRef<HTMLButtonElement>(null);
+  const hintId = useId();
+  // sobe a cada pergunta: leitura que termina depois do envio não devolve os anexos já mandados
+  const generation = useRef(0);
   const abortRef = useRef<AbortController | null>(null);
   const counter = useRef(0);
   const busy = turns.some((x) => x.status === 'waiting' || x.status === 'streaming');
@@ -208,60 +218,76 @@ export function CosmosAssistant({
       name,
       max: L.maxFiles,
       pages: L.maxPdfPages,
-      mb: MB(
-        error === 'total'
+      mb: n.format(
+        (error === 'total'
           ? L.maxTotalBytes
           : name && /\.(txt|md|csv|json|log|xml|ya?ml)$/i.test(name)
             ? L.maxTextBytes
-            : L.maxImageBytes,
+            : L.maxImageBytes) / 1_000_000,
       ),
     });
 
-  /** Lê os arquivos escolhidos com a mesma regra do servidor; o que não cabe nem entra na lista. */
+  /**
+   * Lê os arquivos escolhidos com a mesma regra do servidor; o que não cabe nem entra na lista. Enquanto lê, enviar
+   * e anexar ficam travados; as contas de quantidade e soma são feitas contra a lista do momento.
+   */
   async function addFiles(list: FileList | null) {
     if (!list?.length) return;
+    const round = generation.current;
     setFileError(null);
-    const next = [...files];
-    for (const file of Array.from(list)) {
-      if (next.length >= L.maxFiles) {
-        setFileError(attachmentText('count'));
-        break;
+    setReading(true);
+    const read: PendingFile[] = [];
+    let error: string | null = null;
+    try {
+      for (const file of Array.from(list)) {
+        // tamanho antes de ler: um arquivo enorme nem chega à memória
+        if (file.size > Math.max(L.maxImageBytes, L.maxPdfBytes)) {
+          error = attachmentText('size', file.name);
+          continue;
+        }
+        const bytes = new Uint8Array(await file.arrayBuffer());
+        const r = readAttachment(file.name, bytes);
+        if (!r.ok) {
+          error = attachmentText(r.error, file.name);
+          continue;
+        }
+        read.push({
+          id: `f${counter.current++}`,
+          name: r.file.name,
+          kind: r.file.kind,
+          bytes: r.file.bytes,
+          ...(r.file.pages ? { pages: r.file.pages } : {}),
+          data: toBase64(bytes),
+        });
       }
-      // tamanho antes de ler: um arquivo enorme nem chega à memória
-      if (file.size > Math.max(L.maxImageBytes, L.maxPdfBytes)) {
-        setFileError(attachmentText('size', file.name));
-        continue;
-      }
-      const bytes = new Uint8Array(await file.arrayBuffer());
-      const read = readAttachment(file.name, bytes);
-      if (!read.ok) {
-        setFileError(attachmentText(read.error, file.name));
-        continue;
-      }
-      const candidate = [...next, { bytes: read.file.bytes }];
-      const over = checkAttachments(candidate);
-      if (over) {
-        setFileError(attachmentText(over));
-        continue;
-      }
-      next.push({
-        id: `f${counter.current++}`,
-        name: read.file.name,
-        kind: read.file.kind,
-        bytes: read.file.bytes,
-        ...(read.file.pages ? { pages: read.file.pages } : {}),
-        data: toBase64(bytes),
-      });
+    } catch {
+      error = attachmentText('type');
+    } finally {
+      setReading(false);
     }
-    setFiles(next);
+    // uma pergunta saiu enquanto lia: estes arquivos não entram na próxima sem a pessoa escolher de novo
+    if (round !== generation.current) return;
+    setFiles((current) => {
+      const next = [...current];
+      for (const f of read) {
+        const over = checkAttachments([...next, f]);
+        if (over) {
+          error = attachmentText(over);
+          continue;
+        }
+        next.push(f);
+      }
+      return next;
+    });
+    if (error) setFileError(error);
   }
 
   const patch = (id: string, change: Partial<Turn>) =>
     setTurns((all) => all.map((x) => (x.id === id ? { ...x, ...change } : x)));
 
-  async function ask(question: string, attached: PendingFile[] = files) {
+  async function ask(question: string, attached: readonly TurnFile[] = files) {
     const q = question.trim();
-    if (!q || busy) return;
+    if (!q || busy || reading) return;
     if (q.length > QUESTION_MAX) return;
     const round = counter.current++;
     const userId = `q${round}`;
@@ -271,11 +297,19 @@ export function CosmosAssistant({
     setEstimate(null);
     setFiles([]);
     setFileError(null);
-    const withFiles = attached.length ? { files: attached } : {};
+    generation.current += 1;
+    const names = attached.map(({ data: _data, ...f }) => f);
     setTurns((all) => [
       ...all,
-      { id: userId, role: 'user', text: q, ...withFiles },
-      { id: answerId, role: 'assistant', text: '', status: 'waiting', question: q, ...withFiles },
+      { id: userId, role: 'user', text: q, ...(attached.length ? { files: names } : {}) },
+      {
+        id: answerId,
+        role: 'assistant',
+        text: '',
+        status: 'waiting',
+        question: q,
+        ...(attached.length ? { files: [...attached] } : {}),
+      },
     ]);
     const controller = new AbortController();
     abortRef.current = controller;
@@ -288,7 +322,9 @@ export function CosmosAssistant({
           question: q,
           context: readScreenContext(),
           history: before,
-          ...(attached.length ? { attachments: attached.map((f) => ({ name: f.name, data: f.data })) } : {}),
+          ...(attached.length
+            ? { attachments: attached.map((f) => ({ name: f.name, data: f.data ?? '' })) }
+            : {}),
         }),
         signal: controller.signal,
       });
@@ -300,6 +336,8 @@ export function CosmosAssistant({
         } else if (event.type === 'done')
           patch(answerId, {
             status: 'done',
+            // resposta pronta: o conteúdo dos anexos sai da memória
+            ...(attached.length ? { files: names } : {}),
             // a equipe Galaxie não gasta créditos do cliente: sem a linha de cobrança
             ...(event.staff ? {} : { charged: event.charged, available: event.available }),
             ...(event.sig ? { sig: event.sig } : {}),
@@ -308,7 +346,7 @@ export function CosmosAssistant({
       }
     } catch {
       // "Parar" depois de chegar texto: fica o que veio (o servidor cobra só o que entregou); antes, nada foi gasto
-      if (text) patch(answerId, { status: 'done', text });
+      if (text) patch(answerId, { status: 'done', text, ...(attached.length ? { files: names } : {}) });
       else patch(answerId, { status: 'error', error: 'failed', text: '' });
     } finally {
       if (abortRef.current === controller) abortRef.current = null;
@@ -443,6 +481,8 @@ export function CosmosAssistant({
                     onRemove={(id) => {
                       setFiles((all) => all.filter((f) => f.id !== id));
                       setFileError(null);
+                      // o chip some: o foco vai para o clipe, em vez de cair no começo da página
+                      attachButton.current?.focus();
                     }}
                   />
                 </InputGroupAddon>
@@ -463,15 +503,17 @@ export function CosmosAssistant({
               />
               <InputGroupAddon align="block-end">
                 <InputGroupButton
+                  ref={attachButton}
                   type="button"
                   variant="ghost"
                   size="icon-xs"
                   aria-label={T.attach}
+                  aria-describedby={hintId}
                   title={fill(T.attachHint, { max: L.maxFiles })}
-                  disabled={busy || files.length >= L.maxFiles}
+                  disabled={busy || reading || files.length >= L.maxFiles}
                   onClick={() => fileInput.current?.click()}
                 >
-                  <PaperclipIcon aria-hidden />
+                  {reading ? <Spinner /> : <PaperclipIcon aria-hidden />}
                 </InputGroupButton>
                 <span className="text-muted-foreground text-xs" aria-live="polite">
                   {estimating
@@ -500,7 +542,7 @@ export function CosmosAssistant({
                     className="ml-auto"
                     aria-label={T.send}
                     title={T.send}
-                    disabled={!draft.trim()}
+                    disabled={!draft.trim() || reading}
                   >
                     <ArrowUpIcon className="size-4" aria-hidden />
                   </InputGroupButton>
@@ -508,6 +550,13 @@ export function CosmosAssistant({
               </InputGroupAddon>
             </InputGroup>
             {fileError ? <FieldError>{fileError}</FieldError> : null}
+            <span id={hintId} className="sr-only">
+              {fill(T.attachHint, { max: L.maxFiles })}
+            </span>
+            {/* o resumo dos anexos é anunciado a cada arquivo que entra ou sai (c-attachment-2) */}
+            <span className="sr-only" aria-live="polite">
+              {files.length ? fill(T.attachedCount, { count: files.length, max: L.maxFiles }) : ''}
+            </span>
           </Field>
         </form>
       </SheetContent>
@@ -524,7 +573,7 @@ function FileChips({
   removeLabel,
   onRemove,
 }: {
-  files: PendingFile[];
+  files: readonly TurnFile[];
   label: string;
   removeLabel?: (name: string) => string;
   onRemove?: (id: string) => void;
@@ -692,17 +741,20 @@ function AnswerMessage({
           >
             {copied ? <CheckIcon aria-hidden="true" /> : <CopyIcon aria-hidden="true" />}
           </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-xs"
-            disabled={!done || busy}
-            aria-label={T.retry}
-            title={T.retry}
-            onClick={onRetry}
-          >
-            <RefreshCwIcon aria-hidden="true" />
-          </Button>
+          {/* resposta pronta com anexo: o arquivo já saiu da memória, então não há como perguntar igual de novo */}
+          {turn.files?.some((f) => !f.data) ? null : (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-xs"
+              disabled={!done || busy}
+              aria-label={T.retry}
+              title={T.retry}
+              onClick={onRetry}
+            >
+              <RefreshCwIcon aria-hidden="true" />
+            </Button>
+          )}
         </MessageFooter>
       </MessageContent>
     </Message>

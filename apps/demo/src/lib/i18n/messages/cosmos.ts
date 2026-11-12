@@ -346,6 +346,7 @@ export default defineMessages(
       attach: 'Anexar arquivo',
       attachments: 'Arquivos anexados',
       removeAttachment: 'Remover {name}',
+      attachedCount: '{count} de {max} arquivos anexados',
       attachHint: 'Imagem, PDF ou texto, até {max} arquivos. O arquivo não fica guardado.',
       attachmentErrors: {
         type: '{name}: o assistente lê imagem (JPEG, PNG, WebP), PDF e texto (TXT, MD, CSV, JSON, LOG, XML, YAML).',
@@ -744,6 +745,7 @@ export default defineMessages(
         attach: 'Attach file',
         attachments: 'Attached files',
         removeAttachment: 'Remove {name}',
+        attachedCount: '{count} of {max} files attached',
         attachHint: 'Image, PDF or text, up to {max} files. The file is not stored.',
         attachmentErrors: {
           type: '{name}: the assistant reads images (JPEG, PNG, WebP), PDF and text (TXT, MD, CSV, JSON, LOG, XML, YAML).',
@@ -1150,6 +1152,7 @@ export default defineMessages(
         attach: 'Adjuntar archivo',
         attachments: 'Archivos adjuntos',
         removeAttachment: 'Quitar {name}',
+        attachedCount: '{count} de {max} archivos adjuntos',
         attachHint: 'Imagen, PDF o texto, hasta {max} archivos. El archivo no se guarda.',
         attachmentErrors: {
           type: '{name}: el asistente lee imágenes (JPEG, PNG, WebP), PDF y texto (TXT, MD, CSV, JSON, LOG, XML, YAML).',

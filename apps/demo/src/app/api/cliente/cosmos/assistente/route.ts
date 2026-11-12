@@ -25,6 +25,7 @@ import {
   parseAssistantRequest,
   parseAttachmentFiles,
   prepareQuestion,
+  REQUEST_MAX_BYTES,
 } from '@/lib/cosmos/assistant-server';
 import { getRequestLocale } from '@/lib/i18n/server';
 
@@ -61,6 +62,9 @@ export async function POST(request: Request) {
   const denied = assistantAccessError(ctx);
   if (denied) return fail(denied);
   const tenantId = ctx.tenant!.id;
+  // corpo acima do que cabe (anexos no teto mais a pergunta) nem é lido
+  const size = Number(request.headers.get('content-length') ?? 0);
+  if (size > REQUEST_MAX_BYTES) return fail('attachment', 413);
   const body: unknown = await request.json().catch(() => null);
   const req = parseAssistantRequest(body);
   if (!req) return fail('bad_request');

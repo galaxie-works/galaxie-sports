@@ -24,10 +24,15 @@ export const ASSISTANT_ATTACHMENT_LIMITS = {
   maxTextBytes: 100_000,
   /** Soma dos anexos de uma pergunta. */
   maxTotalBytes: 6_000_000,
-  /** Tokens de entrada contados por imagem (o provedor reduz a imagem grande para perto de 1,15 megapixel). */
-  imageInputTokens: 1600,
-  /** Tokens de entrada contados por página de PDF (texto extraído e a imagem da página). */
+  /**
+   * Tokens de entrada reservados por imagem: acima do que os provedores contam para a imagem já reduzida, porque a
+   * conta muda de um provedor e de um modelo para outro. O que sobra volta no acerto.
+   */
+  imageInputTokens: 2500,
+  /** Tokens de entrada reservados por página de PDF (texto extraído e a imagem da página). */
   pdfPageInputTokens: 3000,
+  /** Caracteres por token reservados para texto (JSON, CSV e log rendem menos que prosa). */
+  textCharsPerToken: 2.5,
 } as const;
 
 export type AttachmentKind = 'image' | 'pdf' | 'text';
@@ -87,26 +92,66 @@ export function sniffFileType(b: Uint8Array): AttachmentFileType | null {
   return null;
 }
 
-/**
- * Páginas de um PDF, pelos objetos `/Type /Page` (sem contar `/Pages`, a árvore). Conta aproximada, que basta para o
- * limite e a estimativa; um PDF sem nenhum objeto legível (comprimido em fluxo de objetos) conta como 1 página por
- * 100 KB, para não sair de graça.
- */
-export function pdfPageCount(b: Uint8Array): number {
+const latin1 = (b: Uint8Array) => {
   let text = '';
-  // latin1: cada byte vira um caractere, sem falhar em binário
+  // cada byte vira um caractere, sem falhar em binário
   for (let i = 0; i < b.length; i += 0x8000) text += String.fromCharCode(...b.subarray(i, i + 0x8000));
-  const pages = text.match(/\/Type\s*\/Page(?![a-zA-Z])/g)?.length ?? 0;
-  return pages || Math.max(1, Math.ceil(b.length / 100_000));
+  return text;
+};
+
+/** Objetos `/Type /Page` (sem `/Pages`, a árvore) e os `/Count` da árvore num trecho do PDF. */
+function pageMarks(text: string): { objects: number; counts: number[] } {
+  // nomes com escape (`/P#61ge`) contam como o nome normal
+  const names = text.replace(/#([0-9a-fA-F]{2})/g, (_, h: string) => String.fromCharCode(parseInt(h, 16)));
+  return {
+    objects: names.match(/\/Type\s*\/Page(?![a-zA-Z])/g)?.length ?? 0,
+    counts: [...names.matchAll(/\/Count\s+(\d+)/g)].map((m) => Number(m[1])),
+  };
+}
+
+/**
+ * Páginas de um PDF: o maior entre os objetos de página e o `/Count` da árvore. Com `inflate`, conta também o que
+ * está nos fluxos de objetos comprimidos (PDF 1.5 em diante costuma guardar as páginas ali). Sem `inflate` (no
+ * navegador), um PDF assim conta menos do que tem; o servidor, que descomprime, é quem decide o limite.
+ * null = nenhuma página legível.
+ */
+export function pdfPageCount(b: Uint8Array, inflate?: (data: Uint8Array) => Uint8Array): number | null {
+  const text = latin1(b);
+  const marks = pageMarks(text);
+  let objects = marks.objects;
+  const counts = [...marks.counts];
+  if (inflate) {
+    const streams = /\/Type\s*\/ObjStm[^]*?stream\r?\n/g;
+    let m: RegExpExecArray | null;
+    while ((m = streams.exec(text))) {
+      const start = m.index + m[0].length;
+      const end = text.indexOf('endstream', start);
+      if (end < 0) break;
+      try {
+        const inner = pageMarks(latin1(inflate(b.subarray(start, end))));
+        objects += inner.objects;
+        counts.push(...inner.counts);
+      } catch {
+        // fluxo que não descomprime: segue com o que já contou
+      }
+      streams.lastIndex = end;
+    }
+  }
+  return Math.max(objects, ...counts, 0) || null;
 }
 
 const extension = (name: string) => name.toLowerCase().match(/\.([a-z0-9]+)$/)?.[1] ?? '';
 
-/** UTF-8 estrito (o decodificador já tira a marca de ordem do começo); null para binário. */
+/**
+ * Texto em UTF-8 estrito, ou UTF-16 com a marca de ordem (log do Windows); o decodificador tira a marca do começo.
+ * null para binário.
+ */
 function decodeText(b: Uint8Array): string | null {
-  if (b.includes(0)) return null;
+  const utf16 = startsWith(b, [0xff, 0xfe]) ? 'utf-16le' : startsWith(b, [0xfe, 0xff]) ? 'utf-16be' : null;
+  if (!utf16 && b.includes(0)) return null;
   try {
-    return new TextDecoder('utf-8', { fatal: true }).decode(b);
+    const text = new TextDecoder(utf16 ?? 'utf-8', { fatal: true }).decode(b);
+    return text.includes('\u0000') ? null : text;
   } catch {
     return null;
   }
@@ -125,15 +170,20 @@ export function attachmentName(name: string): string {
 export function readAttachment(
   name: string,
   b: Uint8Array,
+  /** Descompressão (zlib) para contar as páginas dentro dos fluxos do PDF; o servidor sempre passa. */
+  options: { inflate?: (data: Uint8Array) => Uint8Array } = {},
 ): { ok: true; file: ReadAttachment } | { ok: false; error: AttachmentError } {
   const L = ASSISTANT_ATTACHMENT_LIMITS;
   const clean = attachmentName(name);
   const type = sniffFileType(b);
   if (type === 'application/pdf') {
     if (b.length > L.maxPdfBytes) return { ok: false, error: 'size' };
-    const pages = pdfPageCount(b);
-    if (pages > L.maxPdfPages) return { ok: false, error: 'pages' };
-    return { ok: true, file: { name: clean, kind: 'pdf', bytes: b.length, pages, mediaType: type } };
+    const pages = pdfPageCount(b, options.inflate);
+    if (pages !== null && pages > L.maxPdfPages) return { ok: false, error: 'pages' };
+    return {
+      ok: true,
+      file: { name: clean, kind: 'pdf', bytes: b.length, ...(pages ? { pages } : {}), mediaType: type },
+    };
   }
   if (type) {
     if (b.length > L.maxImageBytes) return { ok: false, error: 'size' };
@@ -168,13 +218,17 @@ export function attachmentMetaError(files: readonly AttachmentMeta[]): Attachmen
   return checkAttachments(files);
 }
 
-/** Tokens de entrada que os anexos somam na estimativa (o texto, pelos ≈ 4 caracteres por token). */
+/**
+ * Tokens de entrada que os anexos somam na estimativa e na reserva, com folga: o acerto nunca passa da reserva, então
+ * contar a menos sairia do bolso da Galaxie.
+ */
 export function attachmentInputTokens(files: readonly AttachmentMeta[]): number {
   const L = ASSISTANT_ATTACHMENT_LIMITS;
   return files.reduce((sum, f) => {
     if (f.kind === 'image') return sum + L.imageInputTokens;
-    if (f.kind === 'pdf') return sum + Math.max(1, f.pages ?? 1) * L.pdfPageInputTokens;
-    return sum + Math.ceil(f.bytes / 4) + 20;
+    // PDF reserva sempre o limite de páginas: a conta de páginas não pesa no preço, e o que sobra volta no acerto
+    if (f.kind === 'pdf') return sum + L.maxPdfPages * L.pdfPageInputTokens;
+    return sum + Math.ceil(f.bytes / L.textCharsPerToken) + 20;
   }, 0);
 }
 
@@ -204,6 +258,6 @@ export function parseAttachmentMetas(raw: unknown): AttachmentMeta[] | null {
 export function attachmentTextBlock(files: readonly ReadAttachment[]): string {
   return files
     .filter((f) => f.kind === 'text' && f.text)
-    .map((f) => `<anexo nome="${f.name}">\n${f.text!.replaceAll('</anexo>', '</ anexo>')}\n</anexo>`)
+    .map((f) => `<anexo nome="${f.name}">\n${f.text!.replace(/<\/\s*anexo\s*>/gi, '</ anexo>')}\n</anexo>`)
     .join('\n\n');
 }

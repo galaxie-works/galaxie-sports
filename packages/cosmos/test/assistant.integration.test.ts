@@ -5,6 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import {
   addEntry,
+  ASSISTANT_ATTACHMENT_LIMITS,
   askAssistant,
   askAssistantAsStaff,
   assistantAdmissionError,
@@ -585,7 +586,7 @@ describe('anexos na pergunta (#1065)', () => {
       attachments: [{ kind: 'image', bytes: 68 }],
     });
     const charged = (e: AssistantEvent[]) => (e.at(-1) as { charged: number }).charged;
-    expect(withFile.fileTokens).toBe(1600);
+    expect(withFile.fileTokens).toBe(ASSISTANT_ATTACHMENT_LIMITS.imageInputTokens);
     expect(charged(file)).toBeGreaterThan(charged(base));
   });
 });

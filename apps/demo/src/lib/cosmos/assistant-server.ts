@@ -3,6 +3,8 @@
  * documentação, monta o prompt e estima os créditos. A rota em fluxo e a estimativa da tela usam o mesmo preparo,
  * então o "cerca de N créditos" mostrado antes é o mesmo que a reserva pede.
  */
+import { inflateSync } from 'node:zlib';
+
 import {
   activeFunction,
   ASSISTANT_ATTACHMENT_LIMITS,
@@ -71,6 +73,14 @@ const MAX_BASE64 =
     (Math.max(ASSISTANT_ATTACHMENT_LIMITS.maxImageBytes, ASSISTANT_ATTACHMENT_LIMITS.maxPdfBytes) * 4) / 3,
   ) + 4;
 
+/** Teto do que um fluxo do PDF pode virar ao descomprimir (um arquivo-bomba não enche a memória). */
+const INFLATE_MAX_BYTES = 16_000_000;
+const pdfInflate = (data: Uint8Array) =>
+  new Uint8Array(inflateSync(data, { maxOutputLength: INFLATE_MAX_BYTES }));
+
+/** Corpo da pergunta: os anexos em base64 e uma folga para a pergunta, a tela e o histórico. */
+export const REQUEST_MAX_BYTES = Math.ceil((ASSISTANT_ATTACHMENT_LIMITS.maxTotalBytes * 4) / 3) + 200_000;
+
 /**
  * Anexos da pergunta como o navegador manda (`[{ name, data }]`, data em base64): cada um é lido pelos bytes e
  * conferido contra os limites antes de qualquer reserva (#1065). O conteúdo fica só na memória desta pergunta.
@@ -88,10 +98,13 @@ export function parseAttachmentFiles(
     if (!data) return { ok: false, error: 'type' };
     if (data.length > MAX_BASE64) return { ok: false, error: 'size' };
     if (!/^[A-Za-z0-9+/]*={0,2}$/.test(data)) return { ok: false, error: 'type' };
-    const read = readAttachment(name, new Uint8Array(Buffer.from(data, 'base64')));
+    const bytes = new Uint8Array(Buffer.from(data, 'base64'));
+    const read = readAttachment(name, bytes, { inflate: pdfInflate });
     if (!read.ok) return read;
-    // texto vai na pergunta; imagem e PDF seguem em base64 para o provedor
-    files.push(read.file.kind === 'text' ? read.file : { ...read.file, data });
+    // texto vai na pergunta; imagem e PDF seguem em base64 refeito aqui (o do navegador pode vir sem o padding)
+    files.push(
+      read.file.kind === 'text' ? read.file : { ...read.file, data: Buffer.from(bytes).toString('base64') },
+    );
   }
   const total = checkAttachments(files);
   return total ? { ok: false, error: total } : { ok: true, files };
