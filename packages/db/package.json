@@ -82,6 +82,7 @@
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
+    "@galaxie/contracts": "workspace:*",
     "drizzle-orm": "^0.45.4",
     "postgres": "^4.1.0",
     "zod": "^4.6.7"

@@ -340,7 +340,8 @@ describe('webhooks assinados', () => {
       slug: 'com-chat',
       name: 'Com chat',
       plan: 'enterprise',
-      modules: ['core_data', 'live_chat'],
+      // sem core_data: o webhook sem tópico marcado não recebe mudanças de jogo dos outros testes
+      modules: ['live_chat'],
     });
     const sem = await upsertTenant(db, {
       slug: 'sem-engajamento',

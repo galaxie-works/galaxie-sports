@@ -6,6 +6,7 @@
  * checagem de destino (SSRF), a assinatura e as retentativas são as mesmas de uma mudança real.
  */
 import { randomUUID } from 'node:crypto';
+import { isEngageWebhookTopic, webhookTopic } from '@galaxie/contracts';
 import { and, desc, eq, notInArray, sql } from 'drizzle-orm';
 import type { Database } from './client.js';
 import {
@@ -339,6 +340,21 @@ export async function publishWebhookEvent(
     topic: event.topic,
     entityType: WEBHOOK_EVENT_ENTITY,
     entityId: randomUUID(),
-    payload: { tenant_id: event.tenantId, data: event.data },
+    payload: { tenant_id: event.tenantId, data: checkWebhookEventData(event.topic, event.data) },
   });
+}
+
+/**
+ * Confere o evento no registro antes de ele entrar no change feed: tópico de engajamento conhecido e `data` no
+ * schema dele. Devolve só os campos declarados, então dado pessoal passado por engano não fica gravado no change
+ * feed (nem nos backups). Erro aqui é bug de quem chama: falha na hora, em vez de sumir no worker.
+ */
+export function checkWebhookEventData(topic: string, data: Record<string, unknown>): Record<string, unknown> {
+  const def = webhookTopic(topic);
+  if (!def || !isEngageWebhookTopic(topic))
+    throw new Error(`publishWebhookEvent: ${topic} não é um tópico de engajamento do registro de webhooks.`);
+  const parsed = def.payload.safeParse({ id: '0', topic, occurred_at: new Date(0).toISOString(), data });
+  if (!parsed.success)
+    throw new Error(`publishWebhookEvent: payload de ${topic} fora do schema: ${parsed.error.message}`);
+  return (parsed.data as { data: Record<string, unknown> }).data;
 }
