@@ -23,3 +23,4 @@ export * from './staff.js';
 export * from './statement.js';
 export * from './stripe.js';
 export * from './wallet.js';
+export * from './moderation-image.js';

@@ -81,6 +81,11 @@ export interface ModerationItem {
   rules: Pick<ScreenResult, 'action' | 'reasons' | 'categories' | 'suspect' | 'evasion'>;
   /** Relógios da ficha do país do torcedor (D5). */
   clocks: ModerationClocks;
+  /**
+   * Imagem (#1025) em vez de texto: fica fora do ar até a Cosmos liberar ou a equipe decidir, e o caso guarda só a
+   * referência que o módulo usa para mostrar a imagem à equipe (nunca a imagem).
+   */
+  media?: { kind: string; ref: string | null };
 }
 
 export interface ModerationOutcome {
@@ -110,7 +115,8 @@ export type FallbackReason =
   | 'safety'
   | 'overflow'
   | 'not_contracted'
-  | 'rules_decided';
+  | 'rules_decided'
+  | 'too_large';
 
 const RESERVE_FALLBACK: Record<string, FallbackReason> = {
   insufficient_credits: 'insufficient',
@@ -176,6 +182,9 @@ const batchKey = (item: ModerationItem) => {
  * extrato dele), e os resultados voltam na ordem da entrada. Nunca lança por falta de saldo, prazo ou modelo: o que
  * não deu para decidir segue as regras, e o que as regras marcaram vai para a fila humana.
  */
+const mediaDetail = (item: ModerationItem) =>
+  item.media ? { media: 'image', image: item.media.kind, ref: item.media.ref } : {};
+
 export async function moderateBatch(
   db: Database,
   items: readonly ModerationItem[],
@@ -278,7 +287,7 @@ async function moderateGroup(
   for (const o of result) {
     if (o.by === 'skipped') continue;
     try {
-      o.caseId = await apply(db, o, config, now(), muted);
+      o.caseId = await applyModerationOutcome(db, o, config, now(), muted);
     } catch (err) {
       // uma ação que falhou não derruba o lote: o item ainda vai para a fila humana
       console.error('[cosmos] ação da moderação falhou; item vai para a fila', {
@@ -287,7 +296,7 @@ async function moderateGroup(
         err,
       });
       Object.assign(o, { by: 'fallback', fallback: 'failed', verdict: null, plan: null });
-      o.caseId = await apply(db, o, config, now(), muted).catch((e) => {
+      o.caseId = await applyModerationOutcome(db, o, config, now(), muted).catch((e) => {
         console.error('[cosmos] item da moderação perdido: nem a fila aceitou', {
           tenantId: o.item.tenantId,
           targetId: o.item.targetId,
@@ -455,7 +464,7 @@ async function askModel(
  * O texto do torcedor só vai para o caso (`content`, com o relógio da ficha e a exclusão); a auditoria e a punição
  * guardam categoria e gravidade, nunca palavras do texto.
  */
-async function apply(
+export async function applyModerationOutcome(
   db: Database,
   o: ModerationOutcome,
   config: Pick<ModerationConfig, 'muteHours'>,
@@ -489,16 +498,17 @@ async function apply(
       });
       return null;
     }
-    // só dúvida do classificador (as regras deixaram publicar): continua publicado, sem encher a fila
-    if (!item.rules.suspect && item.rules.action === 'allow') return null;
+    // só dúvida do classificador (as regras deixaram publicar): continua publicado, sem encher a fila. Imagem sem
+    // decisão da Cosmos nunca publica: vai para a fila, fora do ar
+    if (!item.media && !item.rules.suspect && item.rules.action === 'allow') return null;
     const { caseId } = await holdContent(db, {
       ...target,
       source: 'filter',
       reasons: item.rules.categories.length ? [...item.rules.categories] : [...item.rules.reasons],
       severity: item.rules.action === 'shadow' ? 75 : 25,
-      hide: item.rules.action !== 'allow',
+      hide: item.media ? true : item.rules.action !== 'allow',
       content,
-      detail: { kind: item.kind, fallback: o.fallback ?? null },
+      detail: { kind: item.kind, fallback: o.fallback ?? null, ...mediaDetail(item) },
       clocks: item.clocks,
       now: at,
     });
@@ -515,6 +525,7 @@ async function apply(
     threshold: plan.threshold,
     steps: Object.fromEntries(plan.actions.map((a) => [a.action, a.step])),
     credits: verdict.credits ?? 0,
+    ...mediaDetail(item),
   };
   const reason = decisionReason(verdict);
 
@@ -555,7 +566,8 @@ async function apply(
     source: 'cosmos',
     reasons: [verdict.category],
     severity: caseSeverity(verdict),
-    hide: hidden,
+    // imagem fora da régua fica fora do ar até a equipe decidir, mesmo quando a escada só sinaliza
+    hide: hidden || item.media !== undefined,
     content,
     detail: { ...detail, reason: verdict.reason, suggestion: plan.actions.map((a) => a.action) },
     clocks: item.clocks,
@@ -938,7 +950,7 @@ export function createModerationBatcher(db: Database, deps: ModerationDeps = {})
     async (items) => {
       const muted = new Set<string>();
       for (const item of items)
-        await apply(
+        await applyModerationOutcome(
           db,
           { item, by: 'fallback', verdict: null, plan: null, fallback: 'overflow' },
           // sem decisão, o excedente só vai para a fila (não silencia)
