@@ -69,14 +69,25 @@ export interface ShopDestinationResult {
   stores: ShopDestinationStoreResult[];
 }
 
-const isAmazon = (network: string) => network === 'amazon';
+/** Amazon em qualquer país e grafia (`amazon`, `amazon_us`, `Amazon`): as regras dela não podem escapar pelo nome. */
+const isAmazon = (network: string) => network.trim().toLowerCase().startsWith('amazon');
 
-/** Respostas incompletas não ligam o widget: toda pergunta precisa de sim ou não. */
-export function parseShopDestinationAnswers(raw: unknown): ShopDestinationAnswers | null {
+/**
+ * Respostas incompletas não ligam o widget: toda pergunta precisa de sim ou não. Num bloco de engajamento, a pergunta
+ * do público infantil nem aparece (o Builder marca "não" sozinho).
+ */
+export function parseShopDestinationAnswers(
+  raw: unknown,
+  placement: ShopDestinationPlacement = {},
+): ShopDestinationAnswers | null {
   if (!raw || typeof raw !== 'object') return null;
   const r = raw as Record<string, unknown>;
   const out = {} as ShopDestinationAnswers;
   for (const q of SHOP_DESTINATION_QUESTIONS) {
+    if (q === 'under13' && placement.engagementBlock) {
+      out[q] = false;
+      continue;
+    }
     if (typeof r[q] !== 'boolean') return null;
     out[q] = r[q];
   }
@@ -122,5 +133,15 @@ export function evaluateShopDestination(
 
 /** A confirmação gravada vale para as regras de hoje? Senão, o cliente confirma de novo antes de o widget voltar. */
 export function shopDestinationConfirmed(confirmedVersion: number | null | undefined): boolean {
-  return typeof confirmedVersion === 'number' && confirmedVersion >= SHOP_DESTINATION_RULES_VERSION;
+  // igual, não maior ou igual: a confirmação de uma versão que o código não tem (rollback) não vale
+  return confirmedVersion === SHOP_DESTINATION_RULES_VERSION;
+}
+
+/**
+ * Segunda revisão de produto (08/11): quando a plataforma informa a faixa do Perfil, o Shopping não aparece para
+ * menor de 13, em qualquer superfície do cliente. De 13 a 17, aparece. Sem faixa informada, vale a checagem de
+ * destino acima.
+ */
+export function shopVisibleForAgeBand(ageBand: string | null | undefined): boolean {
+  return ageBand !== 'under13';
 }
