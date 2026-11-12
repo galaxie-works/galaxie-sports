@@ -67,6 +67,7 @@ export function changePayload(change: LiveChange): Record<string, unknown> {
     incidents: change.incidents,
     removedIncidents: change.removedIncidents,
     goal: change.goal,
+    goalCancelled: change.goalCancelled,
     finished: change.finished,
     providerEventId: change.providerEventId,
     tags: [

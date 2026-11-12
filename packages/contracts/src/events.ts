@@ -779,6 +779,77 @@ export const TIMELINE_KINDS = [
 ] as const;
 export type TimelineKind = (typeof TIMELINE_KINDS)[number];
 
+/**
+ * Veredito canônico do VAR (#641), a partir do `detail` da api-sports. Levantado no espelho de dev (raw de
+ * `/fixtures` e `core.event_incident`): todo `detail` de `Var` já visto tem um valor aqui. `other` cobre texto novo
+ * ou ausente (a métrica `galaxie_var_unknown_details` avisa quando aparece um).
+ */
+export const VAR_OUTCOMES = [
+  'goal_cancelled',
+  'goal_disallowed_offside',
+  'goal_disallowed_foul',
+  'goal_disallowed_handball',
+  'goal_confirmed',
+  'goal_under_review',
+  'penalty_awarded',
+  'penalty_confirmed',
+  'penalty_cancelled',
+  'card_upgrade',
+  'card_upgrade_confirmed',
+  'card_upgrade_cancelled',
+  'card_reviewed',
+  'red_card_confirmed',
+  'red_card_cancelled',
+  'decision_changed',
+  'other',
+] as const;
+export type VarOutcome = (typeof VAR_OUTCOMES)[number];
+
+/** `detail` da api-sports (em minúsculas, sem espaços nas pontas) → veredito canônico. */
+export const VAR_DETAILS: Readonly<Record<string, Exclude<VarOutcome, 'other'>>> = {
+  'goal cancelled': 'goal_cancelled',
+  'goal disallowed': 'goal_cancelled',
+  'goal disallowed - video review': 'goal_cancelled',
+  'goal disallowed - offside': 'goal_disallowed_offside',
+  'goal disallowed - foul': 'goal_disallowed_foul',
+  'goal disallowed - handball': 'goal_disallowed_handball',
+  'goal confirmed': 'goal_confirmed',
+  'goal under review - offside': 'goal_under_review',
+  'penalty awarded': 'penalty_awarded',
+  'penalty confirmed': 'penalty_confirmed',
+  'penalty cancelled': 'penalty_cancelled',
+  'card upgrade': 'card_upgrade',
+  'card upgrade confirmed': 'card_upgrade_confirmed',
+  'card upgrade cancelled': 'card_upgrade_cancelled',
+  'card reviewed': 'card_reviewed',
+  'red card confirmed': 'red_card_confirmed',
+  'red card cancelled': 'red_card_cancelled',
+  'original decision changed': 'decision_changed',
+};
+
+export function varOutcomeOf(detail: string | null | undefined): VarOutcome {
+  return VAR_DETAILS[(detail ?? '').trim().toLowerCase()] ?? 'other';
+}
+
+/**
+ * VAR que anula gol, pelo texto do fornecedor. É a mesma regra do trigger da migration 0127
+ * (`^goal (cancel+ed|disallowed)\y`), do diff do Live Poller e do core-writer. Vale por prefixo, para um texto novo
+ * ("Goal Disallowed - ...") já derrubar o gol antes de ganhar veredito próprio em `VAR_DETAILS`.
+ */
+export const GOAL_CANCELLING_VAR_DETAIL = /^goal (cancel+ed|disallowed)\b/i;
+
+export function isGoalCancellingVarDetail(detail: string | null | undefined): boolean {
+  return GOAL_CANCELLING_VAR_DETAIL.test((detail ?? '').trim());
+}
+
+/** Vereditos que anulam um gol (o gol que ficou na lista não soma no placar parcial). */
+export const GOAL_CANCELLING_VAR_OUTCOMES: ReadonlySet<VarOutcome> = new Set([
+  'goal_cancelled',
+  'goal_disallowed_offside',
+  'goal_disallowed_foul',
+  'goal_disallowed_handball',
+]);
+
 /** Marcos do jogo (início, intervalo, 2º tempo, prorrogação, pênaltis, fim). */
 export const TIMELINE_MARKERS = [
   'kickoff',
@@ -867,14 +938,17 @@ export const TimelineIncident = z
       .max(100)
       .meta({
         description:
-          'Peso do momento: decisivo 100 > pênalti 80 > vermelho 70 > VAR de gol/pênalti/vermelho 65 > gol 60 > ' +
-          'cobrança na disputa 45 > outro VAR 40 > amarelo 30 > substituição 10.',
+          'Peso do momento: decisivo 100 > pênalti 80 > vermelho 70 > VAR que muda ou confirma gol, pênalti ou ' +
+          'vermelho 65 > gol 60 > VAR em andamento ou de decisão trocada 50 > cobrança na disputa e vermelho ' +
+          'confirmado pelo VAR 45 > outro VAR (cartão revisado, aumento recusado, desconhecido) 40 > amarelo 30 > ' +
+          'substituição 10.',
       }),
     key_moment: z.boolean().meta({ description: 'Momento-chave (`weight` ≥ 60).' }),
     flags: z.array(z.enum(TIMELINE_FLAGS)).meta({
       description:
         '`opener` (1º gol), `go_ahead` (põe na frente o time de `scoring_team`), `equalizer` (empata), ' +
-        '`decisive` (gol da vitória ou cobrança que decide os pênaltis; só com o jogo encerrado).',
+        '`decisive` (gol da vitória ou cobrança que decide os pênaltis; só com o jogo encerrado). ' +
+        'O gol anulado (`disallowed`) não recebe nenhuma.',
     }),
     score_after: ScorePair.nullable().meta({
       description: 'Placar depois do gol (na disputa de pênaltis, o placar da disputa).',
@@ -882,8 +956,33 @@ export const TimelineIncident = z
     scoring_team: TeamSideRef.nullable().meta({
       description:
         'Time que somou o gol (no gol contra, o beneficiado; na disputa, quem converteu). ' +
-        'Null fora dos gols ou com o lado desconhecido.',
+        'Null fora dos gols, no gol anulado ou com o lado desconhecido.',
     }),
+    var_outcome: z
+      .enum(VAR_OUTCOMES)
+      .nullable()
+      .meta({
+        description:
+          'Veredito canônico do VAR (só nos lances `var`; null nos demais). `detail` segue com o texto do ' +
+          'fornecedor. `goal_cancelled` junta "Goal cancelled", "Goal Disallowed" e "Goal Disallowed - video ' +
+          'review"; `decision_changed` é "Original decision changed"; `other`, texto novo ou ausente. A lista ' +
+          'pode crescer: trate valor desconhecido como `other`.',
+        example: 'goal_disallowed_offside',
+      }),
+    disallowed: z.boolean().meta({
+      description:
+        'Gol anulado pelo VAR que continua na lista do fornecedor: não soma em `score_after` nem recebe bandeiras ' +
+        '(o VAR que o anulou está em `cancelled_by`). false nos demais lances.',
+    }),
+    cancelled_by: z
+      .number()
+      .int()
+      .nullable()
+      .meta({
+        description:
+          'Gol anulado: `sequence` do lance de VAR que o anulou (`Goal cancelled`, `Goal Disallowed - ...`). ' +
+          'Null nos demais lances.',
+      }),
     player_in: TimelinePerson.nullable().meta({ description: 'Substituição: quem entra.' }),
     player_out: TimelinePerson.nullable().meta({ description: 'Substituição: quem sai.' }),
   })
