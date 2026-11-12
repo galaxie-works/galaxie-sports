@@ -99,13 +99,17 @@ const latin1 = (b: Uint8Array) => {
   return text;
 };
 
-/** Objetos `/Type /Page` (sem `/Pages`, a árvore) e os `/Count` da árvore num trecho do PDF. */
+/** Objetos `/Type /Page` (sem `/Pages`, a árvore) e o `/Count` dos nós `/Type /Pages` num trecho do PDF. */
 function pageMarks(text: string): { objects: number; counts: number[] } {
   // nomes com escape (`/P#61ge`) contam como o nome normal
   const names = text.replace(/#([0-9a-fA-F]{2})/g, (_, h: string) => String.fromCharCode(parseInt(h, 16)));
   return {
     objects: names.match(/\/Type\s*\/Page(?![a-zA-Z])/g)?.length ?? 0,
-    counts: [...names.matchAll(/\/Count\s+(\d+)/g)].map((m) => Number(m[1])),
+    // só o `/Count` da árvore de páginas: o sumário (marcadores) também usa `/Count`, com outro sentido
+    counts: [
+      ...names.matchAll(/\/Type\s*\/Pages(?![a-zA-Z])[^>]*?\/Count\s+(\d+)/g),
+      ...names.matchAll(/\/Count\s+(\d+)[^>]*?\/Type\s*\/Pages(?![a-zA-Z])/g),
+    ].map((m) => Number(m[1])),
   };
 }
 

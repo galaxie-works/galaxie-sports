@@ -42,6 +42,9 @@ describe('leitura do anexo', () => {
     // nome com escape conta igual
     expect(pdfPageCount(text('%PDF-1.4\n<< /Type /P#61ge >>\n<< /Type /Page >>'))).toBe(2);
     expect(pdfPageCount(text('%PDF-1.7\n'))).toBeNull();
+    // o `/Count` do sumário (marcadores) não conta como página
+    expect(pdfPageCount(text('%PDF-1.4\n<< /Type /Outlines /Count 30 >>\n<< /Type /Page >>'))).toBe(1);
+    expect(pdfPageCount(text('%PDF-1.4\n<< /Count 7 /Kids [] /Type /Pages >>'))).toBe(7);
   });
 
   it('no servidor, conta as páginas escondidas em fluxos comprimidos (um chamariz não engana)', () => {

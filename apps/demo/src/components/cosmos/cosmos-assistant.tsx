@@ -238,11 +238,22 @@ export function CosmosAssistant({
     setReading(true);
     const read: PendingFile[] = [];
     let error: string | null = null;
+    // quantidade e soma conferidas antes de ler: escolher 50 fotos de uma vez não enche a memória
+    let slots = L.maxFiles - files.length;
+    let total = files.reduce((sum, f) => sum + f.bytes, 0);
     try {
       for (const file of Array.from(list)) {
+        if (slots <= 0) {
+          error = attachmentText('count');
+          break;
+        }
         // tamanho antes de ler: um arquivo enorme nem chega à memória
         if (file.size > Math.max(L.maxImageBytes, L.maxPdfBytes)) {
           error = attachmentText('size', file.name);
+          continue;
+        }
+        if (total + file.size > L.maxTotalBytes) {
+          error = attachmentText('total');
           continue;
         }
         const bytes = new Uint8Array(await file.arrayBuffer());
@@ -259,6 +270,8 @@ export function CosmosAssistant({
           ...(r.file.pages ? { pages: r.file.pages } : {}),
           data: toBase64(bytes),
         });
+        slots -= 1;
+        total += r.file.bytes;
       }
     } catch {
       error = attachmentText('type');
