@@ -685,14 +685,7 @@
       "idx": 97,
       "version": "7",
       "when": 1794496338304,
-      "tag": "0102_plataforma_comercial",
-      "breakpoints": true
-    },
-    {
-      "idx": 98,
-      "version": "7",
-      "when": 1794496352250,
-      "tag": "0098_broad_nebula",
+      "tag": "0122_plataforma_comercial",
       "breakpoints": true
     }
   ]
