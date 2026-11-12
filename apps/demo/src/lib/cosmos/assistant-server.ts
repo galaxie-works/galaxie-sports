@@ -5,7 +5,14 @@
  */
 import {
   activeFunction,
+  ASSISTANT_ATTACHMENT_LIMITS,
+  ASSISTANT_FILE_PROVIDERS,
   ASSISTANT_STREAMERS,
+  type AttachmentError,
+  type AttachmentMeta,
+  checkAttachments,
+  type PromptAttachment,
+  readAttachment,
   type AssistantStreamer,
   cosmosApiKey,
   type CosmosProvider,
@@ -56,6 +63,38 @@ export interface AssistantRequest {
   context: ScreenContext;
   /** Respostas vêm com a assinatura do servidor; sem ela, não entram no prompt (`verifiedHistory`). */
   history: (ChatTurn & { sig?: string })[];
+}
+
+/** Base64 que cabe no maior anexo (4 caracteres a cada 3 bytes), conferido antes de decodificar. */
+const MAX_BASE64 =
+  Math.ceil(
+    (Math.max(ASSISTANT_ATTACHMENT_LIMITS.maxImageBytes, ASSISTANT_ATTACHMENT_LIMITS.maxPdfBytes) * 4) / 3,
+  ) + 4;
+
+/**
+ * Anexos da pergunta como o navegador manda (`[{ name, data }]`, data em base64): cada um é lido pelos bytes e
+ * conferido contra os limites antes de qualquer reserva (#1065). O conteúdo fica só na memória desta pergunta.
+ */
+export function parseAttachmentFiles(
+  raw: unknown,
+): { ok: true; files: PromptAttachment[] } | { ok: false; error: AttachmentError } {
+  if (raw === undefined || raw === null) return { ok: true, files: [] };
+  if (!Array.isArray(raw)) return { ok: false, error: 'type' };
+  if (raw.length > ASSISTANT_ATTACHMENT_LIMITS.maxFiles) return { ok: false, error: 'count' };
+  const files: PromptAttachment[] = [];
+  for (const item of raw) {
+    const name = typeof item?.name === 'string' ? item.name : '';
+    const data = typeof item?.data === 'string' ? item.data : '';
+    if (!data) return { ok: false, error: 'type' };
+    if (data.length > MAX_BASE64) return { ok: false, error: 'size' };
+    if (!/^[A-Za-z0-9+/]*={0,2}$/.test(data)) return { ok: false, error: 'type' };
+    const read = readAttachment(name, new Uint8Array(Buffer.from(data, 'base64')));
+    if (!read.ok) return read;
+    // texto vai na pergunta; imagem e PDF seguem em base64 para o provedor
+    files.push(read.file.kind === 'text' ? read.file : { ...read.file, data });
+  }
+  const total = checkAttachments(files);
+  return total ? { ok: false, error: total } : { ok: true, files };
 }
 
 /** Lê e corta a entrada do navegador (nada passa do tamanho combinado; o resto é descartado). */
@@ -116,6 +155,8 @@ export interface PreparedQuestion {
   /** Chamada ao provedor da função, já com a chave da Cosmos nele. */
   streamer: AssistantStreamer;
   apiKey: string;
+  /** Tipo e tamanho dos anexos, para a última trava antes da reserva e o extrato. */
+  attachments: AttachmentMeta[];
 }
 
 /** Moldura da documentação no prompt (`<documentacao>` e as quebras de linha), contada junto com o orçamento. */
@@ -133,8 +174,15 @@ export async function prepareQuestion(
   scope: { tenantId: string; userId: string },
   req: AssistantRequest,
   locale: Locale,
-  options: { semantic?: boolean; signal?: AbortSignal } = {},
-): Promise<PreparedQuestion | null> {
+  options: {
+    semantic?: boolean;
+    signal?: AbortSignal;
+    /** Anexos lidos (a pergunta de verdade). */
+    files?: readonly PromptAttachment[];
+    /** Só o tipo e o tamanho (a estimativa da tela, que não manda o conteúdo). */
+    metas?: readonly AttachmentMeta[];
+  } = {},
+): Promise<PreparedQuestion | 'attachment_unsupported' | null> {
   const tenantId = scope.tenantId;
   const db = builderDb();
   const [settings, fn, wallet, embeddings] = await Promise.all([
@@ -147,6 +195,14 @@ export async function prepareQuestion(
   const streamer = ASSISTANT_STREAMERS[fn.provider];
   const apiKey = assistantApiKey(fn.provider);
   if (!streamer || !apiKey) return null;
+  const files = options.files ?? [];
+  const metas: AttachmentMeta[] = (options.files ?? options.metas ?? []).map((f) => ({
+    kind: f.kind,
+    bytes: f.bytes,
+    ...(f.pages ? { pages: f.pages } : {}),
+  }));
+  if (metas.some((m) => m.kind !== 'text') && !ASSISTANT_FILE_PROVIDERS.includes(fn.provider))
+    return 'attachment_unsupported';
   const docs = await searchKnowledge(req.question, knowledgeFor(locale), {
     db,
     client: options.semantic ? embeddingClientFor(embeddings, process.env, { preferred: fn.provider }) : null,
@@ -154,18 +210,30 @@ export async function prepareQuestion(
   });
   const history = verifiedHistory(req.history, assistantSigningKey(), scope);
   const input = { question: req.question, context: req.context, history, locale };
-  const prompt = buildPrompt({ ...input, docs });
+  const prompt = buildPrompt({ ...input, docs, attachments: files });
+  // a estimativa conta os anexos pelo tipo e tamanho (o que a tela também sabe), não pelo conteúdo
   const withoutDocs = buildPrompt({ ...input, docs: [] });
   const credits = estimateAssistantCredits({
     system: withoutDocs.system,
     extraInputChars: DOCS_BUDGET_CHARS + DOCS_FRAME_CHARS,
-    messages: prompt.messages,
+    messages: withoutDocs.messages,
+    attachments: metas,
+    question: req.question,
     creditUsd: settings.creditUsd,
     multiplier: wallet?.multiplier ?? 1,
     minCredits: fn.minCredits,
     model: fn.model,
   });
-  return { prompt, credits, settings, provider: fn.provider, model: fn.model, streamer, apiKey };
+  return {
+    prompt,
+    credits,
+    settings,
+    provider: fn.provider,
+    model: fn.model,
+    streamer,
+    apiKey,
+    attachments: metas,
+  };
 }
 
 /** Chave que assina as respostas do histórico (a mesma da sessão); sem ela, respostas antigas não voltam ao prompt. */

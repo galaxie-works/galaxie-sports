@@ -6,9 +6,29 @@
  * (c-message-scroller-3), resposta em fluxo com marcador de espera (c-message-7), ações de copiar e perguntar de
  * novo (c-message-4, sem avaliação), sugestões em bolhas (c-bubble-6), vazio com pilha de ícone (c-icon-stack-5),
  * campo com botão de enviar (c-input-group-18, sem microfone, busca nem seletor de modelo) e blocos de código
- * (c-code-block-18). O cliente vê só créditos: a estimativa antes e o gasto real depois.
+ * (c-code-block-18). Anexos na pergunta (#1065) pelo exemplo c-attachment-2: imagem, PDF ou texto, lidos e
+ * conferidos aqui antes de mandar, com a estimativa já contando o anexo. O arquivo fica só na memória da tela e da
+ * pergunta. O cliente vê só créditos: a estimativa antes e o gasto real depois.
  */
-import { ArrowUpIcon, CheckIcon, CopyIcon, RefreshCwIcon, SquareIcon } from 'lucide-react';
+import {
+  ASSISTANT_ATTACHMENT_LIMITS,
+  ATTACHMENT_ACCEPT,
+  type AttachmentError,
+  type AttachmentKind,
+  checkAttachments,
+  readAttachment,
+} from '@galaxie/cosmos/assistant-attachments';
+import {
+  ArrowUpIcon,
+  CheckIcon,
+  CopyIcon,
+  FileTextIcon,
+  ImageIcon,
+  PaperclipIcon,
+  RefreshCwIcon,
+  SquareIcon,
+  XIcon,
+} from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
@@ -21,6 +41,15 @@ import {
   CodeBlockTitle,
   markdownFences,
 } from '@/components/reui/code-block/code-block';
+import {
+  Attachment,
+  AttachmentAction,
+  AttachmentActions,
+  AttachmentContent,
+  AttachmentGroup,
+  AttachmentMedia,
+  AttachmentTitle,
+} from '@/components/ui/attachment';
 import { Bubble, BubbleContent, BubbleGroup } from '@/components/ui/bubble';
 import { Button, buttonVariants } from '@/components/ui/button';
 import {
@@ -31,7 +60,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from '@/components/ui/empty';
-import { Field } from '@/components/ui/field';
+import { Field, FieldError } from '@/components/ui/field';
 import {
   InputGroup,
   InputGroupAddon,
@@ -61,6 +90,25 @@ import { CosmosIcon } from './cosmos-icon';
 /** Mesmo limite do servidor (`QUESTION_MAX`). */
 const QUESTION_MAX = 2000;
 const ESTIMATE_DELAY_MS = 600;
+const MB = (bytes: number) => Math.round((bytes / 1_000_000) * 100) / 100;
+
+/** Anexo lido no navegador: o que a estimativa precisa e o conteúdo em base64 para a pergunta. */
+interface PendingFile {
+  id: string;
+  name: string;
+  kind: AttachmentKind;
+  bytes: number;
+  pages?: number;
+  data: string;
+}
+
+function toBase64(bytes: Uint8Array): string {
+  let bin = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(bin);
+}
+
+const metaOf = (f: PendingFile) => ({ kind: f.kind, bytes: f.bytes, ...(f.pages ? { pages: f.pages } : {}) });
 
 interface Turn {
   id: string;
@@ -75,6 +123,8 @@ interface Turn {
   sig?: string;
   /** Pergunta que gerou a resposta (para "perguntar de novo"). */
   question?: string;
+  /** Anexos da pergunta: os nomes na conversa e, na resposta, os arquivos para "perguntar de novo". */
+  files?: PendingFile[];
 }
 
 const history = (turns: Turn[]) =>
@@ -97,6 +147,9 @@ export function CosmosAssistant({
   const [estimate, setEstimate] = useState<number | null>(null);
   const [estimating, setEstimating] = useState(false);
   const [route, setRoute] = useState('/');
+  const [files, setFiles] = useState<PendingFile[]>([]);
+  const [fileError, setFileError] = useState<string | null>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const counter = useRef(0);
   const busy = turns.some((x) => x.status === 'waiting' || x.status === 'streaming');
@@ -132,6 +185,8 @@ export function CosmosAssistant({
           question,
           context: readScreenContext(),
           history: history(turnsRef.current),
+          // só o tipo e o tamanho: o conteúdo vai na pergunta de verdade
+          attachments: files.map(metaOf),
         });
         // 0 = equipe Galaxie (não gasta créditos do cliente): sem o "cerca de N créditos"
         if (live) setEstimate(r.ok && r.credits > 0 ? r.credits : null);
@@ -145,12 +200,66 @@ export function CosmosAssistant({
       live = false;
       window.clearTimeout(id);
     };
-  }, [draft, open, settled]);
+  }, [draft, open, settled, files]);
+
+  const L = ASSISTANT_ATTACHMENT_LIMITS;
+  const attachmentText = (error: AttachmentError, name = '') =>
+    fill(T.attachmentErrors[error], {
+      name,
+      max: L.maxFiles,
+      pages: L.maxPdfPages,
+      mb: MB(
+        error === 'total'
+          ? L.maxTotalBytes
+          : name && /\.(txt|md|csv|json|log|xml|ya?ml)$/i.test(name)
+            ? L.maxTextBytes
+            : L.maxImageBytes,
+      ),
+    });
+
+  /** Lê os arquivos escolhidos com a mesma regra do servidor; o que não cabe nem entra na lista. */
+  async function addFiles(list: FileList | null) {
+    if (!list?.length) return;
+    setFileError(null);
+    const next = [...files];
+    for (const file of Array.from(list)) {
+      if (next.length >= L.maxFiles) {
+        setFileError(attachmentText('count'));
+        break;
+      }
+      // tamanho antes de ler: um arquivo enorme nem chega à memória
+      if (file.size > Math.max(L.maxImageBytes, L.maxPdfBytes)) {
+        setFileError(attachmentText('size', file.name));
+        continue;
+      }
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      const read = readAttachment(file.name, bytes);
+      if (!read.ok) {
+        setFileError(attachmentText(read.error, file.name));
+        continue;
+      }
+      const candidate = [...next, { bytes: read.file.bytes }];
+      const over = checkAttachments(candidate);
+      if (over) {
+        setFileError(attachmentText(over));
+        continue;
+      }
+      next.push({
+        id: `f${counter.current++}`,
+        name: read.file.name,
+        kind: read.file.kind,
+        bytes: read.file.bytes,
+        ...(read.file.pages ? { pages: read.file.pages } : {}),
+        data: toBase64(bytes),
+      });
+    }
+    setFiles(next);
+  }
 
   const patch = (id: string, change: Partial<Turn>) =>
     setTurns((all) => all.map((x) => (x.id === id ? { ...x, ...change } : x)));
 
-  async function ask(question: string) {
+  async function ask(question: string, attached: PendingFile[] = files) {
     const q = question.trim();
     if (!q || busy) return;
     if (q.length > QUESTION_MAX) return;
@@ -160,10 +269,13 @@ export function CosmosAssistant({
     const before = history(turns);
     setDraft('');
     setEstimate(null);
+    setFiles([]);
+    setFileError(null);
+    const withFiles = attached.length ? { files: attached } : {};
     setTurns((all) => [
       ...all,
-      { id: userId, role: 'user', text: q },
-      { id: answerId, role: 'assistant', text: '', status: 'waiting', question: q },
+      { id: userId, role: 'user', text: q, ...withFiles },
+      { id: answerId, role: 'assistant', text: '', status: 'waiting', question: q, ...withFiles },
     ]);
     const controller = new AbortController();
     abortRef.current = controller;
@@ -172,7 +284,12 @@ export function CosmosAssistant({
       const res = await fetch('/api/cliente/cosmos/assistente', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ question: q, context: readScreenContext(), history: before }),
+        body: JSON.stringify({
+          question: q,
+          context: readScreenContext(),
+          history: before,
+          ...(attached.length ? { attachments: attached.map((f) => ({ name: f.name, data: f.data })) } : {}),
+        }),
         signal: controller.signal,
       });
       for await (const event of readAssistantStream(res)) {
@@ -265,8 +382,11 @@ export function CosmosAssistant({
                           <Message align="end">
                             <MessageContent>
                               <Bubble variant="muted" align="end">
-                                <BubbleContent>
+                                <BubbleContent className="space-y-2">
                                   <span className="sr-only">{T.you}: </span>
+                                  {turn.files?.length ? (
+                                    <FileChips files={turn.files} label={T.attachments} />
+                                  ) : null}
                                   <p className="whitespace-pre-wrap">{turn.text}</p>
                                 </BubbleContent>
                               </Bubble>
@@ -279,7 +399,7 @@ export function CosmosAssistant({
                             labels={T}
                             errorText={errorText}
                             format={(v) => n.format(v)}
-                            onRetry={() => turn.question && void ask(turn.question)}
+                            onRetry={() => turn.question && void ask(turn.question, turn.files ?? [])}
                             onNavigate={() => onOpenChange(false)}
                           />
                         )}
@@ -301,7 +421,32 @@ export function CosmosAssistant({
           }}
         >
           <Field>
+            <input
+              ref={fileInput}
+              type="file"
+              accept={ATTACHMENT_ACCEPT}
+              multiple
+              hidden
+              tabIndex={-1}
+              onChange={(e) => {
+                void addFiles(e.target.files);
+                e.target.value = '';
+              }}
+            />
             <InputGroup>
+              {files.length ? (
+                <InputGroupAddon align="block-start">
+                  <FileChips
+                    files={files}
+                    label={T.attachments}
+                    removeLabel={(name) => fill(T.removeAttachment, { name })}
+                    onRemove={(id) => {
+                      setFiles((all) => all.filter((f) => f.id !== id));
+                      setFileError(null);
+                    }}
+                  />
+                </InputGroupAddon>
+              ) : null}
               <InputGroupTextarea
                 aria-label={T.inputLabel}
                 placeholder={T.placeholder}
@@ -317,6 +462,17 @@ export function CosmosAssistant({
                 }}
               />
               <InputGroupAddon align="block-end">
+                <InputGroupButton
+                  type="button"
+                  variant="ghost"
+                  size="icon-xs"
+                  aria-label={T.attach}
+                  title={fill(T.attachHint, { max: L.maxFiles })}
+                  disabled={busy || files.length >= L.maxFiles}
+                  onClick={() => fileInput.current?.click()}
+                >
+                  <PaperclipIcon aria-hidden />
+                </InputGroupButton>
                 <span className="text-muted-foreground text-xs" aria-live="polite">
                   {estimating
                     ? T.estimating
@@ -351,6 +507,7 @@ export function CosmosAssistant({
                 )}
               </InputGroupAddon>
             </InputGroup>
+            {fileError ? <FieldError>{fileError}</FieldError> : null}
           </Field>
         </form>
       </SheetContent>
@@ -359,6 +516,45 @@ export function CosmosAssistant({
 }
 
 type Labels = ReturnType<typeof useI18n>['t']['cosmos']['assistant'];
+
+/** Anexos em fila (c-attachment-2): rolam de lado em vez de empurrar a conversa. */
+function FileChips({
+  files,
+  label,
+  removeLabel,
+  onRemove,
+}: {
+  files: PendingFile[];
+  label: string;
+  removeLabel?: (name: string) => string;
+  onRemove?: (id: string) => void;
+}) {
+  return (
+    <AttachmentGroup role="group" aria-label={label}>
+      {files.map((file) => (
+        <Attachment key={file.id} size="xs" className="max-w-52">
+          <AttachmentMedia>
+            {file.kind === 'image' ? <ImageIcon aria-hidden="true" /> : <FileTextIcon aria-hidden="true" />}
+          </AttachmentMedia>
+          <AttachmentContent>
+            <AttachmentTitle>{file.name}</AttachmentTitle>
+          </AttachmentContent>
+          {onRemove ? (
+            <AttachmentActions>
+              <AttachmentAction
+                type="button"
+                aria-label={removeLabel?.(file.name) ?? file.name}
+                onClick={() => onRemove(file.id)}
+              >
+                <XIcon aria-hidden="true" />
+              </AttachmentAction>
+            </AttachmentActions>
+          ) : null}
+        </Attachment>
+      ))}
+    </AttachmentGroup>
+  );
+}
 
 function AnswerMessage({
   turn,
