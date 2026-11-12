@@ -207,8 +207,9 @@ export class ChangeFeedListener {
         .orderBy(asc(changeFeed.id))
         .limit(500);
       const fresh = rows.filter((r) => cursor.isNew(r.id));
-      if (fresh.length) {
-        const tags = [...new Set(fresh.flatMap(tagsForChange))];
+      const tags = [...new Set(fresh.flatMap(tagsForChange))];
+      // eventos de webhook não têm tags: um lote só deles não chama o purge
+      if (tags.length) {
         const purged = await this.cache.purgeTags(tags);
         await this.cdn.purgeTags(tags);
         this.options.logger?.info(
