@@ -12,6 +12,7 @@ import { createCompletionClient, type CompletionClient } from '@galaxie/llm';
 import { estimateCostUsd } from '@galaxie/ai-ledger/pricing';
 import type { Database } from '@galaxie/db/client';
 import {
+  activeSanctions,
   applySanction,
   closeCase,
   holdContent,
@@ -33,11 +34,12 @@ import {
   ENGINE_LIMITS,
   MODERATION_FUNCTION,
   classify,
+  decisionReason,
   featureFor,
+  isTruncated,
   moderationPrompt,
   parseModerationResult,
   planModeration,
-  summarize,
   type ContentKind,
   type ContentModule,
   type ModerationPlan,
@@ -50,6 +52,9 @@ import { activeFunction, getWallet, release, reserve, settle } from './wallet.js
 
 /** Prazo da reserva do lote: maior que o tempo máximo da chamada. */
 export const MODERATION_RESERVATION_TTL_SECONDS = 120;
+
+/** Teto do texto no caso (o mesmo check do banco, `moderation_case_content`). */
+const CASE_CONTENT_MAX = 10_000;
 
 /** Alvo do texto na fila da base (B8). */
 export type ModerationTargetType =
@@ -80,8 +85,11 @@ export interface ModerationItem {
 
 export interface ModerationOutcome {
   item: ModerationItem;
-  /** `cosmos`: decidiu pelo modelo; `classifier`: pelo classificador; `fallback`: seguiu as regras e foi à fila. */
-  by: 'cosmos' | 'classifier' | 'fallback';
+  /**
+   * `cosmos`: decidiu pelo modelo; `classifier`: pelo classificador; `fallback`: seguiu as regras (e o que as regras
+   * marcaram foi à fila); `skipped`: nada a fazer (Leitura total não contratada, ou bloqueado sem lugar para silenciar).
+   */
+  by: 'cosmos' | 'classifier' | 'fallback' | 'skipped';
   verdict: Verdict | null;
   plan: ModerationPlan | null;
   /** Por que caiu (sem saldo, sem função, prazo...). */
@@ -98,13 +106,18 @@ export type FallbackReason =
   | 'no_wallet'
   | 'failed'
   | 'unreadable'
-  | 'overflow';
+  | 'truncated'
+  | 'safety'
+  | 'overflow'
+  | 'not_contracted'
+  | 'rules_decided';
 
 const RESERVE_FALLBACK: Record<string, FallbackReason> = {
   insufficient_credits: 'insufficient',
   wallet_blocked: 'blocked',
   cosmos_disabled: 'disabled',
   no_wallet: 'no_wallet',
+  safety_ceiling: 'safety',
 };
 
 export interface ModerationDeps {
@@ -116,6 +129,11 @@ export interface ModerationDeps {
   ceiling?: ModerationCeiling;
   settleBackoffMs?: number[];
   timeoutMs?: number;
+  /**
+   * Cada decisão, depois de gravada: o módulo tira do ar ao vivo o que a Cosmos escondeu (`plan.actions` com `hide`
+   * fora de `flag`). Erro aqui não desfaz a decisão.
+   */
+  onDecision?: (outcome: ModerationOutcome) => void | Promise<void>;
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -130,16 +148,44 @@ export function scopeOf(item: Pick<ModerationItem, 'room' | 'community'>): Moder
 /** Gravidade do caso na fila (0 a 100, a mesma escala das denúncias). */
 const caseSeverity = (v: Verdict) => v.severity * 25;
 
+/** Chave do lote: o mesmo cliente, o mesmo escopo e o mesmo módulo. */
+const batchKey = (item: ModerationItem) => {
+  const scope = scopeOf(item);
+  return `${item.tenantId}|${scope.kind}|${scope.id}|${item.module}`;
+};
+
 /**
- * Modera um lote do mesmo cliente e do mesmo escopo (sala, comunidade ou cliente). Nunca lança por falta de saldo,
- * prazo ou modelo: o que não deu para decidir vai para a fila humana.
+ * Modera um lote. Os itens são separados por cliente, escopo e módulo (cada grupo com a configuração, a reserva e o
+ * extrato dele), e os resultados voltam na ordem da entrada. Nunca lança por falta de saldo, prazo ou modelo: o que
+ * não deu para decidir segue as regras, e o que as regras marcaram vai para a fila humana.
  */
 export async function moderateBatch(
   db: Database,
   items: readonly ModerationItem[],
   deps: ModerationDeps = {},
 ): Promise<ModerationOutcome[]> {
-  if (items.length === 0) return [];
+  const groups = new Map<string, number[]>();
+  items.forEach((item, i) => {
+    const key = batchKey(item);
+    groups.set(key, [...(groups.get(key) ?? []), i]);
+  });
+  const out: ModerationOutcome[] = new Array(items.length);
+  for (const idx of groups.values()) {
+    const done = await moderateGroup(
+      db,
+      idx.map((i) => items[i]!),
+      deps,
+    );
+    done.forEach((o, k) => (out[idx[k]!] = o));
+  }
+  return out;
+}
+
+async function moderateGroup(
+  db: Database,
+  items: ModerationItem[],
+  deps: ModerationDeps,
+): Promise<ModerationOutcome[]> {
   const first = items[0]!;
   const env = deps.env ?? process.env;
   const now = deps.now ?? (() => new Date());
@@ -149,46 +195,83 @@ export async function moderateBatch(
   ]);
   const { effective: config } = await loadModerationConfig(db, first.tenantId, ceiling, scopeOf(first));
 
-  const outcomes: ModerationOutcome[] = [];
-  const toModel: ModerationItem[] = [];
-  for (const item of items) {
-    if (!config.features[featureFor(item.module)]) {
-      outcomes.push({ item, by: 'fallback', verdict: null, plan: null, fallback: 'feature_off' });
-      continue;
-    }
+  const outcomes: (ModerationOutcome | null)[] = items.map(() => null);
+  const toModel: number[] = [];
+  items.forEach((item, i) => {
+    const skip = (by: 'fallback' | 'skipped', fallback: FallbackReason) =>
+      (outcomes[i] = { item, by, verdict: null, plan: null, fallback });
+    if (!config.features[featureFor(item.module)]) return skip('fallback', 'feature_off');
+    // a Leitura total é conferida aqui, não só no cache de quem chamou: sem ela, só vai ao modelo o que as regras
+    // marcaram (ou foi denunciado)
+    const marked = item.source === 'report' || item.rules.suspect || item.rules.action !== 'allow';
+    if (!marked && !config.features.full_read) return skip('skipped', 'not_contracted');
+    // bloqueado pelas regras e sem lugar (apelido, nome de liga): não publicou e não há onde silenciar
+    if (item.source === 'filter' && item.rules.action === 'block' && !item.room && !item.community)
+      return skip('skipped', 'rules_decided');
     // com a Leitura total, o classificador decide o que é claro sem gastar
     if (config.features.full_read) {
       const c = classify(item.text, item.rules);
       if (c.outcome === 'violation' && c.verdict) {
-        outcomes.push({
+        outcomes[i] = {
           item,
           by: 'classifier',
           verdict: c.verdict,
           plan: planModeration(c.verdict, config, ceiling, item.authorRole),
-        });
-        continue;
+        };
+        return;
       }
+      // limpo e sem marca das regras: não há dúvida para pagar
+      if (c.outcome === 'clean' && !marked) return skip('skipped', 'not_contracted');
     }
-    toModel.push(item);
+    toModel.push(i);
+  });
+
+  if (toModel.length > 0) {
+    const asked = await askModel(
+      db,
+      toModel.map((i) => items[i]!),
+      config,
+      ceiling,
+      settings,
+      env,
+      deps,
+    );
+    asked.forEach((o, k) => (outcomes[toModel[k]!] = o));
   }
 
-  if (toModel.length > 0)
-    outcomes.push(...(await askModel(db, toModel, config, ceiling, settings, env, deps)));
-
-  for (const o of outcomes) {
+  const muted = new Set<string>();
+  const result = outcomes as ModerationOutcome[];
+  for (const o of result) {
+    if (o.by === 'skipped') continue;
     try {
-      o.caseId = await apply(db, o, config, now());
+      o.caseId = await apply(db, o, config, now(), muted);
     } catch (err) {
       // uma ação que falhou não derruba o lote: o item ainda vai para a fila humana
       console.error('[cosmos] ação da moderação falhou; item vai para a fila', {
         tenantId: o.item.tenantId,
+        targetId: o.item.targetId,
         err,
       });
       Object.assign(o, { by: 'fallback', fallback: 'failed', verdict: null, plan: null });
-      o.caseId = await apply(db, o, config, now()).catch(() => null);
+      o.caseId = await apply(db, o, config, now(), muted).catch((e) => {
+        console.error('[cosmos] item da moderação perdido: nem a fila aceitou', {
+          tenantId: o.item.tenantId,
+          targetId: o.item.targetId,
+          err: e,
+        });
+        return null;
+      });
     }
+    if (deps.onDecision)
+      await Promise.resolve(deps.onDecision(o)).catch((err) =>
+        console.error('[cosmos] aviso da decisão da moderação falhou', {
+          tenantId: o.item.tenantId,
+          targetId: o.item.targetId,
+          err,
+        }),
+      );
   }
-  return outcomes;
+  return result;
 }
 
 async function askModel(
@@ -242,15 +325,15 @@ async function askModel(
     throw err;
   }
 
-  const client =
-    deps.client ??
-    createCompletionClient(fn.provider, {
-      apiKey: apiKey!,
-      maxRetries: 0,
-      timeoutMs: deps.timeoutMs ?? ENGINE_LIMITS.batchTimeoutMs,
-    });
   let result;
   try {
+    const client =
+      deps.client ??
+      createCompletionClient(fn.provider, {
+        apiKey: apiKey!,
+        maxRetries: 0,
+        timeoutMs: deps.timeoutMs ?? ENGINE_LIMITS.batchTimeoutMs,
+      });
     result = await client.complete({
       model: fn.model,
       system: prompt.system,
@@ -269,7 +352,13 @@ async function askModel(
   }
 
   const verdicts = parseModerationResult(result.text, items.length);
-  const usable = verdicts.some((v) => v !== null);
+  const decided = verdicts.filter(Boolean).length;
+  const usable = decided > 0;
+  // resposta parcial: cobra só a parte decidida do lote (o resto vai pelas regras, sem custo para o cliente)
+  const maxCredits =
+    decided === items.length
+      ? reservation.credits
+      : Math.max(1, Math.ceil((reservation.credits * decided) / items.length));
   const costUsd = estimateCostUsd(fn.model, {
     inputTokens: result.usage.inputTokens,
     cachedInputTokens: result.usage.cachedInputTokens,
@@ -284,7 +373,7 @@ async function askModel(
         tenantId,
         reservationId: reservation.id,
         costUsd,
-        maxCredits: reservation.credits,
+        maxCredits,
         tokensIn: result.usage.inputTokens,
         tokensCached: result.usage.cachedInputTokens,
         tokensOut: result.usage.outputTokens,
@@ -294,7 +383,7 @@ async function askModel(
         metadata: {
           kind: 'moderation',
           items: items.length,
-          decided: verdicts.filter(Boolean).length,
+          decided,
           module: items[0]!.module,
         },
       });
@@ -313,22 +402,29 @@ async function askModel(
       await sleep(backoff[attempt]!);
     }
   }
-  const share = Math.round((charged / items.length) * 1000) / 1000;
-  return items.map((item, i) => {
+  const share = decided > 0 ? Math.round((charged / decided) * 1000) / 1000 : 0;
+  return items.map((item, i): ModerationOutcome => {
     const verdict = verdicts[i];
-    if (!verdict)
-      return { item, by: 'fallback' as const, verdict: null, plan: null, fallback: 'unreadable' as const };
+    if (!verdict) return { item, by: 'fallback', verdict: null, plan: null, fallback: 'unreadable' };
     const plan = planModeration(verdict, config, ceiling, item.authorRole);
-    return { item, by: 'cosmos' as const, verdict: { ...verdict, credits: share }, plan };
+    // o modelo não viu o meio do texto longo: "liberado" não vale, segue as regras
+    if (plan.allow && isTruncated(item.text))
+      return { item, by: 'fallback', verdict: null, plan: null, fallback: 'truncated' };
+    return { item, by: 'cosmos', verdict: { ...verdict, credits: share }, plan };
   });
 }
 
-/** Aplica o resultado de um item: auditoria, fila, esconder e silenciar pela escada. Devolve o caso, se abriu. */
+/**
+ * Aplica o resultado de um item: auditoria, fila, esconder e silenciar pela escada. Devolve o caso, se abriu.
+ * O texto do torcedor só vai para o caso (`content`, com o relógio da ficha e a exclusão); a auditoria e a punição
+ * guardam categoria e gravidade, nunca palavras do texto.
+ */
 async function apply(
   db: Database,
   o: ModerationOutcome,
-  config: ModerationConfig,
+  config: Pick<ModerationConfig, 'muteHours'>,
   at: Date,
+  muted: Set<string>,
 ): Promise<string | null> {
   const { item } = o;
   const target = {
@@ -340,9 +436,9 @@ async function apply(
     room: item.room,
     community: item.community,
   };
-  const content = item.text;
+  const content = item.text.trim().slice(0, CASE_CONTENT_MAX) || null;
 
-  // sem decisão da Cosmos: o texto segue as regras; o marcado pelas regras vai à fila humana (o denunciado já está)
+  // sem decisão da Cosmos: o texto segue as regras; o que as regras marcaram vai à fila humana (o denunciado já está)
   if (!o.verdict || !o.plan) {
     if (item.source === 'report') {
       await recordModerationDecision(db, {
@@ -356,6 +452,8 @@ async function apply(
       });
       return null;
     }
+    // só dúvida do classificador (as regras deixaram publicar): continua publicado, sem encher a fila
+    if (!item.rules.suspect && item.rules.action === 'allow') return null;
     const { caseId } = await holdContent(db, {
       ...target,
       source: 'filter',
@@ -363,7 +461,7 @@ async function apply(
       severity: item.rules.action === 'shadow' ? 75 : 25,
       hide: item.rules.action !== 'allow',
       content,
-      detail: { kind: item.kind, fallback: o.fallback ?? null, summary: summarize(content) },
+      detail: { kind: item.kind, fallback: o.fallback ?? null },
       clocks: item.clocks,
       now: at,
     });
@@ -376,17 +474,16 @@ async function apply(
     by: verdict.by,
     category: verdict.category,
     severity: verdict.severity,
-    reason: verdict.reason,
     level: plan.level,
     threshold: plan.threshold,
     steps: Object.fromEntries(plan.actions.map((a) => [a.action, a.step])),
     credits: verdict.credits ?? 0,
-    summary: summarize(content),
   };
+  const reason = decisionReason(verdict);
 
   if (plan.allow) {
-    // denunciado: a sugestão da Cosmos vai para o caso, e quem decide é a equipe
-    if (item.source === 'report') {
+    // denunciado, ou segurado pelas regras: a sugestão da Cosmos vai para o caso, e quem decide é a equipe
+    if (item.source === 'report' || item.rules.action === 'shadow') {
       const { caseId } = await holdContent(db, {
         ...target,
         source: 'cosmos',
@@ -394,7 +491,8 @@ async function apply(
         severity: 0,
         hide: false,
         content,
-        detail: { ...detail, suggestion: 'allow' },
+        // o motivo do modelo fica só no caso (a exclusão do torcedor apaga)
+        detail: { ...detail, reason: verdict.reason, suggestion: 'allow' },
         clocks: item.clocks,
         now: at,
       });
@@ -406,34 +504,59 @@ async function apply(
       action: 'cosmos.allow',
       clocks: item.clocks,
       subjectProfileId: item.targetProfileId,
-      reason: verdict.reason || null,
+      reason,
       rules: detail,
     });
     return null;
   }
 
   const hide = plan.actions.find((a) => a.action === 'hide');
+  const hidden = hide !== undefined && hide.step !== 'flag';
   const { caseId } = await holdContent(db, {
     ...target,
     source: 'cosmos',
     reasons: [verdict.category],
     severity: caseSeverity(verdict),
-    hide: hide !== undefined && hide.step !== 'flag',
+    hide: hidden,
     content,
-    detail: { ...detail, suggestion: plan.actions.map((a) => a.action) },
+    detail: { ...detail, reason: verdict.reason, suggestion: plan.actions.map((a) => a.action) },
     clocks: item.clocks,
     now: at,
   });
+  if (hidden)
+    await recordModerationDecision(db, {
+      tenantId: item.tenantId,
+      actor: { id: 'cosmos', kind: 'cosmos' },
+      action: 'hide',
+      clocks: item.clocks,
+      subjectProfileId: item.targetProfileId,
+      caseId,
+      reason,
+      rules: { by: verdict.by, category: verdict.category, severity: verdict.severity, step: hide.step },
+    });
 
   const mute = plan.actions.find((a) => a.action === 'mute');
   const place = item.room ?? item.community;
-  if (mute && mute.step !== 'flag' && item.targetProfileId && place) {
+  const muteKey = `${item.targetProfileId}|${place}`;
+  if (mute && mute.step !== 'flag' && item.targetProfileId && place && !muted.has(muteKey)) {
+    muted.add(muteKey);
     const endsAt = new Date(at.getTime() + config.muteHours * 3600_000);
     const problems = checkSanction(
       { level: 'mute', hidden: false, decidedBy: 'cosmos', endsAt: endsAt.getTime(), scopeId: place },
       { now: at.getTime(), hiddenEnabled: false, policy: null },
     );
-    if (problems.length === 0)
+    // já silenciado no lugar: não empilha outra punição pelas mensagens seguintes
+    const already =
+      problems.length === 0 &&
+      (
+        await activeSanctions(db, {
+          tenantId: item.tenantId,
+          profileId: item.targetProfileId,
+          accountId: null,
+          now: at,
+        })
+      ).some((s) => s.level === 'mute' && (s.scopeId === place || s.scope !== 'place'));
+    if (problems.length === 0 && !already)
       await applySanction(db, {
         tenantId: item.tenantId,
         profileId: item.targetProfileId,
@@ -442,7 +565,7 @@ async function apply(
         hidden: false,
         scope: 'place',
         scopeId: place,
-        reason: verdict.reason || verdict.category,
+        reason,
         caseId,
         actor: { id: 'cosmos', kind: 'cosmos' },
         endsAt,
@@ -459,7 +582,7 @@ async function apply(
       caseId,
       status: 'resolved',
       actor: { id: 'cosmos', kind: 'cosmos' },
-      note: verdict.reason || null,
+      note: reason,
       clocks: item.clocks,
       now: at,
     });
@@ -550,22 +673,29 @@ export interface BatcherLimits {
   batchWaitMs: number;
   concurrentBatches: number;
   pendingMax: number;
+  /** Itens esperando de um mesmo cliente (um jogo grande não ocupa o lugar dos outros). Padrão: `pendingMax`. */
+  tenantPendingMax?: number;
+  /** Itens esperando a fila humana pelo excedente; acima disso, descartados com registro no log. */
+  overflowMax?: number;
 }
 
 /**
- * Junta os itens por cliente e escopo e manda um lote por vez: quando enche (`batchItems`) ou quando passa a espera
- * (`batchWaitMs`). `submit` nunca espera nem lança. Com lotes demais esperando, o excedente vai para `overflow`
- * (fila humana) em vez de crescer a memória.
+ * Junta os itens por cliente, escopo e módulo e manda um lote por vez: quando enche (`batchItems`) ou quando passa a
+ * espera (`batchWaitMs`). `submit` nunca espera nem lança. Com itens demais esperando (no processo ou do cliente), o
+ * excedente vai para `overflow` (fila humana), um lote de cada vez, e a memória fica limitada.
  */
 export class ModerationBatcher {
   private readonly buckets = new Map<
     string,
     { items: ModerationItem[]; timer: ReturnType<typeof setTimeout> | null }
   >();
-  private readonly ready: ModerationItem[][] = [];
+  private readonly ready: { items: ModerationItem[]; done: () => void }[] = [];
+  private readonly waiting = new Set<Promise<void>>();
+  private readonly perTenant = new Map<string, number>();
+  private readonly spill: ModerationItem[] = [];
+  private spilling: Promise<void> | null = null;
   private pending = 0;
   private running = 0;
-  private readonly idle = new Set<() => void>();
 
   constructor(
     private readonly handle: BatchHandler,
@@ -574,13 +704,17 @@ export class ModerationBatcher {
   ) {}
 
   submit(item: ModerationItem): void {
-    if (this.pending >= this.limits.pendingMax) {
-      void this.overflow([item]).catch((err) => console.error('[cosmos] fila da moderação cheia', err));
+    const tenantPending = this.perTenant.get(item.tenantId) ?? 0;
+    if (
+      this.pending >= this.limits.pendingMax ||
+      tenantPending >= (this.limits.tenantPendingMax ?? this.limits.pendingMax)
+    ) {
+      this.toOverflow(item);
       return;
     }
     this.pending += 1;
-    const scope = scopeOf(item);
-    const key = `${item.tenantId}|${scope.kind}|${scope.id}`;
+    this.perTenant.set(item.tenantId, tenantPending + 1);
+    const key = batchKey(item);
     let bucket = this.buckets.get(key);
     if (!bucket) {
       bucket = { items: [], timer: null };
@@ -595,15 +729,40 @@ export class ModerationBatcher {
     }
   }
 
-  /** Manda agora tudo que está juntando (desligamento do processo, testes). */
+  /** Manda agora tudo que está juntando e espera os lotes que existiam na hora (desligamento do processo, testes). */
   async drain(): Promise<void> {
     for (const key of [...this.buckets.keys()]) this.flush(key);
-    if (this.pending === 0) return;
-    await new Promise<void>((resolve) => this.idle.add(resolve));
+    await Promise.all([...this.waiting, this.spilling]);
   }
 
+  /** Itens esperando: nos lotes e no excedente. */
   get size(): number {
-    return this.pending;
+    return this.pending + this.spill.length;
+  }
+
+  private toOverflow(item: ModerationItem) {
+    if (this.spill.length >= (this.limits.overflowMax ?? this.limits.pendingMax)) {
+      console.error('[cosmos] moderação sobrecarregada: item descartado sem ir à fila', {
+        tenantId: item.tenantId,
+        targetId: item.targetId,
+      });
+      return;
+    }
+    this.spill.push(item);
+    if (!this.spilling) this.spilling = this.drainSpill().finally(() => (this.spilling = null));
+  }
+
+  /** O excedente vai à fila humana em série: lento no pior momento, mas sem abrir uma transação por mensagem. */
+  private async drainSpill() {
+    while (this.spill.length > 0) {
+      const chunk = this.spill.splice(0, this.limits.batchItems);
+      await this.overflow(chunk).catch((err) =>
+        console.error('[cosmos] excedente da moderação não entrou na fila', {
+          items: chunk.map((i) => ({ tenantId: i.tenantId, targetId: i.targetId })),
+          err,
+        }),
+      );
+    }
   }
 
   private flush(key: string) {
@@ -611,7 +770,11 @@ export class ModerationBatcher {
     if (!bucket || bucket.items.length === 0) return;
     if (bucket.timer) clearTimeout(bucket.timer);
     this.buckets.delete(key);
-    this.ready.push(bucket.items);
+    let done!: () => void;
+    const finished = new Promise<void>((resolve) => (done = resolve));
+    this.waiting.add(finished);
+    void finished.then(() => this.waiting.delete(finished));
+    this.ready.push({ items: bucket.items, done });
     this.pump();
   }
 
@@ -619,16 +782,25 @@ export class ModerationBatcher {
     while (this.running < this.limits.concurrentBatches && this.ready.length > 0) {
       const batch = this.ready.shift()!;
       this.running += 1;
-      void this.handle(batch)
+      void this.handle(batch.items)
         .catch((err) => {
-          console.error('[cosmos] lote da moderação falhou', err);
-          return this.overflow(batch).catch(() => {});
+          console.error('[cosmos] lote da moderação falhou; vai para a fila humana', err);
+          return this.overflow(batch.items).catch((e) =>
+            console.error('[cosmos] lote da moderação perdido: nem a fila aceitou', {
+              items: batch.items.map((i) => ({ tenantId: i.tenantId, targetId: i.targetId })),
+              err: e,
+            }),
+          );
         })
         .finally(() => {
           this.running -= 1;
-          this.pending -= batch.length;
-          if (this.pending === 0) for (const done of this.idle) done();
-          if (this.pending === 0) this.idle.clear();
+          this.pending -= batch.items.length;
+          for (const i of batch.items) {
+            const n = (this.perTenant.get(i.tenantId) ?? 1) - 1;
+            if (n > 0) this.perTenant.set(i.tenantId, n);
+            else this.perTenant.delete(i.tenantId);
+          }
+          batch.done();
           this.pump();
         });
     }
@@ -637,16 +809,19 @@ export class ModerationBatcher {
 
 /** Juntador ligado ao banco: cada lote vai por `moderateBatch`; o excedente vai direto para a fila humana. */
 export function createModerationBatcher(db: Database, deps: ModerationDeps = {}): ModerationBatcher {
+  const now = deps.now ?? (() => new Date());
   return new ModerationBatcher(
     (items) => moderateBatch(db, items, deps),
     async (items) => {
+      const muted = new Set<string>();
       for (const item of items)
         await apply(
           db,
           { item, by: 'fallback', verdict: null, plan: null, fallback: 'overflow' },
-          // sem configuração: o excedente só vai para a fila, não age
-          {} as ModerationConfig,
-          (deps.now ?? (() => new Date()))(),
+          // sem decisão, o excedente só vai para a fila (não silencia)
+          { muteHours: 1 },
+          now(),
+          muted,
         );
     },
   );

@@ -86,8 +86,14 @@ export const ENGINE_LIMITS = {
   concurrentBatches: 4,
   /** Itens esperando por processo; acima disso, o excedente vai direto para a fila humana. */
   pendingMax: 2000,
-  /** Caracteres de cada texto que vão ao modelo. */
+  /** Itens esperando de um mesmo cliente: um jogo grande não ocupa o lugar dos outros. */
+  tenantPendingMax: 500,
+  /** Excedente esperando a fila humana; acima disso, descartado com registro no log. */
+  overflowMax: 2000,
+  /** Caracteres de cada texto que vão ao modelo: o começo e o fim do texto longo (o meio não vai). */
   itemChars: 800,
+  /** Do texto longo, quantos caracteres do fim vão junto com o começo. */
+  itemTailChars: 300,
   /** Teto de saída do modelo por item (JSON curto; o raciocínio, nos modelos que raciocinam, conta junto). */
   outputTokensPerItem: 120,
 } as const;
@@ -149,11 +155,12 @@ export function classify(
   const letters = text.replace(/[^\p{L}]/gu, '');
   if (letters.length >= 20 && letters.replace(/[^\p{Lu}]/gu, '').length / letters.length > 0.7)
     signals.push('caps');
-  if (/(.)\1{7,}/u.test(text)) signals.push('repeat');
   if ((text.match(URL_RE)?.length ?? 0) >= 3) signals.push('links');
   if ((text.match(MENTION_RE)?.length ?? 0) >= 5) signals.push('mentions');
   const words = text.toLowerCase().split(/\s+/).filter(Boolean);
   if (words.length >= 8 && new Set(words).size / words.length < 0.3) signals.push('flood');
+  // letra repetida é comemoração ("gooool", "kkkkkkkk"): só pesa junto com outro sinal
+  if (signals.length > 0 && /(.)\1{7,}/u.test(text)) signals.push('repeat');
   if (signals.length === 0) return { outcome: 'clean', verdict: null, signals };
   return { outcome: 'doubt', verdict: null, signals };
 }
@@ -184,36 +191,39 @@ export function moderationPrompt(
     '(casa de aposta, link ou cupom), minors (conteúdo sexual com menores), none (nada).',
     'Gravidade: 0 nada; 1 leve; 2 média; 3 grave; 4 gravíssima (ameaça real, ódio explícito, menores).',
     `Responda só um JSON: [{"n":1,"category":"...","severity":0,"reason":"..."}], um item por texto, reason em ${lang} com até 140 caracteres.`,
+    'No reason, descreva o motivo sem copiar nem citar palavras do texto (ex.: "ofensa racial", "link de aposta").',
   ].join('\n');
   const message = items
-    .map(
-      (it, i) =>
-        `<texto n="${i + 1}" tipo="${it.kind}">${it.text.slice(0, ENGINE_LIMITS.itemChars).replace(/<\/?texto[^>]*>/gi, '')}</texto>`,
-    )
+    .map((it, i) => `<texto n="${i + 1}" tipo="${it.kind}">${escapeMarks(excerpt(it.text))}</texto>`)
     .join('\n');
   return { system, message };
 }
 
+/** O texto longo vai pelo começo e pelo fim (a ofensa no fim de um post longo não escapa). */
+export function excerpt(text: string): string {
+  const t = text.trim();
+  if (t.length <= ENGINE_LIMITS.itemChars) return t;
+  const tail = ENGINE_LIMITS.itemTailChars;
+  return `${t.slice(0, ENGINE_LIMITS.itemChars - tail)} […] ${t.slice(-tail)}`;
+}
+
+/** Texto cortado: o modelo não viu o meio, então "liberado" não vale para ele. */
+export const isTruncated = (text: string) => text.trim().length > ENGINE_LIMITS.itemChars;
+
+/** O torcedor não abre nem fecha marca: `<` e `>` viram aspas angulares (nenhuma marca sobrevive, nem aninhada). */
+const escapeMarks = (text: string) => text.replace(/</g, '‹').replace(/>/g, '›');
+
 /** Lê a resposta do lote: um veredito por item, ou null para o item que veio fora do formato (ou faltou). */
 export function parseModerationResult(text: string, count: number): (Verdict | null)[] {
   const out: (Verdict | null)[] = Array.from({ length: count }, () => null);
-  const start = text.indexOf('[');
-  const end = text.lastIndexOf(']');
-  if (start < 0 || end <= start) return out;
-  let raw: unknown;
-  try {
-    raw = JSON.parse(text.slice(start, end + 1));
-  } catch {
-    return out;
-  }
-  if (!Array.isArray(raw)) return out;
-  for (const entry of raw) {
+  for (const entry of resultEntries(text)) {
     if (typeof entry !== 'object' || entry === null) continue;
     const e = entry as Record<string, unknown>;
-    const n = Number(e.n);
-    if (!Number.isInteger(n) || n < 1 || n > count || out[n - 1]) continue;
+    const n = e.n;
+    if (typeof n !== 'number' || !Number.isInteger(n) || n < 1 || n > count || out[n - 1]) continue;
     const category = e.category;
-    const severity = Number(e.severity);
+    const severity = e.severity;
+    if (typeof severity !== 'number') continue;
     if (typeof category !== 'string' || !(VERDICT_CATEGORIES as readonly string[]).includes(category))
       continue;
     if (!Number.isInteger(severity) || severity < 0 || severity > SEVERITY_MAX) continue;
@@ -227,6 +237,34 @@ export function parseModerationResult(text: string, count: number): (Verdict | n
     };
   }
   return out;
+}
+
+/**
+ * Objetos do JSON da resposta. Começa no primeiro `[{` (texto antes com colchetes não atrapalha); se o JSON veio
+ * cortado pelo teto de saída, aproveita os objetos completos.
+ */
+function resultEntries(text: string): unknown[] {
+  const start = text.search(/\[\s*\{/);
+  if (start < 0) return [];
+  const body = text.slice(start);
+  const end = body.lastIndexOf(']');
+  if (end > 0) {
+    try {
+      const raw: unknown = JSON.parse(body.slice(0, end + 1));
+      if (Array.isArray(raw)) return raw;
+    } catch {
+      // segue para os objetos soltos
+    }
+  }
+  const entries: unknown[] = [];
+  for (const m of body.matchAll(/\{[^{}]*\}/g)) {
+    try {
+      entries.push(JSON.parse(m[0]));
+    } catch {
+      // objeto quebrado: fica de fora
+    }
+  }
+  return entries;
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -294,8 +332,9 @@ export function planModeration(
   };
 }
 
-/** Resumo do texto guardado com a decisão (o texto inteiro fica no caso, com o relógio da ficha). */
-export const summarize = (text: string) => {
-  const t = text.replace(/\s+/g, ' ').trim();
-  return t.length > 140 ? `${t.slice(0, 139)}…` : t;
-};
+/**
+ * Motivo gravado na auditoria e na punição, que não passam pelo relógio do conteúdo: só categoria e gravidade, nunca
+ * palavras do torcedor (o motivo do modelo fica no caso, que a exclusão apaga).
+ */
+export const decisionReason = (v: Pick<Verdict, 'category' | 'severity' | 'by'>) =>
+  `${v.by}: ${v.category} (${v.severity})`;
