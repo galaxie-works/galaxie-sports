@@ -53,8 +53,8 @@ describe('checagem de destino (#927)', () => {
 
   it('público infantil: Amazon bloqueada; em comunidade ou sala vale "não" sozinho', () => {
     const kids = byId(evaluateShopDestination({ ...no, under13: true }, stores));
-    expect(kids.amazon_br).toMatchObject({ allowed: false, blocked: 'children_amazon' });
-    expect(kids.meli_br!.allowed).toBe(true);
+    // decisão de 12/11: público infantil desliga o Shopping inteiro
+    for (const st of Object.values(kids)) expect(st).toMatchObject({ allowed: false, blocked: 'children' });
     const room = evaluateShopDestination({ ...no, under13: true }, stores, { engagementBlock: true });
     expect(room.answers.under13).toBe(false);
     expect(byId(room).amazon_br!.allowed).toBe(true);

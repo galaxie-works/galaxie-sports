@@ -10,7 +10,7 @@
  * | Site seu, declarado na sua conta de afiliado? | não    | só lojas com repasse por sub-rede                         |
  * | App de celular?                            | sim      | link abre fora do app; WebView bloqueado                  |
  * | Smart TV ou set-top box?                   | sim      | Amazon bloqueada; no máximo QR code, só em loja que permite |
- * | Público infantil (menos de 13)?            | sim      | Amazon bloqueada (dentro de comunidade ou sala, automático) |
+ * | Público infantil (menos de 13)?            | sim      | Shopping desligado (decisão de 12/11; automático "não" em comunidade ou sala) |
  * | Área com pontos, bolão ou prêmios?         | sim      | aviso: compra nunca dá ponto; nenhum evento de compra exposto |
  */
 
@@ -43,7 +43,7 @@ export interface ShopDestinationStore {
   qrAllowed?: boolean;
 }
 
-export type ShopStoreBlock = 'tv_amazon' | 'tv_no_qr' | 'children_amazon' | 'no_path';
+export type ShopStoreBlock = 'tv_amazon' | 'tv_no_qr' | 'children' | 'no_path';
 
 export interface ShopDestinationStoreResult {
   storeId: string;
@@ -113,7 +113,8 @@ export function evaluateShopDestination(
     let blocked: ShopStoreBlock | null = null;
     if (answers.smartTv && isAmazon(s.network)) blocked = 'tv_amazon';
     else if (answers.smartTv && !s.qrAllowed) blocked = 'tv_no_qr';
-    else if (answers.under13 && isAmazon(s.network)) blocked = 'children_amazon';
+    // decisão do Wagner (12/11): público infantil sem a faixa do Perfil desliga o Shopping inteiro, em toda loja
+    else if (answers.under13) blocked = 'children';
     else if (!paths.length) blocked = 'no_path';
     return {
       storeId: s.id,
