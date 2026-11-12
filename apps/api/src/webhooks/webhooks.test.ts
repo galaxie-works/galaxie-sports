@@ -7,7 +7,13 @@ import { TOPIC_MODULE } from '../realtime/changes.js';
 import { parseTopics, validateWebhookUrl, WebhookInputError } from './admin.js';
 import { generateWebhookSecret, signWebhook, verifyWebhookSignature } from './signature.js';
 import { WebhookSecretBox, WebhookSecretError } from './secret-box.js';
-import { BlockedTargetError, isBlockedAddress, postWebhook } from './transport.js';
+import {
+  BlockedTargetError,
+  isBlockedAddress,
+  postWebhook,
+  postWebhookResponse,
+  WEBHOOK_EXCERPT_CHARS,
+} from './transport.js';
 import { retryDelayMs } from './worker.js';
 
 describe('assinatura HMAC-SHA256', () => {
@@ -116,6 +122,14 @@ describe('transporte da entrega (auditoria API-15)', () => {
       req.on('data', (c: Buffer) => (b += c.toString('utf8')));
       req.on('end', () => {
         bodies.push(b);
+        if (req.url === '/falha') {
+          res.statusCode = 422;
+          return res.end('{"erro":\n"assinatura\u0000 inválida"}');
+        }
+        if (req.url === '/grande') {
+          res.statusCode = 500;
+          return res.end('x'.repeat(200_000));
+        }
         res.statusCode = req.url === '/redirect' ? 302 : 204;
         if (req.url === '/redirect') res.setHeader('location', 'http://169.254.169.254/');
         res.end('descartado');
@@ -140,6 +154,18 @@ describe('transporte da entrega (auditoria API-15)', () => {
       await postWebhook(`http://127.0.0.1:${port}/redirect`, { ...post, allowPrivateTargets: true }),
     ).toBe(302);
     expect(bodies).toEqual(['{"a":1}', '{"a":1}']);
+  });
+
+  it('falha devolve o começo do corpo, limpo e curto; 2xx não lê o corpo (#1007)', async () => {
+    const opts = { ...post, allowPrivateTargets: true };
+    expect(await postWebhookResponse(`http://127.0.0.1:${port}/x`, opts)).toEqual({ status: 204 });
+    expect(await postWebhookResponse(`http://127.0.0.1:${port}/falha`, opts)).toEqual({
+      status: 422,
+      excerpt: '{"erro": "assinatura inválida"}',
+    });
+    const big = await postWebhookResponse(`http://127.0.0.1:${port}/grande`, opts);
+    expect(big.status).toBe(500);
+    expect(big.excerpt).toHaveLength(WEBHOOK_EXCERPT_CHARS);
   });
 
   it('faixas bloqueadas', () => {

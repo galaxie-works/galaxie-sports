@@ -76,6 +76,7 @@ import {
 } from './usage/counter.js';
 import { QuotaGuard } from './usage/quota.js';
 import { UsagePersister } from './usage/store.js';
+import { AccessErrorRecorder, type AccessError } from './usage/access-errors.js';
 import {
   MemoryModuleUsageMeter,
   ModuleUsagePersister,
@@ -145,6 +146,11 @@ export interface ServerOptions {
    * deploy, que não pode misturar o uso dele, com outro prefixo e outro epoch, no ledger da produção).
    */
   usagePersist?: boolean;
+  /**
+   * Erros de acesso por tenant (#1007: diagnóstico de chaves no painel), em api.access_error_daily. Padrão: com banco e
+   * `usagePersist`; false desliga; um recorder pronto entra no lugar (testes).
+   */
+  accessErrors?: AccessErrorRecorder | false;
   /**
    * Medição de uso dos módulos de engajamento (#1018), consolidada em api.module_usage_monthly. Padrão: Valkey (ou
    * memória sem Valkey); false desliga. Segue `usagePersist` para consolidar ou não.
@@ -225,10 +231,25 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
           ...options.authThrottle,
           onError: (err) => app.log.warn({ err }, 'limite de tentativas de autenticação indisponível'),
         });
+  const accessErrors =
+    options.accessErrors === false
+      ? undefined
+      : (options.accessErrors ??
+        (options.db && options.usagePersist !== false
+          ? new AccessErrorRecorder(options.db, {
+              onError: (err) => app.log.warn({ err }, 'falha ao consolidar erros de acesso'),
+            })
+          : undefined));
+  const accessError = (e: AccessError) => accessErrors?.record(e);
+  if (accessErrors) {
+    app.addHook('onReady', async () => accessErrors.start());
+    app.addHook('onClose', async () => accessErrors.stop());
+  }
   const store = options.tenantStore ?? (options.db ? new PgTenantStore(options.db) : undefined);
   const authenticator = store
     ? new Authenticator(store, {
         ...(throttle ? { throttle } : {}),
+        onDenied: accessError,
         // chaves já verificadas, compartilhadas entre instâncias: instância nova não as trata como ataque
         ...(options.redis ? { verifiedKeys: new RedisVerifiedKeyStore(options.redis, prefix) } : {}),
         ...options.authenticator,
@@ -247,6 +268,7 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
   const publishable = publishableStore
     ? new PublishableAuthenticator(publishableStore, {
         ...(throttle ? { throttle } : {}),
+        onDenied: accessError,
         ...options.publishableAuthenticator,
       })
     : undefined;
@@ -382,9 +404,12 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
     request.tenant = tenant;
     // conexões longas (SSE) revalidam a mesma chave periodicamente (revogação, suspensão, plano)
     request.reauthenticate = authenticate;
+    const route = `${request.method} ${request.routeOptions.url ?? request.url}`;
+    const keyPrefix = tenant.keyPrefix ?? '';
+    if (module && !tenant.modules.includes(module))
+      accessError({ tenantId: tenant.tenantId, reason: 'module_not_in_plan', keyPrefix, detail: module });
     if (module) assertModule(tenant, module);
 
-    const route = `${request.method} ${request.routeOptions.url ?? request.url}`;
     // cota diária de produção (a chave de teste fica fora): aviso a partir de 80%, 429 a partir de 110%
     if (quota && tenant.env === 'live' && tenant.dailyRequestQuota) {
       try {
@@ -396,7 +421,10 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
           reply.header('x-galaxie-quota-warning', `${Math.floor((q.used / q.limit) * 100)}%`);
           quotaEvent(request, tenant, q.level, q.limit);
         }
-        if (q.level === 'blocked') throw problems.quotaExceeded(q.limit, q.resetSec);
+        if (q.level === 'blocked') {
+          accessError({ tenantId: tenant.tenantId, reason: 'quota_exceeded', keyPrefix });
+          throw problems.quotaExceeded(q.limit, q.resetSec);
+        }
       } catch (err) {
         if (err instanceof ProblemError) throw err;
         // contadores indisponíveis não derrubam a API (fail-open), como o rate limit
@@ -423,7 +451,10 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
         .header('x-ratelimit-limit', String(r.limit))
         .header('x-ratelimit-remaining', String(r.remaining))
         .header('x-ratelimit-reset', String(resetSec));
-      if (!r.allowed) throw problems.rateLimited(resetSec);
+      if (!r.allowed) {
+        accessError({ tenantId: tenant.tenantId, reason: 'rate_limited', keyPrefix, detail: route });
+        throw problems.rateLimited(resetSec);
+      }
     } catch (err) {
       if (err instanceof ProblemError) throw err;
       // rate limit indisponível não derruba a API (fail-open), mas fica registrado

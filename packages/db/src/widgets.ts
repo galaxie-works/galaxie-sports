@@ -694,6 +694,8 @@ export async function revokePublishableKey(
 /** Resultado de uma verificação bem-sucedida: o bastante para a API montar o contexto do tenant. */
 export interface VerifiedPublishableKey {
   keyId: string;
+  /** Prefixo público gravado da chave (o que o painel mostra); para o diagnóstico de erros de acesso. */
+  prefix?: string;
   tenantId: string;
   env: PublishableKeyEnv;
   tenant: {
@@ -726,6 +728,7 @@ export async function verifyPublishableKey(
   const [row] = await db
     .select({
       keyId: publishableKey.id,
+      prefix: publishableKey.prefix,
       env: publishableKey.env,
       revokedAt: publishableKey.revokedAt,
       allowedOrigins: publishableKey.allowedOrigins,
@@ -748,6 +751,7 @@ export async function verifyPublishableKey(
   if (row.widgetId && (row.widgetArchivedAt || row.widgetTenantId !== row.tenant.id)) return null;
   return {
     keyId: row.keyId,
+    prefix: row.prefix,
     tenantId: row.tenant.id,
     env: row.env,
     tenant: {

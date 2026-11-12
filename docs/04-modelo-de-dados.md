@@ -58,6 +58,7 @@ Decisão de 28/10/2026 (lote 6 da auditoria de produção). Operação: [runbook
 | `ops.job_request` | 30 dias depois de encerrado | Pedidos de "rodar agora" e tarefas da fila ([contrato](../packages/db/README.md#fila-de-tarefas)). Pendente e em execução ficam, inclusive a tarefa de concessão vencida, que ainda vai ser retomada |
 | `ops.normalize_failure` | 90 dias depois de resolvida | Pendente e poison ficam |
 | `api.webhook_delivery` | entregue: 30 dias; `dead`: 90 dias | Pendente fica |
+| `api.access_error_daily` | 30 dias (por `day`) | Erros de acesso por tenant, para o diagnóstico de chaves (#1007) |
 
 Ficam para sempre, de propósito: `core.event_state_log` (a API pública mostra o histórico de estados do jogo; cresce com o número de jogos, não com o tempo), `ops.runtime_setting_log`, `api.api_key_event` e `semantic.review_log` (auditoria), `enrich.wtw_run` (o `run_key` é a trava que impede rodar de novo a mesma janela) e `enrich.related_run` (uma linha por jogo e janela). `ops.quality_*` é podado pelo próprio job `data-quality`.
 

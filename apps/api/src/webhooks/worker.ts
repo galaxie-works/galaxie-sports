@@ -24,7 +24,7 @@ import {
 import { GapCursor } from '../realtime/gap-cursor.js';
 import { WebhookSecretBox } from './secret-box.js';
 import { SIGNATURE_HEADER, signWebhook } from './signature.js';
-import { postWebhook } from './transport.js';
+import { postWebhookResponse, type WebhookPost, type WebhookResponse } from './transport.js';
 
 interface Logger {
   info(obj: object, msg?: string): void;
@@ -64,8 +64,11 @@ export interface WebhookWorkerOptions {
   controlsRefreshMs?: number | false;
   /** Env para o padrão da recusa de texto puro quando o painel não grava nada (padrão: process.env). */
   env?: NodeJS.ProcessEnv;
-  /** Transporte do POST (padrão: postWebhook, com a checagem de destino no socket). */
-  post?: typeof postWebhook;
+  /**
+   * Transporte do POST (padrão: postWebhookResponse, com a checagem de destino no socket). Pode devolver só o
+   * status, ou o status com o trecho do corpo em falha.
+   */
+  post?: (url: string, post: WebhookPost) => Promise<number | WebhookResponse>;
   logger?: Logger;
 }
 
@@ -119,7 +122,7 @@ export class WebhookWorker {
   private running: Promise<void> | undefined;
   private pending = false;
   private stopped = true;
-  private readonly post: typeof postWebhook;
+  private readonly post: NonNullable<WebhookWorkerOptions['post']>;
   private readonly maxAttempts: number;
   private readonly baseDelayMs: number;
   private readonly maxDelayMs: number;
@@ -133,7 +136,7 @@ export class WebhookWorker {
     private readonly db: Database,
     private readonly options: WebhookWorkerOptions = {},
   ) {
-    this.post = options.post ?? postWebhook;
+    this.post = options.post ?? postWebhookResponse;
     this.maxAttempts = options.maxAttempts ?? 10;
     this.baseDelayMs = options.baseDelayMs ?? 10_000;
     this.maxDelayMs = options.maxDelayMs ?? 3_600_000;
@@ -385,11 +388,14 @@ export class WebhookWorker {
     const body = JSON.stringify(d.payload);
     const t = Math.floor(Date.now() / 1000);
     let responseCode: number | null = null;
+    let responseExcerpt: string | null = null;
     let error: string;
+    const started = performance.now();
+    const elapsed = () => Math.round(performance.now() - started);
     try {
       // decifra só aqui, no momento de assinar (sem KEK, segredo cifrado vira erro desta tentativa)
       const secret = this.secrets.open(d.secret, d.endpoint_id);
-      responseCode = await this.post(d.url, {
+      const res = await this.post(d.url, {
         headers: {
           'content-type': 'application/json',
           'user-agent': USER_AGENT,
@@ -404,6 +410,8 @@ export class WebhookWorker {
         timeoutMs: this.timeoutMs,
         allowPrivateTargets: this.options.allowPrivateTargets ?? false,
       });
+      responseCode = typeof res === 'number' ? res : res.status;
+      responseExcerpt = typeof res === 'number' ? null : (res.excerpt ?? null);
       if (responseCode >= 200 && responseCode < 300) {
         await this.db
           .update(webhookDelivery)
@@ -412,6 +420,8 @@ export class WebhookWorker {
             attempts,
             responseCode,
             lastError: null,
+            durationMs: elapsed(),
+            responseExcerpt: null,
             lastAttemptAt: new Date(),
             deliveredAt: new Date(),
           })
@@ -422,6 +432,7 @@ export class WebhookWorker {
     } catch (err) {
       error = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
     }
+    const durationMs = elapsed();
 
     const dead = attempts >= this.maxAttempts;
     await this.db
@@ -431,6 +442,8 @@ export class WebhookWorker {
         attempts,
         responseCode,
         lastError: error.slice(0, 500),
+        durationMs,
+        responseExcerpt,
         lastAttemptAt: new Date(),
         ...(dead
           ? {}

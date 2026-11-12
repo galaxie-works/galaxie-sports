@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import type { ApiModule, ApiPlan } from '@galaxie/db';
+import type { AccessErrorReason, ApiModule, ApiPlan } from '@galaxie/db';
 import { problems } from '../errors.js';
 import { parseApiKey, verifySecret } from './keys.js';
 import type { KeyRecord, TenantStore } from './tenant-store.js';
@@ -12,7 +12,7 @@ export interface TenantContext {
   slug: string;
   plan: ApiPlan;
   keyId: string;
-  /** Prefixo público da chave secreta (o token curto do SSE leva o prefixo para reler a chave). */
+  /** Prefixo público da chave (o token curto do SSE leva o da secreta para reler a chave; a publicável, só no diagnóstico). */
   keyPrefix?: string;
   /** `secret` = `x-galaxie-key` (backend); `publishable` = `x-galaxie-publishable-key` (navegador). */
   keyKind: 'secret' | 'publishable';
@@ -47,6 +47,12 @@ export interface AuthenticatorOptions {
   verifiedKeys?: VerifiedKeyStore;
   /** TTL (deslizante) do registro em `verifiedKeys` (ms; padrão 24 h). */
   rememberTtlMs?: number;
+  /**
+   * Recusa atribuível a um tenant (chave existente: segredo errado, revogada, expirada, ambiente trocado,
+   * tenant suspenso), para o diagnóstico no painel (#1007). Prefixo desconhecido e limite de tentativas não
+   * chamam: sem tenant, ou é ataque. Não pode lançar nem bloquear (roda na requisição).
+   */
+  onDenied?: (denied: { tenantId: string; reason: AccessErrorReason; keyPrefix: string }) => void;
   now?: () => Date;
 }
 
@@ -81,9 +87,12 @@ function put<V>(map: Map<string, V>, key: string, value: V): void {
 export class Authenticator {
   private readonly cache = new Map<string, { ctx: TenantContext; at: number; expiresAt: number }>();
   /** Chaves com prefixo existente mas segredo errado: evita recalcular o scrypt a cada tentativa. */
-  private readonly rejected = new Map<string, number>();
+  private readonly rejected = new Map<string, { until: number; tenantId: string; prefix: string }>();
   /** Prefixos inexistentes, revogados ou expirados: evita uma consulta ao banco por tentativa. */
-  private readonly deadPrefixes = new Map<string, { detail: string | undefined; expiresAt: number }>();
+  private readonly deadPrefixes = new Map<
+    string,
+    { detail: string | undefined; expiresAt: number; tenantId?: string; reason?: AccessErrorReason }
+  >();
   /** sha256 da chave completa → hash scrypt já conferido (dispensa o scrypt enquanto o hash for o mesmo). */
   private readonly verified = new Map<string, { secretHash: string; expiresAt: number }>();
   private readonly lastTouch = new Map<string, number>();
@@ -94,6 +103,7 @@ export class Authenticator {
   private readonly verifiedKeys: VerifiedKeyStore | undefined;
   private readonly rememberTtlMs: number;
   private readonly now: () => Date;
+  private readonly onDenied: AuthenticatorOptions['onDenied'];
 
   constructor(
     private readonly store: TenantStore,
@@ -106,6 +116,20 @@ export class Authenticator {
     this.verifiedKeys = options.verifiedKeys;
     this.rememberTtlMs = options.rememberTtlMs ?? 86_400_000;
     this.now = options.now ?? (() => new Date());
+    this.onDenied = options.onDenied;
+  }
+
+  private denied(
+    tenantId: string | undefined,
+    reason: AccessErrorReason | undefined,
+    keyPrefix: string,
+  ): void {
+    if (!tenantId || !reason || !this.onDenied) return;
+    try {
+      this.onDenied({ tenantId, reason, keyPrefix });
+    } catch {
+      // diagnóstico nunca derruba a autenticação
+    }
   }
 
   async authenticate(rawKey: string | undefined, attempt: AuthAttempt = {}): Promise<TenantContext> {
@@ -119,13 +143,20 @@ export class Authenticator {
     const cached = this.cache.get(cacheKey);
     if (cached && cached.expiresAt > t && (attempt.maxAgeMs == null || t - cached.at <= attempt.maxAgeMs))
       return cached.ctx;
-    if ((this.rejected.get(cacheKey) ?? 0) > t) throw problems.invalidKey();
+    const rejected = this.rejected.get(cacheKey);
+    if (rejected && rejected.until > t) {
+      this.denied(rejected.tenantId, 'invalid_secret', rejected.prefix);
+      throw problems.invalidKey();
+    }
 
     const known = this.verified.get(cacheKey);
     const isKnown = !!known && known.expiresAt > t;
     const dead = this.deadPrefixes.get(parsed.prefix);
     // o motivo (revogada, expirada, suspensa) só para quem já provou ter a chave: o prefixo é público
-    if (dead && dead.expiresAt > t) throw problems.invalidKey(isKnown ? dead.detail : undefined);
+    if (dead && dead.expiresAt > t) {
+      this.denied(dead.tenantId, dead.reason, parsed.prefix);
+      throw problems.invalidKey(isKnown ? dead.detail : undefined);
+    }
 
     // segredo já verificado aqui ou em outra instância (Valkey): fora dos limites de tentativa, para que um
     // ataque ao prefixo (ou ao IP, atrás de NAT) não derrube a chave legítima — nem após deploy/restart
@@ -134,17 +165,28 @@ export class Authenticator {
 
     const record = await this.store.findKeyByPrefix(parsed.prefix);
     const reveal = (detail: string) => (remembered ? detail : undefined);
-    const markDead = (detail?: string): never => {
+    const markDead = (detail?: string, reason?: AccessErrorReason): never => {
+      const tenantId = record?.tenant.id;
       if (this.cacheTtlMs > 0)
-        put(this.deadPrefixes, parsed.prefix, { detail, expiresAt: t + this.cacheTtlMs });
+        put(this.deadPrefixes, parsed.prefix, {
+          detail,
+          expiresAt: t + this.cacheTtlMs,
+          ...(tenantId && reason ? { tenantId, reason } : {}),
+        });
+      this.denied(tenantId, reason, parsed.prefix);
       throw problems.invalidKey(detail ? reveal(detail) : undefined);
     };
     if (!record) return markDead();
     // estado da chave antes do scrypt: chave revogada/expirada não custa CPU a cada tentativa
-    if (record.revokedAt && record.revokedAt <= now) return markDead('Chave revogada.');
-    if (record.expiresAt && record.expiresAt <= now) return markDead('Chave expirada.');
-    this.assertKeyState(record, now, parsed.env, reveal);
-    if (record.keyFormat >= 2 && parsed.format < 2) throw problems.invalidKey();
+    if (record.revokedAt && record.revokedAt <= now) return markDead('Chave revogada.', 'revoked');
+    if (record.expiresAt && record.expiresAt <= now) return markDead('Chave expirada.', 'expired');
+    this.assertKeyState(record, now, parsed.env, reveal, (reason) =>
+      this.denied(record.tenant.id, reason, parsed.prefix),
+    );
+    if (record.keyFormat >= 2 && parsed.format < 2) {
+      this.denied(record.tenant.id, 'invalid_secret', parsed.prefix);
+      throw problems.invalidKey();
+    }
 
     if (isKnown && known.secretHash === record.secretHash) {
       // TTL deslizante: chave em uso nunca cai de volta nos limites de tentativa
@@ -152,7 +194,12 @@ export class Authenticator {
     } else {
       if (!remembered) await this.throttle?.check(`prefix:${parsed.prefix}`);
       if (!(await verifySecret(parsed.secret, record.secretHash))) {
-        put(this.rejected, cacheKey, t + this.cacheTtlMs);
+        put(this.rejected, cacheKey, {
+          until: t + this.cacheTtlMs,
+          tenantId: record.tenant.id,
+          prefix: parsed.prefix,
+        });
+        this.denied(record.tenant.id, 'invalid_secret', parsed.prefix);
         throw problems.invalidKey();
       }
       put(this.verified, cacheKey, { secretHash: record.secretHash, expiresAt: t + this.verifiedTtlMs });
@@ -200,17 +247,25 @@ export class Authenticator {
     now: Date,
     env: 'live' | 'test',
     reveal: (detail: string) => string | undefined,
+    denied: (reason: AccessErrorReason) => void = () => {},
   ): void {
-    if (record.tenant.status !== 'active') throw problems.invalidKey(reveal('Tenant suspenso.'));
+    if (record.tenant.status !== 'active') {
+      denied('tenant_inactive');
+      throw problems.invalidKey(reveal('Tenant suspenso.'));
+    }
     // fim do trial vale para todas as chaves do tenant
-    if (record.tenant.trialEndsAt && record.tenant.trialEndsAt <= now)
+    if (record.tenant.trialEndsAt && record.tenant.trialEndsAt <= now) {
+      denied('tenant_inactive');
       throw problems.invalidKey(
         reveal('O trial terminou: fale com o time da Galaxie para contratar um plano.'),
       );
+    }
     // o prefixo vale: `gs_test_` de uma chave de produção (ou o contrário) não autentica. Sem cache negativo
     // por prefixo aqui, para não bloquear a chave certa do mesmo prefixo
-    if (env !== record.env)
+    if (env !== record.env) {
+      denied('wrong_env');
       throw problems.invalidKey(reveal('O ambiente da chave (live/test) não confere com o prefixo.'));
+    }
   }
 
   private touch(keyId: string, now: Date): void {

@@ -261,3 +261,4 @@ export {
 } from './fan-wallet.js';
 export * from './sponsors.js';
 export * from './moderation-queue.js';
+export { listTenantAccessErrors, type TenantAccessError } from './access-errors.js';

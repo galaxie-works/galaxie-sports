@@ -128,6 +128,10 @@ export interface TenantWebhookDelivery {
   attempts: number;
   responseCode: number | null;
   lastError: string | null;
+  /** Duração da última tentativa (ms); null em entregas anteriores à medição. */
+  durationMs: number | null;
+  /** Começo do corpo da resposta da última tentativa com falha (até 300 caracteres). */
+  responseExcerpt: string | null;
   createdAt: Date;
   lastAttemptAt: Date | null;
   deliveredAt: Date | null;
@@ -149,6 +153,8 @@ export async function listTenantWebhookDeliveries(
       attempts: webhookDelivery.attempts,
       responseCode: webhookDelivery.responseCode,
       lastError: webhookDelivery.lastError,
+      durationMs: webhookDelivery.durationMs,
+      responseExcerpt: webhookDelivery.responseExcerpt,
       createdAt: webhookDelivery.createdAt,
       lastAttemptAt: webhookDelivery.lastAttemptAt,
       deliveredAt: webhookDelivery.deliveredAt,

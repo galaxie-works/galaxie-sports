@@ -136,4 +136,23 @@ describe('PublishableAuthenticator', () => {
     // outro IP com a chave válida não é afetado
     expect(await code(auth.authenticate(key, 'https://app.exemplo.test', { ip: '198.51.100.2' }))).toBe('ok');
   });
+
+  it('origem recusada vira erro de acesso do tenant, com o prefixo e a origem (#1007)', async () => {
+    const { key } = generatePublishableKey();
+    const { s } = store({ [key]: record({ prefix: 'gs_pk_live_ab12' }) });
+    const seen: unknown[] = [];
+    const auth = new PublishableAuthenticator(s, { onDenied: (d) => void seen.push(d) });
+    expect(await code(auth.authenticate(key, 'https://outro.test'))).toBe('403 ORIGIN_NOT_ALLOWED');
+    expect(await code(auth.authenticate(key, undefined))).toBe('403 ORIGIN_NOT_ALLOWED');
+    expect(await code(auth.authenticate(key, 'https://app.exemplo.test'))).toBe('ok');
+    expect(seen).toEqual([
+      {
+        tenantId: 't-1',
+        reason: 'origin_not_allowed',
+        keyPrefix: 'gs_pk_live_ab12',
+        detail: 'https://outro.test',
+      },
+      { tenantId: 't-1', reason: 'origin_not_allowed', keyPrefix: 'gs_pk_live_ab12', detail: '(sem origem)' },
+    ]);
+  });
 });
