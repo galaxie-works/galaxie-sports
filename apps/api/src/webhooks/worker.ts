@@ -396,7 +396,10 @@ export class WebhookWorker {
     // deixa o endpoint de fora até a janela virar
     const queue: ClaimedDelivery[] = [];
     const over: number[] = [];
-    for (const d of claimed) this.rateWait(d.endpoint_id) > 0 ? over.push(Number(d.id)) : queue.push(d);
+    for (const d of claimed) {
+      if (this.rateWait(d.endpoint_id) > 0) over.push(Number(d.id));
+      else queue.push(d);
+    }
     if (over.length) {
       await this.db
         .update(webhookDelivery)
