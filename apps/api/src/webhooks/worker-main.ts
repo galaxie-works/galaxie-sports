@@ -14,7 +14,19 @@ if (!url) {
   process.exit(1);
 }
 
-const num = (name: string): number | undefined => (process.env[name] ? Number(process.env[name]) : undefined);
+const num = (name: string): number | undefined => {
+  const raw = process.env[name];
+  if (!raw) return undefined;
+  const n = Number(raw);
+  // valor inválido não pode virar NaN (no rate limit, NaN adiaria toda entrega para sempre): fica o padrão
+  if (!Number.isFinite(n) || n < 0) {
+    console.warn(
+      JSON.stringify({ level: 'warn', msg: `webhooks: ${name}=${raw} inválido, usando o padrão` }),
+    );
+    return undefined;
+  }
+  return n;
+};
 
 const log =
   (level: 'info' | 'warn') =>

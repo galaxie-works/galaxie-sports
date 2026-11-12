@@ -197,8 +197,11 @@ describe('rate limit por endpoint (#360)', () => {
     expect(w['rateWait']('a', t0 + 20_000)).toBe(40_000);
     // outro endpoint tem a janela dele
     expect(w['rateWait']('b', t0 + 20_000)).toBe(0);
+    // endpoint com a janela cheia fica fora da próxima reivindicação; o outro não
+    expect(w['throttledEndpoints'](t0 + 20_000)).toEqual(['a']);
     // janela nova
     expect(w['rateWait']('a', t0 + 60_000)).toBe(0);
+    expect(w['throttledEndpoints'](t0 + 60_000)).toEqual([]);
   });
 
   it('0 desliga', () => {

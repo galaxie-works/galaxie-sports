@@ -1,4 +1,4 @@
-import { and, asc, eq, gt, notInArray, sql } from 'drizzle-orm';
+import { and, asc, eq, gt, inArray, notInArray, sql } from 'drizzle-orm';
 import {
   CHANGE_FEED_CHANNEL,
   changeFeed,
@@ -368,6 +368,14 @@ export class WebhookWorker {
   /** Entrega o lote de entregas vencidas. */
   async deliverDue(): Promise<DeliveryStats> {
     const leaseSec = Math.ceil(this.timeoutMs / 1000) + 30;
+    // endpoints com a janela do rate limit cheia ficam fora da reivindicação: o backlog deles espera sem ser tocado
+    const throttled = this.throttledEndpoints();
+    const skip = throttled.length
+      ? sql`and endpoint_id not in (${sql.join(
+          throttled.map((t) => sql`${t}::uuid`),
+          sql`, `,
+        )})`
+      : sql``;
     // reivindica com lease: se o worker morrer no meio, a entrega volta a vencer sozinha
     const claimed = await this.db.execute<ClaimedDelivery>(sql`
       update api.webhook_delivery d
@@ -378,13 +386,25 @@ export class WebhookWorker {
          and d.id in (
            select id from api.webhook_delivery
             where status = 'pending' and next_retry_at <= now()
+              ${skip}
             order by next_retry_at, id
             limit ${this.batchSize}
             for update skip locked)
       returning d.id::text, d.endpoint_id, d.change_id::text, d.topic, d.payload, d.attempts,
                 e.url, e.secret, e.active, e.failing_since, t.status::text as tenant_status, t.plan::text as tenant_plan`);
     const stats: DeliveryStats = { delivered: 0, failed: 0, dead: 0, deferred: 0 };
-    const queue = [...claimed];
+    // o que passa do teto dentro do lote volta à fila de uma vez, sem gastar tentativa; a próxima reivindicação já
+    // deixa o endpoint de fora até a janela virar
+    const queue: ClaimedDelivery[] = [];
+    const over: number[] = [];
+    for (const d of claimed) this.rateWait(d.endpoint_id) > 0 ? over.push(Number(d.id)) : queue.push(d);
+    if (over.length) {
+      await this.db
+        .update(webhookDelivery)
+        .set({ nextRetryAt: new Date() })
+        .where(inArray(webhookDelivery.id, over));
+      stats.deferred += over.length;
+    }
     const work = async () => {
       for (let d = queue.shift(); d; d = queue.shift()) {
         const outcome = await this.deliver(d);
@@ -393,6 +413,15 @@ export class WebhookWorker {
     };
     await Promise.all(Array.from({ length: Math.min(this.concurrency, queue.length) }, work));
     return stats;
+  }
+
+  /** Endpoints com a janela do rate limit cheia agora (ficam fora da próxima reivindicação). */
+  private throttledEndpoints(now = Date.now()): string[] {
+    if (this.endpointRatePerMinute <= 0) return [];
+    const out: string[] = [];
+    for (const [id, w] of this.rateWindows)
+      if (now - w.start < 60_000 && w.count >= this.endpointRatePerMinute) out.push(id);
+    return out;
   }
 
   /**
@@ -428,7 +457,9 @@ export class WebhookWorker {
              and e.failing_since < now() - make_interval(secs => ${afterSec})
              and (select count(*) from api.webhook_delivery d
                    where d.endpoint_id = e.id and d.status = 'dead'
-                     and d.last_attempt_at >= e.failing_since) >= ${this.breakerMinDead})`
+                     and d.last_attempt_at >= e.failing_since
+                     -- morta por falha nossa (segredo que não abre sem a KEK) não conta
+                     and coalesce(d.last_error, '') not like 'WebhookSecretError%') >= ${this.breakerMinDead})`
         : sql`false`;
     const reason = error.slice(0, 500);
     const [row] = await this.db.execute<{ tripped: boolean }>(sql`
@@ -468,15 +499,6 @@ export class WebhookWorker {
         .set({ status: 'dead', lastError: off })
         .where(eq(webhookDelivery.id, id));
       return 'dead';
-    }
-    // rate limit do endpoint: espera a próxima janela sem gastar tentativa (a entrega sai da lease agora)
-    const wait = this.rateWait(d.endpoint_id);
-    if (wait > 0) {
-      await this.db
-        .update(webhookDelivery)
-        .set({ nextRetryAt: new Date(Date.now() + wait) })
-        .where(eq(webhookDelivery.id, id));
-      return 'deferred';
     }
     const body = JSON.stringify(d.payload);
     const t = Math.floor(Date.now() / 1000);

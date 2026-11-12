@@ -350,12 +350,13 @@ describe('webhooks assinados', () => {
     });
   });
 
-  it('circuit breaker: uma falha nova só marca o início da sequência, e o sucesso limpa', async () => {
+  it('circuit breaker: falhas recentes só marcam a sequência (sem desativar), e o sucesso limpa', async () => {
     const id = await newEvent();
-    script['/flaky'] = [500];
+    // uma entrega com as 3 tentativas do worker do teste, todas com 500: vai para a DLQ
+    script['/breaker-recente'] = [500, 500, 500];
     const ep = await create({
       tenantSlug: 'portal',
-      url: `${base}/flaky`,
+      url: `${base}/breaker-recente`,
       topics: ['score'],
       filters: { events: [id] },
     });
@@ -364,19 +365,21 @@ describe('webhooks assinados', () => {
       .set({ score: { home: 4, away: 0 } })
       .where(eq(event.id, id));
     await expect
-      .poll(
-        async () =>
-          (await db.select().from(webhookEndpoint).where(eq(webhookEndpoint.id, ep.id)))[0]?.failingSince,
-      )
-      .toBeInstanceOf(Date);
+      .poll(async () => (await listDeadDeliveries(db, { endpointId: ep.id })).length, { timeout: 10_000 })
+      .toBe(1);
     const [mid] = await db.select().from(webhookEndpoint).where(eq(webhookEndpoint.id, ep.id));
+    // a sequência começou agora: nada de desativar
+    expect(mid!.failingSince).toBeInstanceOf(Date);
     expect(mid).toMatchObject({ active: true, autoDisabledAt: null });
-    // a retentativa dá 200: fim da sequência
-    await expect.poll(() => hits('/flaky').length, { timeout: 5_000 }).toBe(2);
+
+    // o reenvio da DLQ dá 200: fim da sequência
+    expect(await replayDeadDeliveries(db, { endpointId: ep.id })).toBe(1);
+    await expect.poll(() => hits('/breaker-recente').length, { timeout: 5_000 }).toBe(4);
     await expect
       .poll(
         async () =>
           (await db.select().from(webhookEndpoint).where(eq(webhookEndpoint.id, ep.id)))[0]?.failingSince,
+        { timeout: 5_000 },
       )
       .toBeNull();
   });
