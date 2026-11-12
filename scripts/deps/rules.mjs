@@ -40,6 +40,8 @@ export const PACKAGE_LAYERS = {
     'cosmos',
     // regras do engajamento do torcedor sem HTTP nem banco: cargos e permissões (#1019), token, ficha por país
     'engage',
+    // plataforma comercial: catálogo de módulos, features e planos (config/catalog) e direitos do tenant
+    'billing',
   ],
   ui: ['widgets'],
 };

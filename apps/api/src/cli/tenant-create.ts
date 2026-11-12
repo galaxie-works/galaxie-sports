@@ -7,7 +7,7 @@ import type { KeyEnv } from '../auth/keys.js';
 
 const USAGE = `Uso: pnpm --filter @galaxie/api tenant:create --slug <slug> [opções]
 
-Cria (ou atualiza) um tenant a partir do modelo do plano (config/plans.yaml; PLANS_CONFIG_PATH
+Cria (ou atualiza) um tenant a partir do modelo do plano (config/catalog/plans.yaml; PLANS_CONFIG_PATH
 sobrescreve) e gera uma chave de API nova. As opções abaixo ajustam o modelo.
 
   --slug          identificador do tenant (obrigatório)
@@ -94,7 +94,7 @@ const sports = csv(values.sports);
 const rateLimit = positiveIntOrExit(values['rate-limit'], '--rate-limit');
 const dailyQuota =
   values['daily-quota'] === 'none' ? null : positiveIntOrExit(values['daily-quota'], '--daily-quota');
-// modelo do plano (config/plans.yaml) + ajustes das flags — o mesmo cálculo do onboarding administrativo
+// modelo do plano (config/catalog/plans.yaml) + ajustes das flags — o mesmo cálculo do onboarding administrativo
 const plans = loadPlans();
 const resolved = resolveTenantValues(plans, {
   plan: values.plan as ApiPlan,

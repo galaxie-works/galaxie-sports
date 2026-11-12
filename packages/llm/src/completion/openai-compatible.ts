@@ -14,9 +14,9 @@ import type { CompletionFinishReason, CompletionRequest, LlmProviderId } from '.
 import {
   eventJson,
   HttpCompletionClient,
-  attachmentIndex,
   n,
   splitCompletion,
+  attachmentTarget,
   type CompletionClientOptions,
   type ParsedEvent,
   type ParsedResult,
@@ -81,6 +81,8 @@ export interface OpenAiCompatibleOptions extends CompletionClientOptions {
 
 export abstract class OpenAiCompatibleCompletionClient extends HttpCompletionClient {
   protected abstract readonly defaultBaseUrl: string;
+  /** Lê arquivo anexado (PDF)? A DeepSeek não. */
+  protected readonly readsFiles: boolean = true;
 
   constructor(
     protected override readonly options: OpenAiCompatibleOptions,
@@ -89,40 +91,32 @@ export abstract class OpenAiCompatibleCompletionClient extends HttpCompletionCli
     super(options, keyEnv);
   }
 
-  /** O provedor lê PDF e imagem junto da mensagem? */
-  protected readonly acceptsAttachments: boolean = true;
-
   wire(req: CompletionRequest, stream: boolean): WireRequest {
     const { system, dialog } = splitCompletion(req);
-    const files = req.attachments ?? [];
-    if (files.length && !this.acceptsAttachments)
-      throw new LlmError(
-        `${this.provider} não lê arquivos (PDF ou imagem) junto do pedido.`,
-        'config',
-        false,
-      );
-    const attachAt = attachmentIndex(dialog, files, this.provider);
+    const at = attachmentTarget(req, dialog);
+    if (at >= 0 && !this.readsFiles)
+      throw new LlmError(`${this.provider} não lê arquivo anexado`, 'config', false);
     const body: Record<string, unknown> = {
       model: req.model,
       messages: [
         ...(system ? [{ role: 'system', content: system }] : []),
         ...dialog.map((m, i) =>
-          i === attachAt
+          i === at
             ? {
                 role: m.role,
                 content: [
-                  { type: 'text', text: m.content },
-                  ...files.map((f, k) =>
-                    f.mediaType === 'application/pdf'
+                  ...req.attachments!.map((a, n) =>
+                    a.mediaType === 'application/pdf'
                       ? {
                           type: 'file',
                           file: {
-                            filename: f.name ?? `arquivo-${k + 1}.pdf`,
-                            file_data: `data:${f.mediaType};base64,${f.data}`,
+                            filename: a.name ?? `anexo-${n + 1}.pdf`,
+                            file_data: `data:${a.mediaType};base64,${a.data}`,
                           },
                         }
-                      : { type: 'image_url', image_url: { url: `data:${f.mediaType};base64,${f.data}` } },
+                      : { type: 'image_url', image_url: { url: `data:${a.mediaType};base64,${a.data}` } },
                   ),
+                  { type: 'text', text: m.content },
                 ],
               }
             : { role: m.role, content: m.content },
@@ -213,8 +207,7 @@ export const DEEPSEEK_API_BASE = 'https://api.deepseek.com';
 export class DeepSeekCompletionClient extends OpenAiCompatibleCompletionClient {
   readonly provider: LlmProviderId = 'deepseek';
   protected readonly defaultBaseUrl = DEEPSEEK_API_BASE;
-  /** A API da DeepSeek só recebe texto. */
-  protected override readonly acceptsAttachments = false;
+  protected override readonly readsFiles = false;
 
   constructor(options: OpenAiCompatibleOptions) {
     super({ maxTokensParam: 'max_tokens', ...options }, 'DEEPSEEK_API_KEY');
