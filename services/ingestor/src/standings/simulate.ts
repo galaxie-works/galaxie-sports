@@ -1,7 +1,9 @@
 /**
  * Prévia do recálculo (#880): roda o recálculo dentro de uma transação desfeita no fim, sem publicar no change
  * feed, e compara a tabela antes e depois. Serve para ver quais temporadas mudam e quanto antes de gravar.
- * A transação segura as linhas de `core.standing` da temporada enquanto calcula (cada temporada na sua).
+ * A transação é `repeatable read`: as fotos de antes e depois veem o mesmo estado do banco, e o que a ingestão
+ * gravar durante a prévia não entra na diferença (se a ingestão mexer na mesma linha, a prévia daquela
+ * temporada falha e é só rodar de novo).
  */
 import { and, eq, sql } from 'drizzle-orm';
 import { event, standing, type Database } from '@galaxie/db';
@@ -97,14 +99,17 @@ export async function simulateSeasonStandings(
 ): Promise<{ report: SeasonStandingsReport; diff: StandingsDiff }> {
   let result: { report: SeasonStandingsReport; diff: StandingsDiff } | undefined;
   try {
-    await db.transaction(async (tx) => {
-      const t = tx as unknown as Database;
-      const before = await snapshot(t, seasonId);
-      const report = await recomputeSeasonStandings(t, seasonId, { ...options, publish: false });
-      const after = await snapshot(t, seasonId);
-      result = { report, diff: diffStandings(before, after) };
-      throw new Rollback();
-    });
+    await db.transaction(
+      async (tx) => {
+        const t = tx as unknown as Database;
+        const before = await snapshot(t, seasonId);
+        const report = await recomputeSeasonStandings(t, seasonId, { ...options, publish: false });
+        const after = await snapshot(t, seasonId);
+        result = { report, diff: diffStandings(before, after) };
+        throw new Rollback();
+      },
+      { isolationLevel: 'repeatable read' },
+    );
   } catch (err) {
     if (!(err instanceof Rollback)) throw err;
   }
