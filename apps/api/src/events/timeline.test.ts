@@ -818,6 +818,47 @@ describe('gol anulado que fica na timeline junto com o VAR (#639)', () => {
   });
 });
 
+describe('vereditos do VAR (#641)', () => {
+  it('cada detail visto no raw tem veredito canônico e peso; texto novo vira other', () => {
+    const details: [string | null, string, number][] = [
+      ['Goal cancelled', 'goal_cancelled', 65],
+      ['Goal Disallowed', 'goal_cancelled', 65],
+      ['Goal Disallowed - video review', 'goal_cancelled', 65],
+      ['Goal Disallowed - offside', 'goal_disallowed_offside', 65],
+      ['Goal Disallowed - Foul', 'goal_disallowed_foul', 65],
+      ['Goal Disallowed - handball', 'goal_disallowed_handball', 65],
+      ['Goal confirmed', 'goal_confirmed', 65],
+      ['Goal Under Review - offside', 'goal_under_review', 50],
+      ['Penalty awarded', 'penalty_awarded', 65],
+      ['Penalty confirmed', 'penalty_confirmed', 65],
+      ['Penalty cancelled', 'penalty_cancelled', 65],
+      ['Card upgrade', 'card_upgrade', 65],
+      ['Card upgrade confirmed', 'card_upgrade_confirmed', 65],
+      ['Card upgrade cancelled', 'card_upgrade_cancelled', 40],
+      ['Card reviewed', 'card_reviewed', 40],
+      ['Red card confirmed', 'red_card_confirmed', 45],
+      ['Red card cancelled', 'red_card_cancelled', 65],
+      ['Original decision changed', 'decision_changed', 50],
+      [null, 'other', 40],
+      ['Something new', 'other', 40],
+    ];
+    seq = 0;
+    const t = buildTimelineDto(
+      input({ incidents: details.map(([detail]) => inc({ type: 'var', detail, minute: 10, team: PAL })) }),
+    );
+    expect(t.incidents.map((i) => [i.detail, i.var_outcome, i.weight])).toEqual(details);
+    expect(t.incidents.filter((i) => i.key_moment)).toHaveLength(13);
+  });
+
+  it('lances fora do VAR ficam sem veredito', () => {
+    seq = 0;
+    const t = buildTimelineDto(
+      input({ incidents: [inc({ type: 'goal', detail: 'Normal Goal', minute: 5, team: PAL })] }),
+    );
+    expect(t.incidents[0]?.var_outcome).toBeNull();
+  });
+});
+
 describe('VAR inferido e VAR do fornecedor no mesmo jogo (#639, revisão)', () => {
   it('o VAR inferido não derruba gol que ficou; o do fornecedor derruba o gol certo', () => {
     seq = 0;
@@ -842,5 +883,28 @@ describe('VAR inferido e VAR do fornecedor no mesmo jogo (#639, revisão)', () =
       t.incidents.filter((i) => i.kind === 'goal').map((i) => [i.player?.id, i.disallowed]),
     );
     expect(byPlayer).toEqual({ a: false, b: true });
+  });
+});
+
+describe('VAR de gol anulado com texto novo (#641, revisão)', () => {
+  it('texto ainda sem veredito próprio derruba o gol pela regra de prefixo', () => {
+    seq = 0;
+    const t = buildTimelineDto(
+      input({
+        score: { home: 0, away: 0 },
+        incidents: [
+          inc({ type: 'goal', detail: 'Normal Goal', minute: 70, team: PAL, player: person('x') }),
+          inc({
+            type: 'var',
+            detail: 'Goal Disallowed - Unknown reason',
+            minute: 71,
+            team: PAL,
+            player: person('x'),
+          }),
+        ],
+      }),
+    );
+    expect(t.incidents[0]).toMatchObject({ disallowed: true, score_after: null });
+    expect(t.incidents[1]).toMatchObject({ var_outcome: 'other' });
   });
 });

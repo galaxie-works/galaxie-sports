@@ -4,8 +4,11 @@
  * instante UTC, peso de momento-chave e placar parcial; os marcos do jogo; e a disputa de pênaltis
  * cobrança a cobrança. Lógica pura (sem banco), testada em timeline.test.ts.
  */
-import type {
-  EventStatus,
+import {
+  GOAL_CANCELLING_VAR_OUTCOMES,
+  isGoalCancellingVarDetail,
+  varOutcomeOf,
+  type EventStatus,
   EventTimeline,
   MatchClock,
   MatchPeriod,
@@ -17,6 +20,7 @@ import type {
   TimelineMarker,
   TimelineMarkerKind,
   TimelinePerson,
+  VarOutcome,
 } from '@galaxie/contracts';
 
 type Side = 'home' | 'away';
@@ -114,8 +118,29 @@ export const KIND_WEIGHT: Record<TimelineKind, number> = {
   other: 20,
   substitution: 10,
 };
-/** VAR sobre gol, pênalti ou vermelho pesa mais que os demais. */
-const VAR_KEY_WEIGHT = 65;
+/**
+ * Peso do VAR por veredito (#641): o que muda ou confirma gol, pênalti ou vermelho é momento-chave; o que só revisa
+ * um cartão sem mudar nada, ou confirma um vermelho que já estava na lista, pesa menos.
+ */
+export const VAR_OUTCOME_WEIGHT: Record<VarOutcome, number> = {
+  goal_cancelled: 65,
+  goal_disallowed_offside: 65,
+  goal_disallowed_foul: 65,
+  goal_disallowed_handball: 65,
+  goal_confirmed: 65,
+  penalty_awarded: 65,
+  penalty_confirmed: 65,
+  penalty_cancelled: 65,
+  card_upgrade: 65,
+  card_upgrade_confirmed: 65,
+  red_card_cancelled: 65,
+  goal_under_review: 50,
+  decision_changed: 50,
+  red_card_confirmed: 45,
+  card_upgrade_cancelled: 40,
+  card_reviewed: 40,
+  other: KIND_WEIGHT.var,
+};
 const DECISIVE_WEIGHT = 100;
 /** Atraso máximo do apito para aceitar o "1H" observado como início do jogo. */
 const FIRST_HALF_GRACE_MS = 30 * 60_000;
@@ -260,9 +285,9 @@ export function currentClock(
 
 const SCORING_KINDS: ReadonlySet<TimelineKind> = new Set(['goal', 'own_goal', 'penalty_goal']);
 
-/** Veredito de VAR que anula gol (`Goal cancelled`, `Goal Disallowed - offside`, `Goal Disallowed - foul`…). */
+/** Veredito de VAR que anula gol (`Goal cancelled`, `Goal Disallowed - offside`, `Goal Disallowed - Foul`…). */
 export const isGoalCancellingVar = (detail: string | null) =>
-  /^goal (cancel+ed|disallowed)\b/i.test((detail ?? '').trim());
+  GOAL_CANCELLING_VAR_OUTCOMES.has(varOutcomeOf(detail)) || isGoalCancellingVarDetail(detail);
 /** Distância máxima (min) entre o gol e o VAR que o anula (a mesma do core-writer). */
 const VAR_PAIR_WINDOW_MIN = 5;
 const minuteOf = (i: Pick<RawIncident, 'minute' | 'extra'>) => (i.minute ?? 0) + (i.extra ?? 0) / 100;
@@ -453,7 +478,8 @@ export function buildTimelineDto(rawInput: TimelineInput): EventTimeline {
       : { period, minute: raw.minute, extra_minute: raw.extra, display: clockDisplay(raw.minute, raw.extra) };
 
     let weight = KIND_WEIGHT[kind];
-    if (kind === 'var' && /goal|penalty|red/i.test(raw.detail ?? '')) weight = VAR_KEY_WEIGHT;
+    const varOutcome = kind === 'var' ? varOutcomeOf(raw.detail) : null;
+    if (varOutcome) weight = VAR_OUTCOME_WEIGHT[varOutcome];
 
     const flags: TimelineFlag[] = [];
     let scoreAfter: { home: number; away: number } | null = null;
@@ -507,6 +533,7 @@ export function buildTimelineDto(rawInput: TimelineInput): EventTimeline {
       flags,
       score_after: scoreAfter,
       scoring_team: credited[idx] ? teamOf(credited[idx]) : null,
+      var_outcome: varOutcome,
       disallowed: cancelledBy != null,
       cancelled_by: cancelledBy,
       player_in: playerIn,
