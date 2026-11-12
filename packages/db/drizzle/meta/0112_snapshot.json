@@ -1,6 +1,6 @@
 {
-  "id": "b9463bc1-cf32-4c82-b714-24b6eedc051a",
-  "prevId": "54e9c22e-d6a1-41dc-89eb-54df25891935",
+  "id": "76fb9b22-7a32-4818-afbb-39f9d61e1784",
+  "prevId": "0ebd9adc-448b-4878-9d7b-008fb4ea4305",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -19552,7 +19552,7 @@
       "checkConstraints": {
         "country_policy_key": {
           "name": "country_policy_key",
-          "value": "\"engage\".\"country_policy\".\"country\" ~ '^([A-Z]{2}|LATAM)$'"
+          "value": "\"engage\".\"country_policy\".\"country\" ~ '^([A-Z]{2}|LATAM|DEFAULT)$'"
         }
       },
       "isRLSEnabled": false
@@ -20943,6 +20943,57 @@
           "primaryKey": false,
           "notNull": true
         },
+        "age_band_detail": {
+          "name": "age_band_detail",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "age_assurance": {
+          "name": "age_assurance",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'self'"
+        },
+        "age_assurance_at": {
+          "name": "age_assurance_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "age_assurance_provider": {
+          "name": "age_assurance_provider",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "guardian_status": {
+          "name": "guardian_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'none'"
+        },
+        "guardian_consent_id": {
+          "name": "guardian_consent_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "guardian_linked": {
+          "name": "guardian_linked",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "age_frozen_at": {
+          "name": "age_frozen_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
         "country": {
           "name": "country",
           "type": "text",
@@ -21091,6 +21142,26 @@
         "profile_country": {
           "name": "profile_country",
           "value": "\"fan\".\"profile\".\"country\" ~ '^[A-Z]{2}$'"
+        },
+        "profile_age_band_detail": {
+          "name": "profile_age_band_detail",
+          "value": "\"fan\".\"profile\".\"age_band_detail\" is null or \"fan\".\"profile\".\"age_band_detail\" in ('under13', '13', '14_15', '16_17', '18plus')"
+        },
+        "profile_age_assurance": {
+          "name": "profile_age_assurance",
+          "value": "\"fan\".\"profile\".\"age_assurance\" in ('self', 'estimated', 'verified')"
+        },
+        "profile_age_assurance_provider": {
+          "name": "profile_age_assurance_provider",
+          "value": "\"fan\".\"profile\".\"age_assurance_provider\" is null or length(\"fan\".\"profile\".\"age_assurance_provider\") between 1 and 64"
+        },
+        "profile_guardian_status": {
+          "name": "profile_guardian_status",
+          "value": "\"fan\".\"profile\".\"guardian_status\" in ('none', 'pending', 'granted', 'revoked')"
+        },
+        "profile_guardian_consent": {
+          "name": "profile_guardian_consent",
+          "value": "\"fan\".\"profile\".\"guardian_consent_id\" is null or length(\"fan\".\"profile\".\"guardian_consent_id\") between 1 and 128"
         },
         "profile_erased": {
           "name": "profile_erased",
