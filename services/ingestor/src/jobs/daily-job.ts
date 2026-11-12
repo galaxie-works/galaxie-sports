@@ -67,6 +67,9 @@ export const ROTATION_PERIOD_DAYS: Record<string, number> = {
  */
 export const PAID_ROTATION_LIMIT = 1500;
 
+/** Partidas detalhadas por dia nos planos pagos (`fixtures?ids=`, 20 por chamada): até 100 chamadas. */
+export const PAID_MAX_DETAILS = 2000;
+
 /**
  * Período da relista da temporada atual (`fixtures?league&season`) por tier: tier 1 a cada 2 dias (remarcação e
  * chaveamento de copa aparecem antes da véspera), os demais a cada 7.
@@ -78,7 +81,10 @@ const SEASON_LIST_AHEAD_DAYS = 14;
 const SEASON_LIST_AFTER_END_DAYS = 7;
 
 export interface DailyOptions {
-  /** Máximo de partidas detalhadas por dia (padrão: 35 no free, 400 nos pagos). */
+  /**
+   * Máximo de partidas detalhadas por dia (padrão: 35 no free, 2.000 nos pagos, até 100 chamadas de 20). Os tiers
+   * 1 a 3 somam cerca de 480 encerrados por dia e até 1.400 no fim de semana (medido em 12/11/2026).
+   */
   maxDetails?: number | undefined;
   /** Dias para trás varridos em busca de encerrados sem detalhe (padrão 3: D-1, D-2, D-3). */
   backlogDays?: number | undefined;
@@ -88,6 +94,7 @@ export interface DailyOptions {
   injuriesTomorrow?: boolean | undefined;
   /** Agenda das outras 11 APIs (games/races/fights?date=). */
   otherSports?: boolean | undefined;
+  /** Maior tier com detalhe dos encerrados (padrão 3: todo o catálogo, decisão do dono em 12/11/2026). */
   maxTier?: number | undefined;
   /** Relistas da temporada atual por dia (padrão: 0 no free, que não alcança a temporada atual; 300 nos pagos). */
   seasonLists?: number | undefined;
@@ -95,7 +102,7 @@ export interface DailyOptions {
   seasonListTier?: number | undefined;
   /** Páginas de `players?league&season` por dia (padrão: 0 no free, 1000 nos pagos); 0 desliga. */
   playerStats?: number | undefined;
-  /** Maior tier com os números dos jogadores renovados (padrão 1). */
+  /** Maior tier com os números dos jogadores renovados (padrão 3: todo o catálogo, decisão do dono em 12/11/2026). */
   playerStatsTier?: number | undefined;
   /** `--forcar`: a relista ignora o período do cursor (ex.: remarcação urgente), ainda dentro do limite do dia. */
   force?: boolean | undefined;
@@ -387,7 +394,8 @@ export const PLAYER_STATS_STEP = 'estatisticas-jogadores';
 
 /**
  * Período da renovação dos números dos jogadores da temporada em jogo (`players?league&season`) por tier: tier 1 a
- * cada 3 dias (uma rodada por semana, às vezes duas), os demais a cada 7.
+ * cada 3 dias (uma rodada por semana, às vezes duas), os demais a cada 7. Em 12/11/2026 eram 22 temporadas em jogo no
+ * tier 1 (1.007 páginas), 29 no tier 2 (833) e 110 no tier 3 (1.239): cerca de 630 páginas por dia, abaixo das 1.000.
  */
 export const PLAYER_STATS_PERIOD_DAYS: Record<number, number> = { 1: 3 };
 const PLAYER_STATS_DEFAULT_PERIOD_DAYS = 7;
@@ -584,7 +592,7 @@ export function dailyJob(
         name: 'detalhe dos encerrados',
         build: async () => {
           const comps = new Map(
-            (await catalog.competitions(opts.maxTier ?? 2)).map((c) => [c.leagueId, c] as const),
+            (await catalog.competitions(opts.maxTier ?? 3)).map((c) => [c.leagueId, c] as const),
           );
           const days = opts.backlogDays ?? 3;
           const lists = Array.from({ length: days }, (_, i) => dateList(utcDate(now(), -(i + 1))));
@@ -597,7 +605,7 @@ export function dailyJob(
             ranked.map((f) => f.id),
             cursors,
           );
-          const max = opts.maxDetails ?? (isPaid(plan) ? 400 : 35);
+          const max = opts.maxDetails ?? (isPaid(plan) ? PAID_MAX_DETAILS : 35);
           return buildDetailRequests(pending.slice(0, max), plan.current);
         },
       },
@@ -647,7 +655,7 @@ export function dailyJob(
         name: 'estatísticas de jogadores (página 1)',
         build: async () =>
           buildPlayerStatsFirstPages(
-            await catalog.competitions(opts.playerStatsTier ?? 1),
+            await catalog.competitions(opts.playerStatsTier ?? 3),
             raw,
             cursors,
             plan.current,
@@ -659,7 +667,7 @@ export function dailyJob(
         name: 'estatísticas de jogadores (demais páginas)',
         build: async () =>
           buildPlayerStatsPageRequests(
-            await catalog.competitions(opts.playerStatsTier ?? 1),
+            await catalog.competitions(opts.playerStatsTier ?? 3),
             raw,
             cursors,
             plan.current,
