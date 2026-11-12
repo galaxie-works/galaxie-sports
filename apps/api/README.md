@@ -22,7 +22,7 @@ pnpm --filter @galaxie/api dev                        # http://localhost:8080 (A
 | Comando | O que faz |
 |---|---|
 | `dev` · `start` | Servidor em modo dev (recompila) ou a partir do `dist` |
-| `tenant:create --slug <slug>` | Cria/atualiza um tenant a partir de `config/plans.yaml` e gera uma chave |
+| `tenant:create --slug <slug>` | Cria/atualiza um tenant a partir de `config/catalog/plans.yaml` e gera uma chave |
 | `admin:key` | Gera uma chave administrativa e o hash para `ADMIN_KEY_HASHES` |
 | `webhooks:worker` | Worker que enfileira (a partir do `ops.change_feed`) e entrega os webhooks assinados |
 | `webhook create\|list\|dlq\|replay\|seal-secrets` | Administração dos webhooks |
@@ -55,7 +55,7 @@ começaram ou mudaram de status no último minuto.
 - **Pacotes**: `db`, `contracts` (DTOs e OpenAPI), `providers`, `rules`, `knowledge`, `where-to-watch`, `geo`,
   `explore` (resumo da home), `runtime-config`, `observability`, `apisports-client` (só para ler o raw e o plano; a API **não** chama a api-sports).
 - **Serviços**: Postgres (`DATABASE_URL`) e Valkey (`REDIS_URL`). Os dados chegam pelo `services/ingestor`.
-- **Arquivos**: `config/plans.yaml`, `config/rules`, `config/assets/denylist.yaml`, `data/knowledge` (via
+- **Arquivos**: `config/catalog/plans.yaml`, `config/rules`, `config/assets/denylist.yaml`, `data/knowledge` (via
   `PLANS_CONFIG_PATH`, `RULES_DIR`, `MEDIA_DENYLIST_PATH`, `KNOWLEDGE_DIR`).
 - **Variáveis principais**: `DATABASE_URL`, `REDIS_URL`, `ASSETS_PUBLIC_BASE_URL`, `CORS_ORIGINS`, `TRUST_PROXY`,
   `STREAM_TOKEN_SECRET`, `WEBHOOK_SIGNING_SECRET`, `ADMIN_KEY_HASHES`, `METRICS_TOKEN`. Lista completa em `.env.example`.
