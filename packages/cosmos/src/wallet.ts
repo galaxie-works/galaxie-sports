@@ -12,6 +12,7 @@ import type { Database } from '@galaxie/db/client';
 import { functionDef, ledger, reservation, wallet, type LedgerKind } from '@galaxie/db/schema';
 import { ASSISTANT_FUNCTION, ASSISTANT_STREAMERS } from './assistant.js';
 import { evaluateBalance } from './balance.js';
+import { BRANDBOOK_FUNCTION, BRANDBOOK_PROVIDERS } from './brandbook.js';
 import { ceilCredits, creditsFor, roundCredits } from './credits.js';
 import { CosmosError } from './errors.js';
 import {
@@ -109,15 +110,18 @@ export interface FunctionDefInput {
   model?: string | null;
 }
 
-/** Recusa provedor fora da lista, modelo sem provedor e modelo sem preço (o crédito sairia errado). */
 /**
- * A função tem quem chame esse provedor? Hoje só o assistente chama um modelo, e só nos provedores com chamador
- * (`ASSISTANT_STREAMERS`); salvar outro deixaria a função "Ativa" respondendo indisponível.
+ * A função tem quem chame esse provedor? O assistente chama os provedores com chamador (`ASSISTANT_STREAMERS`); o
+ * tema a partir do brandbook, só os que leem PDF. Salvar outro deixaria a função "Ativa" respondendo indisponível.
  */
 export function providerHasCaller(functionName: string, provider: CosmosProvider): boolean {
-  return functionName !== ASSISTANT_FUNCTION || Boolean(ASSISTANT_STREAMERS[provider]);
+  if (functionName === ASSISTANT_FUNCTION) return Boolean(ASSISTANT_STREAMERS[provider]);
+  if (functionName === BRANDBOOK_FUNCTION)
+    return (BRANDBOOK_PROVIDERS as readonly string[]).includes(provider);
+  return true;
 }
 
+/** Recusa provedor fora da lista, modelo sem provedor e modelo sem preço (o crédito sairia errado). */
 function checkFunctionModel(def: Pick<FunctionDefInput, 'name' | 'provider' | 'model'>) {
   const provider = def.provider ?? null;
   const model = def.model?.trim() || null;

@@ -27,11 +27,18 @@
  * `galaxie:fan-sign-in` (sobe até o documento) para o site abrir o login dele. Depois do login (ou do logout)
  * sem recarregar a página, o site dispara `galaxie:fan-token-changed` no `document` (ou chama
  * `el.refreshFanToken()`) e os widgets pedem o token de novo.
+ *
+ * Estado do torcedor (#1105): o elemento mostra no atributo `fan-status` o que falta para o Perfil usar os
+ * recursos sociais (`needs_guardian`, `needs_verification`, `read_only`, `can_write` ou `blocked`) e dispara
+ * `galaxie:fan-status` (sobe até o documento, `detail.status`) quando muda, para o site abrir a autorização do
+ * responsável ou a comprovação de idade. Sem torcedor, o atributo some e `detail.status` vem null.
  */
 import { createRoot, type Root } from 'react-dom/client';
 
 import type { WidgetDefaults, WidgetKind, WidgetLocale, WidgetTheme } from '../core/model.js';
+import { useEffect } from 'react';
 import {
+  FAN_STATUS_EVENT,
   FAN_TOKEN_CHANGED_EVENT,
   WIDGET_KINDS,
   WIDGET_LOCALES,
@@ -39,7 +46,7 @@ import {
   parseStandingsOptions,
 } from '../core/model.js';
 import type { LiveListOptions, StandingsOptions } from '../core/model.js';
-import { GalaxieWidgetProvider } from '../core/react.js';
+import { GalaxieWidgetProvider, useFanSession } from '../core/react.js';
 import { optionProps, parseWidgetOptions, type WidgetOptions } from '../options.js';
 import { AiContext } from '../widgets/ai-context.js';
 import { AthleteProfile } from '../widgets/athlete-profile.js';
@@ -167,6 +174,31 @@ export function parseEmbedConfig(raw: unknown): EmbedConfig | null {
     liveList: parseLiveListOptions(c.liveList),
     options: parseWidgetOptions(c.kind as WidgetKind, c.options),
   } as EmbedConfig;
+}
+
+/** Espelha no elemento o estado de idade do torcedor (atributo `fan-status` e evento `galaxie:fan-status`). */
+function FanStatusMirror({ host }: { host: HTMLElement }) {
+  const fan = useFanSession();
+  const status = fan.status === 'ready' ? (fan.me?.age_status ?? null) : null;
+  useEffect(() => {
+    if (status) host.setAttribute('fan-status', status);
+    else host.removeAttribute('fan-status');
+    host.dispatchEvent(
+      new CustomEvent(FAN_STATUS_EVENT, { bubbles: true, composed: true, detail: { status } }),
+    );
+  }, [host, status]);
+  // widget trocado ou indisponível: o estado do torcedor sai do elemento
+  useEffect(
+    () => () => {
+      if (!host.hasAttribute('fan-status')) return;
+      host.removeAttribute('fan-status');
+      host.dispatchEvent(
+        new CustomEvent(FAN_STATUS_EVENT, { bubbles: true, composed: true, detail: { status: null } }),
+      );
+    },
+    [host],
+  );
+  return null;
 }
 
 function EmbeddedWidget({ config, overrides }: { config: EmbedConfig; overrides: EmbedOverrides }) {
@@ -404,6 +436,7 @@ export function defineGalaxieWidgetElement(options: DefineEmbedOptions = {}): vo
             this.dispatchEvent(new CustomEvent(FAN_SIGN_IN_EVENT, { bubbles: true, composed: true }))
           }
         >
+          <FanStatusMirror host={this} />
           <EmbeddedWidget config={config} overrides={overrides} />
         </GalaxieWidgetProvider>,
       );

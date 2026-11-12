@@ -55,6 +55,10 @@
       "types": "./dist/related-content.d.ts",
       "default": "./dist/related-content.js"
     },
+    "./moderation-queue": {
+      "types": "./dist/moderation-queue.d.ts",
+      "default": "./dist/moderation-queue.js"
+    },
     "./schema": {
       "types": "./dist/schema/index.d.ts",
       "default": "./dist/schema/index.js"
