@@ -184,9 +184,18 @@ describe('Chat ao vivo: lotes pelo SSE (#964)', () => {
     expect(got.receivedAt - sentAt).toBeLessThanOrEqual(2_000);
     await reader.waitFor(() => batches(reader).flatMap((b) => b.messages).length === 2, 3_000);
     expect(batches(reader).flatMap((b) => b.messages.map((m) => m.body))).toEqual(['Golaço!', 'Que jogo']);
-    // as duas mensagens do mesmo segundo saem num lote só
-    expect(batches(reader)).toHaveLength(1);
     expect(got.id).toBe(`${got.id!.split('-')[0]}-${batches(reader)[0]!.batch_id}`);
+
+    // rajada: 12 mensagens de torcedores diferentes, enviadas juntas pelas duas instâncias, saem em poucos lotes (no
+    // máximo um por segundo por instância; os relógios das instâncias não andam juntos, então não é sempre um só)
+    const fans = await Promise.all(Array.from({ length: 12 }, (_, i) => fan(keyA, 100 + i)));
+    const before = batches(reader).length;
+    const codes = await Promise.all(
+      fans.map((t, i) => send(i % 2 ? baseA : baseB, t, fixture, `rajada ${i}`)),
+    );
+    expect(codes.every((r) => r.status === 201)).toBe(true);
+    await reader.waitFor(() => batches(reader).flatMap((b) => b.messages).length === 14, 4_000);
+    expect(batches(reader).length - before).toBeLessThan(12);
 
     // o outro cliente, no mesmo jogo e na mesma instância, não recebe nada
     await new Promise((r) => setTimeout(r, 1_500));
