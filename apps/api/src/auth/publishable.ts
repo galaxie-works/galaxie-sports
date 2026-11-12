@@ -114,6 +114,7 @@ export class PublishableAuthenticator {
       env: key.env,
       widgetId: key.widgetId,
       modules,
+      keyAllows: key.widgetKind ? [...WIDGET_KIND_MODULES[key.widgetKind]] : null,
       markets: key.tenant.markets,
       sports: key.tenant.sports,
       rateLimitPerMinute: key.tenant.rateLimitPerMinute,

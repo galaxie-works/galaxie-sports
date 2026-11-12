@@ -698,8 +698,15 @@
     {
       "idx": 99,
       "version": "7",
-      "when": 1794505110638,
-      "tag": "0138_menor_padrao",
+      "when": 1794505125801,
+      "tag": "0140_plataforma_comercial",
+      "breakpoints": true
+    },
+    {
+      "idx": 100,
+      "version": "7",
+      "when": 1794511226442,
+      "tag": "0149_menor_padrao",
       "breakpoints": true
     }
   ]
