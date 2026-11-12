@@ -2,7 +2,7 @@
 
 import { Send, Sparkles } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useId, useState, useTransition } from 'react';
+import { useId, useRef, useState, useTransition } from 'react';
 import { toast } from 'sonner';
 
 import { requestLineupReview } from '@/app/[locale]/(app)/cliente/grade/actions';
@@ -31,12 +31,16 @@ export function LineupReviewComposer({ minCredits }: { minCredits: number | null
   const [text, setText] = useState('');
   const [draft, setDraft] = useState<LineupReviewDraft | null>(null);
   const [message, setMessage] = useState('');
+  // só a resposta do último pedido vale: descartar ou mudar o texto no meio invalida a que ainda vai chegar
+  const asked = useRef(0);
   const [asking, startAsk] = useTransition();
   const [sending, startSend] = useTransition();
 
-  const ask = () =>
+  const ask = () => {
+    const n = ++asked.current;
     startAsk(async () => {
       const r = await draftLineupReviewWithCosmos({ text });
+      if (n !== asked.current) return;
       if (!r.ok) {
         toast.error(r.error);
         return;
@@ -44,6 +48,11 @@ export function LineupReviewComposer({ minCredits }: { minCredits: number | null
       setDraft(r.draft);
       setMessage(r.draft.message);
     });
+  };
+  const discard = () => {
+    asked.current++;
+    setDraft(null);
+  };
 
   const send = () => {
     if (!draft) return;
@@ -71,7 +80,7 @@ export function LineupReviewComposer({ minCredits }: { minCredits: number | null
       : String(value);
 
   return (
-    <Frame>
+    <Frame id="cosmos-review">
       <FramePanel className="flex flex-col gap-3">
         <FrameHeader className="p-0">
           <FrameTitle>{T.title}</FrameTitle>
@@ -85,7 +94,11 @@ export function LineupReviewComposer({ minCredits }: { minCredits: number | null
             value={text}
             maxLength={LINEUP_REVIEW_TEXT_MAX}
             placeholder={T.placeholder}
-            onChange={(e) => setText(e.target.value)}
+            onChange={(e) => {
+              setText(e.target.value);
+              // o rascunho era do texto anterior
+              if (draft) discard();
+            }}
           />
           <FieldDescription>
             {fill(T.count, { count: [...text].length, max: LINEUP_REVIEW_TEXT_MAX })}
@@ -138,7 +151,7 @@ export function LineupReviewComposer({ minCredits }: { minCredits: number | null
               />
             </Field>
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setDraft(null)} disabled={sending}>
+              <Button variant="outline" onClick={discard} disabled={sending}>
                 {T.discard}
               </Button>
               <Button onClick={send} disabled={sending || !message.trim()}>

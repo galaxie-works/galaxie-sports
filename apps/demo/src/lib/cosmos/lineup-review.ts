@@ -138,7 +138,8 @@ export interface LineupReviewDraft {
   proposed: Record<string, string | boolean> | null;
 }
 
-const UNSAFE = /https?:\/\/|www\.|\.m3u8?\b|\bepg\b|<\s*script/i;
+/** Link de qualquer esquema (http, rtmp, rtsp, udp, srt...), `www.`, lista ou manifesto de stream, ou código. */
+const UNSAFE = /[a-z][a-z0-9+.-]*:\/\/|www\.|\.(?:m3u8?|mpd)\b|<\s*script/i;
 
 const cleanText = (v: unknown, max: number) => {
   if (typeof v !== 'string') return null;

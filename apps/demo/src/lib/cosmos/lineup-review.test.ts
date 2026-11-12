@@ -158,6 +158,15 @@ describe('resposta do modelo', () => {
     });
   });
 
+  it('citar o EPG na mensagem é normal (o que não vai é dado de EPG nem link)', () => {
+    expect(
+      parseLineupReviewAnswer(
+        { kind: 'item', ref: ref('SporTV'), message: 'O EPG do SporTV está errado.' },
+        catalog,
+      ),
+    ).toMatchObject({ message: 'O EPG do SporTV está errado.' });
+  });
+
   it('saída da grade só em item que pode sair', () => {
     expect(
       parseLineupReviewAnswer(
@@ -180,6 +189,8 @@ describe('resposta do modelo', () => {
       { kind: 'item', ref: ref('Top') },
       { kind: 'item', ref: ref('Top'), message: 'Veja https://tv.example/grade' },
       { kind: 'item', ref: ref('Top'), message: 'Use o EPG em lista.m3u' },
+      { kind: 'item', ref: ref('Top'), message: 'O sinal está em rtmp://cdn.tv/top' },
+      { kind: 'item', ref: ref('Top'), message: 'Manifesto em top.mpd' },
       { kind: 'add', plan: 'p9', channel: libRef('ESPN'), message: 'x' },
     ])
       expect(parseLineupReviewAnswer(answer, catalog)).toBeNull();
