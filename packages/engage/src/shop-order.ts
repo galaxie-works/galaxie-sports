@@ -43,10 +43,13 @@ export interface ShopGameContext {
   status: string;
   /** `competition_context` do jogo (`derby`, `final`…). */
   competitionContext?: readonly string[];
-  /** O jogo é clássico (`derby` do contrato). */
+  /** O jogo é clássico (objeto `derby` do contrato); `derby` em `competitionContext` vale o mesmo. */
   derby?: boolean;
-  /** Vencedor, quando o jogo acabou e houve vencedor (inclui pênaltis). */
-  winnerId?: string | null;
+  /**
+   * Campeão decidido neste jogo: só na partida que define o título (a volta de uma final em ida e volta, ou a final
+   * única), com o vencedor do confronto. No jogo de ida, fica vazio mesmo que alguém tenha vencido.
+   */
+  titleWinnerId?: string | null;
   /** Destaques da escalação saída, por time (jogadores cujo produto sobe). Vazio ou ausente: sem escalação. */
   featured?: Readonly<Record<string, readonly string[]>>;
 }
@@ -62,16 +65,19 @@ export interface ShopOrderResult {
   teams: Array<{ teamId: string; products: ShopOrderProduct[] }>;
 }
 
-const PRE = new Set(['scheduled', 'starting', 'postponed']);
+// jogo adiado, cancelado ou abandonado não tem pós-jogo: a vitrine fica a de antes
+const PRE = new Set(['scheduled', 'starting', 'postponed', 'cancelled', 'abandoned']);
 const LIVE = new Set(['live', 'break', 'suspended']);
 
-/** Modo automático pelo status; `champion` só depois de uma final com vencedor. */
+/** Modo automático pelo status; `champion` só depois do jogo que decidiu o título. */
 export function shopGameMode(ctx: ShopGameContext, option: ShopModeOption = 'auto'): ShopGameMode {
   const base: Exclude<ShopGameMode, 'champion'> =
     option !== 'auto' ? option : PRE.has(ctx.status) ? 'pre' : LIVE.has(ctx.status) ? 'live' : 'post';
   const final = ctx.competitionContext?.includes('final') ?? false;
-  return base === 'post' && final && ctx.status === 'finished' && !!ctx.winnerId ? 'champion' : base;
+  return base === 'post' && final && ctx.status === 'finished' && !!ctx.titleWinnerId ? 'champion' : base;
 }
+
+const isDerby = (ctx: ShopGameContext) => !!ctx.derby || (ctx.competitionContext?.includes('derby') ?? false);
 
 /** Aparece para o torcedor: disponível e, se a loja informa preço, com preço. */
 export function shopProductVisible(p: ShopOrderProduct): boolean {
@@ -80,10 +86,10 @@ export function shopProductVisible(p: ShopOrderProduct): boolean {
 
 /** Peso de cada regra: quanto menor, mais alto na lista. A curadoria desempata. */
 function rank(p: ShopOrderProduct, team: string, ctx: ShopGameContext, mode: ShopGameMode): number {
-  if (mode === 'champion' && p.productType === 'champion' && ctx.winnerId === team) return 0;
+  if (mode === 'champion' && p.productType === 'champion' && ctx.titleWinnerId === team) return 0;
   const featured = ctx.featured?.[team] ?? [];
   if (p.personId && featured.includes(p.personId)) return 1;
-  if (ctx.derby && p.productType === 'commemorative') return 2;
+  if (isDerby(ctx) && p.productType === 'commemorative') return 2;
   return 3;
 }
 
@@ -93,13 +99,15 @@ export function orderShopProducts(
   opts: ShopOrderOptions = {},
 ): ShopOrderResult {
   const mode = shopGameMode(ctx, opts.mode);
-  const perTeam = Math.min(6, Math.max(1, Math.floor(opts.perTeam ?? 6)));
+  // 3 a 6 por time; valor que não é número volta ao teto (o widget não pode sumir por uma opção estranha)
+  const n = Number(opts.perTeam ?? 6);
+  const perTeam = Number.isFinite(n) ? Math.min(6, Math.max(3, Math.floor(n))) : 6;
   const out: ShopOrderResult['teams'] = [];
   for (const t of teams) {
     const products = t.products
       .filter(shopProductVisible)
       // produto de campeão só para quem venceu, e só no modo campeão
-      .filter((p) => p.productType !== 'champion' || (mode === 'champion' && ctx.winnerId === t.teamId))
+      .filter((p) => p.productType !== 'champion' || (mode === 'champion' && ctx.titleWinnerId === t.teamId))
       .map((p) => ({ p, r: rank(p, t.teamId, ctx, mode) }))
       .sort((a, b) => a.r - b.r || a.p.position - b.p.position || a.p.id.localeCompare(b.p.id))
       .slice(0, perTeam)

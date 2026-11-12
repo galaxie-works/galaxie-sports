@@ -38,18 +38,22 @@ describe('modo pelo status (#923)', () => {
     expect(shopGameMode({ status: 'live' })).toBe('live');
     expect(shopGameMode({ status: 'break' })).toBe('live');
     expect(shopGameMode({ status: 'finished' })).toBe('post');
-    expect(shopGameMode({ status: 'finished', competitionContext: ['final'], winnerId: 'casa' })).toBe(
+    expect(shopGameMode({ status: 'finished', competitionContext: ['final'], titleWinnerId: 'casa' })).toBe(
       'champion',
     );
-    expect(shopGameMode({ status: 'finished', competitionContext: ['final'], winnerId: null })).toBe('post');
-    expect(shopGameMode({ status: 'live', competitionContext: ['final'], winnerId: 'casa' })).toBe('live');
+    expect(shopGameMode({ status: 'finished', competitionContext: ['final'], titleWinnerId: null })).toBe(
+      'post',
+    );
+    expect(shopGameMode({ status: 'live', competitionContext: ['final'], titleWinnerId: 'casa' })).toBe(
+      'live',
+    );
   });
 
   it('override do widget vale sobre o status', () => {
     expect(shopGameMode({ status: 'live' }, 'pre')).toBe('pre');
-    expect(shopGameMode({ status: 'finished', competitionContext: ['final'], winnerId: 'x' }, 'post')).toBe(
-      'champion',
-    );
+    expect(
+      shopGameMode({ status: 'finished', competitionContext: ['final'], titleWinnerId: 'x' }, 'post'),
+    ).toBe('champion');
     expect(shopGameMode({ status: 'scheduled' }, 'post')).toBe('post');
   });
 });
@@ -76,7 +80,7 @@ describe('ordem dos produtos (#923)', () => {
     const r = orderShopProducts(teams, {
       status: 'finished',
       competitionContext: ['final'],
-      winnerId: 'fora',
+      titleWinnerId: 'fora',
       derby: true,
     });
     expect(r.mode).toBe('champion');
@@ -110,10 +114,10 @@ describe('ordem dos produtos (#923)', () => {
     const r = orderShopProducts(
       [...teams, { teamId: 'vazio', products: [p('x', 'cap', 0, { available: false })] }],
       { status: 'scheduled' },
-      { perTeam: 2 },
+      { perTeam: 3 },
     );
     expect(r.teams.map((t) => t.teamId)).toEqual(['casa', 'fora']);
-    expect(ids(r, 'casa')).toEqual(['c-kit', 'c-cap']);
+    expect(ids(r, 'casa')).toEqual(['c-kit', 'c-cap', 'c-craque']);
     expect(orderShopProducts(teams, { status: 'scheduled' }, { perTeam: 50 }).teams[0]!.products.length).toBe(
       4,
     );
@@ -124,5 +128,34 @@ describe('ordem dos produtos (#923)', () => {
       status: 'scheduled',
     });
     expect(ids(r, 't')).toEqual(['a', 'b']);
+  });
+
+  it('clássico também pelo competition_context', () => {
+    const r = orderShopProducts(teams, { status: 'scheduled', competitionContext: ['derby'] });
+    expect(ids(r, 'casa')?.[0]).toBe('c-comemorativo');
+  });
+
+  it('jogo de ida de final: sem campeão decidido, sem produto de campeão', () => {
+    const r = orderShopProducts(teams, {
+      status: 'finished',
+      competitionContext: ['final'],
+      titleWinnerId: null,
+    });
+    expect(r.mode).toBe('post');
+    expect(ids(r, 'fora')).not.toContain('f-campeao');
+  });
+
+  it('perTeam estranho volta ao teto; abaixo de 3 sobe para 3', () => {
+    expect(
+      orderShopProducts(teams, { status: 'scheduled' }, { perTeam: Number.NaN }).teams[0]!.products.length,
+    ).toBe(4);
+    expect(orderShopProducts(teams, { status: 'scheduled' }, { perTeam: 1 }).teams[0]!.products.length).toBe(
+      3,
+    );
+  });
+
+  it('cancelado ou abandonado não vira pós-jogo', () => {
+    expect(shopGameMode({ status: 'cancelled' })).toBe('pre');
+    expect(shopGameMode({ status: 'abandoned' })).toBe('pre');
   });
 });
