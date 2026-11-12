@@ -1,4 +1,4 @@
-import { and, asc, eq, gt, inArray, notInArray, sql } from 'drizzle-orm';
+import { and, asc, eq, gt, inArray, isNotNull, notInArray, sql } from 'drizzle-orm';
 import {
   CHANGE_FEED_CHANNEL,
   changeFeed,
@@ -106,7 +106,6 @@ type ClaimedDelivery = {
   url: string;
   secret: string;
   active: boolean;
-  failing_since: string | Date | null;
   tenant_status: string;
   tenant_plan: ApiPlan;
 };
@@ -391,7 +390,7 @@ export class WebhookWorker {
             limit ${this.batchSize}
             for update skip locked)
       returning d.id::text, d.endpoint_id, d.change_id::text, d.topic, d.payload, d.attempts,
-                e.url, e.secret, e.active, e.failing_since, t.status::text as tenant_status, t.plan::text as tenant_plan`);
+                e.url, e.secret, e.active, t.status::text as tenant_status, t.plan::text as tenant_plan`);
     const stats: DeliveryStats = { delivered: 0, failed: 0, dead: 0, deferred: 0 };
     // o que passa do teto dentro do lote volta à fila de uma vez, sem gastar tentativa; a próxima reivindicação já
     // deixa o endpoint de fora até a janela virar
@@ -542,12 +541,12 @@ export class WebhookWorker {
             deliveredAt: new Date(),
           })
           .where(eq(webhookDelivery.id, id));
-        // fim da sequência de falhas (só escreve quando havia uma)
-        if (d.failing_since != null)
-          await this.db
-            .update(webhookEndpoint)
-            .set({ failingSince: null })
-            .where(eq(webhookEndpoint.id, d.endpoint_id));
+        // fim da sequência de falhas, pelo estado atual do banco (não pelo da reivindicação: outra entrega do mesmo
+        // lote pode ter registrado uma falha depois). Linha já sem marca não é tocada.
+        await this.db
+          .update(webhookEndpoint)
+          .set({ failingSince: null })
+          .where(and(eq(webhookEndpoint.id, d.endpoint_id), isNotNull(webhookEndpoint.failingSince)));
         return 'delivered';
       }
       error = `HTTP ${responseCode}`;

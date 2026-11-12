@@ -54,7 +54,7 @@ export default defineMessages(
     inactive: 'Desativado',
     autoDisabled: 'Desativado por falhas',
     autoDisabledHint:
-      'Desativado {when} depois de 24 h falhando sem parar. Corrija o destino, reative e reenvie a DLQ.',
+      'Desativado {when} depois de falhar sem parar. Corrija o destino, reative e reenvie a DLQ.',
     delivered24h: '{n} em 24 h',
     pending: '{n} na fila',
     dead: '{n} na DLQ',
@@ -164,7 +164,7 @@ export default defineMessages(
       inactive: 'Disabled',
       autoDisabled: 'Disabled after failures',
       autoDisabledHint:
-        'Disabled {when} after failing nonstop for 24 h. Fix the endpoint, re-enable it and replay the DLQ.',
+        'Disabled {when} after failing nonstop. Fix the endpoint, re-enable it and replay the DLQ.',
       delivered24h: '{n} in 24 h',
       pending: '{n} queued',
       dead: '{n} in DLQ',
@@ -275,7 +275,7 @@ export default defineMessages(
       inactive: 'Desactivado',
       autoDisabled: 'Desactivado por fallas',
       autoDisabledHint:
-        'Desactivado {when} tras fallar sin parar durante 24 h. Corrige el destino, reactívalo y reenvía la DLQ.',
+        'Desactivado {when} tras fallar sin parar. Corrige el destino, reactívalo y reenvía la DLQ.',
       delivered24h: '{n} en 24 h',
       pending: '{n} en cola',
       dead: '{n} en la DLQ',
