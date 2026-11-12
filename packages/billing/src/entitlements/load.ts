@@ -41,11 +41,13 @@ export async function loadEntitlementInputs(
       .where(eq(tenantModuleLimit.tenantId, tenantId)),
     db
       .select({
+        id: tenantOverride.id,
         kind: tenantOverride.kind,
         key: tenantOverride.key,
         value: tenantOverride.value,
         validUntil: tenantOverride.validUntil,
         revokedAt: tenantOverride.revokedAt,
+        createdAt: tenantOverride.createdAt,
       })
       .from(tenantOverride)
       .where(
@@ -116,19 +118,35 @@ export async function entitlements(deps: EntitlementsDeps, tenantId: string): Pr
   if (deps.galaxieTenantIds) opts.galaxieTenantIds = deps.galaxieTenantIds;
   const resolved = resolveEntitlements(deps.catalog, inputs, opts);
   if (deps.cache) {
-    // o cache não pode passar do fim do trial nem da exceção que vence primeiro
-    let ttl = deps.cacheSeconds ?? ENTITLEMENTS_CACHE_SECONDS;
-    const ends = [inputs.tenant.trialEndsAt, ...inputs.overrides.map((o) => o.validUntil)].filter(
-      (d): d is Date => !!d && d.getTime() > now.getTime(),
+    const ttl = cacheTtlSeconds(
+      deps.cacheSeconds ?? ENTITLEMENTS_CACHE_SECONDS,
+      [inputs.tenant.trialEndsAt, ...inputs.overrides.map((o) => o.validUntil)],
+      now,
     );
-    for (const d of ends) ttl = Math.min(ttl, Math.max(1, Math.ceil((d.getTime() - now.getTime()) / 1000)));
-    try {
-      await deps.cache.set(key, JSON.stringify(resolved), 'EX', ttl);
-    } catch {
-      // sem cache, a próxima leitura vai ao banco
+    if (ttl > 0) {
+      try {
+        await deps.cache.set(key, JSON.stringify(resolved), 'EX', ttl);
+      } catch {
+        // sem cache, a próxima leitura vai ao banco
+      }
     }
   }
   return resolved;
+}
+
+/**
+ * Segundos de cache: o padrão, nunca além do fim do trial nem da exceção que vence primeiro. Arredonda para baixo (o
+ * cache vence antes do prazo, nunca depois); com menos de um segundo até um prazo, 0 = não grava.
+ */
+export function cacheTtlSeconds(max: number, deadlines: readonly (Date | null)[], now: Date): number {
+  let ttl = max;
+  for (const d of deadlines) {
+    if (!d) continue;
+    const ms = d.getTime() - now.getTime();
+    if (ms <= 0) continue;
+    ttl = Math.min(ttl, Math.floor(ms / 1000));
+  }
+  return Math.max(0, ttl);
 }
 
 /** Apaga o cache do tenant: chamar depois de qualquer mudança de plano, módulo, faixa, exceção ou estado. */

@@ -40,11 +40,13 @@ export type TenantRow = {
 };
 
 export type OverrideRow = {
+  id: string;
   kind: OverrideKind;
   key: string;
   value: number | null;
   validUntil: Date;
   revokedAt: Date | null;
+  createdAt: Date;
 };
 
 export type EntitlementInputs = {
@@ -115,7 +117,14 @@ export function resolveEntitlements(
   const { tenant } = input;
   const warnings: string[] = [];
   const state = deriveState(tenant, now);
-  const active = input.overrides.filter((o) => !o.revokedAt && o.validUntil.getTime() > now.getTime());
+  // precedência entre exceções que se contradizem (conceder e retirar o mesmo módulo, duas faixas): vale a mais nova.
+  // Aplicadas da mais antiga para a mais nova, com o id (UUID v7, ordenável) desempatando: o resultado não depende da
+  // ordem em que o banco devolve as linhas
+  const active = input.overrides
+    .filter((o) => !o.revokedAt && o.validUntil.getTime() > now.getTime())
+    .sort(
+      (a, b) => a.createdAt.getTime() - b.createdAt.getTime() || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
+    );
   const knownModules = new Set(Object.keys(catalog.modules));
   const tiersDef = tierIndex(catalog);
   const knownFeatures = new Map<string, ApiModule>();

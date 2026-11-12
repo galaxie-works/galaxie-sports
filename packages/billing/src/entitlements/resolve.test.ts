@@ -30,7 +30,10 @@ const inputs = (over: Partial<EntitlementInputs> = {}): EntitlementInputs => ({
   ...over,
 });
 
+let seq = 0;
 const override = (o: Partial<OverrideRow> & Pick<OverrideRow, 'kind' | 'key'>): OverrideRow => ({
+  id: `00000000-0000-7000-8000-${String(++seq).padStart(12, '0')}`,
+  createdAt: new Date(Date.UTC(2026, 10, 1, 0, 0, seq)),
   value: null,
   validUntil: later,
   revokedAt: null,
@@ -90,6 +93,59 @@ describe('resolveEntitlements', () => {
     expect(e.addons).toEqual({ 'where_to_watch.extra_markets': 2 });
     // add-on recorrente soma na faixa: 3 do plano + 2
     expect(e.tiers['where_to_watch.markets']).toBe(5);
+  });
+
+  it('exceções que se contradizem: vale a mais nova, qualquer que seja a ordem das linhas', () => {
+    const grant = override({
+      kind: 'module_grant',
+      key: 'live_chat',
+      createdAt: new Date('2026-11-02T00:00:00Z'),
+    });
+    const revoke = override({
+      kind: 'module_revoke',
+      key: 'live_chat',
+      createdAt: new Date('2026-11-05T00:00:00Z'),
+    });
+    const t1 = override({
+      kind: 'tier',
+      key: 'live_chat.peak_connections',
+      value: 100_000,
+      createdAt: new Date('2026-11-03T00:00:00Z'),
+    });
+    const t2 = override({
+      kind: 'tier',
+      key: 'live_chat.peak_connections',
+      value: 25_000,
+      createdAt: new Date('2026-11-04T00:00:00Z'),
+    });
+    for (const order of [
+      [grant, revoke],
+      [revoke, grant],
+    ])
+      expect(resolveEntitlements(catalog, inputs({ overrides: order }), { now }).modules).not.toContain(
+        'live_chat',
+      );
+    const tenant = tenantRow({ modules: ['core_data', 'where_to_watch', 'semantic', 'live_chat'] });
+    for (const order of [
+      [t1, t2],
+      [t2, t1],
+    ])
+      expect(
+        resolveEntitlements(catalog, inputs({ tenant, overrides: order }), { now }).tiers[
+          'live_chat.peak_connections'
+        ],
+      ).toBe(25_000);
+    // mesmo instante: o id desempata
+    const sameAt = new Date('2026-11-06T00:00:00Z');
+    const a = { ...grant, id: '00000000-0000-7000-8000-00000000aaaa', createdAt: sameAt };
+    const b = { ...revoke, id: '00000000-0000-7000-8000-00000000bbbb', createdAt: sameAt };
+    for (const order of [
+      [a, b],
+      [b, a],
+    ])
+      expect(resolveEntitlements(catalog, inputs({ overrides: order }), { now }).modules).not.toContain(
+        'live_chat',
+      );
   });
 
   it('faixa escolhida pelo tenant vale dentro do aceito; fora dele, fica o padrão e um aviso', () => {
@@ -169,5 +225,17 @@ describe('resolveEntitlements', () => {
     expect(b.version).toBe(a.version);
     const c = resolveEntitlements(catalog, inputs({ tenant: tenantRow({ capacityTier: 'C3' }) }), { now });
     expect(c.version).not.toBe(a.version);
+  });
+});
+
+describe('cacheTtlSeconds', () => {
+  const at = new Date('2026-11-12T12:00:00.000Z');
+  const plus = (ms: number) => new Date(at.getTime() + ms);
+  it('nunca passa do prazo: arredonda para baixo e não grava com menos de um segundo', async () => {
+    const { cacheTtlSeconds } = await import('./load.js');
+    expect(cacheTtlSeconds(60, [], at)).toBe(60);
+    expect(cacheTtlSeconds(60, [plus(1_100)], at)).toBe(1);
+    expect(cacheTtlSeconds(60, [plus(900)], at)).toBe(0);
+    expect(cacheTtlSeconds(60, [plus(30_999), null, plus(-5)], at)).toBe(30);
   });
 });
