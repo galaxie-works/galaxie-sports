@@ -308,13 +308,16 @@ function Incident({
   const label =
     kind === 'var'
       ? `${t.kinds.var} · ${t.var[(i.detail ?? '').toLowerCase()] ?? i.detail ?? t.varReview}`
-      : t.kinds[kind];
+      : i.disallowed
+        ? `${t.kinds[kind]} · ${t.disallowed}`
+        : t.kinds[kind];
   return (
     <li
       className="gs-tl-item"
       data-kind={i.kind}
       data-side={side}
       data-key={i.key_moment || undefined}
+      data-disallowed={i.disallowed || undefined}
       data-gs-incident={i.sequence}
     >
       <span className="gs-tl-min">{minute}</span>
