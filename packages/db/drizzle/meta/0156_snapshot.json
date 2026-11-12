@@ -1,6 +1,6 @@
 {
   "id": "cd8115fc-8031-42a7-a427-ea660aefa561",
-  "prevId": "fd175bc7-849a-467b-bb91-23c7cacbd443",
+  "prevId": "c6ffe247-fc9c-41ec-ae35-3307a41c0c67",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -22909,6 +22909,112 @@
       },
       "isRLSEnabled": false
     },
+    "chat.game_message": {
+      "name": "game_message",
+      "schema": "chat",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "public.uuid_generate_v7()"
+        },
+        "event_id": {
+          "name": "event_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_key": {
+          "name": "source_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "data": {
+          "name": "data",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "game_message_source_uq": {
+          "name": "game_message_source_uq",
+          "columns": [
+            {
+              "expression": "event_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "source_key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "game_message_event_idx": {
+          "name": "game_message_event_idx",
+          "columns": [
+            {
+              "expression": "event_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "game_message_kind": {
+          "name": "game_message_kind",
+          "value": "kind in ('kickoff', 'goal', 'red_card', 'var', 'half_time', 'full_time')"
+        }
+      },
+      "isRLSEnabled": false
+    },
     "chat.message": {
       "name": "message",
       "schema": "chat",
@@ -23286,6 +23392,12 @@
         "strictness": {
           "name": "strictness",
           "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "event_kinds": {
+          "name": "event_kinds",
+          "type": "text[]",
           "primaryKey": false,
           "notNull": false
         },

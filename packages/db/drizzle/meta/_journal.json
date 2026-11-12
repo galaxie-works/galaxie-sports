@@ -733,7 +733,14 @@
     {
       "idx": 104,
       "version": "7",
-      "when": 1794520763615,
+      "when": 1794520832138,
+      "tag": "0151_chat_eventos_jogo",
+      "breakpoints": true
+    },
+    {
+      "idx": 105,
+      "version": "7",
+      "when": 1794520862138,
       "tag": "0156_indice_var",
       "breakpoints": true
     }
