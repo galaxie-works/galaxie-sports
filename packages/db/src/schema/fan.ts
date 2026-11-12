@@ -116,6 +116,8 @@ export const fanProfile = fan.table(
     avatarStatus: text('avatar_status').$type<FanAvatarStatus>(),
     /** Id da foto na moderação (o alvo do caso na fila); muda a cada foto nova. */
     avatarRef: text('avatar_ref'),
+    /** sha256 da imagem que recebeu a decisão: a mesma imagem numa URL nova herda a decisão. */
+    avatarHash: text('avatar_hash'),
     /** Quando a foto entrou em `pending` ou recebeu a decisão. */
     avatarCheckedAt: timestamp('avatar_checked_at', { withTimezone: true }),
     ageBand: text('age_band').$type<FanAgeBand>().notNull(),

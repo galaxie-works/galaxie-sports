@@ -27,15 +27,22 @@ let app: FastifyInstance;
 
 // a moderação de verdade fica no pacote da Cosmos (moderation-image.integration.test); aqui ela só diz se libera
 let verdict = true;
+// segurada sem caso na fila: fica pendente para tentar de novo
+let withCase = true;
 const seen: { input: AvatarCheckInput; bytes: number }[] = [];
 let pending: Promise<unknown>[] = [];
 const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3]);
+// cada foto tem a sua imagem; `same=N` aponta outra URL para a imagem da foto N (link assinado, `?v=`)
+const imageOf = (u: string) => {
+  const n = Number(/same=(\d+)/.exec(u)?.[1] ?? /foto-(\d+)/.exec(u)?.[1] ?? 0);
+  return new Uint8Array([...png, n]);
+};
 const check = (database: Database, input: AvatarCheckInput) => {
   const run = checkAvatar(database, input, {
-    fetch: async () => new Response(png),
+    fetch: async (u) => new Response(imageOf(String(u))),
     moderate: async (_db, image) => {
       seen.push({ input, bytes: image.image.byteLength });
-      return { visible: verdict } as never;
+      return { visible: verdict, caseId: verdict || !withCase ? null : 'caso-falso' } as never;
     },
   });
   pending.push(run);
@@ -133,7 +140,7 @@ describe('foto de perfil na moderação de imagem (#1025)', () => {
     await settle();
     expect(seen.at(-1)).toMatchObject({
       input: { url: photo(1), profileId: profile_id },
-      bytes: png.byteLength,
+      bytes: png.byteLength + 1,
     });
     expect(await meOf(token)).toMatchObject({ avatar_url: photo(1), avatar_status: 'visible' });
     expect(await publicAvatars(db, t.id, [profile_id])).toEqual(new Map([[profile_id, photo(1)]]));
@@ -184,6 +191,7 @@ describe('foto de perfil na moderação de imagem (#1025)', () => {
         profileId: profile_id,
         ref: old.ref!,
         url: photo(3),
+        previous: null,
         clocks: { contentPurgeAt: new Date(), decisionPurgeAt: new Date() },
       },
       { fetch: async () => new Response(png), moderate: async () => ({ visible: true }) as never },
@@ -195,5 +203,35 @@ describe('foto de perfil na moderação de imagem (#1025)', () => {
     const none = await issue(t.key, base);
     expect(await meOf(none.json().data.token)).toMatchObject({ avatar_url: null, avatar_status: null });
     expect(await profileRow(t.id, profile_id)).toEqual({ status: null, ref: null });
+  });
+
+  it('a mesma imagem numa URL nova herda a decisão, sem nova moderação', async () => {
+    const t = await tenantKey('avatar-mesma');
+    verdict = true;
+    const first = await issue(t.key, { ...base, avatarUrl: photo(5) });
+    const { profile_id } = first.json().data;
+    await settle();
+    const decided = await profileRow(t.id, profile_id);
+    const calls = seen.length;
+    // link novo para a mesma imagem
+    const signed = `${photo(9)}?same=5`;
+    await issue(t.key, { ...base, avatarUrl: signed });
+    await settle();
+    expect(seen.length).toBe(calls);
+    expect(await profileRow(t.id, profile_id)).toEqual({ status: 'visible', ref: decided.ref });
+    expect(await publicAvatars(db, t.id, [profile_id])).toEqual(new Map([[profile_id, signed]]));
+  });
+
+  it('segurada sem caso na fila fica pendente para tentar de novo', async () => {
+    const t = await tenantKey('avatar-sem-caso');
+    verdict = false;
+    withCase = false;
+    try {
+      const res = await issue(t.key, { ...base, avatarUrl: photo(6) });
+      await settle();
+      expect((await profileRow(t.id, res.json().data.profile_id)).status).toBe('pending');
+    } finally {
+      withCase = true;
+    }
   });
 });

@@ -21,7 +21,7 @@ import {
   type FanVisibility,
 } from '@galaxie/db';
 import { and, eq, isNull, sql } from 'drizzle-orm';
-import { planAvatar } from './fan-avatar.js';
+import { planAvatar, type AvatarPlan } from './fan-avatar.js';
 
 export interface FanUpsert {
   tenantId: string;
@@ -49,7 +49,7 @@ export interface FanUpsertResult {
   /** A autorização passou a valer agora, declarada pelo cliente (sem `consentId`). */
   guardianDeclared: boolean;
   /** Foto que precisa passar pela moderação de imagem depois da resposta (#1025); null = nenhuma. */
-  avatarCheck: { ref: string; url: string } | null;
+  avatarCheck: AvatarPlan['check'];
 }
 
 export interface FanProfileView {
@@ -116,6 +116,8 @@ export async function upsertFan(
         guardianConsentId: fanProfile.guardianConsentId,
         avatarUrl: fanProfile.avatarUrl,
         avatarStatus: fanProfile.avatarStatus,
+        avatarRef: fanProfile.avatarRef,
+        avatarHash: fanProfile.avatarHash,
         avatarCheckedAt: fanProfile.avatarCheckedAt,
       })
       .from(fanProfile)
@@ -323,6 +325,7 @@ export async function eraseFan(
         avatarUrl: null,
         avatarStatus: null,
         avatarRef: null,
+        avatarHash: null,
         avatarCheckedAt: null,
         favoriteTeamId: null,
         visibility: {},

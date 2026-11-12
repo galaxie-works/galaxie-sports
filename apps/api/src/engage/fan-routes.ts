@@ -35,7 +35,7 @@ import { parseInput } from '../util.js';
 import { FAN_REVOCATION_TTL_S, type FanRevocations, type FanTokenTtl } from './fan-auth.js';
 import { fanCan, fanCapabilities } from './fan-rules.js';
 import type { FanTokenSigner } from './fan-token.js';
-import { checkAvatar, type AvatarCheckInput } from './fan-avatar.js';
+import { checkAvatar, scheduleAvatarCheck, type AvatarCheckInput } from './fan-avatar.js';
 import { eraseFan, patchFan, readFan, storedNickname, upsertFan, type FanProfileView } from './fans.js';
 import { ModerationLists } from './moderation.js';
 import { clocksFrom, policyForFan } from './moderation-routes.js';
@@ -195,18 +195,20 @@ export async function fanRoutes(app: FastifyInstance, deps: FanRoutesDeps): Prom
     );
     const { accountId, profileId } = upserted;
     // a foto não segura o token: a moderação de imagem roda depois; sem a ficha do país, tenta de novo no próximo
-    if (upserted.avatarCheck && policy) {
-      const check = deps.avatarCheck ?? checkAvatar;
-      void check(database, {
-        tenantId: tenant.tenantId,
-        profileId,
-        ...upserted.avatarCheck,
-        locale: body.locale,
-        clocks: clocksFrom(policy, new Date()),
-      }).catch((err) =>
-        request.log.error({ err, tenantId: tenant.tenantId }, 'moderação da foto de perfil falhou'),
+    // lotado, fica pendente e tenta de novo no próximo pedido
+    const avatarCheck = upserted.avatarCheck;
+    if (avatarCheck && policy)
+      scheduleAvatarCheck(
+        () =>
+          (deps.avatarCheck ?? checkAvatar)(database, {
+            tenantId: tenant.tenantId,
+            profileId,
+            ...avatarCheck,
+            locale: body.locale,
+            clocks: clocksFrom(policy, new Date()),
+          }),
+        (err) => request.log.error({ err, tenantId: tenant.tenantId }, 'moderação da foto de perfil falhou'),
       );
-    }
     const ttl = await deps.ttl.seconds();
     const { token, expiresAt } = sign.issue(
       {

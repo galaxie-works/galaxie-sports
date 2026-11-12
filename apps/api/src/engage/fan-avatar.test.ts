@@ -7,54 +7,60 @@ const ref = () => 'ref-novo';
 const url = 'https://cdn.exemplo.com/a.png';
 
 describe('planAvatar (#1025)', () => {
-  it('foto nova vai para a moderação, pendente', () => {
-    expect(planAvatar(null, url, now, ref)).toEqual({
-      fields: { avatarStatus: 'pending', avatarRef: 'ref-novo', avatarCheckedAt: now },
-      check: { ref: 'ref-novo', url },
-    });
-    const before = {
-      avatarUrl: 'https://cdn.exemplo.com/velha.png',
-      avatarStatus: 'visible' as const,
-      avatarCheckedAt: now,
-    };
-    expect(planAvatar(before, url, now, ref).check).toEqual({ ref: 'ref-novo', url });
+  const decided = (status: 'visible' | 'held' | 'pending', at = now) => ({
+    avatarUrl: url,
+    avatarStatus: status,
+    avatarRef: 'ref-velho',
+    avatarHash: status === 'pending' ? null : 'hash-velho',
+    avatarCheckedAt: at,
   });
 
-  it('a mesma foto já decidida não volta para a moderação', () => {
-    for (const status of ['visible', 'held'] as const)
-      expect(
-        planAvatar({ avatarUrl: url, avatarStatus: status, avatarCheckedAt: now }, url, now, ref),
-      ).toEqual({
-        fields: {},
-        check: null,
+  it('foto nova vai para a moderação, pendente, levando a decisão anterior', () => {
+    expect(planAvatar(null, url, now, ref)).toEqual({
+      fields: { avatarStatus: 'pending', avatarRef: 'ref-novo', avatarHash: null, avatarCheckedAt: now },
+      check: { ref: 'ref-novo', url, previous: null },
+    });
+    const before = { ...decided('visible'), avatarUrl: 'https://cdn.exemplo.com/velha.png' };
+    expect(planAvatar(before, url, now, ref).check).toEqual({
+      ref: 'ref-novo',
+      url,
+      previous: { ref: 'ref-velho', hash: 'hash-velho', status: 'visible' },
+    });
+  });
+
+  it('a mesma foto decidida há pouco não volta para a moderação; depois de recheckMs, volta', () => {
+    for (const status of ['visible', 'held'] as const) {
+      expect(planAvatar(decided(status), url, now, ref)).toEqual({ fields: {}, check: null });
+      const old = new Date(now.getTime() - AVATAR_LIMITS.recheckMs);
+      expect(planAvatar(decided(status, old), url, now, ref).check?.previous).toEqual({
+        ref: 'ref-velho',
+        hash: 'hash-velho',
+        status,
       });
+    }
   });
 
   it('foto de antes do #1025 (sem estado) passa pela moderação no próximo token', () => {
-    expect(
-      planAvatar({ avatarUrl: url, avatarStatus: null, avatarCheckedAt: null }, url, now, ref).check,
-    ).toEqual({
-      ref: 'ref-novo',
-      url,
-    });
+    const legacy = {
+      avatarUrl: url,
+      avatarStatus: null,
+      avatarRef: null,
+      avatarHash: null,
+      avatarCheckedAt: null,
+    };
+    expect(planAvatar(legacy, url, now, ref).check).toEqual({ ref: 'ref-novo', url, previous: null });
   });
 
   it('pendente recente espera; pendente vencido tenta de novo', () => {
     const recent = new Date(now.getTime() - AVATAR_LIMITS.retryMs + 1000);
     const old = new Date(now.getTime() - AVATAR_LIMITS.retryMs);
-    expect(
-      planAvatar({ avatarUrl: url, avatarStatus: 'pending', avatarCheckedAt: recent }, url, now, ref).check,
-    ).toBeNull();
-    expect(
-      planAvatar({ avatarUrl: url, avatarStatus: 'pending', avatarCheckedAt: old }, url, now, ref).check,
-    ).not.toBeNull();
+    expect(planAvatar(decided('pending', recent), url, now, ref).check).toBeNull();
+    expect(planAvatar(decided('pending', old), url, now, ref).check).not.toBeNull();
   });
 
   it('sem foto, o estado some junto', () => {
-    expect(
-      planAvatar({ avatarUrl: url, avatarStatus: 'visible', avatarCheckedAt: now }, null, now, ref),
-    ).toEqual({
-      fields: { avatarStatus: null, avatarRef: null, avatarCheckedAt: null },
+    expect(planAvatar(decided('visible'), null, now, ref)).toEqual({
+      fields: { avatarStatus: null, avatarRef: null, avatarHash: null, avatarCheckedAt: null },
       check: null,
     });
   });
