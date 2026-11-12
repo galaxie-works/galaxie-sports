@@ -282,6 +282,7 @@ async function askModel(
   settings: CosmosSettings,
   env: Record<string, string | undefined>,
   deps: ModerationDeps,
+  meta: Record<string, unknown> = {},
 ): Promise<ModerationOutcome[]> {
   const tenantId = items[0]!.tenantId;
   const fallbackAll = (reason: FallbackReason) =>
@@ -385,6 +386,7 @@ async function askModel(
           items: items.length,
           decided,
           module: items[0]!.module,
+          ...meta,
         },
       });
       charged = s.charged;
@@ -588,6 +590,95 @@ async function apply(
       now: at,
     });
   return caseId;
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Testar com uma mensagem (#999)
+
+export interface PreviewInput {
+  tenantId: string;
+  text: string;
+  kind: ContentKind;
+  module: ContentModule;
+  room?: string | null;
+  community?: string | null;
+  locale?: string;
+}
+
+export interface ModerationPreview {
+  /** O que as regras fixas fariam na hora (B7). */
+  rules: ScreenResult;
+  /** Quem decidiu: o classificador (termo da lista, com a Leitura total) ou o modelo; null se o modelo não respondeu. */
+  by: 'classifier' | 'cosmos' | null;
+  verdict: Verdict | null;
+  plan: ModerationPlan | null;
+  /** Créditos que o teste gastou (o mesmo que um item de lote custaria sozinho). */
+  credits: number;
+  /** Por que o modelo não respondeu (sem saldo, função desligada...). */
+  fallback?: FallbackReason;
+}
+
+/**
+ * "Testar com uma mensagem" da aba Moderação: mostra o que as regras e a Cosmos fariam com o texto, pela configuração
+ * da sala, da comunidade ou do cliente. Não grava nada na fila nem no histórico de decisões; o uso entra no extrato
+ * como uso normal (`metadata.test`), pela mesma reserva e o mesmo acerto do lote.
+ */
+export async function previewModeration(
+  db: Database,
+  input: PreviewInput,
+  lists: CompiledLists,
+  deps: Omit<ModerationDeps, 'onDecision'> = {},
+): Promise<ModerationPreview> {
+  const rules = screen(
+    input.text,
+    { kind: RULE_KIND[input.kind], ...(input.locale ? { locale: input.locale } : {}) },
+    lists,
+  );
+  const [settings, ceiling] = await Promise.all([
+    deps.settings ?? readCosmosSettings(db),
+    deps.ceiling ?? readModerationCeiling(db),
+  ]);
+  const item: ModerationItem = {
+    tenantId: input.tenantId,
+    kind: input.kind,
+    text: input.text,
+    targetType: 'message',
+    targetId: 'preview',
+    targetProfileId: null,
+    module: input.module,
+    room: input.room ?? null,
+    community: input.community ?? null,
+    ...(input.locale ? { locale: input.locale } : {}),
+    source: 'filter',
+    rules,
+    // não grava: os relógios não são usados
+    clocks: { contentPurgeAt: new Date(0), decisionPurgeAt: new Date(0) },
+  };
+  const { effective: config } = await loadModerationConfig(db, input.tenantId, ceiling, scopeOf(item));
+  if (config.features.full_read) {
+    const c = classify(input.text, rules);
+    if (c.outcome === 'violation' && c.verdict)
+      return {
+        rules,
+        by: 'classifier',
+        verdict: c.verdict,
+        plan: planModeration(c.verdict, config, ceiling),
+        credits: 0,
+      };
+  }
+  const [o] = await askModel(db, [item], config, ceiling, settings, deps.env ?? process.env, deps, {
+    test: true,
+  });
+  if (!o?.verdict || !o.plan)
+    return {
+      rules,
+      by: null,
+      verdict: null,
+      plan: null,
+      credits: 0,
+      ...(o?.fallback ? { fallback: o.fallback } : {}),
+    };
+  return { rules, by: 'cosmos', verdict: o.verdict, plan: o.plan, credits: o.verdict.credits ?? 0 };
 }
 
 // ---------------------------------------------------------------------------------------------------------------

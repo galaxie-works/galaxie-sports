@@ -53,6 +53,8 @@ export interface ModerationCaseView {
   detail: Record<string, unknown> | null;
   sanctionId: string | null;
   createdAt: Date;
+  /** Prazo do item: o da apelação (padrão 72 h, #953); os outros casos não têm prazo próprio. */
+  dueAt: Date | null;
 }
 
 async function audit(
@@ -409,8 +411,15 @@ export async function listQueue(
   filter: QueueFilter = {},
 ): Promise<ModerationCaseView[]> {
   const rows = await db
-    .select()
+    .select({ c: moderationCase, dueAt: moderationAppeal.dueAt })
     .from(moderationCase)
+    .leftJoin(
+      moderationAppeal,
+      and(
+        eq(moderationAppeal.tenantId, moderationCase.tenantId),
+        eq(moderationAppeal.caseId, moderationCase.id),
+      ),
+    )
     .where(
       and(
         eq(moderationCase.tenantId, tenantId),
@@ -423,7 +432,7 @@ export async function listQueue(
     )
     .orderBy(desc(moderationCase.severity), asc(moderationCase.createdAt))
     .limit(Math.min(Math.max(filter.limit ?? 50, 1), 200));
-  return rows.map((r) => ({
+  return rows.map(({ c: r, dueAt }) => ({
     id: r.id,
     source: r.source,
     targetType: r.targetType,
@@ -441,10 +450,144 @@ export async function listQueue(
     detail: r.detail ?? null,
     sanctionId: r.sanctionId,
     createdAt: r.createdAt,
+    dueAt,
   }));
 }
 
-/** Fecha o caso: `resolved` (houve ação) ou `dismissed` (sem ação; o conteúdo volta se estava oculto). */
+/** Um caso da fila, do cliente (null se não existe ou é de outro cliente). */
+export async function readCase(
+  db: Database,
+  tenantId: string,
+  caseId: string,
+): Promise<(ModerationCaseView & { resolvedBy: string | null; resolvedAt: Date | null }) | null> {
+  const [row] = await db
+    .select({ c: moderationCase, dueAt: moderationAppeal.dueAt })
+    .from(moderationCase)
+    .leftJoin(
+      moderationAppeal,
+      and(
+        eq(moderationAppeal.tenantId, moderationCase.tenantId),
+        eq(moderationAppeal.caseId, moderationCase.id),
+      ),
+    )
+    .where(and(eq(moderationCase.tenantId, tenantId), eq(moderationCase.id, caseId)));
+  if (!row) return null;
+  const r = row.c;
+  return {
+    id: r.id,
+    source: r.source,
+    targetType: r.targetType,
+    targetId: r.targetId,
+    targetProfileId: r.targetProfileId,
+    module: r.module,
+    room: r.room,
+    community: r.community,
+    reasons: r.reasons,
+    severity: r.severity,
+    reportCount: r.reportCount,
+    status: r.status,
+    hiddenAt: r.hiddenAt,
+    content: r.content,
+    detail: r.detail ?? null,
+    sanctionId: r.sanctionId,
+    createdAt: r.createdAt,
+    dueAt: row.dueAt,
+    resolvedBy: r.resolvedBy,
+    resolvedAt: r.resolvedAt,
+  };
+}
+
+export type UndoResult =
+  { ok: true; revoked: number } | { ok: false; reason: 'not_found' | 'not_automatic' | 'appeal' };
+
+/**
+ * Desfaz uma decisão automática (filtro ou Cosmos, #999): o conteúdo volta ao ar, as punições do caso aplicadas pela
+ * Cosmos são revogadas e o caso fecha como `dismissed`. A decisão original continua na auditoria, e o desfazer entra
+ * junto (`undo`, e `revoke` por punição). Decisão de pessoa não se desfaz por aqui: vai por apelação.
+ */
+export async function undoDecision(
+  db: Database,
+  input: {
+    tenantId: string;
+    caseId: string;
+    actor: ModerationActor;
+    note: string | null;
+    clocks: ModerationClocks;
+    now?: Date;
+  },
+): Promise<UndoResult> {
+  const now = input.now ?? new Date();
+  return db.transaction(async (tx) => {
+    const [c] = await tx
+      .select({
+        id: moderationCase.id,
+        source: moderationCase.source,
+        status: moderationCase.status,
+        resolvedBy: moderationCase.resolvedBy,
+        targetProfileId: moderationCase.targetProfileId,
+        automatic: sql<boolean>`coalesce(${moderationCase.detail}, '{}'::jsonb) ?| array['filter', 'cosmos']`,
+      })
+      .from(moderationCase)
+      .where(and(eq(moderationCase.tenantId, input.tenantId), eq(moderationCase.id, input.caseId)))
+      .for('update');
+    if (!c) return { ok: false, reason: 'not_found' } as const;
+    if (c.source === 'appeal') return { ok: false, reason: 'appeal' } as const;
+    // fechado por pessoa: a decisão é dela, e o caminho é a apelação
+    const byPerson = c.status !== 'open' && c.resolvedBy !== 'cosmos' && c.resolvedBy !== 'system';
+    if (!c.automatic || byPerson) return { ok: false, reason: 'not_automatic' } as const;
+
+    const revoked = await tx
+      .update(moderationSanction)
+      .set({ revokedAt: now, revokedBy: input.actor.id })
+      .where(
+        and(
+          eq(moderationSanction.tenantId, input.tenantId),
+          eq(moderationSanction.caseId, c.id),
+          inArray(moderationSanction.decidedByKind, ['cosmos', 'system']),
+          isNull(moderationSanction.revokedAt),
+        ),
+      )
+      .returning({ id: moderationSanction.id, profileId: moderationSanction.profileId });
+    for (const s of revoked)
+      await audit(tx, {
+        tenantId: input.tenantId,
+        actor: input.actor,
+        action: 'revoke',
+        clocks: input.clocks,
+        subjectProfileId: s.profileId,
+        caseId: c.id,
+        sanctionId: s.id,
+        reason: input.note,
+      });
+    await tx
+      .update(moderationCase)
+      .set({
+        status: 'dismissed',
+        hiddenAt: null,
+        resolvedAt: now,
+        resolvedBy: input.actor.id,
+        purgeAt: input.clocks.decisionPurgeAt,
+        updatedAt: now,
+      })
+      .where(and(eq(moderationCase.tenantId, input.tenantId), eq(moderationCase.id, c.id)));
+    await audit(tx, {
+      tenantId: input.tenantId,
+      actor: input.actor,
+      action: 'undo',
+      clocks: input.clocks,
+      subjectProfileId: c.targetProfileId,
+      caseId: c.id,
+      reason: input.note,
+      rules: { revoked: revoked.length, previous: c.status },
+    });
+    return { ok: true, revoked: revoked.length } as const;
+  });
+}
+
+/**
+ * Fecha o caso: `resolved` (houve ação) ou `dismissed` (sem ação; o conteúdo volta se estava oculto). Com `hide`, o
+ * `resolved` também tira o conteúdo do ar (a equipe removeu da fila), com a linha `hide` na auditoria.
+ */
 export async function closeCase(
   db: Database,
   input: {
@@ -454,6 +597,7 @@ export async function closeCase(
     actor: ModerationActor;
     note: string | null;
     clocks: ModerationClocks;
+    hide?: boolean;
     now?: Date;
   },
 ): Promise<boolean> {
@@ -467,6 +611,9 @@ export async function closeCase(
         resolvedBy: input.actor.id,
         purgeAt: input.clocks.decisionPurgeAt,
         ...(input.status === 'dismissed' ? { hiddenAt: null } : {}),
+        ...(input.status === 'resolved' && input.hide
+          ? { hiddenAt: sql`coalesce(${moderationCase.hiddenAt}, ${now.toISOString()}::timestamptz)` }
+          : {}),
         updatedAt: now,
       })
       .where(
@@ -478,6 +625,16 @@ export async function closeCase(
       )
       .returning({ id: moderationCase.id, targetProfileId: moderationCase.targetProfileId });
     if (!row) return false;
+    if (input.status === 'resolved' && input.hide)
+      await audit(tx, {
+        tenantId: input.tenantId,
+        actor: input.actor,
+        action: 'hide',
+        clocks: input.clocks,
+        subjectProfileId: row.targetProfileId,
+        caseId: row.id,
+        reason: input.note,
+      });
     await audit(tx, {
       tenantId: input.tenantId,
       actor: input.actor,
@@ -1091,6 +1248,93 @@ export interface AuditRow {
   rules: Record<string, unknown> | null;
   content: string | null;
   createdAt: Date;
+}
+
+export interface DecisionFilter {
+  module?: string;
+  room?: string;
+  community?: string;
+  /** Categoria da decisão (régua da Cosmos) ou motivo do caso. */
+  category?: string;
+  action?: string;
+  /** Quem decidiu: `person`, `cosmos`, `system`... */
+  actorKind?: string;
+  /** Uma pessoa (`user:<id>`). */
+  actor?: string;
+  from?: Date;
+  to?: Date;
+  /** Paginação: linhas mais antigas que este id (UUIDv7, em ordem de criação). */
+  before?: string;
+  limit?: number;
+}
+
+export type DecisionRow = AuditRow & { module: string | null; room: string | null; community: string | null };
+
+/**
+ * Histórico de decisões (#999): a auditoria do cliente com o lugar do caso (módulo, sala, comunidade), do mais recente,
+ * com os filtros da tela. Inclui as decisões automáticas (Cosmos, filtro) e as das pessoas.
+ */
+export async function listDecisions(
+  db: Database,
+  tenantId: string,
+  filter: DecisionFilter = {},
+): Promise<DecisionRow[]> {
+  const rows = await db
+    .select({
+      a: moderationAudit,
+      module: moderationCase.module,
+      room: moderationCase.room,
+      community: moderationCase.community,
+    })
+    .from(moderationAudit)
+    .leftJoin(
+      moderationCase,
+      and(
+        eq(moderationCase.tenantId, moderationAudit.tenantId),
+        eq(moderationCase.id, moderationAudit.caseId),
+      ),
+    )
+    .where(
+      and(
+        eq(moderationAudit.tenantId, tenantId),
+        ...(filter.module ? [eq(moderationCase.module, filter.module)] : []),
+        ...(filter.room ? [eq(moderationCase.room, filter.room)] : []),
+        ...(filter.community ? [eq(moderationCase.community, filter.community)] : []),
+        ...(filter.category
+          ? [
+              or(
+                sql`${moderationAudit.rules}->>'category' = ${filter.category}`,
+                sql`${filter.category} = any(${moderationCase.reasons})`,
+              ),
+            ]
+          : []),
+        ...(filter.action ? [eq(moderationAudit.action, filter.action)] : []),
+        ...(filter.actorKind ? [eq(moderationAudit.actorKind, filter.actorKind)] : []),
+        ...(filter.actor ? [eq(moderationAudit.actor, filter.actor)] : []),
+        ...(filter.from ? [gte(moderationAudit.createdAt, filter.from)] : []),
+        ...(filter.to ? [lte(moderationAudit.createdAt, filter.to)] : []),
+        ...(filter.before ? [sql`${moderationAudit.id} < ${filter.before}::uuid`] : []),
+      ),
+    )
+    .orderBy(desc(moderationAudit.id))
+    .limit(Math.min(Math.max(filter.limit ?? 50, 1), 200));
+  return rows.map(({ a: r, module, room, community }) => ({
+    id: r.id,
+    actor: r.actor,
+    actorKind: r.actorKind,
+    action: r.action,
+    subjectProfileId: r.subjectProfileId,
+    caseId: r.caseId,
+    sanctionId: r.sanctionId,
+    appealId: r.appealId,
+    reason: r.reason,
+    rules: r.rules ?? null,
+    content: r.content,
+    createdAt: r.createdAt,
+    module,
+    room,
+    community,
+  }));
 }
 
 /** Registro de auditoria do cliente, do mais recente. Só leitura: não existe função que apague. */

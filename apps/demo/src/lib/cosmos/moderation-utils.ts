@@ -15,3 +15,7 @@ export {
   type ModerationLevel,
 } from '@galaxie/cosmos/moderation-rules';
 export { TENANT_ROLES } from '@galaxie/engage';
+
+/** Tamanho máximo da mensagem do "testar com uma mensagem" (#999). */
+export const PREVIEW_MAX = 2000;
+export { CONTENT_KINDS, type ContentKind } from '@galaxie/cosmos/moderation-engine';

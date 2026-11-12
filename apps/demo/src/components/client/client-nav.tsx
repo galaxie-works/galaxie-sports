@@ -8,6 +8,7 @@ import {
   LayoutDashboard,
   ListVideo,
   Palette,
+  ShieldCheck,
   Tv,
   Users,
   Webhook,
@@ -53,6 +54,13 @@ export const CLIENT_NAV = [
     icon: Handshake,
     group: 'engagement',
     action: 'settings.manage',
+  },
+  {
+    id: 'moderation',
+    href: '/cliente/moderacao',
+    icon: ShieldCheck,
+    group: 'engagement',
+    action: 'moderation.queue.view',
   },
   { id: 'cosmos', href: '/cliente/cosmos', icon: CosmosIcon, group: 'intelligence', action: 'cosmos.view' },
   {
