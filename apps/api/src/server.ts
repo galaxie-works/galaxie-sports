@@ -23,6 +23,7 @@ import {
 import { moderationRoutes } from './engage/moderation-routes.js';
 import { chatRoutes } from './chat/routes.js';
 import { ChatHub } from './chat/hub.js';
+import { ChatGameFeed } from './chat/game.js';
 import { MemoryChatPeak, RedisChatPeak } from './chat/peak.js';
 import type { ChatStreamOptions } from './chat/stream.js';
 import type { FanTokenSigner } from './engage/fan-token.js';
@@ -655,6 +656,13 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
         rejected: (reason) => metrics.sseRejected.inc({ reason }),
       },
     });
+    // o jogo dentro do chat (#965): gol, cartão vermelho, VAR, início, intervalo e fim viram mensagem da sala
+    const gameFeed = new ChatGameFeed(options.db, chatHub, {
+      assetsBaseUrl: options.assetsBaseUrl,
+      logger: app.log,
+    });
+    if (app.realtime) app.realtime.subscribe(gameFeed.handle);
+    else app.log.warn('chat: tempo real desligado, o jogo não entra no chat');
   }
 
   return app;

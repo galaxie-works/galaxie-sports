@@ -8,6 +8,10 @@
  * chave nunca vai na URL). A faixa de conexões do cliente (`live_chat.peak_connections`) não derruba ninguém: acima
  * dela a conexão entra, recebe `chat.state` com `read_only_peak` e o cliente fica em pico (D6, `peak.ts`). Com a
  * chave publicável há também um teto por chave e IP, para poucos endereços não esgotarem a faixa do cliente.
+ *
+ * O jogo dentro do chat (#965) vai em `chat.game`: ao abrir, a lista inteira das mensagens do jogo; depois, cada lote
+ * do jogo (gol, cartão vermelho, VAR, início, intervalo, fim), só com os tipos que o cliente ligou. A mensagem
+ * corrigida (gol anulado) vem de novo com o mesmo id.
  */
 import { randomUUID } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
@@ -19,6 +23,7 @@ import { ProblemError, problems } from '../errors.js';
 import { moduleLimitsOf } from '../engage/module-limits.js';
 import { formatSse, processLimitRetryAfter, SseConnection } from '../realtime/sse.js';
 import { parseInput } from '../util.js';
+import { gameRoomKey } from './game.js';
 import { ChatHub, formatCursor, parseCursor, type ChatBatch, type ChatCursor } from './hub.js';
 import { PEAK_FLAG_MS, type ChatPeak } from './peak.js';
 
@@ -42,6 +47,10 @@ interface Deps {
   peak: ChatPeak;
   options: ChatStreamOptions;
   roomState(tenantId: string, fixtureId: string): Promise<ChatRoomState>;
+  /** Tipos de mensagem do jogo que o cliente ligou (null = todos). */
+  gameKinds(tenantId: string): Promise<readonly string[] | null>;
+  /** Mensagens do jogo até agora (o widget troca a lista inteira; correção de VAR vem com o mesmo id). */
+  gameSnapshot(fixtureId: string): Promise<{ kind: string }[]>;
 }
 
 const StreamQuery = z.object({ last_event_id: z.string().max(40).optional() });
@@ -229,6 +238,19 @@ export function registerChatStream(app: FastifyInstance, deps: Deps): void {
         chain = chain.then(() => deliver(b)).catch(() => {});
       };
       const unsubscribe = deps.hub.subscribe(room, (b) => (replaying ? backlog.push(b) : enqueueDelivery(b)));
+      // Jogo: sem cursor (são poucas e a abertura manda a lista inteira). Os lotes que chegam antes da lista inteira
+      // esperam e saem depois dela (a lista podia ter sido lida antes deles). Filtra pelos tipos do cliente; sem
+      // conseguir ler os tipos, não manda nada do jogo (o cliente que desligou cartões nunca recebe cartão)
+      let kinds: readonly string[] | null = [];
+      let gameReady = false;
+      const gameBacklog: object[] = [];
+      const gameOf = (list: object[]) =>
+        (list as { kind: string }[]).filter((m) => !kinds || kinds.includes(m.kind));
+      const unsubscribeGame = deps.hub.subscribe(gameRoomKey(fixtureId), (b) => {
+        if (!gameReady) return void gameBacklog.push(...b.messages);
+        const messages = gameOf(b.messages);
+        if (messages.length && !conn.closed) conn.write(formatSse('chat.game', { messages }));
+      });
 
       const maxAgeMs = Math.max(0, REVALIDATE_WITHIN_MS - heartbeatMs);
       let revalidating = false;
@@ -279,6 +301,7 @@ export function registerChatStream(app: FastifyInstance, deps: Deps): void {
       res.on('close', () => {
         clearInterval(heartbeat);
         unsubscribe();
+        unsubscribeGame();
         open.delete(conn);
         releaseSlot();
         conn.closed = true;
@@ -306,6 +329,18 @@ export function registerChatStream(app: FastifyInstance, deps: Deps): void {
         if (resume) reset('O histórico curto está indisponível; releia a sala pelo GET.');
         cursor = { epoch: '', id: 0 };
       }
+      try {
+        kinds = await deps.gameKinds(tenant.tenantId);
+        conn.write(
+          formatSse('chat.game', { messages: gameOf(await deps.gameSnapshot(fixtureId)), snapshot: true }),
+        );
+      } catch (err) {
+        kinds = [];
+        request.log.warn({ err }, 'chat SSE: mensagens do jogo indisponíveis');
+      }
+      gameReady = true;
+      const late = gameOf(gameBacklog.splice(0));
+      if (late.length) conn.write(formatSse('chat.game', { messages: late }));
       replaying = false;
       backlog.sort((a, b) => a.id - b.id);
       for (const b of backlog.splice(0)) enqueueDelivery(b);

@@ -53,7 +53,7 @@ describe('ChatHub em memória', () => {
     hub.subscribe('r', (b) => got.push(b));
     for (const id of ['a', 'b', 'c']) await hub.enqueue('r', msg(id));
     await hub.tick();
-    expect(got[0]!.messages.map((m) => m.id)).toEqual(['b', 'c']);
+    expect((got[0]!.messages as { id: string }[]).map((m) => m.id)).toEqual(['b', 'c']);
   });
 
   it('limita o tamanho do lote', async () => {

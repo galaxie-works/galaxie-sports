@@ -18,7 +18,6 @@
  * outro.
  */
 import type { Redis } from 'ioredis';
-import type { ChatMessage } from '@galaxie/contracts';
 
 export interface ChatBatch {
   /** `<tenant>:<jogo>`. */
@@ -30,7 +29,8 @@ export interface ChatBatch {
   epoch: string;
   /** Sequencial por sala dentro da época, começa em 1. O `id:` do evento SSE é `<época>-<número>`. */
   id: number;
-  messages: ChatMessage[];
+  /** Mensagens do lote: da sala (`ChatMessage`) ou do jogo (`GameMessageView`, sala `game:<jogo>`). */
+  messages: object[];
 }
 
 /** Onde a conexão está: época e último lote entregue (0 = nenhum). */
@@ -103,7 +103,7 @@ export class ChatHub {
   private timer: NodeJS.Timeout | undefined;
   private running: Promise<void> | undefined;
   // sem Valkey
-  private readonly memQueue = new Map<string, ChatMessage[]>();
+  private readonly memQueue = new Map<string, object[]>();
   private readonly memSeq = new Map<string, ChatCursor>();
   private readonly maxQueue: number;
   private readonly now: () => number;
@@ -143,7 +143,7 @@ export class ChatHub {
   }
 
   /** Põe a mensagem aprovada na fila da sala; sai no próximo lote. */
-  async enqueue(room: string, message: ChatMessage): Promise<void> {
+  async enqueue(room: string, message: object): Promise<void> {
     const { redis } = this.options;
     if (!redis) {
       const q = this.memQueue.get(room) ?? [];
