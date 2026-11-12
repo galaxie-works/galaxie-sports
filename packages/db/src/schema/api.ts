@@ -111,6 +111,13 @@ export const tenant = api.table('tenant', {
     .array()
     .notNull()
     .default(sql`'{}'::text[]`),
+  /**
+   * Versão do catálogo comercial que o tenant assinou (`billing.catalog_version`, plataforma comercial #1137): o preço
+   * vale até a renovação. null = tenant anterior ao catálogo.
+   */
+  catalogVersion: text('catalog_version'),
+  /** Faixa de capacidade contratada (C1 a C4, `config/catalog/capacity.yaml`); null = padrão do catálogo. */
+  capacityTier: text('capacity_tier').$type<'C1' | 'C2' | 'C3' | 'C4'>(),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });
