@@ -729,6 +729,13 @@
       "when": 1794520733615,
       "tag": "0150_chat_salas",
       "breakpoints": true
+    },
+    {
+      "idx": 104,
+      "version": "7",
+      "when": 1794520832138,
+      "tag": "0151_chat_eventos_jogo",
+      "breakpoints": true
     }
   ]
 }
