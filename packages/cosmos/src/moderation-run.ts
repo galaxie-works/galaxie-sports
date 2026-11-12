@@ -85,7 +85,12 @@ export interface ModerationItem {
    * Imagem (#1025) em vez de texto: fica fora do ar até a Cosmos liberar ou a equipe decidir, e o caso guarda só a
    * referência que o módulo usa para mostrar a imagem à equipe (nunca a imagem).
    */
-  media?: { kind: string; ref: string | null };
+  media?: {
+    kind: string;
+    ref: string;
+    /** Fora do ar até a equipe decidir, mesmo quando a escada só sinaliza (false para cargo isento: só sinaliza). */
+    hold: boolean;
+  };
 }
 
 export interface ModerationOutcome {
@@ -177,13 +182,15 @@ const batchKey = (item: ModerationItem) => {
   return `${item.tenantId}|${scope.kind}|${scope.id}|${item.module}`;
 };
 
+/** Imagem no caso: o tipo e a referência do arquivo (o caso apaga junto com o conteúdo, pelo relógio da ficha). */
+const mediaDetail = (item: ModerationItem) =>
+  item.media ? { kind: item.media.kind, media: 'image', ref: item.media.ref } : {};
+
 /**
  * Modera um lote. Os itens são separados por cliente, escopo e módulo (cada grupo com a configuração, a reserva e o
  * extrato dele), e os resultados voltam na ordem da entrada. Nunca lança por falta de saldo, prazo ou modelo: o que
  * não deu para decidir segue as regras, e o que as regras marcaram vai para a fila humana.
  */
-const mediaDetail = (item: ModerationItem) =>
-  item.media ? { media: 'image', image: item.media.kind, ref: item.media.ref } : {};
 
 export async function moderateBatch(
   db: Database,
@@ -554,7 +561,8 @@ export async function applyModerationOutcome(
       clocks: item.clocks,
       subjectProfileId: item.targetProfileId,
       reason,
-      rules: { ...detail, ...placeOfItem(item) },
+      // a auditoria vive mais que o conteúdo: sem a referência da imagem
+      rules: { ...detail, ref: undefined, ...placeOfItem(item) },
     });
     return null;
   }
@@ -567,13 +575,13 @@ export async function applyModerationOutcome(
     reasons: [verdict.category],
     severity: caseSeverity(verdict),
     // imagem fora da régua fica fora do ar até a equipe decidir, mesmo quando a escada só sinaliza
-    hide: hidden || item.media !== undefined,
+    hide: hidden || item.media?.hold === true,
     content,
     detail: { ...detail, reason: verdict.reason, suggestion: plan.actions.map((a) => a.action) },
     clocks: item.clocks,
     now: at,
   });
-  if (hidden)
+  if (hidden || item.media?.hold)
     await recordModerationDecision(db, {
       tenantId: item.tenantId,
       actor: { id: 'cosmos', kind: 'cosmos' },
@@ -582,7 +590,13 @@ export async function applyModerationOutcome(
       subjectProfileId: item.targetProfileId,
       caseId,
       reason,
-      rules: { by: verdict.by, category: verdict.category, severity: verdict.severity, step: hide.step },
+      rules: {
+        by: verdict.by,
+        category: verdict.category,
+        severity: verdict.severity,
+        // imagem segurada para a revisão quando a escada só sinalizava
+        step: hidden && hide ? hide.step : 'held_for_review',
+      },
     });
 
   const mute = plan.actions.find((a) => a.action === 'mute');

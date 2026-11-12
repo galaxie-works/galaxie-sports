@@ -37,6 +37,7 @@ import {
   type ModerationOutcome,
   type ModerationTargetType,
 } from './moderation-run.js';
+import type { ModerationConfig } from './moderation-rules.js';
 import { cosmosApiKey } from './models.js';
 import { readCosmosSettings, readModerationCeiling } from './settings.js';
 import { activeFunction, getWallet, release, reserve, settle } from './wallet.js';
@@ -49,8 +50,11 @@ export const IMAGE_KINDS = ['profile_photo', 'wall_photo', 'community_image'] as
 export type ImageKind = (typeof IMAGE_KINDS)[number];
 
 export const IMAGE_LIMITS = {
-  /** Tamanho máximo da imagem que vai ao modelo; acima disso, fila humana. */
-  maxBytes: 5 * 1024 * 1024,
+  /**
+   * Tamanho máximo da imagem que vai ao modelo; acima disso, fila humana. Os provedores medem o limite em base64 (um
+   * terço maior): 3,75 MB crus cabem nos 5 MB.
+   */
+  maxBytes: 3_750_000,
   /** Tempo máximo da chamada ao modelo. */
   timeoutMs: 20_000,
   /** Teto de saída (um JSON curto). */
@@ -111,10 +115,13 @@ export interface ImageModerationInput {
   kind: ImageKind;
   /** O arquivo enviado. */
   image: Uint8Array;
-  /** Referência do arquivo no módulo (o caso grava, para a equipe abrir a imagem). */
-  ref: string | null;
-  targetType: ModerationTargetType;
-  targetId: string;
+  /**
+   * Id do arquivo no módulo, único por imagem: é o alvo do caso (uma foto nova não cai no caso do apelido, do texto do
+   * post nem de outra foto) e a referência que a equipe usa para abrir a imagem.
+   */
+  ref: string;
+  /** `profile` para foto de perfil; `post` para foto do mural e imagem de comunidade. */
+  targetType: Extract<ModerationTargetType, 'profile' | 'post'>;
   targetProfileId: string | null;
   authorRole?: TenantRole | null;
   module: ContentModule;
@@ -127,8 +134,11 @@ export interface ImageModerationInput {
 }
 
 export interface ImageModerationOutcome extends ModerationOutcome {
-  /** A imagem pode aparecer para todos. false: só o autor vê, até a equipe decidir. */
-  visible: boolean;
+  /**
+   * Imagem nova: true quando pode aparecer para todos; false quando só o autor vê, até a equipe decidir. Imagem
+   * denunciada (`source: 'report'`): null, e o módulo segue o caso da fila (esconder e publicar vêm de lá).
+   */
+  visible: boolean | null;
 }
 
 /** Imagem sem marca das regras: a Cosmos decide sempre (não há classificador grátis para imagem). */
@@ -140,14 +150,14 @@ const IMAGE_RULES: ModerationItem['rules'] = {
   evasion: false,
 };
 
-function toItem(input: ImageModerationInput): ModerationItem {
+function toItem(input: ImageModerationInput, exempt: boolean): ModerationItem {
   return {
     tenantId: input.tenantId,
     // o tipo de texto mais próximo, para a fila e o histórico; a imagem vai em `media`
     kind: input.kind === 'profile_photo' ? 'nickname' : 'wall_post',
     text: '',
     targetType: input.targetType,
-    targetId: input.targetId,
+    targetId: input.ref,
     targetProfileId: input.targetProfileId,
     authorRole: input.authorRole ?? null,
     module: input.module,
@@ -157,7 +167,8 @@ function toItem(input: ImageModerationInput): ModerationItem {
     source: input.source ?? 'filter',
     rules: IMAGE_RULES,
     clocks: input.clocks,
-    media: { kind: input.kind, ref: input.ref },
+    // cargo isento só é sinalizado: a imagem dele não fica segurada
+    media: { kind: input.kind, ref: input.ref, hold: !exempt },
   };
 }
 
@@ -170,45 +181,82 @@ export async function moderateImage(
   input: ImageModerationInput,
   deps: Omit<ModerationDeps, 'onDecision'> = {},
 ): Promise<ImageModerationOutcome> {
-  const item = toItem(input);
   const now = deps.now ?? (() => new Date());
-  const [settings, ceiling] = await Promise.all([
-    deps.settings ?? readCosmosSettings(db),
-    deps.ceiling ?? readModerationCeiling(db),
-  ]);
-  const { effective: config } = await loadModerationConfig(db, input.tenantId, ceiling, scopeOf(item));
-
-  const decided = await decideImage(db, item, input, config, ceiling, settings, deps);
+  let config: Pick<ModerationConfig, 'muteHours' | 'exemptRoles'> = { muteHours: 1, exemptRoles: [] };
+  let decided: ModerationOutcome;
+  try {
+    const [settings, ceiling] = await Promise.all([
+      deps.settings ?? readCosmosSettings(db),
+      deps.ceiling ?? readModerationCeiling(db),
+    ]);
+    const scope = scopeOf({ room: input.room ?? null, community: input.community ?? null });
+    const { effective } = await loadModerationConfig(db, input.tenantId, ceiling, scope);
+    config = effective;
+    decided = await decideImage(
+      db,
+      toItem(input, isExempt(input, effective)),
+      input,
+      effective,
+      ceiling,
+      settings,
+      deps,
+    );
+  } catch (err) {
+    // erro de infraestrutura (banco, configuração): a imagem vai para a fila, sem erro para o torcedor
+    console.error('[cosmos] moderação de imagem sem decisão; imagem vai para a fila', {
+      tenantId: input.tenantId,
+      ref: input.ref,
+      err,
+    });
+    decided = {
+      item: toItem(input, isExempt(input, config)),
+      by: 'fallback',
+      verdict: null,
+      plan: null,
+      fallback: 'failed',
+    };
+  }
   let caseId: string | null;
   try {
     caseId = await applyModerationOutcome(db, decided, config, now(), new Set());
   } catch (err) {
     console.error('[cosmos] ação da moderação de imagem falhou; imagem vai para a fila', {
       tenantId: input.tenantId,
-      targetId: input.targetId,
+      ref: input.ref,
       err,
     });
     Object.assign(decided, { by: 'fallback', fallback: 'failed', verdict: null, plan: null });
     caseId = await applyModerationOutcome(db, decided, config, now(), new Set()).catch((e) => {
       console.error('[cosmos] imagem da moderação sem caso: nem a fila aceitou', {
         tenantId: input.tenantId,
-        targetId: input.targetId,
+        ref: input.ref,
         err: e,
       });
       return null;
     });
   }
-  return { ...decided, caseId, visible: isVisible(decided) };
+  return { ...decided, caseId, visible: input.source === 'report' ? null : isVisible(decided) };
 }
 
-/** Só aparece o que a Cosmos liberou sem pedir revisão. Denunciada e liberada continua como estava (publicada). */
-const isVisible = (o: ModerationOutcome) => o.by === 'cosmos' && o.plan !== null && o.plan.allow;
+const isExempt = (input: ImageModerationInput, config: Pick<ModerationConfig, 'exemptRoles'>) =>
+  !!input.authorRole && config.exemptRoles.includes(input.authorRole);
+
+/**
+ * Só aparece o que a Cosmos decidiu e não segurou: liberado, ou (cargo isento) só sinalizado sem esconder pela
+ * escada.
+ */
+const isVisible = (o: ModerationOutcome) => {
+  if (o.by !== 'cosmos' || !o.plan) return false;
+  if (o.plan.allow) return true;
+  const hide = o.plan.actions.find((a) => a.action === 'hide');
+  return o.item.media?.hold === false && (hide === undefined || hide.step === 'flag');
+};
 
 async function decideImage(
   db: Database,
   item: ModerationItem,
   input: ImageModerationInput,
-  config: Parameters<typeof planModeration>[1],
+  config: ModerationConfig,
   ceiling: Parameters<typeof planModeration>[2],
   settings: Awaited<ReturnType<typeof readCosmosSettings>>,
   deps: Omit<ModerationDeps, 'onDecision'>,
@@ -334,7 +382,6 @@ async function decideImage(
 
 const RESERVE_FALLBACK: Record<string, FallbackReason> = {
   insufficient_credits: 'insufficient',
-  quota_exceeded: 'insufficient',
   wallet_blocked: 'blocked',
   cosmos_disabled: 'disabled',
   no_wallet: 'no_wallet',

@@ -126,7 +126,6 @@ const image = (t: string, over: Partial<ImageModerationInput> = {}): ImageModera
   image: JPEG,
   ref: `avatar/${randomBytes(4).toString('hex')}.jpg`,
   targetType: 'profile',
-  targetId: `p-${randomBytes(4).toString('hex')}`,
   targetProfileId: null,
   module: 'profile',
   clocks,
@@ -221,5 +220,30 @@ describe('moderação de imagem (#1025)', () => {
     const after = await getWallet(db, t);
     expect(after?.available).toBe(before?.available);
     expect(after?.reserved).toBe(0);
+  });
+
+  it('imagem denunciada: visible null, o módulo segue o caso; liberada continua no ar', async () => {
+    await withFunction();
+    const t = await newTenant(10_000);
+    const o = await moderateImage(db, image(t, { source: 'report' }), {
+      client: fakeClient(verdict('none', 0)),
+      env,
+      settings,
+      ceiling,
+    });
+    expect(o.visible).toBeNull();
+    const [c] = await casesOf(t);
+    expect(c?.hiddenAt).toBeNull();
+  });
+
+  it('cada imagem tem o próprio caso: duas fotos reprovadas do mesmo perfil não se misturam', async () => {
+    await withFunction();
+    const t = await newTenant(10_000, { hide: 'flag', mute: 'flag', suspend: 'flag', ban: 'flag' });
+    const client = fakeClient(verdict('hate', 3));
+    await moderateImage(db, image(t), { client, env, settings, ceiling });
+    await moderateImage(db, image(t), { client, env, settings, ceiling });
+    const cases = await casesOf(t);
+    expect(cases).toHaveLength(2);
+    expect(cases.every((c) => c.hiddenAt !== null)).toBe(true);
   });
 });
