@@ -489,7 +489,8 @@ async function apply(
         source: 'cosmos',
         reasons: [],
         severity: 0,
-        hide: false,
+        // segurado pelas regras: continua fora do ar até a equipe decidir (publicar devolve)
+        hide: item.rules.action !== 'allow',
         content,
         // o motivo do modelo fica só no caso (a exclusão do torcedor apaga)
         detail: { ...detail, reason: verdict.reason, suggestion: 'allow' },

@@ -227,6 +227,8 @@ export function parseModerationResult(text: string, count: number): (Verdict | n
     if (typeof category !== 'string' || !(VERDICT_CATEGORIES as readonly string[]).includes(category))
       continue;
     if (!Number.isInteger(severity) || severity < 0 || severity > SEVERITY_MAX) continue;
+    // categoria sem gravidade (ou "nada" com gravidade) é contradição: fica de fora, e o item segue as regras
+    if (category !== 'none' && severity === 0) continue;
     const reason = typeof e.reason === 'string' ? e.reason.replace(/\s+/g, ' ').trim().slice(0, 140) : '';
     out[n - 1] = {
       category: category as VerdictCategory,

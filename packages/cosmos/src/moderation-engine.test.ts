@@ -112,10 +112,11 @@ describe('pedido ao modelo e resposta', () => {
         { n: 2, category: 'hate', severity: '3' },
         { n: '3', category: 'hate', severity: 3 },
         { n: 4, category: 'hate', severity: true },
+        { n: 5, category: 'hate', severity: 0 },
       ]),
-      4,
+      5,
     );
-    expect(out).toEqual([null, null, null, null]);
+    expect(out).toEqual([null, null, null, null, null]);
   });
 
   it('colchetes antes do JSON não atrapalham, e o JSON cortado aproveita os itens completos', () => {

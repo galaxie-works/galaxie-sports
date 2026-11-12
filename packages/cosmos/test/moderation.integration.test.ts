@@ -421,6 +421,30 @@ describe('motor de moderação', () => {
     expect(Number(u!.costUsd)).toBeGreaterThan(0);
   });
 
+  it('segurado pelas regras e a Cosmos acha normal: continua fora do ar até a equipe publicar', async () => {
+    await withFunction();
+    const t = await newTenant(1000);
+    await moderateBatch(
+      db,
+      [
+        item(t, 1, {
+          rules: {
+            action: 'shadow',
+            reasons: ['abuse'],
+            categories: ['profanity'],
+            suspect: true,
+            evasion: false,
+          },
+        }),
+      ],
+      { client: fakeClient(answer([{ category: 'none', severity: 0 }])), env, settings, ceiling },
+    );
+    const [c] = await casesOf(t);
+    expect(c).toMatchObject({ status: 'open', source: 'cosmos' });
+    expect(c!.hiddenAt).not.toBeNull();
+    expect(c!.detail).toMatchObject({ cosmos: { suggestion: 'allow' } });
+  });
+
   it('denunciado e a Cosmos acha normal: a sugestão vai para o caso, e quem decide é a equipe', async () => {
     await withFunction();
     const t = await newTenant(1000);
