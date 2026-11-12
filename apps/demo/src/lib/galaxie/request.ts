@@ -106,9 +106,11 @@ export function operationAnchor(method: string, route: string): string {
 
 const pyString = (s: string) => JSON.stringify(s);
 const tsString = (s: string) => `'${s.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
+/** String PHP entre aspas simples (só `\\` e `'` escapam). */
+const phpString = (s: string) => `'${s.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
 
 /**
- * Os três exemplos da chamada: curl, TypeScript (`fetch`) e Python (`requests`), com a chave de
+ * Os exemplos da chamada: curl, TypeScript (`fetch`), Python (`requests`) e PHP (cURL), com a chave de
  * exemplo e os comentários no idioma da tela (`locale`; sem ele, pt-BR).
  */
 export function requestSnippets(
@@ -163,9 +165,29 @@ export function requestSnippets(
     `data = resp.json()`,
   ].join('\n');
 
+  const phpQuery = query.length
+    ? ` . '?' . http_build_query([${query.map(([k, v]) => `${phpString(k)} => ${phpString(v)}`).join(', ')}])`
+    : '';
+  const php = [
+    `<?php`,
+    `$key = getenv('GALAXIE_KEY') ?: ${phpString(text.key)};`,
+    ``,
+    `$ch = curl_init(${phpString(`${base}${path}`)}${phpQuery});`,
+    `curl_setopt_array($ch, [`,
+    `    CURLOPT_HTTPHEADER => ['x-galaxie-key: ' . $key],`,
+    `    CURLOPT_RETURNTRANSFER => true,`,
+    `    CURLOPT_TIMEOUT => 10,`,
+    `]);`,
+    `$body = curl_exec($ch);`,
+    `curl_close($ch);`,
+    `// ${text.raise}`,
+    `$data = json_decode($body, true);`,
+  ].join('\n');
+
   return [
     { label: 'curl', language: 'bash', code: curl },
     { label: 'TypeScript', language: 'typescript', code: typescript },
     { label: 'Python', language: 'python', code: python },
+    { label: 'PHP', language: 'php', code: php },
   ];
 }
