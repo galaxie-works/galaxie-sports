@@ -199,6 +199,32 @@ export const chatPaths: ZodOpenApiPathsObject = {
       },
     },
   },
+  '/v1/chat/rooms/{fixtureId}/stream': {
+    get: {
+      summary: 'Mensagens da sala em lotes (SSE)',
+      description:
+        'Server-Sent Events. Um evento `chat.batch` por lote (no máximo um por segundo), com `id:` = número do ' +
+        'lote e `data: {"batch_id", "messages": [ChatMessage]}`. Ao abrir vem `chat.state` (estado da sala; ' +
+        '`read_only_peak` quando a faixa de conexões do cliente estourou) e `ready` com `last_batch_id`. ' +
+        'Reconexão: `Last-Event-ID` (ou `?last_batch_id=`) reenvia os lotes perdidos do histórico curto; se o ' +
+        'buraco saiu dele, vem `chat.reset` e o cliente relê a sala pelo GET. No navegador use um cliente SSE sobre ' +
+        '`fetch` com a chave publicável no header (a chave nunca vai na URL). Exige o módulo `live_chat`.',
+      tags: [TAG],
+      requestParams: {
+        path: ChatRoomParams,
+        query: z.object({ last_batch_id: z.number().int().min(0).optional() }),
+      },
+      responses: {
+        '200': {
+          description: 'Stream SSE (text/event-stream)',
+          content: { 'text/event-stream': { schema: z.string() } },
+        },
+        '404': problem('Jogo não encontrado (NOT_FOUND)'),
+        ...keyErrors,
+        '503': problem('Limite de conexões da instância (DEGRADED), com Retry-After'),
+      },
+    },
+  },
   '/v1/chat/config': {
     get: {
       summary: 'Padrão do cliente para as salas',

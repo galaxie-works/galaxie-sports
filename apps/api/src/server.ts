@@ -13,6 +13,8 @@ import {
 import { fanRoutes } from './engage/fan-routes.js';
 import { moderationRoutes } from './engage/moderation-routes.js';
 import { chatRoutes } from './chat/routes.js';
+import { ChatHub } from './chat/hub.js';
+import { MemoryChatPeak, RedisChatPeak } from './chat/peak.js';
 import type { FanTokenSigner } from './engage/fan-token.js';
 import { AdminGuard, type AdminGuardOptions } from './admin/guard.js';
 import { loadPlans, type PlanCatalog } from './admin/plans.js';
@@ -317,6 +319,15 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
   const fanRevocations =
     options.fanRevocations ??
     (options.redis ? new RedisFanRevocations(options.redis, prefix) : new MemoryFanRevocations());
+  // Chat ao vivo (#964): lotes de 1 s pelo Valkey e faixa de conexões (D6)
+  const chatHub = new ChatHub({
+    ...(options.redis ? { redis: options.redis } : {}),
+    keyPrefix: prefix,
+    logger: app.log,
+  });
+  const chatPeak = options.redis ? new RedisChatPeak(options.redis, prefix) : new MemoryChatPeak();
+  app.addHook('onReady', () => chatHub.start());
+  app.addHook('onClose', () => chatHub.stop());
   registerFanAuth(app, {
     signer: options.fanTokens ?? null,
     publishable,
@@ -471,7 +482,7 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
       revocations: fanRevocations,
     });
     await moderationRoutes(instance, { db: options.db, now: options.now });
-    await chatRoutes(instance, { db: options.db, now: options.now });
+    await chatRoutes(instance, { db: options.db, now: options.now, hub: chatHub, peak: chatPeak });
   });
 
   // escopo próprio: o parser de corpo cru do webhook não vale para as outras rotas
