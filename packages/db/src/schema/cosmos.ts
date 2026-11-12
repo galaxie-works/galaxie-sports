@@ -580,3 +580,34 @@ export const docEmbedding = cosmos.table(
   },
   (t) => [primaryKey({ columns: [t.model, t.contentHash] })],
 );
+
+// ─── tom da marca (texto de pré e pós-jogo, #1009) ─────────────────────────────────────────────────
+
+export const BRAND_VOICE_TONES = ['formal', 'fan', 'young'] as const;
+export type BrandVoiceTone = (typeof BRAND_VOICE_TONES)[number];
+export const BRAND_VOICE_LENGTHS = ['short', 'medium', 'long'] as const;
+export type BrandVoiceLength = (typeof BRAND_VOICE_LENGTHS)[number];
+
+/**
+ * Guia de tom do cliente para os textos da Cosmos: salvo uma vez nas configurações da Cosmos e usado em cada pedido de
+ * texto de pré e pós-jogo. Uma linha por tenant; quem salvou por último e quando.
+ */
+export const brandVoice = cosmos.table(
+  'brand_voice',
+  {
+    tenantId: uuid('tenant_id')
+      .primaryKey()
+      .references(() => tenant.id, { onDelete: 'cascade' }),
+    tone: text('tone').$type<BrandVoiceTone>().notNull(),
+    /** Palavras e expressões que o texto não usa. */
+    avoid: jsonb('avoid').$type<string[]>().notNull().default([]),
+    length: text('length').$type<BrandVoiceLength>().notNull(),
+    updatedBy: text('updated_by').notNull(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    check('brand_voice_tone', sql`${t.tone} in ('formal', 'fan', 'young')`),
+    check('brand_voice_length', sql`${t.length} in ('short', 'medium', 'long')`),
+  ],
+);

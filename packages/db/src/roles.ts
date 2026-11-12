@@ -119,6 +119,8 @@ export const ROLE_GRANTS: Record<RoleService, RoleGrants> = {
       'cosmos.recharge_attempt',
       'cosmos.credit_request',
       'cosmos.staff_usage',
+      // guia de tom do cliente (#1009)
+      'cosmos.brand_voice',
     ],
     // o que foi escrito não muda: extrato, alertas de saldo, ações da equipe e o histórico da moderação
     append: [

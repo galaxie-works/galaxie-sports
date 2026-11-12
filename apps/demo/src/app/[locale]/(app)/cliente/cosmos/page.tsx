@@ -4,6 +4,7 @@ import { Suspense } from 'react';
 import { LoadingStatus } from '@/components/app-shell/loading-status';
 import { PageHeader } from '@/components/app-shell/page-header';
 import { ClientArea } from '@/components/client/client-area';
+import { BrandVoiceForm } from '@/components/cosmos/brand-voice-form';
 import { CosmosArea } from '@/components/cosmos/cosmos-area';
 import { CosmosModeration } from '@/components/cosmos/cosmos-moderation';
 import { CosmosOverview } from '@/components/cosmos/cosmos-overview';
@@ -14,6 +15,7 @@ import { can } from '@/lib/client/permissions';
 import { isUuid } from '@/lib/client/tenants';
 import { loadCreditRequests } from '@/lib/cosmos/credit-request-data';
 import { loadCosmosOverview, loadCosmosStatement } from '@/lib/cosmos/data';
+import { brandVoiceFor, matchTextAccess, matchTextMinimum } from '@/lib/cosmos/match-text-tasks';
 import { COSMOS_TABS, type CosmosTab } from '@/lib/cosmos/data-utils';
 import { loadCosmosModeration } from '@/lib/cosmos/moderation-data';
 import { getT, getTimeZone } from '@/lib/i18n/server';
@@ -49,7 +51,9 @@ async function Cosmos({
         const { tenant } = ctx;
         // o tenant vem da sessão (ClientArea, que já exigiu `cosmos.view`): o cliente só vê a carteira e o extrato dele
         const canManage = can(ctx, 'cosmos.manage');
-        const [overview, statement, moderation, requests] = await Promise.all([
+        // guia de tom (#1009): na visão geral, quando a função de texto do jogo está no catálogo e o tenant a usa
+        const voiceShown = tab === 'overview' && tenant.modules.includes('cosmos_ai');
+        const [overview, statement, moderation, requests, voice, voiceMinimum] = await Promise.all([
           loadCosmosOverview(tenant, timeZone),
           loadCosmosStatement(
             tenant.id,
@@ -67,6 +71,8 @@ async function Cosmos({
           tab === 'moderation' ? loadCosmosModeration(tenant.id) : null,
           // quem compra vê os pedidos do tenant; quem não compra, só os próprios (#996)
           tab === 'overview' ? loadCreditRequests(tenant.id, ctx.userId, canManage) : [],
+          voiceShown ? brandVoiceFor(tenant.id) : null,
+          voiceShown ? matchTextMinimum() : null,
         ]);
         return (
           <CosmosArea
@@ -81,6 +87,10 @@ async function Cosmos({
                 />
                 {overview.wallet ? (
                   <CreditRequests requests={requests} canManage={canManage} packages={overview.packages} />
+                ) : null}
+                {voice && voiceMinimum !== null ? (
+                  // o servidor confere de novo ao salvar (configurações do cliente: Admin e Dono)
+                  <BrandVoiceForm initial={voice.voice} canEdit={!matchTextAccess(ctx)} />
                 ) : null}
               </div>
             }

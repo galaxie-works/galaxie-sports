@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import type { Event, HeadToHead, WhereToWatch } from '@galaxie/contracts';
 import {
   BadgeInfo,
@@ -36,6 +37,7 @@ import { isRaceEvent, RaceClassification, RaceScoreboard, raceTitle } from '@/co
 import { PhotoFigure } from '@/components/sport/race-career';
 import { RelatedContentGrid } from '@/components/sport/related-content';
 import { RelevanceMeter } from '@/components/sport/relevance-meter';
+import { MatchTextSlot } from '@/components/cosmos/match-text-slot';
 import { Section } from '@/components/sport/section';
 import { SourceNote } from '@/components/sport/source-note';
 import { BrandLogo, WhereToWatchGroups } from '@/components/sport/where-to-watch-groups';
@@ -604,6 +606,18 @@ export async function EventContent({ params, searchParams, source }: PageContent
                 ))}
               </Section>
             ) : null}
+            {/* texto no tom da marca do cliente (#1009): só no app logado, para quem pode pedir à Cosmos */}
+            {source.showcase ? null : (
+              <Suspense fallback={null}>
+                <MatchTextSlot
+                  eventId={id}
+                  locale={content}
+                  kinds={(context?.data ?? []).flatMap((c) =>
+                    c.kind === 'scenario' ? ['pre' as const] : c.kind === 'recap' ? ['post' as const] : [],
+                  )}
+                />
+              </Suspense>
+            )}
             {fightCard ? (
               <FightCardSection
                 card={fightCard}
