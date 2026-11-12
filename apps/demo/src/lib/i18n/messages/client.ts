@@ -14,6 +14,7 @@ export default defineMessages(
       newTheme: 'Novo tema da marca',
       editTheme: 'Editar tema da marca',
       cosmos: 'Cosmos AI',
+      moderation: 'Fila de moderação',
     },
     title: 'Painel do cliente',
     nav: {
@@ -28,6 +29,7 @@ export default defineMessages(
       sponsors: 'Patrocinadores',
       themes: 'Temas',
       cosmos: 'Cosmos AI',
+      moderation: 'Fila de moderação',
       groups: {
         account: 'Conta',
         content: 'Conteúdo',
@@ -669,6 +671,7 @@ export default defineMessages(
         newTheme: 'New brand theme',
         editTheme: 'Edit brand theme',
         cosmos: 'Cosmos AI',
+        moderation: 'Moderation queue',
       },
       title: 'Client panel',
       nav: {
@@ -683,6 +686,7 @@ export default defineMessages(
         sponsors: 'Sponsors',
         themes: 'Themes',
         cosmos: 'Cosmos AI',
+        moderation: 'Moderation queue',
         groups: {
           account: 'Account',
           content: 'Content',
@@ -1327,6 +1331,7 @@ export default defineMessages(
         newTheme: 'Nuevo tema de marca',
         editTheme: 'Editar tema de marca',
         cosmos: 'Cosmos AI',
+        moderation: 'Cola de moderación',
       },
       title: 'Panel del cliente',
       nav: {
@@ -1341,6 +1346,7 @@ export default defineMessages(
         sponsors: 'Patrocinadores',
         themes: 'Temas',
         cosmos: 'Cosmos AI',
+        moderation: 'Cola de moderación',
         groups: {
           account: 'Cuenta',
           content: 'Contenido',

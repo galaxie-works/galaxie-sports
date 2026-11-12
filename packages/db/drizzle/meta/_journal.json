@@ -656,6 +656,13 @@
     {
       "idx": 93,
       "version": "7",
+      "when": 1794447867474,
+      "tag": "0098_patrocinador_alcool",
+      "breakpoints": true
+    },
+    {
+      "idx": 94,
+      "version": "7",
       "when": 1794487982379,
       "tag": "0101_cosmos_funcoes_widget",
       "breakpoints": true
