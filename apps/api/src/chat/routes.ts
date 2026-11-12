@@ -20,9 +20,10 @@ import {
   type ChatMessageResponse,
   type ChatRoom,
 } from '@galaxie/contracts';
-import { activeSanctions, type ChatStrictness, type Database } from '@galaxie/db';
+import { activeSanctions, CHAT_GAME_KINDS, type ChatStrictness, type Database } from '@galaxie/db';
 import {
   canReadRoom,
+  gameKindEnabled,
   roomWindow,
   screen,
   screenNotice,
@@ -53,11 +54,20 @@ import {
   type ChatTenantConfigRow,
 } from './rooms.js';
 import { ChatSettings, type ChatSettingsValues } from './settings.js';
+import { ChatHub } from './hub.js';
+import { gameMessages } from './game.js';
+import { MemoryChatPeak, type ChatPeak } from './peak.js';
+import { registerChatStream, type ChatStreamOptions } from './stream.js';
 
 export interface ChatRoutesDeps {
   db: Database | undefined;
   settings?: ChatSettings | undefined;
   now?: (() => Date) | undefined;
+  /** Lotes da sala (#964); sem ele, um hub local à instância. */
+  hub?: ChatHub | undefined;
+  /** Faixa de conexões e pico (D6); sem ele, em memória. */
+  peak?: ChatPeak | undefined;
+  stream?: ChatStreamOptions | undefined;
 }
 
 const MODULE = { module: 'live_chat' as const };
@@ -71,6 +81,7 @@ function effective(room: ChatRoomRow | null, cfg: ChatTenantConfigRow, g: ChatSe
     strictness: (room?.strictness ?? cfg.strictness ?? 'standard') as ChatStrictness,
     maxChars: g.maxChars,
     historyOnJoin: g.historyOnJoin,
+    eventKinds: cfg.eventKinds,
   };
 }
 
@@ -104,6 +115,12 @@ export async function chatRoutes(app: FastifyInstance, deps: ChatRoutesDeps): Pr
   const settings = deps.settings ?? new ChatSettings(deps.db);
   const moderation = deps.db ? new ModerationLists(deps.db) : null;
   const now = () => deps.now?.() ?? new Date();
+  const hub = deps.hub ?? new ChatHub();
+  const peak = deps.peak ?? new MemoryChatPeak(() => now().getTime());
+  if (!deps.hub) {
+    app.addHook('onReady', () => hub.start());
+    app.addHook('onClose', () => hub.stop());
+  }
   const db = () => {
     if (!deps.db) throw problems.degraded('Banco de dados não configurado.');
     return deps.db;
@@ -157,10 +174,12 @@ export async function chatRoutes(app: FastifyInstance, deps: ChatRoutesDeps): Pr
   ): Promise<ChatRoom> {
     const { room, eff, window } = loaded;
     const visible: ChatRoomState[] = ['open', 'frozen', 'read_only_peak', 'closed'];
-    const messages =
+    const [messages, game] = await Promise.all([
       room && visible.includes(window.state)
-        ? await recentMessages(db(), tenantId, room.id, eff.historyOnJoin)
-        : [];
+        ? recentMessages(db(), tenantId, room.id, eff.historyOnJoin)
+        : Promise.resolve([]),
+      gameMessages(db(), fixtureId),
+    ]);
     return {
       data: {
         room_id: room?.id ?? null,
@@ -174,6 +193,7 @@ export async function chatRoutes(app: FastifyInstance, deps: ChatRoutesDeps): Pr
           max_chars: eff.maxChars,
         },
         messages: messages.map(messageView),
+        game_messages: game.filter((m) => gameKindEnabled(eff.eventKinds, m.kind)),
       },
     };
   }
@@ -233,6 +253,23 @@ export async function chatRoutes(app: FastifyInstance, deps: ChatRoutesDeps): Pr
         {
           errors: [{ path: 'refusal', message: refusal }],
         },
+      );
+
+    // pico da faixa (D6): quem já estava escrevendo continua; quem chegou depois lê
+    const peakFailOpen = (err: unknown) => {
+      request.log.warn({ err }, 'chat: pico indisponível');
+      return false;
+    };
+    if (
+      (await peak.inPeak(fan.tenantId).catch(peakFailOpen)) &&
+      !(await peak.hasSeat(fan.tenantId, fan.profileId).catch(() => true))
+    )
+      throw new ProblemError(
+        409,
+        'CONFLICT',
+        'Sala fechada para envio',
+        sendRefusalNotice('room_read_only_peak', fan.locale),
+        { errors: [{ path: 'refusal', message: 'room_read_only_peak' }] },
       );
 
     const at = now();
@@ -334,22 +371,59 @@ export async function chatRoutes(app: FastifyInstance, deps: ChatRoutesDeps): Pr
         `Espere ${saved.retryAfterS} s para mandar outra mensagem.`,
         { headers: { 'retry-after': String(saved.retryAfterS) } },
       );
+    const view = messageView({
+      id: saved.id,
+      body: text,
+      profileId: fan.profileId,
+      nickname: profile.nickname,
+      avatarUrl: profile.avatarUrl,
+      avatarVisibility: profile.visibility.avatar,
+      createdAt: saved.createdAt,
+    });
+    // só a mensagem pública entra no lote; a retida fica com o autor (ele a vê pela resposta)
+    // Valkey fora: a mensagem já está gravada e aparece pelo GET; o envio não volta com erro (o torcedor não repete)
+    if (visibility === 'public')
+      await hub.enqueue(ChatHub.roomKey(fan.tenantId, fixtureId), view).catch((err: unknown) => {
+        request.log.warn({ err }, 'chat: fila do lote indisponível');
+      });
+    await peak.seat(fan.tenantId, fan.profileId).catch((err: unknown) => {
+      request.log.warn({ err }, 'chat: lugar do torcedor indisponível');
+    });
     reply.header('cache-control', 'no-store');
     const res: ChatMessageResponse = {
-      data: {
-        ...messageView({
-          id: saved.id,
-          body: text,
-          profileId: fan.profileId,
-          nickname: profile.nickname,
-          avatarUrl: profile.avatarUrl,
-          avatarVisibility: profile.visibility.avatar,
-          createdAt: saved.createdAt,
-        }),
-        status: visibility === 'public' ? 'published' : 'held',
-      },
+      data: { ...view, status: visibility === 'public' ? 'published' : 'held' },
     };
     return reply.code(201).send(res);
+  });
+
+  // reconexão em massa (deploy, pico): a lista do jogo e os tipos do cliente vêm de um cache curto
+  const shortCache = <T>(ttlMs: number, load: (k: string) => Promise<T>) => {
+    const map = new Map<string, { at: number; value: Promise<T> }>();
+    return (k: string): Promise<T> => {
+      const hit = map.get(k);
+      if (hit && Date.now() - hit.at < ttlMs) return hit.value;
+      const value = load(k);
+      value.catch(() => map.delete(k));
+      if (map.size > 10_000) map.clear();
+      map.set(k, { at: Date.now(), value });
+      return value;
+    };
+  };
+  const cachedGame = shortCache(1_000, (fixtureId) => gameMessages(db(), fixtureId));
+  const cachedKinds = shortCache(
+    30_000,
+    async (tenantId) => (await readTenantConfig(db(), tenantId)).eventKinds,
+  );
+
+  registerChatStream(app, {
+    db: deps.db,
+    hub,
+    peak,
+    options: deps.stream ?? {},
+    // leitura: não cria a sala (a chave publicável abre o stream); os lotes são por jogo e cliente
+    roomState: async (tenantId, fixtureId) => (await loadRoom(tenantId, fixtureId, false)).window.state,
+    gameKinds: (tenantId) => cachedKinds(tenantId),
+    gameSnapshot: (fixtureId) => cachedGame(fixtureId),
   });
 
   async function configBody(tenantId: string): Promise<ChatConfig> {
@@ -361,6 +435,7 @@ export async function chatRoutes(app: FastifyInstance, deps: ChatRoutesDeps): Pr
         close_after_minutes: eff.closeAfterMinutes,
         slow_mode_seconds: eff.slowModeSeconds,
         strictness: eff.strictness,
+        event_kinds: eff.eventKinds ?? [...CHAT_GAME_KINDS],
         custom: Object.entries(cfg)
           .filter(([, v]) => v !== null)
           .map(([k]) => k.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`)),

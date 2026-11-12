@@ -22,6 +22,10 @@ import {
 } from './engage/presence-routes.js';
 import { moderationRoutes } from './engage/moderation-routes.js';
 import { chatRoutes } from './chat/routes.js';
+import { ChatHub } from './chat/hub.js';
+import { ChatGameFeed } from './chat/game.js';
+import { MemoryChatPeak, RedisChatPeak } from './chat/peak.js';
+import type { ChatStreamOptions } from './chat/stream.js';
 import type { FanTokenSigner } from './engage/fan-token.js';
 import { AdminGuard, type AdminGuardOptions } from './admin/guard.js';
 import { loadPlans, type PlanCatalog } from './admin/plans.js';
@@ -190,6 +194,8 @@ export interface ServerOptions {
   mediaDenylist?: MediaDenylist;
   /** Relógio injetável (testes de momentum/agenda). */
   now?: () => Date;
+  /** Chat ao vivo (#964): intervalo do lote e opções do stream (testes). */
+  chat?: { intervalMs?: number; stream?: ChatStreamOptions };
   /** Piso editorial da semântica e pasta da base (SEMANTIC_MIN_REVIEW_STATUS, KNOWLEDGE_DIR). */
   semantic?: SemanticConfig;
   /** Grade de canais e ofertas: piso editorial (LINEUP_MIN_REVIEW_STATUS) e consultas (fixas nos testes). */
@@ -350,6 +356,16 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
   const fanRevocations =
     options.fanRevocations ??
     (options.redis ? new RedisFanRevocations(options.redis, prefix) : new MemoryFanRevocations());
+  // Chat ao vivo (#964): lotes de 1 s pelo Valkey e faixa de conexões (D6)
+  const chatHub = new ChatHub({
+    ...(options.redis ? { redis: options.redis } : {}),
+    keyPrefix: prefix,
+    logger: app.log,
+    ...(options.chat?.intervalMs ? { intervalMs: options.chat.intervalMs } : {}),
+  });
+  const chatPeak = options.redis ? new RedisChatPeak(options.redis, prefix) : new MemoryChatPeak();
+  app.addHook('onReady', () => chatHub.start());
+  app.addHook('onClose', () => chatHub.stop());
   registerFanAuth(app, {
     signer: options.fanTokens ?? null,
     publishable,
@@ -550,7 +566,13 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
       instance.addHook('onClose', async () => stopPurge());
     }
     await moderationRoutes(instance, { db: options.db, now: options.now });
-    await chatRoutes(instance, { db: options.db, now: options.now });
+    await chatRoutes(instance, {
+      db: options.db,
+      now: options.now,
+      hub: chatHub,
+      peak: chatPeak,
+      stream: options.chat?.stream,
+    });
   });
 
   // escopo próprio: o parser de corpo cru do webhook não vale para as outras rotas
@@ -634,6 +656,13 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
         rejected: (reason) => metrics.sseRejected.inc({ reason }),
       },
     });
+    // o jogo dentro do chat (#965): gol, cartão vermelho, VAR, início, intervalo e fim viram mensagem da sala
+    const gameFeed = new ChatGameFeed(options.db, chatHub, {
+      assetsBaseUrl: options.assetsBaseUrl,
+      logger: app.log,
+    });
+    if (app.realtime) app.realtime.subscribe(gameFeed.handle);
+    else app.log.warn('chat: tempo real desligado, o jogo não entra no chat');
   }
 
   return app;
