@@ -132,7 +132,10 @@ function pairGoals<A extends Goal, B extends Goal>(
 }
 
 const isProviderCancel = (v: IncidentRow) =>
-  !isRetractedGoalRow(v) && v.type === 'var' && /goal (cancelled|disallowed)/i.test(v.detail ?? '');
+  !isRetractedGoalRow(v) &&
+  v.type === 'var' &&
+  // a mesma regra de `isGoalCancellingVarDetail` (@galaxie/contracts) e do trigger da 0127
+  /^goal (cancel+ed|disallowed)\b/i.test((v.detail ?? '').trim());
 
 function inferredVar(goal: Goal, sequence: number): IncidentRow {
   const raw = goal.data ?? {};

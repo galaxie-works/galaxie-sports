@@ -691,7 +691,14 @@
     {
       "idx": 98,
       "version": "7",
-      "when": 1794487987379,
+      "when": 1794488042379,
+      "tag": "0127_var_gol_anulado",
+      "breakpoints": true
+    },
+    {
+      "idx": 99,
+      "version": "7",
+      "when": 1794488102379,
       "tag": "0133_cosmos_texto_do_jogo",
       "breakpoints": true
     }
