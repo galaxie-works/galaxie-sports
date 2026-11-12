@@ -1,6 +1,6 @@
 {
-  "id": "c7b951ed-d374-40cb-8822-8fc904a512c7",
-  "prevId": "0ba9088b-bb42-4a16-a1ba-12508f609af7",
+  "id": "d3dccf65-2370-4576-bf1a-c639adac09a1",
+  "prevId": "8e629248-f88d-43b8-9a7c-f388a8f3d203",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -21207,6 +21207,262 @@
         "wallet_balance_nonneg": {
           "name": "wallet_balance_nonneg",
           "value": "\"fan\".\"wallet\".\"balance\" >= 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "fan.presence_window": {
+      "name": "presence_window",
+      "schema": "fan",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "public.uuid_generate_v7()"
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "profile_id": {
+          "name": "profile_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "event_id": {
+          "name": "event_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "started_at": {
+          "name": "started_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "last_seen_at": {
+          "name": "last_seen_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "last_interaction_at": {
+          "name": "last_interaction_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "heartbeats": {
+          "name": "heartbeats",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        }
+      },
+      "indexes": {
+        "presence_window_lookup_idx": {
+          "name": "presence_window_lookup_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "profile_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "event_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "last_seen_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "presence_window_open_idx": {
+          "name": "presence_window_open_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "profile_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "last_seen_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "presence_window_purge_idx": {
+          "name": "presence_window_purge_idx",
+          "columns": [
+            {
+              "expression": "last_seen_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "presence_window_tenant_id_tenant_id_fk": {
+          "name": "presence_window_tenant_id_tenant_id_fk",
+          "tableFrom": "presence_window",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "tableTo": "tenant",
+          "schemaTo": "api",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "presence_window_profile_fk": {
+          "name": "presence_window_profile_fk",
+          "tableFrom": "presence_window",
+          "columnsFrom": [
+            "tenant_id",
+            "profile_id"
+          ],
+          "tableTo": "profile",
+          "schemaTo": "fan",
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {
+        "presence_window_pkey": {
+          "name": "presence_window_pkey",
+          "columns": [
+            "tenant_id",
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "presence_window_order": {
+          "name": "presence_window_order",
+          "value": "\"fan\".\"presence_window\".\"last_seen_at\" >= \"fan\".\"presence_window\".\"started_at\""
+        },
+        "presence_window_interaction": {
+          "name": "presence_window_interaction",
+          "value": "\"fan\".\"presence_window\".\"last_interaction_at\" <= \"fan\".\"presence_window\".\"last_seen_at\""
+        },
+        "presence_window_heartbeats": {
+          "name": "presence_window_heartbeats",
+          "value": "\"fan\".\"presence_window\".\"heartbeats\" >= 1"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "engage.presence_limit": {
+      "name": "presence_limit",
+      "schema": "engage",
+      "columns": {
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "max_games": {
+          "name": "max_games",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_by": {
+          "name": "updated_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "presence_limit_tenant_id_tenant_id_fk": {
+          "name": "presence_limit_tenant_id_tenant_id_fk",
+          "tableFrom": "presence_limit",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "tableTo": "tenant",
+          "schemaTo": "api",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "presence_limit_range": {
+          "name": "presence_limit_range",
+          "value": "\"engage\".\"presence_limit\".\"max_games\" between 1 and 10"
         }
       },
       "isRLSEnabled": false
