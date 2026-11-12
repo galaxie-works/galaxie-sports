@@ -11,6 +11,7 @@ import {
   DEFAULT_COMPLETION_MAX_TOKENS,
   eventJson,
   HttpCompletionClient,
+  lastUserIndex,
   n,
   splitCompletion,
   type CompletionClientOptions,
@@ -103,10 +104,26 @@ export class AnthropicCompletionClient extends HttpCompletionClient {
 
   wire(req: CompletionRequest, stream: boolean): WireRequest {
     const { system, dialog } = splitCompletion(req);
+    const files = req.attachments ?? [];
+    const attachAt = files.length ? lastUserIndex(dialog) : -1;
     const body: Record<string, unknown> = {
       model: req.model,
       max_tokens: req.maxOutputTokens ?? DEFAULT_COMPLETION_MAX_TOKENS,
-      messages: dialog.map((m) => ({ role: m.role, content: m.content })),
+      messages: dialog.map((m, i) =>
+        i === attachAt
+          ? {
+              role: m.role,
+              content: [
+                // PDF vira `document`; imagem, `image` (os dois em base64, antes do texto)
+                ...files.map((f) => ({
+                  type: f.mediaType === 'application/pdf' ? 'document' : 'image',
+                  source: { type: 'base64', media_type: f.mediaType, data: f.data },
+                })),
+                { type: 'text', text: m.content },
+              ],
+            }
+          : { role: m.role, content: m.content },
+      ),
     };
     if (system) body.system = system;
     // modo JSON não existe na Messages API: o pedido diz o formato nas instruções

@@ -127,6 +127,19 @@ export interface CompletionUsage {
 
 export type CompletionFinishReason = 'stop' | 'length' | 'content_filter' | 'tool_calls' | 'other';
 
+/** Tipos de arquivo que vão junto do pedido (lidos pelo modelo, não como texto). */
+export const ATTACHMENT_MEDIA_TYPES = ['application/pdf', 'image/png', 'image/jpeg', 'image/webp'] as const;
+export type AttachmentMediaType = (typeof ATTACHMENT_MEDIA_TYPES)[number];
+
+/** Arquivo junto da última mensagem do usuário (PDF ou imagem), em base64. */
+export interface CompletionAttachment {
+  mediaType: AttachmentMediaType;
+  /** Conteúdo em base64 (sem o prefixo `data:`). */
+  data: string;
+  /** Nome do arquivo (a OpenAI pede um para PDF). */
+  name?: string;
+}
+
 export interface CompletionRequest {
   /** Modelo concreto do provedor (ex.: `deepseek-chat`). */
   model: string;
@@ -146,6 +159,11 @@ export interface CompletionRequest {
   signal?: AbortSignal;
   /** Identifica a tarefa nos logs e no ledger (ex.: `cosmos:moderation:<tenant>`). */
   purpose?: string;
+  /**
+   * Arquivos (PDF ou imagem) junto da última mensagem do usuário. Anthropic, OpenAI e Gemini leem; a DeepSeek não
+   * (o pedido falha com `kind: 'config'`, sem chamar o provedor).
+   */
+  attachments?: CompletionAttachment[];
 }
 
 export interface CompletionResult {

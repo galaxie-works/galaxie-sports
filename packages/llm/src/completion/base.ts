@@ -74,6 +74,12 @@ export interface StreamState {
 /** O que um evento do provedor produz: pedaço de texto ou "o uso mudou" (evento de uso parcial). */
 export type ParsedEvent = { type: 'text'; delta: string } | { type: 'usage' };
 
+/** Índice da última mensagem do usuário no diálogo (onde vão os anexos); -1 se não houver. */
+export function lastUserIndex(dialog: LlmMessage[]): number {
+  for (let i = dialog.length - 1; i >= 0; i--) if (dialog[i]!.role === 'user') return i;
+  return -1;
+}
+
 /** Instruções de sistema (as do pedido e as mensagens `system`) e o diálogo. */
 export function splitCompletion(req: CompletionRequest): { system: string; dialog: LlmMessage[] } {
   const extra = req.messages.filter((m) => m.role === 'system').map((m) => m.content);

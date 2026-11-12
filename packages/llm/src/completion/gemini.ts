@@ -10,6 +10,7 @@ import type { CompletionFinishReason, CompletionRequest, LlmProviderId } from '.
 import {
   eventJson,
   HttpCompletionClient,
+  lastUserIndex,
   n,
   splitCompletion,
   type CompletionClientOptions,
@@ -76,14 +77,21 @@ export class GeminiCompletionClient extends HttpCompletionClient {
 
   wire(req: CompletionRequest, stream: boolean): WireRequest {
     const { system, dialog } = splitCompletion(req);
+    const files = req.attachments ?? [];
+    const attachAt = files.length ? lastUserIndex(dialog) : -1;
     const generationConfig: Record<string, unknown> = {};
     if (req.maxOutputTokens !== undefined) generationConfig.maxOutputTokens = req.maxOutputTokens;
     if (req.temperature !== undefined) generationConfig.temperature = req.temperature;
     if (req.json) generationConfig.responseMimeType = 'application/json';
     const body: Record<string, unknown> = {
-      contents: dialog.map((m) => ({
+      contents: dialog.map((m, i) => ({
         role: m.role === 'assistant' ? 'model' : 'user',
-        parts: [{ text: m.content }],
+        parts: [
+          ...(i === attachAt
+            ? files.map((f) => ({ inline_data: { mime_type: f.mediaType, data: f.data } }))
+            : []),
+          { text: m.content },
+        ],
       })),
     };
     if (system) body.systemInstruction = { parts: [{ text: system }] };
