@@ -15,7 +15,10 @@ describe('cotas por sala (#1116)', () => {
     expect(isQuotaScope('chat:match:123')).toBe(true);
     expect(isQuotaScope('community:fa@clube|sp')).toBe(true);
     expect(isQuotaScope(`chat:${'a'.repeat(128)}`)).toBe(true);
-    expect(quotaFor('chat:match:123', [{ scope: 'chat', percent: 10 }])).toEqual({ scope: 'chat', percent: 10 });
+    expect(quotaFor('chat:match:123', [{ scope: 'chat', percent: 10 }])).toEqual({
+      scope: 'chat',
+      percent: 10,
+    });
   });
 
   it('parseQuotas valida % e repetição e arredonda em duas casas', () => {
