@@ -1,21 +1,24 @@
-# Modelos de plano comercial (docs/01 §6) usados no onboarding de tenants
+# Planos de dados do catálogo comercial (config/catalog/, plataforma comercial F1). Usados no onboarding de tenants
 # (POST /internal/admin/tenants). Cada tenant copia os valores do modelo na criação e pode ter
 # ajustes próprios (módulos, mercados, esportes, limites). Mudar este arquivo NÃO altera tenants
 # existentes — use PATCH /internal/admin/tenants/{id} com "applyTemplate": true para reaplicar.
 #
+# Preço não mora aqui: o repositório é público. Preço de lista, moeda e ids do Stripe ficam no banco (billing.price).
+#
 # Campos:
 #   name                  nome comercial exibido
-#   modules               módulos incluídos (core_data, where_to_watch, semantic, live_intelligence, multisport,
-#                         related_content — add-on de vídeos relacionados, docs/12; odds — add-on de odds
-#                         pré-jogo em consenso entre as casas, docs/05 §3.2.2)
-#                         Os módulos de engajamento (live_chat, communities, gamification, shopping, cosmos_ai)
-#                         não entram em nenhum modelo: são contratados à parte e ligados tenant a tenant (#1018).
+#   modules               módulos de dados incluídos (lista em config/catalog/modules.yaml). Os módulos de engajamento
+#                         (live_chat, communities, gamification, shopping, cosmos_ai) não entram em nenhum plano: são
+#                         contratados à parte e ligados tenant a tenant (#1018).
 #   markets               países ISO2 incluídos por padrão; [] = todos
 #   sports                esportes incluídos por padrão (slug); [] = todos
 #   rateLimitPerMinute    requisições por minuto, por rota (janela fixa no Valkey)
 #   dailyRequestQuota     cota diária de requisições (todas as rotas); null = sem cota
 #   defaultKeyEnv         ambiente da chave inicial: live | test
 #   trialDays             plano com prazo: dias a partir do onboarding (depois nenhuma chave do tenant vale)
+#   selfService           o cliente contrata sozinho, pela loja (false = só por contrato com a Galaxie)
+#   tiers                 faixas dos módulos que o plano fixa (chave `modulo.faixa`, ver modules.yaml), além das
+#                         que já são colunas do tenant (cota diária e limite por minuto)
 #
 # A cota diária vale para o uso de produção (a chave de teste fica fora): aviso a partir de 80% e
 # 429 QUOTA_EXCEEDED a partir de 110%, até a virada do dia UTC (docs/politica-de-chaves.md §4).
@@ -32,6 +35,8 @@ plans:
     # live: a cota vale para o uso de produção (a chave de teste não conta)
     defaultKeyEnv: live
     trialDays: 30
+    # sai como plano na F3: o teste passa a ser por módulo (PL1, PL3); fica até lá para os tenants que já o têm
+    selfService: false
 
   core_data:
     name: Core Data
@@ -41,6 +46,7 @@ plans:
     rateLimitPerMinute: 120
     dailyRequestQuota: 100000
     defaultKeyEnv: live
+    selfService: true
 
   fan_experience:
     name: Fan Experience
@@ -50,6 +56,9 @@ plans:
     rateLimitPerMinute: 300
     dailyRequestQuota: 500000
     defaultKeyEnv: live
+    selfService: true
+    tiers:
+      where_to_watch.markets: 3
 
   live_intelligence:
     name: Live Intelligence
@@ -59,6 +68,10 @@ plans:
     rateLimitPerMinute: 600
     dailyRequestQuota: 2000000
     defaultKeyEnv: live
+    selfService: true
+    tiers:
+      where_to_watch.markets: 8
+      live_intelligence.enriched_games: 2000
 
   enterprise:
     name: Enterprise
@@ -68,3 +81,6 @@ plans:
     rateLimitPerMinute: 3000
     dailyRequestQuota: null
     defaultKeyEnv: live
+    selfService: false
+    tiers:
+      where_to_watch.markets: 8
