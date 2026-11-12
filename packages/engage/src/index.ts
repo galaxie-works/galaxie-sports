@@ -9,3 +9,4 @@ export * from './fan-age.js';
 export * from './age-gate.js';
 export * from './shop-order.js';
 export * from './shop-destination.js';
+export * from './shop.js';

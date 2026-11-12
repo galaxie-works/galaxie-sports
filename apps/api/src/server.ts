@@ -1,5 +1,7 @@
 import Fastify, { type FastifyContextConfig, type FastifyInstance, type FastifyRequest } from 'fastify';
 import type { Redis } from 'ioredis';
+import type { ShopFetch } from '@galaxie/engage';
+import type { SettingsSecretBox } from '@galaxie/runtime-config/sealed';
 import type { MediaDenylist } from '@galaxie/apisports-client';
 import { pingDb, type Database } from '@galaxie/db';
 import { loadWtwConfig, type WtwConfig } from '@galaxie/where-to-watch';
@@ -69,6 +71,9 @@ import {
 import { StreamTokenSigner } from './realtime/stream-token.js';
 import { docsRoutes } from './routes/docs.js';
 import { cosmosStripeRoutes } from './routes/internal/cosmos-stripe.js';
+import { internalShopRoutes } from './routes/internal/shop.js';
+import { ShopClickRecorder, shopClickRoutes } from './shop/clicks.js';
+import { ShopOffers } from './shop/offers.js';
 import { internalWhereToWatchRoutes } from './routes/internal/where-to-watch.js';
 import { Lineup, type LineupOptions } from './lineup/availability.js';
 import { ClientChannelLists } from './channel-list/lists.js';
@@ -100,6 +105,11 @@ export interface ServerOptions {
   redis?: Redis;
   /** Prefixo das chaves no Valkey (permite isolar ambientes/testes). Padrão `gs:`. */
   keyPrefix?: string;
+  /** Shopping (#916): fetch dos conectores de loja (testes) e cofre das credenciais das lojas. */
+  shopFetch?: ShopFetch;
+  shopSecretBox?: Pick<SettingsSecretBox, 'open'>;
+  /** Fila dos cliques do Shopping (#918); nos testes, para gravar na hora. */
+  shopClickRecorder?: ShopClickRecorder;
   logger?: boolean;
   tenantStore?: TenantStore;
   authenticator?: AuthenticatorOptions;
@@ -509,6 +519,27 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
     await v1Routes(instance, ctx);
     await mirrorRoutes(instance, ctx);
     await internalWhereToWatchRoutes(instance, ctx);
+    await internalShopRoutes(instance, ctx, {
+      offers: options.db
+        ? new ShopOffers({
+            db: options.db,
+            redis: options.redis ?? null,
+            keyPrefix: prefix,
+            metrics: app.metrics,
+            log: app.log,
+            now: ctx.now,
+            ...(options.shopFetch ? { fetch: options.shopFetch } : {}),
+            ...(options.shopSecretBox ? { box: options.shopSecretBox } : {}),
+          })
+        : undefined,
+    });
+    await shopClickRoutes(instance, {
+      db: options.db,
+      limiter,
+      now: ctx.now,
+      ...(options.shopClickRecorder ? { recorder: options.shopClickRecorder } : {}),
+      ...(options.shopSecretBox ? { box: options.shopSecretBox } : {}),
+    });
     await accountRoutes(instance, { db: options.db, usage: usageBackend });
     await fanRoutes(instance, {
       db: options.db,
