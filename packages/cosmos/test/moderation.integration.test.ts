@@ -10,7 +10,14 @@ import {
   type Database,
 } from '@galaxie/db';
 import type { CompletionClient, CompletionRequest } from '@galaxie/llm';
-import { fileReport } from '@galaxie/db/moderation-queue';
+import {
+  eraseModerationContent,
+  fileReport,
+  listDecisions,
+  listQueue,
+  undoDecision,
+} from '@galaxie/db/moderation-queue';
+import { DEFAULT_MODERATION_LISTS, compileLists } from '@galaxie/engage';
 import { and, eq, sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
@@ -21,6 +28,7 @@ import {
   getWallet,
   moderateBatch,
   MODERATION_FUNCTION,
+  previewModeration,
   saveModerationConfig,
   upsertFunctionDef,
   type CosmosSettings,
@@ -244,7 +252,13 @@ describe('motor de moderação', () => {
     for (const row of allowed) {
       expect(JSON.stringify(row.rules)).not.toContain('mensagem');
       expect(row.reason).not.toContain('mensagem');
+      // sem caso, o lugar vai na régua: o histórico filtra e o escopo do cargo vale
+      expect(row.rules).toMatchObject({ module: 'chat', room: 'sala-1', community: null });
     }
+    const inRoom = await listDecisions(db, t, { module: 'chat', room: 'sala-1', action: 'cosmos.allow' });
+    expect(inRoom).toHaveLength(2);
+    expect(inRoom[0]).toMatchObject({ module: 'chat', room: 'sala-1', community: null });
+    expect(await listDecisions(db, t, { room: 'outra', action: 'cosmos.allow' })).toHaveLength(0);
   });
 
   it('o mesmo autor várias vezes no lote: um silêncio só, e nenhum se já está silenciado', async () => {
@@ -499,5 +513,135 @@ describe('motor de moderação', () => {
     });
     expect(out[0]).toMatchObject({ fallback: 'feature_off' });
     expect(client.requests).toHaveLength(0);
+  });
+
+  it('desfazer a decisão automática: o conteúdo volta, o silêncio é revogado e tudo fica no histórico', async () => {
+    await withFunction();
+    const t = await newTenant(1000);
+    const author = await profile(t);
+    await moderateBatch(db, [item(t, 1, { targetProfileId: author })], {
+      client: fakeClient(answer([{ category: 'hate', severity: 3 }])),
+      env,
+      settings,
+      ceiling,
+    });
+    const [c] = await casesOf(t);
+    expect(c!.hiddenAt).not.toBeNull();
+    const out = await undoDecision(db, {
+      tenantId: t,
+      caseId: c!.id,
+      actor: { id: 'user:u1', kind: 'person' },
+      note: 'era ironia',
+      clocks,
+    });
+    expect(out).toEqual({ ok: true, revoked: 1 });
+    const [after] = await casesOf(t);
+    expect(after).toMatchObject({ status: 'dismissed', hiddenAt: null, resolvedBy: 'user:u1' });
+    const [mute] = await db.select().from(moderationSanction).where(eq(moderationSanction.tenantId, t));
+    expect(mute!.revokedAt).not.toBeNull();
+
+    const history = await listDecisions(db, t);
+    expect(history.map((h) => h.action)).toEqual(
+      expect.arrayContaining(['cosmos.flag', 'hide', 'sanction', 'case.resolve', 'revoke', 'undo']),
+    );
+    expect(history[0]).toMatchObject({ action: 'undo', module: 'chat', room: 'sala-1' });
+    // filtros: categoria, quem decidiu e a ação
+    expect((await listDecisions(db, t, { category: 'hate', action: 'hide' })).length).toBe(1);
+    expect((await listDecisions(db, t, { actorKind: 'person' })).map((h) => h.action).sort()).toEqual([
+      'revoke',
+      'undo',
+    ]);
+    expect(await listDecisions(db, t, { room: 'outra' })).toHaveLength(0);
+    // paginação
+    const page = await listDecisions(db, t, { limit: 2 });
+    const next = await listDecisions(db, t, { limit: 2, before: page[1]!.id });
+    expect(next[0]!.id < page[1]!.id).toBe(true);
+    // a nota livre de quem desfez não vai para o motivo (imutável): fica em `content`, que a exclusão apaga
+    const notes = await db
+      .select({
+        action: moderationAudit.action,
+        reason: moderationAudit.reason,
+        content: moderationAudit.content,
+      })
+      .from(moderationAudit)
+      .where(and(eq(moderationAudit.tenantId, t), eq(moderationAudit.caseId, c!.id)));
+    for (const row of notes) expect(row.reason ?? '').not.toContain('ironia');
+    expect(notes.find((r) => r.action === 'undo')).toMatchObject({ reason: 'undo', content: 'era ironia' });
+    await db.transaction((tx) => eraseModerationContent(tx, t, author));
+    const erased = await db
+      .select({ content: moderationAudit.content })
+      .from(moderationAudit)
+      .where(and(eq(moderationAudit.tenantId, t), eq(moderationAudit.caseId, c!.id)));
+    expect(erased.every((r) => r.content === null)).toBe(true);
+    // decisão de pessoa não se desfaz por aqui
+    expect(
+      await undoDecision(db, {
+        tenantId: t,
+        caseId: c!.id,
+        actor: { id: 'user:u2', kind: 'person' },
+        note: null,
+        clocks,
+      }),
+    ).toEqual({ ok: false, reason: 'not_automatic' });
+  });
+
+  it('a fila traz o prazo da apelação e nada para os outros casos', async () => {
+    await withFunction(false);
+    const t = await newTenant(1000);
+    await moderateBatch(db, [item(t, 1)], { client: fakeClient('[]'), env, settings, ceiling });
+    const [q] = await listQueue(db, t);
+    expect(q).toMatchObject({ source: 'filter', dueAt: null });
+  });
+
+  it('testar com uma mensagem: mostra o que a Cosmos faria e o custo, sem gravar caso nem histórico', async () => {
+    await withFunction();
+    const t = await newTenant(1000);
+    const lists = compileLists(DEFAULT_MODERATION_LISTS);
+    const out = await previewModeration(
+      db,
+      // o link marca o texto para a Cosmos (sem a Leitura total, só o que as regras marcam vai ao modelo)
+      {
+        tenantId: t,
+        text: 'compre em https://loja-falsa.example',
+        kind: 'chat_message',
+        module: 'chat',
+        room: 'sala-1',
+      },
+      lists,
+      { client: fakeClient(answer([{ category: 'offense', severity: 3 }])), env, settings, ceiling },
+    );
+    expect(out).toMatchObject({ by: 'cosmos', verdict: { category: 'offense', severity: 3 } });
+    expect(out.plan!.actions.map((a) => a.action)).toEqual(['hide']);
+    expect(out.credits).toBeGreaterThan(0);
+    expect(await casesOf(t)).toHaveLength(0);
+    expect(await listDecisions(db, t)).toHaveLength(0);
+    const [u] = await usageOf(t);
+    expect(u!.metadata).toMatchObject({ kind: 'moderation', test: true, items: 1 });
+
+    // texto que as regras não marcaram, sem a Leitura total: no uso real não iria ao modelo, então o teste não cobra
+    const usedBefore = (await usageOf(t)).length;
+    const plain = await previewModeration(
+      db,
+      { tenantId: t, text: 'texto de teste', kind: 'chat_message', module: 'chat', room: 'sala-1' },
+      lists,
+      { client: fakeClient(answer([{ category: 'offense', severity: 3 }])), env, settings, ceiling },
+    );
+    expect(plain).toMatchObject({ by: null, fallback: 'not_contracted', credits: 0 });
+    expect(await usageOf(t)).toHaveLength(usedBefore);
+
+    const broke = await newTenant(0);
+    const none = await previewModeration(
+      db,
+      {
+        tenantId: broke,
+        text: 'veja https://loja-falsa.example',
+        kind: 'chat_message',
+        module: 'chat',
+        room: 'sala-1',
+      },
+      lists,
+      { client: fakeClient('[]'), env, settings, ceiling },
+    );
+    expect(none).toMatchObject({ by: null, fallback: 'insufficient', credits: 0 });
   });
 });

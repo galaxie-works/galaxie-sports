@@ -6,19 +6,28 @@
  * degrau acima do teto são recusados mesmo com payload forjado).
  */
 import {
+  CONTENT_KINDS,
   isCosmosError,
+  previewModeration,
   readModerationCeiling,
   removeModerationOverride,
   saveModerationConfig,
   TENANT_SCOPE,
+  type ContentKind,
+  type ModerationPreview,
   type ModerationScope,
 } from '@galaxie/cosmos';
 
 import { builderDb } from '@/lib/builder/store';
 import { can } from '@/lib/client/permissions';
+import { allowPreview } from '@/lib/cosmos/assistant-limits';
 import { readClientContext } from '@/lib/client/session';
 import { getDictionary } from '@/lib/i18n/dictionary';
 import { getRequestLocale } from '@/lib/i18n/server';
+import { fill } from '@/lib/i18n/text';
+import { compiledTenantLists } from '@/lib/engage/moderation-lists';
+
+import { PREVIEW_MAX } from './moderation-utils';
 
 export interface ModerationActionResult {
   ok: boolean;
@@ -86,5 +95,47 @@ export async function removeCosmosModerationOverride(
     return { ok: true };
   } catch (err) {
     return failure(err, g.t);
+  }
+}
+
+export type PreviewActionResult = { ok: true; preview: ModerationPreview } | { ok: false; error: string };
+
+/**
+ * "Testar com uma mensagem" (#999): o que as regras e a Cosmos fariam, pela configuração da sala ou do cliente. Gasta
+ * créditos como uso normal e não grava na fila nem no histórico. Quem testa é quem configura (`settings.manage`).
+ */
+export async function previewCosmosModeration(input: {
+  text: string;
+  kind: string;
+  room?: string;
+}): Promise<PreviewActionResult> {
+  const [ctx, locale] = await Promise.all([readClientContext(), getRequestLocale()]);
+  const T = getDictionary(locale).moderation.preview.errors;
+  if (!ctx?.tenant || !ctx.actor || !can(ctx, 'settings.manage')) return { ok: false, error: T.forbidden };
+  if (!allowPreview(ctx.userId)) return { ok: false, error: T.rateLimited };
+  const text = typeof input.text === 'string' ? input.text.trim() : '';
+  if (!text) return { ok: false, error: T.empty };
+  if ([...text].length > PREVIEW_MAX) return { ok: false, error: fill(T.tooLong, { max: PREVIEW_MAX }) };
+  const kind = (CONTENT_KINDS as readonly string[]).includes(input.kind) ? (input.kind as ContentKind) : null;
+  if (!kind) return { ok: false, error: T.generic };
+  const room = typeof input.room === 'string' ? input.room.trim().slice(0, 200) || null : null;
+  try {
+    const preview = await previewModeration(
+      builderDb(),
+      {
+        tenantId: ctx.tenant.id,
+        text,
+        kind,
+        // o chat é o lugar da sala; o resto segue a configuração das comunidades
+        module: kind === 'chat_message' ? 'chat' : 'communities',
+        ...(room ? (kind === 'chat_message' ? { room } : { community: room }) : {}),
+        locale,
+      },
+      await compiledTenantLists(ctx.tenant.id),
+    );
+    return { ok: true, preview };
+  } catch (err) {
+    console.error('[cosmos] teste da moderação falhou', { tenantId: ctx.tenant.id, err });
+    return { ok: false, error: T.generic };
   }
 }

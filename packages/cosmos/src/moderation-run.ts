@@ -139,6 +139,13 @@ export interface ModerationDeps {
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /** Escopo da configuração: a sala, a comunidade ou o cliente. */
+/** Lugar do conteúdo, gravado na régua das decisões sem caso (`cosmos.allow`, `cosmos.skip`). */
+export const placeOfItem = (item: Pick<ModerationItem, 'module' | 'room' | 'community'>) => ({
+  module: item.module,
+  room: item.room,
+  community: item.community,
+});
+
 export function scopeOf(item: Pick<ModerationItem, 'room' | 'community'>): ModerationScope {
   if (item.room) return { kind: 'room', id: item.room };
   if (item.community) return { kind: 'community', id: item.community };
@@ -191,6 +198,46 @@ export async function moderateBatch(
   return out;
 }
 
+/**
+ * As barreiras antes do modelo, iguais no lote e no "testar com uma mensagem": recurso desligado, sem Leitura total,
+ * decidido pelas regras, decidido pelo classificador. null = o item vai ao modelo.
+ */
+export function triage(
+  item: ModerationItem,
+  config: ModerationConfig,
+  ceiling: ModerationCeiling,
+): ModerationOutcome | null {
+  const skip = (by: 'fallback' | 'skipped', fallback: FallbackReason): ModerationOutcome => ({
+    item,
+    by,
+    verdict: null,
+    plan: null,
+    fallback,
+  });
+  if (!config.features[featureFor(item.module)]) return skip('fallback', 'feature_off');
+  // a Leitura total é conferida aqui, não só no cache de quem chamou: sem ela, só vai ao modelo o que as regras
+  // marcaram (ou foi denunciado)
+  const marked = item.source === 'report' || item.rules.suspect || item.rules.action !== 'allow';
+  if (!marked && !config.features.full_read) return skip('skipped', 'not_contracted');
+  // bloqueado pelas regras e sem lugar (apelido, nome de liga): não publicou e não há onde silenciar
+  if (item.source === 'filter' && item.rules.action === 'block' && !item.room && !item.community)
+    return skip('skipped', 'rules_decided');
+  // com a Leitura total, o classificador decide o que é claro sem gastar
+  if (config.features.full_read) {
+    const c = classify(item.text, item.rules);
+    if (c.outcome === 'violation' && c.verdict)
+      return {
+        item,
+        by: 'classifier',
+        verdict: c.verdict,
+        plan: planModeration(c.verdict, config, ceiling, item.authorRole),
+      };
+    // limpo e sem marca das regras: não há dúvida para pagar
+    if (c.outcome === 'clean' && !marked) return skip('skipped', 'not_contracted');
+  }
+  return null;
+}
+
 async function moderateGroup(
   db: Database,
   items: ModerationItem[],
@@ -208,32 +255,9 @@ async function moderateGroup(
   const outcomes: (ModerationOutcome | null)[] = items.map(() => null);
   const toModel: number[] = [];
   items.forEach((item, i) => {
-    const skip = (by: 'fallback' | 'skipped', fallback: FallbackReason) =>
-      (outcomes[i] = { item, by, verdict: null, plan: null, fallback });
-    if (!config.features[featureFor(item.module)]) return skip('fallback', 'feature_off');
-    // a Leitura total é conferida aqui, não só no cache de quem chamou: sem ela, só vai ao modelo o que as regras
-    // marcaram (ou foi denunciado)
-    const marked = item.source === 'report' || item.rules.suspect || item.rules.action !== 'allow';
-    if (!marked && !config.features.full_read) return skip('skipped', 'not_contracted');
-    // bloqueado pelas regras e sem lugar (apelido, nome de liga): não publicou e não há onde silenciar
-    if (item.source === 'filter' && item.rules.action === 'block' && !item.room && !item.community)
-      return skip('skipped', 'rules_decided');
-    // com a Leitura total, o classificador decide o que é claro sem gastar
-    if (config.features.full_read) {
-      const c = classify(item.text, item.rules);
-      if (c.outcome === 'violation' && c.verdict) {
-        outcomes[i] = {
-          item,
-          by: 'classifier',
-          verdict: c.verdict,
-          plan: planModeration(c.verdict, config, ceiling, item.authorRole),
-        };
-        return;
-      }
-      // limpo e sem marca das regras: não há dúvida para pagar
-      if (c.outcome === 'clean' && !marked) return skip('skipped', 'not_contracted');
-    }
-    toModel.push(i);
+    const decided = triage(item, config, ceiling);
+    if (decided) outcomes[i] = decided;
+    else toModel.push(i);
   });
 
   if (toModel.length > 0) {
@@ -292,6 +316,7 @@ async function askModel(
   settings: CosmosSettings,
   env: Record<string, string | undefined>,
   deps: ModerationDeps,
+  meta: Record<string, unknown> = {},
 ): Promise<ModerationOutcome[]> {
   const tenantId = items[0]!.tenantId;
   const fallbackAll = (reason: FallbackReason) =>
@@ -395,6 +420,7 @@ async function askModel(
           items: items.length,
           decided,
           module: items[0]!.module,
+          ...meta,
         },
       });
       charged = s.charged;
@@ -458,7 +484,8 @@ async function apply(
         clocks: item.clocks,
         subjectProfileId: item.targetProfileId,
         reason: o.fallback ?? null,
-        rules: { kind: item.kind, fallback: o.fallback ?? null },
+        // sem caso: o lugar vai na régua, para o histórico filtrar e o escopo do cargo valer
+        rules: { kind: item.kind, fallback: o.fallback ?? null, ...placeOfItem(item) },
       });
       return null;
     }
@@ -516,7 +543,7 @@ async function apply(
       clocks: item.clocks,
       subjectProfileId: item.targetProfileId,
       reason,
-      rules: detail,
+      rules: { ...detail, ...placeOfItem(item) },
     });
     return null;
   }
@@ -593,11 +620,96 @@ async function apply(
       caseId,
       status: 'resolved',
       actor: { id: 'cosmos', kind: 'cosmos' },
-      note: reason,
+      reason,
+      note: null,
       clocks: item.clocks,
       now: at,
     });
   return caseId;
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Testar com uma mensagem (#999)
+
+export interface PreviewInput {
+  tenantId: string;
+  text: string;
+  kind: ContentKind;
+  module: ContentModule;
+  room?: string | null;
+  community?: string | null;
+  locale?: string;
+}
+
+export interface ModerationPreview {
+  /** O que as regras fixas fariam na hora (B7). */
+  rules: ScreenResult;
+  /** Quem decidiu: o classificador (termo da lista, com a Leitura total) ou o modelo; null se o modelo não respondeu. */
+  by: 'classifier' | 'cosmos' | null;
+  verdict: Verdict | null;
+  plan: ModerationPlan | null;
+  /** Créditos que o teste gastou (o mesmo que um item de lote custaria sozinho). */
+  credits: number;
+  /** Por que o modelo não respondeu (sem saldo, função desligada...). */
+  fallback?: FallbackReason;
+}
+
+/**
+ * "Testar com uma mensagem" da aba Moderação: mostra o que as regras e a Cosmos fariam com o texto, pela configuração
+ * da sala, da comunidade ou do cliente. Não grava nada na fila nem no histórico de decisões; o uso entra no extrato
+ * como uso normal (`metadata.test`), pela mesma reserva e o mesmo acerto do lote.
+ */
+export async function previewModeration(
+  db: Database,
+  input: PreviewInput,
+  lists: CompiledLists,
+  deps: Omit<ModerationDeps, 'onDecision'> = {},
+): Promise<ModerationPreview> {
+  const rules = screen(
+    input.text,
+    { kind: RULE_KIND[input.kind], ...(input.locale ? { locale: input.locale } : {}) },
+    lists,
+  );
+  const [settings, ceiling] = await Promise.all([
+    deps.settings ?? readCosmosSettings(db),
+    deps.ceiling ?? readModerationCeiling(db),
+  ]);
+  const item: ModerationItem = {
+    tenantId: input.tenantId,
+    kind: input.kind,
+    text: input.text,
+    targetType: 'message',
+    targetId: 'preview',
+    targetProfileId: null,
+    module: input.module,
+    room: input.room ?? null,
+    community: input.community ?? null,
+    ...(input.locale ? { locale: input.locale } : {}),
+    source: 'filter',
+    rules,
+    // não grava: os relógios não são usados
+    clocks: { contentPurgeAt: new Date(0), decisionPurgeAt: new Date(0) },
+  };
+  const { effective: config } = await loadModerationConfig(db, input.tenantId, ceiling, scopeOf(item));
+  // as mesmas barreiras do lote: o que não iria ao modelo no uso real também não vai (nem cobra) no teste
+  const decided = triage(item, config, ceiling);
+  if (decided)
+    return decided.by === 'classifier'
+      ? { rules, by: 'classifier', verdict: decided.verdict, plan: decided.plan, credits: 0 }
+      : { rules, by: null, verdict: null, plan: null, credits: 0, fallback: decided.fallback! };
+  const [o] = await askModel(db, [item], config, ceiling, settings, deps.env ?? process.env, deps, {
+    test: true,
+  });
+  if (!o?.verdict || !o.plan)
+    return {
+      rules,
+      by: null,
+      verdict: null,
+      plan: null,
+      credits: 0,
+      ...(o?.fallback ? { fallback: o.fallback } : {}),
+    };
+  return { rules, by: 'cosmos', verdict: o.verdict, plan: o.plan, credits: o.verdict.credits ?? 0 };
 }
 
 // ---------------------------------------------------------------------------------------------------------------
