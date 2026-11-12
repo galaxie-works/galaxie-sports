@@ -1,6 +1,6 @@
 {
-  "id": "8e629248-f88d-43b8-9a7c-f388a8f3d203",
-  "prevId": "9fc30042-a942-4f7b-9329-de25021d288e",
+  "id": "4319e356-50b3-4392-ab39-6cd27918309a",
+  "prevId": "54e9c22e-d6a1-41dc-89eb-54df25891935",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -20082,7 +20082,7 @@
       "checkConstraints": {
         "sponsor_category": {
           "name": "sponsor_category",
-          "value": "category in ('apparel', 'automotive', 'beverage', 'education', 'energy', 'finance', 'food', 'health', 'media', 'retail', 'technology', 'telecom', 'travel', 'other')"
+          "value": "category in ('alcohol', 'apparel', 'automotive', 'beverage', 'education', 'energy', 'finance', 'food', 'health', 'media', 'retail', 'technology', 'telecom', 'travel', 'other')"
         },
         "sponsor_name_len": {
           "name": "sponsor_name_len",
