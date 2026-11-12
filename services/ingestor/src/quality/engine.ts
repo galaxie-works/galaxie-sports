@@ -1,7 +1,8 @@
 /**
  * Roda as regras de qualidade, divide o resultado por esporte e grava a execução em `ops.quality_*` (o placar do
  * painel). Uma regra que falha ao rodar sai como `error` e não derruba as outras; sem a fonte de que precisa,
- * `skipped` com o motivo (nunca `pass`).
+ * `skipped` com o motivo (nunca `pass`). Fonte externa fora no meio da regra (Wikimedia em `maxlag`, sem rede, 429 ou 5xx)
+ * também é `skipped`: a regra volta na próxima execução e o job não sai com erro por causa de terceiros.
  */
 import { and, desc, eq, inArray, lt, sql } from 'drizzle-orm';
 import {
@@ -13,6 +14,7 @@ import {
   type QualitySeverity,
   type QualityStatus,
 } from '@galaxie/db';
+import { WikimediaError } from '../assets/commons/client.js';
 import type { QualityContext, QualityFailureItem, QualityRule, RuleOutcome } from './types.js';
 
 /** Falhas guardadas por regra e esporte numa execução (a contagem `failed` é sempre a completa). */
@@ -125,6 +127,12 @@ export async function runRules(rules: readonly QualityRule[], ctx: QualityContex
         `${rule.id}: ${split.map((r) => `${r.sport} ${r.failed}/${r.checked}`).join(', ')} (${Date.now() - started} ms)`,
       );
     } catch (err) {
+      if (err instanceof WikimediaError && err.sourceUnavailable) {
+        const detail = `fonte indisponível: ${message(err)}`;
+        rows.push({ ...base, status: 'skipped', detail, durationMs: Date.now() - started });
+        ctx.log(`${rule.id}: pulada (${detail})`);
+        continue;
+      }
       rows.push({ ...base, status: 'error', detail: message(err), durationMs: Date.now() - started });
       ctx.log(`${rule.id}: erro (${message(err)})`);
     }

@@ -11,9 +11,9 @@ import {
   DEFAULT_COMPLETION_MAX_TOKENS,
   eventJson,
   HttpCompletionClient,
-  attachmentIndex,
   n,
   splitCompletion,
+  attachmentTarget,
   type CompletionClientOptions,
   type ParsedEvent,
   type ParsedResult,
@@ -104,20 +104,19 @@ export class AnthropicCompletionClient extends HttpCompletionClient {
 
   wire(req: CompletionRequest, stream: boolean): WireRequest {
     const { system, dialog } = splitCompletion(req);
-    const files = req.attachments ?? [];
-    const attachAt = attachmentIndex(dialog, files, this.provider);
+    const at = attachmentTarget(req, dialog);
     const body: Record<string, unknown> = {
       model: req.model,
       max_tokens: req.maxOutputTokens ?? DEFAULT_COMPLETION_MAX_TOKENS,
       messages: dialog.map((m, i) =>
-        i === attachAt
+        i === at
           ? {
               role: m.role,
               content: [
-                // PDF vira `document`; imagem, `image` (os dois em base64, antes do texto)
-                ...files.map((f) => ({
-                  type: f.mediaType === 'application/pdf' ? 'document' : 'image',
-                  source: { type: 'base64', media_type: f.mediaType, data: f.data },
+                ...req.attachments!.map((a) => ({
+                  // PDF vira `document`; imagem, `image` (os dois em base64, antes do texto)
+                  type: a.mediaType === 'application/pdf' ? 'document' : 'image',
+                  source: { type: 'base64', media_type: a.mediaType, data: a.data },
                 })),
                 { type: 'text', text: m.content },
               ],

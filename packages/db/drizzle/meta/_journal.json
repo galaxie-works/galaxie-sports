@@ -659,6 +659,34 @@
       "when": 1794447867474,
       "tag": "0098_patrocinador_alcool",
       "breakpoints": true
+    },
+    {
+      "idx": 94,
+      "version": "7",
+      "when": 1794487933533,
+      "tag": "0099_ficha_default",
+      "breakpoints": true
+    },
+    {
+      "idx": 95,
+      "version": "7",
+      "when": 1794487965765,
+      "tag": "0100_ficha_idade",
+      "breakpoints": true
+    },
+    {
+      "idx": 96,
+      "version": "7",
+      "when": 1794487981379,
+      "tag": "0107_idade_token",
+      "breakpoints": true
+    },
+    {
+      "idx": 97,
+      "version": "7",
+      "when": 1794487982379,
+      "tag": "0121_cosmos_funcoes_widget",
+      "breakpoints": true
     }
   ]
 }

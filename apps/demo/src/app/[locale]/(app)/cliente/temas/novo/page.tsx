@@ -6,6 +6,7 @@ import { PageHeader } from '@/components/app-shell/page-header';
 import { EditorSkeleton } from '@/components/app-shell/skeletons';
 import { BrandThemeEditor } from '@/components/client/brand-theme-editor';
 import { ClientArea } from '@/components/client/client-area';
+import { can } from '@/lib/client/permissions';
 import { getT } from '@/lib/i18n/server';
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -33,7 +34,20 @@ export default async function NewBrandThemePage() {
             </LoadingStatus>
           }
         >
-          <ClientArea section="themes">{() => <BrandThemeEditor initial={null} />}</ClientArea>
+          <ClientArea section="themes">
+            {(ctx) => (
+              <BrandThemeEditor
+                initial={null}
+                // a leitura do brandbook gasta créditos do cliente: só para quem usa a Cosmos e salva temas
+                cosmos={
+                  ctx.role !== 'admin' &&
+                  ctx.tenant.modules.includes('cosmos_ai') &&
+                  can(ctx, 'cosmos.assistant.ask') &&
+                  can(ctx, 'settings.manage')
+                }
+              />
+            )}
+          </ClientArea>
         </Suspense>
       </div>
     </>

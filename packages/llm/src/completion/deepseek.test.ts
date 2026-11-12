@@ -389,3 +389,19 @@ describe('DeepSeek e anexos', () => {
     expect(f.calls).toHaveLength(0);
   });
 });
+
+describe('DeepSeek e anexo', () => {
+  it('recusa PDF anexado (config, sem tentar de novo)', () => {
+    const c = new DeepSeekCompletionClient({ apiKey: 'k' });
+    expect(() =>
+      c.wire(
+        {
+          model: 'deepseek-flash',
+          messages: [{ role: 'user', content: 'leia' }],
+          attachments: [{ mediaType: 'application/pdf', data: 'JVBERi0=' }],
+        },
+        false,
+      ),
+    ).toThrow(LlmError);
+  });
+});
