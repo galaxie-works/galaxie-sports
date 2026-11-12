@@ -11,6 +11,13 @@ import {
   type FanRevocations,
 } from './engage/fan-auth.js';
 import { fanRoutes } from './engage/fan-routes.js';
+import {
+  MemoryPresenceCounter,
+  PresenceMaxGames,
+  presenceRoutes,
+  RedisPresenceCounter,
+  startPresencePurge,
+} from './engage/presence-routes.js';
 import { moderationRoutes } from './engage/moderation-routes.js';
 import type { FanTokenSigner } from './engage/fan-token.js';
 import { AdminGuard, type AdminGuardOptions } from './admin/guard.js';
@@ -495,6 +502,15 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
       ttl: new FanTokenTtl(options.db),
       revocations: fanRevocations,
     });
+    await presenceRoutes(instance, {
+      db: options.db,
+      counter: options.redis ? new RedisPresenceCounter(options.redis, prefix) : new MemoryPresenceCounter(),
+      maxGames: new PresenceMaxGames(options.db),
+    });
+    if (options.db) {
+      const stopPurge = startPresencePurge(options.db, instance.log);
+      instance.addHook('onClose', async () => stopPurge());
+    }
     await moderationRoutes(instance, { db: options.db, now: options.now });
   });
 
