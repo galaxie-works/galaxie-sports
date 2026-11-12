@@ -18,6 +18,7 @@ import {
   boolean,
   check,
   index,
+  jsonb,
   integer,
   primaryKey,
   text,
@@ -83,6 +84,25 @@ export const shopStore = engage.table(
     active: boolean('active').notNull().default(false),
     /** Ordem sugerida pela Galaxie dentro do país; o cliente reordena a dele. */
     position: integer('position').notNull().default(0),
+    /**
+     * Conectores (#916): a matriz loja × caminho, os caminhos que o widget do cliente pode usar nesta loja
+     * (`subnetwork`: repasse pela Galaxie, com clickref do cliente; `client_code`: código do próprio cliente).
+     */
+    clientPaths: text('client_paths')
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
+    /** Configuração não secreta na rede (id do anunciante na Awin, modelo do link de rastreio do programa). */
+    config: jsonb('config').$type<Record<string, string>>().notNull().default({}),
+    /**
+     * Credenciais da conta da Galaxie na loja, em JSON cifrado pelo cofre do painel (`SETTINGS_KEK`, AAD
+     * `SHOP_STORE_<ID>`): só gravação pela tela; a leitura é dos serviços.
+     */
+    credentialsSealed: text('credentials_sealed'),
+    /** Últimos caracteres do código de afiliado, para a tela reconhecer qual está gravado. */
+    credentialsHint: text('credentials_hint'),
+    credentialsUpdatedAt: timestamp('credentials_updated_at', { withTimezone: true }),
+    credentialsUpdatedBy: text('credentials_updated_by'),
     updatedBy: text('updated_by').notNull(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -94,6 +114,11 @@ export const shopStore = engage.table(
     check('shop_store_country_format', sql`${t.country} ~ '^[A-Z]{2}$'`),
     check('shop_store_network', inList('network', SHOP_NETWORKS)),
     check('shop_store_home_https', sql`${t.homeUrl} is null or ${t.homeUrl} ~ '^https://'`),
+    check('shop_store_client_paths', sql`${t.clientPaths} <@ array['client_code', 'subnetwork']::text[]`),
+    check(
+      'shop_store_credentials_sealed',
+      sql`${t.credentialsSealed} is null or ${t.credentialsSealed} like 'enc:%'`,
+    ),
   ],
 );
 

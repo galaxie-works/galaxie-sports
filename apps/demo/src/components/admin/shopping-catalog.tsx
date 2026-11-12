@@ -1,6 +1,6 @@
 'use client';
 
-import { Pencil, Plus, Search } from 'lucide-react';
+import { Pencil, PlugZap, Plus, Search } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
@@ -61,10 +61,21 @@ export function ShoppingCatalog({
               <FrameTitle>{T.stores.title}</FrameTitle>
               <FrameDescription>{T.stores.description}</FrameDescription>
             </div>
-            <Button size="sm" onClick={() => setEditing('new')}>
-              <Plus />
-              {T.stores.add}
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                nativeButton={false}
+                render={<Link href="/ajustes/shopping/conectores" />}
+              >
+                <PlugZap />
+                {T.connectors.link}
+              </Button>
+              <Button size="sm" onClick={() => setEditing('new')}>
+                <Plus />
+                {T.stores.add}
+              </Button>
+            </div>
           </FrameHeader>
           {stores.length ? (
             <Table>
