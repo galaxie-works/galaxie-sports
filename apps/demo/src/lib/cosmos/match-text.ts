@@ -293,7 +293,9 @@ export function numbersIn(text: string, lang: TextLanguage = 'pt'): string[] {
     if (m[1]) {
       const raw = m[1];
       const grouped = /^\d{1,3}(?:[.,\u00a0\u202f]\d{3})+$/.test(raw);
-      out.push(String(grouped ? Number(raw.replace(/[.,\u00a0\u202f]/g, '')) : Number(raw.replace(',', '.'))));
+      out.push(
+        String(grouped ? Number(raw.replace(/[.,\u00a0\u202f]/g, '')) : Number(raw.replace(',', '.'))),
+      );
       lastWasNumber = true;
       continue;
     }
