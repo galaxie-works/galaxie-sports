@@ -1,6 +1,6 @@
 'use client';
 
-import { SPONSOR_CATEGORIES, type SponsorIssue } from '@galaxie/engage';
+import { SPONSOR_CATEGORIES, suggestsAlcohol, type SponsorIssue } from '@galaxie/engage';
 import { Archive, Pencil, Plus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
@@ -135,6 +135,12 @@ export function SponsorsPanel({
                       <TableCell className="font-medium">{s.name}</TableCell>
                       <TableCell className="text-xs">
                         {T.categories[s.category as keyof typeof T.categories] ?? s.category}
+                        {/* cadastro anterior à categoria `alcohol`: só aviso, quem cadastrou decide */}
+                        {s.category === 'beverage' && suggestsAlcohol(s.name, s.linkUrl) ? (
+                          <Badge variant="warning-light" className="ms-2">
+                            {T.list.reviewCategory}
+                          </Badge>
+                        ) : null}
                       </TableCell>
                       <TableCell className="text-xs">
                         {s.countries.length ? s.countries.join(', ') : T.list.allCountries}
@@ -334,7 +340,12 @@ function SponsorDialog({
                 ))}
               </SelectContent>
             </Select>
-            {issue('category') ? <FieldError>{issue('category')}</FieldError> : null}
+            {issue('category') ? (
+              <FieldError>{issue('category')}</FieldError>
+            ) : category !== 'alcohol' && suggestsAlcohol(name, linkUrl) ? (
+              // só sugestão: quem cadastra decide a categoria
+              <FieldDescription>{F.alcoholHint}</FieldDescription>
+            ) : null}
           </Field>
           {text('sponsor-link', F.linkUrl, linkUrl, setLinkUrl, 'linkUrl', { type: 'url', optional: true })}
           <div className="grid gap-4 sm:grid-cols-2">

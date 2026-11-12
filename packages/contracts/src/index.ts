@@ -37,4 +37,5 @@ export {
   type Page,
 } from './client.js';
 export * from './team-statistics.js';
+export * from './presence.js';
 export * from './moderation.js';
