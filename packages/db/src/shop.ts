@@ -173,3 +173,23 @@ export async function shopAnchors(
     stores: [...byStore.values()],
   };
 }
+
+/** A loja com o que os conectores precisam (#916): matriz de caminhos, configuração e credenciais ainda cifradas. */
+export interface ShopStoreConnectorRow extends ShopStoreRow {
+  clientPaths: string[];
+  config: Record<string, string>;
+  credentialsSealed: string | null;
+}
+
+export async function listShopStoreConnectorRows(db: Database): Promise<ShopStoreConnectorRow[]> {
+  const rows = await db
+    .select({
+      ...storeColumns,
+      clientPaths: shopStore.clientPaths,
+      config: shopStore.config,
+      credentialsSealed: shopStore.credentialsSealed,
+    })
+    .from(shopStore)
+    .orderBy(asc(shopStore.country), asc(shopStore.position), asc(shopStore.name));
+  return rows as ShopStoreConnectorRow[];
+}

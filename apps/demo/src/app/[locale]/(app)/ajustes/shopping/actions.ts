@@ -29,7 +29,18 @@ import {
   parseProfileInput,
   parseStoreInput,
   type Parsed,
+  parseConnectorInput,
+  parseCredentialsInput,
 } from '@/lib/shop/catalog-input';
+import {
+  ShopCredentialsError,
+  ShopSecretError,
+  clearShopCredentials,
+  saveShopConnector,
+  saveShopCredentials,
+  setShopStoreActive,
+  storeNetwork,
+} from '@/lib/shop/connectors';
 
 export interface ShopActionResult {
   ok: boolean;
@@ -52,10 +63,18 @@ async function run(ref: EntityRef | null, fn: (actor: string) => Promise<void>):
   } catch (err) {
     if (err instanceof ShopCatalogError) return { ok: false, error: t[err.code] };
     if (err instanceof InputError) return { ok: false, error: t.input[err.code] };
-    console.error('ajustes/shopping: gravação falhou', err);
+    if (err instanceof ShopSecretError) return { ok: false, error: t.no_kek };
+    if (err instanceof ShopCredentialsError) return { ok: false, error: t.input.affiliate_id };
+    // só o nome e o código: a mensagem do driver pode citar parâmetros (e as credenciais cifradas)
+    console.error(
+      'ajustes/shopping: gravação falhou',
+      err instanceof Error ? err.name : 'erro',
+      (err as { code?: string })?.code,
+    );
     return { ok: false, error: t.generic };
   }
   revalidatePath(PATH);
+  revalidatePath(`${PATH}/conectores`);
   if (ref) revalidatePath(`${PATH}/${ref.kind}/${ref.id}`);
   return { ok: true };
 }
@@ -179,4 +198,39 @@ export async function moveProductAction(
     const e = entity(ref);
     await moveShopProduct(e.kind, e.id, productId(id), direction === 'up' ? 'up' : 'down', actor);
   });
+}
+
+// ── Conectores (#916) ────────────────────────────────────────────────────────────────────────────────────────────
+
+const storeId = (id: unknown) => {
+  if (typeof id !== 'string' || !/^[a-z0-9_]{2,40}$/.test(id)) throw new InputError('store_id');
+  return id;
+};
+
+export async function setStoreActiveAction(id: string, active: boolean): Promise<ShopActionResult> {
+  return run(null, (actor) => setShopStoreActive(storeId(id), active === true, actor));
+}
+
+export async function saveConnectorAction(
+  id: string,
+  input: Record<string, unknown>,
+): Promise<ShopActionResult> {
+  return run(null, async (actor) => {
+    const sid = storeId(id);
+    await saveShopConnector(sid, value(parseConnectorInput(await storeNetwork(sid), obj(input))), actor);
+  });
+}
+
+/** Grava as credenciais (cifradas). O valor nunca volta nem vai para log. */
+export async function saveCredentialsAction(
+  id: string,
+  input: Record<string, unknown>,
+): Promise<ShopActionResult> {
+  return run(null, (actor) =>
+    saveShopCredentials(storeId(id), value(parseCredentialsInput(obj(input))), actor),
+  );
+}
+
+export async function clearCredentialsAction(id: string): Promise<ShopActionResult> {
+  return run(null, (actor) => clearShopCredentials(storeId(id), actor));
 }

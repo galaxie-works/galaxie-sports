@@ -3,6 +3,9 @@
  *
  *   GET /internal/shop/stores[?country=BR]                                 lojas da Galaxie, por país e ordem
  *   GET /internal/shop/entities/:kind/:id/anchors[?store=…][&country=BR]   âncoras da entidade, por loja
+ *   GET /internal/shop/entities/:kind/:id/offers[?country=BR][&tenant=…&path=…&clickref=…&client_code=…]
+ *       ofertas com preço, estoque e link para o destino (#916): sem `tenant`, o site Galaxie; com ele, o widget do
+ *       cliente pelo caminho pedido (prévia do que o cliente veria)
  *
  * `kind` é de onde vem a entidade: `participant` (time, seleção, atleta, piloto), `competition` ou `person`. Só
  * produto aprovado e ativo; sem imagem nem preço (vêm do conector da loja, #916). Nada aqui leva código de
@@ -11,8 +14,10 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import * as z from 'zod';
 import { listShopStores, SHOP_ENTITY_KINDS, shopAnchors, type ShopStoreRow } from '@galaxie/db';
+import { SHOP_CLIENT_PATHS, type ShopDestination } from '@galaxie/engage';
 import { assertAdmin } from '../../auth/admin-key.js';
 import { requireDb, type AppContext } from '../../context.js';
+import type { ShopOffers } from '../../shop/offers.js';
 import { problems } from '../../errors.js';
 import { parseInput } from '../../util.js';
 
@@ -43,9 +48,22 @@ const storeBody = (s: ShopStoreRow) => ({
   position: s.position,
 });
 
+const Token = z.string().regex(/^[A-Za-z0-9_.-]{1,64}$/);
+const OffersQuery = z.object({
+  country: Country.optional(),
+  tenant: z.uuid().optional(),
+  path: z.enum(SHOP_CLIENT_PATHS).optional(),
+  clickref: Token.optional(),
+  client_code: Token.optional(),
+});
+
 const noStore = (reply: FastifyReply) => reply.header('cache-control', 'no-store');
 
-export async function internalShopRoutes(app: FastifyInstance, ctx: AppContext): Promise<void> {
+export async function internalShopRoutes(
+  app: FastifyInstance,
+  ctx: AppContext,
+  deps: { offers?: ShopOffers | undefined } = {},
+): Promise<void> {
   await app.register(async (internal) => {
     internal.addHook('onRequest', async (request: FastifyRequest) => {
       assertAdmin(request, ctx.adminGuard);
@@ -93,6 +111,46 @@ export async function internalShopRoutes(app: FastifyInstance, ctx: AppContext):
               })),
             })),
           },
+        };
+      },
+    );
+
+    internal.get(
+      '/internal/shop/entities/:kind/:id/offers',
+      { config: ADMIN_ROUTE },
+      async (request, reply) => {
+        requireDb(ctx);
+        if (!deps.offers) throw problems.degraded('Shopping sem banco.');
+        const p = parseInput(AnchorsParams, request.params);
+        const q = parseInput(OffersQuery, request.query);
+        const dest: ShopDestination = q.tenant
+          ? {
+              kind: 'client',
+              tenantId: q.tenant,
+              path: q.path ?? 'client_code',
+              clickref: q.clickref ?? null,
+              clientCode: q.client_code ?? null,
+            }
+          : { kind: 'galaxie' };
+        const r = await deps.offers.entityOffers({ kind: p.kind, id: p.id }, dest, { country: q.country });
+        if (!r) throw problems.notFound('Cadastro no Shopping');
+        noStore(reply);
+        return {
+          data: r.map((s) => ({
+            store: s.store,
+            products: s.products.map((o) => ({
+              id: o.id,
+              product_type: o.productType,
+              season: o.season,
+              title: o.title,
+              price: o.price,
+              currency: o.currency,
+              image_url: o.imageUrl,
+              fetched_at: o.fetchedAt,
+              source: o.source,
+              link: o.link,
+            })),
+          })),
         };
       },
     );
