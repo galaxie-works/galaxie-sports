@@ -125,7 +125,13 @@ export async function saveNarrationTemplate(input: {
     if ((prev?.version ?? null) !== input.expectedVersion) throw new NarrationTemplateError('stale');
     let version: number | null = null;
     if (variants) {
-      version = (prev?.version ?? 0) + 1;
+      // a versão só sobe, mesmo depois de voltar ao padrão (a linha some, o histórico fica): conta as mudanças
+      // do histórico, para quem abriu a versão 1 antes de um "padrão + nova gravação" receber `stale`
+      const { rows: logRows } = await client.query<{ n: string }>(
+        `select count(*) as n from ops.narration_template_log where key = $1 and lang = $2`,
+        [key, lang],
+      );
+      version = Math.max(prev?.version ?? 0, Number(logRows[0]?.n ?? 0)) + 1;
       await client.query(
         `insert into ops.narration_template (key, lang, variants, version, updated_by, updated_at)
          values ($1, $2, $3::text[], $4, $5, now())

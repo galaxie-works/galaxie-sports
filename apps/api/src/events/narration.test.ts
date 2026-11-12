@@ -111,8 +111,8 @@ describe('narração por frase pronta (#1167)', () => {
       'VAR anula o gol de John Arias por impedimento. Segue 1 x 1.',
       'Cartão amarelo para Martinelli (Fluminense).',
       'É gol, Palmeiras! Flaco López põe o time na frente. Palmeiras 2 x 1 Fluminense.',
-      'Segundo amarelo para Martinelli, que é expulso. Fluminense fica com um a menos.',
-      'Substituição em Palmeiras: entra Rony, sai Flaco López.',
+      'Segundo amarelo para Martinelli (Fluminense): expulsão.',
+      'Substituição (Palmeiras): entra Rony, sai Flaco López.',
     ]);
   });
 
@@ -124,7 +124,7 @@ describe('narração por frase pronta (#1167)', () => {
     expect(game('en')[0]).toBe(
       'Goal for Palmeiras! Estêvão opens the scoring. Assisted by Raphael Veiga. Palmeiras 1-0 Fluminense.',
     );
-    expect(game('en')[6]).toBe('Second yellow for Martinelli, who is sent off. Fluminense are down to ten.');
+    expect(game('en')[6]).toBe('Second yellow for Martinelli (Fluminense): sent off.');
   });
 
   it('a mesma leitura dá sempre a mesma frase', () => {
@@ -227,5 +227,79 @@ describe('frases editadas em Ajustes (#1167)', () => {
     expect(t('pt-BR')).toBe('GOOOL do Palmeiras! Estêvão abre o placar. Palmeiras 1 x 0 Fluminense.');
     seq = 0;
     expect(t('en')).toBe('Goal for Palmeiras! Estêvão opens the scoring. Palmeiras 1-0 Fluminense.');
+  });
+});
+
+describe('casos da revisão (#1167)', () => {
+  it('VAR ao vivo antes de o placar cair sai sem placar; depois, com o placar certo', () => {
+    const at = (score: TimelineInput['score']) => {
+      seq = 0;
+      return buildTimelineDto(
+        input({
+          status: 'live',
+          statusDetail: '2H',
+          score,
+          incidents: [
+            inc({ type: 'goal', detail: 'Normal Goal', minute: 62, team: FLU, player: person('b', 'Bidu') }),
+            inc({
+              type: 'var',
+              detail: 'Goal cancelled',
+              minute: 63,
+              team: FLU,
+              player: person('b', 'Bidu'),
+            }),
+          ],
+        }),
+      ).incidents[1]!.narration;
+    };
+    expect(at({ home: 0, away: 1 })).toBe('VAR anula o gol de Bidu.');
+    expect(at({ home: 0, away: 0 })).toBe('VAR anula o gol de Bidu. Segue 0 x 0.');
+  });
+
+  it('sem o nome do jogador não troca pelo time; gol contra sem lado não diz a favor de quem', () => {
+    seq = 0;
+    const t = buildTimelineDto(
+      input({
+        status: 'live',
+        statusDetail: '1H',
+        score: { home: null, away: null },
+        teams: [],
+        incidents: [
+          inc({ type: 'goal', detail: 'Normal Goal', minute: 5, team: PAL }),
+          inc({ type: 'card', detail: 'Yellow Card', minute: 6, team: PAL }),
+          inc({ type: 'own_goal', detail: 'Own Goal', minute: 7, team: FLU, player: person('z', 'Zé') }),
+        ],
+      }),
+    );
+    const [goal, card, og] = t.incidents.map((i) => i.narration);
+    expect(goal).toBe('Gol: Palmeiras. Palmeiras 1 x 0 Fluminense.');
+    expect(card).toBeNull();
+    // ao vivo o gol contra soma para o time do lance (padrão), então o lado é conhecido
+    expect(og).toMatch(/^Gol contra de Zé, a favor de /);
+  });
+
+  it('gol de pênalti em inglês e disputa de pênaltis com o placar da disputa', () => {
+    seq = 0;
+    const t = buildTimelineDto(
+      input({
+        locale: 'en',
+        score: { home: 1, away: 0, penalty: { home: 1, away: 0 } },
+        incidents: [
+          inc({ type: 'goal', detail: 'Penalty', minute: 20, team: PAL, player: person('v', 'Veiga') }),
+          inc({
+            type: 'goal',
+            detail: 'Penalty',
+            comments: 'Penalty Shootout',
+            minute: 120,
+            team: PAL,
+            player: person('v', 'Veiga'),
+          }),
+        ],
+      }),
+    );
+    expect(t.incidents[0]!.narration).toContain('Veiga opens the scoring from the penalty spot.');
+    expect(t.incidents[1]!.narration).toBe(
+      'Veiga scores in the shootout. Shootout: Palmeiras 1-0 Fluminense.',
+    );
   });
 });

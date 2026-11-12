@@ -1,8 +1,15 @@
 /**
- * Frases do lance a lance editadas em Ajustes (#1167), lidas de `ops.narration_template`. A leitura fica 60 s em
- * memória por processo: a mudança chega à timeline em até 1 minuto, sem uma consulta a mais por requisição.
- * `stamp` muda a cada gravação e entra na chave do cache da timeline, então o jogo encerrado (cache de 1 h) também
- * troca a frase.
+ * Frases do lance a lance editadas em Ajustes (#1167), lidas de `ops.narration_template`.
+ *
+ * A timeline não pode passar a esperar o banco antes do cache: um acerto no Valkey continua sem tocar no Postgres.
+ * - A leitura fica 60 s em memória por processo, e a mudança chega à timeline em até 1 minuto.
+ * - Vencido o prazo, a requisição usa a última leitura e a renovação corre ao lado, uma só por processo.
+ * - Falha também conta como leitura: o banco fora não vira uma consulta por requisição, e as frases padrão (ou as da
+ *   última leitura boa) seguem valendo.
+ * - Só a primeira leitura do processo espera, e no máximo `FIRST_WAIT_MS`.
+ *
+ * `stamp` muda a cada gravação e a cada volta ao padrão. Ele entra na chave do cache da timeline, então o jogo
+ * encerrado (cache de 1 h) também troca a frase.
  */
 import {
   NARRATION_LANGS,
@@ -13,14 +20,20 @@ import {
 import { narrationTemplate, type Database } from '@galaxie/db';
 
 const TTL_MS = 60_000;
+const FIRST_WAIT_MS = 500;
 
 export interface NarrationOverridesSnapshot {
   overrides: NarrationOverrides;
-  /** Muda a cada gravação (última `updated_at` e quantidade de linhas). */
+  /** Muda a cada gravação (quantidade de linhas e última `updated_at`). */
   stamp: string;
 }
 
-let cached: { at: number; value: NarrationOverridesSnapshot } | null = null;
+const DEFAULTS: NarrationOverridesSnapshot = { overrides: {}, stamp: '0' };
+
+let value: NarrationOverridesSnapshot = DEFAULTS;
+let at = 0;
+let loaded = false;
+let inflight: Promise<void> | null = null;
 
 export function toNarrationOverrides(
   rows: readonly { key: string; lang: string; variants: readonly string[] }[],
@@ -34,11 +47,7 @@ export function toNarrationOverrides(
   return out;
 }
 
-export async function loadNarrationOverrides(
-  db: Database,
-  now = Date.now(),
-): Promise<NarrationOverridesSnapshot> {
-  if (cached && now - cached.at < TTL_MS) return cached.value;
+async function refresh(db: Database, now: () => number): Promise<void> {
   try {
     const rows = await db
       .select({
@@ -49,16 +58,33 @@ export async function loadNarrationOverrides(
       })
       .from(narrationTemplate);
     const last = rows.reduce((m, r) => Math.max(m, r.updatedAt.getTime()), 0);
-    const value = { overrides: toNarrationOverrides(rows), stamp: `${rows.length}.${last}` };
-    cached = { at: now, value };
-    return value;
+    value = { overrides: toNarrationOverrides(rows), stamp: `${rows.length}.${last}` };
+    loaded = true;
   } catch {
-    // tabela ainda não migrada ou banco fora: as frases padrão valem, e a próxima leitura tenta de novo
-    return cached?.value ?? { overrides: {}, stamp: '0' };
+    // tabela ainda não migrada ou banco fora: fica a última leitura (ou o padrão) até a próxima tentativa
+  } finally {
+    at = now();
+    inflight = null;
   }
+}
+
+export async function loadNarrationOverrides(
+  db: Database,
+  now: () => number = Date.now,
+): Promise<NarrationOverridesSnapshot> {
+  if (now() - at < TTL_MS) return value;
+  inflight ??= refresh(db, now);
+  if (!loaded && at === 0) {
+    // primeira leitura do processo: espera pouco; depois disso nunca espera
+    await Promise.race([inflight, new Promise<void>((r) => setTimeout(r, FIRST_WAIT_MS).unref?.())]);
+  }
+  return value;
 }
 
 /** Só para testes. */
 export function resetNarrationOverridesCache(): void {
-  cached = null;
+  value = DEFAULTS;
+  at = 0;
+  loaded = false;
+  inflight = null;
 }

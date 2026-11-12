@@ -629,6 +629,9 @@ export function buildTimelineDto(rawInput: TimelineInput): EventTimeline {
       away: awayName,
       scoreBefore: running,
       overrides: input.narrationOverrides,
+      // VAR de gol anulado: o gol já saiu da conta (pareado) ou a fonte já o tinha apagado (VAR inferido)
+      varSettled:
+        i.sequence >= INFERRED_SEQUENCE_BASE || incidents.some((x) => x.cancelled_by === i.sequence),
     });
     if (i.score_after && i.clock.period !== 'penalty_shootout') running = i.score_after;
   }

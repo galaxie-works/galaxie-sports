@@ -9,7 +9,8 @@
  * pode ter várias variações, e a variação é escolhida pelo `sequence` do lance: a mesma leitura dá sempre a mesma
  * frase (cache, SSE e REST concordam).
  *
- * Lógica pura, sem banco: a API monta as frases e o painel usa o mesmo código na prévia.
+ * Lógica pura, sem banco: a API monta as frases; o painel usa o catálogo e a validação (a prévia troca os
+ * marcadores por um jogo de exemplo).
  */
 import type { TimelineIncident, VarOutcome } from './events.js';
 
@@ -82,7 +83,7 @@ export const NARRATION_CATALOG = {
   'goal.extends': e('goal', P, '{player} amplia', '{player} amplía la ventaja', '{player} extends the lead'),
   'goal.reduces': e('goal', P, '{player} diminui', '{player} descuenta', '{player} pulls one back'),
   'goal.plain': e('goal', P, 'Gol de {player}', 'Gol de {player}', 'Goal by {player}'),
-  'goal.penalty_suffix': e('goal', [], ', de pênalti', ', de penal', ' from the penalty spot'),
+  'goal.penalty_suffix': e('goal', [], 'de pênalti', 'de penal', 'from the penalty spot'),
   'goal.assist': e(
     'goal',
     ['assist'],
@@ -97,12 +98,27 @@ export const NARRATION_CATALOG = {
     'Gol en contra de {player}, a favor de {team}.',
     'Own goal by {player}, credited to {team}.',
   ),
+  'goal.own_goal_no_team': e(
+    'goal',
+    P,
+    'Gol contra de {player}.',
+    'Gol en contra de {player}.',
+    'Own goal by {player}.',
+  ),
+  'goal.no_player': e('goal', ['team'], 'Gol: {team}.', 'Gol de {team}.', 'Goal for {team}.'),
   'goal.disallowed': e(
     'goal',
     P,
     'Gol de {player} anulado pelo VAR.',
     'Gol de {player} anulado por el VAR.',
     "{player}'s goal ruled out by VAR.",
+  ),
+  'goal.disallowed_own_goal': e(
+    'goal',
+    P,
+    'Gol contra de {player} anulado pelo VAR.',
+    'Gol en contra de {player} anulado por el VAR.',
+    "{player}'s own goal ruled out by VAR.",
   ),
   'score.teams': e(
     'score',
@@ -113,6 +129,14 @@ export const NARRATION_CATALOG = {
   ),
   'score.no_teams': e('score', ['h', 'a'], 'Placar: {h} x {a}.', 'Marcador: {h}-{a}.', 'Score: {h}-{a}.'),
   'score.still': e('score', ['h', 'a'], 'Segue {h} x {a}.', 'Sigue {h}-{a}.', 'Still {h}-{a}.'),
+  'score.shootout_teams': e(
+    'score',
+    ['home', 'away', 'h', 'a'],
+    'Disputa: {home} {h} x {a} {away}.',
+    'Tanda: {home} {h}-{a} {away}.',
+    'Shootout: {home} {h}-{a} {away}.',
+  ),
+  'score.shootout': e('score', ['h', 'a'], 'Disputa: {h} x {a}.', 'Tanda: {h}-{a}.', 'Shootout: {h}-{a}.'),
   'var.goal_cancelled': e(
     'var',
     W,
@@ -243,23 +267,23 @@ export const NARRATION_CATALOG = {
   'card.second_yellow': e(
     'card',
     ['player', 'team'],
-    'Segundo amarelo para {player}, que é expulso. {team} fica com um a menos.',
-    'Segunda amarilla para {player}, que es expulsado. {team} se queda con uno menos.',
-    'Second yellow for {player}, who is sent off. {team} are down to ten.',
+    'Segundo amarelo para {player} ({team}): expulsão.',
+    'Segunda amarilla para {player} ({team}): expulsión.',
+    'Second yellow for {player} ({team}): sent off.',
   ),
   'card.second_yellow_no_team': e(
     'card',
     P,
-    'Segundo amarelo para {player}, que é expulso.',
-    'Segunda amarilla para {player}, que es expulsado.',
-    'Second yellow for {player}, who is sent off.',
+    'Segundo amarelo para {player}: expulsão.',
+    'Segunda amarilla para {player}: expulsión.',
+    'Second yellow for {player}: sent off.',
   ),
   'card.red': e(
     'card',
     ['player', 'team'],
-    'Cartão vermelho para {player}. {team} fica com um a menos.',
-    'Tarjeta roja para {player}. {team} se queda con uno menos.',
-    'Red card for {player}. {team} are a player down.',
+    'Cartão vermelho para {player} ({team}).',
+    'Tarjeta roja para {player} ({team}).',
+    'Red card for {player} ({team}).',
   ),
   'card.red_no_team': e(
     'card',
@@ -292,8 +316,8 @@ export const NARRATION_CATALOG = {
   'substitution.team': e(
     'substitution',
     ['team', 'in', 'out'],
-    'Substituição em {team}: entra {in}, sai {out}.',
-    'Cambio en {team}: entra {in}, sale {out}.',
+    'Substituição ({team}): entra {in}, sai {out}.',
+    'Cambio ({team}): entra {in}, sale {out}.',
     '{team} substitution: {in} on, {out} off.',
   ),
   'substitution.no_team': e(
@@ -306,8 +330,8 @@ export const NARRATION_CATALOG = {
   'other.unknown_player': e(
     'other',
     [],
-    'jogador sem nome informado',
-    'jugador sin nombre informado',
+    'atleta sem nome informado',
+    'deportista sin nombre informado',
     'unnamed player',
   ),
 } as const satisfies Record<string, NarrationEntry>;
@@ -366,6 +390,11 @@ export interface NarrationContext {
   away: string | null;
   /** Placar do tempo de jogo antes deste lance (para o "segue 0 x 0" do VAR). */
   scoreBefore: { home: number; away: number };
+  /**
+   * VAR de gol anulado já refletido no placar (o gol anulado já não conta em `scoreBefore`). No ao vivo o gol só sai
+   * da conta na leitura em que o placar cai; antes disso o VAR sai sem placar, para não dizer "segue 1 x 0" errado.
+   */
+  varSettled?: boolean | undefined;
   overrides?: NarrationOverrides | undefined;
 }
 
@@ -401,9 +430,18 @@ export function narrate(i: TimelineIncident, ctx: NarrationContext): string | nu
   };
 
   const player = i.player?.name ?? null;
-  const team = (i.scoring_team ?? i.team)?.name ?? null;
+  // gol contra: o lado só é certo em `scoring_team` (o `team` do fornecedor pode ser o do jogador)
+  const team = (i.kind === 'own_goal' ? i.scoring_team : (i.scoring_team ?? i.team))?.name ?? null;
+  // VAR sem autor fala do time; o resto não troca o jogador pelo nome do time
   const who = player ?? team ?? say('other.unknown_player');
-  const v: Vars = { player: who, who, team: team ?? '', assist: i.assist?.name ?? '' };
+  const v: Vars = {
+    player: player ?? say('other.unknown_player'),
+    who,
+    team: team ?? '',
+    assist: i.assist?.name ?? '',
+  };
+  /** Complemento ("de pênalti"): vírgula em pt e es, espaço em en. */
+  const suffix = (text: string) => (ctx.lang === 'en' ? ` ${text}` : `, ${text}`);
   const score = (s: { home: number; away: number }) =>
     ctx.home && ctx.away
       ? say('score.teams', { home: ctx.home, away: ctx.away, h: String(s.home), a: String(s.away) })
@@ -413,11 +451,18 @@ export function narrate(i: TimelineIncident, ctx: NarrationContext): string | nu
     case 'goal':
     case 'penalty_goal':
     case 'own_goal': {
-      if (i.disallowed) return cap(say('goal.disallowed', v));
-      if (i.kind === 'own_goal')
-        return (
-          join(team ? say('goal.own_goal', v) : null, i.score_after ? score(i.score_after) : null) || null
+      if (i.disallowed)
+        return cap(say(i.kind === 'own_goal' ? 'goal.disallowed_own_goal' : 'goal.disallowed', v));
+      if (i.kind === 'own_goal') {
+        if (!player)
+          return team ? join(say('goal.no_player', v), i.score_after ? score(i.score_after) : null) : null;
+        return join(
+          say(team ? 'goal.own_goal' : 'goal.own_goal_no_team', v),
+          i.score_after ? score(i.score_after) : null,
         );
+      }
+      if (!player)
+        return team ? join(say('goal.no_player', v), i.score_after ? score(i.score_after) : null) : null;
       const side = i.scoring_team?.side;
       const after = i.score_after;
       let line: NarrationKey = 'goal.plain';
@@ -428,7 +473,7 @@ export function narrate(i: TimelineIncident, ctx: NarrationContext): string | nu
         const other = side === 'home' ? 'away' : 'home';
         line = after[side] > after[other] ? 'goal.extends' : 'goal.reduces';
       }
-      const body = say(line, v) + (i.kind === 'penalty_goal' ? say('goal.penalty_suffix') : '') + '.';
+      const body = say(line, v) + (i.kind === 'penalty_goal' ? suffix(say('goal.penalty_suffix')) : '') + '.';
       return join(
         team ? say('goal.lead', v) : null,
         cap(body),
@@ -441,6 +486,8 @@ export function narrate(i: TimelineIncident, ctx: NarrationContext): string | nu
       const base = cap(say(`var.${outcome}` as NarrationKey, v));
       // gol anulado ou confirmado: o placar que vale depois do VAR
       if (!VAR_SCORE.has(outcome)) return base;
+      // gol anulado que ainda conta no placar parcial (ao vivo, antes de o placar cair): sem placar
+      if (outcome !== 'goal_confirmed' && !ctx.varSettled) return base;
       const s = ctx.scoreBefore;
       return join(
         base,
@@ -450,11 +497,33 @@ export function narrate(i: TimelineIncident, ctx: NarrationContext): string | nu
       );
     }
     case 'penalty_missed':
-      return cap(say('penalty.missed', v));
-    case 'shootout_scored':
-      return join(cap(say('penalty.shootout_scored', v)), i.score_after ? score(i.score_after) : null);
+      return player ? cap(say('penalty.missed', v)) : null;
+    case 'shootout_scored': {
+      if (!player) return null;
+      const k = i.score_after;
+      const tally = k
+        ? ctx.home && ctx.away
+          ? say('score.shootout_teams', {
+              home: ctx.home,
+              away: ctx.away,
+              h: String(k.home),
+              a: String(k.away),
+            })
+          : say('score.shootout', { h: String(k.home), a: String(k.away) })
+        : null;
+      return join(cap(say('penalty.shootout_scored', v)), tally);
+    }
     case 'shootout_missed':
-      return cap(say('penalty.shootout_missed', v));
+      return player ? cap(say('penalty.shootout_missed', v)) : null;
+    case 'yellow_card':
+    case 'second_yellow':
+    case 'red_card':
+      if (!player) return null;
+      break;
+    default:
+      break;
+  }
+  switch (i.kind) {
     case 'yellow_card':
       return cap(say(team ? 'card.yellow' : 'card.yellow_no_team', v));
     case 'second_yellow':
