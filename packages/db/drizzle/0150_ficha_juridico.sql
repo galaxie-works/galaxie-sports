@@ -1,5 +1,5 @@
 -- #1115 (épico #1017): apostas, consentimento de marketing e guarda legal nas fichas por país. Valores sugeridos pela
--- revisão jurídica de 11/11/2026, a confirmar com o advogado antes do deploy. Só acrescenta: o campo que a ficha já
+-- revisão jurídica de 11/11/2026, com o aval do advogado em 12/11. Só acrescenta: o campo que a ficha já
 -- tem (gravado pelo painel depois do código novo) fica como está; país fora da tabela ganha o mais protetivo.
 WITH rules (country, rules) AS (VALUES
   ('BR', '{"bettingContent":false,"marketingConsent":{"email":"opt-in","push":"opt-in","sms":"opt-in"},"legalHoldDays":180}'::jsonb),
