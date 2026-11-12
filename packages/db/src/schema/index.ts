@@ -19,3 +19,4 @@ export * from './fan.js';
 export * from './presence.js';
 export * from './moderation.js';
 export * from './billing.js';
+export * from './shop.js';

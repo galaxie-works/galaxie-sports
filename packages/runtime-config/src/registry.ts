@@ -1025,6 +1025,17 @@ export const SETTINGS: readonly SettingDef[] = [
     apply: 'refresh',
     default: '3',
   },
+  // Shopping (#916): horas do cache de preço e estoque dos conectores de loja. O épico fixa o teto em 24 h
+  {
+    key: 'SHOP_PRICE_CACHE_HOURS',
+    section: 'engage',
+    type: 'int',
+    min: 1,
+    max: 24,
+    services: ['api'],
+    apply: 'restart',
+    default: '24',
+  },
 
   // ── Credenciais ─────────────────────────────────────────────────────────────────────────────
   // trocadas no painel (#1087): cifradas no banco, abertas por cada serviço com a SETTINGS_KEK dele
