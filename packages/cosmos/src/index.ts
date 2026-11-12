@@ -15,6 +15,7 @@ export * from './models.js';
 export * from './moderation-config.js';
 export * from './moderation-rules.js';
 export * from './purchases.js';
+export * from './quota.js';
 export * from './recharge.js';
 export * from './settings.js';
 export * from './staff.js';

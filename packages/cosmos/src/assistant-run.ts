@@ -66,6 +66,7 @@ export type AssistantEvent =
 
 const RESERVE_ERRORS: Record<string, AssistantErrorCode> = {
   insufficient_credits: 'insufficient',
+  quota_exceeded: 'insufficient',
   wallet_blocked: 'blocked',
   cosmos_disabled: 'disabled',
   no_wallet: 'no_wallet',

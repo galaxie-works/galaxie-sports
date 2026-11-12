@@ -102,6 +102,8 @@ export const ROLE_GRANTS: Record<RoleService, RoleGrants> = {
       'core.competition',
       // configuração da moderação (#997): remover a exceção de uma sala ou comunidade apaga a linha
       'cosmos.moderation_config',
+      // cota da carteira por sala e produto (#1116): tirar a cota de uma sala apaga a linha
+      'cosmos.wallet_quota',
     ],
     // Cosmos AI (#1064): tabela por tabela e operação por operação, pelo que as funções de @galaxie/cosmos que a
     // demo chama gravam. Sem DELETE em nada da Cosmos (exceto apagar a exceção de moderação de uma sala) e sem

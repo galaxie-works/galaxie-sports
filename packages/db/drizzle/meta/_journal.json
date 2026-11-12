@@ -652,6 +652,13 @@
       "when": 1794442180071,
       "tag": "0097_presenca",
       "breakpoints": true
+    },
+    {
+      "idx": 93,
+      "version": "7",
+      "when": 1794453169696,
+      "tag": "0115_cosmos_cota_por_sala",
+      "breakpoints": true
     }
   ]
 }

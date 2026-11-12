@@ -10,7 +10,9 @@ import {
   createCreditRequest,
   decideCreditRequest,
   isCosmosError,
+  isQuotaScope,
   listCreditRequests,
+  raiseQuota,
 } from '@galaxie/cosmos';
 
 import { pool } from '@/lib/auth/db';
@@ -43,6 +45,7 @@ function failure(err: unknown, t: Texts): CreditRequestResult {
     if (err.code === 'request_open') return { ok: false, error: t.errors.alreadyOpen };
     if (err.code === 'request_closed') return { ok: false, error: t.errors.closed };
     if (err.code === 'note_too_long') return { ok: false, error: t.errors.note };
+    if (err.code === 'invalid_quota') return { ok: false, error: t.quotaError };
   }
   console.error('[cosmos] pedido de créditos falhou', err);
   return { ok: false, error: t.errors.generic };
@@ -116,15 +119,31 @@ export async function requestCosmosCredits(reason: string): Promise<CreditReques
   }
 }
 
+/** Aumento de cota pedido junto com a aprovação (#1116): sala e pontos percentuais. */
+export interface QuotaRaise {
+  scope: string;
+  addPercent: number;
+}
+
+const validRaise = (r: QuotaRaise) =>
+  isQuotaScope(r.scope) && typeof r.addPercent === 'number' && r.addPercent > 0 && r.addPercent <= 100;
+
+/**
+ * Aprova ou recusa. Aprovar com `raise` também aumenta a cota da sala (#1116), em vez de só abrir a compra: o aumento é
+ * validado antes, e só sai depois que o pedido foi aprovado (pedido já respondido não mexe na cota).
+ */
 export async function decideCosmosCreditRequest(
   requestId: string,
   decision: 'approved' | 'declined',
   note?: string,
+  raise?: QuotaRaise,
 ): Promise<CreditRequestResult> {
   const g = await gate(true);
   if ('error' in g) return { ok: false, error: g.error };
   if (!isUuid(requestId) || (decision !== 'approved' && decision !== 'declined'))
     return { ok: false, error: g.t.errors.closed };
+  if (raise && (decision !== 'approved' || typeof raise !== 'object' || !validRaise(raise)))
+    return { ok: false, error: g.t.quotaError };
   try {
     await decideCreditRequest(builderDb(), {
       tenantId: g.ctx.tenant.id,
@@ -133,6 +152,13 @@ export async function decideCosmosCreditRequest(
       userId: g.ctx.userId,
       note: typeof note === 'string' ? note : null,
     });
+    if (raise)
+      await raiseQuota(builderDb(), {
+        tenantId: g.ctx.tenant.id,
+        scope: raise.scope,
+        addPercent: raise.addPercent,
+        userId: g.ctx.userId,
+      });
     return { ok: true };
   } catch (err) {
     return failure(err, g.t);
