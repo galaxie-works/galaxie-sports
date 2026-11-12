@@ -715,6 +715,13 @@
       "when": 1794511111999,
       "tag": "0145_shopping_conectores",
       "breakpoints": true
+    },
+    {
+      "idx": 102,
+      "version": "7",
+      "when": 1794511151278,
+      "tag": "0146_shopping_cliques",
+      "breakpoints": true
     }
   ]
 }

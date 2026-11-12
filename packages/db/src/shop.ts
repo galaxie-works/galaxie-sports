@@ -6,6 +6,7 @@
 import { and, asc, eq } from 'drizzle-orm';
 import type { Database } from './client.js';
 import {
+  shopClick,
   shopEntity,
   shopEntityStore,
   shopProduct,
@@ -192,4 +193,41 @@ export async function listShopStoreConnectorRows(db: Database): Promise<ShopStor
     .from(shopStore)
     .orderBy(asc(shopStore.country), asc(shopStore.position), asc(shopStore.name));
   return rows as ShopStoreConnectorRow[];
+}
+
+/** O produto de um clique (#918): só aprovado e ativo, com a entidade e a loja dele. */
+export interface ShopClickTarget {
+  productId: string;
+  storeId: string;
+  storeProductId: string;
+  title: string;
+  url: string;
+  entityKind: ShopEntityKind;
+  entityId: string;
+}
+
+export async function shopClickTarget(db: Database, productId: string): Promise<ShopClickTarget | null> {
+  const [row] = await db
+    .select({
+      productId: shopProduct.id,
+      storeId: shopProduct.storeId,
+      storeProductId: shopProduct.storeProductId,
+      title: shopProduct.title,
+      url: shopProduct.url,
+      entityKind: shopEntity.entityKind,
+      entityId: shopEntity.entityId,
+    })
+    .from(shopProduct)
+    .innerJoin(shopEntity, eq(shopEntity.id, shopProduct.entityId))
+    .where(
+      and(eq(shopProduct.id, productId), eq(shopProduct.status, 'approved'), eq(shopProduct.active, true)),
+    );
+  return (row as ShopClickTarget | undefined) ?? null;
+}
+
+export type ShopClickRow = typeof shopClick.$inferInsert;
+
+/** Grava um lote de cliques (a API junta em memória e grava depois do redirecionamento). */
+export async function recordShopClicks(db: Database, rows: ShopClickRow[]): Promise<void> {
+  if (rows.length) await db.insert(shopClick).values(rows);
 }
