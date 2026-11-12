@@ -6,13 +6,19 @@
  *   Galaxie, Ajustes → Conformidade → Moderação) é recusado;
  * - peça de patrocinador não aparece para `under13`, nem para `13_17` quando a ficha do país proíbe publicidade a
  *   menores (`adsToMinors`, B5);
+ * - bebida alcoólica (`alcohol`) só aparece para `18plus`, em qualquer país, mesmo com `adsToMinors`; o filtro
+ *   sugere a categoria pelo nome ou pelo link (`suggestsAlcohol`), mas quem cadastra decide;
  * - fora da vigência ou fora dos países do patrocinador, não aparece.
  */
 import type { CountryPolicy } from './country-policy.js';
 import { normalizeDomain, screen, type CompiledLists } from './moderation.js';
 
-/** Categorias do cadastro. Aposta, cassino e loteria não existem aqui, de propósito. */
+/**
+ * Categorias do cadastro. Aposta, cassino e loteria não existem aqui, de propósito. `alcohol` (bebida alcoólica) é
+ * separada de `beverage` (bebida sem álcool) porque só aparece para maiores de 18 anos.
+ */
 export const SPONSOR_CATEGORIES = [
+  'alcohol',
   'apparel',
   'automotive',
   'beverage',
@@ -408,17 +414,88 @@ export function validateSponsor(
   };
 }
 
+/** Categorias que só aparecem para `18plus`, em qualquer país e qualquer que seja a ficha. */
+export const ADULT_ONLY_SPONSOR_CATEGORIES: readonly SponsorCategory[] = ['alcohol'];
+
+/**
+ * Palavras de bebida alcoólica em pt, es e en, sem marca. `exact`: só a palavra inteira (`gin`, não `ginástica`);
+ * `stems`: o começo da palavra (`cervejaria`, `wines`). Radical curto que pega nome comum (`vinic` em Vinícius, `brew`
+ * em Brewster, `whisk` em Whiskas) fica de fora ou vira palavra inteira.
+ */
+const ALCOHOL_EXACT = new Set([
+  'gin',
+  'rum',
+  'vino',
+  'vinos',
+  'wine',
+  'pisco',
+  'mezcal',
+  'fernet',
+  'chope',
+  'chopes',
+  'chopp',
+  'chopperia',
+  'whisky',
+  'whiskey',
+  'whiskies',
+  'licor',
+  'licores',
+  'brewery',
+  'breweries',
+  'brewpub',
+]);
+const ALCOHOL_STEMS = [
+  'cervej',
+  'cervec',
+  'cervez',
+  'beer',
+  'vinho',
+  'vinicol',
+  'vinicul',
+  'winer',
+  'wines',
+  'vodk',
+  'tequil',
+  'cachac',
+  'aguardent',
+  'liqueur',
+  'liquor',
+  'destil',
+  'distill',
+  'sidra',
+  'cider',
+  'champag',
+  'espumant',
+  'prosecc',
+];
+
+/**
+ * O nome ou o link parecem de bebida alcoólica? É só sugestão para a tela marcar `alcohol`: quem cadastra decide, e
+ * nada é recusado por isso.
+ */
+export function suggestsAlcohol(name: string, linkUrl: string | null = null): boolean {
+  const words = `${name} ${linkUrl ?? ''}`
+    .normalize('NFKD')
+    .replace(/\p{M}/gu, '')
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean);
+  return words.some((w) => ALCOHOL_EXACT.has(w) || ALCOHOL_STEMS.some((stem) => w.startsWith(stem)));
+}
+
 /**
  * A peça do patrocinador pode aparecer para este torcedor agora? `policy` é a ficha do país do torcedor
- * (B5); sem ficha, menores ficam de fora.
+ * (B5); sem ficha, menores ficam de fora. Bebida alcoólica (`alcohol`) só para `18plus`, mesmo com `adsToMinors`.
  */
 export function sponsorVisible(
-  sponsor: Pick<Sponsor, 'countries' | 'startsAt' | 'endsAt'> & { archived?: boolean },
+  sponsor: Pick<Sponsor, 'category' | 'countries' | 'startsAt' | 'endsAt'> & { archived?: boolean },
   viewer: { country: string; ageBand: 'under13' | '13_17' | '18plus'; now: Date },
   policy: Pick<CountryPolicy, 'adsToMinors'> | null,
 ): boolean {
   if (sponsor.archived) return false;
   if (viewer.ageBand === 'under13') return false;
+  // bebida alcoólica: só maiores de 18, em qualquer país, mesmo onde a ficha permite publicidade a menores
+  if (viewer.ageBand !== '18plus' && ADULT_ONLY_SPONSOR_CATEGORIES.includes(sponsor.category)) return false;
   if (viewer.ageBand === '13_17' && !policy?.adsToMinors) return false;
   const country = viewer.country.toUpperCase();
   if (sponsor.countries.length && !sponsor.countries.includes(country)) return false;
