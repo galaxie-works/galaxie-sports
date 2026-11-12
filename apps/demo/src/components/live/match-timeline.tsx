@@ -247,7 +247,7 @@ function IncidentRow({ i, f }: { i: TimelineIncident; f: Formatters }) {
   const tl = useI18n().t.live.timeline;
   const decisive = i.flags.includes('decisive');
   // gol anulado pelo VAR: fica riscado, sem placar, com o selo "Anulado" (o card do VAR vem logo depois)
-  const disallowed = i.flags.includes('disallowed');
+  const disallowed = i.disallowed;
   // gol: o time que somou (no gol contra, o beneficiado, a quem valem placar e bandeiras); demais lances: o do lance
   const crest = i.scoring_team ?? i.team;
   const title =
@@ -291,13 +291,7 @@ function IncidentRow({ i, f }: { i: TimelineIncident; f: Formatters }) {
           {i.flags.map((flag) => (
             <Badge
               key={flag}
-              variant={
-                flag === 'decisive'
-                  ? 'default'
-                  : flag === 'disallowed'
-                    ? 'destructive-light'
-                    : 'primary-light'
-              }
+              variant={flag === 'decisive' ? 'default' : 'primary-light'}
               radius="full"
               size="sm"
             >
@@ -305,6 +299,11 @@ function IncidentRow({ i, f }: { i: TimelineIncident; f: Formatters }) {
               {tl.flags[flag] ?? flag}
             </Badge>
           ))}
+          {disallowed ? (
+            <Badge variant="destructive-light" radius="full" size="sm">
+              {tl.flags.disallowed}
+            </Badge>
+          ) : null}
           {reason ? <span className="text-muted-foreground text-xs">{reason}</span> : null}
           {crest ? (
             <span className="text-muted-foreground ml-auto flex min-w-0 items-center gap-1.5 text-xs">

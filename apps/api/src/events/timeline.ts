@@ -292,12 +292,16 @@ export function ownGoalCountsForOpponent(
   incidents: RawIncident[],
   score: TimelineInput['score'],
   finished: boolean,
+  /** Gols anulados pelo VAR em cada convenção (índices): não contam. */
+  cancelledFor: (forOpponent: boolean) => ReadonlyMap<number, number> = () => new Map(),
 ): boolean {
   if (!finished || score.home == null || score.away == null) return false;
   const { home, away } = score;
   const tally = (forOpponent: boolean) => {
     const t = { home: 0, away: 0 };
-    for (const raw of incidents) {
+    const cancelled = cancelledFor(forOpponent);
+    for (const [idx, raw] of incidents.entries()) {
+      if (cancelled.has(idx)) continue;
       const kind = kindOf(raw);
       if (!SCORING_KINDS.has(kind)) continue;
       const side = creditedSide(raw, kind, forOpponent);
@@ -346,7 +350,7 @@ export function placeInferredIncidents<T extends Pick<RawIncident, 'sequence' | 
  * apaga o gol (a Galaxie infere o VAR, ver `retracted-goals.ts`), às vezes mantém o `Goal` e acrescenta um `Var`
  * com `Goal cancelled` / `Goal Disallowed - ...`. Cada VAR derruba no máximo um gol: do mesmo time, fora da
  * disputa de pênaltis, a até `VAR_PAIR_WINDOW_MIN` minutos, preferindo o mesmo jogador e o mais próximo antes
- * do VAR.
+ * do VAR. Se o VAR traz o autor e ele não marcou na janela, o VAR é de um gol que a fonte já apagou.
  *
  * O VAR também chega quando o gol anulado já saiu da timeline; aí o gol válido de minutos antes não pode cair.
  * Por isso, com o placar do jogo conhecido, o gol só cai se o time tiver mais gols na timeline que no placar.
@@ -375,12 +379,13 @@ export function cancelledGoals(
       if (!SCORING_KINDS.has(kinds[gIdx]!) || out.has(gIdx) || !sameTeam(g.team, v.team)) continue;
       const dist = minuteOf(v) - minuteOf(g);
       if (Math.abs(dist) > VAR_PAIR_WINDOW_MIN) continue;
-      // mesmo jogador primeiro, depois o gol antes do VAR, depois o mais perto
+      // mesmo jogador primeiro, depois o gol antes do VAR, depois o mais perto (VAR sem autor)
       const samePlayer = vPlayer != null && personKey(g.player) === vPlayer;
       const rank = (samePlayer ? 0 : 1000) + (dist >= 0 ? 0 : 100) + Math.abs(dist);
       if (!best || rank < best.rank) best = { idx: gIdx, rank };
     }
-    if (!best) continue;
+    // VAR com autor que não marcou na janela fala de um gol que a fonte já apagou: não derruba o gol de outro
+    if (!best || (vPlayer != null && best.rank >= 1000)) continue;
     const side = creditedSide(incidents[best.idx]!, kinds[best.idx]!, ownGoalForOpponent);
     const official = side ? score[side] : null;
     if (side && official != null && tally[side] <= official) continue;
@@ -418,8 +423,10 @@ export function buildTimelineDto(rawInput: TimelineInput): EventTimeline {
   };
 
   // ─ lances: tipo, relógio, instante, placar parcial e bandeiras ─
-  const ownGoalForOpponent = ownGoalCountsForOpponent(input.incidents, input.score, finished);
-  const cancelled = cancelledGoals(input.incidents, input.score, ownGoalForOpponent);
+  // a convenção do gol contra é a que fecha o placar sem os gols anulados (que dependem dela)
+  const cancelledFor = (forOpponent: boolean) => cancelledGoals(input.incidents, input.score, forOpponent);
+  const ownGoalForOpponent = ownGoalCountsForOpponent(input.incidents, input.score, finished, cancelledFor);
+  const cancelled = cancelledFor(ownGoalForOpponent);
   const yellows = new Set<string>();
   let home = 0;
   let away = 0;
@@ -451,7 +458,6 @@ export function buildTimelineDto(rawInput: TimelineInput): EventTimeline {
     const cancelledBy = cancelled.get(idx) ?? null;
     if (cancelledBy != null) {
       // gol anulado: não soma nem ganha bandeira de placar; o momento-chave é o VAR que o anulou
-      flags.push('disallowed');
       weight = KIND_WEIGHT.var;
     } else if (SCORING_KINDS.has(kind)) {
       const side = creditedSide(raw, kind, ownGoalForOpponent);
@@ -499,6 +505,7 @@ export function buildTimelineDto(rawInput: TimelineInput): EventTimeline {
       flags,
       score_after: scoreAfter,
       scoring_team: credited[idx] ? teamOf(credited[idx]) : null,
+      disallowed: cancelledBy != null,
       cancelled_by: cancelledBy,
       player_in: playerIn,
       player_out: playerOut,

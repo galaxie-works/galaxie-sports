@@ -726,6 +726,8 @@ export interface GsTimelineIncident {
   clock?: GsMatchClock | undefined;
   score_after?: { home: number; away: number } | null | undefined;
   key_moment?: boolean | undefined;
+  /** Gol anulado pelo VAR que continua na lista: não soma no placar. */
+  disallowed?: boolean | undefined;
 }
 
 export interface GsTimelinePerson {
@@ -1844,6 +1846,7 @@ a.gs-tile:hover{border-color:var(--gs-primary)}
 .gs-tl-item:first-child,.gs-tl-marker+.gs-tl-item{border-top:0}
 .gs-tl-item{padding-left:6px}
 .gs-tl-item[data-key]{box-shadow:inset 3px 0 0 var(--gs-primary)}
+.gs-tl-item[data-disallowed] .gs-tl-head .gs-truncate{text-decoration:line-through;opacity:.7}
 .gs-tl-min{padding-top:2px;font-size:.85em;font-weight:700;font-variant-numeric:tabular-nums;color:var(--gs-muted-foreground);text-align:right}
 .gs-tl-icon{display:inline-grid;place-items:center;width:22px;height:22px;border:1px solid var(--gs-border);border-radius:50%;font-size:.7em;font-weight:800;line-height:1;color:var(--gs-muted-foreground)}
 .gs-tl-icon[data-icon=goal]{border-color:color-mix(in srgb,#16a34a 55%,transparent);color:#16a34a}
@@ -2232,6 +2235,8 @@ export interface WidgetTexts {
     var: Record<string, string>;
     /** VAR sem texto conhecido. */
     varReview: string;
+    /** Selo do gol anulado pelo VAR. */
+    disallowed: string;
     /** "Assistência: {name}". */
     assist: string;
     playerIn: string;
@@ -2829,6 +2834,7 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
         'red card cancelled': 'Vermelho anulado',
       },
       varReview: 'Revisão',
+      disallowed: 'Anulado',
       assist: 'Assistência: {name}',
       playerIn: 'Entra',
       playerOut: 'Sai',
@@ -3408,6 +3414,7 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
         'red card cancelled': 'Roja anulada',
       },
       varReview: 'Revisión',
+      disallowed: 'Anulado',
       assist: 'Asistencia: {name}',
       playerIn: 'Entra',
       playerOut: 'Sale',
@@ -3979,6 +3986,7 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
         'red card cancelled': 'Red card overturned',
       },
       varReview: 'Review',
+      disallowed: 'Disallowed',
       assist: 'Assist: {name}',
       playerIn: 'On',
       playerOut: 'Off',

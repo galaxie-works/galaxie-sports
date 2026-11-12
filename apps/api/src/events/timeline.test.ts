@@ -698,11 +698,18 @@ describe('gol anulado que fica na timeline junto com o VAR (#639)', () => {
       kind: 'goal',
       score_after: null,
       scoring_team: null,
-      flags: ['disallowed'],
+      flags: [],
+      disallowed: true,
       cancelled_by: varCall!.sequence,
       key_moment: false,
     });
-    expect(varCall).toMatchObject({ kind: 'var', weight: 65, key_moment: true, cancelled_by: null });
+    expect(varCall).toMatchObject({
+      kind: 'var',
+      weight: 65,
+      key_moment: true,
+      disallowed: false,
+      cancelled_by: null,
+    });
     // sem o gol anulado, o placar parcial fecha no do jogo (e o 1º gol segue como o decisivo)
     expect(g2).toMatchObject({ score_after: { home: 2, away: 0 }, flags: [] });
     expect(t.incidents.filter((i) => i.score_after).at(-1)?.score_after).toEqual(t.score);
@@ -768,5 +775,45 @@ describe('gol anulado que fica na timeline junto com o VAR (#639)', () => {
   it('sem placar conhecido, o par basta', () => {
     const t = buildTimelineDto(game({ home: null, away: null }));
     expect(t.incidents[1]).toMatchObject({ cancelled_by: 3, score_after: null });
+  });
+
+  it('gol contra no time do jogador: a convenção sai do placar sem o gol anulado', () => {
+    seq = 0;
+    // 1 x 0: gol contra de jogador do visitante (time do lance = visitante) e gol do mandante anulado
+    const og = (team: typeof PAL) =>
+      inc({ type: 'own_goal', detail: 'Own Goal', minute: 20, team, player: person('z') });
+    const t = buildTimelineDto(
+      input({
+        score: { home: 1, away: 0 },
+        incidents: [
+          og(FLU),
+          inc({ type: 'goal', detail: 'Normal Goal', minute: 50, team: PAL, player: person('p') }),
+          inc({ type: 'var', detail: 'Goal cancelled', minute: 52, team: PAL, player: person('p') }),
+        ],
+      }),
+    );
+    expect(t.incidents.map((i) => [i.scoring_team?.side ?? null, i.score_after, i.disallowed])).toEqual([
+      ['home', { home: 1, away: 0 }, false],
+      [null, null, true],
+      [null, null, false],
+    ]);
+  });
+
+  it('VAR com autor que não marcou na janela não derruba o gol de outro jogador', () => {
+    seq = 0;
+    const t = buildTimelineDto(
+      input({
+        status: 'live',
+        statusDetail: '2H',
+        score: { home: 1, away: 0 },
+        incidents: [
+          inc({ type: 'goal', detail: 'Normal Goal', minute: 30, team: PAL, player: person('valido') }),
+          inc({ type: 'var', detail: 'Goal cancelled', minute: 33, team: PAL, player: person('anulado') }),
+          inc({ type: 'goal', detail: 'Normal Goal', minute: 35, team: PAL, player: person('novo') }),
+        ],
+      }),
+    );
+    expect(t.incidents.map((i) => i.disallowed)).toEqual([false, false, false]);
+    expect(t.incidents[0]?.flags).toEqual(['opener', 'go_ahead']);
   });
 });
