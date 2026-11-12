@@ -47,7 +47,7 @@ beforeAll(async () => {
   await runMigrations(testUrl);
   db = createDb(testUrl, { max: 5 });
 
-  const modules = ['core_data', 'shopping'];
+  const modules = ['core_data', 'shopping'] as ('core_data' | 'shopping')[];
   const galaxie = await upsertTenant(db, {
     slug: 'galaxie-site',
     name: 'Galaxie',

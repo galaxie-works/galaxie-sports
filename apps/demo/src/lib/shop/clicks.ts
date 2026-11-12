@@ -30,7 +30,7 @@ export async function shopClickSummary(days = SHOP_CLICK_DAYS): Promise<ShopClic
     ),
     pool.query<{ event_id: string; title: string | null; starts_at: Date | null; clicks: string }>(
       `select c.event_id, e.starts_at,
-              (select string_agg(p.name, ' x ' order by ep.side) from core.event_participant ep
+              (select string_agg(p.name, ' x ' order by (ep.side = 'away')) from core.event_participant ep
                  join core.participant p on p.id = ep.participant_id
                 where ep.event_id = c.event_id and ep.side in ('home', 'away')) as title,
               count(*) as clicks

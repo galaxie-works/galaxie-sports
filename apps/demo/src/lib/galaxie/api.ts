@@ -725,7 +725,8 @@ export async function getShop(
   } catch (err) {
     const status = (err as { status?: number }).status;
     if (status === 404 || status === 403) return null;
-    console.warn('[shop] vitrine indisponível', err instanceof Error ? err.message : err);
-    return null;
+    // falha passageira (5xx, rede) sobe sem ir para o cache: um null guardado sumiria com a vitrine por minutos.
+    // Quem chama (ShopShelf) trata e só não mostra o bloco nesta resposta.
+    throw err;
   }
 }

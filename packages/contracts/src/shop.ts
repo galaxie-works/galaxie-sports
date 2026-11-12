@@ -30,7 +30,8 @@ export const ShopQuery = z.object({
   lang: z
     .string()
     .regex(/^[a-z]{2,3}(-[A-Z]{2}|-\d{3})?$/)
-    .optional(),
+    .optional()
+    .meta({ description: 'Idioma da página: vai no link de compra para o relatório de cliques.' }),
 });
 
 const ShopProduct = z.object({
@@ -41,18 +42,13 @@ const ShopProduct = z.object({
   price: z.number().nullable().meta({ description: 'null no modo link curado (a loja não informa preço).' }),
   currency: z.string().nullable(),
   image_url: z.string().nullable().meta({ description: 'Imagem servida pela própria loja (nunca copiada).' }),
-  fetched_at: z
-    .string()
-    .nullable()
-    .meta({
-      description: 'Quando a loja foi consultada; mostrar ao lado do preço (cache de no máximo 24 h).',
-    }),
+  fetched_at: z.string().nullable().meta({
+    description: 'Quando a loja foi consultada; mostrar ao lado do preço (cache de no máximo 24 h).',
+  }),
   source: z.enum(['curated', 'live']),
-  buy_url: z
-    .string()
-    .meta({
-      description: 'Link do botão "Comprar": passa pelo registro de cliques e abre a loja fora do app.',
-    }),
+  buy_url: z.string().meta({
+    description: 'Link do botão "Comprar": passa pelo registro de cliques e abre a loja fora do app.',
+  }),
 });
 
 export const ShopEntity = z.object({
@@ -70,7 +66,7 @@ export const ShopEntity = z.object({
 export type ShopEntity = z.infer<typeof ShopEntity>;
 
 export function shopPaths(): ZodOpenApiPathsObject {
-  const e404 = [400, 401, 403, 404, 429] as (400 | 401 | 403 | 404 | 429)[];
+  const e404 = [400, 401, 403, 404, 429, 503] as (400 | 401 | 403 | 404 | 429 | 503)[];
   return {
     '/v1/shop/{kind}/{id}': {
       get: {
@@ -84,7 +80,8 @@ export function shopPaths(): ZodOpenApiPathsObject {
         description:
           'Módulo shopping. Produtos curados pela Galaxie, por loja de afiliado, com preço e estoque da loja ' +
           '(cache de no máximo 24 h). Sem produto, a lista vem vazia e o bloco não deve aparecer. Os links levam o ' +
-          'código de afiliado só no destino liberado para o tenant; para clientes, o widget do Builder (#925).',
+          'código de afiliado só no destino liberado para o tenant; para clientes, o widget do Builder (#925). ' +
+          'Fora dos tenants da Galaxie, a resposta é sempre 200 com a lista vazia (mesmo sem cadastro).',
       },
     },
   };

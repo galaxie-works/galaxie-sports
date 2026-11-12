@@ -1203,3 +1203,12 @@ webView.configuration.userContentController.addUserScript(
 **No site Galaxie (demo).** O site Galaxie é cliente de si mesmo: no menu do usuário, "Perfil de torcedor" pede apelido, faixa etária e país (sem data de nascimento) e `POST /api/torcedor/token` emite o token com a chave do tenant da demo, só para a própria demo (mesma origem) e sem nome ou e-mail do login. O apelido passa pelo filtro da moderação já ao salvar; o filtro usa o idioma que vai no token, como a API. Se a API ainda assim recusar o apelido no primeiro token depois de salvar (pelas listas do cliente ou de Ajustes, que a demo não confere, ou porque a pessoa trocou o idioma da demo antes), a rota responde 409 `fan_nickname_rejected` (sem perfil completo, 409 `fan_profile_missing`); as telas que levam a pessoa ao perfil em cada caso chegam com o chat (#985) e o bolão (#945).
 
 Ainda não: tópico `fan.profile.deleted` pelo outbox (#1023).
+
+## 10. Shopping (`/v1/shop`, módulo `shopping`)
+
+`GET /v1/shop/{kind}/{id}?country=BR&event=<uuid>&origin=site&lang=pt-BR` devolve os produtos oficiais de uma entidade da página (`kind`: `participant` para time, seleção, atleta ou piloto; `competition`; `person`), por loja de afiliado ligada, com preço, imagem (da própria loja) e a data e a hora da consulta (`fetched_at`, cache de no máximo 24 h). Sem produto, a lista vem vazia e o bloco não deve aparecer.
+
+- **Botão "Comprar":** `buy_url` aponta para a rota de cliques da API (`/go/shop/<id>`). Ela registra o clique sem dado pessoal e redireciona para a loja com o link do programa de afiliado. Abra sempre fora do app (navegador do sistema ou app da loja), nunca em WebView.
+- **Aviso:** `disclosure: "affiliate"`. O aviso "links de parceiros: podemos receber comissão" é obrigatório onde os produtos aparecem.
+- **Destino:** só os tenants da própria Galaxie (`SHOP_GALAXIE_TENANT_IDS`) recebem produtos. Para os demais, a resposta é 200 com a lista vazia até o widget do Builder (#925) trazer a matriz loja × caminho e o código de cada cliente. Por isso o código de afiliado da Galaxie nunca chega a domínio de cliente.
+- **Clique e compra nunca viram ponto**, selo ou prêmio: nada daqui chega à carteira do torcedor nem ao motor de conquistas.

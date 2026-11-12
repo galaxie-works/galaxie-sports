@@ -37,19 +37,27 @@ export async function ShopShelf({
 }) {
   const [{ locale, t }, f] = await Promise.all([getI18n(), getFormatters()]);
   const T = t.shopping.shelf;
+  // país fora do formato (vem do `?pais=` da página) não vai à API nem à chave do cache
+  const market = /^[A-Z]{2}$/.test(country) ? country : null;
+  if (!market) return null;
   const loaded = await Promise.all(
-    entities.map(async (e) => ({ e, shop: await getShop(e.kind, e.id, country, locale, eventId) })),
+    entities.map(async (e) => {
+      try {
+        return { e, shop: await getShop(e.kind, e.id, market, locale, eventId) };
+      } catch (err) {
+        // falha passageira da API: o bloco só não aparece nesta resposta (a página segue)
+        console.warn('[shop] vitrine indisponível', err instanceof Error ? err.message : err);
+        return { e, shop: null };
+      }
+    }),
   );
   const columns = loaded
     .map(({ e, shop }) => ({
       e,
-      products: (shop?.stores ?? []).flatMap((s) =>
-        s.products.map((p, i): Product & { position: number } => ({
-          ...p,
-          storeName: s.store.name,
-          position: i,
-        })),
-      ),
+      // posição contínua na entidade (as lojas já vêm na ordem da Galaxie): duas lojas não empatam
+      products: (shop?.stores ?? [])
+        .flatMap((s) => s.products.map((p) => ({ ...p, storeName: s.store.name })))
+        .map((p, i): Product & { position: number } => ({ ...p, position: i })),
     }))
     .filter((c) => c.products.length);
   if (!columns.length) return null;
