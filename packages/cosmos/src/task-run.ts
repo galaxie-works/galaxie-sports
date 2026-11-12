@@ -13,7 +13,12 @@
 import { estimateCostUsd } from '@galaxie/ai-ledger/pricing';
 import type { Database } from '@galaxie/db/client';
 import { reservation, staffUsage } from '@galaxie/db/schema';
-import { createCompletionClient, type CompletionClient, type CompletionResult } from '@galaxie/llm';
+import {
+  createCompletionClient,
+  type CompletionAttachment,
+  type CompletionClient,
+  type CompletionResult,
+} from '@galaxie/llm';
 import { and, count, eq, gte } from 'drizzle-orm';
 
 import { creditsFor } from './credits.js';
@@ -65,6 +70,8 @@ export interface TaskInput<T> {
   system: string;
   message: string;
   maxOutputTokens: number;
+  /** Arquivos (PDF ou imagem) que o modelo lê junto da mensagem; a reserva conta os tokens deles. */
+  attachments?: CompletionAttachment[];
   /** Vai para o extrato junto do acerto (nunca o texto do cliente). */
   metadata?: Record<string, unknown>;
   /**
@@ -128,6 +135,25 @@ async function overLimit(
   return (row?.n ?? 0) >= TASK_LIMITS.userPerMinute;
 }
 
+/** Tokens de entrada por imagem na reserva (para mais: uma imagem grande custa perto de 1,6 mil nos provedores). */
+export const IMAGE_TOKENS = 1_800;
+/** Tokens de entrada por página de PDF na reserva (o texto e a imagem da página). */
+export const PDF_PAGE_TOKENS = 3_000;
+
+/** Páginas de um PDF em base64 (contagem dos objetos `/Type /Page`); pelo menos 1. */
+export function pdfPages(base64: string): number {
+  const text = Buffer.from(base64, 'base64').toString('latin1');
+  return Math.max(1, (text.match(/\/Type\s*\/Page(?![a-z])/g) ?? []).length);
+}
+
+/** Tokens de entrada estimados dos anexos, para a reserva cobrir a chamada. */
+export function attachmentTokens(files: readonly CompletionAttachment[] = []): number {
+  return files.reduce(
+    (n, f) => n + (f.mediaType === 'application/pdf' ? pdfPages(f.data) * PDF_PAGE_TOKENS : IMAGE_TOKENS),
+    0,
+  );
+}
+
 /** Custo real da resposta pelo uso do provedor. */
 const costOf = (model: string, result: CompletionResult) =>
   estimateCostUsd(model, {
@@ -146,10 +172,13 @@ export function estimateTaskCredits(input: {
   minCredits: number;
   multiplier: number;
   settings: CosmosSettings;
+  attachments?: readonly CompletionAttachment[] | undefined;
 }): number {
   return creditsFor({
     costUsd: estimateCostUsd(input.model, {
-      inputTokens: Math.ceil((input.system.length + input.message.length) / CHARS_PER_TOKEN),
+      inputTokens:
+        Math.ceil((input.system.length + input.message.length) / CHARS_PER_TOKEN) +
+        attachmentTokens(input.attachments),
       outputTokens: input.maxOutputTokens,
     }),
     multiplier: input.multiplier,
@@ -180,6 +209,7 @@ export async function runCosmosTask<T>(
       system: input.system,
       messages: [{ role: 'user', content: input.message }],
       maxOutputTokens: input.maxOutputTokens,
+      ...(input.attachments?.length ? { attachments: input.attachments } : {}),
       json: true,
       timeoutMs,
       signal: AbortSignal.timeout(timeoutMs),
@@ -195,6 +225,7 @@ export async function runCosmosTask<T>(
     system: input.system,
     message: input.message,
     maxOutputTokens: input.maxOutputTokens,
+    attachments: input.attachments,
     minCredits: fn.minCredits,
     multiplier: wallet?.multiplier ?? 1,
     settings: deps.settings,

@@ -370,3 +370,22 @@ describe('DeepSeekLlmClient (saída JSON com schema)', () => {
     expect(() => new DeepSeekLlmClient({ models: MODELS })).toThrow(/DEEPSEEK_API_KEY/);
   });
 });
+
+describe('DeepSeek e anexos', () => {
+  it('recusa PDF ou imagem antes de chamar o provedor (só lê texto)', async () => {
+    const f = fakeFetch([]);
+    const c = new DeepSeekCompletionClient({
+      apiKey: 'k',
+      fetch: f,
+      retry: { sleep: async () => {}, random: () => 0 },
+    });
+    await expect(
+      c.complete({
+        model: 'deepseek-chat',
+        messages: [{ role: 'user', content: 'leia' }],
+        attachments: [{ mediaType: 'image/png', data: 'UE5H' }],
+      }),
+    ).rejects.toMatchObject({ kind: 'config' });
+    expect(f.calls).toHaveLength(0);
+  });
+});

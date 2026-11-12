@@ -247,3 +247,64 @@ describe('GeminiCompletionClient (generateContent)', () => {
     });
   });
 });
+
+describe('anexos (PDF e imagem) na última mensagem do usuário', () => {
+  const files = [
+    { mediaType: 'application/pdf' as const, data: 'UERG', name: 'grade.pdf' },
+    { mediaType: 'image/png' as const, data: 'UE5H' },
+  ];
+  const req = {
+    model: 'm',
+    messages: [
+      { role: 'user' as const, content: 'antes' },
+      { role: 'assistant' as const, content: 'ok' },
+      { role: 'user' as const, content: 'leia a grade' },
+    ],
+    attachments: files,
+  };
+  const k = { apiKey: 'k', fetch: fakeFetch([]), retry: noSleep };
+
+  it('Anthropic: document e image em base64, antes do texto; as outras mensagens ficam como estão', () => {
+    const body = new AnthropicCompletionClient(k).wire(req, false).body as { messages: unknown[] };
+    expect(body.messages[0]).toEqual({ role: 'user', content: 'antes' });
+    expect(body.messages[2]).toEqual({
+      role: 'user',
+      content: [
+        { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: 'UERG' } },
+        { type: 'image', source: { type: 'base64', media_type: 'image/png', data: 'UE5H' } },
+        { type: 'text', text: 'leia a grade' },
+      ],
+    });
+  });
+
+  it('OpenAI: file (PDF com nome) e image_url em data URL', () => {
+    const body = new OpenAiCompletionClient(k).wire(req, false).body as { messages: unknown[] };
+    expect(body.messages[2]).toEqual({
+      role: 'user',
+      content: [
+        { type: 'text', text: 'leia a grade' },
+        { type: 'file', file: { filename: 'grade.pdf', file_data: 'data:application/pdf;base64,UERG' } },
+        { type: 'image_url', image_url: { url: 'data:image/png;base64,UE5H' } },
+      ],
+    });
+  });
+
+  it('Gemini: inline_data antes do texto', () => {
+    const body = new GeminiCompletionClient(k).wire(req, false).body as { contents: unknown[] };
+    expect(body.contents[2]).toEqual({
+      role: 'user',
+      parts: [
+        { inline_data: { mime_type: 'application/pdf', data: 'UERG' } },
+        { inline_data: { mime_type: 'image/png', data: 'UE5H' } },
+        { text: 'leia a grade' },
+      ],
+    });
+  });
+
+  it('sem anexos o corpo não muda (texto simples)', () => {
+    const body = new AnthropicCompletionClient(k).wire({ ...req, attachments: [] }, false).body as {
+      messages: unknown[];
+    };
+    expect(body.messages[2]).toEqual({ role: 'user', content: 'leia a grade' });
+  });
+});

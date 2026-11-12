@@ -8,12 +8,13 @@
  * zerado (0 tokens, US$ 0); quem precisa cobrar a chamada estima a entrada pelo prompt (ex.:
  * `estimateRequestTokens`, ~4 caracteres por token) e a saída pelo texto já recebido.
  */
-import { classifyProviderError } from '../errors.js';
+import { classifyProviderError, LlmError } from '../errors.js';
 import { ProviderHttpError, type SseEvent } from '../http.js';
 import type { CompletionFinishReason, CompletionRequest, LlmProviderId } from '../types.js';
 import {
   eventJson,
   HttpCompletionClient,
+  lastUserIndex,
   n,
   splitCompletion,
   type CompletionClientOptions,
@@ -88,13 +89,44 @@ export abstract class OpenAiCompatibleCompletionClient extends HttpCompletionCli
     super(options, keyEnv);
   }
 
+  /** O provedor lê PDF e imagem junto da mensagem? */
+  protected readonly acceptsAttachments: boolean = true;
+
   wire(req: CompletionRequest, stream: boolean): WireRequest {
     const { system, dialog } = splitCompletion(req);
+    const files = req.attachments ?? [];
+    if (files.length && !this.acceptsAttachments)
+      throw new LlmError(
+        `${this.provider} não lê arquivos (PDF ou imagem) junto do pedido.`,
+        'config',
+        false,
+      );
+    const attachAt = files.length ? lastUserIndex(dialog) : -1;
     const body: Record<string, unknown> = {
       model: req.model,
       messages: [
         ...(system ? [{ role: 'system', content: system }] : []),
-        ...dialog.map((m) => ({ role: m.role, content: m.content })),
+        ...dialog.map((m, i) =>
+          i === attachAt
+            ? {
+                role: m.role,
+                content: [
+                  { type: 'text', text: m.content },
+                  ...files.map((f, k) =>
+                    f.mediaType === 'application/pdf'
+                      ? {
+                          type: 'file',
+                          file: {
+                            filename: f.name ?? `arquivo-${k + 1}.pdf`,
+                            file_data: `data:${f.mediaType};base64,${f.data}`,
+                          },
+                        }
+                      : { type: 'image_url', image_url: { url: `data:${f.mediaType};base64,${f.data}` } },
+                  ),
+                ],
+              }
+            : { role: m.role, content: m.content },
+        ),
       ],
     };
     if (req.maxOutputTokens !== undefined)
@@ -181,6 +213,8 @@ export const DEEPSEEK_API_BASE = 'https://api.deepseek.com';
 export class DeepSeekCompletionClient extends OpenAiCompatibleCompletionClient {
   readonly provider: LlmProviderId = 'deepseek';
   protected readonly defaultBaseUrl = DEEPSEEK_API_BASE;
+  /** A API da DeepSeek só recebe texto. */
+  protected override readonly acceptsAttachments = false;
 
   constructor(options: OpenAiCompatibleOptions) {
     super({ maxTokensParam: 'max_tokens', ...options }, 'DEEPSEEK_API_KEY');
