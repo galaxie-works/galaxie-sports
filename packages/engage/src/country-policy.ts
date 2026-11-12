@@ -558,12 +558,18 @@ export function strictestOf(a: CountryPolicy, b: CountryPolicy): CountryPolicy {
   out.minAgeWrite = Math.max(a.minAgeWrite, b.minAgeWrite);
   out.minAgeParticipate = Math.max(a.minAgeParticipate, b.minAgeParticipate);
   for (const k of Object.keys(out.retention) as (keyof CountryPolicy['retention'])[])
-    out.retention[k] = Math.min(a.retention[k], b.retention[k]);
+    out.retention[k] = Math.min(a.retention[k], b.retention[k] ?? a.retention[k]);
   out.adsToMinors = a.adsToMinors && b.adsToMinors;
   for (const k of Object.keys(out.gamification) as (keyof CountryPolicy['gamification'])[])
-    out.gamification[k] = a.gamification[k] && b.gamification[k];
+    out.gamification[k] = a.gamification[k] && (b.gamification[k] ?? false);
   out.prizeCampaign = {
-    maxValue: minNullable(a.prizeCampaign.maxValue, b.prizeCampaign.maxValue),
+    // teto em moedas diferentes não se compara: com algum teto, o fallback fica sem prêmio até alguém converter
+    maxValue:
+      a.currency === b.currency
+        ? minNullable(a.prizeCampaign.maxValue, b.prizeCampaign.maxValue)
+        : a.prizeCampaign.maxValue === null && b.prizeCampaign.maxValue === null
+          ? null
+          : 0,
     excludedRegions: [...new Set([...a.prizeCampaign.excludedRegions, ...b.prizeCampaign.excludedRegions])],
     legalClassificationRequired:
       a.prizeCampaign.legalClassificationRequired || b.prizeCampaign.legalClassificationRequired,

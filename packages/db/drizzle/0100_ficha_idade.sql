@@ -17,7 +17,7 @@ WITH rules (country, rules) AS (VALUES
          COALESCE(r.rules, '{"parentalConsentUnder":18,"guardianLinkRequiredUnder":18,"ageAssuranceMin":{"social":"estimated","restrictedContent":"verified"},"hearMinor":true,"consentRenewalDays":null}'::jsonb) || cp.policy
            || jsonb_build_object('ageAssuranceMin',
                 COALESCE(r.rules, '{"parentalConsentUnder":18,"guardianLinkRequiredUnder":18,"ageAssuranceMin":{"social":"estimated","restrictedContent":"verified"},"hearMinor":true,"consentRenewalDays":null}'::jsonb)->'ageAssuranceMin'
-                  || COALESCE(cp.policy->'ageAssuranceMin', '{}'::jsonb)) AS policy
+                  || CASE jsonb_typeof(cp.policy->'ageAssuranceMin') WHEN 'object' THEN cp.policy->'ageAssuranceMin' ELSE '{}'::jsonb END) AS policy
     FROM engage.country_policy cp
     LEFT JOIN rules r ON r.country = cp.country
    WHERE NOT (cp.policy ? 'parentalConsentUnder')

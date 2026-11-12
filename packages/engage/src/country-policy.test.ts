@@ -119,7 +119,7 @@ describe('ficha usada pelo torcedor', () => {
     expect(p).toMatchObject({
       minAgeParticipate: 16,
       retention: { removedContentDays: 30 },
-      prizeCampaign: { maxValue: 500, excludedRegions: ['SP'] },
+      prizeCampaign: { maxValue: 0, excludedRegions: ['SP'] }, // teto em BRL: sem prêmio no fallback em USD
       consentRenewalDays: 365,
       parentalConsentUnder: 18,
       guardianLinkRequiredUnder: 18,
@@ -130,6 +130,17 @@ describe('ficha usada pelo torcedor', () => {
       languages: D.languages,
     });
     expect(validatePolicy(p)).toEqual([]);
+  });
+
+  it('teto de prêmio em moeda diferente não vira teto em dólar', () => {
+    const capped: CountryPolicy = {
+      ...structuredClone(BR),
+      prizeCampaign: { ...BR.prizeCampaign, maxValue: 5000 },
+    };
+    const p = resolvePolicy('DE', new Map(policies).set('BR', capped), tenant)!.policy;
+    expect(p.currency).toBe('USD');
+    expect(p.prizeCampaign.maxValue).toBe(0);
+    expect(resolvePolicy('DE', policies, tenant)!.policy.prizeCampaign.maxValue).toBeNull();
   });
 
   it('sem país: a do país principal do cliente; sem DEFAULT, país de fora também', () => {
