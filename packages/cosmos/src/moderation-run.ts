@@ -145,6 +145,16 @@ export function scopeOf(item: Pick<ModerationItem, 'room' | 'community'>): Moder
   return { kind: 'tenant', id: '' };
 }
 
+/**
+ * Escopo da reserva e do extrato: a sala (`chat:<sala>`) ou a comunidade (`community:<id>`), o mesmo formato da cota
+ * por sala (#1116); sem sala nem comunidade, o módulo (`moderation.<módulo>`), que não tem cota.
+ */
+export function reservationScope(item: Pick<ModerationItem, 'room' | 'community' | 'module'>): string {
+  if (item.room) return `chat:${item.room}`;
+  if (item.community) return `community:${item.community}`;
+  return `moderation.${item.module}`;
+}
+
 /** Gravidade do caso na fila (0 a 100, a mesma escala das denúncias). */
 const caseSeverity = (v: Verdict) => v.severity * 25;
 
@@ -315,7 +325,7 @@ async function askModel(
         tenantId,
         functionName: MODERATION_FUNCTION,
         estimatedCredits: estimate,
-        scope: `moderation.${items[0]!.module}`,
+        scope: reservationScope(items[0]!),
         ttlSeconds: MODERATION_RESERVATION_TTL_SECONDS,
       },
       { settings },
