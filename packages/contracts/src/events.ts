@@ -832,7 +832,7 @@ export function varOutcomeOf(detail: string | null | undefined): VarOutcome {
 }
 
 /**
- * VAR que anula gol, pelo texto do fornecedor. É a mesma regra do trigger da migration 0112
+ * VAR que anula gol, pelo texto do fornecedor. É a mesma regra do trigger da migration 0127
  * (`^goal (cancel+ed|disallowed)\y`), do diff do Live Poller e do core-writer. Vale por prefixo, para um texto novo
  * ("Goal Disallowed - ...") já derrubar o gol antes de ganhar veredito próprio em `VAR_DETAILS`.
  */
