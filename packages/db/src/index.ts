@@ -48,6 +48,7 @@ export {
   publishChange,
   tagsForChange,
   CHANGE_FEED_CHANNEL,
+  WEBHOOK_EVENT_ENTITY,
   type ChangeInput,
   type ChangeTagSource,
 } from './change-feed.js';
@@ -247,7 +248,7 @@ export {
   WebhookSecretError,
 } from './webhook-secret-box.js';
 export * from './webhooks-admin.js';
-export { webhookReactivation } from './webhooks.js';
+export { publishWebhookEvent, webhookReactivation, type WebhookEventInput } from './webhooks.js';
 export {
   creditPoints,
   debitBalance,
