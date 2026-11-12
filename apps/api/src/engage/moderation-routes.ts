@@ -72,7 +72,7 @@ export interface ModerationRoutesDeps {
 }
 
 /** Relógios da ficha que vale para o torcedor; sem ficha, recusa (o módulo não guarda o que não sabe apagar). */
-async function clocksFor(
+export async function clocksFor(
   db: Database,
   tenantId: string,
   fanCountry: string,

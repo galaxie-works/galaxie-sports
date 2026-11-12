@@ -21,6 +21,7 @@ import {
 import { accountPaths } from './account.js';
 import { fanPaths } from './fans.js';
 import { moderationPaths } from './moderation.js';
+import { chatPaths } from './chat.js';
 import { ChampionsParams, ChampionsQuery, CompetitionChampions } from './champions.js';
 import { ChannelGuide, ChannelGuideParams, ChannelGuideQuery } from './channel-guide.js';
 import { channelListPaths } from './channel-list.js';
@@ -232,6 +233,12 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
         description:
           'Identidade do torcedor nos módulos de engajamento: token curto emitido pelo seu servidor, Perfil e ' +
           'exclusão (docs/05 §9).',
+      },
+      {
+        name: 'Chat ao vivo',
+        description:
+          'Sala do Jogo: uma sala por jogo e por cliente. Ler não exige login; só torcedor 18plus escreve, com o ' +
+          'token do torcedor (docs/05 §10).',
       },
       {
         name: 'Hipismo',
@@ -746,6 +753,7 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
       ...accountPaths,
       ...fanPaths,
       ...moderationPaths,
+      ...chatPaths,
       ...channelListPaths,
       ...relatedPaths,
     }),

@@ -1014,6 +1014,58 @@ export const SETTINGS: readonly SettingDef[] = [
     default: '900',
   },
   secret('FAN_TOKEN_SECRET', 'engage', ['api']),
+  // Chat ao vivo (#915, #959, #964): padrão e teto da Galaxie. O cliente ajusta a janela, o modo lento e o rigor dentro
+  // destes limites (chat.tenant_config); tamanho e histórico ficam só aqui. Relidos a cada minuto
+  {
+    key: 'CHAT_ROOM_OPEN_BEFORE_MINUTES',
+    section: 'engage',
+    type: 'int',
+    min: 0,
+    max: 1440,
+    services: ['api'],
+    apply: 'refresh',
+    default: '60',
+  },
+  {
+    key: 'CHAT_ROOM_CLOSE_AFTER_MINUTES',
+    section: 'engage',
+    type: 'int',
+    min: 0,
+    max: 1440,
+    services: ['api'],
+    apply: 'refresh',
+    default: '30',
+  },
+  {
+    key: 'CHAT_SLOW_MODE_SECONDS',
+    section: 'engage',
+    type: 'int',
+    min: 0,
+    max: 600,
+    services: ['api'],
+    apply: 'refresh',
+    default: '3',
+  },
+  {
+    key: 'CHAT_MESSAGE_MAX_CHARS',
+    section: 'engage',
+    type: 'int',
+    min: 20,
+    max: 500,
+    services: ['api'],
+    apply: 'refresh',
+    default: '280',
+  },
+  {
+    key: 'CHAT_HISTORY_ON_JOIN',
+    section: 'engage',
+    type: 'int',
+    min: 0,
+    max: 200,
+    services: ['api'],
+    apply: 'refresh',
+    default: '50',
+  },
 
   // ── Credenciais ─────────────────────────────────────────────────────────────────────────────
   // trocadas no painel (#1087): cifradas no banco, abertas por cada serviço com a SETTINGS_KEK dele
