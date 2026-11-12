@@ -1,6 +1,6 @@
 /**
  * Bootstrap do detalhe de partidas (issue #14): encerradas conhecidas pelo raw (listas de temporada, h2h,
- * agendas), priorizadas tier 1 → clássicos → tier 2. Pagos: fixtures?ids= com 20 por chamada;
+ * agendas), priorizadas tier 1 → clássicos → tier 2 → tier 3 (com --tier-max 3). Pagos: fixtures?ids= com 20 por chamada;
  * free: fixtures?id= (1 por jogo) e, por padrão, só clássicos e jogos decisivos.
  *   pnpm --filter @galaxie/ingestor bootstrap:details --plan
  *   pnpm --filter @galaxie/ingestor bootstrap:details --sem-live

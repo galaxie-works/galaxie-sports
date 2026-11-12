@@ -44,6 +44,18 @@ describe('rankFixture / selectDetailFixtures', () => {
     expect(rankFixture(fx(4, 999, 99903, 99904), comps, derbies)).toBeNull();
   });
 
+  it('tier 3 entra por último quando o catálogo o inclui; clássico do tier 3 continua na frente', () => {
+    const c = comps.get(72)!;
+    const withTier3 = new Map(comps);
+    withTier3.set(999, { ...c, leagueId: 999, tier: 3 });
+    expect(rankFixture(fx(5, 999, 99903, 99904), withTier3, derbies)?.rank).toBe(3);
+    expect(rankFixture(fx(6, 999, 99902, 99901), withTier3, derbies)).toMatchObject({ rank: 1, derby: true });
+    const list = [fx(7, 999, 99903, 99904), fx(8, 72, 7201, 7202), fx(9, 71, 126, 128)];
+    expect(selectDetailFixtures(list, withTier3, derbies, { keyOnly: false }).map((f) => f.id)).toEqual([
+      9, 8, 7,
+    ]);
+  });
+
   it('ordena por prioridade, temporada atual primeiro, depois a data mais recente; só encerradas', () => {
     const list = [
       fx(10, 72, 7201, 7202, { date: '2024-06-01' }),

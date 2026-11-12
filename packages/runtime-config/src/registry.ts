@@ -988,6 +988,17 @@ export const SETTINGS: readonly SettingDef[] = [
     apply: 'refresh',
     default: '24',
   },
+  // provedor dos embeddings da busca por significado do assistente (base de conhecimento). `auto`: o primeiro com chave
+  // da Cosmos (OpenAI, depois Gemini); `off` ou sem chave: só a busca por palavras
+  {
+    key: 'COSMOS_EMBEDDINGS_PROVIDER',
+    section: 'cosmos',
+    type: 'enum',
+    options: ['auto', 'openai', 'gemini', 'off'],
+    services: ['demo'],
+    apply: 'refresh',
+    default: 'auto',
+  },
 
   // ── Engajamento (#1017) ───────────────────────────────────────────────────────────────────────
   // validade do token do torcedor (gft_, #937). Curta: punição e exclusão valem na hora pelo Valkey, mas faixa e
@@ -1003,6 +1014,17 @@ export const SETTINGS: readonly SettingDef[] = [
     default: '900',
   },
   secret('FAN_TOKEN_SECRET', 'engage', ['api']),
+  // jogos ao mesmo tempo em que um Perfil conta presença ao vivo (#906, antirrobô). O cliente só pode baixar
+  {
+    key: 'FAN_PRESENCE_MAX_GAMES',
+    section: 'engage',
+    type: 'int',
+    min: 1,
+    max: 10,
+    services: ['api'],
+    apply: 'refresh',
+    default: '3',
+  },
 
   // ── Credenciais ─────────────────────────────────────────────────────────────────────────────
   // trocadas no painel (#1087): cifradas no banco, abertas por cada serviço com a SETTINGS_KEK dele

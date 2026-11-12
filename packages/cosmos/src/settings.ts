@@ -85,3 +85,15 @@ export async function readModerationCeiling(
     muteHours: value('COSMOS_MOD_MUTE_MAX_HOURS', overrides, env),
   });
 }
+
+export const EMBEDDINGS_SETTINGS = ['auto', 'openai', 'gemini', 'off'] as const;
+export type EmbeddingsSetting = (typeof EMBEDDINGS_SETTINGS)[number];
+
+/** Provedor dos embeddings da busca por significado do assistente (COSMOS_EMBEDDINGS_PROVIDER). */
+export async function readEmbeddingsSetting(
+  db: Pick<Database, 'select'>,
+  env: Env = process.env,
+): Promise<EmbeddingsSetting> {
+  const raw = value('COSMOS_EMBEDDINGS_PROVIDER', await readRuntimeOverrides(db), env);
+  return (EMBEDDINGS_SETTINGS as readonly string[]).includes(raw ?? '') ? (raw as EmbeddingsSetting) : 'auto';
+}

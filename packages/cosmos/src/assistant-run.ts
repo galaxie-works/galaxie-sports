@@ -201,6 +201,27 @@ async function earlierOpenAsks(db: Database, tenantId: string, userId: string, r
   return row?.n ?? 0;
 }
 
+/**
+ * A pergunta passaria da admissão agora? Os limites de uso e a carteira (ligada, sem bloqueio, saldo para a
+ * estimativa), lidos sem reservar. A rota roda isto antes de qualquer chamada paga que venha antes da reserva (o vetor
+ * da pergunta na busca por significado): quem já seria recusado não gasta provedor. A reserva continua decidindo de
+ * verdade (duas perguntas ao mesmo tempo podem passar daqui juntas).
+ */
+export async function assistantAdmissionError(
+  db: Database,
+  input: { tenantId: string; userId: string; settings: CosmosSettings; credits: number },
+  now: Date = new Date(),
+): Promise<AssistantErrorCode | null> {
+  const limited = await assistantLimitError(db, input, now);
+  if (limited) return limited;
+  const w = await getWallet(db, input.tenantId);
+  if (!w) return 'no_wallet';
+  if (!w.enabled) return 'disabled';
+  if (w.status === 'blocked') return 'blocked';
+  if (w.available < input.credits) return 'insufficient';
+  return null;
+}
+
 export async function* askAssistant(
   db: Database,
   input: AskInput,
