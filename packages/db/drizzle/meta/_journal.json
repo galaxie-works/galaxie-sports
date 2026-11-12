@@ -649,6 +649,13 @@
     {
       "idx": 92,
       "version": "7",
+      "when": 1794442180071,
+      "tag": "0097_presenca",
+      "breakpoints": true
+    },
+    {
+      "idx": 93,
+      "version": "7",
       "when": 1794447171354,
       "tag": "0110_cosmos_diagnostico_dados",
       "breakpoints": true
