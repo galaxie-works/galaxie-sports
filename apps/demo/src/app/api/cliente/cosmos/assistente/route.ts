@@ -23,7 +23,9 @@ import {
   assistantAccessError,
   assistantSigningKey,
   parseAssistantRequest,
+  parseAttachmentFiles,
   prepareQuestion,
+  REQUEST_MAX_BYTES,
 } from '@/lib/cosmos/assistant-server';
 import { getRequestLocale } from '@/lib/i18n/server';
 
@@ -43,6 +45,8 @@ const STATUS: Partial<Record<AssistantErrorCode, number>> = {
   busy: 429,
   rate_limited: 429,
   tenant_limit: 429,
+  attachment: 400,
+  attachment_unsupported: 400,
 };
 
 const line = (o: object) => `${JSON.stringify(o)}\n`;
@@ -58,14 +62,23 @@ export async function POST(request: Request) {
   const denied = assistantAccessError(ctx);
   if (denied) return fail(denied);
   const tenantId = ctx.tenant!.id;
-  const req = parseAssistantRequest(await request.json().catch(() => null));
+  // corpo acima do que cabe (anexos no teto mais a pergunta) nem é lido
+  const size = Number(request.headers.get('content-length') ?? 0);
+  if (size > REQUEST_MAX_BYTES) return fail('attachment', 413);
+  const body: unknown = await request.json().catch(() => null);
+  const req = parseAssistantRequest(body);
   if (!req) return fail('bad_request');
+  // anexos lidos e conferidos antes de qualquer reserva (#1065); ficam só na memória desta pergunta
+  const read = parseAttachmentFiles((body as { attachments?: unknown }).attachments);
+  if (!read.ok) return fail('attachment');
+  const files = read.files;
   const scope = { tenantId, userId: ctx.userId };
   const locale = await getRequestLocale();
   // admissão antes da busca por significado: o vetor da pergunta é chamada paga, e quem seria recusado (limite,
   // saldo, carteira) não chega a ela. Os créditos não dependem da busca, então a estimativa por palavras já serve.
   if (ctx.role !== 'admin') {
-    const quick = await prepareQuestion(scope, req, locale);
+    const quick = await prepareQuestion(scope, req, locale, { files });
+    if (quick === 'attachment_unsupported') return fail(quick);
     if (!quick) return fail('unavailable');
     const refused = await assistantAdmissionError(builderDb(), {
       ...scope,
@@ -74,7 +87,12 @@ export async function POST(request: Request) {
     });
     if (refused) return fail(refused);
   }
-  const prepared = await prepareQuestion(scope, req, locale, { semantic: true, signal: request.signal });
+  const prepared = await prepareQuestion(scope, req, locale, {
+    semantic: true,
+    signal: request.signal,
+    files,
+  });
+  if (prepared === 'attachment_unsupported') return fail(prepared);
   if (!prepared) return fail('unavailable');
 
   const deps = {
@@ -101,6 +119,7 @@ export async function POST(request: Request) {
             provider: prepared.provider,
             model: prepared.model,
             signingKey: assistantSigningKey(),
+            attachments: prepared.attachments,
           },
           deps,
         )
@@ -114,6 +133,7 @@ export async function POST(request: Request) {
             settings: prepared.settings,
             model: prepared.model,
             signingKey: assistantSigningKey(),
+            attachments: prepared.attachments,
           },
           deps,
         );

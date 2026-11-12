@@ -5,6 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import {
   addEntry,
+  ASSISTANT_ATTACHMENT_LIMITS,
   askAssistant,
   askAssistantAsStaff,
   assistantAdmissionError,
@@ -22,6 +23,8 @@ import {
   upsertFunctionDef,
   verifiedHistory,
   type AssistantEvent,
+  type AssistantPrompt,
+  type AttachmentMeta,
   type CosmosSettings,
   type StreamUsage,
 } from '../src/index.js';
@@ -88,6 +91,8 @@ async function run(
     userId?: string;
     settings?: CosmosSettings;
     model?: string;
+    prompt?: AssistantPrompt;
+    attachments?: AttachmentMeta[];
   } = {},
 ) {
   const events: AssistantEvent[] = [];
@@ -97,11 +102,12 @@ async function run(
       tenantId: t,
       userId: extra.userId ?? 'u1',
       route: '/cliente/webhooks',
-      prompt,
+      prompt: extra.prompt ?? prompt,
       credits: extra.credits ?? 5,
       settings: extra.settings ?? settings,
       signingKey: 'segredo-de-teste',
       ...(extra.model ? { model: extra.model } : {}),
+      ...(extra.attachments ? { attachments: extra.attachments } : {}),
     },
     { stream, settleBackoffMs: [1, 1], ...(extra.signal ? { signal: extra.signal } : {}) },
   ))
@@ -504,5 +510,83 @@ describe('equipe Galaxie no assistente', () => {
     const [row] = await db.select().from(staffUsage).where(eq(staffUsage.tenantId, t));
     expect(row).toMatchObject({ outcome: 'error', error: 'conexão caiu' });
     expect(row!.inputTokens).toBeGreaterThan(0);
+  });
+});
+
+describe('anexos na pergunta (#1065)', () => {
+  const png =
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+  const withFile = buildPrompt({
+    question: 'O que tem nesta imagem?',
+    context: { route: '/cliente/webhooks', title: 'Webhooks', visible: '' },
+    docs: [],
+    history: [],
+    locale: 'pt-BR',
+    attachments: [{ name: 'tela.png', kind: 'image', bytes: 68, mediaType: 'image/png', data: png }],
+  });
+
+  it('anexo acima do limite é recusado antes de reservar, sem chamar o provedor', async () => {
+    const t = await newTenant();
+    let called = false;
+    const stream = async function* () {
+      called = true;
+      yield 'x';
+    };
+    for (const attachments of [
+      [{ kind: 'image' as const, bytes: 3_750_001 }],
+      [{ kind: 'pdf' as const, bytes: 1000, pages: 21 }],
+      [{ kind: 'text' as const, bytes: 100_001 }],
+      Array.from({ length: 4 }, () => ({ kind: 'image' as const, bytes: 10 })),
+    ]) {
+      const events = await run(t, stream as unknown as ReturnType<typeof fakeStream>, {
+        prompt: withFile,
+        attachments,
+      });
+      expect(events).toEqual([{ type: 'error', code: 'attachment' }]);
+    }
+    expect(called).toBe(false);
+    expect(await statuses(t)).toEqual([]);
+    expect((await getWallet(db, t))?.available).toBe(100);
+  });
+
+  it('falha do modelo com anexo devolve a reserva inteira', async () => {
+    const t = await newTenant();
+    const events = await run(t, fakeStream(['nada'], { failAfter: 0, tokens: { inputTokens: 0 } }), {
+      prompt: withFile,
+      attachments: [{ kind: 'image', bytes: 68 }],
+    });
+    expect(events.map((e) => e.type)).toEqual(['start', 'error']);
+    expect(await statuses(t)).toEqual(['released']);
+    expect((await getWallet(db, t))?.available).toBe(100);
+  });
+
+  it('o extrato leva o tipo e o tamanho do anexo, nunca o conteúdo', async () => {
+    const t = await newTenant();
+    const events = await run(t, fakeStream(['Um ', 'gráfico.'], { tokens: { outputTokens: 4 } }), {
+      prompt: withFile,
+      attachments: [{ kind: 'image', bytes: 68 }],
+    });
+    expect(events.at(-1)?.type).toBe('done');
+    const [row] = await db
+      .select({ metadata: ledger.metadata })
+      .from(ledger)
+      .where(and(eq(ledger.tenantId, t), eq(ledger.kind, 'usage')));
+    expect(row?.metadata).toMatchObject({ attachments: [{ kind: 'image', bytes: 68 }] });
+    expect(JSON.stringify(row?.metadata)).not.toContain(png.slice(0, 20));
+  });
+
+  it('sem a contagem de entrada do provedor, o acerto soma os tokens do arquivo', async () => {
+    const t = await newTenant();
+    const base = await run(t, fakeStream(['ok'], { tokens: { inputTokens: 0, outputTokens: 1 } }), {
+      credits: 50,
+    });
+    const file = await run(t, fakeStream(['ok'], { tokens: { inputTokens: 0, outputTokens: 1 } }), {
+      credits: 50,
+      prompt: withFile,
+      attachments: [{ kind: 'image', bytes: 68 }],
+    });
+    const charged = (e: AssistantEvent[]) => (e.at(-1) as { charged: number }).charged;
+    expect(withFile.fileTokens).toBe(ASSISTANT_ATTACHMENT_LIMITS.imageInputTokens);
+    expect(charged(file)).toBeGreaterThan(charged(base));
   });
 });
