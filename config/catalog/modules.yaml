@@ -1,0 +1,164 @@
+# Módulos e features do catálogo comercial (plataforma comercial F1).
+#
+# Módulo é o que se vende (aparece na fatura e no menu); feature é o que se liga. Uma feature só existe quando alguma
+# oferta a diferencia ou quando outra peça depende dela; o resto é parte do módulo. Preço não mora aqui (repo pública):
+# fica em billing.price, no banco.
+#
+# Campos do módulo:
+#   kind         data (API esportiva, entra em plano) | engage (engajamento, contratado à parte, tenant a tenant)
+#   name         nome comercial
+#   status       available (vende pela loja ou contrato) | contract (só por contrato, sem venda pela loja)
+#                | soon (no catálogo, ainda não vendável) | closed (fechado: a API responde 403 até decisão do dono)
+#   trialDays    dias de teste do módulo (30 no cadastro para os do Fan Experience; 14 pela loja); null = sem teste
+#   requires     o que o tenant precisa ter para contratar o módulo:
+#                  plans      um destes planos de dados
+#                  modules    todos estes módulos
+#                  anyModule  pelo menos um destes módulos
+#   tiers        faixas do módulo (o tamanho contratado): min, max, padrão e, quando há, os valores fixos aceitos
+#   features     features do módulo. `plans` limita a feature a esses planos (sem `plans`, vem com o módulo);
+#                `requires` segue a mesma forma do módulo
+#
+# As faixas do engajamento repetem MODULE_LIMITS (@galaxie/db/engage-modules) até o código passar a ler daqui; o teste
+# do pacote @galaxie/billing confere a igualdade.
+
+modules:
+  core_data:
+    kind: data
+    name: Core Data
+    status: available
+    trialDays: 30
+    features:
+      core_data.rest: {}
+      # tempo real: o trial não tem (PLANS_WITHOUT_REALTIME)
+      realtime.sse:
+        plans: [core_data, fan_experience, live_intelligence, enterprise]
+      realtime.webhooks:
+        plans: [core_data, fan_experience, live_intelligence, enterprise]
+      widgets.embed: {}
+      widgets.builder: {}
+
+  where_to_watch:
+    kind: data
+    name: Where to Watch
+    status: available
+    trialDays: 30
+    tiers:
+      # países com onde assistir; o tenant pode ter uma lista própria (api.tenant.markets)
+      where_to_watch.markets: { min: 1, max: 250, default: 3 }
+    features:
+      where_to_watch.rest: {}
+
+  semantic:
+    kind: data
+    name: Semantic
+    status: available
+    trialDays: 30
+    features:
+      semantic.rest: {}
+
+  live_intelligence:
+    kind: data
+    name: Live Intelligence
+    status: available
+    trialDays: 14
+    tiers:
+      # jogos enriquecidos por mês incluídos na franquia; acima dela, add-on medido
+      live_intelligence.enriched_games: { min: 0, max: 1000000, default: 2000 }
+    features:
+      live_intelligence.rest: {}
+
+  multisport:
+    kind: data
+    name: Multisport
+    status: available
+    trialDays: 14
+    features:
+      multisport.rest: {}
+
+  related_content:
+    kind: data
+    name: Related Content
+    # fechado até a decisão do dono sobre a API do YouTube
+    status: closed
+    trialDays: null
+    features:
+      related_content.rest: {}
+
+  odds:
+    kind: data
+    name: Odds
+    status: contract
+    trialDays: null
+    features:
+      odds.rest: {}
+
+  live_chat:
+    kind: engage
+    name: Live Chat
+    status: soon
+    trialDays: 14
+    requires:
+      plans: [fan_experience, live_intelligence, enterprise]
+    tiers:
+      # acima do pico a sala vira só leitura para quem entra (D6)
+      live_chat.peak_connections: { min: 5000, max: 100000, default: 5000, values: [5000, 25000, 100000] }
+    features:
+      live_chat.rooms: {}
+      live_chat.tv_mode: {}
+
+  communities:
+    kind: engage
+    name: Communities
+    status: soon
+    trialDays: 14
+    requires:
+      plans: [fan_experience, live_intelligence, enterprise]
+    tiers:
+      communities.max_communities: { min: 1, max: 500, default: 5 }
+    features:
+      communities.wall: {}
+      # Sala do Jogo dentro da Comunidade
+      communities.match_room:
+        requires:
+          modules: [live_chat]
+
+  gamification:
+    kind: engage
+    name: Gamification
+    status: soon
+    trialDays: 14
+    requires:
+      plans: [fan_experience, live_intelligence, enterprise]
+    tiers:
+      # um programa por país do tenant
+      gamification.max_programs: { min: 1, max: 20, default: 1 }
+    features:
+      gamification.predictions: {}
+      gamification.achievements: {}
+      # Top da Comunidade
+      gamification.community_top:
+        requires:
+          modules: [communities]
+
+  shopping:
+    kind: engage
+    name: Shopping
+    status: soon
+    trialDays: 14
+    requires:
+      plans: [fan_experience, live_intelligence, enterprise]
+    features:
+      shopping.links: {}
+
+  cosmos_ai:
+    kind: engage
+    name: Cosmos AI
+    status: available
+    # pré-pago em créditos, com crédito de teste próprio (não usa teste por dias)
+    trialDays: null
+    features:
+      cosmos_ai.assistant: {}
+      # a moderação da Cosmos exige uma superfície para moderar (PL4)
+      cosmos_ai.moderation:
+        requires:
+          anyModule: [live_chat, communities]
