@@ -119,7 +119,7 @@ export type PolicyAgeRules = Pick<
  */
 export const STRICT_AGE_RULES: Readonly<PolicyAgeRules> = {
   parentalConsentUnder: 18,
-  guardianLinkRequiredUnder: null,
+  guardianLinkRequiredUnder: 18,
   ageAssuranceMin: { social: 'estimated', restrictedContent: 'verified' },
   hearMinor: true,
   consentRenewalDays: null,
@@ -240,13 +240,16 @@ export function withAgeRules(p: CountryPolicy): CountryPolicy {
     partial.consentRenewalDays !== undefined
   )
     return p;
+  const consent = partial.parentalConsentUnder ?? STRICT_AGE_RULES.parentalConsentUnder;
+  const link =
+    partial.guardianLinkRequiredUnder === undefined
+      ? STRICT_AGE_RULES.guardianLinkRequiredUnder
+      : partial.guardianLinkRequiredUnder;
   return {
     ...p,
-    parentalConsentUnder: partial.parentalConsentUnder ?? STRICT_AGE_RULES.parentalConsentUnder,
-    guardianLinkRequiredUnder:
-      partial.guardianLinkRequiredUnder === undefined
-        ? STRICT_AGE_RULES.guardianLinkRequiredUnder
-        : partial.guardianLinkRequiredUnder,
+    parentalConsentUnder: consent,
+    // o vínculo nunca passa da idade da autorização (validatePolicy)
+    guardianLinkRequiredUnder: link === null ? null : Math.min(link, consent),
     ageAssuranceMin: { ...STRICT_AGE_RULES.ageAssuranceMin, ...(partial.ageAssuranceMin ?? {}) },
     hearMinor: partial.hearMinor ?? STRICT_AGE_RULES.hearMinor,
     consentRenewalDays:
@@ -307,7 +310,8 @@ export function validatePolicy(p: CountryPolicy): PolicyIssue[] {
   if (!strings(p.laws)) issues.push({ path: 'laws', message: 'lista de textos' });
   // idade e responsável (#1104)
   int('parentalConsentUnder', p.parentalConsentUnder, 13, 18);
-  if (Number.isInteger(p.parentalConsentUnder) && p.parentalConsentUnder < p.minAgeParticipate)
+  // até 18: quem participa a partir de 19 a 21 já é maior de idade, e a autorização fica em 18
+  if (Number.isInteger(p.parentalConsentUnder) && p.parentalConsentUnder < Math.min(18, p.minAgeParticipate))
     issues.push({ path: 'parentalConsentUnder', message: 'não pode ser menor que a idade para participar' });
   if (p.guardianLinkRequiredUnder !== null) {
     int('guardianLinkRequiredUnder', p.guardianLinkRequiredUnder, 13, 18);
@@ -464,8 +468,9 @@ export function hardenPolicy(
   if (h.guardianLinkRequiredUnder !== undefined) {
     const v = h.guardianLinkRequiredUnder;
     const cur = out.guardianLinkRequiredUnder;
-    if (Number.isInteger(v) && v >= 13 && (cur === null || v >= cur) && v <= out.parentalConsentUnder)
-      out.guardianLinkRequiredUnder = v;
+    // acima da idade da autorização fica no teto (a ficha pode ter baixado depois que o cliente salvou)
+    const capped = Number.isInteger(v) ? Math.min(v, out.parentalConsentUnder) : NaN;
+    if (capped >= 13 && (cur === null || capped >= cur)) out.guardianLinkRequiredUnder = capped;
     else rejected.push('guardianLinkRequiredUnder');
   }
   for (const [k, v] of Object.entries(h.ageAssuranceMin ?? {}) as [AgeAssuranceFeature, unknown][]) {
@@ -525,7 +530,12 @@ export function resolvePolicy(
   };
   const chosen = pick();
   if (!chosen) return null;
-  const base = withAgeRules(policies.get(chosen.key)!);
+  const chosenPolicy = withAgeRules(policies.get(chosen.key)!);
+  // a DEFAULT nunca protege menos que a ficha do país principal, que valia antes dela
+  const base =
+    chosen.key === DEFAULT_POLICY_KEY && primary && policies.has(primary)
+      ? strictestOf(chosenPolicy, withAgeRules(policies.get(primary)!))
+      : chosenPolicy;
   // o endurecimento do cliente vale para o país do torcedor; se o cliente não marcou esse país (ou caiu no
   // fallback), vale o do país principal, para o torcedor de fora não escapar do que o cliente endureceu
   const tc =
@@ -533,6 +543,44 @@ export function resolvePolicy(
     tenantCountries.find((c) => c.primary);
   const policy = tc?.hardening ? hardenPolicy(base, tc.hardening).policy : base;
   return { ...chosen, policy };
+}
+
+const minNullable = (a: number | null, b: number | null) =>
+  a === null ? b : b === null ? a : Math.min(a, b);
+const strongest = (a: AgeAssuranceLevel, b: AgeAssuranceLevel) => (assuranceAtLeast(a, b) ? a : b);
+
+/**
+ * Campo a campo, o mais protetivo de duas fichas: idades maiores, retenção e prazos menores, o que uma proíbe fica
+ * proibido. Entidade, moeda, formato, fuso, idiomas e leis vêm de `a`.
+ */
+export function strictestOf(a: CountryPolicy, b: CountryPolicy): CountryPolicy {
+  const out = structuredClone(a);
+  out.minAgeWrite = Math.max(a.minAgeWrite, b.minAgeWrite);
+  out.minAgeParticipate = Math.max(a.minAgeParticipate, b.minAgeParticipate);
+  for (const k of Object.keys(out.retention) as (keyof CountryPolicy['retention'])[])
+    out.retention[k] = Math.min(a.retention[k], b.retention[k]);
+  out.adsToMinors = a.adsToMinors && b.adsToMinors;
+  for (const k of Object.keys(out.gamification) as (keyof CountryPolicy['gamification'])[])
+    out.gamification[k] = a.gamification[k] && b.gamification[k];
+  out.prizeCampaign = {
+    maxValue: minNullable(a.prizeCampaign.maxValue, b.prizeCampaign.maxValue),
+    excludedRegions: [...new Set([...a.prizeCampaign.excludedRegions, ...b.prizeCampaign.excludedRegions])],
+    legalClassificationRequired:
+      a.prizeCampaign.legalClassificationRequired || b.prizeCampaign.legalClassificationRequired,
+  };
+  out.punishmentNoticeRequired = a.punishmentNoticeRequired || b.punishmentNoticeRequired;
+  out.parentalConsentUnder = Math.max(a.parentalConsentUnder, b.parentalConsentUnder);
+  const links = [a.guardianLinkRequiredUnder, b.guardianLinkRequiredUnder].filter(
+    (v): v is number => v !== null,
+  );
+  out.guardianLinkRequiredUnder = links.length
+    ? Math.min(Math.max(...links), out.parentalConsentUnder)
+    : null;
+  for (const f of AGE_ASSURANCE_FEATURES)
+    out.ageAssuranceMin[f] = strongest(a.ageAssuranceMin[f], b.ageAssuranceMin[f]);
+  out.hearMinor = a.hearMinor || b.hearMinor;
+  out.consentRenewalDays = minNullable(a.consentRenewalDays, b.consentRenewalDays);
+  return out;
 }
 
 /** Faixa etária do Perfil (no token, #937). */

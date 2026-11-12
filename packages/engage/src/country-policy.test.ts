@@ -72,7 +72,7 @@ describe('fichas iniciais', () => {
       [LATAM_POLICY_KEY]: [18, null, 'self', 'self', true],
       US: [13, null, 'self', 'self', false],
       CA: [14, null, 'self', 'self', false],
-      [DEFAULT_POLICY_KEY]: [18, null, 'estimated', 'verified', true],
+      [DEFAULT_POLICY_KEY]: [18, 18, 'estimated', 'verified', true],
     });
   });
 
@@ -103,6 +103,33 @@ describe('ficha usada pelo torcedor', () => {
     expect(r!.policy.parentalConsentUnder).toBe(18);
     expect(r!.policy.ageAssuranceMin).toEqual({ social: 'estimated', restrictedContent: 'verified' });
     expect(resolvePolicy('DE', policies, [])).toMatchObject({ key: DEFAULT_POLICY_KEY });
+  });
+
+  it('a DEFAULT nunca protege menos que a ficha do país principal', () => {
+    const strictBR: CountryPolicy = {
+      ...structuredClone(BR),
+      minAgeParticipate: 16,
+      retention: { ...BR.retention, removedContentDays: 30 },
+      prizeCampaign: { ...BR.prizeCampaign, maxValue: 500, excludedRegions: ['SP'] },
+      consentRenewalDays: 365,
+    };
+    const map = new Map(policies).set('BR', strictBR);
+    const p = resolvePolicy('DE', map, tenant)!.policy;
+    const D = INITIAL_COUNTRY_POLICIES[DEFAULT_POLICY_KEY]!;
+    expect(p).toMatchObject({
+      minAgeParticipate: 16,
+      retention: { removedContentDays: 30 },
+      prizeCampaign: { maxValue: 500, excludedRegions: ['SP'] },
+      consentRenewalDays: 365,
+      parentalConsentUnder: 18,
+      guardianLinkRequiredUnder: 18,
+      ageAssuranceMin: { social: 'estimated', restrictedContent: 'verified' },
+      hearMinor: true,
+      punishmentNoticeRequired: true,
+      currency: D.currency,
+      languages: D.languages,
+    });
+    expect(validatePolicy(p)).toEqual([]);
   });
 
   it('sem país: a do país principal do cliente; sem DEFAULT, país de fora também', () => {
@@ -239,10 +266,11 @@ describe('o cliente só endurece', () => {
     // prazo: pôr prazo onde não havia endurece; alongar afrouxa
     const short = hardenPolicy(CL, { consentRenewalDays: 180 }).policy;
     expect(hardenPolicy(short, { consentRenewalDays: 365 }).rejected).toEqual(['consentRenewalDays']);
-    // vínculo acima da idade da autorização não passa
-    expect(hardenPolicy(CL, { guardianLinkRequiredUnder: 16 }).rejected).toEqual([
-      'guardianLinkRequiredUnder',
-    ]);
+    // vínculo acima da idade da autorização fica no teto (a ficha pode ter baixado depois que o cliente salvou)
+    const capped = hardenPolicy(CL, { guardianLinkRequiredUnder: 16 });
+    expect(capped.rejected).toEqual([]);
+    expect(capped.policy.guardianLinkRequiredUnder).toBe(CL.parentalConsentUnder);
+    expect(validatePolicy(capped.policy)).toEqual([]);
   });
 
   it('subir a idade para participar leva junto a idade da autorização', () => {
@@ -339,6 +367,14 @@ describe('mudança de ficha pela Galaxie', () => {
     );
     const below = { ...structuredClone(BR), minAgeParticipate: 15, parentalConsentUnder: 14 };
     expect(validatePolicy(below).map((i) => i.path)).toContain('parentalConsentUnder');
+    // participar a partir de 19 a 21: a autorização fica em 18 e a ficha continua válida
+    const adult = {
+      ...structuredClone(BR),
+      minAgeWrite: 21,
+      minAgeParticipate: 20,
+      parentalConsentUnder: 18,
+    };
+    expect(validatePolicy(adult)).toEqual([]);
   });
 
   it('grava só os campos conhecidos', () => {

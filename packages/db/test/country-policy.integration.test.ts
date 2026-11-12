@@ -1,4 +1,5 @@
 import { randomBytes } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { runMigrations } from '../src/index.js';
@@ -79,6 +80,25 @@ describe('ficha por país: idade e responsável (#1104)', () => {
       { country: 'BR', version: 2, reason: 'idade e responsável (#1104)' },
       { country: 'DEFAULT', version: 1, reason: 'ficha DEFAULT (#1104)' },
     ]);
+  });
+
+  it('ficha antiga com idade para participar alta ou comprovação parcial continua válida', async () => {
+    // simula uma ficha gravada antes do #1104 que a Galaxie tinha endurecido, e roda de novo o passo da 0100
+    await pg`update engage.country_policy
+      set policy = (policy - 'parentalConsentUnder' - 'guardianLinkRequiredUnder' - 'hearMinor' - 'consentRenewalDays')
+        || '{"minAgeParticipate":17,"ageAssuranceMin":{"social":"verified"}}'::jsonb
+      where country = 'BR'`;
+    const sql = readFileSync(new URL('../drizzle/0100_ficha_idade.sql', import.meta.url), 'utf8');
+    await pg.unsafe(sql.split('--> statement-breakpoint')[0]!);
+    const [br] = await pg<
+      Row[]
+    >`select country, policy, version from engage.country_policy where country = 'BR'`;
+    expect(br!.policy).toMatchObject({
+      minAgeParticipate: 17,
+      parentalConsentUnder: 17,
+      guardianLinkRequiredUnder: 16,
+      ageAssuranceMin: { social: 'verified', restrictedContent: 'verified' },
+    });
   });
 
   it('a chave aceita DEFAULT e continua recusando o que não é país, LATAM ou DEFAULT', async () => {
