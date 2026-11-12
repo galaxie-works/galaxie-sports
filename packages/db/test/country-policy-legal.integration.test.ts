@@ -4,7 +4,7 @@ import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { runMigrations } from '../src/index.js';
 
-/* Ficha por país (#1115): apostas, consentimento de marketing e guarda legal, gravados pela migration 0109. */
+/* Ficha por país (#1115): apostas, consentimento de marketing e guarda legal, gravados pela migration 0125. */
 
 const adminUrl = process.env.DATABASE_URL;
 if (!adminUrl) throw new Error('DATABASE_URL é obrigatória para os testes de integração (pnpm infra:up).');
@@ -35,7 +35,7 @@ afterAll(async () => {
 type Row = { country: string; policy: Record<string, unknown>; version: number };
 const optIn = { email: 'opt-in', push: 'opt-in', sms: 'opt-in' };
 const rerun = async () => {
-  const sql = readFileSync(new URL('../drizzle/0109_ficha_juridico.sql', import.meta.url), 'utf8');
+  const sql = readFileSync(new URL('../drizzle/0125_ficha_juridico.sql', import.meta.url), 'utf8');
   await pg.unsafe(sql);
 };
 const get = async (country: string) =>
