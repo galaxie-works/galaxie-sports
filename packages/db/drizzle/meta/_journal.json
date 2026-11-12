@@ -724,10 +724,10 @@
       "breakpoints": true
     },
     {
-      "idx": 101,
+      "idx": 103,
       "version": "7",
-      "when": 1794511188721,
-      "tag": "0142_chat_eventos_jogo",
+      "when": 1794520594695,
+      "tag": "0151_chat_eventos_jogo",
       "breakpoints": true
     }
   ]
