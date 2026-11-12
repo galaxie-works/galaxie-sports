@@ -435,7 +435,7 @@ describe('motor de moderação', () => {
       room: 'sala-1',
       community: null,
       reporterProfileId: reporter,
-      reason: 'offense',
+      reason: 'other',
       note: null,
       content: reported.text,
       clocks,
