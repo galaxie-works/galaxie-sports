@@ -22,6 +22,7 @@ import {
   type TenantScope,
 } from '../realtime/changes.js';
 import { GapCursor } from '../realtime/gap-cursor.js';
+import { engageEventMatches, toEngageWebhook, type EngageEndpointScope } from './engage-events.js';
 import { WebhookSecretBox } from './secret-box.js';
 import { SIGNATURE_HEADER, signWebhook } from './signature.js';
 import { postWebhook } from './transport.js';
@@ -282,13 +283,21 @@ export class WebhookWorker {
             )
         ).map(({ endpoint, tenant: t }) => {
           const scope: TenantScope = { modules: t.modules, markets: t.markets, sports: t.sports };
+          // os tópicos de dados marcados (os de engajamento são vistos por engageEventMatches)
           const filter: ChangeFilter = {
-            topics: new Set<ChangeTopic>(endpoint.topics.length ? endpoint.topics : topicsForTenant(scope)),
+            topics: new Set<string>(
+              endpoint.topics.length ? endpoint.topics : topicsForTenant(scope),
+            ) as Set<ChangeTopic>,
             events: new Set(endpoint.filters.events ?? []),
             competitions: new Set(endpoint.filters.competitions ?? []),
             sports: new Set(endpoint.filters.sports ?? []),
           };
-          return { id: endpoint.id, scope, filter };
+          const engage: EngageEndpointScope = {
+            tenantId: t.id,
+            modules: t.modules,
+            topics: endpoint.topics,
+          };
+          return { id: endpoint.id, scope, filter, engage };
         });
 
       let created = 0;
@@ -305,6 +314,25 @@ export class WebhookWorker {
         const endpoints = rows.length ? await loadEndpoints() : [];
         const deliveries = [];
         for (const row of rows) {
+          const event = toEngageWebhook(row);
+          if (event && 'invalid' in event) {
+            this.options.logger?.warn(
+              { changeId: row.id, topic: row.topic, reason: event.invalid },
+              'webhooks: evento de engajamento fora do schema do registro (não enfileirado)',
+            );
+            continue;
+          }
+          if (event) {
+            for (const ep of endpoints)
+              if (engageEventMatches(event, ep.engage))
+                deliveries.push({
+                  endpointId: ep.id,
+                  changeId: row.id,
+                  topic: row.topic,
+                  payload: event.body,
+                });
+            continue;
+          }
           const change = toRealtimeChange(row);
           if (!change) continue;
           for (const ep of endpoints) {

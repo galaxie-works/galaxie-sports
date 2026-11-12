@@ -22,10 +22,12 @@ import { accountPaths } from './account.js';
 import { fanPaths } from './fans.js';
 import { presencePaths } from './presence.js';
 import { moderationPaths } from './moderation.js';
+import { chatPaths } from './chat.js';
 import { ChampionsParams, ChampionsQuery, CompetitionChampions } from './champions.js';
 import { ChannelGuide, ChannelGuideParams, ChannelGuideQuery } from './channel-guide.js';
 import { channelListPaths } from './channel-list.js';
 import { LocaleQuery, list, page, Problem } from './common.js';
+import { webhookPaths } from './webhook-topics-openapi.js';
 import { CompetitionContext, ContextParams, ContextQuery } from './context.js';
 import { Bracket, BracketParams } from './bracket.js';
 import {
@@ -235,12 +237,19 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
           'exclusão (docs/05 §9).',
       },
       {
+        name: 'Chat ao vivo',
+        description:
+          'Sala do Jogo: uma sala por jogo e por cliente. Ler não exige login; só torcedor 18plus escreve, com o ' +
+          'token do torcedor (docs/05 §10).',
+      },
+      {
         name: 'Hipismo',
         description:
           'Atletas, cavalos, provas, classificações, rodadas documentadas e rankings observados (docs/13). ' +
           'Fora da oferta comercial enquanto o licenciamento com a FEI e as federações não é concluído.',
       },
     ],
+    webhooks: webhookPaths(),
     paths: withPublishableKey({
       ...semanticPaths(),
       ...multisportPaths(),
@@ -748,6 +757,7 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
       ...fanPaths,
       ...presencePaths,
       ...moderationPaths,
+      ...chatPaths,
       ...channelListPaths,
       ...relatedPaths,
     }),
@@ -770,6 +780,8 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
     },
   };
   for (const path of HIDDEN_PATHS) delete doc.paths?.[path];
+  // o webhook de vídeos relacionados segue a mesma regra das rotas
+  for (const topic of HIDDEN_ENUM_VALUES) delete doc.webhooks?.[topic];
   if (doc.tags) doc.tags = doc.tags.filter((tag) => tag.name !== HIDDEN_TAG);
   const document = createDocument(doc);
   withoutHiddenEnumValues(document);
