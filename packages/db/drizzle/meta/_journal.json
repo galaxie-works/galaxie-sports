@@ -722,6 +722,13 @@
       "when": 1794511151278,
       "tag": "0146_shopping_cliques",
       "breakpoints": true
+    },
+    {
+      "idx": 103,
+      "version": "7",
+      "when": 1794520232568,
+      "tag": "0149_menor_padrao",
+      "breakpoints": true
     }
   ]
 }

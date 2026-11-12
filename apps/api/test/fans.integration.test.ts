@@ -494,3 +494,54 @@ describe('portão de idade (#1106)', () => {
     expect((await wallet(token)).json().age_gate).toEqual({ reason: 'age_assurance', next: 'verify_age' });
   });
 });
+
+describe('padrão protetivo para menores (#1107)', () => {
+  it('menor não guarda foto própria, fica privado e não abre o Perfil; adulto escolhe', async () => {
+    const t = await tenantKey('fans-menor', ['core_data', 'live_chat']);
+    const teen = {
+      ...base,
+      externalProfileId: 'prof_menor',
+      ageBand: '16_17',
+      avatarUrl: 'https://cdn.exemplo.com/foto.jpg',
+      locale: 'es-AR',
+    };
+    const token = (await issue(t.key, teen)).json().data.token as string;
+    const read = (await me(token)).json().data;
+    expect(read.avatar_url).toBeNull();
+    expect(read.visibility).toEqual({
+      avatar: 'private',
+      favorite_team: 'private',
+      level: 'private',
+      badges: 'private',
+    });
+    expect(read.minor_protections.map((p: { id: string }) => p.id)).toContain('no_marketing');
+    expect(read.minor_protections[0].title).toMatch(/apodo/);
+    const open = await me(token, 'PATCH', { visibility: { level: 'public' } });
+    expect(open.statusCode).toBe(403);
+    expect(open.json().age_gate).toEqual({ reason: 'adult_only' });
+    // fechar o que já é fechado pode
+    expect((await me(token, 'PATCH', { visibility: { level: 'private' } })).statusCode).toBe(200);
+
+    const adult = (await issue(t.key, { ...teen, externalProfileId: 'prof_maior', ageBand: '18plus' })).json()
+      .data.token as string;
+    const a = (await me(adult)).json().data;
+    expect(a.avatar_url).toBe('https://cdn.exemplo.com/foto.jpg');
+    expect(a.minor_protections).toEqual([]);
+    expect((await me(adult, 'PATCH', { visibility: { level: 'public' } })).json().data.visibility.level).toBe(
+      'public',
+    );
+    // a faixa desce: o que estava aberto volta ao padrão na gravação, e nada reabre sozinho depois
+    await issue(t.key, { ...teen, externalProfileId: 'prof_maior', ageBand: '16_17' });
+    const [row] = await db
+      .select({ visibility: fanProfile.visibility, avatarUrl: fanProfile.avatarUrl })
+      .from(fanProfile)
+      .where(eq(fanProfile.externalProfileId, 'prof_maior'));
+    expect(row).toEqual({ visibility: {}, avatarUrl: null });
+    // foto gravada antes do #1107 num Perfil de menor não sai no /me
+    await db
+      .update(fanProfile)
+      .set({ avatarUrl: 'https://cdn.exemplo.com/antiga.jpg' })
+      .where(eq(fanProfile.externalProfileId, 'prof_menor'));
+    expect((await me(token)).json().data.avatar_url).toBeNull();
+  });
+});

@@ -178,6 +178,19 @@ export const FanMe = z
       locale: z.string(),
       favorite_team_id: z.uuid().nullable(),
       visibility: FanVisibilityBody,
+      minor_protections: z
+        .array(
+          z.object({
+            id: z.string(),
+            title: z.string(),
+            relaxed: z.string().nullable(),
+            guardian_can_relax: z.boolean(),
+          }),
+        )
+        .meta({
+          description:
+            'Proteções do padrão para menores de 18 (#1107), com o texto no idioma do torcedor; vazio para adulto.',
+        }),
       capabilities: z.array(z.enum(['read', 'predict', 'write', 'redeem'])).meta({
         description: 'O que a faixa permite, para o widget esconder o que o Perfil não pode usar.',
       }),
@@ -304,7 +317,7 @@ export const fanPaths: ZodOpenApiPathsObject = {
     patch: {
       summary: 'Muda a visibilidade e o time do coração',
       description:
-        'Apelido e avatar vêm do seu servidor, no pedido do token. `under13` recebe 403 (FAN_AGE_RESTRICTED).',
+        'Apelido e avatar vêm do seu servidor, no pedido do token. `under13` recebe 403 (FAN_AGE_RESTRICTED); menor de 18 que tenta abrir a visibilidade também (`age_gate.reason = adult_only`), e o pedido inteiro é recusado.',
       tags: [TAG],
       security: fanAuth,
       requestBody: { content: json(FanMePatchBody) },
