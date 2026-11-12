@@ -817,3 +817,30 @@ describe('gol anulado que fica na timeline junto com o VAR (#639)', () => {
     expect(t.incidents[0]?.flags).toEqual(['opener', 'go_ahead']);
   });
 });
+
+describe('VAR inferido e VAR do fornecedor no mesmo jogo (#639, revisão)', () => {
+  it('o VAR inferido não derruba gol que ficou; o do fornecedor derruba o gol certo', () => {
+    seq = 0;
+    const t = buildTimelineDto(
+      input({
+        score: { home: 0, away: 1 },
+        incidents: [
+          inc({ type: 'goal', detail: 'Normal Goal', minute: 60, team: FLU, player: person('a') }),
+          inc({ type: 'goal', detail: 'Normal Goal', minute: 64, team: FLU, player: person('b') }),
+          inc({ type: 'var', detail: 'Goal cancelled', minute: 65, team: FLU, player: person('b') }),
+          inc({
+            sequence: INFERRED_SEQUENCE_BASE,
+            type: 'var',
+            detail: 'Goal cancelled',
+            minute: 62,
+            team: FLU,
+          }),
+        ],
+      }),
+    );
+    const byPlayer = Object.fromEntries(
+      t.incidents.filter((i) => i.kind === 'goal').map((i) => [i.player?.id, i.disallowed]),
+    );
+    expect(byPlayer).toEqual({ a: false, b: true });
+  });
+});

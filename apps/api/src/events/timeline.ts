@@ -372,6 +372,8 @@ export function cancelledGoals(
     if (side) tally[side] += 1;
   }
   for (const [vIdx, v] of incidents.entries()) {
+    // o VAR inferido pela Galaxie já representa um gol que saiu da lista: não derruba gol que ficou
+    if (v.sequence >= INFERRED_SEQUENCE_BASE) continue;
     if (kinds[vIdx] !== 'var' || !isGoalCancellingVar(v.detail) || isShootout(v)) continue;
     const vPlayer = personKey(v.player);
     let best: { idx: number; rank: number } | null = null;
