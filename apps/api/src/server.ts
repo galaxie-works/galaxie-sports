@@ -309,7 +309,7 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
   const quotaEvent = (
     request: FastifyRequest,
     tenant: TenantContext,
-    level: 'warn' | 'blocked',
+    level: 'warn' | 'over' | 'blocked',
     limit: number,
   ) => {
     const k = `${utcDay()}|${tenant.tenantId}|${level}`;
@@ -317,10 +317,16 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
     if (quotaEvents.size > 10_000) quotaEvents.clear();
     quotaEvents.add(k);
     request.log.warn(
-      { tenant: tenant.slug, quota: limit, event: level === 'warn' ? 'quota.warning' : 'quota.exceeded' },
+      {
+        tenant: tenant.slug,
+        quota: limit,
+        event: level === 'warn' ? 'quota.warning' : level === 'over' ? 'quota.overage' : 'quota.exceeded',
+      },
       level === 'warn'
         ? 'cota diária: tenant passou de 80%'
-        : 'cota diária: tenant passou de 110% (bloqueado)',
+        : level === 'over'
+          ? 'cota diária: widgets passaram de 110% (excedente, sem bloqueio)'
+          : 'cota diária: tenant bloqueado (110% na chave secreta ou teto da publicável)',
     );
   };
 
@@ -381,7 +387,7 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
       authenticate = async (maxAgeMs?: number) => {
         const ctx = await raw(maxAgeMs);
         try {
-          const ent = await resolveEntitlements(ctx.tenantId);
+          const ent = await resolveEntitlements.resolve(ctx.tenantId);
           return ent ? withEntitlements(ctx, ent) : ctx;
         } catch (err) {
           // direitos indisponíveis: segue com os módulos das colunas do tenant (fail-open, como o rate limit)
@@ -429,7 +435,7 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
           reply.header('x-galaxie-quota-warning', `${Math.floor((q.used / q.limit) * 100)}%`);
           quotaEvent(request, tenant, q.level, q.limit);
         }
-        if (q.level === 'blocked' && enforce) throw problems.quotaExceeded(q.limit, q.resetSec);
+        if (q.level === 'blocked') throw problems.quotaExceeded(q.limit, q.resetSec);
       } catch (err) {
         if (err instanceof ProblemError) throw err;
         // contadores indisponíveis não derrubam a API (fail-open), como o rate limit
@@ -524,7 +530,13 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
   if (options.admin?.keyHashes.length && options.db) {
     const guard = adminGuard!;
     const plans = options.admin.plans ?? loadPlans();
-    app.register(adminRoutes, { db: options.db, guard, plans, usage: usageBackend });
+    app.register(adminRoutes, {
+      db: options.db,
+      guard,
+      plans,
+      usage: usageBackend,
+      ...(resolveEntitlements ? { onTenantChanged: (id: string) => resolveEntitlements.invalidate(id) } : {}),
+    });
   }
 
   if (usage) {

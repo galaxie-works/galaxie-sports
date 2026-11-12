@@ -61,3 +61,36 @@ describe('upgradeUrl', () => {
     }
   });
 });
+
+describe('memoResolver', () => {
+  it('guarda o resultado e a falha por memoMs; forget apaga; demora acima do teto vira falha', async () => {
+    const { memoResolver } = await import('./entitlements.js');
+    let t = 0;
+    let calls = 0;
+    let fail = false;
+    const m = memoResolver(
+      async () => {
+        calls += 1;
+        if (fail) throw new Error('banco fora');
+        return { modules: ['core_data'], features: [] };
+      },
+      { memoMs: 5_000, now: () => t },
+    );
+    await m.resolve('a');
+    await m.resolve('a');
+    expect(calls).toBe(1);
+    m.forget('a');
+    fail = true;
+    await expect(m.resolve('a')).rejects.toThrow('banco fora');
+    // a falha fica guardada: a próxima não chama o banco de novo
+    await expect(m.resolve('a')).rejects.toThrow('banco fora');
+    expect(calls).toBe(2);
+    t = 6_000;
+    fail = false;
+    await expect(m.resolve('a')).resolves.toEqual({ modules: ['core_data'], features: [] });
+    expect(calls).toBe(3);
+
+    const slow = memoResolver(() => new Promise(() => {}), { timeoutMs: 20 });
+    await expect(slow.resolve('b')).rejects.toThrow('sem resposta em 20 ms');
+  });
+});

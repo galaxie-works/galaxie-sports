@@ -6,13 +6,21 @@ import { queryUsage } from './store.js';
 export const QUOTA_WARN_RATIO = 0.8;
 /** A partir de quanto da cota diária a API recusa (429 QUOTA_EXCEEDED): 10% de folga. */
 export const QUOTA_BLOCK_RATIO = 1.1;
+/**
+ * Teto da chave publicável (widgets, #1137): até aqui o excesso passa e conta como excedente; acima, 429. A chave é
+ * pública, e sem teto quem a tivesse geraria excedente sem limite. Três vezes a cota cobre um pico de audiência.
+ */
+export const QUOTA_PUBLISHABLE_CEILING_RATIO = 3;
 
 export interface QuotaStatus {
   limit: number;
   /** Requisições de produção do dia UTC, contando esta. */
   used: number;
-  /** `ok` | `warn` (≥ 80%) | `blocked` (≥ 110%: esta requisição é recusada). */
-  level: 'ok' | 'warn' | 'blocked';
+  /**
+   * `ok` | `warn` (≥ 80%) | `over` (acima de 110%, sem bloquear: chave publicável, conta como excedente) |
+   * `blocked` (esta requisição é recusada: acima de 110% na secreta, acima do teto na publicável).
+   */
+  level: 'ok' | 'warn' | 'over' | 'blocked';
   /** Segundos até a virada do dia UTC (retry-after do 429). */
   resetSec: number;
 }
@@ -80,10 +88,12 @@ export class QuotaGuard {
     const used = entry.base + entry.seen;
     const nextDay = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1);
     const resetSec = Math.max(1, Math.ceil((nextDay - now.getTime()) / 1000));
+    const blockAt = opts.enforce === false ? QUOTA_PUBLISHABLE_CEILING_RATIO : QUOTA_BLOCK_RATIO;
+    const over = used > limit * QUOTA_BLOCK_RATIO;
     const level =
-      used > limit * QUOTA_BLOCK_RATIO ? 'blocked' : used >= limit * QUOTA_WARN_RATIO ? 'warn' : 'ok';
+      used > limit * blockAt ? 'blocked' : over ? 'over' : used >= limit * QUOTA_WARN_RATIO ? 'warn' : 'ok';
     // requisição recusada não conta (nem no contador de uso); a que passa como excedente conta
-    if (level === 'blocked' && opts.enforce !== false) entry.seen -= 1;
+    if (level === 'blocked') entry.seen -= 1;
     return { limit, used, level, resetSec };
   }
 
