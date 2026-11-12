@@ -66,11 +66,9 @@ export interface WebhookTopicDef {
 }
 
 /** Id opaco do Perfil do torcedor: o `profile_id` do token. Nunca e-mail, documento, telefone ou nome. */
-const profileId = z
-  .uuid()
-  .meta({
-    description: 'Id opaco do Perfil do torcedor (o `profile_id` do token). Nunca e-mail nem documento.',
-  });
+const profileId = z.uuid().meta({
+  description: 'Id opaco do Perfil do torcedor (o `profile_id` do token). Nunca e-mail nem documento.',
+});
 
 /** Corpo comum dos tópicos de engajamento. */
 function engageEnvelope<T extends z.ZodRawShape>(id: string, topic: string, data: T) {
