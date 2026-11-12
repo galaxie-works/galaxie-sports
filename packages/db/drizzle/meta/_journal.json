@@ -687,6 +687,13 @@
       "when": 1794487982379,
       "tag": "0121_cosmos_funcoes_widget",
       "breakpoints": true
+    },
+    {
+      "idx": 98,
+      "version": "7",
+      "when": 1794488042379,
+      "tag": "0127_var_gol_anulado",
+      "breakpoints": true
     }
   ]
 }
