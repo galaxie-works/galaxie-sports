@@ -256,7 +256,7 @@ export const moduleUsageMonthly = api.table(
       .references(() => tenant.id, { onDelete: 'cascade' }),
     /** Primeiro dia do mês, em UTC. */
     month: date('month', { mode: 'string' }).notNull(),
-    module: text('module').$type<EngageModule>().notNull(),
+    module: text('module').$type<ApiModule>().notNull(),
     metric: text('metric').$type<ModuleUsageMetric>().notNull(),
     value: bigint('value', { mode: 'number' }).notNull().default(0),
     /**

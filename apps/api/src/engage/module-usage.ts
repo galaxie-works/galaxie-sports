@@ -1,9 +1,13 @@
 import {
-  ENGAGE_MODULES,
+  API_MODULES,
+  COUNT_USAGE_METRICS,
+  DISTINCT_USAGE_METRICS,
   moduleUsageMonthly,
   MODULE_USAGE_METRICS,
+  type ApiModule,
+  type CountUsageMetric,
   type Database,
-  type EngageModule,
+  type DistinctUsageMetric,
   type ModuleUsageMetric,
 } from '@galaxie/db';
 import { and, eq, sql } from 'drizzle-orm';
@@ -22,7 +26,7 @@ const MONTH_TTL_SEC = 40 * 86_400;
 export interface ModuleUsageReading {
   tenantId: string;
   month: string;
-  module: EngageModule;
+  module: ApiModule;
   metric: ModuleUsageMetric;
   value: number;
   /**
@@ -36,7 +40,7 @@ export interface ModuleUsageReading {
 const EPOCH_FIELD = '#epoca';
 
 /**
- * Medição de uso dos módulos de engajamento (#1018). As rotas e o worker do engajamento chamam os métodos de
+ * Medição de uso por módulo (#1018; módulos de dados desde a F6 da plataforma comercial, #1138). As rotas e o worker do engajamento chamam os métodos de
  * registro; o consolidador lê `read()` e grava em `api.module_usage_monthly`.
  *
  * - `active_fans`: torcedores distintos no mês (HyperLogLog por tenant × módulo × mês).
@@ -45,17 +49,19 @@ const EPOCH_FIELD = '#epoca';
  */
 export interface ModuleUsageMeter {
   /** Torcedor (id interno do Perfil) ativo no módulo neste mês. */
-  fanActive(tenantId: string, module: EngageModule, profileId: string, at?: Date): Promise<void>;
-  /** Conexões simultâneas agora; guarda só o maior do mês. */
-  connections(tenantId: string, module: EngageModule, current: number, at?: Date): Promise<void>;
-  /** Soma a um contador (`clicks` ou `credits`). */
-  add(
+  fanActive(tenantId: string, module: ApiModule, profileId: string, at?: Date): Promise<void>;
+  /** Membro distinto de uma métrica de distintos (`active_fans`, `active_markets`) neste mês. */
+  distinct(
     tenantId: string,
-    module: EngageModule,
-    metric: 'clicks' | 'credits',
-    n: number,
+    module: ApiModule,
+    metric: DistinctUsageMetric,
+    member: string,
     at?: Date,
   ): Promise<void>;
+  /** Conexões simultâneas agora; guarda só o maior do mês. */
+  connections(tenantId: string, module: ApiModule, current: number, at?: Date): Promise<void>;
+  /** Soma a um contador (`clicks`, `credits`, `widget_views`, `enriched_games`). */
+  add(tenantId: string, module: ApiModule, metric: CountUsageMetric, n: number, at?: Date): Promise<void>;
   /** Leituras do mês (todos os tenants com uso). */
   read(month: string): Promise<ModuleUsageReading[]>;
   /** Trava curta para que só uma instância consolide por vez. */
@@ -74,7 +80,7 @@ export class RedisModuleUsageMeter implements ModuleUsageMeter {
     private readonly prefix = 'gs:',
   ) {}
 
-  private base(month: string, tenantId: string, module: EngageModule) {
+  private base(month: string, tenantId: string, module: ApiModule) {
     return `${this.prefix}engage:usage:${month}:${tenantId}:${module}`;
   }
 
@@ -82,7 +88,7 @@ export class RedisModuleUsageMeter implements ModuleUsageMeter {
     return `${this.prefix}engage:usage:${month}:keys`;
   }
 
-  private touch(pipe: ReturnType<Redis['pipeline']>, month: string, tenantId: string, module: EngageModule) {
+  private touch(pipe: ReturnType<Redis['pipeline']>, month: string, tenantId: string, module: ApiModule) {
     pipe.sadd(this.index(month), `${tenantId}:${module}`);
     pipe.expire(this.index(month), MONTH_TTL_SEC);
   }
@@ -93,19 +99,29 @@ export class RedisModuleUsageMeter implements ModuleUsageMeter {
     if (failed) throw failed[0];
   }
 
-  async fanActive(tenantId: string, module: EngageModule, profileId: string, at = new Date()) {
+  async fanActive(tenantId: string, module: ApiModule, profileId: string, at = new Date()) {
+    await this.distinct(tenantId, module, 'active_fans', profileId, at);
+  }
+
+  async distinct(
+    tenantId: string,
+    module: ApiModule,
+    metric: DistinctUsageMetric,
+    member: string,
+    at = new Date(),
+  ) {
     const month = utcMonth(at);
-    const key = `${this.base(month, tenantId, module)}:active_fans`;
+    const key = `${this.base(month, tenantId, module)}:${metric}`;
     const pipe = this.redis.pipeline();
     pipe.set(`${key}:epoch`, newEpoch(), 'EX', MONTH_TTL_SEC, 'NX');
-    pipe.pfadd(key, profileId);
+    pipe.pfadd(key, member);
     pipe.expire(key, MONTH_TTL_SEC);
     pipe.expire(`${key}:epoch`, MONTH_TTL_SEC);
     this.touch(pipe, month, tenantId, module);
     await this.exec(pipe);
   }
 
-  async connections(tenantId: string, module: EngageModule, current: number, at = new Date()) {
+  async connections(tenantId: string, module: ApiModule, current: number, at = new Date()) {
     if (!Number.isFinite(current) || current <= 0) return;
     const month = utcMonth(at);
     const key = this.base(month, tenantId, module);
@@ -125,13 +141,7 @@ export class RedisModuleUsageMeter implements ModuleUsageMeter {
     await this.exec(pipe);
   }
 
-  async add(
-    tenantId: string,
-    module: EngageModule,
-    metric: 'clicks' | 'credits',
-    n: number,
-    at = new Date(),
-  ) {
+  async add(tenantId: string, module: ApiModule, metric: CountUsageMetric, n: number, at = new Date()) {
     if (!Number.isFinite(n) || n <= 0) return;
     const month = utcMonth(at);
     const key = this.base(month, tenantId, module);
@@ -147,17 +157,21 @@ export class RedisModuleUsageMeter implements ModuleUsageMeter {
     const pairs = await this.redis.smembers(this.index(month));
     const out: ModuleUsageReading[] = [];
     for (const pair of pairs) {
-      const [tenantId, module] = pair.split(':') as [string, EngageModule];
-      if (!tenantId || !(ENGAGE_MODULES as readonly string[]).includes(module)) continue;
+      const [tenantId, module] = pair.split(':') as [string, ApiModule];
+      if (!tenantId || !(API_MODULES as readonly string[]).includes(module)) continue;
       const base = this.base(month, tenantId, module);
-      const [hash, fans, fansEpoch] = await Promise.all([
+      const [hash, ...distinct] = await Promise.all([
         this.redis.hgetall(base),
-        this.redis.pfcount(`${base}:active_fans`),
-        this.redis.get(`${base}:active_fans:epoch`),
+        ...DISTINCT_USAGE_METRICS.map(async (metric) => ({
+          metric,
+          value: await this.redis.pfcount(`${base}:${metric}`),
+          epoch: await this.redis.get(`${base}:${metric}:epoch`),
+        })),
       ]);
-      if (fans > 0)
-        out.push({ tenantId, month, module, metric: 'active_fans', value: fans, epoch: fansEpoch });
-      for (const metric of ['peak_connections', 'clicks', 'credits'] as const) {
+      for (const d of distinct)
+        if (d.value > 0)
+          out.push({ tenantId, month, module, metric: d.metric, value: d.value, epoch: d.epoch });
+      for (const metric of ['peak_connections', ...COUNT_USAGE_METRICS] as const) {
         const v = Number(hash[metric] ?? 0);
         if (v > 0) out.push({ tenantId, month, module, metric, value: v, epoch: hash[EPOCH_FIELD] ?? null });
       }
@@ -193,32 +207,36 @@ export class MemoryModuleUsageMeter implements ModuleUsageMeter {
     this.epochs.clear();
   }
 
-  private k(month: string, tenantId: string, module: EngageModule, metric: ModuleUsageMetric) {
+  private k(month: string, tenantId: string, module: ApiModule, metric: ModuleUsageMetric) {
     return [month, tenantId, module, metric].join('\u0000');
   }
 
-  async fanActive(tenantId: string, module: EngageModule, profileId: string, at = new Date()) {
-    const key = this.k(utcMonth(at), tenantId, module, 'active_fans');
+  async fanActive(tenantId: string, module: ApiModule, profileId: string, at = new Date()) {
+    await this.distinct(tenantId, module, 'active_fans', profileId, at);
+  }
+
+  async distinct(
+    tenantId: string,
+    module: ApiModule,
+    metric: DistinctUsageMetric,
+    member: string,
+    at = new Date(),
+  ) {
+    const key = this.k(utcMonth(at), tenantId, module, metric);
     this.epochOf(key);
     const set = this.fans.get(key) ?? new Set<string>();
-    set.add(profileId);
+    set.add(member);
     this.fans.set(key, set);
   }
 
-  async connections(tenantId: string, module: EngageModule, current: number, at = new Date()) {
+  async connections(tenantId: string, module: ApiModule, current: number, at = new Date()) {
     if (!Number.isFinite(current) || current <= 0) return;
     const key = this.k(utcMonth(at), tenantId, module, 'peak_connections');
     this.epochOf(key);
     this.values.set(key, Math.max(this.values.get(key) ?? 0, Math.floor(current)));
   }
 
-  async add(
-    tenantId: string,
-    module: EngageModule,
-    metric: 'clicks' | 'credits',
-    n: number,
-    at = new Date(),
-  ) {
+  async add(tenantId: string, module: ApiModule, metric: CountUsageMetric, n: number, at = new Date()) {
     if (!Number.isFinite(n) || n <= 0) return;
     const key = this.k(utcMonth(at), tenantId, module, metric);
     this.epochOf(key);
@@ -227,7 +245,7 @@ export class MemoryModuleUsageMeter implements ModuleUsageMeter {
 
   async read(month: string): Promise<ModuleUsageReading[]> {
     const out: ModuleUsageReading[] = [];
-    const split = (key: string) => key.split('\u0000') as [string, string, EngageModule, ModuleUsageMetric];
+    const split = (key: string) => key.split('\u0000') as [string, string, ApiModule, ModuleUsageMetric];
     for (const [key, set] of this.fans) {
       const [m, tenantId, module, metric] = split(key);
       if (m === month)
@@ -326,7 +344,7 @@ export async function moduleUsageOf(
   db: Database,
   tenantId: string,
   month: string,
-): Promise<{ module: EngageModule; metric: ModuleUsageMetric; value: number }[]> {
+): Promise<{ module: ApiModule; metric: ModuleUsageMetric; value: number }[]> {
   return db
     .select({
       module: moduleUsageMonthly.module,
