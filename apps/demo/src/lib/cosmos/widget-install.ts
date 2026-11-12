@@ -23,7 +23,8 @@ const STEP_MAX = 300;
 
 /** Marcador quando o cliente não colou a chave. */
 export const KEY_PLACEHOLDER = 'gs_pk_live_…';
-const PUBLISHABLE = /^gs_pk_(live|test)_[A-Za-z0-9_-]{8,128}$/;
+/** Formato exato da chave publicável (`gs_pk_<env>_` + 43 caracteres base64url): cortada ou a mais não serve. */
+const PUBLISHABLE = /^gs_pk_(live|test)_[A-Za-z0-9_-]{43}$/;
 
 /**
  * A chave colada: publicável vale; vazia fica o marcador; qualquer outra coisa (a secreta, por engano) é recusada e

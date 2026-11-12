@@ -22,7 +22,7 @@ const W = {
   name: 'Tabela do portal',
 };
 // chave fictícia montada na hora (o gitleaks acusaria o literal)
-const KEY = ['gs', 'pk', 'live', 'AbCdEf123456'].join('_');
+const KEY = ['gs', 'pk', 'live', 'AbCdEf-123'.repeat(4) + 'xyz'].join('_');
 const BASE = 'https://widgets.exemplo.com';
 
 /** Erros de sintaxe de um trecho TSX (o compilador lê sem resolver imports). */
@@ -136,10 +136,11 @@ describe('código de instalação nos cinco alvos (#1005)', () => {
 describe('chave colada', () => {
   it('publicável vale, vazia vira o marcador e a secreta é recusada', () => {
     expect(checkPublishableKey(` ${KEY} `)).toEqual({ ok: true, key: KEY });
-    expect(checkPublishableKey('gs_pk_test_localhost123')).toEqual({
-      ok: true,
-      key: 'gs_pk_test_localhost123',
-    });
+    const test = KEY.replace('_live_', '_test_');
+    expect(checkPublishableKey(test)).toEqual({ ok: true, key: test });
+    // cortada ou a mais não serve (formato exato de 43 caracteres)
+    expect(checkPublishableKey(KEY.slice(0, -1))).toEqual({ ok: false });
+    expect(checkPublishableKey(`${KEY}a`)).toEqual({ ok: false });
     expect(checkPublishableKey('')).toEqual({ ok: true, key: null });
     expect(checkPublishableKey(KEY.replace('_pk_', '_sk_'))).toEqual({ ok: false });
     expect(checkPublishableKey('gs_pk_live_<script>')).toEqual({ ok: false });
