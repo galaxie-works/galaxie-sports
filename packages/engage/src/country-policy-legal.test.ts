@@ -181,6 +181,9 @@ describe('apostas: ficha e licença', () => {
     expect(bettingContentAllowed(open, { ...license, approvedBy: null }, now)).toBe(false);
     expect(bettingContentAllowed(open, { ...license, approvedAt: null }, now)).toBe(false);
     expect(bettingContentAllowed(open, { ...license, reference: '  ' }, now)).toBe(false);
+    expect(bettingContentAllowed(open, { ...license, approvedBy: '   ' }, now)).toBe(false);
+    expect(bettingContentAllowed(open, { ...license, approvedAt: 'ontem' }, now)).toBe(false);
+    expect(bettingContentAllowed(open, { ...license, approvedAt: '2026-12-01T00:00:00Z' }, now)).toBe(false);
     expect(bettingContentAllowed(open, license, now)).toBe(true);
   });
 

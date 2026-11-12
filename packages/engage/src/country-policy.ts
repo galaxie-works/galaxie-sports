@@ -662,7 +662,10 @@ export function bettingContentAllowed(
   now: number = Date.now(),
 ): boolean {
   if (policy.bettingContent !== true || !license) return false;
-  if (!license.reference?.trim() || !license.approvedBy || !license.approvedAt) return false;
+  if (!license.reference?.trim() || !license.approvedBy?.trim() || !license.approvedAt) return false;
+  // aprovação com data ilegível ou no futuro não prova que a Galaxie aprovou
+  const approved = Date.parse(license.approvedAt);
+  if (!Number.isFinite(approved) || approved > now) return false;
   if (license.expiresAt) {
     const end = Date.parse(license.expiresAt);
     if (!Number.isFinite(end) || end <= now) return false;
