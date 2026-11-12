@@ -16,15 +16,22 @@ WITH rules (country, rules) AS (VALUES
          COALESCE(r.rules, '{"bettingContent":false,"marketingConsent":{"email":"opt-in","push":"opt-in","sms":"opt-in"},"legalHoldDays":365}'::jsonb) AS rules
     FROM engage.country_policy cp
     LEFT JOIN rules r ON r.country = cp.country
-   WHERE NOT (cp.policy ? 'bettingContent' AND cp.policy ? 'legalHoldDays'
+   -- null conta como ausente (guarda nula acabaria na hora da denúncia)
+   WHERE NOT (jsonb_typeof(cp.policy->'bettingContent') IS DISTINCT FROM 'null'
+              AND cp.policy ? 'bettingContent'
+              AND jsonb_typeof(cp.policy->'legalHoldDays') IS DISTINCT FROM 'null'
+              AND cp.policy ? 'legalHoldDays'
               AND jsonb_typeof(cp.policy->'marketingConsent') = 'object'
-              AND cp.policy->'marketingConsent' ?& ARRAY['email', 'push', 'sms'])
+              AND jsonb_strip_nulls(cp.policy->'marketingConsent') ?& ARRAY['email', 'push', 'sms'])
 ), merged AS (
-  -- a ficha atual vence, campo a campo (também dentro de marketingConsent)
+  -- a ficha atual vence, campo a campo (também dentro de marketingConsent), menos onde está null
   SELECT country,
-         rules || policy
+         rules
+           || (policy - ARRAY(SELECT k FROM unnest(ARRAY['bettingContent', 'legalHoldDays']) AS k
+                               WHERE policy->k = 'null'::jsonb))
            || jsonb_build_object('marketingConsent', (rules->'marketingConsent')
-                || CASE jsonb_typeof(policy->'marketingConsent') WHEN 'object' THEN policy->'marketingConsent' ELSE '{}'::jsonb END) AS policy
+                || CASE jsonb_typeof(policy->'marketingConsent') WHEN 'object'
+                     THEN jsonb_strip_nulls(policy->'marketingConsent') ELSE '{}'::jsonb END) AS policy
     FROM base
 ), changed AS (
   UPDATE engage.country_policy cp

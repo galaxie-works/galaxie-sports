@@ -79,6 +79,19 @@ describe('ficha por país: apostas, marketing e guarda legal (#1115)', () => {
     expect((await get('BR')).version).toBe(brBefore.version);
   });
 
+  it('null gravado fora do painel conta como ausente', async () => {
+    await pg`update engage.country_policy
+      set policy = policy
+        || '{"legalHoldDays":null,"marketingConsent":{"email":null,"push":"opt-out","sms":"opt-in"}}'::jsonb
+      where country = 'MX'`;
+    await rerun();
+    expect((await get('MX')).policy).toMatchObject({
+      legalHoldDays: 180,
+      marketingConsent: { email: 'opt-in', push: 'opt-out', sms: 'opt-in' },
+      consentRenewalDays: null,
+    });
+  });
+
   it('país novo fora da tabela ganha o mais protetivo', async () => {
     await pg`insert into engage.country_policy (country, policy, updated_by)
       values ('UY', '{"currency":"UYU"}'::jsonb, 't')`;

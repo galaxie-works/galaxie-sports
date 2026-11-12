@@ -105,35 +105,48 @@ describe('validação e gravação', () => {
 });
 
 describe('endurecimento do cliente', () => {
-  it('desliga apostas, passa canal a opt-in e alonga a guarda', () => {
+  it('desliga apostas e passa canal a opt-in', () => {
     const open = { ...structuredClone(US), bettingContent: true };
     const { policy, rejected } = hardenPolicy(open, {
       bettingContent: false,
       marketingConsent: { email: 'opt-in' },
-      legalHoldDays: 400,
     });
     expect(rejected).toEqual([]);
     expect(policy.bettingContent).toBe(false);
     expect(policy.marketingConsent.email).toBe('opt-in');
-    expect(policy.legalHoldDays).toBe(400);
   });
 
-  it('recusa o que afrouxa: ligar apostas, opt-out, guarda mais curta, canal desconhecido', () => {
+  it('recusa o que afrouxa: ligar apostas, opt-out, canal desconhecido', () => {
     const { policy, rejected } = hardenPolicy(BR, {
       bettingContent: true as unknown as false,
       marketingConsent: { email: 'opt-out' as unknown as 'opt-in', whatsapp: 'opt-in' } as never,
-      legalHoldDays: 90,
     });
     expect(rejected.sort()).toEqual(
-      ['bettingContent', 'legalHoldDays', 'marketingConsent.email', 'marketingConsent.whatsapp'].sort(),
+      ['bettingContent', 'marketingConsent.email', 'marketingConsent.whatsapp'].sort(),
     );
     expect(policy.bettingContent).toBe(false);
     expect(policy.marketingConsent.email).toBe('opt-in');
-    expect(policy.legalHoldDays).toBe(180);
   });
 
-  it('guarda acima de 3650 é recusada', () => {
-    expect(hardenPolicy(BR, { legalHoldDays: 4000 }).rejected).toEqual(['legalHoldDays']);
+  it('a guarda legal não é do cliente: mais curta ou mais longa, fica a da ficha', () => {
+    for (const legalHoldDays of [30, 3650])
+      expect(hardenPolicy(BR, { legalHoldDays } as never).policy.legalHoldDays).toBe(180);
+  });
+});
+
+describe('valor null gravado fora do painel', () => {
+  it('conta como ausente e entra no mais protetivo', () => {
+    const odd = {
+      ...structuredClone(BR),
+      bettingContent: null,
+      legalHoldDays: null,
+      marketingConsent: { email: null, push: 'opt-out', sms: 'opt-in' },
+    } as unknown as CountryPolicy;
+    const full = completePolicy(odd);
+    expect(full.bettingContent).toBe(false);
+    expect(full.legalHoldDays).toBe(365);
+    expect(full.marketingConsent).toEqual({ email: 'opt-in', push: 'opt-out', sms: 'opt-in' });
+    expect(validatePolicy(full)).toEqual([]);
   });
 });
 

@@ -302,17 +302,23 @@ export function withAgeRules(p: CountryPolicy): CountryPolicy {
 /** Completa uma ficha gravada antes do #1115 com as regras jurídicas mais protetivas (campo ausente nunca afrouxa). */
 export function withLegalRules(p: CountryPolicy): CountryPolicy {
   const partial = p as Partial<CountryPolicy>;
+  // null conta como ausente: guarda nula acabaria na hora da denúncia
   if (
-    partial.bettingContent !== undefined &&
-    partial.legalHoldDays !== undefined &&
-    partial.marketingConsent !== undefined &&
-    MARKETING_CHANNELS.every((c) => partial.marketingConsent?.[c] !== undefined)
+    partial.bettingContent != null &&
+    partial.legalHoldDays != null &&
+    partial.marketingConsent != null &&
+    MARKETING_CHANNELS.every((c) => partial.marketingConsent?.[c] != null)
   )
     return p;
+  const consent: Partial<Record<MarketingChannel, MarketingConsentMode>> = {};
+  for (const c of MARKETING_CHANNELS) {
+    const v = partial.marketingConsent?.[c];
+    if (v != null) consent[c] = v;
+  }
   return {
     ...p,
     bettingContent: partial.bettingContent ?? STRICT_LEGAL_RULES.bettingContent,
-    marketingConsent: { ...STRICT_LEGAL_RULES.marketingConsent, ...(partial.marketingConsent ?? {}) },
+    marketingConsent: { ...STRICT_LEGAL_RULES.marketingConsent, ...consent },
     legalHoldDays: partial.legalHoldDays ?? STRICT_LEGAL_RULES.legalHoldDays,
   };
 }
@@ -486,8 +492,6 @@ export interface PolicyHardening {
   bettingContent?: false;
   /** Canal que passa a exigir consentimento prévio. */
   marketingConsent?: Partial<Record<MarketingChannel, 'opt-in'>>;
-  /** Guarda legal mais longa (até 3650 dias); nunca mais curta que a da ficha, que é obrigação legal. */
-  legalHoldDays?: number;
 }
 
 /**
@@ -569,7 +573,8 @@ export function hardenPolicy(
     if (Number.isInteger(v) && v >= 30 && v <= 3650 && (cur === null || v <= cur)) out.consentRenewalDays = v;
     else rejected.push('consentRenewalDays');
   }
-  // apostas, marketing e guarda legal (#1115): apostas só desligam, canal só passa a opt-in, guarda só cresce
+  // apostas e marketing (#1115): apostas só desligam, canal só passa a opt-in. A guarda legal não é do cliente:
+  // mais curta descumpre a lei, mais longa recusa a exclusão do titular sem base legal
   if (h.bettingContent !== undefined) {
     if (h.bettingContent === false) out.bettingContent = false;
     else rejected.push('bettingContent');
@@ -578,11 +583,6 @@ export function hardenPolicy(
     if (v === 'opt-in' && (MARKETING_CHANNELS as readonly string[]).includes(k))
       out.marketingConsent[k] = 'opt-in';
     else rejected.push(`marketingConsent.${k}`);
-  }
-  if (h.legalHoldDays !== undefined) {
-    const v = h.legalHoldDays;
-    if (Number.isInteger(v) && v >= out.legalHoldDays && v <= 3650) out.legalHoldDays = v;
-    else rejected.push('legalHoldDays');
   }
   return { policy: out, rejected };
 }
@@ -742,7 +742,7 @@ export function strictestOf(a: CountryPolicy, b: CountryPolicy): CountryPolicy {
   for (const c of MARKETING_CHANNELS)
     out.marketingConsent[c] =
       a.marketingConsent[c] === 'opt-out' && b.marketingConsent[c] === 'opt-out' ? 'opt-out' : 'opt-in';
-  // guarda legal é obrigação: vale a mais longa
+  // guarda legal é obrigação de uma das duas fichas: vale a mais longa
   out.legalHoldDays = Math.max(a.legalHoldDays, b.legalHoldDays);
   return out;
 }
