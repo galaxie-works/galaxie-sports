@@ -4,6 +4,7 @@
  */
 import {
   ASSISTANT_FUNCTION,
+  BRANDBOOK_FUNCTION,
   COSMOS_PROVIDERS,
   getWallet,
   listAllPackages,
@@ -50,8 +51,8 @@ export async function loadStaffWallets(): Promise<{
   rows: StaffWalletRow[];
   packages: Awaited<ReturnType<typeof listAllPackages>>;
   functions: Awaited<ReturnType<typeof listFunctionDefs>>;
-  /** Provedores que o assistente já sabe chamar (os outros aparecem indisponíveis no cadastro). */
-  assistantProviders: CosmosProvider[];
+  /** Provedores que cada função que chama modelo sabe chamar (para a criação de uma função nova). */
+  callableFor: Record<string, CosmosProvider[]>;
   usdBrl: number | null;
 }> {
   const db = builderDb();
@@ -65,7 +66,12 @@ export async function loadStaffWallets(): Promise<{
     rows: rows.map((r) => ({ ...r, marginUsd: marginUsd(r, usdBrl) })),
     packages,
     functions,
-    assistantProviders: COSMOS_PROVIDERS.filter((p) => providerHasCaller(ASSISTANT_FUNCTION, p)),
+    callableFor: Object.fromEntries(
+      [ASSISTANT_FUNCTION, BRANDBOOK_FUNCTION].map((name) => [
+        name,
+        COSMOS_PROVIDERS.filter((p) => providerHasCaller(name, p)),
+      ]),
+    ),
     usdBrl,
   };
 }
