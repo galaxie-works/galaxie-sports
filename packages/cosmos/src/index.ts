@@ -6,6 +6,7 @@
 export * from './assistant.js';
 export * from './assistant-run.js';
 export * from './balance.js';
+export * from './brand-voice.js';
 export * from './brandbook.js';
 export * from './brandbook-run.js';
 export * from './credit-requests.js';
