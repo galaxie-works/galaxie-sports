@@ -40,7 +40,7 @@ export interface DetailOptions {
 }
 
 export interface RankedFixture extends FixtureRef {
-  /** 0 = tier 1 · 1 = clássico fora do tier 1 · 2 = tier 2. */
+  /** 0 = tier 1 · 1 = clássico fora do tier 1 · 2 = tier 2 · 3 = tier 3. */
   rank: number;
   derby: boolean;
   current: boolean;
@@ -52,7 +52,8 @@ export function detailCursor(fixtureId: number): CursorRef {
 }
 
 /**
- * Prioridade de detalhe: tier 1 → clássicos (de qualquer competição) → tier 2; o resto fica de fora.
+ * Prioridade de detalhe: tier 1 → clássicos (de qualquer competição) → tier 2 → tier 3. O tier 3 só entra
+ * quando o catálogo passado inclui o tier 3 (`--tier-max 3`); competição fora do catálogo fica de fora.
  * Temporadas com `coverage` sem eventos, escalações e estatísticas não recebem detalhe.
  */
 export function rankFixture(
@@ -68,6 +69,7 @@ export function rankFixture(
   if (comp?.tier === 1) rank = 0;
   else if (derby) rank = 1;
   else if (comp?.tier === 2) rank = 2;
+  else if (comp && comp.tier >= 3) rank = 3;
   else return null;
   return { ...f, rank, derby, current: season?.current ?? false };
 }
