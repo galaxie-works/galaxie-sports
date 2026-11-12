@@ -6,6 +6,7 @@
  */
 import {
   GOAL_CANCELLING_VAR_OUTCOMES,
+  isGoalCancellingVarDetail,
   varOutcomeOf,
   type EventStatus,
   EventTimeline,
@@ -286,7 +287,7 @@ const SCORING_KINDS: ReadonlySet<TimelineKind> = new Set(['goal', 'own_goal', 'p
 
 /** Veredito de VAR que anula gol (`Goal cancelled`, `Goal Disallowed - offside`, `Goal Disallowed - Foul`…). */
 export const isGoalCancellingVar = (detail: string | null) =>
-  GOAL_CANCELLING_VAR_OUTCOMES.has(varOutcomeOf(detail));
+  GOAL_CANCELLING_VAR_OUTCOMES.has(varOutcomeOf(detail)) || isGoalCancellingVarDetail(detail);
 /** Distância máxima (min) entre o gol e o VAR que o anula (a mesma do core-writer). */
 const VAR_PAIR_WINDOW_MIN = 5;
 const minuteOf = (i: Pick<RawIncident, 'minute' | 'extra'>) => (i.minute ?? 0) + (i.extra ?? 0) / 100;

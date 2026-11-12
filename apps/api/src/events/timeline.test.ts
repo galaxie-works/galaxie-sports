@@ -885,3 +885,26 @@ describe('VAR inferido e VAR do fornecedor no mesmo jogo (#639, revisão)', () =
     expect(byPlayer).toEqual({ a: false, b: true });
   });
 });
+
+describe('VAR de gol anulado com texto novo (#641, revisão)', () => {
+  it('texto ainda sem veredito próprio derruba o gol pela regra de prefixo', () => {
+    seq = 0;
+    const t = buildTimelineDto(
+      input({
+        score: { home: 0, away: 0 },
+        incidents: [
+          inc({ type: 'goal', detail: 'Normal Goal', minute: 70, team: PAL, player: person('x') }),
+          inc({
+            type: 'var',
+            detail: 'Goal Disallowed - Unknown reason',
+            minute: 71,
+            team: PAL,
+            player: person('x'),
+          }),
+        ],
+      }),
+    );
+    expect(t.incidents[0]).toMatchObject({ disallowed: true, score_after: null });
+    expect(t.incidents[1]).toMatchObject({ var_outcome: 'other' });
+  });
+});

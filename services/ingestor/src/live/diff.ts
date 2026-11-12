@@ -3,6 +3,7 @@
  * (placar, status, relógio, incidentes, *last-known-good*). Função pura — a publicação no change feed
  * fica com quem chama.
  */
+import { isGoalCancellingVarDetail } from '@galaxie/contracts';
 import type { EventClock, EventScore, EventStatus } from '@galaxie/providers';
 
 export interface IncidentSnapshot {
@@ -59,8 +60,6 @@ export interface LiveChange {
 }
 
 const GOAL_TYPES = new Set(['goal', 'own_goal', 'penalty']);
-/** Veredito de VAR que anula gol (`Goal cancelled`, `Goal Disallowed - offside`...). */
-const GOAL_CANCELLING_VAR = /^goal (cancel+ed|disallowed)\b/i;
 
 function pairKey(p: { home: number | null; away: number | null } | null | undefined): string {
   return p ? `${p.home ?? '-'}:${p.away ?? '-'}` : '';
@@ -111,10 +110,7 @@ export function diffSnapshot(before: EventSnapshot | undefined, after: EventSnap
   const goalCancelled =
     before != null &&
     changedIncidents.some(
-      (i) =>
-        i.type === 'var' &&
-        !prevIncidents.has(i.sequence) &&
-        GOAL_CANCELLING_VAR.test((i.detail ?? '').trim()),
+      (i) => i.type === 'var' && !prevIncidents.has(i.sequence) && isGoalCancellingVarDetail(i.detail),
     );
   return {
     eventId: after.eventId,

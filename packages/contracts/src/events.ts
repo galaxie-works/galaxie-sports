@@ -831,6 +831,17 @@ export function varOutcomeOf(detail: string | null | undefined): VarOutcome {
   return VAR_DETAILS[(detail ?? '').trim().toLowerCase()] ?? 'other';
 }
 
+/**
+ * VAR que anula gol, pelo texto do fornecedor. É a mesma regra do trigger da migration 0112
+ * (`^goal (cancel+ed|disallowed)\y`), do diff do Live Poller e do core-writer. Vale por prefixo, para um texto novo
+ * ("Goal Disallowed - ...") já derrubar o gol antes de ganhar veredito próprio em `VAR_DETAILS`.
+ */
+export const GOAL_CANCELLING_VAR_DETAIL = /^goal (cancel+ed|disallowed)\b/i;
+
+export function isGoalCancellingVarDetail(detail: string | null | undefined): boolean {
+  return GOAL_CANCELLING_VAR_DETAIL.test((detail ?? '').trim());
+}
+
 /** Vereditos que anulam um gol (o gol que ficou na lista não soma no placar parcial). */
 export const GOAL_CANCELLING_VAR_OUTCOMES: ReadonlySet<VarOutcome> = new Set([
   'goal_cancelled',
@@ -954,7 +965,8 @@ export const TimelineIncident = z
         description:
           'Veredito canônico do VAR (só nos lances `var`; null nos demais). `detail` segue com o texto do ' +
           'fornecedor. `goal_cancelled` junta "Goal cancelled", "Goal Disallowed" e "Goal Disallowed - video ' +
-          'review"; `decision_changed` é "Original decision changed"; `other`, texto novo ou ausente.',
+          'review"; `decision_changed` é "Original decision changed"; `other`, texto novo ou ausente. A lista ' +
+          'pode crescer: trate valor desconhecido como `other`.',
         example: 'goal_disallowed_offside',
       }),
     disallowed: z.boolean().meta({

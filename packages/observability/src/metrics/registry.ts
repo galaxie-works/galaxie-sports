@@ -668,8 +668,9 @@ export function createMetrics(options: MetricsOptions = {}): GalaxieMetrics {
     'Lances de VAR dos últimos 7 dias com `detail` sem veredito canônico (VAR_DETAILS do contrato), por texto',
     ['detail'],
     (g, rows) => {
+      // rótulo cortado em 80 caracteres: textos que só diferem depois disso somam no mesmo rótulo
       for (const r of rows)
-        if (varOutcomeOf(r.detail) === 'other') g.set({ detail: r.detail.slice(0, 80) }, r.n);
+        if (varOutcomeOf(r.detail) === 'other') g.inc({ detail: r.detail.slice(0, 80) }, r.n);
     },
   );
 
