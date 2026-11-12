@@ -71,6 +71,8 @@ export interface ReconcileTargetOptions {
   staleMinutes?: number | undefined;
   /** Menor `live_priority` que o ao vivo acompanha (LIVE_MIN_PRIORITY; padrão: medium). */
   minPriority?: LiveSchedulerOptions['minPriority'] | undefined;
+  /** Tiers que o ao vivo acompanha (módulo `live` do painel; padrão: todos). */
+  tiers?: LiveSchedulerOptions['tiers'] | undefined;
   /**
    * Intervalo atual do plano do ao vivo (ms): com cota apertada ele passa de `staleMinutes`, e um jogo só
    * é suspeito depois de 2× esse intervalo sem observação.
@@ -109,7 +111,7 @@ export function reconcileReason(
 
 function isStale(c: LiveCandidate, now: Date, options: ReconcileTargetOptions): boolean {
   // fora do ao vivo: só o encerramento (o relógio o fecha em ends_at_expected e ele volta como `unconfirmed`)
-  if (!isRelevant(c, options.minPriority) || options.liveBudgetExhausted) return false;
+  if (!isRelevant(c, options.minPriority, options.tiers) || options.liveBudgetExhausted) return false;
   // nunca visto depois do apito: idem (antes do apito, a última observação é a agenda do sync)
   if (!c.lastValidAt || c.lastValidAt.getTime() < c.startsAt.getTime()) return false;
   const staleMs = Math.max(

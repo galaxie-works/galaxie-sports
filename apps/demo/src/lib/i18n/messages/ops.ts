@@ -895,6 +895,11 @@ export default defineMessages(
       label: 'Períodos do espelho: {api}',
       description: 'Só o que difere do padrão do código, no formato endpoint=t1,t2,t3 (off = desligado).',
     },
+    modulesFor: {
+      label: 'Módulos por tier: {api}',
+      description:
+        'Módulos do sync diário, do ao vivo e dos agentes ligados por tier, só o que difere do padrão do código, no formato modulo=on,off,off. Os do espelho ficam nos períodos do espelho.',
+    },
     mirror: {
       settingsTitle: 'Orçamento e prioridade',
       settingsDescription:
@@ -2684,6 +2689,11 @@ export default defineMessages(
       mirrorPeriodsFor: {
         label: 'Mirror periods: {api}',
         description: 'Only what differs from the code default, as endpoint=t1,t2,t3 (off = turned off).',
+      },
+      modulesFor: {
+        label: 'Modules by tier: {api}',
+        description:
+          'Daily sync, live and agent modules switched on per tier, only what differs from the code default, as module=on,off,off. Mirror modules live in the mirror periods.',
       },
       mirror: {
         settingsTitle: 'Budget and priority',
@@ -4500,6 +4510,11 @@ export default defineMessages(
         label: 'Períodos del espejo: {api}',
         description:
           'Solo lo que difiere del valor por defecto del código, en el formato endpoint=t1,t2,t3 (off = apagado).',
+      },
+      modulesFor: {
+        label: 'Módulos por tier: {api}',
+        description:
+          'Módulos del sync diario, del en vivo y de los agentes encendidos por tier, solo lo que difiere del valor por defecto del código, en el formato modulo=on,off,off. Los del espejo están en los períodos del espejo.',
       },
       mirror: {
         settingsTitle: 'Presupuesto y prioridad',

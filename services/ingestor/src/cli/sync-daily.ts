@@ -7,6 +7,8 @@
  *         · detalhe dos encerrados (tier 1 → clássicos → tier 2) · rodízio de entidades tier 1
  *         · relista da temporada atual (fixtures?league&season, tier 1 a cada 2 dias, os demais a cada 7)
  *         · números dos jogadores da temporada em jogo (players?league&season, todas as páginas; tier 1 a cada 3 dias).
+ * Módulos por tier (escalação, relista, rodízio, números dos jogadores, lesões do dia): Ajustes → Dados → Módulos
+ * por esporte (MODULES_FOOTBALL); padrão: o de sempre.
  * Opções: --max-detalhes N (free 35) · --rodizio N (free 5) · --listas-temporada N (pagos 300, free 0)
  *         · --estatisticas-jogadores N (páginas por dia; pagos 1000, free 0) · --tier-estatisticas 1
  *         · --dias-atras 3 · --lesoes-amanha
@@ -18,6 +20,8 @@
 import { resolve } from 'node:path';
 import { type ApiSport } from '@galaxie/apisports-client';
 import { closeDb } from '@galaxie/db';
+import { moduleConfigFromEnv } from '@galaxie/runtime-config';
+import { panelEnv } from '../assets/commons/panel-env.js';
 import { jobContextFromEnv } from '../context.js';
 import {
   checkProviderStatus,
@@ -75,7 +79,11 @@ await runCli(async () => {
     }
     const derbyKeys = async () =>
       new Set((await resolveDerbiesFromRaw(knowledgeDir, ctx.raw)).pairs.map((p) => p.key));
+    // módulos por tier do painel (MODULES_FOOTBALL) por cima do env também quando o job roda à mão (pelo scheduler
+    // o env já vem com eles); valor inválido no .env para o job antes de chamar o fornecedor
+    const modules = moduleConfigFromEnv(await panelEnv(ctx.db)).api('football');
     const spec = dailyJob(ctx.catalog, ctx.raw, ctx.cursors, ctx.plan, ctx.now, derbyKeys, {
+      modules,
       maxDetails: intOption(values['max-detalhes'], 'max-detalhes'),
       rotation: intOption(values.rodizio, 'rodizio'),
       seasonLists: intOption(values['listas-temporada'], 'listas-temporada'),

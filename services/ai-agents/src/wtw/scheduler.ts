@@ -13,6 +13,7 @@
  * registro idempotente em enrich.wtw_run (`run_key` único).
  */
 import { and, asc, eq, gt, inArray, lte, sql, type SQL } from 'drizzle-orm';
+import { DEFAULT_AGENT_TIERS, tierCondition } from '../common/tiers.js';
 import {
   competition,
   event,
@@ -104,16 +105,19 @@ export interface UpcomingEvent {
   participantCountries: (string | null)[];
 }
 
-/** Jogos tier ≤ 2 ainda não iniciados no horizonte, com rodada, temporada e países dos times. */
+/**
+ * Jogos ainda não iniciados no horizonte, com rodada, temporada e países dos times, nos tiers do módulo `wtw` do
+ * painel (`tiers`; padrão: tier ≤ 2).
+ */
 export async function loadUpcomingEvents(
   db: Database,
-  opts: { now: Date; horizonMs: number; eventId?: string },
+  opts: { now: Date; horizonMs: number; eventId?: string; tiers?: readonly number[] | undefined },
 ): Promise<UpcomingEvent[]> {
   const conds = [
     gt(event.startsAt, opts.now),
     lte(event.startsAt, new Date(opts.now.getTime() + opts.horizonMs)),
     inArray(event.status, ['scheduled', 'starting']),
-    lte(competition.tier, 2),
+    tierCondition(opts.tiers ?? DEFAULT_AGENT_TIERS),
   ];
   if (opts.eventId) conds.push(eq(event.id, opts.eventId));
   const rows = await db
@@ -187,6 +191,8 @@ export interface PlanOptions {
   eventId?: string;
   /** Horizonte de busca de eventos (padrão 7 dias + folga). */
   horizonMs?: number;
+  /** Tiers do módulo `wtw` do painel (padrão: tier ≤ 2). */
+  tiers?: readonly number[] | undefined;
 }
 
 /** Execuções devidas agora e ainda não registradas. */
@@ -196,6 +202,7 @@ export async function planDueRuns(db: Database, opts: PlanOptions): Promise<DueR
     now: opts.now,
     horizonMs: horizon,
     ...(opts.eventId ? { eventId: opts.eventId } : {}),
+    ...(opts.tiers ? { tiers: opts.tiers } : {}),
   });
   const starts = roundStarts(events);
   const due: DueRun[] = [];

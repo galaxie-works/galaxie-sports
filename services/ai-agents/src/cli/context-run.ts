@@ -14,7 +14,9 @@ import {
   printAgentReport,
   priorityFor,
   budgetDayFor,
+  runtimeEnv,
 } from './common.js';
+import { moduleTiers } from '../common/tiers.js';
 
 const { values } = parseArgs({
   options: {
@@ -45,6 +47,8 @@ try {
     force: values.forcar,
     ...(values.evento ? { eventId: values.evento } : {}),
     ...(horizon !== undefined ? { horizonHours: horizon } : {}),
+    // tiers do módulo `ai-content` do painel (MODULES_FOOTBALL); --tier vale por cima
+    tiers: moduleTiers(await runtimeEnv(db), 'ai-content'),
     ...(tier !== undefined ? { maxTier: tier } : {}),
     ...(limit !== undefined ? { limit } : {}),
     ...(locales ? { locales } : {}),

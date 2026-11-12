@@ -24,7 +24,8 @@ import {
   ResearchedRightsIndex,
 } from '@galaxie/where-to-watch';
 import { matchChannelLlmEnv } from '../llm/config.js';
-import { createAgentLlm } from './common.js';
+import { createAgentLlm, runtimeEnv } from './common.js';
+import { moduleTiers } from '../common/tiers.js';
 import type { LlmClient } from '../llm/types.js';
 import { channelBaseline, type BaselineRow } from '../wtw/channel/baseline.js';
 import { planChannelResearch, type ChannelEventFilter } from '../wtw/channel/plan.js';
@@ -111,6 +112,8 @@ async function main(): Promise<void> {
       : undefined;
     const plan = await planChannelResearch(db, {
       now,
+      // tiers do módulo `wtw` do painel (MODULES_FOOTBALL)
+      tiers: moduleTiers(await runtimeEnv(db), 'wtw'),
       markets,
       config,
       researched,

@@ -517,4 +517,15 @@ describe('isRelevant', () => {
     expect([c('low'), c('none')].map((x) => isRelevant(x, 'low'))).toEqual([true, false]);
     expect(isRelevant(c('medium'), 'high')).toBe(false);
   });
+
+  it('tier desligado no painel (módulo live) fica fora, mesmo com prioridade alta ou clássico', () => {
+    const t = (tier: number | null, livePriority: LiveCandidate['livePriority'] = 'high', derby = false) =>
+      ({ tier, livePriority, derby }) as LiveCandidate;
+    expect(isRelevant(t(3), 'medium', [1, 2])).toBe(false);
+    expect(isRelevant(t(7, 'none', true), 'medium', [1, 2])).toBe(false);
+    expect(isRelevant(t(2), 'medium', [1, 2])).toBe(true);
+    expect(isRelevant(t(1), 'medium', [])).toBe(false);
+    // competição sem tier não é filtrada pelo painel
+    expect(isRelevant(t(null), 'medium', [1])).toBe(true);
+  });
 });

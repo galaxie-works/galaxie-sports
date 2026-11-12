@@ -59,6 +59,8 @@ export interface PlanRightsOptions {
   /** Mercados considerados (padrão: todos os configurados — a chamada cobre a América Latina). */
   markets?: string[];
   horizonDays?: number;
+  /** Tiers do módulo `wtw` do painel (padrão: tier ≤ 2). */
+  tiers?: readonly number[] | undefined;
   competition?: string;
   /** Inclui mercados com linha curada (comparar a pesquisa com a curadoria). */
   includeCurated?: boolean;
@@ -84,6 +86,7 @@ export async function planRightsResearch(db: Database, opts: PlanRightsOptions):
   const events = await loadUpcomingEvents(db, {
     now: opts.now,
     horizonMs: (opts.horizonDays ?? 45) * DAY,
+    ...(opts.tiers ? { tiers: opts.tiers } : {}),
   });
   const scoped = opts.competition ? events.filter((e) => e.slug === opts.competition) : events;
   const comps = [...new Set(scoped.map((e) => e.slug))];

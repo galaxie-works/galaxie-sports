@@ -74,6 +74,8 @@ const item = (
 /** Tier 1, 2 e 3+ (o 3 num grupo próprio, com o dobro do período dos demais). */
 const SEASON_TIERS = ['1', '2', '3'] as const;
 const TWO_TIERS = ['1', '2'] as const;
+/** Tier 2 e 3+ (o tier 1 gira no sync diário). */
+const UPPER_TIERS = ['2', '3'] as const;
 
 const footballSeason = (id: string, tier1: number, others: number) =>
   item(id, 'temporada', [tier1, others, others * 2], SEASON_TIERS, {
@@ -102,16 +104,16 @@ const FOOTBALL_ITEMS: readonly MirrorItemDef[] = [
   footballSeason('/fixtures/rounds', 7, 7),
   footballSeason('/teams', 7, 14),
   item('/venues', 'temporada', [30]),
-  // jogos das próximas 48 h
-  item('/predictions', 'palpites-odds', [1]),
-  item('/odds', 'palpites-odds', [1]),
+  // jogos das próximas 48 h (tier ≤ 2: a coluna do tier é o liga/desliga por tier dos módulos)
+  item('/predictions', 'palpites-odds', [1, 1], TWO_TIERS),
+  item('/odds', 'palpites-odds', [1, 1], TWO_TIERS),
   // por time da temporada em jogo (tier ≤ 2) e clássicos
   item('/teams/statistics', 'estatisticas', [7, 14], TWO_TIERS),
   item('/fixtures/headtohead', 'estatisticas', [30]),
-  // tier 2+ (o tier 1 gira no sync diário)
-  item('/players/squads', 'elencos', [14]),
-  item('/coachs', 'elencos', [30]),
-  item('/transfers', 'elencos', [30]),
+  // tier 2+ (o tier 1 gira no sync diário); as duas colunas têm o mesmo período, só o liga/desliga difere
+  item('/players/squads', 'elencos', [14, 14], UPPER_TIERS),
+  item('/coachs', 'elencos', [30, 30], UPPER_TIERS),
+  item('/transfers', 'elencos', [30, 30], UPPER_TIERS),
 ];
 
 interface SportSpec {
@@ -255,11 +257,20 @@ export type MirrorPeriod = number | null;
 /** Colunas de período de um item (uma quando ele não tem tier). */
 export const periodColumns = (def: MirrorItemDef) => Math.max(1, def.tiers.length);
 
-/** Coluna do tier de uma competição: tier 0 e 1 na primeira, acima do último rótulo na última. */
+/**
+ * Coluna do tier de uma competição: a última coluna cujo rótulo (o menor tier dela) não passa do tier; abaixo do
+ * primeiro rótulo (tier 0 num item de tier 1+, tier 1 num item de tier 2+) vale a primeira coluna, acima do último
+ * a última. Sem tier (ou item de uma coluna só), a primeira.
+ */
 export function tierColumn(def: MirrorItemDef, tier: number | undefined): number {
   const n = periodColumns(def);
   if (n === 1 || tier === undefined) return 0;
-  return Math.min(Math.max(Math.trunc(tier), 1), n) - 1;
+  const t = Math.trunc(tier);
+  let col = 0;
+  def.tiers.forEach((label, i) => {
+    if (Number(label) <= t) col = i;
+  });
+  return col;
 }
 
 type Parsed<T> = { ok: true; value: T } | { ok: false; error: ValidationError };

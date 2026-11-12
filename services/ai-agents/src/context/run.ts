@@ -1,5 +1,6 @@
 import { and, asc, eq, gte, inArray, lte } from 'drizzle-orm';
 import { competition, event, type Database } from '@galaxie/db';
+import { effectiveTiers, tierCondition } from '../common/tiers.js';
 import { AGENT_LOCALES, type AgentLocale } from '../guardrails/index.js';
 import type { BudgetDay } from '@galaxie/runtime-config';
 import { LLM_PRIORITIES, PRIORITY_RANK, type AiPriority, type PriorityResolver } from '../llm/priority.js';
@@ -66,6 +67,8 @@ export interface ScenarioRunOptions {
   horizonHours?: number;
   /** Tier máximo da competição (padrão 2: tiers 1 e 2). */
   maxTier?: number;
+  /** Tiers do módulo `ai-content` do painel (MODULES_FOOTBALL); a opção `maxTier` da CLI vale por cima. */
+  tiers?: readonly number[];
   locales?: readonly AgentLocale[];
   /** Regenera mesmo se os fatos não mudaram. */
   force?: boolean;
@@ -169,7 +172,13 @@ export function countOrigins(texts: readonly LocaleText[]) {
  */
 export async function scenarioCandidates(
   db: Database,
-  opts: { now: Date; horizonHours: number; maxTier: number; limit: number; priorityOf?: PriorityResolver },
+  opts: {
+    now: Date;
+    horizonHours: number;
+    tiers: readonly number[];
+    limit: number;
+    priorityOf?: PriorityResolver;
+  },
 ): Promise<{ id: string; priority: AiPriority }[]> {
   const until = new Date(opts.now.getTime() + opts.horizonHours * 3_600_000);
   const rows = await db
@@ -182,7 +191,7 @@ export async function scenarioCandidates(
         inArray(event.status, ['scheduled', 'starting']),
         gte(event.startsAt, opts.now),
         lte(event.startsAt, until),
-        lte(competition.tier, opts.maxTier),
+        tierCondition(opts.tiers),
       ),
     )
     .orderBy(asc(event.startsAt), asc(event.id));
@@ -198,7 +207,7 @@ export async function runScenarioAgent(db: Database, opts: ScenarioRunOptions): 
     : await scenarioCandidates(db, {
         now,
         horizonHours: opts.horizonHours ?? 72,
-        maxTier: opts.maxTier ?? 2,
+        tiers: effectiveTiers(opts),
         limit: opts.limit ?? 200,
         ...(opts.priorityOf ? { priorityOf: opts.priorityOf } : {}),
       });

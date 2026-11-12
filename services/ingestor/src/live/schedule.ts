@@ -13,6 +13,7 @@
  * candidatos vêm de fora.
  */
 import { spendableBeforeReserve, type Priority, type UsageReport } from '@galaxie/apisports-client';
+import { MODULE_TIERS, moduleTierOf } from '@galaxie/runtime-config';
 import {
   EXPECTED_DURATION_MIN,
   EXTRA_TIME_MIN,
@@ -121,6 +122,11 @@ export interface LiveSchedulerOptions {
    * menores que o relógio já marca como em andamento — sem isso elas ficam "ao vivo" sem placar.
    */
   minPriority: Exclude<LivePriority, 'none'>;
+  /**
+   * Tiers de competição que o ao vivo acompanha (módulo `live` do painel, MODULES_FOOTBALL): 1, 2 e 3 (= 3 e acima).
+   * Tier desligado fica de fora mesmo com prioridade alta ou clássico; competição sem tier não é filtrada.
+   */
+  tiers: readonly number[];
 }
 
 export const DEFAULT_LIVE_OPTIONS: LiveSchedulerOptions = {
@@ -133,6 +139,7 @@ export const DEFAULT_LIVE_OPTIONS: LiveSchedulerOptions = {
   graceMs: 10 * MIN,
   hardCapMin: 240,
   minPriority: 'medium',
+  tiers: [...MODULE_TIERS],
 };
 
 export function liveOptions(partial: Partial<LiveSchedulerOptions> = {}): LiveSchedulerOptions {
@@ -145,11 +152,16 @@ export function liveOptions(partial: Partial<LiveSchedulerOptions> = {}): LiveSc
 
 const PRIORITY_RANK: Record<LivePriority, number> = { high: 3, medium: 2, low: 1, none: 0 };
 
-/** `live_priority` a partir de `minPriority` (padrão: alta/média), ou clássico em qualquer competição. */
+/**
+ * `live_priority` a partir de `minPriority` (padrão: alta/média), ou clássico em qualquer competição; sempre dentro
+ * dos tiers ligados no painel (`tiers`; padrão: todos).
+ */
 export function isRelevant(
   c: LiveCandidate,
   minPriority: LiveSchedulerOptions['minPriority'] = 'medium',
+  tiers: readonly number[] = DEFAULT_LIVE_OPTIONS.tiers,
 ): boolean {
+  if (c.tier != null && !tiers.includes(moduleTierOf(c.tier))) return false;
   return PRIORITY_RANK[c.livePriority] >= PRIORITY_RANK[minPriority] || c.derby;
 }
 
@@ -515,7 +527,7 @@ export function planLiveDay(input: PlanInput): LiveDayPlan {
   for (const c of input.candidates) {
     const exclude = (reason: ExcludedMatch['reason']) =>
       excluded.push({ eventId: c.eventId, label: c.label, reason });
-    if (!isRelevant(c, options.minPriority)) {
+    if (!isRelevant(c, options.minPriority, options.tiers)) {
       exclude('not_relevant');
       continue;
     }
