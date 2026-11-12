@@ -73,6 +73,7 @@ import { cosmosStripeRoutes } from './routes/internal/cosmos-stripe.js';
 import { internalShopRoutes } from './routes/internal/shop.js';
 import { galaxieShopTenants, shopRoutes } from './routes/v1/shop.js';
 import { ShopClickRecorder, shopClickRoutes } from './shop/clicks.js';
+import { ShopClickSigner } from './shop/click-token.js';
 import { ShopOffers } from './shop/offers.js';
 import { internalWhereToWatchRoutes } from './routes/internal/where-to-watch.js';
 import { Lineup, type LineupOptions } from './lineup/availability.js';
@@ -110,6 +111,8 @@ export interface ServerOptions {
   shopSecretBox?: Pick<SettingsSecretBox, 'open'>;
   /** Tenants da Galaxie no Shopping (#921); sem isto, vale `SHOP_GALAXIE_TENANT_IDS`. */
   shopGalaxieTenantIds?: string;
+  /** Assinatura dos links de compra (#921); sem isto, a chave sai da SETTINGS_KEK. */
+  shopClickSigner?: ShopClickSigner;
   /** Fila dos cliques do Shopping (#918); nos testes, para gravar na hora. */
   shopClickRecorder?: ShopClickRecorder;
   logger?: boolean;
@@ -509,6 +512,8 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
     return { status: 'ok' };
   });
 
+  // link de compra assinado (#921): só a vitrine da Galaxie assina, e a rota de cliques confere
+  const shopSigner = options.shopClickSigner ?? ShopClickSigner.fromEnv();
   // Shopping (#916, #921): uma instância só, para o cache das lojas e das ofertas valer nas duas rotas
   const shopOffers = options.db
     ? new ShopOffers({
@@ -533,9 +538,12 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
       offers: shopOffers,
       publicUrl: options.publicUrl,
       galaxieTenants: galaxieShopTenants(options.shopGalaxieTenantIds ?? process.env.SHOP_GALAXIE_TENANT_IDS),
+      signer: shopSigner,
+      now: ctx.now,
     });
     await shopClickRoutes(instance, {
       db: options.db,
+      signer: shopSigner,
       limiter,
       now: ctx.now,
       ...(options.shopClickRecorder ? { recorder: options.shopClickRecorder } : {}),

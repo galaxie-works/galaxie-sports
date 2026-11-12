@@ -1208,7 +1208,7 @@ Ainda não: tópico `fan.profile.deleted` pelo outbox (#1023).
 
 `GET /v1/shop/{kind}/{id}?country=BR&event=<uuid>&origin=site&lang=pt-BR` devolve os produtos oficiais de uma entidade da página (`kind`: `participant` para time, seleção, atleta ou piloto; `competition`; `person`), por loja de afiliado ligada, com preço, imagem (da própria loja) e a data e a hora da consulta (`fetched_at`, cache de no máximo 24 h). Sem produto, a lista vem vazia e o bloco não deve aparecer.
 
-- **Botão "Comprar":** `buy_url` aponta para a rota de cliques da API (`/go/shop/<id>`). Ela registra o clique sem dado pessoal e redireciona para a loja com o link do programa de afiliado. Abra sempre fora do app (navegador do sistema ou app da loja), nunca em WebView.
+- **Botão "Comprar":** `buy_url` aponta para a rota de cliques da API (`/go/shop/<id>`), assinado e com validade de 24 h. Link sem assinatura, copiado para outro site depois de vencer ou adulterado vai para a loja sem código de afiliado e não conta. Ela registra o clique sem dado pessoal e redireciona para a loja com o link do programa de afiliado. Abra sempre fora do app (navegador do sistema ou app da loja), nunca em WebView.
 - **Aviso:** `disclosure: "affiliate"`. O aviso "links de parceiros: podemos receber comissão" é obrigatório onde os produtos aparecem.
 - **Destino:** só os tenants da própria Galaxie (`SHOP_GALAXIE_TENANT_IDS`) recebem produtos. Para os demais, a resposta é 200 com a lista vazia até o widget do Builder (#925) trazer a matriz loja × caminho e o código de cada cliente. Por isso o código de afiliado da Galaxie nunca chega a domínio de cliente.
 - **Clique e compra nunca viram ponto**, selo ou prêmio: nada daqui chega à carteira do torcedor nem ao motor de conquistas.

@@ -14,6 +14,7 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { ShopParams, ShopQuery, type ShopEntity } from '@galaxie/contracts';
 import { requireDb, type AppContext } from '../../context.js';
 import { problems } from '../../errors.js';
+import type { ShopClickSigner } from '../../shop/click-token.js';
 import type { ShopOffers } from '../../shop/offers.js';
 import { parseInput } from '../../util.js';
 
@@ -36,6 +37,9 @@ export interface ShopRoutesOptions {
   /** Endereço público da API (o botão aponta para a rota de cliques dela). */
   publicUrl: string | undefined;
   galaxieTenants: Set<string>;
+  /** Assina o link de compra: a rota de cliques só põe o código da Galaxie em link assinado. */
+  signer: ShopClickSigner;
+  now: () => Date;
 }
 
 const tenantIdOf = (r: FastifyRequest) =>
@@ -70,6 +74,8 @@ export async function shopRoutes(
     const click = (productId: string) => {
       const u = new URL(`${base || 'http://localhost'}/go/shop/${productId}`);
       u.searchParams.set('origin', q.origin);
+      const t = opts.signer.sign(productId, q.origin, opts.now());
+      if (t) u.searchParams.set('t', t);
       if (q.event) u.searchParams.set('event', q.event);
       if (q.lang) u.searchParams.set('lang', q.lang);
       return base ? u.toString() : `${u.pathname}${u.search}`;

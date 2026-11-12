@@ -14,6 +14,7 @@ import {
 import { shopStoreSecretKey } from '@galaxie/engage';
 import { SettingsSecretBox } from '@galaxie/runtime-config/sealed';
 import { buildServer } from '../src/server.js';
+import { ShopClickSigner } from '../src/shop/click-token.js';
 import { CLICKS_PER_MINUTE, ShopClickRecorder, isBot, originKey } from '../src/shop/clicks.js';
 
 const adminUrl = process.env.DATABASE_URL;
@@ -40,10 +41,17 @@ let recorder: ShopClickRecorder;
 let productId = '';
 let offProductId = '';
 
-const click = (id: string, q = '', ua = BROWSER, ip = '10.9.8.7') =>
+const signer = new ShopClickSigner('s'.repeat(40));
+/** Link como a vitrine da Galaxie monta: com a assinatura do produto e da origem. */
+const signed = (id: string, q: string) => {
+  const origin = /origin=app/.test(q) ? 'app' : 'site';
+  const t = signer.sign(id, origin, new Date())!;
+  return `${q}${q ? '&' : '?'}t=${encodeURIComponent(t)}`;
+};
+const click = (id: string, q = '', ua = BROWSER, ip = '10.9.8.7', sign = true) =>
   app.inject({
     method: 'GET',
-    url: `/go/shop/${id}${q}`,
+    url: `/go/shop/${id}${sign ? signed(id, q) : q}`,
     remoteAddress: ip,
     headers: { 'user-agent': ua, 'cf-ipcountry': 'br' },
   });
@@ -61,6 +69,7 @@ beforeAll(async () => {
     authenticator: { cacheTtlMs: 0 },
     shopSecretBox: box,
     shopClickRecorder: recorder,
+    shopClickSigner: signer,
   });
   await app.ready();
 
@@ -227,5 +236,33 @@ describe('fila de cliques', () => {
     expect(errors).toHaveLength(1);
     await r.close();
     expect(errors).toHaveLength(1);
+  });
+
+  it('link sem assinatura, adulterado ou de outro produto: sem código e sem contar (#921)', async () => {
+    const before = (await clicks()).length;
+    const plainUrl = 'https://a.example/dp/B1';
+    expect((await click(productId, '', BROWSER, '10.8.1.1', false)).headers.location).toBe(plainUrl);
+    expect(
+      (await click(productId, '?t=9999999999.xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx', BROWSER, '10.8.1.2', false))
+        .headers.location,
+    ).toBe(plainUrl);
+    // assinatura de outro produto não vale para este
+    const other = signer.sign(offProductId, 'site', new Date())!;
+    expect(
+      (await click(productId, `?t=${encodeURIComponent(other)}`, BROWSER, '10.8.1.3', false)).headers
+        .location,
+    ).toBe(plainUrl);
+    // assinatura do site não vale para o app
+    const site = signer.sign(productId, 'site', new Date())!;
+    expect(
+      (await click(productId, `?origin=app&t=${encodeURIComponent(site)}`, BROWSER, '10.8.1.4', false))
+        .headers.location,
+    ).toBe(plainUrl);
+    // vencida
+    const old = signer.sign(productId, 'site', new Date(Date.now() - 48 * 3_600_000))!;
+    expect(
+      (await click(productId, `?t=${encodeURIComponent(old)}`, BROWSER, '10.8.1.5', false)).headers.location,
+    ).toBe(plainUrl);
+    expect((await clicks()).length).toBe(before);
   });
 });

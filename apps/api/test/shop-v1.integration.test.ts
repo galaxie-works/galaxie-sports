@@ -15,6 +15,7 @@ import { shopStoreSecretKey } from '@galaxie/engage';
 import { SettingsSecretBox } from '@galaxie/runtime-config/sealed';
 import { createApiKey, upsertTenant } from '../src/auth/admin.js';
 import { buildServer } from '../src/server.js';
+import { ShopClickSigner } from '../src/shop/click-token.js';
 
 const adminUrl = process.env.DATABASE_URL;
 if (!adminUrl) throw new Error('DATABASE_URL é obrigatória para os testes de integração (pnpm infra:up).');
@@ -67,6 +68,7 @@ beforeAll(async () => {
     publicUrl: 'https://api.example',
     shopSecretBox: box,
     shopGalaxieTenantIds: galaxie.id,
+    shopClickSigner: new ShopClickSigner('s'.repeat(40)),
   });
   await app.ready();
 
@@ -120,9 +122,15 @@ describe('GET /v1/shop/{kind}/{id} (#921)', () => {
     expect(body.stores).toHaveLength(1);
     const p = body.stores[0].products[0];
     expect(p).toMatchObject({ id: productId, title: 'Camisa 1', product_type: 'home_kit', price: null });
-    expect(p.buy_url).toBe(
-      `https://api.example/go/shop/${productId}?origin=site&event=${eventId}&lang=pt-BR`,
-    );
+    const buy = new URL(p.buy_url);
+    expect(buy.origin + buy.pathname).toBe(`https://api.example/go/shop/${productId}`);
+    expect(Object.fromEntries([...buy.searchParams].filter(([k]) => k !== 't'))).toEqual({
+      origin: 'site',
+      event: eventId,
+      lang: 'pt-BR',
+    });
+    // o link vem assinado: a rota de cliques só põe o código da Galaxie em link da vitrine dela
+    expect(buy.searchParams.get('t')).toMatch(/^\d+\.[A-Za-z0-9_-]{32}$/);
     // o link da loja (com a tag) nunca vai na resposta: só a rota de cliques monta
     expect(JSON.stringify(body)).not.toContain(TAG);
   });
