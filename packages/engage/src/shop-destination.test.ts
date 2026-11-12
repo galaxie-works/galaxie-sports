@@ -32,6 +32,8 @@ describe('checagem de destino (#927)', () => {
     expect(r.stores.every((s) => s.allowed && !s.qrOnly)).toBe(true);
     expect(byId(r).awin_br!.paths).toEqual(['client_code', 'subnetwork']);
     expect(r.openExternal).toBe(true);
+    expect(r.blockWebView).toBe(false);
+    expect(evaluateShopDestination({ ...no, mobileApp: true }, stores).blockWebView).toBe(true);
     expect(r.exposePurchaseEvents).toBe(false);
   });
 

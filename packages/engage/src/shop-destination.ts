@@ -62,6 +62,8 @@ export interface ShopDestinationResult {
   answers: ShopDestinationAnswers;
   /** App: o link abre fora (navegador do sistema ou app da loja); WebView é bloqueado. */
   openExternal: boolean;
+  /** App de celular (resposta "sim"): o Builder bloqueia WebView e exige abrir no navegador do sistema ou app da loja. */
+  blockWebView: boolean;
   /** Área com pontos, bolão ou prêmios: mostrar o aviso de que compra nunca dá ponto. */
   rewardsWarning: boolean;
   /** Eventos de compra e clique nunca são expostos ao cliente (sempre `false`; fica aqui para o Builder ler). */
@@ -124,7 +126,9 @@ export function evaluateShopDestination(
   return {
     version: SHOP_DESTINATION_RULES_VERSION,
     answers,
+    // regra do épico #909: o link sempre abre fora, em qualquer destino; o app ainda bloqueia WebView
     openExternal: true,
+    blockWebView: answers.mobileApp,
     rewardsWarning: answers.rewardsArea,
     exposePurchaseEvents: false,
     stores: results,
