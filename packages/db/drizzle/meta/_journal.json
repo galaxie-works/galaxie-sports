@@ -687,6 +687,13 @@
       "when": 1794487982379,
       "tag": "0121_cosmos_funcoes_widget",
       "breakpoints": true
+    },
+    {
+      "idx": 98,
+      "version": "7",
+      "when": 1794501641461,
+      "tag": "0138_menor_padrao",
+      "breakpoints": true
     }
   ]
 }
