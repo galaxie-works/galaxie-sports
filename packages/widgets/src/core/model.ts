@@ -4768,7 +4768,25 @@ export interface GsFanMe {
   country: string;
   locale: string;
   capabilities: FanCapability[];
+  /** O que falta para o Perfil usar os recursos sociais no país dele (#1105); ausente em API mais antiga. */
+  age_status?: FanAgeStatus;
 }
+
+/**
+ * Estado de idade do torcedor (#1105): `blocked`, `needs_guardian` (falta a autorização do responsável),
+ * `needs_verification` (falta comprovar a idade), `read_only` ou `can_write`.
+ */
+export const FAN_AGE_STATUSES = [
+  'blocked',
+  'needs_guardian',
+  'needs_verification',
+  'read_only',
+  'can_write',
+] as const;
+export type FanAgeStatus = (typeof FAN_AGE_STATUSES)[number];
+
+/** Evento que o `<galaxie-widget>` dispara (sobe até o documento) quando o estado do torcedor muda. */
+export const FAN_STATUS_EVENT = 'galaxie:fan-status';
 
 export const FAN_TOKEN_PREFIX = 'gft_';
 /** Pede outro token este tanto antes de o atual vencer. */
