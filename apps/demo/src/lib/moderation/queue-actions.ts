@@ -171,20 +171,24 @@ export async function decideCase(input: {
         now,
       };
     }
-    // fecha primeiro: se outra pessoa decidiu antes, ninguém é punido duas vezes nem num caso já arquivado
-    const closed = await closeCase(db, {
-      tenantId: ctx.tenant.id,
-      caseId: c.id,
-      status: 'resolved',
-      actor,
-      reason: `queue.${input.decision}`,
-      note,
-      clocks,
-      hide: true,
-      now,
+    // fecha primeiro: se outra pessoa decidiu antes, ninguém é punido duas vezes nem num caso já arquivado.
+    // Uma transação só: se a punição falhar, o caso volta aberto e a decisão pode ser repetida
+    const closed = await db.transaction(async (tx) => {
+      const ok = await closeCase(tx, {
+        tenantId: ctx.tenant.id,
+        caseId: c.id,
+        status: 'resolved',
+        actor,
+        reason: `queue.${input.decision}`,
+        note,
+        clocks,
+        hide: true,
+        now,
+      });
+      if (ok && sanction) await applySanction(tx, sanction);
+      return ok;
     });
     if (!closed) return { ok: false, error: T.closed };
-    if (sanction) await applySanction(db, sanction);
     return { ok: true };
   } catch (err) {
     console.error('[moderação] decisão da fila falhou', { tenantId: ctx.tenant.id, caseId: c.id, err });

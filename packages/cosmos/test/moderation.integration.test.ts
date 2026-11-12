@@ -252,7 +252,13 @@ describe('motor de moderação', () => {
     for (const row of allowed) {
       expect(JSON.stringify(row.rules)).not.toContain('mensagem');
       expect(row.reason).not.toContain('mensagem');
+      // sem caso, o lugar vai na régua: o histórico filtra e o escopo do cargo vale
+      expect(row.rules).toMatchObject({ module: 'chat', room: 'sala-1', community: null });
     }
+    const inRoom = await listDecisions(db, t, { module: 'chat', room: 'sala-1', action: 'cosmos.allow' });
+    expect(inRoom).toHaveLength(2);
+    expect(inRoom[0]).toMatchObject({ module: 'chat', room: 'sala-1', community: null });
+    expect(await listDecisions(db, t, { room: 'outra', action: 'cosmos.allow' })).toHaveLength(0);
   });
 
   it('o mesmo autor várias vezes no lote: um silêncio só, e nenhum se já está silenciado', async () => {

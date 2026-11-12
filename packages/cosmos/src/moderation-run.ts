@@ -139,6 +139,13 @@ export interface ModerationDeps {
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /** Escopo da configuração: a sala, a comunidade ou o cliente. */
+/** Lugar do conteúdo, gravado na régua das decisões sem caso (`cosmos.allow`, `cosmos.skip`). */
+export const placeOfItem = (item: Pick<ModerationItem, 'module' | 'room' | 'community'>) => ({
+  module: item.module,
+  room: item.room,
+  community: item.community,
+});
+
 export function scopeOf(item: Pick<ModerationItem, 'room' | 'community'>): ModerationScope {
   if (item.room) return { kind: 'room', id: item.room };
   if (item.community) return { kind: 'community', id: item.community };
@@ -467,7 +474,8 @@ async function apply(
         clocks: item.clocks,
         subjectProfileId: item.targetProfileId,
         reason: o.fallback ?? null,
-        rules: { kind: item.kind, fallback: o.fallback ?? null },
+        // sem caso: o lugar vai na régua, para o histórico filtrar e o escopo do cargo valer
+        rules: { kind: item.kind, fallback: o.fallback ?? null, ...placeOfItem(item) },
       });
       return null;
     }
@@ -525,7 +533,7 @@ async function apply(
       clocks: item.clocks,
       subjectProfileId: item.targetProfileId,
       reason,
-      rules: detail,
+      rules: { ...detail, ...placeOfItem(item) },
     });
     return null;
   }

@@ -620,7 +620,7 @@ export async function undoDecision(
  * que a exclusão do torcedor apaga. false = o caso não estava mais aberto (outra pessoa decidiu antes).
  */
 export async function closeCase(
-  db: Database,
+  db: Executor,
   input: {
     tenantId: string;
     caseId: string;
@@ -783,7 +783,7 @@ export interface SanctionView {
  * o banco ainda recusa Silêncio oculto sem prazo ou pela Cosmos.
  */
 export async function applySanction(
-  db: Database,
+  db: Executor,
   input: {
     tenantId: string;
     profileId: string;
@@ -1310,6 +1310,15 @@ export interface DecisionFilter {
   limit?: number;
 }
 
+/** Lugar da decisão: o do caso; sem caso (`cosmos.allow`, `cosmos.skip`), o que a Cosmos gravou na régua. */
+const placeModule = sql<
+  string | null
+>`coalesce(${moderationCase.module}, ${moderationAudit.rules}->>'module')`;
+const placeRoom = sql<string | null>`coalesce(${moderationCase.room}, ${moderationAudit.rules}->>'room')`;
+const placeCommunity = sql<
+  string | null
+>`coalesce(${moderationCase.community}, ${moderationAudit.rules}->>'community')`;
+
 export type DecisionRow = AuditRow & { module: string | null; room: string | null; community: string | null };
 
 /**
@@ -1324,9 +1333,9 @@ export async function listDecisions(
   const rows = await db
     .select({
       a: moderationAudit,
-      module: moderationCase.module,
-      room: moderationCase.room,
-      community: moderationCase.community,
+      module: placeModule,
+      room: placeRoom,
+      community: placeCommunity,
     })
     .from(moderationAudit)
     .leftJoin(
@@ -1339,9 +1348,9 @@ export async function listDecisions(
     .where(
       and(
         eq(moderationAudit.tenantId, tenantId),
-        ...(filter.module ? [eq(moderationCase.module, filter.module)] : []),
-        ...(filter.room ? [eq(moderationCase.room, filter.room)] : []),
-        ...(filter.community ? [eq(moderationCase.community, filter.community)] : []),
+        ...(filter.module ? [eq(placeModule, filter.module)] : []),
+        ...(filter.room ? [eq(placeRoom, filter.room)] : []),
+        ...(filter.community ? [eq(placeCommunity, filter.community)] : []),
         ...(filter.category
           ? [
               or(
