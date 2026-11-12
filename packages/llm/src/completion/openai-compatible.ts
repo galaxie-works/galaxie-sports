@@ -105,13 +105,17 @@ export abstract class OpenAiCompatibleCompletionClient extends HttpCompletionCli
             ? {
                 role: m.role,
                 content: [
-                  ...req.attachments!.map((a, n) => ({
-                    type: 'file',
-                    file: {
-                      filename: a.name ?? `anexo-${n + 1}.pdf`,
-                      file_data: `data:${a.mediaType};base64,${a.data}`,
-                    },
-                  })),
+                  ...req.attachments!.map((a, n) =>
+                    a.mediaType === 'application/pdf'
+                      ? {
+                          type: 'file',
+                          file: {
+                            filename: a.name ?? `anexo-${n + 1}.pdf`,
+                            file_data: `data:${a.mediaType};base64,${a.data}`,
+                          },
+                        }
+                      : { type: 'image_url', image_url: { url: `data:${a.mediaType};base64,${a.data}` } },
+                  ),
                   { type: 'text', text: m.content },
                 ],
               }

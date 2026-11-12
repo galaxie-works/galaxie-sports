@@ -1,0 +1,24 @@
+# Add-ons do catálogo comercial (plataforma comercial F1): extras recorrentes ou medidos sobre o plano.
+# Módulos vendidos como extra (related_content, odds) ficam em modules.yaml. Preço no banco (billing.price).
+#
+# Campos:
+#   module    módulo que o add-on amplia (o tenant precisa tê-lo)
+#   billing   recurring (por mês, rateado no ciclo) | metered (cobrado no fechamento do mês pelo uso)
+#   unit      unidade da cobrança
+#   tier      faixa do módulo que o add-on soma (recurring) ou que a medição compara com a franquia (metered)
+#   status    proposed (hipótese de lançamento) | decided
+
+addons:
+  where_to_watch.extra_markets:
+    module: where_to_watch
+    billing: recurring
+    unit: market
+    tier: where_to_watch.markets
+    status: proposed
+
+  live_intelligence.extra_enriched_games:
+    module: live_intelligence
+    billing: metered
+    unit: game
+    tier: live_intelligence.enriched_games
+    status: proposed

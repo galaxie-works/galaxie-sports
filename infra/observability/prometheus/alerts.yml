@@ -383,6 +383,15 @@ groups:
           summary: 'Resumo da home Explorar sem recálculo há {{ $value | humanizeDuration }}'
           description: 'Acima de 30 min a API calcula a home na requisição (lenta a frio). Veja o job explore-summary em ops.job_run e os logs do ingestor; rode-o com "rodar agora" no painel ou com node dist/cli/explore-summary.js --forcar no ingestor.'
 
+      - alert: VarDetailUnknown
+        expr: galaxie_var_unknown_details > 0
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'VAR com veredito desconhecido: "{{ $labels.detail }}" ({{ $value }} lances em 7 dias)'
+          description: 'A api-sports mandou um detail de VAR que o contrato não conhece: o lance sai com var_outcome = other, peso 40 e o texto em inglês. Acrescente o texto em VAR_DETAILS (packages/contracts/src/events.ts), o peso em VAR_OUTCOME_WEIGHT (apps/api/src/events/timeline.ts) e as traduções do demo e dos widgets.'
+
       - alert: MetricsCollectorDown
         expr: galaxie_metrics_collector_up == 0
         for: 5m
