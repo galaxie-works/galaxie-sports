@@ -1807,6 +1807,11 @@ export default defineMessages(
           'Por quantas horas o preço e o estoque de um produto valem antes de consultar a loja de novo. O teto é 24 horas; a data e a hora da consulta aparecem ao lado do preço.',
         unit: 'horas',
       },
+      SHOP_GALAXIE_TENANT_IDS: {
+        label: 'Tenants da Galaxie no Shopping',
+        description:
+          'Os tenants do site e do app Galaxie, os únicos que recebem o código de afiliado da Galaxie. Vazio, nenhum tenant recebe. Ids separados por vírgula.',
+      },
       FAN_TOKEN_SECRET: { label: 'Segredo do token do torcedor (.env)' },
       APISPORTS_KEY: { label: 'Chave da api-sports' },
       OPENAI_API_KEY: { label: 'Chave da OpenAI' },
@@ -3609,6 +3614,11 @@ export default defineMessages(
           description:
             'For how many hours a product price and stock stay valid before the store is asked again. The ceiling is 24 hours; the date and time of the check appear next to the price.',
           unit: 'hours',
+        },
+        SHOP_GALAXIE_TENANT_IDS: {
+          label: 'Galaxie tenants in Shopping',
+          description:
+            "The Galaxie site and app tenants, the only ones that get Galaxie's affiliate code. Empty, no tenant gets it. Ids separated by commas.",
         },
         FAN_TOKEN_SECRET: { label: 'Fan token secret (.env)' },
         APISPORTS_KEY: { label: 'api-sports key' },
@@ -5437,6 +5447,11 @@ export default defineMessages(
           description:
             'Por cuántas horas el precio y el stock de un producto valen antes de consultar la tienda de nuevo. El tope es de 24 horas; la fecha y la hora de la consulta aparecen junto al precio.',
           unit: 'horas',
+        },
+        SHOP_GALAXIE_TENANT_IDS: {
+          label: 'Tenants de Galaxie en Shopping',
+          description:
+            'Los tenants del sitio y de la app Galaxie, los únicos que reciben el código de afiliado de Galaxie. Vacío, ningún tenant lo recibe. Ids separados por comas.',
         },
         FAN_TOKEN_SECRET: { label: 'Secreto del token del hincha (.env)' },
         APISPORTS_KEY: { label: 'Clave de api-sports' },

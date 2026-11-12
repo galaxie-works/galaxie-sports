@@ -1036,6 +1036,20 @@ export const SETTINGS: readonly SettingDef[] = [
     apply: 'restart',
     default: '24',
   },
+  // Shopping (#921): tenants da própria Galaxie (site e app), os únicos que recebem o código de afiliado da Galaxie.
+  // Vazio = nenhum (o padrão seguro); ids de tenant separados por vírgula
+  {
+    key: 'SHOP_GALAXIE_TENANT_IDS',
+    section: 'engage',
+    type: 'text',
+    pattern:
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}([,;\s]+[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})*$/i,
+    allowEmpty: true,
+    services: ['api'],
+    apply: 'restart',
+    default: '',
+    critical: true,
+  },
 
   // ── Credenciais ─────────────────────────────────────────────────────────────────────────────
   // trocadas no painel (#1087): cifradas no banco, abertas por cada serviço com a SETTINGS_KEK dele

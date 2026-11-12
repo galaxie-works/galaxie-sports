@@ -71,6 +71,7 @@ import { StreamTokenSigner } from './realtime/stream-token.js';
 import { docsRoutes } from './routes/docs.js';
 import { cosmosStripeRoutes } from './routes/internal/cosmos-stripe.js';
 import { internalShopRoutes } from './routes/internal/shop.js';
+import { galaxieShopTenants, shopRoutes } from './routes/v1/shop.js';
 import { ShopClickRecorder, shopClickRoutes } from './shop/clicks.js';
 import { ShopOffers } from './shop/offers.js';
 import { internalWhereToWatchRoutes } from './routes/internal/where-to-watch.js';
@@ -107,6 +108,8 @@ export interface ServerOptions {
   /** Shopping (#916): fetch dos conectores de loja (testes) e cofre das credenciais das lojas. */
   shopFetch?: ShopFetch;
   shopSecretBox?: Pick<SettingsSecretBox, 'open'>;
+  /** Tenants da Galaxie no Shopping (#921); sem isto, vale `SHOP_GALAXIE_TENANT_IDS`. */
+  shopGalaxieTenantIds?: string;
   /** Fila dos cliques do Shopping (#918); nos testes, para gravar na hora. */
   shopClickRecorder?: ShopClickRecorder;
   logger?: boolean;
@@ -506,24 +509,30 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
     return { status: 'ok' };
   });
 
+  // Shopping (#916, #921): uma instância só, para o cache das lojas e das ofertas valer nas duas rotas
+  const shopOffers = options.db
+    ? new ShopOffers({
+        db: options.db,
+        redis: options.redis ?? null,
+        keyPrefix: prefix,
+        metrics: app.metrics,
+        log: app.log,
+        now: ctx.now,
+        ...(options.shopFetch ? { fetch: options.shopFetch } : {}),
+        ...(options.shopSecretBox ? { box: options.shopSecretBox } : {}),
+      })
+    : undefined;
+
   app.register(async (instance) => {
     await docsRoutes(instance, { publicUrl: options.publicUrl });
     await v1Routes(instance, ctx);
     await mirrorRoutes(instance, ctx);
     await internalWhereToWatchRoutes(instance, ctx);
-    await internalShopRoutes(instance, ctx, {
-      offers: options.db
-        ? new ShopOffers({
-            db: options.db,
-            redis: options.redis ?? null,
-            keyPrefix: prefix,
-            metrics: app.metrics,
-            log: app.log,
-            now: ctx.now,
-            ...(options.shopFetch ? { fetch: options.shopFetch } : {}),
-            ...(options.shopSecretBox ? { box: options.shopSecretBox } : {}),
-          })
-        : undefined,
+    await internalShopRoutes(instance, ctx, { offers: shopOffers });
+    await shopRoutes(instance, ctx, {
+      offers: shopOffers,
+      publicUrl: options.publicUrl,
+      galaxieTenants: galaxieShopTenants(options.shopGalaxieTenantIds ?? process.env.SHOP_GALAXIE_TENANT_IDS),
     });
     await shopClickRoutes(instance, {
       db: options.db,

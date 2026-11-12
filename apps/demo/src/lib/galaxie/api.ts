@@ -6,7 +6,7 @@ import { createGalaxieClient, GalaxieApiError } from '@galaxie/contracts';
 import { cacheLife, cacheTag } from 'next/cache';
 import { notFound } from 'next/navigation';
 
-import type { SupportedLocale } from '@galaxie/contracts';
+import type { ShopEntity, SupportedLocale } from '@galaxie/contracts';
 
 import { apiLocale, apiTimeZone, defaultMarket, type ContentLocale, type Locale } from '../i18n/config';
 import { getDictionary } from '../i18n/dictionary';
@@ -15,7 +15,7 @@ import { fill } from '../i18n/text';
 import { taggedFetch } from './cache-tags';
 import { RELATED_CACHE_TAG } from './related-cache';
 import type { ApiRequest } from './request';
-import { API_URL } from './server';
+import { API_URL, galaxieGet } from './server';
 
 /**
  * `locale` e `tz` da API para o idioma da demo (`en` incluído, também no contexto de IA). Cada fetcher recebe o
@@ -696,4 +696,36 @@ export async function getDerby(slug: string, locale: ContentLocale) {
   cacheLife('hours');
   cacheTag('derby', 'team_profile');
   return orNotFound(api.derby(slug, localeQuery(locale)));
+}
+
+// ─── Shopping (#921): produtos oficiais das entidades da página ──────────────────────────────────
+
+/**
+ * Vitrine do Shopping de uma entidade (time, seleção, campeonato), pelo módulo `shopping`. Sem o módulo (403), sem
+ * cadastro (404) ou fora dos tenants da Galaxie (lista vazia), o bloco só não aparece. Cache de minutos: o preço tem
+ * a data e a hora da consulta da loja, e o botão passa pela rota de cliques da API.
+ */
+export async function getShop(
+  kind: 'participant' | 'competition' | 'person',
+  id: string,
+  country: string,
+  locale: Locale,
+  eventId?: string,
+): Promise<ShopEntity | null> {
+  'use cache';
+  cacheLife('minutes');
+  cacheTag(`shop:${kind}:${id}`);
+  try {
+    return await galaxieGet<ShopEntity>(`/v1/shop/${kind}/${id}`, {
+      country,
+      origin: 'site',
+      lang: apiLocale(locale),
+      ...(eventId ? { event: eventId } : {}),
+    });
+  } catch (err) {
+    const status = (err as { status?: number }).status;
+    if (status === 404 || status === 403) return null;
+    console.warn('[shop] vitrine indisponível', err instanceof Error ? err.message : err);
+    return null;
+  }
 }
