@@ -705,8 +705,22 @@
     {
       "idx": 100,
       "version": "7",
-      "when": 1794511076667,
-      "tag": "0141_chat_salas",
+      "when": 1794511062565,
+      "tag": "0144_shopping_catalogo",
+      "breakpoints": true
+    },
+    {
+      "idx": 101,
+      "version": "7",
+      "when": 1794511111999,
+      "tag": "0145_shopping_conectores",
+      "breakpoints": true
+    },
+    {
+      "idx": 102,
+      "version": "7",
+      "when": 1794520325769,
+      "tag": "0150_chat_salas",
       "breakpoints": true
     }
   ]
