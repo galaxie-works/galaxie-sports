@@ -108,7 +108,7 @@ export class PublishableAuthenticator {
           tenantId: key.tenant.id,
           reason: 'origin_not_allowed',
           keyPrefix: key.prefix ?? '',
-          detail: origin ?? '(sem origem)',
+          detail: originDetail(origin),
         });
       } catch {
         // diagnóstico nunca derruba a autenticação
@@ -157,6 +157,17 @@ export class PublishableAuthenticator {
     if (this.lastTouch.size > 10_000) this.lastTouch.clear();
     this.lastTouch.set(keyId, now.getTime());
     this.store.touch(keyId, now).catch(() => {});
+  }
+}
+
+/** Origem recusada no formato de origem (esquema, host, porta), ou um marcador: o header vem de fora. */
+export function originDetail(origin: string | undefined): string {
+  if (!origin) return '(sem origem)';
+  try {
+    const o = new URL(origin).origin;
+    return o && o !== 'null' ? o : '(origem inválida)';
+  } catch {
+    return '(origem inválida)';
   }
 }
 

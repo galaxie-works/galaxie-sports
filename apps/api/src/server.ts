@@ -245,9 +245,18 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
         (options.db && options.usagePersist !== false
           ? new AccessErrorRecorder(options.db, {
               onError: (err) => app.log.warn({ err }, 'falha ao consolidar erros de acesso'),
+              onDropped: (dropped) =>
+                app.log.warn({ dropped }, 'erros de acesso descartados no minuto (teto de combinações)'),
             })
           : undefined));
-  const accessError = (e: AccessError) => accessErrors?.record(e);
+  // nunca lança: diagnóstico não pode pular a cota nem o limite que vêm logo depois
+  const accessError = (e: AccessError) => {
+    try {
+      accessErrors?.record(e);
+    } catch {
+      // segue
+    }
+  };
   if (accessErrors) {
     app.addHook('onReady', async () => accessErrors.start());
     app.addHook('onClose', async () => accessErrors.stop());

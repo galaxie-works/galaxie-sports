@@ -214,7 +214,6 @@ export const ACCESS_ERROR_REASONS = [
   'wrong_env',
   'tenant_inactive',
   'origin_not_allowed',
-  'publishable_invalid',
   'module_not_in_plan',
   'rate_limited',
   'quota_exceeded',

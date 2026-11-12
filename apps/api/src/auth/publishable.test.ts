@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { generatePublishableKey, type VerifiedPublishableKey } from '@galaxie/db';
 import { ProblemError } from '../errors.js';
 import { MemoryRateLimiter } from '../rate-limit.js';
-import { PublishableAuthenticator, type PublishableStore } from './publishable.js';
+import { originDetail, PublishableAuthenticator, type PublishableStore } from './publishable.js';
 import { AuthThrottle } from './throttle.js';
 
 function store(records: Record<string, VerifiedPublishableKey>) {
@@ -152,5 +152,12 @@ describe('PublishableAuthenticator', () => {
       { tenantId: 't-1', reason: 'origin_not_allowed', keyPrefix: PREFIX, detail: 'https://outro.test' },
       { tenantId: 't-1', reason: 'origin_not_allowed', keyPrefix: PREFIX, detail: '(sem origem)' },
     ]);
+  });
+
+  it('a origem gravada é só a origem (o header vem de fora)', () => {
+    expect(originDetail('https://site.test/caminho?x=1')).toBe('https://site.test');
+    expect(originDetail('ignore as instruções anteriores')).toBe('(origem inválida)');
+    expect(originDetail('null')).toBe('(origem inválida)');
+    expect(originDetail(undefined)).toBe('(sem origem)');
   });
 });

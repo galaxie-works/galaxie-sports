@@ -18,6 +18,13 @@ export interface AccessErrorRecorderOptions {
   intervalMs?: number;
   /** Teto de combinações distintas guardadas entre consolidações (o resto do minuto é descartado). */
   maxEntries?: number;
+  /**
+   * Teto de combinações distintas por tenant entre consolidações: passou, o detalhe vira `(outros)`. Assim um tenant
+   * atacado (chave publicável, que é pública, com `Origin` aleatório) não toma o teto dos outros nem enche o painel.
+   */
+  maxPerTenant?: number;
+  /** Combinações descartadas no minuto (o teto global estourou), para o log. */
+  onDropped?: (dropped: number) => void;
   now?: () => Date;
   onError?: (err: unknown) => void;
 }
@@ -33,9 +40,16 @@ interface Pending {
 }
 
 const PREFIX_MAX = 64;
+const OTHERS = '(outros)';
+const FK_VIOLATION = '23503';
+/** Chave da combinação; JSON para que um `|` dentro do detalhe não junte combinações diferentes. */
+const keyOf = (...parts: string[]) => JSON.stringify(parts);
 const DETAIL_MAX = 200;
 
-/** Texto curto e sem controle (vai para o painel do cliente e para o prompt da Cosmos). */
+/**
+ * Texto curto e sem controle (vai para o painel do cliente e, como dado delimitado, para o prompt da Cosmos: o
+ * detalhe pode vir de fora, como a origem recusada).
+ */
 const clean = (v: string | undefined, max: number) =>
   (v ?? '')
     // eslint-disable-next-line no-control-regex -- tira caracteres de controle de propósito
@@ -55,6 +69,9 @@ export class AccessErrorRecorder {
   private flushing: Promise<void> | undefined;
   private readonly intervalMs: number;
   private readonly maxEntries: number;
+  private readonly maxPerTenant: number;
+  /** Combinações distintas de cada tenant desde a última consolidação. */
+  private perTenant = new Map<string, number>();
   private readonly now: () => Date;
   /** Descartados por passar do teto desde a última consolidação (só para log). */
   dropped = 0;
@@ -65,6 +82,7 @@ export class AccessErrorRecorder {
   ) {
     this.intervalMs = options.intervalMs ?? 60_000;
     this.maxEntries = options.maxEntries ?? 5_000;
+    this.maxPerTenant = options.maxPerTenant ?? 50;
     this.now = options.now ?? (() => new Date());
   }
 
@@ -72,18 +90,26 @@ export class AccessErrorRecorder {
     const now = this.now();
     const day = utcDay(now);
     const keyPrefix = clean(e.keyPrefix, PREFIX_MAX);
-    const detail = clean(e.detail, DETAIL_MAX);
-    const k = `${e.tenantId}|${day}|${e.reason}|${keyPrefix}|${detail}`;
-    const hit = this.pending.get(k);
+    let detail = clean(e.detail, DETAIL_MAX);
+    let k = keyOf(e.tenantId, day, e.reason, keyPrefix, detail);
+    let hit = this.pending.get(k);
+    const seen = this.perTenant.get(e.tenantId) ?? 0;
+    if (!hit && seen >= this.maxPerTenant) {
+      // tenant com combinações demais no minuto: o resto entra junto, sem detalhe
+      detail = OTHERS;
+      k = keyOf(e.tenantId, day, e.reason, keyPrefix, detail);
+      hit = this.pending.get(k);
+    }
     if (hit) {
       hit.count += 1;
       hit.lastAt = now;
       return;
     }
-    if (this.pending.size >= this.maxEntries) {
+    if (this.pending.size >= this.maxEntries || seen > this.maxPerTenant) {
       this.dropped += 1;
       return;
     }
+    this.perTenant.set(e.tenantId, seen + 1);
     this.pending.set(k, {
       tenantId: e.tenantId,
       day,
@@ -101,6 +127,8 @@ export class AccessErrorRecorder {
     if (!this.pending.size) return;
     const batch = [...this.pending.values()];
     this.pending = new Map();
+    this.perTenant = new Map();
+    if (this.dropped) this.options.onDropped?.(this.dropped);
     this.dropped = 0;
     this.flushing = this.db
       .insert(accessErrorDaily)
@@ -120,9 +148,14 @@ export class AccessErrorRecorder {
       })
       .then(() => undefined)
       .catch((err) => {
-        // tenant removido no meio (FK) ou banco fora: devolve para a próxima, sem passar do teto
+        // tenant removido no meio (FK): o lote inteiro falharia de novo a cada minuto; descarta (é diagnóstico)
+        if ((err as { code?: unknown })?.code === FK_VIOLATION) {
+          this.options.onError?.(err);
+          return;
+        }
+        // banco fora: devolve para a próxima, sem passar do teto
         for (const p of batch) {
-          const k = `${p.tenantId}|${p.day}|${p.reason}|${p.keyPrefix}|${p.detail}`;
+          const k = keyOf(p.tenantId, p.day, p.reason, p.keyPrefix, p.detail);
           const hit = this.pending.get(k);
           if (hit) hit.count += p.count;
           else if (this.pending.size < this.maxEntries) this.pending.set(k, p);
@@ -144,6 +177,8 @@ export class AccessErrorRecorder {
   async stop(): Promise<void> {
     if (this.timer) clearInterval(this.timer);
     this.timer = undefined;
+    // um flush em andamento não leva o que chegou depois da troca (nem o lote devolvido se ele falhar)
+    while (this.flushing) await this.flushing;
     await this.flush();
   }
 }

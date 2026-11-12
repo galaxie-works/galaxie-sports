@@ -126,6 +126,11 @@ describe('transporte da entrega (auditoria API-15)', () => {
           res.statusCode = 422;
           return res.end('{"erro":\n"assinatura\u0000 inválida"}');
         }
+        if (req.url === '/gzip') {
+          res.statusCode = 500;
+          res.setHeader('content-encoding', 'gzip');
+          return res.end(Buffer.from([0x1f, 0x8b, 0x08, 0x00]));
+        }
         if (req.url === '/grande') {
           res.statusCode = 500;
           return res.end('x'.repeat(200_000));
@@ -162,6 +167,10 @@ describe('transporte da entrega (auditoria API-15)', () => {
     expect(await postWebhookResponse(`http://127.0.0.1:${port}/falha`, opts)).toEqual({
       status: 422,
       excerpt: '{"erro": "assinatura inválida"}',
+    });
+    expect(await postWebhookResponse(`http://127.0.0.1:${port}/gzip`, opts)).toEqual({
+      status: 500,
+      excerpt: '(corpo comprimido: gzip)',
     });
     const big = await postWebhookResponse(`http://127.0.0.1:${port}/grande`, opts);
     expect(big.status).toBe(500);

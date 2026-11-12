@@ -85,4 +85,48 @@ describe('AccessErrorRecorder (#1007)', () => {
     await rec.flush();
     expect(good.batches[0]!.map((r) => r.count)).toEqual([2]);
   });
+
+  it('teto por tenant: origens aleatórias de um tenant viram "(outros)" e não tomam o lugar dos outros', async () => {
+    const { db, batches } = fakeDb();
+    const dropped: number[] = [];
+    const rec = new AccessErrorRecorder(db, {
+      now: () => NOW,
+      maxEntries: 10,
+      maxPerTenant: 3,
+      onDropped: (n) => dropped.push(n),
+    });
+    for (let i = 0; i < 100; i++)
+      rec.record({ tenantId: 'atacado', reason: 'origin_not_allowed', detail: `https://${i}.test` });
+    rec.record({ tenantId: 'outro', reason: 'revoked', keyPrefix: 'abc' });
+    await rec.flush();
+    const rows = batches[0]!;
+    expect(rows.filter((r) => r.tenantId === 'atacado').map((r) => [r.detail, r.count])).toEqual([
+      ['https://0.test', 1],
+      ['https://1.test', 1],
+      ['https://2.test', 1],
+      ['(outros)', 97],
+    ]);
+    expect(rows.find((r) => r.tenantId === 'outro')).toMatchObject({ count: 1 });
+    expect(dropped).toEqual([]);
+  });
+
+  it('stop() espera o flush em andamento e grava o que chegou depois', async () => {
+    const { db, batches } = fakeDb();
+    const rec = new AccessErrorRecorder(db, { now: () => NOW });
+    rec.record({ tenantId: 't1', reason: 'expired' });
+    const first = rec.flush();
+    rec.record({ tenantId: 't1', reason: 'revoked' });
+    await rec.stop();
+    await first;
+    expect(batches.map((b) => b.map((r) => r.reason))).toEqual([['expired'], ['revoked']]);
+  });
+
+  it('um "|" no detalhe não junta combinações diferentes', async () => {
+    const { db, batches } = fakeDb();
+    const rec = new AccessErrorRecorder(db, { now: () => NOW });
+    rec.record({ tenantId: 't1', reason: 'rate_limited', keyPrefix: 'a|b', detail: 'c' });
+    rec.record({ tenantId: 't1', reason: 'rate_limited', keyPrefix: 'a', detail: 'b|c' });
+    await rec.flush();
+    expect(batches[0]).toHaveLength(2);
+  });
 });

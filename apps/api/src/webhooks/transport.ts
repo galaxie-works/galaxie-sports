@@ -129,6 +129,12 @@ export function postWebhookResponse(url: string, post: WebhookPost): Promise<Web
           res.resume();
           return resolve({ status });
         }
+        // corpo comprimido não vira texto legível: só o aviso
+        const encoding = String(res.headers['content-encoding'] ?? '').toLowerCase();
+        if (encoding && encoding !== 'identity') {
+          res.destroy();
+          return resolve({ status, excerpt: `(corpo comprimido: ${encoding.slice(0, 20)})` });
+        }
         const chunks: Buffer[] = [];
         let size = 0;
         let done = false;
