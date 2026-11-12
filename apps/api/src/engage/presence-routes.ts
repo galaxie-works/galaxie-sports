@@ -17,6 +17,7 @@ import {
 } from '@galaxie/contracts';
 import {
   event,
+  PresenceProfileGoneError,
   purgePresence,
   readPresenceLimit,
   readRuntimeOverrides,
@@ -182,6 +183,10 @@ export async function presenceRoutes(app: FastifyInstance, deps: PresenceRoutesD
       visible: body.visible,
       interacted: body.interacted ?? false,
       rules: { gapMs: PRESENCE_GAP_S * 1000, maxGames, verdict: heartbeatVerdict },
+    }).catch((err: unknown) => {
+      // excluído entre a conferência acima e a gravação
+      if (err instanceof PresenceProfileGoneError) throw problems.invalidFanToken('Perfil excluído.');
+      throw err;
     });
     const at = res.at.getTime();
     let present: number;

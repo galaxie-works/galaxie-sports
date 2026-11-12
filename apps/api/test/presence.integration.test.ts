@@ -7,11 +7,16 @@ import {
   closeDb,
   createDb,
   event,
+  fanPresenceWindow,
+  fanProfile,
+  PresenceProfileGoneError,
+  recordHeartbeat,
   runMigrations,
   sport,
   writePresenceLimit,
   type Database,
 } from '@galaxie/db';
+import { and, eq } from 'drizzle-orm';
 import { generateAdminKey, hashAdminKey } from '../src/admin/guard.js';
 import { loadPlans } from '../src/admin/plans.js';
 import { FanTokenSigner } from '../src/engage/fan-token.js';
@@ -200,6 +205,35 @@ describe('presença ao vivo (#906)', () => {
     });
     expect(gone.statusCode).toBe(401);
     expect(gone.json().detail).toBe('Perfil excluído.');
+  });
+
+  it('sinal que chega depois da exclusão não grava janela', async () => {
+    const t = await tenantKey('pres-f', ['core_data', 'live_chat']);
+    await fan(t.key, 40);
+    const [p] = await db
+      .select({ id: fanProfile.id })
+      .from(fanProfile)
+      .where(and(eq(fanProfile.tenantId, t.id), eq(fanProfile.externalProfileId, 'prof_40')));
+    const ev = await game();
+    await eraseFan(db, {
+      tenantId: t.id,
+      externalAccountId: 'acc_40',
+      externalProfileId: 'prof_40',
+      requestedBy: 'teste',
+    });
+    // o sinal já tinha passado da conferência do Perfil: a gravação confere de novo, com a linha travada
+    await expect(
+      recordHeartbeat(db, {
+        tenantId: t.id,
+        profileId: p!.id,
+        eventId: ev,
+        visible: true,
+        interacted: true,
+        rules: { gapMs: 90_000, maxGames: 3, verdict: () => 'counted' },
+      }),
+    ).rejects.toBeInstanceOf(PresenceProfileGoneError);
+    const left = await db.select().from(fanPresenceWindow).where(eq(fanPresenceWindow.profileId, p!.id));
+    expect(left).toEqual([]);
   });
 
   it('menor de 13 fica fora', async () => {

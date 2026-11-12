@@ -16,6 +16,14 @@ export type HeartbeatResult =
   | { counted: true; startedAt: Date; lastInteractionAt: Date; at: Date; opened: boolean }
   | { counted: false; reason: 'hidden' | 'interaction_needed' | 'too_many_games'; at: Date };
 
+/** O Perfil foi excluído enquanto o sinal esperava: nada é gravado. */
+export class PresenceProfileGoneError extends Error {
+  constructor() {
+    super('Perfil excluído.');
+    this.name = 'PresenceProfileGoneError';
+  }
+}
+
 /**
  * Sinal de presença do torcedor. Estende a janela aberta do jogo (último sinal há menos de `gapMs`) ou abre outra;
  * abrir só vale se o Perfil não estiver em `maxGames` outros jogos ao mesmo tempo. O instante é o do banco.
@@ -46,6 +54,12 @@ export async function recordHeartbeat(
     await tx.execute(
       sql`select pg_advisory_xact_lock(hashtextextended(${`fan.presence:${input.tenantId}:${input.profileId}`}, 0))`,
     );
+    // o Perfil ainda existe? Trava a linha (FOR SHARE) contra a exclusão em andamento: sem isso, um sinal conferido
+    // antes do eraseFan grava uma janela depois do commit dele, e ela só sairia no expurgo de 90 dias
+    const alive = await tx.execute(
+      sql`select 1 from fan.profile where tenant_id = ${input.tenantId} and id = ${input.profileId} and deleted_at is null for share`,
+    );
+    if (!alive.length) throw new PresenceProfileGoneError();
     // relógio de depois do lock (o now() é o do começo da transação, e um sinal que esperou o lock voltaria no tempo)
     const [clock] = await tx.execute<{ now: string }>(sql`select clock_timestamp()::text as now`);
     const at = new Date(clock!.now);
