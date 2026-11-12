@@ -666,6 +666,13 @@
       "when": 1794447171354,
       "tag": "0110_cosmos_diagnostico_dados",
       "breakpoints": true
+    },
+    {
+      "idx": 95,
+      "version": "7",
+      "when": 1794449357218,
+      "tag": "0111_cosmos_funcoes_diagnostico",
+      "breakpoints": true
     }
   ]
 }

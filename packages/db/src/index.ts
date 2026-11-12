@@ -262,4 +262,10 @@ export {
 export * from './presence.js';
 export * from './sponsors.js';
 export * from './moderation-queue.js';
-export { listTenantAccessErrors, type TenantAccessError } from './access-errors.js';
+export {
+  listTenantAccessErrors,
+  listTenantSecretKeyStates,
+  listTenantUsageByRoute,
+  type TenantAccessError,
+  type TenantSecretKeyState,
+} from './access-errors.js';

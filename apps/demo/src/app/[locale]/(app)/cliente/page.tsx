@@ -6,6 +6,7 @@ import { PageHeader } from '@/components/app-shell/page-header';
 import { TenantOverviewSkeleton } from '@/components/app-shell/skeletons';
 import { ClientArea } from '@/components/client/client-area';
 import { TenantOverview } from '@/components/client/tenant-overview';
+import { CosmosHelpSlot } from '@/components/cosmos/integration-help-slot';
 import { getI18n, getT } from '@/lib/i18n/server';
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -17,7 +18,13 @@ async function Overview() {
   const { locale, t } = await getI18n();
   return (
     <ClientArea section="overview">
-      {({ tenant }) => <TenantOverview tenant={tenant} locale={locale} t={t} />}
+      {(ctx) => (
+        <div className="flex flex-col gap-4">
+          <TenantOverview tenant={ctx.tenant} locale={locale} t={t} />
+          {/* Cosmos (#1007): relatório de uso do mês */}
+          <CosmosHelpSlot ctx={ctx} kind="usage" />
+        </div>
+      )}
     </ClientArea>
   );
 }

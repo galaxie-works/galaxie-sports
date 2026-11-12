@@ -497,6 +497,52 @@ export default defineMessages(
         },
       },
     },
+    cosmosHelp: {
+      cost: 'Cada pedido gasta créditos da Cosmos (a partir de {min}). Sem nada para analisar ou com resposta que não serve, não cobra.',
+      result: 'O que a Cosmos encontrou',
+      keys: {
+        title: 'Por que minhas chaves falham?',
+        description:
+          'A Cosmos lê os erros de acesso dos últimos 7 dias (chave errada, origem fora da lista, limite por minuto, cota diária) e diz o que mudar.',
+        submit: 'Explicar os erros',
+        nothing: 'Nenhum erro de acesso nos últimos 7 dias. Nada a corrigir, e nada foi cobrado.',
+      },
+      webhooks: {
+        title: 'Por que este webhook falha?',
+        description:
+          'A Cosmos lê as entregas que falharam (código, tempo e o começo da resposta do seu servidor) e explica o que mudar.',
+        submit: 'Explicar as falhas',
+        endpoint: 'Webhook',
+        nothing: 'Nenhuma entrega com falha recente neste webhook. Nada foi cobrado.',
+      },
+      usage: {
+        title: 'Relatório do mês',
+        description:
+          'A Cosmos resume o uso da API no mês (o que mais chamou, picos, cota) e sugere como economizar requisições.',
+        submit: 'Gerar o relatório',
+        nothing: 'Ainda não há uso da API neste mês. Nada foi cobrado.',
+      },
+      receiver: {
+        title: 'Receptor com verificação da assinatura',
+        description:
+          'Código pronto para receber os eventos: confere o header x-galaxie-signature sobre o corpo bruto, com tolerância de 300 s. O segredo vem da variável GALAXIE_WEBHOOK_SECRET. Grátis.',
+        language: 'Linguagem',
+      },
+      errors: {
+        unauthorized: 'Sua sessão não abre a Cosmos deste cliente.',
+        module: 'A Cosmos AI não está contratada neste cliente.',
+        role: 'Só quem edita as configurações (Admin ou Dono) usa a Cosmos aqui.',
+        notFound: 'Este webhook não existe mais.',
+        unavailable: 'A Cosmos está indisponível agora. Tente mais tarde.',
+        insufficient: 'Sem créditos da Cosmos. Recarregue na área Cosmos AI.',
+        blocked: 'A carteira da Cosmos está bloqueada.',
+        disabled: 'A Cosmos está desligada neste cliente.',
+        no_wallet: 'Este cliente ainda não tem carteira da Cosmos.',
+        rate_limited: 'Muitos pedidos em seguida. Espere um minuto.',
+        failed: 'Não deu certo agora. Tente de novo; nada foi cobrado.',
+        unreadable: 'A Cosmos não conseguiu explicar agora. Tente de novo; não foi cobrado.',
+      },
+    },
     members: {
       title: 'Usuários e cargos',
       description:
@@ -1153,6 +1199,52 @@ export default defineMessages(
             ios: 'iOS (Swift)',
             reactNative: 'React Native',
           },
+        },
+      },
+      cosmosHelp: {
+        cost: 'Each request spends Cosmos credits (from {min}). Nothing to analyze or an unusable answer is not charged.',
+        result: 'What Cosmos found',
+        keys: {
+          title: 'Why are my keys failing?',
+          description:
+            'Cosmos reads the access errors from the last 7 days (wrong key, origin not allowed, per-minute limit, daily quota) and tells you what to change.',
+          submit: 'Explain the errors',
+          nothing: 'No access errors in the last 7 days. Nothing to fix, and nothing was charged.',
+        },
+        webhooks: {
+          title: 'Why is this webhook failing?',
+          description:
+            'Cosmos reads the failed deliveries (status code, time and the start of your server response) and explains what to change.',
+          submit: 'Explain the failures',
+          endpoint: 'Webhook',
+          nothing: 'No recent failed deliveries for this webhook. Nothing was charged.',
+        },
+        usage: {
+          title: 'Monthly report',
+          description:
+            'Cosmos sums up your API usage this month (top calls, peaks, quota) and suggests how to save requests.',
+          submit: 'Create the report',
+          nothing: 'No API usage this month yet. Nothing was charged.',
+        },
+        receiver: {
+          title: 'Receiver with signature check',
+          description:
+            'Ready-to-use code to receive the events: it checks the x-galaxie-signature header over the raw body, with a 300 s tolerance. The secret comes from the GALAXIE_WEBHOOK_SECRET variable. Free.',
+          language: 'Language',
+        },
+        errors: {
+          unauthorized: 'Your session does not open Cosmos for this client.',
+          module: 'Cosmos AI is not part of this client plan.',
+          role: 'Only people who edit the settings (Admin or Owner) use Cosmos here.',
+          notFound: 'This webhook no longer exists.',
+          unavailable: 'Cosmos is unavailable right now. Try again later.',
+          insufficient: 'Out of Cosmos credits. Top up in the Cosmos AI area.',
+          blocked: 'The Cosmos wallet is blocked.',
+          disabled: 'Cosmos is turned off for this client.',
+          no_wallet: 'This client does not have a Cosmos wallet yet.',
+          rate_limited: 'Too many requests in a row. Wait a minute.',
+          failed: 'That did not work. Try again; nothing was charged.',
+          unreadable: 'Cosmos could not explain it right now. Try again; nothing was charged.',
         },
       },
       members: {
@@ -1824,6 +1916,52 @@ export default defineMessages(
             ios: 'iOS (Swift)',
             reactNative: 'React Native',
           },
+        },
+      },
+      cosmosHelp: {
+        cost: 'Cada pedido gasta créditos de Cosmos (desde {min}). Sin nada para analizar o con una respuesta que no sirve, no se cobra.',
+        result: 'Lo que encontró Cosmos',
+        keys: {
+          title: '¿Por qué fallan mis claves?',
+          description:
+            'Cosmos lee los errores de acceso de los últimos 7 días (clave incorrecta, origen fuera de la lista, límite por minuto, cuota diaria) y te dice qué cambiar.',
+          submit: 'Explicar los errores',
+          nothing: 'Ningún error de acceso en los últimos 7 días. Nada que corregir, y no se cobró nada.',
+        },
+        webhooks: {
+          title: '¿Por qué falla este webhook?',
+          description:
+            'Cosmos lee las entregas fallidas (código, tiempo y el comienzo de la respuesta de tu servidor) y explica qué cambiar.',
+          submit: 'Explicar las fallas',
+          endpoint: 'Webhook',
+          nothing: 'Ninguna entrega fallida reciente en este webhook. No se cobró nada.',
+        },
+        usage: {
+          title: 'Informe del mes',
+          description:
+            'Cosmos resume el uso de la API en el mes (lo más llamado, picos, cuota) y sugiere cómo ahorrar solicitudes.',
+          submit: 'Generar el informe',
+          nothing: 'Todavía no hay uso de la API este mes. No se cobró nada.',
+        },
+        receiver: {
+          title: 'Receptor con verificación de la firma',
+          description:
+            'Código listo para recibir los eventos: verifica el header x-galaxie-signature sobre el cuerpo crudo, con tolerancia de 300 s. El secreto viene de la variable GALAXIE_WEBHOOK_SECRET. Gratis.',
+          language: 'Lenguaje',
+        },
+        errors: {
+          unauthorized: 'Tu sesión no abre Cosmos para este cliente.',
+          module: 'Cosmos AI no está contratada en este cliente.',
+          role: 'Solo quien edita la configuración (Admin o Dueño) usa Cosmos aquí.',
+          notFound: 'Este webhook ya no existe.',
+          unavailable: 'Cosmos no está disponible ahora. Intenta más tarde.',
+          insufficient: 'Sin créditos de Cosmos. Recarga en el área Cosmos AI.',
+          blocked: 'La billetera de Cosmos está bloqueada.',
+          disabled: 'Cosmos está apagada en este cliente.',
+          no_wallet: 'Este cliente todavía no tiene billetera de Cosmos.',
+          rate_limited: 'Demasiados pedidos seguidos. Espera un minuto.',
+          failed: 'No funcionó ahora. Intenta de nuevo; no se cobró nada.',
+          unreadable: 'Cosmos no pudo explicarlo ahora. Intenta de nuevo; no se cobró.',
         },
       },
       members: {

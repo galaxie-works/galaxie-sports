@@ -1,6 +1,6 @@
 import { and, desc, eq, gte } from 'drizzle-orm';
 import type { Database } from './client.js';
-import { accessErrorDaily, type AccessErrorReason } from './schema/index.js';
+import { accessErrorDaily, apiKey, usageDaily, type AccessErrorReason } from './schema/index.js';
 
 export interface TenantAccessError {
   day: string;
@@ -46,4 +46,44 @@ export async function listTenantAccessErrors(
     .orderBy(desc(accessErrorDaily.lastAt))
     .limit(Math.min(Math.max(options.limit ?? 100, 1), 500));
   return rows.map((r) => ({ ...r, reason: r.reason as AccessErrorReason, count: Number(r.count) }));
+}
+
+/** Chave secreta do tenant só com o que é público: prefixo, ambiente, nome e situação. Nunca o hash do segredo. */
+export interface TenantSecretKeyState {
+  prefix: string;
+  env: 'live' | 'test';
+  label: string | null;
+  expiresAt: Date | null;
+  revokedAt: Date | null;
+}
+
+/** Chaves secretas do tenant (inclusive revogadas), para o diagnóstico de chaves da Cosmos (#1007). */
+export async function listTenantSecretKeyStates(
+  db: Database,
+  tenantId: string,
+): Promise<TenantSecretKeyState[]> {
+  return db
+    .select({
+      prefix: apiKey.prefix,
+      env: apiKey.env,
+      label: apiKey.label,
+      expiresAt: apiKey.expiresAt,
+      revokedAt: apiKey.revokedAt,
+    })
+    .from(apiKey)
+    .where(eq(apiKey.tenantId, tenantId))
+    .orderBy(desc(apiKey.createdAt));
+}
+
+/** Uso consolidado do tenant por dia e rota desde `sinceDay` (`YYYY-MM-DD`, UTC), para o relatório do mês (#1007). */
+export async function listTenantUsageByRoute(
+  db: Database,
+  tenantId: string,
+  sinceDay: string,
+): Promise<{ day: string; route: string; requests: number }[]> {
+  const rows = await db
+    .select({ day: usageDaily.day, route: usageDaily.route, requests: usageDaily.requests })
+    .from(usageDaily)
+    .where(and(eq(usageDaily.tenantId, tenantId), gte(usageDaily.day, sinceDay)));
+  return rows.map((r) => ({ ...r, requests: Number(r.requests) }));
 }
