@@ -594,32 +594,60 @@ describe('mudança de faixa (#1110)', () => {
       externalProfileId: 'prof_corrige',
       ageAssurance: { method: 'verified', at: '2026-11-01' },
     };
+    // um minuto à frente: depois do `now()` do banco mesmo com relógios um pouco desencontrados, dentro da folga
+    const fresh = (method: string) => ({ method, at: new Date(Date.now() + 60_000).toISOString() });
+    const band = async (body: Record<string, unknown>) =>
+      (await me((await issue(t.key, body)).json().data.token)).json().data.age_band as string;
     await issue(t.key, who);
     await issue(t.key, { ...who, ageBand: '14_15' });
     // o token volta a dizer adulto com a comprovação antiga: continua congelado
-    const old = (await issue(t.key, who)).json().data.token as string;
-    expect((await me(old)).json().data.age_band).toBe('13_17');
-    // declaração não basta, mesmo nova
-    const self = (
-      await issue(t.key, { ...who, ageAssurance: { method: 'self', at: new Date().toISOString() } })
-    ).json().data.token as string;
-    expect((await me(self)).json().data.age_band).toBe('13_17');
+    expect(await band(who)).toBe('13_17');
+    // declaração não basta, mesmo nova; data no futuro também não
+    expect(await band({ ...who, ageAssurance: fresh('self') })).toBe('13_17');
+    expect(
+      await band({
+        ...who,
+        ageAssurance: { method: 'verified', at: new Date(Date.now() + 3_600_000).toISOString() },
+      }),
+    ).toBe('13_17');
     // verificação nova: volta a adulto, e o caso sai da fila da equipe do cliente
-    const fresh = (
-      await issue(t.key, { ...who, ageAssurance: { method: 'verified', at: new Date().toISOString() } })
-    ).json().data.token as string;
-    expect((await me(fresh)).json().data).toMatchObject({ age_band: '18plus', age_status: 'can_write' });
-    const sql = postgres(testUrl, { max: 1 });
-    const cases = await sql`select status, resolved_by from engage.moderation_case where tenant_id = ${t.id}`;
-    await sql.end();
-    expect(cases).toEqual([{ status: 'resolved', resolved_by: expect.stringMatching(/^key:/) }]);
+    const back = (await issue(t.key, { ...who, ageAssurance: fresh('verified') })).json().data
+      .token as string;
+    expect((await me(back)).json().data).toMatchObject({ age_band: '18plus', age_status: 'can_write' });
+    const cases = async () => {
+      const sql = postgres(testUrl, { max: 1 });
+      const rows = await sql`select status, reasons, resolved_by from engage.moderation_case
+        where tenant_id = ${t.id} order by created_at`;
+      await sql.end();
+      return rows.map((r) => ({ status: r.status, reasons: r.reasons, resolved_by: r.resolved_by }));
+    };
+    expect(await cases()).toEqual([
+      { status: 'resolved', reasons: ['age_band_downgrade'], resolved_by: expect.stringMatching(/^key:/) },
+    ]);
     expect(await audits(t.id, 'age.unfrozen')).toEqual([
       { rules: { method: 'verified' }, reason: 'age.reassured' },
     ]);
-    // e descer de novo congela de novo
+    // descer de novo congela de novo, com caso novo na fila
     await issue(t.key, { ...who, ageBand: '16_17' });
-    const again = (await issue(t.key, who)).json().data.token as string;
-    expect((await me(again)).json().data.age_band).toBe('13_17');
+    expect(await band(who)).toBe('13_17');
+    // uma denúncia de outro motivo cai no mesmo caso: a estimativa nova destrava a idade, mas a denúncia fica
+    const reporter = (await issue(t.key, { ...base, externalProfileId: 'prof_denuncia' })).json().data.token;
+    const profileId = (await issue(t.key, who)).json().data.profile_id as string;
+    const rep = await app.inject({
+      method: 'POST',
+      url: '/v1/moderation/reports',
+      headers: { authorization: `Bearer ${reporter}` },
+      payload: { targetType: 'profile', targetId: profileId, module: 'profile', reason: 'spam' },
+    });
+    expect(rep.statusCode).toBe(201);
+    expect(await band({ ...who, ageAssurance: fresh('estimated') })).toBe('18plus');
+    expect((await cases())[1]).toEqual({ status: 'open', reasons: ['spam'], resolved_by: null });
+    expect((await audits(t.id, 'age.band_changed')).map((a) => a.rules)).toEqual([
+      { from: '18plus', to: '14_15' },
+      { from: '14_15', to: '18plus' },
+      { from: '18plus', to: '16_17' },
+      { from: '16_17', to: '18plus' },
+    ]);
   });
 
   it('mudar de país aplica a ficha nova: a autorização que o Brasil dispensa aos 16 o México pede', async () => {

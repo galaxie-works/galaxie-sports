@@ -179,7 +179,11 @@ export async function fanRoutes(app: FastifyInstance, deps: FanRoutesDeps): Prom
       // caso na fila e auditoria na mesma transação: falhou, nada fica gravado e a nova tentativa refaz tudo
       async (tx, done) => {
         if (!done.downgradedFrom && !done.guardianDeclared && !done.unfrozen && !done.bandChange) return;
-        if (!policy) throw problems.degraded('Ficha do país não configurada para este cliente.');
+        if (!policy) {
+          // a troca de faixa sozinha não trava o token: sem ficha, só fica fora da auditoria
+          if (!done.downgradedFrom && !done.guardianDeclared && !done.unfrozen) return;
+          throw problems.degraded('Ficha do país não configurada para este cliente.');
+        }
         const now = new Date();
         const clocks = clocksFrom(policy, now);
         if (done.downgradedFrom)

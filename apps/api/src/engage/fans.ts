@@ -50,7 +50,7 @@ export interface FanUpsertResult {
   /** A faixa congelada voltou a adulto agora, com uma comprovação nova (#1110). */
   unfrozen: boolean;
   /** A faixa fina mudou (aniversário, correção): de qual para qual. Null no primeiro token e quando não mudou. */
-  bandChange: { from: FanAgeBandDetail | FanAgeBand; to: FanAgeBandDetail } | null;
+  bandChange: { from: FanAgeBandDetail; to: FanAgeBandDetail } | null;
 }
 
 /** Comprovação que destrava a faixa congelada: estimativa ou verificação feita depois do congelamento (#1110). */
@@ -219,7 +219,8 @@ export async function upsertFan(
         },
       })
       .returning({ id: fanProfile.id });
-    const fromDetail = before ? (before.ageBandDetail ?? before.ageBand) : null;
+    // Perfil gravado antes da faixa fina (#1105) não tem de onde comparar: nada de troca inventada
+    const fromDetail = before?.ageBandDetail ?? null;
     const bandChange =
       fromDetail !== null && fromDetail !== input.ageBand ? { from: fromDetail, to: input.ageBand } : null;
     const result = {
