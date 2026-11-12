@@ -12,6 +12,7 @@ import {
   HttpCompletionClient,
   n,
   splitCompletion,
+  attachmentTarget,
   type CompletionClientOptions,
   type ParsedEvent,
   type ParsedResult,
@@ -80,10 +81,16 @@ export class GeminiCompletionClient extends HttpCompletionClient {
     if (req.maxOutputTokens !== undefined) generationConfig.maxOutputTokens = req.maxOutputTokens;
     if (req.temperature !== undefined) generationConfig.temperature = req.temperature;
     if (req.json) generationConfig.responseMimeType = 'application/json';
+    const at = attachmentTarget(req, dialog);
     const body: Record<string, unknown> = {
-      contents: dialog.map((m) => ({
+      contents: dialog.map((m, i) => ({
         role: m.role === 'assistant' ? 'model' : 'user',
-        parts: [{ text: m.content }],
+        parts: [
+          ...(i === at
+            ? req.attachments!.map((a) => ({ inlineData: { mimeType: a.mediaType, data: a.data } }))
+            : []),
+          { text: m.content },
+        ],
       })),
     };
     if (system) body.systemInstruction = { parts: [{ text: system }] };
