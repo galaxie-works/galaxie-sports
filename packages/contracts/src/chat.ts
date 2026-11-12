@@ -56,7 +56,10 @@ export const ChatRoomSettings = z
 export const ChatRoom = z
   .object({
     data: z.object({
-      room_id: z.uuid(),
+      room_id: z.uuid().nullable().meta({
+        description:
+          'null enquanto ninguém escreveu nem o cliente ajustou a sala (a leitura não cria a sala).',
+      }),
       fixture_id: z.uuid(),
       state: z.enum(CHAT_ROOM_STATES).meta({
         description:
@@ -139,7 +142,9 @@ const TAG = 'Chat ao vivo';
 const fanAuth = [{ galaxieFanToken: [] }];
 const keyErrors = {
   '401': problem('Chave ausente ou inválida (INVALID_KEY)'),
-  '403': problem('Módulo live_chat fora do plano (MODULE_NOT_IN_PLAN)'),
+  '403': problem(
+    'Módulo live_chat fora do plano (MODULE_NOT_IN_PLAN) ou chave publicável fora da leitura (PUBLISHABLE_KEY_NOT_ALLOWED)',
+  ),
   '429': problem('Limite atingido (RATE_LIMITED)'),
 };
 

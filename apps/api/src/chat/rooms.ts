@@ -45,6 +45,7 @@ export interface ChatRoomRow {
   state: ChatRoomStoredState;
   slowModeSeconds: number | null;
   strictness: ChatStrictness | null;
+  stateBy: string | null;
 }
 
 const roomCols = {
@@ -53,7 +54,18 @@ const roomCols = {
   state: chatRoom.state,
   slowModeSeconds: chatRoom.slowModeSeconds,
   strictness: chatRoom.strictness,
+  stateBy: chatRoom.stateBy,
 };
+
+/** A sala do jogo para o cliente, se já existe (leitura: não cria). */
+export async function readRoom(db: Database, tenantId: string, eventId: string): Promise<ChatRoomRow | null> {
+  const [row] = await db
+    .select(roomCols)
+    .from(chatRoom)
+    .where(and(eq(chatRoom.tenantId, tenantId), eq(chatRoom.eventId, eventId)))
+    .limit(1);
+  return row ?? null;
+}
 
 /** A sala do jogo para o cliente, criada no primeiro acesso (duas instâncias ao mesmo tempo: a segunda lê a da primeira). */
 export async function ensureRoom(db: Database, tenantId: string, eventId: string): Promise<ChatRoomRow> {
@@ -235,10 +247,23 @@ export async function insertMessage(
     flags: string[];
     purgeAt: Date;
   },
-): Promise<{ id: string; createdAt: Date }> {
-  const [row] = await db
-    .insert(chatMessage)
-    .values(input)
-    .returning({ id: chatMessage.id, createdAt: chatMessage.createdAt });
-  return row!;
+  /** Modo lento: segundos mínimos desde a última mensagem do torcedor na sala (0 = livre). */
+  slowMode: { seconds: number; now: Date } = { seconds: 0, now: new Date() },
+): Promise<{ ok: true; id: string; createdAt: Date } | { ok: false; retryAfterS: number }> {
+  return db.transaction(async (tx) => {
+    if (slowMode.seconds > 0) {
+      // envios paralelos do mesmo Perfil na mesma sala esperam um pelo outro: o segundo já vê a mensagem do primeiro
+      await tx.execute(
+        sql`select pg_advisory_xact_lock(hashtextextended(${`chat:${input.tenantId}:${input.roomId}:${input.profileId}`}, 0))`,
+      );
+      const last = await lastSentAt(tx as unknown as Database, input.tenantId, input.roomId, input.profileId);
+      const wait = last ? slowMode.seconds * 1000 - (slowMode.now.getTime() - last.getTime()) : 0;
+      if (wait > 0) return { ok: false as const, retryAfterS: Math.ceil(wait / 1000) };
+    }
+    const [row] = await tx
+      .insert(chatMessage)
+      .values({ ...input, createdAt: slowMode.now })
+      .returning({ id: chatMessage.id, createdAt: chatMessage.createdAt });
+    return { ok: true as const, ...row! };
+  });
 }

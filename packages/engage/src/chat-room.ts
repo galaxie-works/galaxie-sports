@@ -36,19 +36,28 @@ export interface ChatRoomWindow {
 }
 
 const MIN = 60_000;
+/** Teto do fim real de um jogo terminado (o `updated_at` muda depois, com o espelho). */
+const MAX_GAME_MS = 6 * 3600_000;
 
 /** Estado efetivo e janela da sala. */
 export function roomWindow(input: ChatRoomWindowInput): ChatRoomWindow {
   const { event } = input;
   const opensAt = event.startsAt - input.openBeforeMinutes * MIN;
-  // terminou: o fim real é a última mudança do jogo (quando veio o apito), nunca depois do fim previsto
-  const end =
-    FINISHED.has(event.status) && event.updatedAt != null
-      ? Math.min(Math.max(event.updatedAt, event.startsAt), Math.max(event.endsAtExpected, event.startsAt))
-      : Math.max(event.endsAtExpected, event.startsAt);
-  const closesAt = end + input.closeAfterMinutes * MIN;
+  const margin = input.closeAfterMinutes * MIN;
+  const expectedEnd = Math.max(event.endsAtExpected, event.startsAt);
+  let closesAt: number;
+  if (FINISHED.has(event.status)) {
+    // terminou: o fim real é a última mudança do jogo (o apito), com teto de segurança (o espelho mexe depois)
+    const whistle = event.updatedAt ?? expectedEnd;
+    closesAt = Math.min(Math.max(whistle, event.startsAt), event.startsAt + MAX_GAME_MS) + margin;
+  } else {
+    // ainda não terminou (atraso, prorrogação, pênaltis, paralisação): a sala não fecha no meio do jogo. Teto: jogo
+    // que o fornecedor esqueceu de encerrar fecha 6 h depois do início
+    closesAt = Math.max(expectedEnd, Math.min(input.now, event.startsAt + MAX_GAME_MS)) + margin;
+  }
   let state: ChatRoomState;
-  if (input.now >= closesAt || (OFF.has(event.status) && input.now >= opensAt)) state = 'closed';
+  if (OFF.has(event.status) && input.now >= opensAt) state = 'closed';
+  else if (input.now >= closesAt) state = 'closed';
   else if (input.now < opensAt) state = 'scheduled';
   else state = input.storedState;
   return { state, opensAt, closesAt };
