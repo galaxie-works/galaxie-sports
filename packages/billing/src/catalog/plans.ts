@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { parse } from 'yaml';
-import { API_PLANS, type ApiModule, type ApiPlan } from '@galaxie/db';
+import { API_PLANS, type ApiModule, type ApiPlan } from '@galaxie/db/schema';
 import { PlansFile, type PlanTemplate } from './schema.js';
 import { defaultCatalogDir } from './paths.js';
 

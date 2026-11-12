@@ -1,5 +1,5 @@
 import * as z from 'zod';
-import { API_MODULES, API_PLANS } from '@galaxie/db';
+import { API_MODULES, API_PLANS } from '@galaxie/db/schema';
 
 /**
  * Formato dos arquivos de `config/catalog/` (plataforma comercial F1). Só estrutura: preço, moeda e ids do Stripe

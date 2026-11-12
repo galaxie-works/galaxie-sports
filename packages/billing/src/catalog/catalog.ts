@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parse } from 'yaml';
-import { API_MODULES, API_PLANS, type ApiModule, type ApiPlan } from '@galaxie/db';
+import { API_MODULES, API_PLANS, type ApiModule, type ApiPlan } from '@galaxie/db/schema';
 import { defaultCatalogDir } from './paths.js';
 import { parsePlans, PlansConfigError, type PlanCatalog } from './plans.js';
 import {

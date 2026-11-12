@@ -9,7 +9,7 @@ import {
   MODULE_LIMITS,
   PLAN_MODULES,
   PLANS_WITHOUT_REALTIME,
-} from '@galaxie/db';
+} from '@galaxie/db/schema';
 import {
   CATALOG_FILES,
   CatalogConfigError,
@@ -218,4 +218,11 @@ describe('consistência do catálogo', () => {
     );
     expect(p.some((x) => x.startsWith('modules.yaml modules.odds'))).toBe(true);
   });
+});
+
+it('o pacote importa o @galaxie/db só por subcaminhos (o índice traz o migrator, que o Next não empacota)', async () => {
+  const { readdirSync } = await import('node:fs');
+  const dir = join(import.meta.dirname, '..');
+  const files = readdirSync(dir, { recursive: true, encoding: 'utf8' }).filter((f) => f.endsWith('.ts'));
+  for (const f of files) expect(readFileSync(join(dir, f), 'utf8'), f).not.toMatch(/from '@galaxie\/db'/);
 });
