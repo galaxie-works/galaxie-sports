@@ -247,3 +247,116 @@ describe('GeminiCompletionClient (generateContent)', () => {
     });
   });
 });
+
+describe('anexos (PDF e imagem) na última mensagem do usuário', () => {
+  const files = [
+    { mediaType: 'application/pdf' as const, data: 'UERG', name: 'grade.pdf' },
+    { mediaType: 'image/png' as const, data: 'UE5H' },
+  ];
+  const req = {
+    model: 'm',
+    messages: [
+      { role: 'user' as const, content: 'antes' },
+      { role: 'assistant' as const, content: 'ok' },
+      { role: 'user' as const, content: 'leia a grade' },
+    ],
+    attachments: files,
+  };
+  const k = { apiKey: 'k', fetch: fakeFetch([]), retry: noSleep };
+
+  it('Anthropic: document e image em base64, antes do texto; as outras mensagens ficam como estão', () => {
+    const body = new AnthropicCompletionClient(k).wire(req, false).body as { messages: unknown[] };
+    expect(body.messages[0]).toEqual({ role: 'user', content: 'antes' });
+    expect(body.messages[2]).toEqual({
+      role: 'user',
+      content: [
+        { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: 'UERG' } },
+        { type: 'image', source: { type: 'base64', media_type: 'image/png', data: 'UE5H' } },
+        { type: 'text', text: 'leia a grade' },
+      ],
+    });
+  });
+
+  it('OpenAI: file (PDF com nome) e image_url em data URL', () => {
+    const body = new OpenAiCompletionClient(k).wire(req, false).body as { messages: unknown[] };
+    expect(body.messages[2]).toEqual({
+      role: 'user',
+      content: [
+        { type: 'file', file: { filename: 'grade.pdf', file_data: 'data:application/pdf;base64,UERG' } },
+        { type: 'image_url', image_url: { url: 'data:image/png;base64,UE5H' } },
+        { type: 'text', text: 'leia a grade' },
+      ],
+    });
+  });
+
+  it('Gemini: inlineData antes do texto', () => {
+    const body = new GeminiCompletionClient(k).wire(req, false).body as { contents: unknown[] };
+    expect(body.contents[2]).toEqual({
+      role: 'user',
+      parts: [
+        { inlineData: { mimeType: 'application/pdf', data: 'UERG' } },
+        { inlineData: { mimeType: 'image/png', data: 'UE5H' } },
+        { text: 'leia a grade' },
+      ],
+    });
+  });
+
+  it('sem anexos o corpo não muda (texto simples)', () => {
+    const body = new AnthropicCompletionClient(k).wire({ ...req, attachments: [] }, false).body as {
+      messages: unknown[];
+    };
+    expect(body.messages[2]).toEqual({ role: 'user', content: 'leia a grade' });
+  });
+
+  it('anexo sem mensagem do usuário é erro de configuração, nos três provedores (o arquivo não some calado)', () => {
+    const lone = {
+      model: 'm',
+      messages: [{ role: 'assistant' as const, content: 'ok' }],
+      attachments: files,
+    };
+    for (const client of [
+      new AnthropicCompletionClient(k),
+      new OpenAiCompletionClient(k),
+      new GeminiCompletionClient(k),
+    ])
+      expect(() => client.wire(lone, false)).toThrow(/anexo sem mensagem da pessoa/);
+  });
+});
+
+describe('anexo PDF na última mensagem da pessoa', () => {
+  const pdf = { mediaType: 'application/pdf' as const, data: 'JVBERi0=', name: 'marca.pdf' };
+  const req = { model: 'm', messages: [{ role: 'user' as const, content: 'leia' }], attachments: [pdf] };
+
+  it('Anthropic: bloco document em base64 antes do texto', () => {
+    const c = new AnthropicCompletionClient({ apiKey: 'k', retry: noSleep });
+    const body = c.wire(req, false).body as { messages: { content: unknown }[] };
+    expect(body.messages[0]!.content).toEqual([
+      { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: 'JVBERi0=' } },
+      { type: 'text', text: 'leia' },
+    ]);
+  });
+
+  it('Gemini: inlineData antes do texto', () => {
+    const c = new GeminiCompletionClient({ apiKey: 'k', retry: noSleep });
+    const body = c.wire(req, false).body as { contents: { parts: unknown[] }[] };
+    expect(body.contents[0]!.parts).toEqual([
+      { inlineData: { mimeType: 'application/pdf', data: 'JVBERi0=' } },
+      { text: 'leia' },
+    ]);
+  });
+
+  it('OpenAI: parte file com data URL e nome', () => {
+    const c = new OpenAiCompletionClient({ apiKey: 'k', retry: noSleep });
+    const body = c.wire(req, false).body as { messages: { content: unknown }[] };
+    expect(body.messages[0]!.content).toEqual([
+      { type: 'file', file: { filename: 'marca.pdf', file_data: 'data:application/pdf;base64,JVBERi0=' } },
+      { type: 'text', text: 'leia' },
+    ]);
+  });
+
+  it('sem anexo, a mensagem continua texto simples', () => {
+    const c = new AnthropicCompletionClient({ apiKey: 'k', retry: noSleep });
+    const body = c.wire({ model: 'm', messages: MSG }, false).body as { messages: { content: unknown }[] };
+    expect(body.messages[0]!.content).toBe('oi');
+  });
+});

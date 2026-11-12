@@ -67,6 +67,7 @@ import { saveWidgetAction } from '@/app/[locale]/(app)/cliente/actions';
 import { LanguageOption } from '@/components/app-shell/language-select';
 import { Alert, AlertDescription } from '@/components/reui/alert';
 import { Badge } from '@/components/reui/badge';
+import { InstallGuide } from '@/components/cosmos/install-guide';
 import { Frame, FrameDescription, FrameHeader, FramePanel, FrameTitle } from '@/components/reui/frame';
 import { Button } from '@/components/ui/button';
 import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field';
@@ -450,6 +451,7 @@ export function WidgetEditor({
   sports = [],
   guideChannels = [],
   brandThemes: brandThemesInitial = [],
+  cosmosInstall = null,
 }: {
   initial: EditorDraft;
   saved: SavedInfo | null;
@@ -461,6 +463,8 @@ export function WidgetEditor({
   guideChannels?: string[];
   /** Temas da marca do tenant. */
   brandThemes?: BrandThemeItem[];
+  /** Instalação com a Cosmos (#1005); null = sem a Cosmos (módulo, cargo ou função fora do catálogo). */
+  cosmosInstall?: { minCredits: number | null } | null;
 }) {
   const router = useRouter();
   const { t } = useI18n();
@@ -475,6 +479,10 @@ export function WidgetEditor({
   };
   const [saved, setSaved] = useState(savedInitial);
   const [savedSnapshot, setSavedSnapshot] = useState(savedInitial ? snapshot(initial) : null);
+  // o guia de instalação usa a última versão gravada (o comando baixa a gravada; o uso tem de casar com ela)
+  const [savedWidget, setSavedWidget] = useState(
+    savedInitial ? { kind: initial.kind, name: initial.name.trim() } : null,
+  );
   const [pending, startTransition] = useTransition();
   const kindTexts = useKindTexts();
   // dados de exemplo no jeito do esporte escolhido (placar com sets no vôlei, tabela por vitórias...)
@@ -539,6 +547,7 @@ export function WidgetEditor({
       toast.success(fill(e.saved, { n: res.widget.version }));
       setSaved({ id: res.widget.id, version: res.widget.version });
       setSavedSnapshot(snapshot(draft));
+      setSavedWidget({ kind: draft.kind, name: draft.name.trim() });
       if (!saved) router.replace(`/cliente/builder/${res.widget.id}`);
       else router.refresh();
     });
@@ -853,6 +862,9 @@ export function WidgetEditor({
                     <TabsList>
                       <TabsTrigger value="html">{e.install.tabHtml}</TabsTrigger>
                       <TabsTrigger value="react">{e.install.tabReact}</TabsTrigger>
+                      {cosmosInstall ? (
+                        <TabsTrigger value="cosmos">{t.client.cosmosBuilder.install.tab}</TabsTrigger>
+                      ) : null}
                     </TabsList>
                     <TabsContent value="html" className="flex flex-col gap-3 pt-1">
                       <div className="flex flex-col gap-1.5">
@@ -900,6 +912,18 @@ export function WidgetEditor({
                         <CodeSnippet code={`${PUBLISHABLE_KEY_ENV}=gs_pk_live_…`} />
                       </div>
                     </TabsContent>
+                    {cosmosInstall ? (
+                      <TabsContent value="cosmos" className="pt-1">
+                        <InstallGuide
+                          widget={{
+                            id: saved.id,
+                            kind: savedWidget?.kind ?? draft.kind,
+                            name: savedWidget?.name || kindTexts(savedWidget?.kind ?? draft.kind).name,
+                          }}
+                          minCredits={cosmosInstall.minCredits}
+                        />
+                      </TabsContent>
+                    ) : null}
                   </Tabs>
                 </>
               ) : (

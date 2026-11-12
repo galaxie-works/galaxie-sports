@@ -25,7 +25,7 @@ async function Wallets() {
     <div className="flex flex-col gap-6">
       <WalletsTable rows={data.rows} timeZone={timeZone} />
       <PackagesSection packages={data.packages} />
-      <FunctionsSection functions={data.functions} assistantProviders={data.assistantProviders} />
+      <FunctionsSection functions={data.functions} callableFor={data.callableFor} />
     </div>
   );
 }

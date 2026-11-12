@@ -66,7 +66,7 @@ anômalo (§5).
   - a publicável não expira.
 - **Revogação:** pela operação (`.../keys/{keyId}/revoke`) ou pelo painel (publicável). Vale em até 60 s, inclusive em
   stream SSE aberto.
-- **Trial:** plano `trial` em `config/plans.yaml` (`trialDays: 30`, só `core_data`, 60 req/min, cota de 5000/dia).
+- **Trial:** plano `trial` em `config/catalog/plans.yaml` (`trialDays: 30`, só `core_data`, 60 req/min, cota de 5000/dia).
   - O onboarding grava `api.tenant.trial_ends_at`. Depois do prazo, nenhuma chave do tenant autentica (401, secreta ou
     publicável).
   - Trocar o plano (`PATCH /internal/admin/tenants/{id}` com `plan`) tira o prazo; voltar para `trial` dá 30 dias de
