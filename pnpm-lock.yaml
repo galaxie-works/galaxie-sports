@@ -472,6 +472,9 @@ importers:
       '@galaxie/apisports-client':
         specifier: workspace:*
         version: link:../apisports-client
+      '@galaxie/contracts':
+        specifier: workspace:*
+        version: link:../contracts
       '@galaxie/db':
         specifier: workspace:*
         version: link:../db

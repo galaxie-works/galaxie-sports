@@ -102,6 +102,7 @@ describe('triggers de captura → ops.change_feed', () => {
       competition_id: competitionId,
       changed: ['score'],
       data: { score: { home: 1, away: 0 } },
+      previous: { score: { home: 0, away: 0 } },
     });
     const status = rows.find((r) => r.topic === 'event.status_changed')!;
     expect(status.payload).toMatchObject({
@@ -109,6 +110,24 @@ describe('triggers de captura → ops.change_feed', () => {
       data: { status: 'live', clock: { minute: 31 } },
       previous: { status: 'live' },
     });
+  });
+
+  it('core.event: placar que cai traz o anterior e não manda desfazer gol (#640)', async () => {
+    await db
+      .update(event)
+      .set({ score: { home: 0, away: 0 } })
+      .where(eq(event.id, eventId));
+    const [score] = (await changes()).filter((r) => r.topic === 'event.score_changed');
+    expect(score!.payload).toMatchObject({
+      data: { score: { home: 0, away: 0 } },
+      previous: { score: { home: 1, away: 0 } },
+    });
+    // o placar do fornecedor oscila sozinho: só o lance de VAR confirma a anulação
+    expect(score!.payload).not.toHaveProperty('data.goal_cancelled');
+    await db
+      .update(event)
+      .set({ score: { home: 1, away: 0 } })
+      .where(eq(event.id, eventId));
   });
 
   it('core.event: update sem mudança de estado não publica nada', async () => {
@@ -167,6 +186,18 @@ describe('triggers de captura → ops.change_feed', () => {
         set: { minute: 13 },
       });
     expect(await changes()).toHaveLength(0);
+  });
+
+  it('core.event_incident: VAR de gol anulado leva goal_cancelled; VAR que confirma não (#640)', async () => {
+    await db
+      .insert(eventIncident)
+      .values({ eventId, sequence: 2, minute: 14, type: 'var', detail: 'Goal confirmed' });
+    expect((await changes())[0]!.payload).not.toHaveProperty('data.goal_cancelled');
+    mark = Number((await db.select({ max: sql<string>`max(id)` }).from(changeFeed))[0]!.max);
+    await db
+      .insert(eventIncident)
+      .values({ eventId, sequence: 3, minute: 15, type: 'var', detail: 'Goal Disallowed - offside' });
+    expect((await changes())[0]!.payload).toMatchObject({ data: { goal_cancelled: true } });
   });
 
   it('enrich.broadcast_option: inclusão, correção e remoção → where_to_watch.changed; reverificação não', async () => {

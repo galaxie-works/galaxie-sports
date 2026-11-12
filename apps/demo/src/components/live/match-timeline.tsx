@@ -246,6 +246,8 @@ function KindIcon({ kind }: { kind: TimelineIncident['kind'] }) {
 function IncidentRow({ i, f }: { i: TimelineIncident; f: Formatters }) {
   const tl = useI18n().t.live.timeline;
   const decisive = i.flags.includes('decisive');
+  // gol anulado pelo VAR: fica riscado, sem placar, com o selo "Anulado" (o card do VAR vem logo depois)
+  const disallowed = i.disallowed;
   // gol: o time que somou (no gol contra, o beneficiado, a quem valem placar e bandeiras); demais lances: o do lance
   const crest = i.scoring_team ?? i.team;
   const title =
@@ -272,7 +274,15 @@ function IncidentRow({ i, f }: { i: TimelineIncident; f: Formatters }) {
         )}
       >
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <span className={cn('text-sm font-semibold', i.key_moment && 'text-base')}>{title}</span>
+          <span
+            className={cn(
+              'text-sm font-semibold',
+              i.key_moment && 'text-base',
+              disallowed && 'text-muted-foreground line-through',
+            )}
+          >
+            {title}
+          </span>
           {i.score_after && i.kind !== 'shootout_scored' ? (
             <span className="text-primary text-base font-bold tabular-nums">
               {i.score_after.home}–{i.score_after.away}
@@ -289,6 +299,11 @@ function IncidentRow({ i, f }: { i: TimelineIncident; f: Formatters }) {
               {tl.flags[flag] ?? flag}
             </Badge>
           ))}
+          {disallowed ? (
+            <Badge variant="destructive-light" radius="full" size="sm">
+              {tl.flags.disallowed}
+            </Badge>
+          ) : null}
           {reason ? <span className="text-muted-foreground text-xs">{reason}</span> : null}
           {crest ? (
             <span className="text-muted-foreground ml-auto flex min-w-0 items-center gap-1.5 text-xs">
