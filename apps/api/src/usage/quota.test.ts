@@ -35,6 +35,16 @@ describe('QuotaGuard (cota diária, docs/politica-de-chaves.md §4)', () => {
     expect(await guard.check('t', 10)).toMatchObject({ used: 12, level: 'blocked' });
   });
 
+  it('sem bloquear (chave publicável, #1137): acima da cota passa e conta como excedente', async () => {
+    const backend = new MemoryUsageBackend();
+    const now = new Date('2026-10-26T12:00:00Z');
+    await backend.incr([{ day: '2026-10-26', tenantId: 'w', route: 'GET /v1/sports', n: 11 }]);
+    const guard = new QuotaGuard(backend, { now: () => now, refreshMs: 60_000 });
+    expect(await guard.check('w', 10, { enforce: false })).toMatchObject({ used: 12, level: 'blocked' });
+    // contou: a próxima é a 13ª
+    expect(await guard.check('w', 10, { enforce: false })).toMatchObject({ used: 13, level: 'blocked' });
+  });
+
   it('relê o Valkey depois de refreshMs e recomeça na virada do dia UTC', async () => {
     const backend = new MemoryUsageBackend();
     let now = new Date('2026-10-26T12:00:00Z');

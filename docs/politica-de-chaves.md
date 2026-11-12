@@ -86,7 +86,8 @@ anômalo (§5).
   - toda resposta de chave de produção com cota traz `x-galaxie-quota-limit` e `x-galaxie-quota-remaining`;
   - a partir de 80%, `x-galaxie-quota-warning: <uso>%` e um evento no log (`quota.warning`, uma vez por tenant e dia);
   - acima de 110%: 429 `QUOTA_EXCEEDED` com `retry-after` até a virada do dia UTC, e evento `quota.exceeded`; a
-    requisição recusada não conta;
+    requisição recusada não conta. **Só para a chave secreta**: a publicável (widgets) recebe o aviso e passa, e o uso
+    acima da cota conta como excedente (plataforma comercial, #1137): o widget nunca cai pela cota;
   - só o uso de produção conta: a chave de teste fica fora, e a publicável conta como produção;
   - `enterprise` não tem cota (`dailyRequestQuota: null`);
   - o total do dia é o uso consolidado em `api.usage_daily` somado ao contador do Valkey, a mesma leitura do

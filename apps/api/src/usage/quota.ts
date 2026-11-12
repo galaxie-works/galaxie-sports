@@ -64,8 +64,12 @@ export class QuotaGuard {
     this.db = options.db;
   }
 
-  /** Conta esta requisição e diz em que nível o tenant está. Erro de leitura propaga (o chamador decide). */
-  async check(tenantId: string, limit: number): Promise<QuotaStatus> {
+  /**
+   * Conta esta requisição e diz em que nível o tenant está. Erro de leitura propaga (o chamador decide).
+   * `enforce: false` (chave publicável dos widgets, #1137): acima da cota a requisição passa e conta, como excedente;
+   * o widget nunca cai pela cota.
+   */
+  async check(tenantId: string, limit: number, opts: { enforce?: boolean } = {}): Promise<QuotaStatus> {
     const now = this.now();
     const day = utcDay(now);
     let entry = this.cache.get(tenantId);
@@ -78,8 +82,8 @@ export class QuotaGuard {
     const resetSec = Math.max(1, Math.ceil((nextDay - now.getTime()) / 1000));
     const level =
       used > limit * QUOTA_BLOCK_RATIO ? 'blocked' : used >= limit * QUOTA_WARN_RATIO ? 'warn' : 'ok';
-    // requisição recusada não conta (nem no contador de uso)
-    if (level === 'blocked') entry.seen -= 1;
+    // requisição recusada não conta (nem no contador de uso); a que passa como excedente conta
+    if (level === 'blocked' && opts.enforce !== false) entry.seen -= 1;
     return { limit, used, level, resetSec };
   }
 
