@@ -175,7 +175,11 @@ async function optionEntitiesOf(
   return out;
 }
 
-export async function draftOf(widget: Widget, locale: Locale): Promise<EditorDraft> {
+/** Rascunho de um widget salvo ou de um widget já validado que ainda não foi salvo (o da Cosmos, #1005). */
+export async function draftOf(
+  widget: Pick<Widget, 'name' | 'kind' | 'config'>,
+  locale: Locale,
+): Promise<EditorDraft> {
   const entity = entityFromDefaults(widget.config.defaults);
   const options = parseWidgetOptions(widget.kind, widget.config.options) ?? {};
   return {

@@ -24,3 +24,6 @@ e8f125f7afd21252928eb928346d6a785ec6340a:packages/runtime-config/src/sealed.test
 # prefixo público de exemplo no teste da origem recusada (#1007); o literal saiu no commit seguinte
 3fc791044359c20c740489c2494c0cd1aa1725a2:apps/api/src/auth/publishable.test.ts:generic-api-key:152
 3fc791044359c20c740489c2494c0cd1aa1725a2:apps/api/src/auth/publishable.test.ts:generic-api-key:155
+# aaa2a1b0 (PR #1131, widget por frase): chave publicável fictícia do teste de instalação; desde o commit seguinte é
+# montada na hora (['gs', 'pk', 'live', …].join('_')).
+aaa2a1b0d770ad5f0a6b0ca04a8adff071c70a9f:apps/demo/src/lib/cosmos/widget-install.test.ts:generic-api-key:23
