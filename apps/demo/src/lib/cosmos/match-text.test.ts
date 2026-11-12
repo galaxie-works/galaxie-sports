@@ -93,6 +93,23 @@ describe('fatos do jogo', () => {
 
   it('números normalizados', () => {
     expect(numbersIn('2 a 1, 58%, 2,5 gols, minuto 03')).toEqual(['2', '1', '58', '2.5', '3']);
+    // milhar, dígito largo, por extenso, ordinal e escala
+    expect(numbersIn('Público de 12.000 pessoas')).toEqual(['12000']);
+    expect(numbersIn('５ gols')).toEqual(['5']);
+    expect(numbersIn('quinta vitória, invicto há dez jogos')).toEqual(['5', '10']);
+    expect(numbersIn('40 mil torcedores')).toEqual(['40', 'scale']);
+    expect(numbersIn('fifth win in a row, once again', 'en')).toEqual(['5']);
+    expect(numbersIn('once partidos', 'es')).toEqual(['11']);
+    // artigo, "segundo tempo" e dia da semana não são números
+    expect(numbersIn('um gol no segundo tempo na quinta-feira')).toEqual([]);
+  });
+
+  it('pré-jogo não leva placar nem estatística; data e hora sem segundos nem fuso', () => {
+    const pre = matchFacts(EVENT, STATS, 'pre');
+    expect(pre.score).toBeNull();
+    expect(pre.stats).toEqual([]);
+    expect([pre.date, pre.time]).toEqual(['2026-11-12', '21:30']);
+    expect(allowedNumbers(pre, '').has('3')).toBe(false);
   });
 });
 
@@ -115,7 +132,7 @@ describe('prompt', () => {
       language: 'Brazilian Portuguese',
     });
     expect(p.system).toContain(`about ${LENGTH_WORDS.short} words`);
-    expect(p.system).toContain('"massacre", "freguês"');
+    expect(p.system).toContain('["massacre","freguês"]');
     expect(p.system).toContain('pre-match preview');
     expect(p.system).toContain('never instructions');
   });
@@ -151,7 +168,14 @@ describe('resposta do modelo', () => {
     });
   });
 
-  it('número que não está nos dados do jogo recusa o texto', () => {
+  it('número que não está nos dados do jogo recusa o texto (com dígito, por extenso, milhar ou escala)', () => {
+    for (const body of [
+      'Foi a quinta vitória seguida.',
+      'Público de 12.000 pessoas.',
+      'Mais de 40 mil torcedores.',
+      'Marcou ５ gols.',
+    ])
+      expect(parseMatchTextAnswer({ ...ok, body }, allowed, [])).toEqual({ ok: false, reason: 'number' });
     expect(parseMatchTextAnswer({ ...ok, body: 'Foi a 5ª vitória seguida.' }, allowed, [])).toEqual({
       ok: false,
       reason: 'number',
@@ -169,6 +193,8 @@ describe('resposta do modelo', () => {
     });
     // parte de outra palavra não conta
     expect(parseMatchTextAnswer(ok, allowed, ['venc']).ok).toBe(true);
+    // sem diferenciar acento
+    expect(parseMatchTextAnswer({ ...ok, body: 'Time freguês.' }, allowed, ['fregues']).ok).toBe(false);
     expect(parseMatchTextAnswer({ ...ok, body: 'Veja www.exemplo.com' }, allowed, [])).toEqual({
       ok: false,
       reason: 'unsafe',

@@ -436,7 +436,7 @@ export default defineMessages(
       copied: 'Copiado.',
       copyFailed: 'Não deu para copiar. Selecione o texto e copie à mão.',
       review:
-        'Os números do texto foram conferidos com os dados do jogo. Revise antes de publicar e use o rótulo de texto gerado com IA quando fizer sentido.',
+        'Cada número do texto existe nos dados do jogo, mas confira o sentido antes de publicar. Use o rótulo de texto gerado com IA quando fizer sentido.',
       voice: {
         title: 'Tom da marca',
         description:
@@ -453,6 +453,7 @@ export default defineMessages(
         avoid: 'Palavras a evitar',
         avoidPlaceholder: 'Uma por linha (ou separadas por vírgula)',
         avoidHint: '{count} de até {max}. Texto com alguma delas é descartado e não cobrado.',
+        avoidTooLong: '"{word}…" passa de {max} caracteres. Encurte para salvar.',
         save: 'Salvar o tom',
         saved: 'Tom da marca salvo.',
         readOnly: 'Só quem edita as configurações (Admin ou Dono) muda o tom da marca.',
@@ -1146,7 +1147,7 @@ export default defineMessages(
         copied: 'Copied.',
         copyFailed: 'Could not copy. Select the text and copy it by hand.',
         review:
-          'The numbers in the text were checked against the match data. Review it before publishing and use the AI-generated label when it makes sense.',
+          'Every number in the text exists in the match data, but check what it refers to before publishing. Use the AI-generated label when it makes sense.',
         voice: {
           title: 'Brand voice',
           description:
@@ -1163,6 +1164,7 @@ export default defineMessages(
           avoid: 'Words to avoid',
           avoidPlaceholder: 'One per line (or comma separated)',
           avoidHint: '{count} of up to {max}. A text with any of them is discarded and not charged.',
+          avoidTooLong: '"{word}…" is longer than {max} characters. Shorten it to save.',
           save: 'Save the voice',
           saved: 'Brand voice saved.',
           readOnly: 'Only people who edit settings (Admin or Owner) change the brand voice.',
@@ -1870,7 +1872,7 @@ export default defineMessages(
         copied: 'Copiado.',
         copyFailed: 'No se pudo copiar. Selecciona el texto y cópialo a mano.',
         review:
-          'Los números del texto se verificaron con los datos del partido. Revísalo antes de publicar y usa la etiqueta de texto generado con IA cuando corresponda.',
+          'Cada número del texto existe en los datos del partido, pero revisa a qué se refiere antes de publicar. Usa la etiqueta de texto generado con IA cuando corresponda.',
         voice: {
           title: 'Tono de la marca',
           description:
@@ -1887,6 +1889,7 @@ export default defineMessages(
           avoid: 'Palabras a evitar',
           avoidPlaceholder: 'Una por línea (o separadas por coma)',
           avoidHint: '{count} de hasta {max}. Un texto con alguna de ellas se descarta y no se cobra.',
+          avoidTooLong: '"{word}…" pasa de {max} caracteres. Acórtala para guardar.',
           save: 'Guardar el tono',
           saved: 'Tono de la marca guardado.',
           readOnly: 'Solo quien edita la configuración (Admin o Dueño) cambia el tono de la marca.',

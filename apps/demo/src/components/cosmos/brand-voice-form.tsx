@@ -18,11 +18,21 @@ const TONES: BrandVoiceTone[] = ['formal', 'fan', 'young'];
 const LENGTHS: BrandVoiceLength[] = ['short', 'medium', 'long'];
 const AVOID_MAX = 20;
 
-const splitAvoid = (text: string) =>
-  text
+const AVOID_CHARS = 40;
+
+/** Palavras sem repetição (como o servidor grava). */
+const splitAvoid = (text: string) => {
+  const seen = new Set<string>();
+  return text
     .split(/[\n,;]/)
-    .map((w) => w.trim())
-    .filter(Boolean);
+    .map((w) => w.trim().replace(/\s+/g, ' '))
+    .filter((w) => {
+      const key = w.toLocaleLowerCase();
+      if (!w || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+};
 
 /**
  * Guia de tom da marca (#1009), nas configurações da Cosmos: como os textos de pré e pós-jogo soam (formal, torcedor
@@ -37,6 +47,7 @@ export function BrandVoiceForm({ initial, canEdit }: { initial: BrandVoice; canE
   const [avoid, setAvoid] = useState(initial.avoid.join('\n'));
   const [pending, startTransition] = useTransition();
   const words = splitAvoid(avoid);
+  const tooLong = words.find((w) => w.length > AVOID_CHARS);
 
   const save = () =>
     startTransition(async () => {
@@ -106,11 +117,15 @@ export function BrandVoiceForm({ initial, canEdit }: { initial: BrandVoice; canE
             placeholder={T.avoidPlaceholder}
             onChange={(e) => setAvoid(e.target.value)}
           />
-          <FieldDescription>{fill(T.avoidHint, { count: words.length, max: AVOID_MAX })}</FieldDescription>
+          <FieldDescription>
+            {tooLong
+              ? fill(T.avoidTooLong, { word: tooLong.slice(0, 20), max: AVOID_CHARS })
+              : fill(T.avoidHint, { count: words.length, max: AVOID_MAX })}
+          </FieldDescription>
         </Field>
         {canEdit ? (
           <div className="flex justify-end">
-            <Button onClick={save} disabled={pending || words.length > AVOID_MAX}>
+            <Button onClick={save} disabled={pending || words.length > AVOID_MAX || !!tooLong}>
               {pending ? <Spinner /> : null}
               {T.save}
             </Button>

@@ -20,7 +20,15 @@ export async function MatchTextSlot({
   if (!kinds.length) return null;
   const ctx = await readClientContext();
   if (!ctx?.tenant || matchTextAccess(ctx)) return null;
-  const [minimum, { saved }] = await Promise.all([matchTextMinimum(), brandVoiceFor(ctx.tenant.id)]);
+  let minimum: number | null;
+  let saved: boolean;
+  try {
+    [minimum, { saved }] = await Promise.all([matchTextMinimum(), brandVoiceFor(ctx.tenant.id)]);
+  } catch (err) {
+    // a página do jogo não depende da Cosmos: banco fora ou tabela ainda sem migration somem com o card, não com a página
+    console.error('[cosmos] texto do jogo indisponível', err);
+    return null;
+  }
   if (minimum === null) return null;
   return (
     <MatchText

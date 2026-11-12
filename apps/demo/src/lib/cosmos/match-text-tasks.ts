@@ -28,6 +28,7 @@ import {
   matchFacts,
   matchTextPrompt,
   parseMatchTextAnswer,
+  textLanguage,
   type MatchText,
   type MatchTextKind,
 } from './match-text';
@@ -95,9 +96,10 @@ export async function draftMatchText(
   const start = context?.data.find((c) => c.kind === CONTEXT_KIND[kind])?.text.trim();
   if (!start) return { ok: false, error: 'noContext' };
 
-  const facts = matchFacts(event, stats);
+  const facts = matchFacts(event, stats, kind);
+  const lang = textLanguage(locale);
   const { voice } = await brandVoiceFor(ctx.tenant!.id);
-  const allowed = allowedNumbers(facts, start);
+  const allowed = allowedNumbers(facts, start, lang);
   const prompt = matchTextPrompt({ kind, facts, context: start, voice, language: languageOf(locale) });
   const db = builderDb();
   const r = await runCosmosTask(
@@ -112,10 +114,10 @@ export async function draftMatchText(
       maxOutputTokens: MATCH_TEXT_MAX_OUTPUT_TOKENS,
       metadata: { kind, eventId, tone: voice.tone },
       evaluate: async (text) => {
-        const parsed = parseMatchTextAnswer(parseModelJson(text), allowed, voice.avoid);
+        const parsed = parseMatchTextAnswer(parseModelJson(text), allowed, voice.avoid, lang);
         return { usable: parsed.ok, value: parsed.ok ? parsed.text : null! };
       },
-      ...(ctx.role === 'admin' ? { staff: { route: `/eventos/${eventId}#cosmos-text` } } : {}),
+      ...(ctx.role === 'admin' ? { staff: { route: '/eventos#cosmos-text' } } : {}),
     },
     { settings: await readCosmosSettings(db) },
   );

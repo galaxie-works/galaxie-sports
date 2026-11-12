@@ -45,7 +45,12 @@ export function MatchText({
     const n = ++asked.current;
     setAsking(kind);
     startTransition(async () => {
-      const r = await draftMatchTextWithCosmos({ eventId, kind, locale });
+      let r: Awaited<ReturnType<typeof draftMatchTextWithCosmos>>;
+      try {
+        r = await draftMatchTextWithCosmos({ eventId, kind, locale });
+      } catch {
+        r = { ok: false, error: T.errors.failed };
+      }
       if (n !== asked.current) return;
       setAsking(null);
       if (!r.ok) return void toast.error(r.error);
