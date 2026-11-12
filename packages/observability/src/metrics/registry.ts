@@ -71,6 +71,10 @@ export interface GalaxieMetrics {
   cacheResults: Counter<'result'>;
   /** Recusas do portão de idade (#1106) por motivo, capacidade e país; sem identificar o torcedor. */
   fanAgeDenied: Counter<'reason' | 'capability' | 'country'>;
+  /** Consultas aos conectores do Shopping (#916) por loja e resultado: `ok`, `error`, `cache` (servida do cache). */
+  shopConnectorRequests: Counter<'store' | 'outcome'>;
+  /** Latência das consultas aos conectores do Shopping por loja (só as que foram à loja). */
+  shopConnectorDuration: Histogram<'store'>;
 }
 
 /** Buckets alinhados ao NFR de p95 ≤ 150 ms (docs/02 §7). */
@@ -196,12 +200,33 @@ export function createMetrics(options: MetricsOptions = {}): GalaxieMetrics {
     labelNames: ['reason', 'capability', 'country'],
     registers: [registry],
   });
+  const shopConnectorRequests = new Counter<'store' | 'outcome'>({
+    name: 'galaxie_shop_connector_requests_total',
+    help: 'Consultas aos conectores de loja do Shopping por loja e resultado: ok, error e cache (servida do cache)',
+    labelNames: ['store', 'outcome'],
+    registers: [registry],
+  });
+  const shopConnectorDuration = new Histogram<'store'>({
+    name: 'galaxie_shop_connector_duration_seconds',
+    help: 'Latência das consultas aos conectores de loja do Shopping, por loja',
+    labelNames: ['store'],
+    buckets: [0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10],
+    registers: [registry],
+  });
   // séries criadas em 0: sem isso, o increase() dos alertas não vê o primeiro incremento de uma série nova
   for (const reason of ['process_limit', 'tenant_limit']) sseRejected.inc({ reason }, 0);
   for (const consumer of ['sse', 'cache-purge'])
     for (const reason of ['timeout', 'max_seen']) gapsAbandoned.inc({ consumer, reason }, 0);
   for (const result of ['hit', 'miss', 'stale', 'coalesced']) cacheResults.inc({ result }, 0);
-  const runtime = { sseConnections, sseRejected, gapsAbandoned, cacheResults, fanAgeDenied };
+  const runtime = {
+    sseConnections,
+    sseRejected,
+    gapsAbandoned,
+    cacheResults,
+    shopConnectorRequests,
+    shopConnectorDuration,
+    fanAgeDenied,
+  };
 
   const livePoll = new Gauge({
     name: 'galaxie_live_poll_interval_seconds',
