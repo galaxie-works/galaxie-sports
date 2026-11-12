@@ -705,8 +705,29 @@
     {
       "idx": 100,
       "version": "7",
-      "when": 1794511043518,
-      "tag": "0143_ficha_juridico",
+      "when": 1794511062565,
+      "tag": "0144_shopping_catalogo",
+      "breakpoints": true
+    },
+    {
+      "idx": 101,
+      "version": "7",
+      "when": 1794511111999,
+      "tag": "0145_shopping_conectores",
+      "breakpoints": true
+    },
+    {
+      "idx": 102,
+      "version": "7",
+      "when": 1794511151278,
+      "tag": "0146_shopping_cliques",
+      "breakpoints": true
+    },
+    {
+      "idx": 103,
+      "version": "7",
+      "when": 1794520265570,
+      "tag": "0150_ficha_juridico",
       "breakpoints": true
     }
   ]

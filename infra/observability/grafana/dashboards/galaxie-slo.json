@@ -1041,6 +1041,92 @@
           "legendFormat": "{{service}}"
         }
       ]
+    },
+    {
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "id": 115,
+      "title": "Shopping: consultas às lojas por resultado",
+      "description": "Consultas aos conectores de loja (#916) por loja e resultado: ok, error (a loja falhou; os produtos dela somem da resposta) e cache.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 45
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by (store, outcome) (rate(galaxie_shop_connector_requests_total[5m]))",
+          "legendFormat": "{{store}} {{outcome}}"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "id": 116,
+      "title": "Shopping: latência p95 por loja",
+      "description": "p95 das consultas que foram à loja (fora do cache).",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 45
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "histogram_quantile(0.95, sum by (store, le) (rate(galaxie_shop_connector_duration_seconds_bucket[5m])))",
+          "legendFormat": "{{store}}"
+        }
+      ]
     }
   ]
 }
