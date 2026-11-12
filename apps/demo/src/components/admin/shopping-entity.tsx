@@ -84,7 +84,8 @@ export function ShoppingEntity({ detail, stores }: { detail: ShopEntityDetail; s
           <ArrowLeft className="size-4" />
           {T.entity.back}
         </Link>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <h2 className="text-lg font-semibold">{detail.entity.name}</h2>
           <Badge variant="secondary">
             {T.subtypes[detail.entity.subtype as keyof typeof T.subtypes] ?? detail.entity.subtype}
           </Badge>
