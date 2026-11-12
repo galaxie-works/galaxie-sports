@@ -41,13 +41,13 @@ Cada rota declara o módulo exigido (`/mirror` e o catálogo `/v1` exigem `core_
 
 ```bash
 pnpm --filter @galaxie/api tenant:create --slug demo-local --plan enterprise --label dev
-# padrões do modelo do plano (config/plans.yaml, §1.2); ajustes: --markets BR,AR --sports football
+# padrões do modelo do plano (config/catalog/plans.yaml, §1.2); ajustes: --markets BR,AR --sports football
 # --rate-limit 600 --daily-quota 50000|none --scopes core_data --env live
 ```
 
 ### 1.2 Onboarding, autoatendimento e uso
 
-**Modelos de plano** — [`config/plans.yaml`](../config/plans.yaml) define, para cada plano comercial (Trial, Core Data, Fan Experience, Live Intelligence, Enterprise — docs/01 §6), os módulos, mercados e esportes padrão, `rateLimitPerMinute`, `dailyRequestQuota` (aplicada ao uso de produção: aviso a partir de 80%, 429 `QUOTA_EXCEEDED` acima de 110%; `null` = sem cota), o ambiente da chave inicial e `trialDays` (o Trial vale 30 dias, sem SSE nem webhooks; [política](politica-de-chaves.md)). O arquivo é validado na subida da API (Zod); o teste unitário garante que os módulos batem com `PLAN_MODULES`. Mudar o arquivo não altera tenants existentes (use `applyTemplate`).
+**Modelos de plano** — [`config/catalog/plans.yaml`](../config/catalog/plans.yaml) define, para cada plano comercial (Trial, Core Data, Fan Experience, Live Intelligence, Enterprise — docs/01 §6), os módulos, mercados e esportes padrão, `rateLimitPerMinute`, `dailyRequestQuota` (aplicada ao uso de produção: aviso a partir de 80%, 429 `QUOTA_EXCEEDED` acima de 110%; `null` = sem cota), o ambiente da chave inicial e `trialDays` (o Trial vale 30 dias, sem SSE nem webhooks; [política](politica-de-chaves.md)). O arquivo é validado na subida da API (Zod); o teste unitário garante que os módulos batem com `PLAN_MODULES`. Mudar o arquivo não altera tenants existentes (use `applyTemplate`).
 
 **API administrativa** — `/internal/admin/*`, só registrada quando `ADMIN_KEY_HASHES` está definida. Exige a chave administrativa no header `x-galaxie-admin-key` (`gs_admin_<32 bytes>`; gere com `pnpm --filter @galaxie/api admin:key`, que imprime a chave **uma vez** e o hash `sha256$...` para o ambiente) e, com `ADMIN_IP_ALLOWLIST` (IPs/CIDRs), responde **404** fora da allowlist. O proxy público já devolve 404 para `/internal/*` (o router do Traefik em [`infra/vps-telemetry/compose.yml`](../infra/vps-telemetry/compose.yml) não inclui `/internal` nem `/metrics`); o acesso é pela rede privada/VPN. Respostas `no-store`, sem CORS. Corpo e parâmetros validados com Zod (`.strict()`: campo desconhecido → 400).
 
