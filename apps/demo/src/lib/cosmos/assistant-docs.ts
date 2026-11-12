@@ -1,10 +1,13 @@
 /**
- * Base de conhecimento do assistente da Cosmos (#1003): os guias públicos da documentação (/docs), no idioma da
- * tela, em trechos por subseção. Busca por palavras nesta etapa (sem embeddings), em `@galaxie/cosmos`.
+ * Base de conhecimento do assistente da Cosmos: os guias públicos da documentação (/docs), no idioma da tela, em
+ * trechos por subseção, e o contrato da API (OpenAPI), um trecho por operação. A busca (por palavras e por
+ * significado) fica em `@galaxie/cosmos` (`searchKnowledge`).
  */
 import type { DocChunk } from '@galaxie/cosmos';
 
+import { operationAnchor } from '@/lib/galaxie/request';
 import type { Dictionary } from '@/lib/i18n/dictionary';
+import { groupByTag, type OpenApiDoc, type Schema } from '@/lib/openapi-reference';
 
 /** Guia da documentação → rota da página. */
 const GUIDES = {
@@ -42,8 +45,47 @@ export function docChunks(docs: Dictionary['docs']): DocChunk[] {
         value && typeof value === 'object' && typeof (value as { title?: unknown }).title === 'string'
           ? clean((value as { title: string }).title)
           : `${guide} · ${key}`;
-      out.push({ title, href, text: text.slice(0, 1500) });
+      out.push({ title, href, text: text.slice(0, CHUNK_MAX) });
     }
   }
+  return out;
+}
+
+const REFERENCE_HREF = '/docs/referencia';
+const CHUNK_MAX = 1500;
+
+const typeOf = (s: Schema | undefined): string =>
+  !s ? '' : s.$ref ? s.$ref.split('/').pop()! : Array.isArray(s.type) ? s.type.join('|') : (s.type ?? '');
+
+/**
+ * Trechos do contrato da API: um por operação, com método, rota, resumo, descrição, parâmetros e respostas. O
+ * contrato é publicado em pt-BR; o assistente responde no idioma da tela.
+ */
+export function apiChunks(doc: OpenApiDoc): DocChunk[] {
+  const out: DocChunk[] = [];
+  for (const [tag, ops] of groupByTag(doc))
+    for (const { method, route, op } of ops) {
+      const params = (op.parameters ?? []).map(
+        (p) =>
+          `${p.name} (${p.in}${p.required ? ', required' : ''}${p.schema ? `, ${typeOf(p.schema)}` : ''})${p.description ? `: ${clean(p.description)}` : ''}`,
+      );
+      const responses = Object.entries(op.responses ?? {}).map(
+        ([code, r]) => `${code}${r.description ? `: ${clean(r.description)}` : ''}`,
+      );
+      const text = [
+        `${method.toUpperCase()} ${route}`,
+        op.summary ? clean(op.summary) : '',
+        op.description ? clean(op.description) : '',
+        params.length ? `parameters: ${params.join('; ')}` : '',
+        responses.length ? `responses: ${responses.join('; ')}` : '',
+      ]
+        .filter(Boolean)
+        .join('\n');
+      out.push({
+        title: `${tag} · ${method.toUpperCase()} ${route}${op.summary ? ` (${clean(op.summary)})` : ''}`,
+        href: `${REFERENCE_HREF}#${operationAnchor(method, route)}`,
+        text: text.slice(0, CHUNK_MAX),
+      });
+    }
   return out;
 }
