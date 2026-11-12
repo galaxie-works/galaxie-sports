@@ -204,4 +204,73 @@ describe('tarefa de uma chamada da Cosmos (#1005)', () => {
     const [row] = await db.select().from(staffUsage).where(eq(staffUsage.tenantId, t));
     expect(row).toMatchObject({ outcome: 'ok', route: '/cliente/builder#x', inputTokens: 1200 });
   });
+
+  it('tarefa de várias chamadas: o uso de todas entra num só acerto, e a reserva cobre as rodadas', async () => {
+    const t = await newTenant();
+    const seen: CompletionRequest[] = [];
+    const client = fakeClient('{"ok":true}', seen);
+    const r = await runCosmosTask(
+      db,
+      input(t, {
+        rounds: 3,
+        execute: async (ask) => {
+          const a = await ask({ system: 's1', message: 'm1', maxOutputTokens: 100 });
+          const b = await ask({ system: 's2', message: 'm2', maxOutputTokens: 100 });
+          return { usable: a.length > 0 && b.length > 0, value: ['duas'] };
+        },
+      }),
+      { client, env, settings },
+    );
+    expect(r).toMatchObject({ ok: true, value: ['duas'] });
+    expect(seen.map((x) => x.system)).toEqual(['s1', 's2']);
+    const [u] = await usage(t);
+    // duas chamadas de 1200 + 300 tokens no mesmo lançamento
+    expect(u).toMatchObject({ tokensIn: 2400, tokensOut: 600 });
+    expect((await getWallet(db, t))!.reserved).toBe(0);
+  });
+
+  it('keepUnusable: a resposta que não serve volta para a tela, sem débito', async () => {
+    const t = await newTenant();
+    const before = (await getWallet(db, t))!.available;
+    const r = await runCosmosTask(
+      db,
+      input(t, {
+        keepUnusable: true,
+        execute: async (ask) => {
+          await ask({ system: 's', message: 'm', maxOutputTokens: 100 });
+          return { usable: false, value: ['sem dado'] };
+        },
+      }),
+      { client: fakeClient('{}'), env, settings },
+    );
+    expect(r).toEqual({ ok: true, value: ['sem dado'], usable: false, charged: 0 });
+    expect((await getWallet(db, t))!.available).toBe(before);
+  });
+
+  it('provedor falha na segunda rodada: o gasto da primeira vai para o extrato sem débito', async () => {
+    const t = await newTenant();
+    const before = (await getWallet(db, t))!.available;
+    let n = 0;
+    const flaky: CompletionClient = {
+      ...fakeClient('{}'),
+      async complete(req) {
+        if (n++ > 0) throw new Error('caiu');
+        return fakeClient('{}').complete(req);
+      },
+    };
+    const r = await runCosmosTask(
+      db,
+      input(t, {
+        execute: async (ask) => {
+          await ask({ system: 's', message: 'm', maxOutputTokens: 100 });
+          await ask({ system: 's', message: 'm', maxOutputTokens: 100 });
+          return { usable: true, value: [] };
+        },
+      }),
+      { client: flaky, env, settings },
+    );
+    expect(r).toEqual({ ok: false, error: 'unreadable' });
+    expect(await getWallet(db, t)).toMatchObject({ available: before, reserved: 0 });
+    expect((await usage(t))[0]).toMatchObject({ tokensIn: 1200 });
+  });
 });
