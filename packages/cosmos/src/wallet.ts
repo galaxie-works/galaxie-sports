@@ -14,7 +14,7 @@ import { ASSISTANT_FUNCTION, ASSISTANT_STREAMERS } from './assistant.js';
 import { evaluateBalance } from './balance.js';
 import { ceilCredits, creditsFor, roundCredits } from './credits.js';
 import { CosmosError } from './errors.js';
-import { assertQuota } from './quota.js';
+import { assertQuota, quotaCandidates, quotaFor } from './quota.js';
 import {
   COSMOS_PROVIDERS,
   isCosmosProvider,
@@ -294,13 +294,16 @@ export async function reserve(
 
   return db.transaction(async (tx) => {
     // cota da sala ou produto (#1116): com a carteira travada, duas reservas da mesma sala não passam juntas da cota
-    if (input.scope) {
+    // só trava quando há uma cota que vale para o escopo: sem cota, a reserva segue como antes
+    const quotas = input.scope ? await quotaCandidates(tx, input.tenantId, input.scope) : [];
+    if (quotaFor(input.scope, quotas)) {
       const [cycle] = await tx
         .select({ base: wallet.cycleBase, startedAt: wallet.cycleStartedAt })
         .from(wallet)
         .where(eq(wallet.tenantId, input.tenantId))
         .for('update');
-      if (cycle) await assertQuota(tx, { tenantId: input.tenantId, scope: input.scope, credits }, cycle);
+      if (cycle)
+        await assertQuota(tx, { tenantId: input.tenantId, scope: input.scope, credits }, cycle, quotas);
     }
     // uma instrução só: duas reservas ao mesmo tempo não passam juntas do saldo
     const [updated] = await tx

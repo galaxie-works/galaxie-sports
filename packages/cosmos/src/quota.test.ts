@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { isQuotaScope, parseQuotas, quotaCredits, quotaFor, QUOTAS_MAX } from './quota.js';
+import { isQuotaScope, parseQuotas, quotaCredits, quotaFor, QUOTAS_MAX, raisedQuotas } from './quota.js';
 
 describe('cotas por sala (#1116)', () => {
   it('aceita produto e sala; recusa o resto', () => {
@@ -47,5 +47,25 @@ describe('cotas por sala (#1116)', () => {
   it('quotaCredits aplica a % sobre o saldo do ciclo', () => {
     expect(quotaCredits(10, 1000)).toBe(100);
     expect(quotaCredits(0.5, 0)).toBe(0);
+  });
+});
+
+describe('aumentar a cota ao aprovar (#1116)', () => {
+  it('parte da cota que vale hoje para a sala, nunca diminui', () => {
+    const quotas = [{ scope: 'chat', percent: 30 }];
+    expect(raisedQuotas(quotas, 'chat:r1', 5)).toEqual([
+      { scope: 'chat', percent: 30 },
+      { scope: 'chat:r1', percent: 35 },
+    ]);
+    expect(raisedQuotas([{ scope: 'pool', percent: 98 }], 'pool', 5)).toEqual([
+      { scope: 'pool', percent: 100 },
+    ]);
+    expect(raisedQuotas([], 'community:c1', 2)).toEqual([{ scope: 'community:c1', percent: 2 }]);
+    expect(raisedQuotas([], 'shop', 2)).toBeNull();
+    expect(raisedQuotas([], 'chat', 0)).toBeNull();
+  });
+
+  it('% que o arredondamento zera é recusada', () => {
+    expect(parseQuotas([{ scope: 'chat', percent: 0.004 }])).toBeNull();
   });
 });

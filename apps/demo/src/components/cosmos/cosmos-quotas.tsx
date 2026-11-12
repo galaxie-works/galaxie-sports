@@ -18,6 +18,8 @@ import { fill } from '@/lib/i18n/text';
 import { quotaScopeLabel } from './quota-scope';
 
 interface Row {
+  /** Chave estável da linha (tirar uma linha não troca o estado das outras). */
+  key: number;
   scope: string;
   percent: string;
 }
@@ -26,7 +28,7 @@ const toNumber = (v: string) => Number(v.trim().replace(',', '.'));
 const QUOTAS_MAX = 50;
 
 /** Soma das % das linhas válidas, com duas casas. */
-export function quotaTotal(rows: readonly Row[]): number {
+export function quotaTotal(rows: readonly { percent: string }[]): number {
   const sum = rows.reduce((n, r) => {
     const v = toNumber(r.percent);
     return Number.isFinite(v) && v > 0 ? n + v : n;
@@ -45,8 +47,9 @@ export function CosmosQuotas({ data, canManage }: { data: CosmosQuotasData; canM
   const ids = useId();
   const [pending, startTransition] = useTransition();
   const [rows, setRows] = useState<Row[]>(() =>
-    data.quotas.map((q) => ({ scope: q.scope, percent: String(q.percent) })),
+    data.quotas.map((q, key) => ({ key, scope: q.scope, percent: String(q.percent) })),
   );
+  const [nextKey, setNextKey] = useState(data.quotas.length);
   const n = new Intl.NumberFormat(locale, { maximumFractionDigits: 2 });
   const status = new Map(data.quotas.map((q) => [q.scope, q]));
   const total = quotaTotal(rows);
@@ -95,7 +98,7 @@ export function CosmosQuotas({ data, canManage }: { data: CosmosQuotasData; canM
           {rows.map((row, i) => {
             const s = status.get(row.scope);
             return (
-              <li key={i} className="flex flex-col gap-2 rounded-lg border p-3">
+              <li key={row.key} className="flex flex-col gap-2 rounded-lg border p-3">
                 <div className="flex flex-wrap items-end gap-3">
                   <Field className="min-w-48 flex-1">
                     <FieldLabel htmlFor={`${ids}-scope-${i}`}>{T.scope}</FieldLabel>
@@ -162,7 +165,10 @@ export function CosmosQuotas({ data, canManage }: { data: CosmosQuotasData; canM
               size="sm"
               variant="outline"
               disabled={!free.length || rows.length >= QUOTAS_MAX}
-              onClick={() => setRows((prev) => [...prev, { scope: '', percent: '' }])}
+              onClick={() => {
+                setRows((prev) => [...prev, { key: nextKey, scope: '', percent: '' }]);
+                setNextKey((k) => k + 1);
+              }}
             >
               <Plus />
               {T.add}

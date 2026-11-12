@@ -5,6 +5,9 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import {
   addEntry,
+  approveWithQuota,
+  createCreditRequest,
+  listCreditRequests,
   ensureWallet,
   isCosmosError,
   raiseQuota,
@@ -107,5 +110,43 @@ describe('cota da carteira por sala (#1116)', () => {
     await expect(
       setQuotas(db, { tenantId: t, quotas: [{ scope: 'pool', percent: 120 }], userId: 'u1' }),
     ).rejects.toSatisfy((e: unknown) => isCosmosError(e) && e.code === 'invalid_quota');
+  });
+
+  it('aprovar com cota é atômico: se a cota não sobe, o pedido continua aberto', async () => {
+    const t = await newTenant(1000);
+    await setQuotas(db, {
+      tenantId: t,
+      quotas: Array.from({ length: 50 }, (_, i) => ({ scope: `chat:r${i}`, percent: 1 })),
+      userId: 'u1',
+    });
+    const req = await createCreditRequest(db, { tenantId: t, userId: 'u2', reason: 'Clássico no domingo' });
+    await expect(
+      approveWithQuota(db, {
+        tenantId: t,
+        requestId: req.id,
+        userId: 'u1',
+        scope: 'chat:nova',
+        addPercent: 5,
+      }),
+    ).rejects.toSatisfy((e: unknown) => isCosmosError(e) && e.code === 'invalid_quota');
+    const [still] = await listCreditRequests(db, t);
+    expect(still?.status).toBe('open');
+    // sala com cota: aprova e aumenta junto
+    const done = await approveWithQuota(db, {
+      tenantId: t,
+      requestId: req.id,
+      userId: 'u1',
+      scope: 'chat:r1',
+      addPercent: 4,
+    });
+    expect(done.request.status).toBe('approved');
+    expect(done.quotas.find((q) => q.scope === 'chat:r1')?.percent).toBe(5);
+  });
+
+  it('sem cota que valha, a reserva com escopo não confere nada', async () => {
+    const t = await newTenant(100);
+    await setQuotas(db, { tenantId: t, quotas: [{ scope: 'pool', percent: 1 }], userId: 'u1' });
+    await expect(ask(t, 'chat:r1', 90)).resolves.toBeTruthy();
+    await expect(ask(t, 'assistant', 5)).resolves.toBeTruthy();
   });
 });

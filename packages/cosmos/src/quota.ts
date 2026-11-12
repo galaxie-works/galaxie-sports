@@ -9,12 +9,17 @@
  * - Escopo sem cota usa só o saldo da carteira. Vale a cota mais específica (`chat:<sala>` antes de `chat`).
  * - A soma pode passar de 100%: a tela avisa, e cada reserva continua limitada pelo saldo real.
  * - Mudar as cotas grava um lançamento `quota_change` (0 crédito) no extrato, com as cotas novas.
+ * - O escopo da reserva é o contrato: `chat:<sala>`, `community:<id>` ou `pool[:<id>]` (a moderação reserva assim).
+ *   Escopo fora desse formato (ex.: `assistant`) não tem cota e usa só o saldo.
+ * - O ciclo recomeça a cada entrada de créditos (compra, recarga, estorno ou ajuste): o uso de cada sala volta a zero e
+ *   a base passa a ser o saldo livre daquele momento, como nos alertas de 80% e 90%.
  */
 import { and, eq, gte, like, or, sql, type SQL } from 'drizzle-orm';
 import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 // subcaminhos, não o índice: o índice traz o migrator (pasta drizzle/), que o bundler do Next não resolve
 import type { Database } from '@galaxie/db/client';
 import { ledger, reservation, wallet, walletQuota } from '@galaxie/db/schema';
+import { decideCreditRequest, type CreditRequest } from './credit-requests.js';
 import { roundCredits } from './credits.js';
 import { CosmosError } from './errors.js';
 
@@ -44,10 +49,12 @@ export function parseQuotas(input: unknown): Quota[] | null {
     if (typeof item !== 'object' || item === null) return null;
     const { scope, percent } = item as Record<string, unknown>;
     if (!isQuotaScope(scope) || seen.has(scope)) return null;
-    if (typeof percent !== 'number' || !Number.isFinite(percent) || percent <= 0 || percent > 100)
-      return null;
+    if (typeof percent !== 'number' || !Number.isFinite(percent)) return null;
+    // arredonda antes de validar: 0,004% viraria 0 e quebraria o CHECK da tabela
+    const rounded = Math.round(percent * 100) / 100;
+    if (rounded <= 0 || rounded > 100) return null;
     seen.add(scope);
-    out.push({ scope, percent: Math.round(percent * 100) / 100 });
+    out.push({ scope, percent: rounded });
   }
   return out;
 }
@@ -71,6 +78,8 @@ function scopeFilter(col: AnyPgColumn, quota: Quota, quotas: readonly Quota[]): 
   if (quota.scope.includes(':')) return eq(col, quota.scope);
   // cota do produto: o produto e as salas dele que não têm cota própria
   const own = quotas.filter((q) => q.scope.startsWith(`${quota.scope}:`)).map((q) => q.scope);
+  // os escopos gravados passam pelo formato (sem % nem _ especiais além do `_` do id, que aqui só alarga para salas
+  // do mesmo produto)
   const rooms = like(col, `${quota.scope}:%`);
   const base = or(eq(col, quota.scope), rooms)!;
   return own.length
@@ -132,23 +141,36 @@ export async function assertQuota(
   tx: Reader,
   input: { tenantId: string; scope: string | null | undefined; credits: number },
   cycle: { base: number; startedAt: Date | null },
+  candidates?: Quota[],
 ): Promise<void> {
-  if (!input.scope || !SCOPE.test(input.scope)) return;
-  const product = input.scope.split(':')[0]!;
-  const candidates = await tx
+  const quotas = candidates ?? (await quotaCandidates(tx, input.tenantId, input.scope));
+  const quota = quotaFor(input.scope, quotas);
+  if (!quota) return;
+  const used = await quotaUsed(tx, input.tenantId, quota, quotas, cycle.startedAt);
+  if (roundCredits(used + input.credits) > quotaCredits(quota.percent, cycle.base))
+    throw new CosmosError('quota_exceeded', `a cota de ${quota.scope} não cobre este pedido`);
+}
+
+/**
+ * As cotas do produto do escopo (a do produto e as das salas dele); vazio quando o escopo não tem cota possível. A
+ * reserva lê isto antes de travar a carteira: sem cota que valha, nem trava.
+ */
+export async function quotaCandidates(
+  db: Reader,
+  tenantId: string,
+  scope: string | null | undefined,
+): Promise<Quota[]> {
+  if (!isQuotaScope(scope)) return [];
+  const product = scope.split(':')[0]!;
+  return db
     .select({ scope: walletQuota.scope, percent: walletQuota.percent })
     .from(walletQuota)
     .where(
       and(
-        eq(walletQuota.tenantId, input.tenantId),
-        or(eq(walletQuota.scope, input.scope), like(walletQuota.scope, `${product}%`)),
+        eq(walletQuota.tenantId, tenantId),
+        or(eq(walletQuota.scope, product), like(walletQuota.scope, `${product}:%`)),
       ),
     );
-  const quota = quotaFor(input.scope, candidates);
-  if (!quota) return;
-  const used = await quotaUsed(tx, input.tenantId, quota, candidates, cycle.startedAt);
-  if (used + input.credits > quotaCredits(quota.percent, cycle.base))
-    throw new CosmosError('quota_exceeded', `a cota de ${quota.scope} não cobre este pedido`);
 }
 
 export interface QuotaStatus extends Quota {
@@ -190,6 +212,61 @@ export async function readQuotaOverview(db: Reader, tenantId: string): Promise<Q
   };
 }
 
+type Tx = Parameters<Parameters<Database['transaction']>[0]>[0];
+
+/** Trava a carteira do tenant (a mesma trava da reserva); `no_wallet` sem carteira. */
+async function lockWallet(tx: Tx, tenantId: string): Promise<number> {
+  const [w] = await tx
+    .select({ available: wallet.available })
+    .from(wallet)
+    .where(eq(wallet.tenantId, tenantId))
+    .for('update');
+  if (!w) throw new CosmosError('no_wallet', 'o tenant ainda não ligou a Cosmos');
+  return w.available;
+}
+
+const sameQuotas = (a: readonly Quota[], b: readonly Quota[]) =>
+  a.length === b.length && a.every((q) => b.some((r) => r.scope === q.scope && r.percent === q.percent));
+
+/** Grava as cotas com a carteira já travada; o lançamento `quota_change` só entra quando algo mudou. */
+async function writeQuotas(
+  tx: Tx,
+  input: { tenantId: string; quotas: Quota[]; userId: string; available: number },
+): Promise<Quota[]> {
+  const before = await listQuotas(tx, input.tenantId);
+  if (sameQuotas(before, input.quotas)) return input.quotas;
+  const keep = input.quotas.map((q) => q.scope);
+  await tx.delete(walletQuota).where(
+    keep.length
+      ? and(
+          eq(walletQuota.tenantId, input.tenantId),
+          sql`${walletQuota.scope} not in (${sql.join(
+            keep.map((s) => sql`${s}`),
+            sql`, `,
+          )})`,
+        )
+      : eq(walletQuota.tenantId, input.tenantId),
+  );
+  for (const q of input.quotas)
+    await tx
+      .insert(walletQuota)
+      .values({ tenantId: input.tenantId, scope: q.scope, percent: q.percent, updatedBy: input.userId })
+      .onConflictDoUpdate({
+        target: [walletQuota.tenantId, walletQuota.scope],
+        set: { percent: q.percent, updatedBy: input.userId, updatedAt: sql`now()` },
+      });
+  await tx.insert(ledger).values({
+    tenantId: input.tenantId,
+    kind: 'quota_change',
+    credits: 0,
+    balanceBefore: input.available,
+    balanceAfter: input.available,
+    userId: input.userId,
+    metadata: { quotas: input.quotas },
+  });
+  return input.quotas;
+}
+
 /**
  * Troca as cotas do tenant (as que não vierem saem) e grava o lançamento `quota_change` no extrato, com 0 crédito e as
  * cotas novas. Recusa cotas inválidas (`invalid_quota`) e tenant sem carteira (`no_wallet`).
@@ -201,56 +278,68 @@ export async function setQuotas(
   const quotas = parseQuotas(input.quotas);
   if (!quotas) throw new CosmosError('invalid_quota', 'cotas inválidas');
   return db.transaction(async (tx) => {
-    const [w] = await tx
-      .select({ available: wallet.available })
-      .from(wallet)
-      .where(eq(wallet.tenantId, input.tenantId))
-      .for('update');
-    if (!w) throw new CosmosError('no_wallet', 'o tenant ainda não ligou a Cosmos');
-    const keep = quotas.map((q) => q.scope);
-    await tx.delete(walletQuota).where(
-      keep.length
-        ? and(
-            eq(walletQuota.tenantId, input.tenantId),
-            sql`${walletQuota.scope} not in (${sql.join(
-              keep.map((s) => sql`${s}`),
-              sql`, `,
-            )})`,
-          )
-        : eq(walletQuota.tenantId, input.tenantId),
-    );
-    for (const q of quotas)
-      await tx
-        .insert(walletQuota)
-        .values({ tenantId: input.tenantId, scope: q.scope, percent: q.percent, updatedBy: input.userId })
-        .onConflictDoUpdate({
-          target: [walletQuota.tenantId, walletQuota.scope],
-          set: { percent: q.percent, updatedBy: input.userId, updatedAt: sql`now()` },
-        });
-    await tx.insert(ledger).values({
-      tenantId: input.tenantId,
-      kind: 'quota_change',
-      credits: 0,
-      balanceBefore: w.available,
-      balanceAfter: w.available,
-      userId: input.userId,
-      metadata: { quotas },
-    });
-    return quotas;
+    const available = await lockWallet(tx, input.tenantId);
+    return writeQuotas(tx, { tenantId: input.tenantId, quotas, userId: input.userId, available });
   });
 }
 
-/** Aumenta (ou cria) a cota de uma sala em pontos percentuais, até 100% (aprovar o pedido de créditos, #996). */
-export async function raiseQuota(
+/**
+ * Cotas depois de aumentar a de uma sala em pontos percentuais, até 100%. Parte da cota que vale hoje para a sala (a
+ * dela ou, sem cota própria, a do produto): aumentar nunca diminui o que a sala já podia usar.
+ */
+export function raisedQuotas(current: readonly Quota[], scope: string, addPercent: number): Quota[] | null {
+  if (!isQuotaScope(scope) || !Number.isFinite(addPercent) || addPercent <= 0) return null;
+  const base = quotaFor(scope, current)?.percent ?? 0;
+  const percent = Math.min(100, Math.round((base + addPercent) * 100) / 100);
+  const next = current.some((q) => q.scope === scope)
+    ? current.map((q) => (q.scope === scope ? { ...q, percent } : q))
+    : [...current, { scope, percent }];
+  return parseQuotas(next);
+}
+
+async function raiseIn(
+  tx: Tx,
+  input: { tenantId: string; scope: string; addPercent: number; userId: string },
+): Promise<Quota[]> {
+  const available = await lockWallet(tx, input.tenantId);
+  // lido com a carteira travada: dois aumentos ao mesmo tempo não se perdem
+  const next = raisedQuotas(await listQuotas(tx, input.tenantId), input.scope, input.addPercent);
+  if (!next) throw new CosmosError('invalid_quota', 'cota inválida');
+  return writeQuotas(tx, { tenantId: input.tenantId, quotas: next, userId: input.userId, available });
+}
+
+/** Aumenta (ou cria) a cota de uma sala em pontos percentuais, até 100%. */
+export function raiseQuota(
   db: Database,
   input: { tenantId: string; scope: string; addPercent: number; userId: string },
 ): Promise<Quota[]> {
-  if (!isQuotaScope(input.scope) || !(input.addPercent > 0))
-    throw new CosmosError('invalid_quota', 'cota inválida');
-  const current = await listQuotas(db, input.tenantId);
-  const found = current.find((q) => q.scope === input.scope);
-  const next = found
-    ? current.map((q) => (q === found ? { ...q, percent: Math.min(100, q.percent + input.addPercent) } : q))
-    : [...current, { scope: input.scope, percent: Math.min(100, input.addPercent) }];
-  return setQuotas(db, { tenantId: input.tenantId, quotas: next, userId: input.userId });
+  return db.transaction((tx) => raiseIn(tx, input));
+}
+
+/**
+ * Aprova o pedido de créditos (#996) e aumenta a cota da sala na mesma transação: se a cota não puder subir, o pedido
+ * continua aberto.
+ */
+export function approveWithQuota(
+  db: Database,
+  input: {
+    tenantId: string;
+    requestId: string;
+    userId: string;
+    scope: string;
+    addPercent: number;
+    note?: string | null;
+  },
+): Promise<{ request: CreditRequest; quotas: Quota[] }> {
+  return db.transaction(async (tx) => {
+    const quotas = await raiseIn(tx, input);
+    const request = await decideCreditRequest(tx, {
+      tenantId: input.tenantId,
+      requestId: input.requestId,
+      decision: 'approved',
+      userId: input.userId,
+      note: input.note ?? null,
+    });
+    return { request, quotas };
+  });
 }

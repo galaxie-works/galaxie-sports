@@ -106,8 +106,8 @@ export const ROLE_GRANTS: Record<RoleService, RoleGrants> = {
       'cosmos.wallet_quota',
     ],
     // Cosmos AI (#1064): tabela por tabela e operação por operação, pelo que as funções de @galaxie/cosmos que a
-    // demo chama gravam. Sem DELETE em nada da Cosmos (exceto apagar a exceção de moderação de uma sala) e sem
-    // nenhuma escrita no registro de eventos do Stripe (cosmos.stripe_event), que é só da API.
+    // demo chama gravam. Sem DELETE em nada da Cosmos (exceto apagar a exceção de moderação de uma sala e a cota de uma
+    // sala, #1116) e sem nenhuma escrita no registro de eventos do Stripe (cosmos.stripe_event), que é só da API.
     // - ligar e desligar, assistente (reserve/settle/release) e ações da equipe Galaxie: carteira e reservas;
     // - Funções e Pacotes da equipe Galaxie (#1002, #1088); compra, recarga automática, pedido de créditos (#996);
     // - uso do assistente pela equipe (#1100).

@@ -31,12 +31,7 @@ const view = (d: ReturnType<typeof data>, canManage = true) =>
 
 describe('cotas por sala (#1116)', () => {
   it('soma só as % válidas', () => {
-    expect(
-      quotaTotal([
-        { scope: 'chat', percent: '10,5' },
-        { scope: 'pool', percent: 'x' },
-      ]),
-    ).toBe(10.5);
+    expect(quotaTotal([{ percent: '10,5' }, { percent: 'x' }])).toBe(10.5);
   });
 
   it('avisa quando passa de 100% e mostra o que ficou sem destino', () => {

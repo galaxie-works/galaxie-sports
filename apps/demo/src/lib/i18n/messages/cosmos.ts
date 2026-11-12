@@ -86,6 +86,7 @@ export default defineMessages(
       approveQuota: 'Aprovar e aumentar a cota',
       quotaRaised: 'Pedido aprovado e cota aumentada.',
       quotaError: 'Escolha a sala e um aumento entre 0,01 e 100 pontos.',
+      quotaInvalid: 'A cota não pôde subir: confira se a conta já tem 50 cotas. O pedido continua aberto.',
       decline: 'Recusar',
       declineTitle: 'Recusar o pedido',
       noteLabel: 'Nota para quem pediu (opcional)',
@@ -506,6 +507,8 @@ export default defineMessages(
         approveQuota: 'Approve and raise the quota',
         quotaRaised: 'Request approved and quota raised.',
         quotaError: 'Pick the room and a raise between 0.01 and 100 points.',
+        quotaInvalid:
+          "The quota couldn't go up: check whether the account already has 50 quotas. The request is still open.",
         decline: 'Decline',
         declineTitle: 'Decline the request',
         noteLabel: 'Note for the requester (optional)',
@@ -869,7 +872,7 @@ export default defineMessages(
       quotas: {
         title: 'Cuotas por sala',
         description:
-          'Reparte el saldo del ciclo entre el chat en vivo, cada comunidad y la polla. Una sala sin cuota usa solo el saldo de la billetera.',
+          'Reparte el saldo del ciclo entre el chat en vivo, cada comunidad y el prode. Una sala sin cuota usa solo el saldo de la billetera.',
         readOnly: 'Tu cargo solo ve las cuotas. Las cambia el dueño y quien él habilite.',
         scope: 'Sala o producto',
         percent: '% del saldo',
@@ -886,12 +889,12 @@ export default defineMessages(
         products: {
           chat: 'Chat en vivo (todas las salas)',
           community: 'Comunidades (todas)',
-          pool: 'Polla',
+          pool: 'Prode',
         },
         room: {
           chat: 'Chat en vivo · {id}',
           community: 'Comunidad · {id}',
-          pool: 'Polla · {id}',
+          pool: 'Prode · {id}',
         },
         errors: {
           invalid: 'Revisa las cuotas: cada una entre 0,01% y 100%, sin sala repetida y como máximo 50.',
@@ -932,6 +935,8 @@ export default defineMessages(
         approveQuota: 'Aprobar y aumentar la cuota',
         quotaRaised: 'Pedido aprobado y cuota aumentada.',
         quotaError: 'Elige la sala y un aumento entre 0,01 y 100 puntos.',
+        quotaInvalid:
+          'La cuota no pudo subir: revisa si la cuenta ya tiene 50 cuotas. El pedido sigue abierto.',
         decline: 'Rechazar',
         declineTitle: 'Rechazar el pedido',
         noteLabel: 'Nota para quien pidió (opcional)',
