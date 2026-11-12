@@ -6,7 +6,9 @@ import {
   createDb,
   listTenantSecretKeyStates,
   listTenantUsageByRoute,
+  listTenantWebhookFailures,
   runMigrations,
+  sumTenantAccessErrors,
   type Database,
 } from '../src/index.js';
 
@@ -73,6 +75,56 @@ describe('dados do diagnóstico da Cosmos (#1007)', () => {
       { day: '2026-11-01', route: '/v1/fixtures', requests: 10 },
       { day: '2026-11-02', route: '/v1/standings', requests: 3 },
     ]);
+  });
+
+  it('erros de acesso somados no banco por chave, motivo e detalhe, só do tenant e do período', async () => {
+    await pg`insert into api.access_error_daily (tenant_id, day, reason, key_prefix, detail, count, last_at)
+      values (${tenantA}, '2026-11-05', 'rate_limited', 'aaaaaaaaaaaa', '/v1/fixtures', 900, now()),
+             (${tenantA}, '2026-11-10', 'origin_not_allowed', 'gs_pk_live_x', 'https://portal.com', 30, now()),
+             (${tenantA}, '2026-11-11', 'origin_not_allowed', 'gs_pk_live_x', 'https://portal.com', 20, now()),
+             (${tenantA}, '2026-11-12', 'invalid_secret', 'aaaaaaaaaaaa', '', 7, now()),
+             (${tenantB}, '2026-11-12', 'invalid_secret', 'cccccccccccc', '', 999, now())`;
+    const now = new Date('2026-11-12T12:00:00Z');
+    expect(await sumTenantAccessErrors(db, tenantA, { days: 7, now })).toEqual([
+      {
+        reason: 'origin_not_allowed',
+        keyPrefix: 'gs_pk_live_x',
+        detail: 'https://portal.com',
+        count: 50,
+        lastDay: '2026-11-11',
+      },
+      { reason: 'invalid_secret', keyPrefix: 'aaaaaaaaaaaa', detail: '', count: 7, lastDay: '2026-11-12' },
+    ]);
+    expect((await sumTenantAccessErrors(db, tenantA, { days: 12, now })).map((r) => r.count)).toEqual([
+      900, 50, 7,
+    ]);
+  });
+
+  it('falhas de webhook filtradas no banco: mortas e pendentes depois de tentar, só do tenant', async () => {
+    const endpoint = async (tenant: string) =>
+      (
+        await pg`insert into api.webhook_endpoint (tenant_id, url, secret)
+          values (${tenant}, 'https://hooks.portal.com/g', 'cifrado') returning id`
+      )[0]!.id as string;
+    const mine = await endpoint(tenantA);
+    const theirs = await endpoint(tenantB);
+    await pg`insert into api.webhook_delivery (endpoint_id, change_id, topic, payload, status, attempts, response_code, response_excerpt)
+      values (${mine}, 1, 'fixture.updated', '{}', 'dead', 10, 500, 'erro antigo'),
+             (${mine}, 2, 'fixture.updated', '{}', 'pending', 2, 401, 'bad signature'),
+             (${mine}, 3, 'fixture.updated', '{}', 'pending', 0, null, null),
+             (${mine}, 4, 'fixture.updated', '{}', 'delivered', 1, 200, null),
+             (${theirs}, 5, 'fixture.updated', '{}', 'dead', 10, 500, 'de outro')`;
+    // entregas boas mais novas não escondem a falha antiga
+    for (let i = 0; i < 60; i++)
+      await pg`insert into api.webhook_delivery (endpoint_id, change_id, topic, payload, status, attempts, response_code)
+        values (${mine}, ${100 + i}, 'fixture.updated', '{}', 'delivered', 1, 200)`;
+    const failures = await listTenantWebhookFailures(db, tenantA, mine);
+    expect(failures.map((f) => [f.status, f.responseCode, f.responseExcerpt])).toEqual([
+      ['pending', 401, 'bad signature'],
+      ['dead', 500, 'erro antigo'],
+    ]);
+    expect(failures[0]!.at).toBeInstanceOf(Date);
+    expect(await listTenantWebhookFailures(db, tenantA, theirs)).toEqual([]);
   });
 
   it('as funções da ajuda de integração entram ativas, com o mínimo aprovado', async () => {

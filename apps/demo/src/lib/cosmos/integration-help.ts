@@ -98,7 +98,10 @@ export function keyFacts(input: {
     .slice(0, KEY_ERRORS_MAX);
   // só as chaves que aparecem nos erros, mais as ativas (o modelo indica qual usar)
   const seen = new Set(errors.map((e) => e.keyPrefix));
-  const keys = input.keys.filter((k) => seen.has(k.prefix) || k.state === 'active').slice(0, 30);
+  const keys = [
+    ...input.keys.filter((k) => seen.has(k.prefix)),
+    ...input.keys.filter((k) => !seen.has(k.prefix) && k.state === 'active'),
+  ].slice(0, 30);
   return { keys, errors, limits: input.limits, modules: input.modules };
 }
 
@@ -123,8 +126,6 @@ export interface WebhookFacts {
     delivered24h: number;
   };
   failures: WebhookDeliveryFact[];
-  /** Tempo limite da entrega (s), para o modelo saber quando um receptor lento falha. */
-  timeoutSec: number;
 }
 
 /** Entrega com falha: morta, ou ainda pendente depois de uma tentativa que não deu 2xx. */
@@ -137,7 +138,6 @@ export const isFailedDelivery = (d: WebhookDeliveryFact) =>
 export function webhookFacts(input: {
   endpoint: WebhookFacts['endpoint'];
   deliveries: WebhookDeliveryFact[];
-  timeoutSec?: number;
 }): WebhookFacts {
   return {
     endpoint: input.endpoint,
@@ -149,7 +149,6 @@ export function webhookFacts(input: {
         lastError: d.lastError?.slice(0, DETAIL_MAX) ?? null,
         responseExcerpt: d.responseExcerpt?.slice(0, EXCERPT_MAX) ?? null,
       })),
-    timeoutSec: input.timeoutSec ?? 10,
   };
 }
 
@@ -280,7 +279,7 @@ export function webhookDiagnosePrompt(
 ): { system: string; message: string } {
   const system = [
     'You help a client of a sports data API understand why webhook deliveries to their endpoint are failing.',
-    `How delivery works: POST with a JSON body; any response outside 2xx (redirects are not followed) or no answer in ${facts.timeoutSec} s`,
+    `How delivery works: POST with a JSON body; any response outside 2xx (redirects are not followed) or no answer within the delivery timeout (10 s by default)`,
     'is a failure; retries back off exponentially for about 2.5 h and then the delivery goes to the dead letter queue (status dead),',
     'which the client can replay in the Webhooks screen. Each request carries the header x-galaxie-signature:',
     't=<unix seconds>,v1=<hex HMAC-SHA256(signing secret, "<t>.<raw body>")>; the receiver must verify it over the RAW body',
@@ -321,31 +320,49 @@ export interface HelpAnswer {
 }
 
 /**
- * Trecho que não pode ir para a tela: algo com cara de segredo (chave completa, segredo de assinatura), código ou link.
- * O prefixo público da chave (`gs_live_ab12…`) passa: é o que o cliente vê na tela Chaves.
+ * Trecho que não pode ir para a tela: algo com cara de segredo (chave completa, segredo de assinatura) ou código. O
+ * prefixo público da chave (`gs_live_ab12…`) passa: é o que o cliente vê na tela Chaves.
  */
-const UNSAFE =
-  /whsec_|gs_(?:pk_)?(?:live|test)_[A-Za-z0-9-]+_[A-Za-z0-9_-]{16,}|<\s*script|<\?php|https?:\/\//i;
+const UNSAFE = /whsec_|gs_(?:pk_)?(?:live|test)_[A-Za-z0-9-]+_[A-Za-z0-9_-]{16,}|<\s*script|<\?php/i;
+const URL_RE = /https?:\/\/[^\s"'<>‹›()]+/gi;
+const trimUrl = (u: string) =>
+  u
+    .replace(/[.,;:!?]+$/, '')
+    .replace(/\/+$/, '')
+    .toLowerCase();
 
-/** Resposta do modelo → o texto limpo; null se nada servir (não cobra). */
-export function parseHelpAnswer(answer: Record<string, unknown> | null): HelpAnswer | null {
+/** Endereços que aparecem nos fatos (origens, rotas, URL do endpoint): só estes podem voltar na resposta. */
+export function factUrls(facts: unknown): Set<string> {
+  return new Set((JSON.stringify(facts).match(URL_RE) ?? []).map(trimUrl));
+}
+
+/**
+ * Resposta do modelo → o texto limpo; null se não servir (não cobra). Um trecho com segredo, código ou um link que não
+ * está nos fatos cai inteiro. Sem resumo, ou com mais da metade dos itens caídos, a resposta não serve.
+ */
+export function parseHelpAnswer(
+  answer: Record<string, unknown> | null,
+  allowedUrls: Set<string>,
+): HelpAnswer | null {
   const clean = (v: unknown, max: number) => {
     if (typeof v !== 'string') return null;
     const s = v.trim().replace(/\s+/g, ' ');
-    return s && !UNSAFE.test(s) ? s.slice(0, max) : null;
+    if (!s || UNSAFE.test(s)) return null;
+    if ((s.match(URL_RE) ?? []).some((u) => !allowedUrls.has(trimUrl(u)))) return null;
+    return s.slice(0, max);
   };
-  const items = (Array.isArray(answer?.items) ? (answer.items as unknown[]) : [])
+  const raw = (Array.isArray(answer?.items) ? (answer.items as unknown[]) : []).slice(0, ITEMS_MAX);
+  const items = raw
     .map((it) => {
       const o = it && typeof it === 'object' ? (it as Record<string, unknown>) : {};
       const title = clean(o.title, ITEM_TITLE_MAX);
       const action = clean(o.action, ITEM_TEXT_MAX);
       return title && action ? { title, action } : null;
     })
-    .filter((it): it is HelpAnswer['items'][number] => it !== null)
-    .slice(0, ITEMS_MAX);
+    .filter((it): it is HelpAnswer['items'][number] => it !== null);
   const summary = clean(answer?.summary, SUMMARY_MAX);
-  if (!summary && !items.length) return null;
-  return { summary: summary ?? '', items };
+  if (!summary || items.length * 2 < raw.length) return null;
+  return { summary, items };
 }
 
 // ── receptor de webhooks ──
@@ -407,7 +424,7 @@ export function receiverCode(lang: ReceiverLanguage): ReceiverCode {
           '      return;',
           '    }',
           "    const key = req.headers['idempotency-key'];",
-          '    // responda rápido (o limite é 10 s) e processe depois',
+          '    // responda rápido (o tempo limite padrão é 10 s) e processe depois',
           '    res.writeHead(204).end();',
           '    if (key && seen.has(key)) return;',
           '    if (key) seen.add(key);',
@@ -423,10 +440,12 @@ export function receiverCode(lang: ReceiverLanguage): ReceiverCode {
         verify: [
           'import hashlib',
           'import hmac',
+          'import re',
           'import time',
+          'from typing import Optional',
           '',
           '',
-          'def verify_galaxie_signature(raw_body: bytes, header: str | None, secret: str | None, tolerance_sec: int = 300) -> bool:',
+          'def verify_galaxie_signature(raw_body: bytes, header: Optional[str], secret: Optional[str], tolerance_sec: int = 300) -> bool:',
           '    """Verifica x-galaxie-signature sobre o corpo BRUTO (antes de json.loads)."""',
           '    if not header or not secret:',
           '        return False',
@@ -440,7 +459,7 @@ export function receiverCode(lang: ReceiverLanguage): ReceiverCode {
           '    except ValueError:',
           '        return False',
           '    v1 = parts.get("v1", "")',
-          '    if len(v1) != 64 or abs(time.time() - t) > tolerance_sec:',
+          '    if not re.fullmatch(r"[0-9a-fA-F]{64}", v1) or abs(time.time() - t) > tolerance_sec:',
           '        return False',
           '    expected = hmac.new(secret.encode(), f"{t}.".encode() + raw_body, hashlib.sha256).hexdigest()',
           '    return hmac.compare_digest(expected, v1.lower())',
@@ -461,7 +480,7 @@ export function receiverCode(lang: ReceiverLanguage): ReceiverCode {
           '            self.send_response(401)',
           '            self.end_headers()',
           '            return',
-          '        # responda rápido (o limite é 10 s) e processe depois',
+          '        # responda rápido (o tempo limite padrão é 10 s) e processe depois',
           '        self.send_response(204)',
           '        self.end_headers()',
           '        key = self.headers.get("idempotency-key")',
@@ -510,7 +529,7 @@ export function receiverCode(lang: ReceiverLanguage): ReceiverCode {
           '    http_response_code(401);',
           '    exit;',
           '}',
-          '// responda rápido (o limite é 10 s); descarte repetidas pelo HTTP_IDEMPOTENCY_KEY',
+          '// responda rápido (o tempo limite padrão é 10 s); descarte repetidas pelo HTTP_IDEMPOTENCY_KEY',
           'http_response_code(204);',
           '$event = json_decode($raw, true);',
           "error_log(($_SERVER['HTTP_X_GALAXIE_EVENT'] ?? '') . ' ' . json_encode($event));",

@@ -266,6 +266,10 @@ export {
   listTenantAccessErrors,
   listTenantSecretKeyStates,
   listTenantUsageByRoute,
+  listTenantWebhookFailures,
+  sumTenantAccessErrors,
   type TenantAccessError,
+  type TenantAccessErrorSum,
   type TenantSecretKeyState,
+  type TenantWebhookFailure,
 } from './access-errors.js';

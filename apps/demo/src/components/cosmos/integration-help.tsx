@@ -44,10 +44,12 @@ export function CosmosHelp({
   const [webhookId, setWebhookId] = useState(webhooks?.[0]?.id ?? '');
   const [result, setResult] = useState<{ answer: HelpAnswer | null } | null>(null);
   const [pending, startTransition] = useTransition();
+  // webhook apagado ou lista nova: volta para o primeiro da lista em vez de pedir por um id que não existe mais
+  const selected = webhooks?.some((w) => w.id === webhookId) ? webhookId : (webhooks?.[0]?.id ?? '');
 
   const run = () =>
     startTransition(async () => {
-      const r = await askCosmosHelp({ kind, webhookId });
+      const r = await askCosmosHelp({ kind, webhookId: selected });
       if (!r.ok) {
         toast.error(r.error);
         return;
@@ -70,7 +72,7 @@ export function CosmosHelp({
             <Field className="min-w-0 flex-1">
               <FieldLabel htmlFor={`${ids}-webhook`}>{T.webhooks.endpoint}</FieldLabel>
               <Select
-                value={webhookId}
+                value={selected}
                 onValueChange={(v) => {
                   setWebhookId(v as string);
                   setResult(null);
@@ -90,7 +92,7 @@ export function CosmosHelp({
             </Field>
           ) : null}
           <div className="flex justify-end sm:ml-auto">
-            <Button onClick={run} disabled={pending || (kind === 'webhooks' && !webhookId)}>
+            <Button onClick={run} disabled={pending || (kind === 'webhooks' && !selected)}>
               {pending ? <Spinner /> : <Sparkles aria-hidden />}
               {S.submit}
             </Button>

@@ -3,8 +3,13 @@
  * segredo, entregas de webhook e uso do mês), chama a função pela carteira (`runCosmosTask`) e confere a resposta.
  * Sem fatos, responde "nada encontrado" sem chamar o modelo e sem cobrar.
  */
-import { listTenantAccessErrors, listTenantSecretKeyStates, listTenantUsageByRoute } from '@galaxie/db';
-import { listTenantWebhookDeliveries, listTenantWebhooks } from '@galaxie/db/webhooks';
+import {
+  listTenantSecretKeyStates,
+  listTenantUsageByRoute,
+  listTenantWebhookFailures,
+  sumTenantAccessErrors,
+} from '@galaxie/db';
+import { listTenantWebhooks } from '@galaxie/db/webhooks';
 import { activeFunctionMinCredits, parseModelJson, readCosmosSettings, runCosmosTask } from '@galaxie/cosmos';
 
 import { builderDb, listPublishableKeys } from '@/lib/builder/store';
@@ -17,6 +22,7 @@ import {
   hasFacts,
   KEY_DIAGNOSE_DAYS,
   keyDiagnosePrompt,
+  factUrls,
   keyFacts,
   parseHelpAnswer,
   usageFacts,
@@ -57,9 +63,11 @@ async function run(
   ctx: ClientContext,
   kind: HelpKind,
   prompt: { system: string; message: string },
+  facts: unknown,
   metadata: Record<string, unknown>,
 ): Promise<HelpTaskResult> {
   const db = builderDb();
+  const allowedUrls = factUrls(facts);
   const r = await runCosmosTask(
     db,
     {
@@ -72,7 +80,7 @@ async function run(
       maxOutputTokens: HELP_MAX_OUTPUT_TOKENS[kind],
       metadata,
       evaluate: async (text) => {
-        const answer = parseHelpAnswer(parseModelJson(text));
+        const answer = parseHelpAnswer(parseModelJson(text), allowedUrls);
         return { usable: answer !== null, value: answer };
       },
       ...(ctx.role === 'admin' ? { staff: { route: `${SCREEN[kind]}#cosmos-${kind}` } } : {}),
@@ -81,6 +89,19 @@ async function run(
   );
   if (!r.ok) return { ok: false, error: r.error };
   return { ok: true, answer: r.value };
+}
+
+/**
+ * Endereço do receptor sem usuário, senha, query nem fragmento: um token na query (`?token=…`) não vai ao provedor
+ * do modelo.
+ */
+export function publicUrl(url: string): string {
+  try {
+    const u = new URL(url);
+    return `${u.origin}${u.pathname}`;
+  } catch {
+    return '(endereço inválido)';
+  }
 }
 
 const limitsOf = (tenant: NonNullable<ClientContext['tenant']>) => ({
@@ -124,11 +145,16 @@ export async function diagnoseKeys(
   const tenant = ctx.tenant!;
   const [keys, errors] = await Promise.all([
     tenantKeys(tenant.id, now),
-    listTenantAccessErrors(builderDb(), tenant.id, { days: KEY_DIAGNOSE_DAYS, limit: 500, now }),
+    sumTenantAccessErrors(builderDb(), tenant.id, { days: KEY_DIAGNOSE_DAYS, limit: 200, now }),
   ]);
-  const facts = keyFacts({ keys, errors, limits: limitsOf(tenant), modules: tenant.modules });
+  const facts = keyFacts({
+    keys,
+    errors: errors.map((e) => ({ ...e, day: e.lastDay })),
+    limits: limitsOf(tenant),
+    modules: tenant.modules,
+  });
   if (!hasFacts('keys', facts)) return { ok: true, answer: null };
-  return run(ctx, 'keys', keyDiagnosePrompt(facts, LANGUAGE[locale]), { errors: facts.errors.length });
+  return run(ctx, 'keys', keyDiagnosePrompt(facts, LANGUAGE[locale]), facts, { errors: facts.errors.length });
 }
 
 export async function diagnoseWebhook(
@@ -143,29 +169,20 @@ export async function diagnoseWebhook(
   // o endpoint vem da lista do próprio tenant: id de outro tenant não existe para quem pede
   const endpoint = (await listTenantWebhooks(db, tenant.id)).find((w) => w.id === endpointId);
   if (!endpoint) return { ok: false, error: 'notFound' };
-  const deliveries = await listTenantWebhookDeliveries(db, tenant.id, endpoint.id, 50);
+  const failures = await listTenantWebhookFailures(db, tenant.id, endpoint.id, 50);
   const facts = webhookFacts({
     endpoint: {
-      url: endpoint.url,
+      url: publicUrl(endpoint.url),
       active: endpoint.active,
       topics: endpoint.topics,
       pending: endpoint.pending,
       dead: endpoint.dead,
       delivered24h: endpoint.delivered24h,
     },
-    deliveries: deliveries.map((d) => ({
-      topic: d.topic,
-      status: d.status,
-      attempts: d.attempts,
-      responseCode: d.responseCode,
-      lastError: d.lastError,
-      durationMs: d.durationMs,
-      responseExcerpt: d.responseExcerpt,
-      at: (d.lastAttemptAt ?? d.createdAt).toISOString(),
-    })),
+    deliveries: failures.map((d) => ({ ...d, at: d.at.toISOString() })),
   });
   if (!hasFacts('webhooks', facts)) return { ok: true, answer: null };
-  return run(ctx, 'webhooks', webhookDiagnosePrompt(facts, LANGUAGE[locale]), {
+  return run(ctx, 'webhooks', webhookDiagnosePrompt(facts, LANGUAGE[locale]), facts, {
     failures: facts.failures.length,
   });
 }
@@ -182,7 +199,7 @@ export async function reportUsage(
   const monthStart = `${now.toISOString().slice(0, 7)}-01`;
   const [rows, errors] = await Promise.all([
     listTenantUsageByRoute(db, tenant.id, monthStart),
-    listTenantAccessErrors(db, tenant.id, { days: now.getUTCDate(), limit: 500, now }),
+    sumTenantAccessErrors(db, tenant.id, { days: now.getUTCDate(), limit: 1000, now }),
   ]);
   const facts = usageFacts({
     now,
@@ -192,5 +209,5 @@ export async function reportUsage(
     modules: tenant.modules,
   });
   if (!hasFacts('usage', facts)) return { ok: true, answer: null };
-  return run(ctx, 'usage', usageReportPrompt(facts, LANGUAGE[locale]), { month: facts.month });
+  return run(ctx, 'usage', usageReportPrompt(facts, LANGUAGE[locale]), facts, { month: facts.month });
 }

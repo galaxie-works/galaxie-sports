@@ -10,6 +10,7 @@ import {
   hasFacts,
   isFailedDelivery,
   keyDiagnosePrompt,
+  factUrls,
   keyFacts,
   parseHelpAnswer,
   RECEIVER_LANGUAGES,
@@ -71,8 +72,8 @@ describe('diagnóstico de chaves', () => {
       ['invalid_secret', 42, '2026-11-11'],
       ['revoked', 4, '2026-11-11'],
     ]);
-    // a chave de teste sem erro e ativa fica (o modelo indica qual usar); a revogada fica porque tem erro
-    expect(f.keys.map((k) => k.prefix)).toEqual(KEYS.map((k) => k.prefix));
+    // as chaves dos erros primeiro; a de teste sem erro e ativa fica (o modelo indica qual usar)
+    expect(f.keys.map((k) => k.prefix)).toEqual([0, 1, 3, 2].map((i) => KEYS[i]!.prefix));
     expect(hasFacts('keys', f)).toBe(true);
     expect(hasFacts('keys', keyFacts({ keys: KEYS, errors: [], limits: LIMITS, modules: [] }))).toBe(false);
   });
@@ -208,26 +209,82 @@ describe('relatório do mês', () => {
 });
 
 describe('resposta do modelo', () => {
-  it('limpa e corta; descarta segredo, código e link', () => {
+  const facts = keyFacts({ keys: KEYS, errors: ERRORS, limits: LIMITS, modules: [] });
+  const allowed = factUrls(facts);
+
+  it('limpa e corta; descarta segredo, código e link que não está nos fatos', () => {
     const secret = ['gs', 'live', 'a1b2c3d4e5f6', 'Zx'.repeat(12)].join('_');
-    const a = parseHelpAnswer({
-      summary: '  A chave   a1b2c3d4e5f6 está com o segredo errado. ',
-      items: [
-        { title: 'Segredo errado', action: 'Copie de novo a chave inteira da tela Chaves.' },
-        { title: 'Chave completa', action: `Use ${secret}` },
-        { title: 'Segredo do webhook', action: 'O segredo é whsec_abc' },
-        { title: 'Link', action: 'Veja https://evil.example' },
-        { title: 'Código', action: '<script>alert(1)</script>' },
-        { title: 'Sem ação' },
-        'texto solto',
-      ],
-    });
+    const a = parseHelpAnswer(
+      {
+        summary: '  A chave   a1b2c3d4e5f6 está com o segredo errado. ',
+        items: [
+          { title: 'Segredo errado', action: 'Copie de novo a chave inteira da tela Chaves.' },
+          // a origem recusada está nos fatos: a ação natural cita o endereço
+          {
+            title: 'Origem fora da lista',
+            action: 'Adicione https://portal.com às origens da chave gs_pk_live_Qw12.',
+          },
+          { title: 'Limite por minuto', action: 'Guarde em cache as respostas de /v1/fixtures/live.' },
+          { title: 'Chave completa', action: `Use ${secret}` },
+          { title: 'Segredo do webhook', action: 'O segredo é whsec_abc' },
+          { title: 'Link', action: 'Veja https://evil.example' },
+        ],
+      },
+      allowed,
+    );
     expect(a).toEqual({
       summary: 'A chave a1b2c3d4e5f6 está com o segredo errado.',
-      items: [{ title: 'Segredo errado', action: 'Copie de novo a chave inteira da tela Chaves.' }],
+      items: [
+        { title: 'Segredo errado', action: 'Copie de novo a chave inteira da tela Chaves.' },
+        {
+          title: 'Origem fora da lista',
+          action: 'Adicione https://portal.com às origens da chave gs_pk_live_Qw12.',
+        },
+        { title: 'Limite por minuto', action: 'Guarde em cache as respostas de /v1/fixtures/live.' },
+      ],
     });
-    expect(parseHelpAnswer({ summary: '', items: [] })).toBeNull();
-    expect(parseHelpAnswer(null)).toBeNull();
+  });
+
+  it('não serve (não cobra): sem resumo, ou com mais da metade dos itens caídos', () => {
+    const good = { title: 'Ok', action: 'Copie a chave de novo.' };
+    expect(parseHelpAnswer({ summary: '', items: [good] }, allowed)).toBeNull();
+    expect(parseHelpAnswer({ summary: 'Veja https://evil.example', items: [good] }, allowed)).toBeNull();
+    expect(
+      parseHelpAnswer(
+        {
+          summary: 'Resumo.',
+          items: [
+            good,
+            { title: 'Código', action: '<script>alert(1)</script>' },
+            { title: 'Sem ação' },
+            'solto',
+          ],
+        },
+        allowed,
+      ),
+    ).toBeNull();
+    expect(parseHelpAnswer({ summary: 'Resumo.', items: [] }, allowed)).toEqual({
+      summary: 'Resumo.',
+      items: [],
+    });
+    expect(parseHelpAnswer(null, allowed)).toBeNull();
+  });
+
+  it('chaves citadas nos erros vêm antes das outras ativas (o corte não as tira)', () => {
+    const many: KeyFact[] = Array.from({ length: 40 }, (_, i) => ({
+      prefix: `k${String(i).padStart(11, '0')}`,
+      kind: 'secret',
+      env: 'live',
+      state: 'active',
+    }));
+    const f = keyFacts({
+      keys: [...many, KEYS[1]!],
+      errors: [{ day: '2026-11-11', reason: 'revoked', keyPrefix: KEYS[1]!.prefix, detail: '', count: 1 }],
+      limits: LIMITS,
+      modules: [],
+    });
+    expect(f.keys[0]!.prefix).toBe(KEYS[1]!.prefix);
+    expect(f.keys).toHaveLength(30);
   });
 });
 
@@ -252,6 +309,7 @@ function cases() {
     { body: BODY, header: `t=${now}`, expect: false },
     { body: BODY, header: '', expect: false },
     { body: BODY, header: `t=abc,v1=${'0'.repeat(64)}`, expect: false },
+    { body: BODY, header: `t=${now},v1=${'é'.repeat(64)}`, expect: false },
   ];
 }
 
