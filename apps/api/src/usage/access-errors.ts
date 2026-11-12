@@ -45,6 +45,9 @@ const FK_VIOLATION = '23503';
 /** Chave da combinação; JSON para que um `|` dentro do detalhe não junte combinações diferentes. */
 const keyOf = (...parts: string[]) => JSON.stringify(parts);
 const DETAIL_MAX = 200;
+/** Código do Postgres do erro, direto ou dentro do `cause` (o Drizzle embrulha o erro do driver). */
+const pgCode = (err: unknown): unknown =>
+  (err as { code?: unknown })?.code ?? (err as { cause?: { code?: unknown } })?.cause?.code;
 
 /**
  * Texto curto e sem controle (vai para o painel do cliente e, como dado delimitado, para o prompt da Cosmos: o
@@ -149,7 +152,7 @@ export class AccessErrorRecorder {
       .then(() => undefined)
       .catch((err) => {
         // tenant removido no meio (FK): o lote inteiro falharia de novo a cada minuto; descarta (é diagnóstico)
-        if ((err as { code?: unknown })?.code === FK_VIOLATION) {
+        if (pgCode(err) === FK_VIOLATION) {
           this.options.onError?.(err);
           return;
         }

@@ -3,13 +3,15 @@ import type { Database } from '@galaxie/db';
 import { AccessErrorRecorder } from './access-errors.js';
 
 /** Banco falso: guarda os lotes do upsert (o SQL de verdade roda no teste de integração). */
-function fakeDb(fail = false) {
+function fakeDb(fail: boolean | Error = false) {
   const batches: Record<string, unknown>[][] = [];
   const db = {
     insert: () => ({
       values: (rows: Record<string, unknown>[]) => ({
         onConflictDoUpdate: () =>
-          fail ? Promise.reject(new Error('fora')) : (batches.push(rows), Promise.resolve()),
+          fail
+            ? Promise.reject(fail instanceof Error ? fail : new Error('fora'))
+            : (batches.push(rows), Promise.resolve()),
       }),
     }),
   } as unknown as Database;
@@ -84,6 +86,20 @@ describe('AccessErrorRecorder (#1007)', () => {
     (rec as unknown as { db: Database }).db = good.db;
     await rec.flush();
     expect(good.batches[0]!.map((r) => r.count)).toEqual([2]);
+  });
+
+  it('violação de FK (tenant removido), mesmo embrulhada pelo Drizzle em `cause`: o lote é descartado', async () => {
+    const wrapped = Object.assign(new Error('Failed query'), { cause: { code: '23503' } });
+    const bad = fakeDb(wrapped);
+    const errors: unknown[] = [];
+    const rec = new AccessErrorRecorder(bad.db, { now: () => NOW, onError: (e) => errors.push(e) });
+    rec.record({ tenantId: 't-sumiu', reason: 'expired' });
+    await rec.flush();
+    expect(errors).toEqual([wrapped]);
+    const good = fakeDb();
+    (rec as unknown as { db: Database }).db = good.db;
+    await rec.flush();
+    expect(good.batches).toEqual([]);
   });
 
   it('teto por tenant: origens aleatórias de um tenant viram "(outros)" e não tomam o lugar dos outros', async () => {
