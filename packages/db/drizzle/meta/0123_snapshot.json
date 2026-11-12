@@ -1,6 +1,6 @@
 {
-  "id": "69037fea-83af-4cd4-be20-421b71f7eb2c",
-  "prevId": "e9199fb2-2ceb-47f4-8c46-40caefc552dc",
+  "id": "d3ed1116-fe60-4b69-95e2-dea8e5a937bc",
+  "prevId": "0ebd9adc-448b-4878-9d7b-008fb4ea4305",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -19552,7 +19552,7 @@
       "checkConstraints": {
         "country_policy_key": {
           "name": "country_policy_key",
-          "value": "\"engage\".\"country_policy\".\"country\" ~ '^([A-Z]{2}|LATAM)$'"
+          "value": "\"engage\".\"country_policy\".\"country\" ~ '^([A-Z]{2}|LATAM|DEFAULT)$'"
         }
       },
       "isRLSEnabled": false
@@ -20943,6 +20943,57 @@
           "primaryKey": false,
           "notNull": true
         },
+        "age_band_detail": {
+          "name": "age_band_detail",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "age_assurance": {
+          "name": "age_assurance",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'self'"
+        },
+        "age_assurance_at": {
+          "name": "age_assurance_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "age_assurance_provider": {
+          "name": "age_assurance_provider",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "guardian_status": {
+          "name": "guardian_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'none'"
+        },
+        "guardian_consent_id": {
+          "name": "guardian_consent_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "guardian_linked": {
+          "name": "guardian_linked",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "age_frozen_at": {
+          "name": "age_frozen_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
         "country": {
           "name": "country",
           "type": "text",
@@ -21091,6 +21142,26 @@
         "profile_country": {
           "name": "profile_country",
           "value": "\"fan\".\"profile\".\"country\" ~ '^[A-Z]{2}$'"
+        },
+        "profile_age_band_detail": {
+          "name": "profile_age_band_detail",
+          "value": "\"fan\".\"profile\".\"age_band_detail\" is null or \"fan\".\"profile\".\"age_band_detail\" in ('under13', '13', '14_15', '16_17', '18plus')"
+        },
+        "profile_age_assurance": {
+          "name": "profile_age_assurance",
+          "value": "\"fan\".\"profile\".\"age_assurance\" in ('self', 'estimated', 'verified')"
+        },
+        "profile_age_assurance_provider": {
+          "name": "profile_age_assurance_provider",
+          "value": "\"fan\".\"profile\".\"age_assurance_provider\" is null or length(\"fan\".\"profile\".\"age_assurance_provider\") between 1 and 64"
+        },
+        "profile_guardian_status": {
+          "name": "profile_guardian_status",
+          "value": "\"fan\".\"profile\".\"guardian_status\" in ('none', 'pending', 'granted', 'revoked')"
+        },
+        "profile_guardian_consent": {
+          "name": "profile_guardian_consent",
+          "value": "\"fan\".\"profile\".\"guardian_consent_id\" is null or length(\"fan\".\"profile\".\"guardian_consent_id\") between 1 and 128"
         },
         "profile_erased": {
           "name": "profile_erased",
@@ -22805,112 +22876,6 @@
       },
       "isRLSEnabled": false
     },
-    "chat.game_message": {
-      "name": "game_message",
-      "schema": "chat",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "public.uuid_generate_v7()"
-        },
-        "event_id": {
-          "name": "event_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "source_key": {
-          "name": "source_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "kind": {
-          "name": "kind",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "data": {
-          "name": "data",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "game_message_source_uq": {
-          "name": "game_message_source_uq",
-          "columns": [
-            {
-              "expression": "event_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "source_key",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "game_message_event_idx": {
-          "name": "game_message_event_idx",
-          "columns": [
-            {
-              "expression": "event_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "game_message_kind": {
-          "name": "game_message_kind",
-          "value": "kind in ('kickoff', 'goal', 'red_card', 'var', 'half_time', 'full_time')"
-        }
-      },
-      "isRLSEnabled": false
-    },
     "chat.message": {
       "name": "message",
       "schema": "chat",
@@ -23288,12 +23253,6 @@
         "strictness": {
           "name": "strictness",
           "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "event_kinds": {
-          "name": "event_kinds",
-          "type": "text[]",
           "primaryKey": false,
           "notNull": false
         },

@@ -8,6 +8,7 @@ import {
   LayoutDashboard,
   ListVideo,
   Palette,
+  ShieldCheck,
   Tv,
   Users,
   Webhook,
@@ -54,6 +55,15 @@ export const CLIENT_NAV = [
     group: 'engagement',
     action: 'settings.manage',
   },
+  {
+    id: 'moderation',
+    href: '/cliente/moderacao',
+    icon: ShieldCheck,
+    group: 'engagement',
+    action: 'moderation.queue.view',
+    // o moderador de uma sala entra e vê só a sala dele
+    scoped: true,
+  },
   { id: 'cosmos', href: '/cliente/cosmos', icon: CosmosIcon, group: 'intelligence', action: 'cosmos.view' },
   {
     id: 'webhooks',
@@ -69,6 +79,8 @@ export const CLIENT_NAV = [
   group: ClientNavGroupId;
   action?: TenantAction;
   module?: string;
+  /** A área trabalha por lugar: basta a permissão numa Sala ou Comunidade do escopo. */
+  scoped?: boolean;
 }[];
 
 export type ClientSection = (typeof CLIENT_NAV)[number]['id'];
@@ -87,11 +99,15 @@ export interface ClientNavGroup {
 }
 
 /** Requisitos de uma área (cargo e módulo), para a moldura decidir o que aparece. */
-export const navRequirement = (id: ClientSection): { action?: TenantAction; module?: string } => {
-  const item = CLIENT_NAV.find((i) => i.id === id) as { action?: TenantAction; module?: string } | undefined;
+export const navRequirement = (
+  id: ClientSection,
+): { action?: TenantAction; module?: string; scoped?: boolean } => {
+  const item = CLIENT_NAV.find((i) => i.id === id) as
+    { action?: TenantAction; module?: string; scoped?: boolean } | undefined;
   return {
     ...(item?.action ? { action: item.action } : {}),
     ...(item?.module ? { module: item.module } : {}),
+    ...(item?.scoped ? { scoped: true } : {}),
   };
 };
 

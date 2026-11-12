@@ -663,15 +663,36 @@
     {
       "idx": 94,
       "version": "7",
-      "when": 1794487936297,
-      "tag": "0105_chat_salas",
+      "when": 1794487933533,
+      "tag": "0099_ficha_default",
       "breakpoints": true
     },
     {
       "idx": 95,
       "version": "7",
-      "when": 1794495161237,
-      "tag": "0106_chat_eventos_jogo",
+      "when": 1794487965765,
+      "tag": "0100_ficha_idade",
+      "breakpoints": true
+    },
+    {
+      "idx": 96,
+      "version": "7",
+      "when": 1794487981379,
+      "tag": "0107_idade_token",
+      "breakpoints": true
+    },
+    {
+      "idx": 97,
+      "version": "7",
+      "when": 1794496324200,
+      "tag": "0123_chat_salas",
+      "breakpoints": true
+    },
+    {
+      "idx": 98,
+      "version": "7",
+      "when": 1794496496448,
+      "tag": "0124_chat_eventos_jogo",
       "breakpoints": true
     }
   ]

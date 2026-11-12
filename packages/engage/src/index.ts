@@ -7,3 +7,4 @@ export * from './sponsors.js';
 export * from './moderation-queue.js';
 export * from './chat-room.js';
 export * from './chat-game.js';
+export * from './fan-age.js';
