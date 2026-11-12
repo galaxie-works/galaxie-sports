@@ -649,7 +649,14 @@
     {
       "idx": 92,
       "version": "7",
-      "when": 1794444529734,
+      "when": 1794442180071,
+      "tag": "0097_presenca",
+      "breakpoints": true
+    },
+    {
+      "idx": 93,
+      "version": "7",
+      "when": 1794450392727,
       "tag": "0099_ficha_default",
       "breakpoints": true
     }
