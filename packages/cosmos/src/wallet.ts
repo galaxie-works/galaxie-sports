@@ -15,6 +15,9 @@ import { evaluateBalance } from './balance.js';
 import { BRANDBOOK_FUNCTION, BRANDBOOK_PROVIDERS } from './brandbook.js';
 import { ceilCredits, creditsFor, roundCredits } from './credits.js';
 import { CosmosError } from './errors.js';
+
+/** `IMAGE_MODERATION_FUNCTION` (moderation-image.ts), repetido aqui para não criar ciclo de import. */
+const IMAGE_MODERATION_FUNCTION_NAME = 'moderation.image';
 import {
   COSMOS_PROVIDERS,
   isCosmosProvider,
@@ -112,11 +115,12 @@ export interface FunctionDefInput {
 
 /**
  * A função tem quem chame esse provedor? O assistente chama os provedores com chamador (`ASSISTANT_STREAMERS`); o
- * tema a partir do brandbook, só os que leem PDF. Salvar outro deixaria a função "Ativa" respondendo indisponível.
+ * tema a partir do brandbook, só os que leem PDF; a moderação de imagem, só os que leem imagem (os mesmos). Salvar outro
+ * deixaria a função "Ativa" respondendo indisponível.
  */
 export function providerHasCaller(functionName: string, provider: CosmosProvider): boolean {
   if (functionName === ASSISTANT_FUNCTION) return Boolean(ASSISTANT_STREAMERS[provider]);
-  if (functionName === BRANDBOOK_FUNCTION)
+  if (functionName === BRANDBOOK_FUNCTION || functionName === IMAGE_MODERATION_FUNCTION_NAME)
     return (BRANDBOOK_PROVIDERS as readonly string[]).includes(provider);
   return true;
 }
