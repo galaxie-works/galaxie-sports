@@ -42,3 +42,4 @@ export * from './presence.js';
 export * from './moderation.js';
 export * from './narration.js';
 export * from './chat.js';
+export * from './shop.js';
