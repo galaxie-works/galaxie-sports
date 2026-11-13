@@ -143,6 +143,12 @@ export default defineMessages(
       ceilingNote: 'Degraus acima do teto da Galaxie ficam desabilitados.',
       muteHours: 'Duração do Silêncio aplicado pela Cosmos',
       hours: '{hours} h',
+      childAudience: {
+        title: 'Público infantil',
+        description: 'Toda imagem também passa pela Cosmos, além da triagem automática.',
+        safety:
+          'A triagem automática só vê nudez. Com esta opção, drogas, armas e ódio também são conferidos em toda imagem, e cada uma gasta créditos. Autor com menos de 13 anos já entra assim.',
+      },
       exemptTitle: 'Quem a Cosmos só sinaliza',
       exemptDescription:
         'O conteúdo destes cargos nunca é escondido nem silenciado pela Cosmos; vai para a fila.',
@@ -536,6 +542,12 @@ export default defineMessages(
         ceilingNote: 'Steps above the Galaxie ceiling are disabled.',
         muteHours: 'Length of a mute applied by Cosmos',
         hours: '{hours} h',
+        childAudience: {
+          title: 'Audience of children',
+          description: 'Every image also goes through Cosmos, on top of the automatic screening.',
+          safety:
+            'The automatic screening only sees nudity. With this option, drugs, weapons and hate are also checked on every image, and each one uses credits. Authors under 13 already get this.',
+        },
         exemptTitle: 'Who Cosmos only flags',
         exemptDescription:
           'Content from these roles is never hidden or muted by Cosmos; it goes to the queue.',
@@ -946,6 +958,12 @@ export default defineMessages(
         ceilingNote: 'Los pasos por encima del tope de Galaxie quedan desactivados.',
         muteHours: 'Duración del Silencio aplicado por Cosmos',
         hours: '{hours} h',
+        childAudience: {
+          title: 'Público infantil',
+          description: 'Toda imagen también pasa por Cosmos, además del filtro automático.',
+          safety:
+            'El filtro automático solo ve desnudez. Con esta opción, drogas, armas y odio también se revisan en cada imagen, y cada una gasta créditos. Un autor menor de 13 años ya entra así.',
+        },
         exemptTitle: 'A quién Cosmos solo señala',
         exemptDescription:
           'El contenido de estos cargos nunca lo oculta ni lo silencia Cosmos; va a la cola.',

@@ -81,6 +81,11 @@ export interface ModerationConfig {
   exemptRoles: TenantRole[];
   /** null = o texto padrão do produto. */
   hiddenNotice: string | null;
+  /**
+   * Público infantil: toda imagem que a triagem local não segurou também passa pela Cosmos (a triagem não vê droga,
+   * arma nem ódio). Opcional no envio; sem ele, false.
+   */
+  childAudience: boolean;
 }
 
 /**
@@ -105,6 +110,7 @@ export const DEFAULT_MODERATION_CONFIG: ModerationConfig = {
   muteHours: MUTE_HOURS_MAX,
   exemptRoles: [],
   hiddenNotice: null,
+  childAudience: false,
 };
 
 const stepRank = (step: AutonomyStep) => AUTONOMY_STEPS.indexOf(step);
@@ -137,6 +143,7 @@ const CONFIG_KEYS = [
   'muteHours',
   'exemptRoles',
   'hiddenNotice',
+  'childAudience',
 ] as const;
 
 /**
@@ -241,6 +248,11 @@ export function parseModerationConfig(
     else if (typeof n !== 'string' || n.trim().length > HIDDEN_NOTICE_MAX) errors.push('hiddenNotice');
     else out.hiddenNotice = n.trim() || null;
   }
+  // opcional mesmo na configuração inteira: quem já salvava sem ele continua valendo
+  if (has('childAudience')) {
+    if (typeof input.childAudience !== 'boolean') errors.push('childAudience');
+    else out.childAudience = input.childAudience;
+  } else if (!partial) out.childAudience = false;
   // o campo `hiddenNotice` aceita null de propósito; `need` só cobra presença
   return errors.length > 0
     ? { ok: false, errors: [...new Set(errors)] }
@@ -285,6 +297,8 @@ export function normalizeModerationConfig(
         : typeof s.hiddenNotice === 'string' && s.hiddenNotice.trim().length <= HIDDEN_NOTICE_MAX
           ? s.hiddenNotice.trim() || null
           : base.hiddenNotice,
+    // a sala ou comunidade pode ligar o público infantil, nunca desligar o que o cliente ligou
+    childAudience: base.childAudience || s.childAudience === true,
   };
 }
 
