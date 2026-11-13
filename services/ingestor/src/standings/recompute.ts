@@ -80,16 +80,20 @@ export interface SeasonStandingsReport {
   unmatchedRounds?: string[] | undefined;
   /** Grupos com o nome antigo de uma tabela renomeada pelo fornecedor (apagados). */
   superseded?: string[] | undefined;
+  /** Grupos em que a tabela do fornecedor tem mais jogos que a nossa e prevaleceu (trava do #880). */
+  providerAhead?: string[] | undefined;
 }
 
 /**
- * Relatório que pede atenção da operação: tabela parada (grupo ambíguo, regulamento ou entrada inválidos),
+ * Relatório que pede atenção da operação: tabela parada (grupo ambíguo, regulamento ou entrada inválidos, tabela
+ * do fornecedor com mais jogos que a nossa),
  * tabela do regulamento sem recálculo ou grupo que o regulamento não reconhece. O resto (tabela do
  * fornecedor mais nova no beisebol, mata-mata, sem resultado) é o normal.
  */
 export function needsAttention(r: SeasonStandingsReport): boolean {
   return (
-    ['no_groups', 'rules_error', 'invalid_input'].includes(r.outcome) ||
+    ['no_groups', 'provider_ahead', 'rules_error', 'invalid_input'].includes(r.outcome) ||
+    !!r.providerAhead?.length ||
     !!r.skipped?.length ||
     !!r.unclassified?.length ||
     !!r.unmatchedRounds?.length
@@ -391,7 +395,11 @@ async function writeTables(
   if (ahead.length) {
     tables = tables.filter((t) => !ahead.includes(t.group));
     if (!tables.length)
-      return report('provider_ahead', { results: extra.results, detail: aheadDetail(ahead) });
+      return report('provider_ahead', {
+        results: extra.results,
+        providerAhead: ahead,
+        detail: aheadDetail(ahead),
+      });
   }
   const rows = await writeComputedStandings(db, seasonId, tables, { mode: 'replace' });
   await dropStaleComputedRows(db, seasonId, tables, extra.dropEmpty);
@@ -411,7 +419,7 @@ async function writeTables(
   return report('written', {
     results: extra.results,
     rows,
-    ...(ahead.length ? { detail: aheadDetail(ahead) } : {}),
+    ...(ahead.length ? { providerAhead: ahead, detail: aheadDetail(ahead) } : {}),
   });
 }
 
@@ -526,6 +534,7 @@ async function recomputeByTables(
   const ahead = await providerAheadGroups(db, seasonId, out.tables);
   if (ahead.length) out.tables = out.tables.filter((t) => !ahead.includes(t.group));
   const fullDetail = [detail, ahead.length ? aheadDetail(ahead) : ''].filter(Boolean).join('; ');
+  if (ahead.length) Object.assign(extra, { providerAhead: ahead });
   const removed = await dropRenamedAndResidue(db, seasonId, rules, tableRows, out.superseded);
   if (!out.tables.length) {
     if (options.publish !== false && removed > 0) await publishStandings(db, seasonId, competitionId, 0, []);
