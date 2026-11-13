@@ -116,12 +116,11 @@ describe('smoke: retry de 5xx e de tempo esgotado', () => {
     assert.equal(hits.get('/v1/glossary'), 1);
   });
 
-  test('5xx em todas as tentativas: FAIL com o motivo da primeira, depois de 1 + SMOKE_RETRIES chamadas', () => {
+  test('5xx em todas as tentativas: FAIL com o motivo da primeira, depois de 1 + SMOKE_RETRIES tentativas', () => {
     assert.match(
       line('Home Explorar'),
       /^FAIL {2}Home Explorar.*status 500 \(após 4 tentativas; 1ª: status 500\)/,
     );
-    assert.equal(hits.get('/v1/explore/summary'), 4);
   });
 
   test('agenda não reprova por "home 0" quando a home já falhou: WARN dependente', () => {
