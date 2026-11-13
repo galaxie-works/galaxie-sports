@@ -3,6 +3,7 @@ import { Suspense } from 'react';
 
 import { SettingsArea } from '@/components/admin/settings-nav';
 import { ShoppingCatalog } from '@/components/admin/shopping-catalog';
+import { ShoppingClicks } from '@/components/admin/shopping-clicks';
 import { LoadingStatus } from '@/components/app-shell/loading-status';
 import { PageHeader } from '@/components/app-shell/page-header';
 import { FramePanelSkeleton, TableSkeleton } from '@/components/app-shell/skeletons';
@@ -59,6 +60,17 @@ export default async function ShoppingSettingsPage({
             }
           >
             <Content searchParams={searchParams} />
+          </Suspense>
+          <Suspense
+            fallback={
+              <LoadingStatus>
+                <FramePanelSkeleton>
+                  <TableSkeleton rows={4} />
+                </FramePanelSkeleton>
+              </LoadingStatus>
+            }
+          >
+            <ShoppingClicks />
           </Suspense>
         </SettingsArea>
       </div>

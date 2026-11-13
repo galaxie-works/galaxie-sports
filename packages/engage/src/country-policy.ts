@@ -101,7 +101,39 @@ export interface CountryPolicy {
   hearMinor: boolean;
   /** Prazo para pedir a autorização de novo, em dias (null = sem prazo). */
   consentRenewalDays: number | null;
+  /**
+   * O país aceita odds, anúncio ou link de casa de apostas (#1115). Mesmo com `true`, o torcedor só vê esse
+   * conteúdo se o cliente tiver licença de operador para o país aprovada pela Galaxie (`bettingContentAllowed`).
+   * `false` = proibido no país (Brasil, MP 1.394/2026), ou fechado até a Galaxie liberar.
+   */
+  bettingContent: boolean;
+  /** Marketing por canal (#1115): `opt-in` exige consentimento prévio; `opt-out` envia até o torcedor recusar. */
+  marketingConsent: Record<MarketingChannel, MarketingConsentMode>;
+  /**
+   * Guarda, em dias, do conteúdo removido que foi denunciado às autoridades (#1115). Conta da denúncia e fica fora
+   * do relógio `retention.removedContentDays`.
+   */
+  legalHoldDays: number;
 }
+
+/** Canais de marketing com consentimento próprio (#1115). */
+export const MARKETING_CHANNELS = ['email', 'push', 'sms'] as const;
+export type MarketingChannel = (typeof MARKETING_CHANNELS)[number];
+export const MARKETING_CONSENT_MODES = ['opt-in', 'opt-out'] as const;
+export type MarketingConsentMode = (typeof MARKETING_CONSENT_MODES)[number];
+
+/** Regras jurídicas da revisão de 11/11 que não são de idade (#1115). */
+export type PolicyLegalRules = Pick<CountryPolicy, 'bettingContent' | 'marketingConsent' | 'legalHoldDays'>;
+
+/**
+ * Regras jurídicas mais protetivas: valem para a ficha `DEFAULT` e para completar uma ficha gravada antes do #1115
+ * (`withLegalRules`). Guarda legal longa protege a investigação; o resto fica fechado.
+ */
+export const STRICT_LEGAL_RULES: Readonly<PolicyLegalRules> = {
+  bettingContent: false,
+  marketingConsent: { email: 'opt-in', push: 'opt-in', sms: 'opt-in' },
+  legalHoldDays: 365,
+};
 
 /** Regras de idade de uma ficha (#1104). */
 export type PolicyAgeRules = Pick<
@@ -137,6 +169,9 @@ const BASE = {
   ageAssuranceMin: { social: 'self', restrictedContent: 'self' },
   hearMinor: false,
   consentRenewalDays: null,
+  bettingContent: false,
+  marketingConsent: { email: 'opt-in', push: 'opt-in', sms: 'opt-in' },
+  legalHoldDays: 180,
 } satisfies Partial<CountryPolicy>;
 
 const latam = (
@@ -204,6 +239,10 @@ export const INITIAL_COUNTRY_POLICIES: Readonly<Record<PolicyKey, CountryPolicy>
     timeZone: 'America/New_York',
     languages: ['en'],
     laws: ['COPPA', 'Leis estaduais de privacidade (CCPA/CPRA e outras)'],
+    // CAN-SPAM: e-mail é opt-out; TCPA: SMS só com consentimento prévio por escrito
+    marketingConsent: { email: 'opt-out', push: 'opt-in', sms: 'opt-in' },
+    // 18 U.S.C. § 2258A (REPORT Act): 1 ano do que foi reportado ao NCMEC
+    legalHoldDays: 365,
   },
   CA: {
     ...structuredClone(BASE),
@@ -219,6 +258,7 @@ export const INITIAL_COUNTRY_POLICIES: Readonly<Record<PolicyKey, CountryPolicy>
   [DEFAULT_POLICY_KEY]: {
     ...structuredClone(BASE),
     ...structuredClone(STRICT_AGE_RULES),
+    ...structuredClone(STRICT_LEGAL_RULES),
     punishmentNoticeRequired: true,
     entity: 'llc',
     currency: 'USD',
@@ -258,6 +298,33 @@ export function withAgeRules(p: CountryPolicy): CountryPolicy {
         : partial.consentRenewalDays,
   };
 }
+
+/** Completa uma ficha gravada antes do #1115 com as regras jurídicas mais protetivas (campo ausente nunca afrouxa). */
+export function withLegalRules(p: CountryPolicy): CountryPolicy {
+  const partial = p as Partial<CountryPolicy>;
+  // null conta como ausente: guarda nula acabaria na hora da denúncia
+  if (
+    partial.bettingContent != null &&
+    partial.legalHoldDays != null &&
+    partial.marketingConsent != null &&
+    MARKETING_CHANNELS.every((c) => partial.marketingConsent?.[c] != null)
+  )
+    return p;
+  const consent: Partial<Record<MarketingChannel, MarketingConsentMode>> = {};
+  for (const c of MARKETING_CHANNELS) {
+    const v = partial.marketingConsent?.[c];
+    if (v != null) consent[c] = v;
+  }
+  return {
+    ...p,
+    bettingContent: partial.bettingContent ?? STRICT_LEGAL_RULES.bettingContent,
+    marketingConsent: { ...STRICT_LEGAL_RULES.marketingConsent, ...consent },
+    legalHoldDays: partial.legalHoldDays ?? STRICT_LEGAL_RULES.legalHoldDays,
+  };
+}
+
+/** Ficha completa: regras de idade (#1104) e jurídicas (#1115) que faltarem entram no mais protetivo. */
+export const completePolicy = (p: CountryPolicy): CountryPolicy => withLegalRules(withAgeRules(p));
 
 export type PolicyIssue = { path: string; message: string };
 
@@ -326,6 +393,12 @@ export function validatePolicy(p: CountryPolicy): PolicyIssue[] {
       issues.push({ path: `ageAssuranceMin.${f}`, message: AGE_ASSURANCE_LEVELS.join(', ') });
   bool('hearMinor', p.hearMinor);
   if (p.consentRenewalDays !== null) int('consentRenewalDays', p.consentRenewalDays, 30, 3650);
+  // apostas, marketing e guarda legal (#1115)
+  bool('bettingContent', p.bettingContent);
+  for (const c of MARKETING_CHANNELS)
+    if (!(MARKETING_CONSENT_MODES as readonly string[]).includes(p.marketingConsent?.[c] as string))
+      issues.push({ path: `marketingConsent.${c}`, message: MARKETING_CONSENT_MODES.join(' ou ') });
+  int('legalHoldDays', p.legalHoldDays, 30, 3650);
   return issues;
 }
 
@@ -368,6 +441,13 @@ export function normalizePolicy(p: CountryPolicy): CountryPolicy {
     },
     hearMinor: p.hearMinor,
     consentRenewalDays: p.consentRenewalDays,
+    bettingContent: p.bettingContent,
+    marketingConsent: {
+      email: p.marketingConsent.email,
+      push: p.marketingConsent.push,
+      sms: p.marketingConsent.sms,
+    },
+    legalHoldDays: p.legalHoldDays,
   };
 }
 
@@ -408,6 +488,10 @@ export interface PolicyHardening {
   hearMinor?: true;
   /** Prazo de renovação da autorização, só mais curto. */
   consentRenewalDays?: number;
+  /** Desliga o conteúdo de apostas no país, mesmo com licença. */
+  bettingContent?: false;
+  /** Canal que passa a exigir consentimento prévio. */
+  marketingConsent?: Partial<Record<MarketingChannel, 'opt-in'>>;
 }
 
 /**
@@ -418,7 +502,7 @@ export function hardenPolicy(
   policy: CountryPolicy,
   h: PolicyHardening,
 ): { policy: CountryPolicy; rejected: string[] } {
-  const out = structuredClone(withAgeRules(policy));
+  const out = structuredClone(completePolicy(policy));
   const rejected: string[] = [];
   const raise = (key: 'minAgeWrite' | 'minAgeParticipate') => {
     const v = h[key];
@@ -489,6 +573,17 @@ export function hardenPolicy(
     if (Number.isInteger(v) && v >= 30 && v <= 3650 && (cur === null || v <= cur)) out.consentRenewalDays = v;
     else rejected.push('consentRenewalDays');
   }
+  // apostas e marketing (#1115): apostas só desligam, canal só passa a opt-in. A guarda legal não é do cliente:
+  // mais curta descumpre a lei, mais longa recusa a exclusão do titular sem base legal
+  if (h.bettingContent !== undefined) {
+    if (h.bettingContent === false) out.bettingContent = false;
+    else rejected.push('bettingContent');
+  }
+  for (const [k, v] of Object.entries(h.marketingConsent ?? {}) as [MarketingChannel, unknown][]) {
+    if (v === 'opt-in' && (MARKETING_CHANNELS as readonly string[]).includes(k))
+      out.marketingConsent[k] = 'opt-in';
+    else rejected.push(`marketingConsent.${k}`);
+  }
   return { policy: out, rejected };
 }
 
@@ -530,11 +625,11 @@ export function resolvePolicy(
   };
   const chosen = pick();
   if (!chosen) return null;
-  const chosenPolicy = withAgeRules(policies.get(chosen.key)!);
+  const chosenPolicy = completePolicy(policies.get(chosen.key)!);
   // a DEFAULT nunca protege menos que a ficha do país principal, que valia antes dela
   const base =
     chosen.key === DEFAULT_POLICY_KEY && primary && policies.has(primary)
-      ? strictestOf(chosenPolicy, withAgeRules(policies.get(primary)!))
+      ? strictestOf(chosenPolicy, completePolicy(policies.get(primary)!))
       : chosenPolicy;
   // o endurecimento do cliente vale para o país do torcedor; se o cliente não marcou esse país (ou caiu no
   // fallback), vale o do país principal, para o torcedor de fora não escapar do que o cliente endureceu
@@ -543,6 +638,66 @@ export function resolvePolicy(
     tenantCountries.find((c) => c.primary);
   const policy = tc?.hardening ? hardenPolicy(base, tc.hardening).policy : base;
   return { ...chosen, policy };
+}
+
+/** Licença de operador de apostas do cliente para um país, aprovada pela Galaxie (#1115). */
+export interface BettingLicense {
+  /** Número ou referência da licença anexada pelo cliente. */
+  reference: string;
+  /** Quem da Galaxie aprovou e quando (ISO 8601); sem aprovação, a licença não vale. */
+  approvedBy: string | null;
+  approvedAt: string | null;
+  /** Fim da validade (ISO 8601); null = sem prazo informado. */
+  expiresAt?: string | null;
+}
+
+/**
+ * Odds, anúncio ou link de casa de apostas podem aparecer para o torcedor? Só se a ficha que vale aceita (`true`,
+ * já com o endurecimento do cliente) e o cliente tem licença aprovada pela Galaxie e válida para o país. Shop the
+ * game, Gamificação e Cosmos chamam esta função antes de mostrar qualquer conteúdo de apostas.
+ */
+export function bettingContentAllowed(
+  policy: Pick<CountryPolicy, 'bettingContent'>,
+  license: BettingLicense | null | undefined,
+  now: number = Date.now(),
+): boolean {
+  if (policy.bettingContent !== true || !license) return false;
+  if (!license.reference?.trim() || !license.approvedBy?.trim() || !license.approvedAt) return false;
+  // aprovação com data ilegível ou no futuro não prova que a Galaxie aprovou
+  const approved = Date.parse(license.approvedAt);
+  if (!Number.isFinite(approved) || approved > now) return false;
+  if (license.expiresAt) {
+    const end = Date.parse(license.expiresAt);
+    if (!Number.isFinite(end) || end <= now) return false;
+  }
+  return true;
+}
+
+/** O que o torcedor disse sobre marketing num canal: deu, recusou ou nunca respondeu. */
+export type MarketingConsentState = 'granted' | 'denied' | 'none';
+
+/**
+ * Pode mandar marketing ao torcedor neste canal? Menor de 18 nunca recebe (#1103); `opt-in` exige consentimento
+ * dado; `opt-out` envia até o torcedor recusar. Consentimento dado em outro país continua valendo se atende à ficha
+ * do país novo, por isso a regra olha só o estado atual, não onde foi dado.
+ */
+export function marketingAllowed(
+  policy: Pick<CountryPolicy, 'marketingConsent'>,
+  channel: MarketingChannel,
+  fan: { adult: boolean; consent: MarketingConsentState },
+): boolean {
+  if (!fan.adult || fan.consent === 'denied') return false;
+  // canal desconhecido ou ficha sem o campo: trata como opt-in
+  const mode = policy.marketingConsent?.[channel] ?? 'opt-in';
+  return mode === 'opt-out' || fan.consent === 'granted';
+}
+
+/**
+ * Até quando guardar o conteúdo removido que foi denunciado às autoridades (ms). Conta da denúncia, fora do relógio
+ * de conteúdo removido; pedido de exclusão do titular é recusado até lá, com base legal.
+ */
+export function legalHoldUntil(policy: Pick<CountryPolicy, 'legalHoldDays'>, reportedAt: number): number {
+  return reportedAt + policy.legalHoldDays * 24 * 3600_000;
 }
 
 const minNullable = (a: number | null, b: number | null) =>
@@ -586,6 +741,12 @@ export function strictestOf(a: CountryPolicy, b: CountryPolicy): CountryPolicy {
     out.ageAssuranceMin[f] = strongest(a.ageAssuranceMin[f], b.ageAssuranceMin[f]);
   out.hearMinor = a.hearMinor || b.hearMinor;
   out.consentRenewalDays = minNullable(a.consentRenewalDays, b.consentRenewalDays);
+  out.bettingContent = a.bettingContent && b.bettingContent;
+  for (const c of MARKETING_CHANNELS)
+    out.marketingConsent[c] =
+      a.marketingConsent[c] === 'opt-out' && b.marketingConsent[c] === 'opt-out' ? 'opt-out' : 'opt-in';
+  // guarda legal é obrigação de uma das duas fichas: vale a mais longa
+  out.legalHoldDays = Math.max(a.legalHoldDays, b.legalHoldDays);
   return out;
 }
 

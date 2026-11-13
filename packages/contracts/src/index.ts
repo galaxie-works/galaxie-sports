@@ -41,3 +41,4 @@ export * from './team-statistics.js';
 export * from './presence.js';
 export * from './moderation.js';
 export * from './chat.js';
+export * from './shop.js';
