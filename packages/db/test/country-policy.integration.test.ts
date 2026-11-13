@@ -42,7 +42,8 @@ describe('ficha por país: idade e responsável (#1104)', () => {
       ['AR', 'BR', 'CA', 'CL', 'CO', 'DEFAULT', 'LATAM', 'MX', 'PE', 'US'].sort(),
     );
     expect(by.get('BR')).toMatchObject({
-      version: 2,
+      // 2 com a idade (0100) e 3 com apostas, marketing e guarda legal (0152)
+      version: 3,
       policy: {
         currency: 'BRL',
         minAgeParticipate: 13,
@@ -63,7 +64,7 @@ describe('ficha por país: idade e responsável (#1104)', () => {
       Row[]
     >`select country, policy, version from engage.country_policy where country = 'DEFAULT'`;
     expect(d).toMatchObject({
-      version: 1,
+      version: 2,
       policy: {
         parentalConsentUnder: 18,
         ageAssuranceMin: { social: 'estimated', restrictedContent: 'verified' },
@@ -78,7 +79,9 @@ describe('ficha por país: idade e responsável (#1104)', () => {
     expect(log).toEqual([
       { country: 'BR', version: 1, reason: 'fichas iniciais (#954)' },
       { country: 'BR', version: 2, reason: 'idade e responsável (#1104)' },
+      { country: 'BR', version: 3, reason: 'apostas, marketing e guarda legal (#1115)' },
       { country: 'DEFAULT', version: 1, reason: 'ficha DEFAULT (#1104)' },
+      { country: 'DEFAULT', version: 2, reason: 'apostas, marketing e guarda legal (#1115)' },
     ]);
   });
 
