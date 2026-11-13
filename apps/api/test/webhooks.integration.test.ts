@@ -302,6 +302,89 @@ describe('webhooks assinados', () => {
       .toMatchObject({ status: 'delivered', attempts: 1 });
   });
 
+  it('circuit breaker (#360): falhando há mais de 24 h, o endpoint é desativado; reativar zera a marca', async () => {
+    const id = await newEvent();
+    // 3 entregas × 3 tentativas (maxAttempts do worker do teste), todas com 500
+    script['/breaker'] = Array<number>(9).fill(500);
+    const ep = await create({
+      tenantSlug: 'portal',
+      url: `${base}/breaker`,
+      topics: ['score'],
+      filters: { events: [id] },
+    });
+    // a sequência de falhas começou há 25 h (sem nenhuma entrega com sucesso desde então)
+    await db
+      .update(webhookEndpoint)
+      .set({ failingSince: new Date(Date.now() - 25 * 3_600_000) })
+      .where(eq(webhookEndpoint.id, ep.id));
+    // três mudanças: o breaker só desativa com pelo menos 3 entregas na DLQ desde o início da sequência
+    for (const home of [1, 2, 3]) {
+      await db
+        .update(event)
+        .set({ score: { home, away: 2 } })
+        .where(eq(event.id, id));
+      if (home < 3)
+        await expect
+          .poll(async () => (await listDeadDeliveries(db, { endpointId: ep.id })).length, { timeout: 10_000 })
+          .toBe(home);
+      // antes da 3ª entrega morrer, segue ativo
+      if (home < 3)
+        expect(
+          (await db.select().from(webhookEndpoint).where(eq(webhookEndpoint.id, ep.id)))[0]?.active,
+        ).toBe(true);
+    }
+    await expect
+      .poll(async () => (await db.select().from(webhookEndpoint).where(eq(webhookEndpoint.id, ep.id)))[0], {
+        timeout: 10_000,
+      })
+      .toMatchObject({ active: false, autoDisabledReason: 'HTTP 500' });
+    const [off] = await db.select().from(webhookEndpoint).where(eq(webhookEndpoint.id, ep.id));
+    expect(off!.autoDisabledAt).toBeInstanceOf(Date);
+
+    expect(await setWebhookActive(db, ep.id, true)).toBe(true);
+    const [on] = await db.select().from(webhookEndpoint).where(eq(webhookEndpoint.id, ep.id));
+    expect(on).toMatchObject({
+      active: true,
+      failingSince: null,
+      autoDisabledAt: null,
+      autoDisabledReason: null,
+    });
+  });
+
+  it('circuit breaker: falhas recentes só marcam a sequência (sem desativar), e o sucesso limpa', async () => {
+    const id = await newEvent();
+    // uma entrega com as 3 tentativas do worker do teste, todas com 500: vai para a DLQ
+    script['/breaker-recente'] = [500, 500, 500];
+    const ep = await create({
+      tenantSlug: 'portal',
+      url: `${base}/breaker-recente`,
+      topics: ['score'],
+      filters: { events: [id] },
+    });
+    await db
+      .update(event)
+      .set({ score: { home: 4, away: 0 } })
+      .where(eq(event.id, id));
+    await expect
+      .poll(async () => (await listDeadDeliveries(db, { endpointId: ep.id })).length, { timeout: 10_000 })
+      .toBe(1);
+    const [mid] = await db.select().from(webhookEndpoint).where(eq(webhookEndpoint.id, ep.id));
+    // a sequência começou agora: nada de desativar
+    expect(mid!.failingSince).toBeInstanceOf(Date);
+    expect(mid).toMatchObject({ active: true, autoDisabledAt: null });
+
+    // o reenvio da DLQ dá 200: fim da sequência
+    expect(await replayDeadDeliveries(db, { endpointId: ep.id })).toBe(1);
+    await expect.poll(() => hits('/breaker-recente').length, { timeout: 5_000 }).toBe(4);
+    await expect
+      .poll(
+        async () =>
+          (await db.select().from(webhookEndpoint).where(eq(webhookEndpoint.id, ep.id)))[0]?.failingSince,
+        { timeout: 5_000 },
+      )
+      .toBeNull();
+  });
+
   it('respeita o contrato do tenant: onde assistir só para os mercados contratados', async () => {
     const id = await newEvent();
     await create({

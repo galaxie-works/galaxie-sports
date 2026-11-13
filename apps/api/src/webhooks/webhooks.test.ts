@@ -9,7 +9,7 @@ import { parseTopics, validateWebhookUrl, WebhookInputError } from './admin.js';
 import { generateWebhookSecret, signWebhook, verifyWebhookSignature } from './signature.js';
 import { WebhookSecretBox, WebhookSecretError } from './secret-box.js';
 import { BlockedTargetError, isBlockedAddress, postWebhook } from './transport.js';
-import { retryDelayMs } from './worker.js';
+import { retryDelayMs, WebhookWorker } from './worker.js';
 
 describe('assinatura HMAC-SHA256', () => {
   const secret = generateWebhookSecret();
@@ -183,6 +183,31 @@ describe('retentativas', () => {
     expect(retryDelayMs(20, 10_000, 3_600_000, mid)).toBe(3_600_000);
     expect(retryDelayMs(1, 10_000, 3_600_000, () => 0)).toBe(8_000);
     expect(retryDelayMs(1, 10_000, 3_600_000, () => 1)).toBe(12_000);
+  });
+});
+
+describe('rate limit por endpoint (#360)', () => {
+  const worker = (endpointRatePerMinute: number) =>
+    new WebhookWorker({} as never, { endpointRatePerMinute, secrets: new WebhookSecretBox([]) });
+
+  it('passa até o teto da janela de um minuto e depois espera a próxima, por endpoint', () => {
+    const w = worker(2);
+    const t0 = 1_000_000;
+    expect(w['rateWait']('a', t0)).toBe(0);
+    expect(w['rateWait']('a', t0 + 10)).toBe(0);
+    expect(w['rateWait']('a', t0 + 20_000)).toBe(40_000);
+    // outro endpoint tem a janela dele
+    expect(w['rateWait']('b', t0 + 20_000)).toBe(0);
+    // endpoint com a janela cheia fica fora da próxima reivindicação; o outro não
+    expect(w['throttledEndpoints'](t0 + 20_000)).toEqual(['a']);
+    // janela nova
+    expect(w['rateWait']('a', t0 + 60_000)).toBe(0);
+    expect(w['throttledEndpoints'](t0 + 60_000)).toEqual([]);
+  });
+
+  it('0 desliga', () => {
+    const w = worker(0);
+    for (let i = 0; i < 1_000; i++) expect(w['rateWait']('a', 5)).toBe(0);
   });
 });
 

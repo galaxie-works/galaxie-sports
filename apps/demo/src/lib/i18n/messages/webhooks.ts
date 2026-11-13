@@ -43,6 +43,9 @@ export default defineMessages(
     allTopics: 'Todos do plano',
     active: 'Ativo',
     inactive: 'Desativado',
+    autoDisabled: 'Desativado por falhas',
+    autoDisabledHint:
+      'Desativado {when} depois de falhar sem parar. Corrija o destino, reative e reenvie a DLQ.',
     delivered24h: '{n} em 24 h',
     pending: '{n} na fila',
     dead: '{n} na DLQ',
@@ -141,6 +144,9 @@ export default defineMessages(
       allTopics: 'All in plan',
       active: 'Active',
       inactive: 'Disabled',
+      autoDisabled: 'Disabled after failures',
+      autoDisabledHint:
+        'Disabled {when} after failing nonstop. Fix the endpoint, re-enable it and replay the DLQ.',
       delivered24h: '{n} in 24 h',
       pending: '{n} queued',
       dead: '{n} in DLQ',
@@ -240,6 +246,9 @@ export default defineMessages(
       allTopics: 'Todos los del plan',
       active: 'Activo',
       inactive: 'Desactivado',
+      autoDisabled: 'Desactivado por fallas',
+      autoDisabledHint:
+        'Desactivado {when} tras fallar sin parar. Corrige el destino, reactívalo y reenvía la DLQ.',
       delivered24h: '{n} en 24 h',
       pending: '{n} en cola',
       dead: '{n} en la DLQ',
