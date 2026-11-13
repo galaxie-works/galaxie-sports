@@ -143,6 +143,12 @@ export default defineMessages(
       ceilingNote: 'Degraus acima do teto da Galaxie ficam desabilitados.',
       muteHours: 'Duração do Silêncio aplicado pela Cosmos',
       hours: '{hours} h',
+      childAudience: {
+        title: 'Público infantil',
+        description: 'Toda imagem também passa pela Cosmos, além da triagem automática.',
+        safety:
+          'A triagem automática só vê nudez. Com esta opção, drogas, armas e ódio também são conferidos em toda imagem, e cada uma gasta créditos. Autor com menos de 13 anos já entra assim.',
+      },
       exemptTitle: 'Quem a Cosmos só sinaliza',
       exemptDescription:
         'O conteúdo destes cargos nunca é escondido nem silenciado pela Cosmos; vai para a fila.',
@@ -343,6 +349,18 @@ export default defineMessages(
       retry: 'Perguntar de novo',
       enable: 'Ligar a Cosmos AI',
       recharge: 'Recarregar créditos',
+      attach: 'Anexar arquivo',
+      attachments: 'Arquivos anexados',
+      removeAttachment: 'Remover {name}',
+      attachedCount: '{count} de {max} arquivos anexados',
+      attachHint: 'Imagem, PDF ou texto, até {max} arquivos. O arquivo não fica guardado.',
+      attachmentErrors: {
+        type: '{name}: o assistente lê imagem (JPEG, PNG, WebP), PDF e texto (TXT, MD, CSV, JSON, LOG, XML, YAML).',
+        size: '{name}: passa de {mb} MB.',
+        pages: '{name}: o PDF passa de {pages} páginas.',
+        count: 'Anexe até {max} arquivos por pergunta.',
+        total: 'Os anexos juntos passam de {mb} MB.',
+      },
       suggestions: {
         general: {
           explain: 'O que esta tela mostra?',
@@ -376,6 +394,9 @@ export default defineMessages(
         busy: 'Espere a resposta anterior terminar antes de perguntar de novo.',
         rate_limited: 'Muitas perguntas em pouco tempo. Espere um minuto e tente de novo.',
         tenant_limit: 'Esta conta chegou ao limite de uso do assistente por hoje. Volta amanhã.',
+        attachment: 'Um dos anexos passa dos limites. Nenhum crédito foi gasto.',
+        attachment_unsupported:
+          'O assistente não lê imagem nem PDF agora. Mande a pergunta sem esses arquivos ou anexe texto.',
       },
     },
   },
@@ -521,6 +542,12 @@ export default defineMessages(
         ceilingNote: 'Steps above the Galaxie ceiling are disabled.',
         muteHours: 'Length of a mute applied by Cosmos',
         hours: '{hours} h',
+        childAudience: {
+          title: 'Audience of children',
+          description: 'Every image also goes through Cosmos, on top of the automatic screening.',
+          safety:
+            'The automatic screening only sees nudity. With this option, drugs, weapons and hate are also checked on every image, and each one uses credits. Authors under 13 already get this.',
+        },
         exemptTitle: 'Who Cosmos only flags',
         exemptDescription:
           'Content from these roles is never hidden or muted by Cosmos; it goes to the queue.',
@@ -727,6 +754,18 @@ export default defineMessages(
         retry: 'Ask again',
         enable: 'Turn on Cosmos AI',
         recharge: 'Top up credits',
+        attach: 'Attach file',
+        attachments: 'Attached files',
+        removeAttachment: 'Remove {name}',
+        attachedCount: '{count} of {max} files attached',
+        attachHint: 'Image, PDF or text, up to {max} files. The file is not stored.',
+        attachmentErrors: {
+          type: '{name}: the assistant reads images (JPEG, PNG, WebP), PDF and text (TXT, MD, CSV, JSON, LOG, XML, YAML).',
+          size: '{name}: larger than {mb} MB.',
+          pages: '{name}: the PDF has more than {pages} pages.',
+          count: 'Attach up to {max} files per question.',
+          total: 'The attachments together exceed {mb} MB.',
+        },
         suggestions: {
           general: {
             explain: 'What does this screen show?',
@@ -760,6 +799,9 @@ export default defineMessages(
           busy: 'Wait for the previous answer to finish before asking again.',
           rate_limited: 'Too many questions in a short time. Wait a minute and try again.',
           tenant_limit: 'This account reached today’s assistant usage limit. It resets tomorrow.',
+          attachment: 'One of the attachments is over the limits. No credits were spent.',
+          attachment_unsupported:
+            'The assistant cannot read images or PDFs right now. Send the question without those files, or attach text.',
         },
       },
     },
@@ -916,6 +958,12 @@ export default defineMessages(
         ceilingNote: 'Los pasos por encima del tope de Galaxie quedan desactivados.',
         muteHours: 'Duración del Silencio aplicado por Cosmos',
         hours: '{hours} h',
+        childAudience: {
+          title: 'Público infantil',
+          description: 'Toda imagen también pasa por Cosmos, además del filtro automático.',
+          safety:
+            'El filtro automático solo ve desnudez. Con esta opción, drogas, armas y odio también se revisan en cada imagen, y cada una gasta créditos. Un autor menor de 13 años ya entra así.',
+        },
         exemptTitle: 'A quién Cosmos solo señala',
         exemptDescription:
           'El contenido de estos cargos nunca lo oculta ni lo silencia Cosmos; va a la cola.',
@@ -1119,6 +1167,18 @@ export default defineMessages(
         retry: 'Preguntar de nuevo',
         enable: 'Activar Cosmos AI',
         recharge: 'Recargar créditos',
+        attach: 'Adjuntar archivo',
+        attachments: 'Archivos adjuntos',
+        removeAttachment: 'Quitar {name}',
+        attachedCount: '{count} de {max} archivos adjuntos',
+        attachHint: 'Imagen, PDF o texto, hasta {max} archivos. El archivo no se guarda.',
+        attachmentErrors: {
+          type: '{name}: el asistente lee imágenes (JPEG, PNG, WebP), PDF y texto (TXT, MD, CSV, JSON, LOG, XML, YAML).',
+          size: '{name}: supera los {mb} MB.',
+          pages: '{name}: el PDF tiene más de {pages} páginas.',
+          count: 'Adjunta hasta {max} archivos por pregunta.',
+          total: 'Los adjuntos juntos superan los {mb} MB.',
+        },
         suggestions: {
           general: {
             explain: '¿Qué muestra esta pantalla?',
@@ -1153,6 +1213,9 @@ export default defineMessages(
           busy: 'Espera a que termine la respuesta anterior antes de preguntar de nuevo.',
           rate_limited: 'Demasiadas preguntas en poco tiempo. Espera un minuto e intenta de nuevo.',
           tenant_limit: 'Esta cuenta llegó al límite de uso del asistente por hoy. Se renueva mañana.',
+          attachment: 'Uno de los adjuntos supera los límites. No se gastaron créditos.',
+          attachment_unsupported:
+            'El asistente no lee imágenes ni PDF ahora. Envía la pregunta sin esos archivos o adjunta texto.',
         },
       },
     },

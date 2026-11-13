@@ -719,15 +719,57 @@
     {
       "idx": 102,
       "version": "7",
-      "when": 1794520399403,
-      "tag": "0153_cosmos_moderacao_imagem",
+      "when": 1794511151278,
+      "tag": "0146_shopping_cliques",
       "breakpoints": true
     },
     {
       "idx": 103,
       "version": "7",
-      "when": 1794521112594,
-      "tag": "0154_foto_perfil_moderada",
+      "when": 1794520733615,
+      "tag": "0150_chat_salas",
+      "breakpoints": true
+    },
+    {
+      "idx": 104,
+      "version": "7",
+      "when": 1794520832138,
+      "tag": "0151_chat_eventos_jogo",
+      "breakpoints": true
+    },
+    {
+      "idx": 105,
+      "version": "7",
+      "when": 1794527044679,
+      "tag": "0152_ficha_juridico",
+      "breakpoints": true
+    },
+    {
+      "idx": 106,
+      "version": "7",
+      "when": 1794529427111,
+      "tag": "0155_webhook_circuit_breaker",
+      "breakpoints": true
+    },
+    {
+      "idx": 107,
+      "version": "7",
+      "when": 1794529487111,
+      "tag": "0156_indice_var",
+      "breakpoints": true
+    },
+    {
+      "idx": 108,
+      "version": "7",
+      "when": 1794530207111,
+      "tag": "0160_cosmos_moderacao_imagem",
+      "breakpoints": true
+    },
+    {
+      "idx": 109,
+      "version": "7",
+      "when": 1794530327111,
+      "tag": "0161_foto_perfil_moderada",
       "breakpoints": true
     }
   ]

@@ -1807,7 +1807,40 @@ export default defineMessages(
           'Por quantas horas o preço e o estoque de um produto valem antes de consultar a loja de novo. O teto é 24 horas; a data e a hora da consulta aparecem ao lado do preço.',
         unit: 'horas',
       },
+      SHOP_GALAXIE_TENANT_IDS: {
+        label: 'Tenants da Galaxie no Shopping',
+        description:
+          'Os tenants do site e do app Galaxie, os únicos que recebem o código de afiliado da Galaxie. Vazio, nenhum tenant recebe. Ids separados por vírgula.',
+      },
       FAN_TOKEN_SECRET: { label: 'Segredo do token do torcedor (.env)' },
+      CHAT_ROOM_OPEN_BEFORE_MINUTES: {
+        label: 'Chat: abertura da sala',
+        description:
+          'Quantos minutos antes do início a Sala do Jogo abre. O cliente pode mudar para a operação dele, até 24 horas.',
+        unit: 'minutos',
+      },
+      CHAT_ROOM_CLOSE_AFTER_MINUTES: {
+        label: 'Chat: encerramento da sala',
+        description:
+          'Quantos minutos depois do fim a sala fecha e fica só leitura. O cliente pode mudar, até 24 horas.',
+        unit: 'minutos',
+      },
+      CHAT_SLOW_MODE_SECONDS: {
+        label: 'Chat: modo lento padrão',
+        description:
+          'Intervalo mínimo entre duas mensagens do mesmo torcedor. 0 desliga. O cliente e a moderação mudam por sala.',
+        unit: 'segundos',
+      },
+      CHAT_MESSAGE_MAX_CHARS: {
+        label: 'Chat: tamanho da mensagem',
+        description: 'Máximo de caracteres por mensagem. Vale para todos os clientes.',
+        unit: 'caracteres',
+      },
+      CHAT_HISTORY_ON_JOIN: {
+        label: 'Chat: histórico ao entrar',
+        description: 'Quantas mensagens recentes o torcedor recebe ao entrar na sala.',
+        unit: 'mensagens',
+      },
       APISPORTS_KEY: { label: 'Chave da api-sports' },
       OPENAI_API_KEY: { label: 'Chave da OpenAI' },
       ANTHROPIC_API_KEY: { label: 'Chave da Anthropic' },
@@ -3610,7 +3643,40 @@ export default defineMessages(
             'For how many hours a product price and stock stay valid before the store is asked again. The ceiling is 24 hours; the date and time of the check appear next to the price.',
           unit: 'hours',
         },
+        SHOP_GALAXIE_TENANT_IDS: {
+          label: 'Galaxie tenants in Shopping',
+          description:
+            "The Galaxie site and app tenants, the only ones that get Galaxie's affiliate code. Empty, no tenant gets it. Ids separated by commas.",
+        },
         FAN_TOKEN_SECRET: { label: 'Fan token secret (.env)' },
+        CHAT_ROOM_OPEN_BEFORE_MINUTES: {
+          label: 'Chat: room opening',
+          description:
+            'How many minutes before kickoff the Match Room opens. The client can change it for its operation, up to 24 hours.',
+          unit: 'minutes',
+        },
+        CHAT_ROOM_CLOSE_AFTER_MINUTES: {
+          label: 'Chat: room closing',
+          description:
+            'How many minutes after the final whistle the room closes and becomes read-only. The client can change it, up to 24 hours.',
+          unit: 'minutes',
+        },
+        CHAT_SLOW_MODE_SECONDS: {
+          label: 'Chat: default slow mode',
+          description:
+            'Minimum interval between two messages from the same fan. 0 turns it off. The client and moderators change it per room.',
+          unit: 'seconds',
+        },
+        CHAT_MESSAGE_MAX_CHARS: {
+          label: 'Chat: message length',
+          description: 'Maximum characters per message. Applies to every client.',
+          unit: 'characters',
+        },
+        CHAT_HISTORY_ON_JOIN: {
+          label: 'Chat: history on join',
+          description: 'How many recent messages a fan receives when joining the room.',
+          unit: 'messages',
+        },
         APISPORTS_KEY: { label: 'api-sports key' },
         OPENAI_API_KEY: { label: 'OpenAI key' },
         ANTHROPIC_API_KEY: { label: 'Anthropic key' },
@@ -5438,7 +5504,40 @@ export default defineMessages(
             'Por cuántas horas el precio y el stock de un producto valen antes de consultar la tienda de nuevo. El tope es de 24 horas; la fecha y la hora de la consulta aparecen junto al precio.',
           unit: 'horas',
         },
+        SHOP_GALAXIE_TENANT_IDS: {
+          label: 'Tenants de Galaxie en Shopping',
+          description:
+            'Los tenants del sitio y de la app Galaxie, los únicos que reciben el código de afiliado de Galaxie. Vacío, ningún tenant lo recibe. Ids separados por comas.',
+        },
         FAN_TOKEN_SECRET: { label: 'Secreto del token del hincha (.env)' },
+        CHAT_ROOM_OPEN_BEFORE_MINUTES: {
+          label: 'Chat: apertura de la sala',
+          description:
+            'Cuántos minutos antes del inicio abre la Sala del Partido. El cliente puede cambiarlo para su operación, hasta 24 horas.',
+          unit: 'minutos',
+        },
+        CHAT_ROOM_CLOSE_AFTER_MINUTES: {
+          label: 'Chat: cierre de la sala',
+          description:
+            'Cuántos minutos después del final cierra la sala y queda solo de lectura. El cliente puede cambiarlo, hasta 24 horas.',
+          unit: 'minutos',
+        },
+        CHAT_SLOW_MODE_SECONDS: {
+          label: 'Chat: modo lento por defecto',
+          description:
+            'Intervalo mínimo entre dos mensajes del mismo hincha. 0 lo desactiva. El cliente y la moderación lo cambian por sala.',
+          unit: 'segundos',
+        },
+        CHAT_MESSAGE_MAX_CHARS: {
+          label: 'Chat: largo del mensaje',
+          description: 'Máximo de caracteres por mensaje. Vale para todos los clientes.',
+          unit: 'caracteres',
+        },
+        CHAT_HISTORY_ON_JOIN: {
+          label: 'Chat: historial al entrar',
+          description: 'Cuántos mensajes recientes recibe el hincha al entrar a la sala.',
+          unit: 'mensajes',
+        },
         APISPORTS_KEY: { label: 'Clave de api-sports' },
         OPENAI_API_KEY: { label: 'Clave de OpenAI' },
         ANTHROPIC_API_KEY: { label: 'Clave de Anthropic' },

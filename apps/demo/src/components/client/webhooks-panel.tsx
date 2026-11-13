@@ -71,6 +71,9 @@ export interface WebhookRow {
   topics: string[];
   filters: { events?: string[]; competitions?: string[]; sports?: string[] };
   active: boolean;
+  /** Desativado pelo circuit breaker (falhando sem parar): quando e com qual erro. */
+  autoDisabledAt: string | null;
+  autoDisabledReason: string | null;
   createdAt: string;
   pending: number;
   dead: number;
@@ -80,17 +83,11 @@ export interface WebhookRow {
   lastError: string | null;
 }
 
-/** Tópico completo → nome curto (o mesmo de `?topics=` na API e da CLI). */
-const TOPICS = [
-  ['event.score_changed', 'score'],
-  ['event.status_changed', 'status'],
-  ['event.incident_added', 'incidents'],
-  ['where_to_watch.changed', 'where_to_watch'],
-  ['event.context_published', 'context'],
-  ['event.related_content_changed', 'related'],
-] as const;
-type ShortTopic = (typeof TOPICS)[number][1];
-const SHORT = new Map<string, ShortTopic>(TOPICS);
+/** Tópico que o tenant pode assinar, com o nome no idioma da página (do registro de tópicos, no servidor). */
+export interface WebhookTopicOption {
+  topic: string;
+  label: string;
+}
 
 const SECRET_ENV = 'GALAXIE_WEBHOOK_SECRET';
 
@@ -120,7 +117,13 @@ function SecretView({ secret, onDone }: { secret: string; onDone: () => void }) 
   );
 }
 
-function CreateWebhookDialog({ topicsInPlan, disabled }: { topicsInPlan: string[]; disabled: boolean }) {
+function CreateWebhookDialog({
+  topicOptions,
+  disabled,
+}: {
+  topicOptions: WebhookTopicOption[];
+  disabled: boolean;
+}) {
   const router = useRouter();
   const { t } = useI18n();
   const w = t.webhooks;
@@ -216,25 +219,21 @@ function CreateWebhookDialog({ topicsInPlan, disabled }: { topicsInPlan: string[
                   <FieldLegend variant="label">{w.topics}</FieldLegend>
                   <FieldDescription>{w.topicsHint}</FieldDescription>
                   <div className="grid gap-2 sm:grid-cols-2">
-                    {TOPICS.map(([full, short]) => {
-                      const inPlan = topicsInPlan.includes(full);
+                    {topicOptions.map(({ topic, label }) => {
+                      const id = `wh-topic-${topic.replace(/\./g, '-')}`;
                       return (
-                        <Field key={full} orientation="horizontal" data-disabled={!inPlan || undefined}>
+                        <Field key={topic} orientation="horizontal">
                           <Checkbox
-                            id={`wh-topic-${short}`}
-                            disabled={!inPlan}
-                            checked={topics.includes(full)}
+                            id={id}
+                            checked={topics.includes(topic)}
                             onCheckedChange={(v) =>
                               setTopics((cur) =>
-                                v === true ? [...cur, full] : cur.filter((x) => x !== full),
+                                v === true ? [...cur, topic] : cur.filter((x) => x !== topic),
                               )
                             }
                           />
-                          <FieldLabel htmlFor={`wh-topic-${short}`} className="font-normal">
-                            {w.topicNames[short]}
-                            {inPlan ? null : (
-                              <span className="text-muted-foreground text-xs">({w.outsidePlan})</span>
-                            )}
+                          <FieldLabel htmlFor={id} className="font-normal">
+                            {label}
                           </FieldLabel>
                         </Field>
                       );
@@ -568,14 +567,17 @@ function RowActions({
 /** Webhooks do tenant: cadastrar (o segredo aparece uma vez), testar, ver entregas, reenviar a DLQ e rotacionar. */
 export function WebhooksPanel({
   webhooks,
-  topicsInPlan,
+  topicOptions,
+  topicLabels,
   planAllows,
   available,
   max,
   timeZone,
 }: {
   webhooks: WebhookRow[];
-  topicsInPlan: string[];
+  topicOptions: WebhookTopicOption[];
+  /** Nome de qualquer tópico do registro (um webhook pode ter um tópico de módulo que foi desligado). */
+  topicLabels: Record<string, string>;
   planAllows: boolean;
   available: boolean;
   max: number;
@@ -586,10 +588,7 @@ export function WebhooksPanel({
   const w = t.webhooks;
   const atLimit = webhooks.length >= max;
   const notice = !planAllows ? w.plan : !available ? w.unavailable : atLimit ? fill(w.limit, { max }) : null;
-  const topicLabel = (full: string) => {
-    const short = SHORT.get(full);
-    return short ? w.topicNames[short] : full;
-  };
+  const topicLabel = (full: string) => topicLabels[full] ?? full;
 
   return (
     <SettingsSection
@@ -602,7 +601,7 @@ export function WebhooksPanel({
           </Link>
         </>
       }
-      action={<CreateWebhookDialog topicsInPlan={topicsInPlan} disabled={notice !== null} />}
+      action={<CreateWebhookDialog topicOptions={topicOptions} disabled={notice !== null} />}
     >
       {notice ? <ActionNotice tone="info">{notice}</ActionNotice> : null}
       {planAllows && available ? <UsageMeter label={w.usage} used={webhooks.length} total={max} /> : null}
@@ -647,9 +646,23 @@ export function WebhooksPanel({
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant={row.active ? 'success-light' : 'secondary'} radius="full">
-                        {row.active ? w.active : w.inactive}
-                      </Badge>
+                      {!row.active && row.autoDisabledAt ? (
+                        <div className="flex flex-col gap-0.5">
+                          <Badge variant="destructive-light" radius="full">
+                            {w.autoDisabled}
+                          </Badge>
+                          <span
+                            className="text-muted-foreground max-w-48 text-xs"
+                            title={row.autoDisabledReason ?? undefined}
+                          >
+                            {fill(w.autoDisabledHint, { when: f.relative(row.autoDisabledAt) })}
+                          </span>
+                        </div>
+                      ) : (
+                        <Badge variant={row.active ? 'success-light' : 'secondary'} radius="full">
+                          {row.active ? w.active : w.inactive}
+                        </Badge>
+                      )}
                     </TableCell>
                     <TableCell className="text-sm">
                       <div className="flex flex-col gap-0.5">
@@ -704,7 +717,7 @@ export function WebhooksPanel({
               icon={Webhook}
               title={w.emptyTitle}
               description={w.empty}
-              action={notice ? null : <CreateWebhookDialog topicsInPlan={topicsInPlan} disabled={false} />}
+              action={notice ? null : <CreateWebhookDialog topicOptions={topicOptions} disabled={false} />}
             />
           )}
         </FramePanel>

@@ -13,7 +13,7 @@
 #
 # Saída: 0 = sem migration nova (nada feito) ou dump gravado e conferido (imprime PRE_DUMP=pre-migrate/<arquivo>);
 # 1 = não deu para fazer o dump (sem espaço, pg_dump falhou, arquivo ilegível): o deploy para antes de tocar em nada.
-# Variáveis: PRE_MIGRATE_KEEP (padrão 3) dumps guardados; PRE_MIGRATE_TIMEOUT_MIN (padrão 30).
+# Variáveis: PRE_MIGRATE_KEEP (padrão 3) dumps guardados; PRE_MIGRATE_TIMEOUT_MIN (padrão 45).
 set -euo pipefail
 
 # Postgres, Valkey e backup estão no projeto `dados` (docs/runbooks/stack-em-tres-projetos.md); antes da transição, neste
@@ -23,7 +23,7 @@ if [ -f compose.dados.yml ]; then DADOS=(docker compose -f compose.dados.yml); e
 want="${1:?informe quantas migrations o journal do SHA novo tem}"
 label="${2:-deploy}"
 KEEP="${PRE_MIGRATE_KEEP:-3}"
-TIMEOUT_MIN="${PRE_MIGRATE_TIMEOUT_MIN:-30}"
+TIMEOUT_MIN="${PRE_MIGRATE_TIMEOUT_MIN:-45}"
 case "$want" in '' | *[!0-9]*)
   echo "FAIL  contagem do journal inválida: '$want'"
   exit 1

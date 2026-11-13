@@ -11,9 +11,17 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
+    "./assistant-attachments": {
+      "types": "./dist/assistant-attachments.d.ts",
+      "default": "./dist/assistant-attachments.js"
+    },
     "./moderation-rules": {
       "types": "./dist/moderation-rules.d.ts",
       "default": "./dist/moderation-rules.js"
+    },
+    "./image-screen-local": {
+      "types": "./dist/image-screen-local.d.ts",
+      "default": "./dist/image-screen-local.js"
     },
     "./moderation-engine": {
       "types": "./dist/moderation-engine.d.ts",
@@ -35,7 +43,11 @@
     "@galaxie/engage": "workspace:*",
     "@galaxie/llm": "workspace:*",
     "@galaxie/runtime-config": "workspace:*",
-    "drizzle-orm": "^0.45.4"
+    "@tensorflow/tfjs": "^4.22.0",
+    "@tensorflow/tfjs-backend-wasm": "^4.22.0",
+    "drizzle-orm": "^0.45.4",
+    "nsfwjs": "4.4.0",
+    "sharp": "0.35.5"
   },
   "devDependencies": {
     "postgres": "^4.1.0"

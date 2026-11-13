@@ -105,6 +105,14 @@ export function CosmosModeration({ data, canEdit }: { data: CosmosModerationData
             onCheckedChange={(on) => patch({ features: { ...config.features, [f]: on } })}
           />
         ))}
+        <SettingOption
+          title={T.childAudience.title}
+          description={T.childAudience.description}
+          safety={T.childAudience.safety}
+          checked={config.childAudience}
+          disabled={readOnly || !config.features.images}
+          onCheckedChange={(on) => patch({ childAudience: on })}
+        />
       </SettingsSection>
 
       <SettingsSection title={T.rigorTitle} description={T.rigorDescription}>

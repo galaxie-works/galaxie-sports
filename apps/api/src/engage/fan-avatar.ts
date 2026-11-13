@@ -14,7 +14,13 @@
  *   tenta de novo no próximo pedido de token, depois de `AVATAR_LIMITS.retryMs`.
  */
 import { createHash, randomUUID } from 'node:crypto';
-import { IMAGE_LIMITS, moderateImage, type ImageModerationOutcome } from '@galaxie/cosmos';
+import {
+  IMAGE_LIMITS,
+  moderateImage,
+  type ImageModerationOutcome,
+  type ImageScreener,
+} from '@galaxie/cosmos';
+import { localImageScreener } from '@galaxie/cosmos/image-screen-local';
 import {
   closeCase,
   fanProfile,
@@ -137,12 +143,16 @@ export interface AvatarCheckInput {
   url: string;
   previous: AvatarPrevious;
   locale?: string;
+  /** Faixa de idade declarada; `under13` faz toda foto não barrada pela triagem passar pela Cosmos. */
+  ageBand?: string | null;
   clocks: ModerationClocks;
 }
 
 export interface AvatarCheckDeps {
   fetch?: GuardedFetch;
   moderate?: (db: Database, input: Parameters<typeof moderateImage>[1]) => Promise<ImageModerationOutcome>;
+  /** Triagem local antes da Cosmos (#1025); null desliga (testes). Sem ela, o classificador local. */
+  screen?: ImageScreener | null;
   now?: () => Date;
 }
 
@@ -211,7 +221,11 @@ export async function checkAvatar(
   }
   // a busca pode levar segundos: a foto pode ter mudado ou o Perfil sido excluído nesse meio-tempo
   if (!(await stillCurrent(db, input))) return null;
-  const outcome = await (deps.moderate ?? moderateImage)(db, {
+  const screen = deps.screen === undefined ? localImageScreener : deps.screen;
+  const moderate =
+    deps.moderate ??
+    ((d: Database, i: Parameters<typeof moderateImage>[1]) => moderateImage(d, i, { screen }));
+  const outcome = await moderate(db, {
     tenantId: input.tenantId,
     kind: 'profile_photo',
     image,
@@ -220,6 +234,7 @@ export async function checkAvatar(
     targetProfileId: input.profileId,
     module: 'profile',
     ...(input.locale ? { locale: input.locale } : {}),
+    authorAgeBand: input.ageBand ?? null,
     clocks: input.clocks,
   });
   // segurada sem caso na fila (nem a fila aceitou): fica pendente e tenta de novo depois, senão ninguém a liberaria

@@ -205,6 +205,7 @@ export async function fanRoutes(app: FastifyInstance, deps: FanRoutesDeps): Prom
             profileId,
             ...avatarCheck,
             locale: body.locale,
+            ageBand: detailAgeBand(body.ageBand),
             clocks: clocksFrom(policy, new Date()),
           }),
         (err) => request.log.error({ err, tenantId: tenant.tenantId }, 'moderação da foto de perfil falhou'),

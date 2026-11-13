@@ -121,7 +121,9 @@ export type FallbackReason =
   | 'overflow'
   | 'not_contracted'
   | 'rules_decided'
-  | 'too_large';
+  | 'too_large'
+  /** A triagem local de imagem segurou (nu claro), sem passar pela IA. */
+  | 'screened';
 
 const RESERVE_FALLBACK: Record<string, FallbackReason> = {
   insufficient_credits: 'insufficient',

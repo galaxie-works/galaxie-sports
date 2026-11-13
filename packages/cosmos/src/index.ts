@@ -3,6 +3,7 @@
  * passa por aqui: `reserve` antes de chamar o modelo, `settle` com o valor real ou `release` se falhar.
  * Fica fora do `TokenBudget`/`ops.llm_usage` dos agentes internos (arquitetura 06).
  */
+export * from './assistant-attachments.js';
 export * from './assistant.js';
 export * from './assistant-run.js';
 export * from './balance.js';
@@ -26,4 +27,5 @@ export * from './staff.js';
 export * from './statement.js';
 export * from './stripe.js';
 export * from './wallet.js';
+export * from './image-screen.js';
 export * from './moderation-image.js';

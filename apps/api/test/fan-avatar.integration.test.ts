@@ -139,7 +139,7 @@ describe('foto de perfil na moderação de imagem (#1025)', () => {
     expect(await publicAvatars(db, t.id, [profile_id])).toEqual(new Map());
     await settle();
     expect(seen.at(-1)).toMatchObject({
-      input: { url: photo(1), profileId: profile_id },
+      input: { url: photo(1), profileId: profile_id, ageBand: '18plus' },
       bytes: png.byteLength + 1,
     });
     expect(await meOf(token)).toMatchObject({ avatar_url: photo(1), avatar_status: 'visible' });
