@@ -623,7 +623,7 @@ Postgres, Grafana e backup têm limite abaixo de pico × 1,5, e o RustFS, que é
 
 | Serviço | Pico | Limite | Observação |
 | --- | --- | --- | --- |
-| `postgres` | 1423 | 1280m | ~400 presos (`anon` + `shmem`); o resto é cache |
+| `postgres` | 1423 | 2560m | ~768 presos (`shared_buffers` 512 + conexões); o resto é cache (subiu de 1280m em 13/11, com o banco em ~18 GB) |
 | `s3` | 973 | 1344m | 924 presos com limite de 1 g; OOM em 29/10 |
 | `valkey` | 39 | 256m | `maxmemory` 160 + fork do AOF |
 | `backup` | 255 | 160m | a leitura de 255 é cache do dump; em uso, ~80 |
