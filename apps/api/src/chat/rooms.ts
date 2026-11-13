@@ -9,6 +9,7 @@ import {
   event,
   fanProfile,
   tenant,
+  type ChatGameKind,
   type ChatMessageVisibility,
   type ChatRoomStoredState,
   type ChatStrictness,
@@ -111,6 +112,7 @@ export interface ChatTenantConfigRow {
   closeAfterMinutes: number | null;
   slowModeSeconds: number | null;
   strictness: ChatStrictness | null;
+  eventKinds: ChatGameKind[] | null;
 }
 
 const EMPTY_CONFIG: ChatTenantConfigRow = {
@@ -118,6 +120,7 @@ const EMPTY_CONFIG: ChatTenantConfigRow = {
   closeAfterMinutes: null,
   slowModeSeconds: null,
   strictness: null,
+  eventKinds: null,
 };
 
 export async function readTenantConfig(db: Database, tenantId: string): Promise<ChatTenantConfigRow> {
@@ -127,6 +130,7 @@ export async function readTenantConfig(db: Database, tenantId: string): Promise<
       closeAfterMinutes: chatTenantConfig.closeAfterMinutes,
       slowModeSeconds: chatTenantConfig.slowModeSeconds,
       strictness: chatTenantConfig.strictness,
+      eventKinds: chatTenantConfig.eventKinds,
     })
     .from(chatTenantConfig)
     .where(eq(chatTenantConfig.tenantId, tenantId))
