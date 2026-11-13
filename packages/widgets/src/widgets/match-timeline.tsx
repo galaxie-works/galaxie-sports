@@ -333,6 +333,7 @@ function Incident({
         {subIn ? <span className="gs-tl-who">{`${t.playerIn}: ${personName(subIn)}`}</span> : null}
         {subOut ? <span className="gs-meta">{`${t.playerOut}: ${personName(subOut)}`}</span> : null}
         {assist ? <span className="gs-meta">{fillText(t.assist, { name: assist })}</span> : null}
+        {i.narration ? <span className="gs-meta gs-tl-narration">{i.narration}</span> : null}
       </div>
       <span className="gs-tl-score">
         {goal && i.score_after ? `${i.score_after.home}-${i.score_after.away}` : ''}

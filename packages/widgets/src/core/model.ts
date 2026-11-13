@@ -728,6 +728,8 @@ export interface GsTimelineIncident {
   key_moment?: boolean | undefined;
   /** Gol anulado pelo VAR que continua na lista: não soma no placar. */
   disallowed?: boolean | undefined;
+  /** Frase pronta do lance no idioma pedido (#1167). */
+  narration?: string | null | undefined;
 }
 
 export interface GsTimelinePerson {
