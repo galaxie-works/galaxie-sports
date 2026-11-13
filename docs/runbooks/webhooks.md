@@ -22,8 +22,9 @@ Não tem passo manual (#360):
 
 1. O deploy gera a KEK (`WEBHOOK_SIGNING_SECRET`) no `.env` da VPS quando ela falta (`ensure-secrets.sh`, junto dos
    outros segredos internos) e nunca troca a que já existe. Na primeira vez, a saída do deploy avisa
-   `WARN  WEBHOOK_SIGNING_SECRET nova`: vale guardar uma cópia no cofre de senhas, mas perder a chave não é desastre:
-   o deploy gera outra, e cada cliente rotaciona o segredo do webhook dele no portal.
+   `WARN  WEBHOOK_SIGNING_SECRET nova`: guarde uma cópia no cofre de senhas. Se ela for perdida, o deploy gera outra,
+   mas os segredos já cadastrados (inclusive os legados, que o worker cifra sozinho) não abrem mais: as entregas falham
+   até cada cliente rotacionar o segredo no portal.
 2. Dois minutos depois da subida (a troca lado a lado já terminou), o worker cifra os segredos legados em texto puro
    (e recifra os de uma KEK antiga), e tenta de novo a cada 15 s se algo falhar. Com tudo cifrado, a
    recusa de segredo sem cifra passa a valer sozinha. O painel (Ajustes → Webhooks) e

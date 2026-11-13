@@ -127,6 +127,8 @@ beforeAll(async () => {
     allowPrivateTargets: true,
     // o teste do legado em texto puro precisa dele aceito; a recusa por padrão tem teste próprio
     env: { WEBHOOK_REJECT_PLAINTEXT_SECRETS: 'false' },
+    // a cifra automática dos legados tem teste próprio; aqui ela não roda nem se o arquivo passar de 2 min
+    sealDelayMs: Number.POSITIVE_INFINITY,
   });
   await worker.start();
 }, 60_000);
