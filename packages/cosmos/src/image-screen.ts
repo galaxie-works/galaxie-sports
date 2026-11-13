@@ -43,8 +43,12 @@ export const SCREEN_LIMITS = {
   clearSexy: 0.05,
   /** Lado do quadrado que o classificador lê. */
   inputSize: 224,
-  /** Tempo máximo da triagem de uma imagem; passou, vai para a Cosmos. */
+  /** Tempo máximo da triagem de uma imagem, contando a espera na fila; passou, vai para a Cosmos. */
   timeoutMs: 5_000,
+  /** Imagens na fila da triagem; acima disso, a nova vai direto para a Cosmos. */
+  maxQueue: 8,
+  /** Espera antes de tentar carregar de novo o classificador que falhou. */
+  retryLoadMs: 600_000,
 } as const;
 
 /** O que fazer com as notas. `strict` (destino infantil): a imagem comum também vai para a Cosmos. */
