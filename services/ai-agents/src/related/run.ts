@@ -18,6 +18,7 @@ import {
   type RelatedUpcomingGame,
 } from '@galaxie/db';
 import type { WtwConfig } from '@galaxie/where-to-watch';
+import { effectiveTiers, tierCondition } from '../common/tiers.js';
 import { loadEventCore, type EventCore } from '../context/event-core.js';
 import { eventMatchLabel } from '../context/run.js';
 import { findForbiddenTerms, sanitizeExcerpt } from '../guardrails/index.js';
@@ -104,6 +105,8 @@ export interface RelatedRunOptions {
   /** Janela para trás a partir do início do jogo, em horas (padrão 48). */
   lookbackHours?: number;
   maxTier?: number;
+  /** Tiers do módulo `ai-content` do painel (MODULES_FOOTBALL); a opção `maxTier` da CLI vale por cima. */
+  tiers?: readonly number[];
   limit?: number;
   /** Só mostra candidatos, consultas e unidades estimadas (nada é chamado nem gravado). */
   plan?: boolean;
@@ -333,7 +336,7 @@ export async function relatedCandidates(
   opts: {
     now: Date;
     lookbackHours: number;
-    maxTier: number;
+    tiers: readonly number[];
     limit: number;
     policy: RelatedPolicy;
     wtw: WtwConfig;
@@ -347,7 +350,7 @@ export async function relatedCandidates(
       eq(event.status, 'finished'),
       gte(event.startsAt, new Date(opts.now.getTime() - opts.lookbackHours * 3_600_000)),
       lte(event.startsAt, opts.now),
-      lte(competition.tier, opts.maxTier),
+      tierCondition(opts.tiers),
     ],
   });
   return rankRelatedCandidates(facts, opts.policy.minRelevance).slice(0, opts.limit);
@@ -359,7 +362,7 @@ export async function relatedCandidates(
  */
 export async function upcomingGames(
   db: Database,
-  opts: { now: Date; maxTier: number; policy: RelatedPolicy; ctx: Omit<FactsOptions, 'conds'> },
+  opts: { now: Date; tiers: readonly number[]; policy: RelatedPolicy; ctx: Omit<FactsOptions, 'conds'> },
 ): Promise<UpcomingGame[]> {
   const until = new Date(youtubeQuotaDayEnd(opts.now).getTime() - AGENDA_END_MARGIN_MINUTES * 60_000);
   if (until <= opts.now) return [];
@@ -373,7 +376,7 @@ export async function upcomingGames(
       notInArray(event.status, ['postponed', 'cancelled', 'abandoned', 'suspended']),
       gte(event.startsAt, new Date(opts.now.getTime() - AGENDA_LIVE_HOURS * 3_600_000)),
       lte(event.startsAt, until),
-      lte(competition.tier, opts.maxTier),
+      tierCondition(opts.tiers),
       sql`(${event.status} <> 'finished' or ${event.startsAt} > ${waiting.toISOString()}::timestamptz)`,
     ],
   });
@@ -538,7 +541,7 @@ export async function runRelatedAgent(db: Database, opts: RelatedRunOptions): Pr
     if (!opts.youtube) throw new Error('Cliente do YouTube ausente (YOUTUBE_API_KEY).');
     report.expired = (await purgeYoutubeData(db, { now })).rows;
   }
-  const maxTier = opts.maxTier ?? 2;
+  const tiers = effectiveTiers(opts);
   const ctx = await priorityContext(db, {
     now,
     policy,
@@ -558,12 +561,12 @@ export async function runRelatedAgent(db: Database, opts: RelatedRunOptions): Pr
               new Date(now.getTime() - (opts.lookbackHours ?? policy.lookbackHours) * 3_600_000),
             ),
             lte(event.startsAt, now),
-            lte(competition.tier, maxTier),
+            tierCondition(tiers),
           ],
         }),
         policy.minRelevance,
       ).slice(0, opts.limit ?? 60);
-  const upcoming = await upcomingGames(db, { now, maxTier, policy, ctx });
+  const upcoming = await upcomingGames(db, { now, tiers, policy, ctx });
   const reserveCap = { upcoming, searchLimit: state.search.limit, capPercent: policy.reserveMaxPercent };
   report.quota.search.reserved = totalReserve(reserveCap);
   const yt = opts.plan ? null : opts.youtube!;

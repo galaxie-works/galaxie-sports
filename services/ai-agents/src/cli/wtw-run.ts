@@ -16,7 +16,8 @@ import {
   queueRerun,
   ResearchedRightsIndex,
 } from '@galaxie/where-to-watch';
-import { createAgentLlm } from './common.js';
+import { createAgentLlm, runtimeEnv } from './common.js';
+import { moduleTiers } from '../common/tiers.js';
 import type { LlmClient } from '../llm/types.js';
 import { HttpPageFetcher } from '../wtw/fetcher.js';
 import { activeMarkets } from '../wtw/markets.js';
@@ -136,6 +137,8 @@ async function main(): Promise<void> {
         'Nenhum mercado ativo (sem tenant com where_to_watch e sem WTW_MARKETS). Use --pais para testar.',
       );
     const researched = new ResearchedRightsIndex(await currentResearchedRights(db));
+    // tiers do módulo `wtw` do painel (MODULES_FOOTBALL)
+    const tiers = moduleTiers(await runtimeEnv(db), 'wtw');
 
     if (values.forcar) {
       if (!values.evento || !country) throw new Error('--forcar exige --evento e --pais.');
@@ -150,6 +153,7 @@ async function main(): Promise<void> {
 
     const due = await planDueRuns(db, {
       now,
+      tiers,
       markets,
       config,
       researched,
@@ -170,7 +174,7 @@ async function main(): Promise<void> {
       const days = values.dias ? Number(values.dias) : 7;
       const usdPerAllocation = await estimateCallUsd(db, 'allocation');
       const usdPerRights = await estimateCallUsd(db, 'rights');
-      const common = { now, days, config, researched, policy, usdPerAllocation, usdPerRights };
+      const common = { now, days, config, researched, policy, usdPerAllocation, usdPerRights, tiers };
       const mine = await forecast(db, { ...common, markets });
       printForecast('Mercados ativos', mine, policy.minRelevance, true);
       const all = await forecast(db, { ...common, markets: config.countries });

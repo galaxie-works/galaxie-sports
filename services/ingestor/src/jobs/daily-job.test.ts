@@ -1,4 +1,5 @@
 import { FREE_PLAN, PRO_PLAN } from '@galaxie/apisports-client';
+import { moduleConfig } from '@galaxie/runtime-config';
 import { describe, expect, it } from 'vitest';
 import { fakeCatalog, harness, NOW } from '../testing/fake-api.js';
 import { StaticCatalogSource, type CompetitionInfo } from './catalog-source.js';
@@ -177,6 +178,92 @@ describe('dailyJob', () => {
     const rerun = await planJob(job, h.deps);
     expect(rerun.phases[2]!.steps).toEqual({});
     expect(rerun.totals.network).toBe(0);
+  });
+});
+
+describe('dailyJob: módulos por tier do painel (MODULES_FOOTBALL)', () => {
+  const derbyKeys = async () => new Set(['121-131']);
+  const modules = (text: string) => moduleConfig(() => text).api('football');
+
+  const detailIds = (h: ReturnType<typeof harness>) =>
+    h.api.calls.filter((u) => u.searchParams.has('id')).map((u) => u.searchParams.get('id'));
+
+  it('o padrão reproduz a execução de sempre', async () => {
+    const plain = harness();
+    const r1 = await runJob(
+      dailyJob(plain.catalog, plain.raw, plain.cursors, plain.plan, () => new Date(plain.clock.t), derbyKeys),
+      plain.deps,
+    );
+    const h = harness();
+    const r2 = await runJob(
+      dailyJob(h.catalog, h.raw, h.cursors, h.plan, () => new Date(h.clock.t), derbyKeys, {
+        modules: modules(''),
+      }),
+      h.deps,
+    );
+    expect(r2.callsSpent).toBe(r1.callsSpent);
+    expect(r2.phases.map((p) => p.steps)).toEqual(r1.phases.map((p) => p.steps));
+    expect(detailIds(h)).toEqual(detailIds(plain));
+  });
+
+  it('match-detail só no tier 1: a Série B (tier 2) fica sem detalhe; off: ninguém', async () => {
+    const h = harness();
+    const r = await runJob(
+      dailyJob(h.catalog, h.raw, h.cursors, h.plan, () => new Date(h.clock.t), derbyKeys, {
+        modules: modules('match-detail=on,off,off'),
+      }),
+      h.deps,
+    );
+    expect(r.phases[1]!.steps.detalhe!.network).toBe(2);
+    expect(detailIds(h)).toEqual(['202601305', '202607105']);
+    const off = harness();
+    const r2 = await runJob(
+      dailyJob(off.catalog, off.raw, off.cursors, off.plan, () => new Date(off.clock.t), derbyKeys, {
+        modules: modules('match-detail=off'),
+      }),
+      off.deps,
+    );
+    expect(r2.phases[1]!.steps).toEqual({});
+    expect(detailIds(off)).toEqual([]);
+  });
+
+  it('injuries-day desligado: sem injuries?date; rodízio desligado: fase vazia', async () => {
+    const schedule = buildScheduleRequests(new Date(NOW), { modules: modules('injuries-day=off') });
+    expect(schedule.some((r) => r.endpoint === '/injuries')).toBe(false);
+    expect(buildScheduleRequests(new Date(NOW)).some((r) => r.endpoint === '/injuries')).toBe(true);
+
+    const h = harness();
+    const now = () => new Date(h.clock.t);
+    const plan = await planJob(
+      dailyJob(h.catalog, h.raw, h.cursors, h.plan, now, derbyKeys, {
+        modules: modules('people-rotation=off; trophies=off; sidelined=off'),
+      }),
+      h.deps,
+    );
+    expect(plan.phases[2]!.steps).toEqual({});
+  });
+
+  it('trophies ligado só no tier 2: o rodízio pega as pessoas dos times tier 2, não dos tier 1', async () => {
+    const h = harness({ plan: PRO_PLAN });
+    await h.dayWithoutLive();
+    await runJob(
+      seasonsJob(h.catalog, h.raw, h.plan, () => new Date(h.clock.t)),
+      h.deps,
+    );
+    // elencos no raw (o rodízio só pede pessoas de elencos já gravados)
+    await runJob(
+      dailyJob(h.catalog, h.raw, h.cursors, h.plan, () => new Date(h.clock.t), derbyKeys),
+      h.deps,
+    );
+    h.nextDay();
+    const plan = await planJob(
+      dailyJob(h.catalog, h.raw, h.cursors, h.plan, () => new Date(h.clock.t), derbyKeys, {
+        modules: modules('people-rotation=off; sidelined=off; trophies=off,on,off'),
+      }),
+      h.deps,
+    );
+    const steps = Object.keys(plan.phases[2]!.steps);
+    expect(steps.every((s) => s.startsWith('trophies'))).toBe(true);
   });
 });
 

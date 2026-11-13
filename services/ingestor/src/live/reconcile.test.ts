@@ -374,6 +374,43 @@ describe('reconcileLive', () => {
     expect(forced.listed).toEqual([]);
   });
 
+  it('tier desligado no painel (módulo live): nenhum motivo, nem encerrado pelo relógio nem --forcar', () => {
+    const kick = Date.UTC(2026, 9, 20, 19);
+    const live: LiveCandidate = {
+      eventId: 'ev-1',
+      providerEventId: '1',
+      sport: 'football',
+      competitionId: null,
+      providerCompetitionId: '71',
+      seasonId: null,
+      startsAt: new Date(kick),
+      status: 'live',
+      statusSource: 'provider',
+      statusDetail: '2H',
+      clock: null,
+      score: null,
+      lastValidAt: new Date(kick + 10 * MIN),
+      tier: 3,
+      livePriority: 'high',
+      stageKind: null,
+      derby: false,
+      importance: 0,
+      label: null,
+    };
+    const now = new Date(kick + 60 * MIN);
+    const fresh: LiveCandidate = { ...live, lastValidAt: new Date(kick + 58 * MIN) };
+    expect(reconcileReason(fresh, now, { force: true })).toBe('forced');
+    expect(reconcileReason(fresh, now, { force: true, tiers: [1, 2] })).toBeNull();
+    expect(reconcileReason(live, now, { tiers: [1, 2, 3] })).toBe('stale');
+    expect(reconcileReason(live, now, { tiers: [1, 2] })).toBeNull();
+    expect(reconcileReason(live, now, { force: true, tiers: [1, 2] })).toBeNull();
+    const finished: LiveCandidate = { ...live, status: 'finished', statusSource: 'temporal', tier: 2 };
+    expect(reconcileReason(finished, now)).toBe('unconfirmed');
+    expect(reconcileReason(finished, now, { tiers: [1] })).toBeNull();
+    // competição sem tier não é filtrada pelo painel
+    expect(reconcileReason({ ...finished, tier: null }, now, { tiers: [1] })).toBe('unconfirmed');
+  });
+
   it('parado: só o que o ao vivo acompanha e já viu depois do apito; respeita o intervalo do plano e o orçamento', () => {
     const base: LiveCandidate = {
       eventId: 'ev-1',

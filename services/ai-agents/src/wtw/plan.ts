@@ -83,9 +83,15 @@ export async function forecast(
     policy: WtwPolicy;
     usdPerAllocation: number;
     usdPerRights: number;
+    /** Tiers do módulo `wtw` do painel (padrão: tier ≤ 2). */
+    tiers?: readonly number[] | undefined;
   },
 ): Promise<Forecast> {
-  const events = await loadUpcomingEvents(db, { now: opts.now, horizonMs: opts.days * DAY });
+  const events = await loadUpcomingEvents(db, {
+    now: opts.now,
+    horizonMs: opts.days * DAY,
+    ...(opts.tiers ? { tiers: opts.tiers } : {}),
+  });
   const groups = new Map<string, GroupPlan>();
   for (const e of events) {
     const round = roundKeyOf(e.round, e.startsAt);
@@ -162,6 +168,7 @@ export async function forecast(
     markets: opts.markets,
     horizonDays: opts.days,
     minRelevance: opts.policy.minRelevance,
+    ...(opts.tiers ? { tiers: opts.tiers } : {}),
   });
   const rightsCalls = rightsNeeds.reduce((s, n) => s + n.chunks.length, 0);
   const m = Math.max(1, opts.markets.length);

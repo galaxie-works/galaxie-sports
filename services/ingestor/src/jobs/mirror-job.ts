@@ -375,9 +375,10 @@ export async function footballGroups(
     const at = Date.parse(f.date);
     if (Number.isNaN(at) || at < now.getTime() || at > until) continue;
     const cov = c.seasons.find((s) => s.year === f.season)?.coverage ?? null;
+    // a coluna do tier é o liga/desliga por tier do painel (módulos `predictions` e `odds`)
     if (covers(cov, 'predictions'))
-      upcoming.push(cand('/predictions', undefined, 'predictions', '/predictions', { fixture: f.id }));
-    if (covers(cov, 'odds')) upcoming.push(cand('/odds', undefined, 'odds', '/odds', { fixture: f.id }));
+      upcoming.push(cand('/predictions', c.tier, 'predictions', '/predictions', { fixture: f.id }));
+    if (covers(cov, 'odds')) upcoming.push(cand('/odds', c.tier, 'odds', '/odds', { fixture: f.id }));
   }
 
   const teamStats: MirrorCandidate[] = [];
@@ -400,8 +401,9 @@ export async function footballGroups(
   // tier 2+ (o tier 1 já gira no sync diário): padrão elenco a cada 14 dias, técnicos e transferências a cada 30
   const teams = (await teamTargets(catalog, raw, opts.teamTier ?? 3)).filter((t) => t.tier >= 2);
   const squads: MirrorCandidate[] = [];
+  // colunas tier 2 e 3+ (módulo `people-mirror` do painel): o tier do time é o da sua melhor competição
   for (const e of TEAM_ENDPOINTS)
-    for (const t of teams) squads.push(cand(e.endpoint, undefined, e.step, e.endpoint, { team: t.teamId }));
+    for (const t of teams) squads.push(cand(e.endpoint, t.tier, e.step, e.endpoint, { team: t.teamId }));
 
   return [
     {

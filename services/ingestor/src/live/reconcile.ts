@@ -30,6 +30,7 @@ import {
 import { attemptsOf, cursorId, type CursorRef, type CursorStore } from '../jobs/runtime/cursor-store.js';
 import { diffSnapshot, isSignificant, type LiveChange } from './diff.js';
 import { spent } from './poller.js';
+import { moduleTierOf } from '@galaxie/runtime-config';
 import { isRelevant, priorityScore, type LiveSchedulerOptions } from './schedule.js';
 import type { LiveStore } from './store.js';
 import type { LiveCandidate } from './types.js';
@@ -71,6 +72,8 @@ export interface ReconcileTargetOptions {
   staleMinutes?: number | undefined;
   /** Menor `live_priority` que o ao vivo acompanha (LIVE_MIN_PRIORITY; padrão: medium). */
   minPriority?: LiveSchedulerOptions['minPriority'] | undefined;
+  /** Tiers que o ao vivo acompanha (módulo `live` do painel; padrão: todos). */
+  tiers?: LiveSchedulerOptions['tiers'] | undefined;
   /**
    * Intervalo atual do plano do ao vivo (ms): com cota apertada ele passa de `staleMinutes`, e um jogo só
    * é suspeito depois de 2× esse intervalo sem observação.
@@ -96,11 +99,18 @@ function inCatalog(c: LiveCandidate): boolean {
   return c.livePriority !== 'none' || c.derby;
 }
 
+/** Tier desligado no painel (módulo `live`): fora do ao vivo e da reconciliação, como um jogo fora do catálogo. */
+function tierOn(c: LiveCandidate, tiers: readonly number[] | undefined): boolean {
+  return c.tier == null || !tiers || tiers.includes(moduleTierOf(c.tier));
+}
+
 export function reconcileReason(
   c: LiveCandidate,
   now: Date,
   options: ReconcileTargetOptions = {},
 ): ReconcileReason | null {
+  // vale para todos os motivos (encerrado pelo relógio, parado e --forcar): o pós-jogo e a agenda D-1 cobrem
+  if (!tierOn(c, options.tiers)) return null;
   if (isClockFinished(c)) return inCatalog(c) ? 'unconfirmed' : null;
   if (!isInPlay(c.status) && c.status !== 'starting') return null;
   if (isStale(c, now, options)) return 'stale';
@@ -109,7 +119,7 @@ export function reconcileReason(
 
 function isStale(c: LiveCandidate, now: Date, options: ReconcileTargetOptions): boolean {
   // fora do ao vivo: só o encerramento (o relógio o fecha em ends_at_expected e ele volta como `unconfirmed`)
-  if (!isRelevant(c, options.minPriority) || options.liveBudgetExhausted) return false;
+  if (!isRelevant(c, options.minPriority, options.tiers) || options.liveBudgetExhausted) return false;
   // nunca visto depois do apito: idem (antes do apito, a última observação é a agenda do sync)
   if (!c.lastValidAt || c.lastValidAt.getTime() < c.startsAt.getTime()) return false;
   const staleMs = Math.max(
