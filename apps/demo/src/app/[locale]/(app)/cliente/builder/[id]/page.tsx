@@ -9,7 +9,7 @@ import { ClientArea } from '@/components/client/client-area';
 import { WidgetEditor } from '@/components/client/widget-editor';
 import { Skeleton } from '@/components/ui/skeleton';
 import { marketsFor } from '@/lib/builder/config';
-import { brandThemeItems, draftOf, guideChannelChoices } from '@/lib/builder/editor';
+import { brandThemeItems, draftOf, guideChannelChoices, shopStoreChoices } from '@/lib/builder/editor';
 import { builderDb, getWidget } from '@/lib/builder/store';
 import { requireClientContext } from '@/lib/client/session';
 import { widgetTaskAccess, widgetTaskMinimums } from '@/lib/cosmos/widget-tasks';
@@ -52,6 +52,7 @@ async function Editor({ params }: { params: Params }) {
                 markets={marketsFor(tenant.markets)}
                 sports={tenant.sports}
                 guideChannels={await guideChannelChoices(tenant.id)}
+                shopStores={await shopStoreChoices()}
                 brandThemes={await brandThemeItems(tenant.id)}
                 cosmosInstall={
                   minimums?.install != null

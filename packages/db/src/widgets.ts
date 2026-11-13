@@ -22,7 +22,14 @@ import {
   type WidgetTheme,
 } from './schema/index.js';
 
-export type { WidgetConfig, WidgetDefaults, WidgetKind, WidgetTheme } from './schema/index.js';
+export type {
+  WidgetConfig,
+  WidgetDefaults,
+  WidgetKind,
+  WidgetShopConfig,
+  WidgetShopStore,
+  WidgetTheme,
+} from './schema/index.js';
 
 export type Widget = typeof widget.$inferSelect;
 
@@ -71,6 +78,8 @@ export const WIDGET_KIND_MODULES: Record<WidgetKind, readonly ApiModule[]> = {
   match_stats: ['core_data'],
   // clássicos (base semântica) com o retrospecto e onde assistir de cada jogo
   upcoming_derbies: ['core_data', 'semantic', 'where_to_watch'],
+  // Shopping (#925): produtos oficiais das entidades da página, por afiliado
+  shop_the_game: ['core_data', 'shopping'],
 };
 
 export function isWidgetKind(value: unknown): value is WidgetKind {

@@ -1323,6 +1323,21 @@ export const WIDGET_OPTIONS: Record<WidgetKind, readonly WidgetOptionSpec[]> = {
     }),
     bool('showWhereToWatch', l('Onde assistir', 'Dónde ver', 'Where to watch'), true, { extraCall: true }),
   ],
+  shop_the_game: [
+    {
+      key: 'perTeam',
+      type: 'number',
+      default: 4,
+      min: 3,
+      max: 6,
+      label: l('Produtos por time', 'Productos por equipo', 'Products per team'),
+    },
+    bool(
+      'showPrice',
+      l('Preço e hora da consulta', 'Precio y hora de la consulta', 'Price and when it was checked'),
+      true,
+    ),
+  ],
 };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

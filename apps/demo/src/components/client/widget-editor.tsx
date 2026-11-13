@@ -40,6 +40,7 @@ import {
   TeamStats,
   Bracket,
   UpcomingDerbies,
+  ShopTheGame,
   PREVIEW_IDS,
   RaceResult,
   RaceWeekend,
@@ -90,9 +91,16 @@ import {
   installCommand,
   usageSnippet,
   type WidgetLocale,
+  parseShopConfig,
 } from '@/lib/builder/config';
 import { searchSport, sportChoices, sportOnKindChange } from '@/lib/builder/sports';
-import type { BrandThemeItem, WidgetKind, WidgetTheme } from '@/lib/builder/types';
+import type {
+  BrandThemeItem,
+  ShopStoreChoice,
+  WidgetKind,
+  WidgetShopConfig,
+  WidgetTheme,
+} from '@/lib/builder/types';
 import { useI18n } from '@/lib/i18n/client';
 import type { Locale } from '@/lib/i18n/config';
 import { fill, rich } from '@/lib/i18n/text';
@@ -101,6 +109,7 @@ import { BrandThemePicker } from './brand-theme-picker';
 import { CodeSnippet } from './code-snippet';
 import { EntityPicker, type EntityValue } from './entity-picker';
 import { LiveListOptionsEditor } from './live-list-options-editor';
+import { ShopWidgetEditor } from './shop-widget-editor';
 import { StandingsZonesEditor } from './standings-zones-editor';
 import { ThemeEditor } from './theme-editor';
 import { WidgetOptionsEditor, hasWidgetOptions, type OptionEntities } from './widget-options-editor';
@@ -129,7 +138,12 @@ export interface EditorDraft {
   options: WidgetOptions;
   /** Nome e escudo das entidades escolhidas nas opções (só para exibir; o banco guarda o id). */
   optionEntities: OptionEntities;
+  /** Shopping (#925): lojas, caminho de cada uma e checagem de destino (só vale no `shop_the_game`). */
+  shop?: WidgetShopConfig | undefined;
 }
+
+/** Configuração do Shopping que vai para o banco (nenhuma nos outros tipos). */
+const shopOf = (d: EditorDraft) => (d.kind === 'shop_the_game' ? parseShopConfig(d.shop) : undefined);
 
 /** Opções da lista de jogos que vão para o banco (nenhuma nos outros tipos). */
 const liveListOf = (d: EditorDraft) =>
@@ -160,6 +174,7 @@ const snapshot = (d: EditorDraft) =>
     standings: standingsOf(d),
     liveList: liveListOf(d),
     options: optionsOf(d),
+    shop: shopOf(d),
   });
 
 /**
@@ -307,6 +322,8 @@ function PreviewWidget({
         return <MatchStats {...o} {...WIDGET_CATALOG.match_stats.exampleProps} />;
       case 'upcoming_derbies':
         return <UpcomingDerbies {...o} />;
+      case 'shop_the_game':
+        return <ShopPreview o={o} />;
     }
   }
   switch (kind) {
@@ -397,7 +414,17 @@ function PreviewWidget({
       return <StandalonePreview kind={kind} o={o} />;
     case 'channel_guide':
       return <ChannelGuidePreview o={o} sport={sport} />;
+    case 'shop_the_game':
+      return <ShopPreview o={o} />;
   }
+}
+
+/**
+ * Prévia do Shopping: sempre com produtos de exemplo (lojas fictícias). As lojas reais saem da configuração salva,
+ * que só a API lê; depois de salvar, o embed e o registry usam a rota presa ao widget.
+ */
+function ShopPreview({ o }: { o: Record<string, unknown> }) {
+  return <ShopTheGame {...o} {...WIDGET_CATALOG.shop_the_game.exampleProps} />;
 }
 
 /**
@@ -450,6 +477,7 @@ export function WidgetEditor({
   markets,
   sports = [],
   guideChannels = [],
+  shopStores = [],
   brandThemes: brandThemesInitial = [],
   cosmosInstall = null,
 }: {
@@ -461,6 +489,8 @@ export function WidgetEditor({
   sports?: string[];
   /** Canais da lista confirmada do tenant (a escolha de canais da grade nos canais). */
   guideChannels?: string[];
+  /** Lojas do Shopping liberadas para clientes (a escolha de lojas do `shop_the_game`). */
+  shopStores?: ShopStoreChoice[];
   /** Temas da marca do tenant. */
   brandThemes?: BrandThemeItem[];
   /** Instalação com a Cosmos (#1005); null = sem a Cosmos (módulo, cargo ou função fora do catálogo). */
@@ -523,6 +553,7 @@ export function WidgetEditor({
     ...(standingsOf(draft) ? { standings: standingsOf(draft) } : {}),
     ...(liveListOf(draft) ? { liveList: liveListOf(draft) } : {}),
     ...(optionsOf(draft) ? { options: optionsOf(draft) } : {}),
+    ...(shopOf(draft) ? { shop: shopOf(draft) } : {}),
   };
   const usage = usageSnippet({ kind: draft.kind, name: draft.name.trim() || kindTexts(draft.kind).name });
   // lista de jogos, faixa de placares, hipismo e Jogos funcionam sem recorte (dados reais); os outros, sem
@@ -530,6 +561,7 @@ export function WidgetEditor({
   // tenant não passa pelo proxy da demo)
   const realData =
     draft.kind !== 'channel_guide' &&
+    draft.kind !== 'shop_the_game' &&
     (Boolean(draft.entity) ||
       draft.kind === 'live_list' ||
       draft.kind === 'score_ticker' ||
@@ -773,6 +805,15 @@ export function WidgetEditor({
                 />
               </FramePanel>
             </Frame>
+          ) : null}
+
+          {draft.kind === 'shop_the_game' ? (
+            <ShopWidgetEditor
+              value={draft.shop}
+              market={draft.market}
+              stores={shopStores}
+              onChange={(shop) => setDraft((d) => ({ ...d, shop }))}
+            />
           ) : null}
 
           {draft.kind === 'standings' ? (
