@@ -18,9 +18,11 @@
  * devolver `afterPostDeploy(...)` em vez de `fail(...)`: vira WARN no candidato e segue FAIL depois da troca.
  *
  * Retry (#533): a VPS fica saturada durante o deploy (extração de imagens, candidatos subindo) e a primeira consulta a
- * frio pode passar do statement_timeout da API. A checagem que recebe 5xx ou estoura o tempo numa requisição roda UMA
- * vez mais, depois de SMOKE_RETRY_MS (5 s). Se a segunda passa, a linha sai `PASS … (2ª tentativa)` e o relatório
- * ganha um WARN apontando a checagem. 4xx não repete: é erro de verdade, não carga.
+ * frio pode passar do statement_timeout da API. Com o banco maior que a memória, o dump pré-migrate tira o cache e as
+ * consultas da home levam ~20–30 s para voltar ao normal. A checagem que recebe 5xx ou estoura o tempo numa requisição
+ * roda de novo até SMOKE_RETRIES vezes (padrão 3), esperando SMOKE_RETRY_MS × n (5, 10 e 15 s). Se passar numa delas,
+ * a linha sai `PASS … (Nª tentativa)` e o relatório ganha um WARN apontando a checagem. 4xx não repete: é erro de
+ * verdade, não carga.
  */
 const API = process.env.GALAXIE_API_URL ?? 'http://api:8080';
 const KEY = process.env.GALAXIE_DEMO_KEY ?? '';
@@ -49,6 +51,7 @@ const record = (level, name, detail) => results.push({ level, name, detail });
 
 // ── retry de 5xx e de tempo esgotado ────────────────────────────────────────────────────────────────────────
 const RETRY_MS = Number(process.env.SMOKE_RETRY_MS ?? 5000);
+const RETRIES = Number(process.env.SMOKE_RETRIES ?? 3);
 const TIMEOUT_MS = Number(process.env.SMOKE_TIMEOUT_MS ?? 60000);
 const rawFetch = globalThis.fetch;
 // motivos de 5xx/tempo esgotado vistos na tentativa em curso (null = fora de uma checagem)
@@ -101,17 +104,23 @@ async function check(name, fn) {
   const first = await attempt(fn);
   // só repete o que reprovou E viu 5xx ou tempo esgotado: dado faltando (WARN) ou 4xx é resposta, não carga
   if (first.level !== 'FAIL' || !first.seen.length) return record(first.level, name, first.detail);
-  await new Promise((resolve) => setTimeout(resolve, RETRY_MS));
-  const second = await attempt(fn);
-  if (second.level === 'PASS') {
-    record('PASS', name, second.detail ? `${second.detail} (2ª tentativa)` : '(2ª tentativa)');
+  let last = first;
+  let n = 1;
+  // repete enquanto reprovar por carga (5xx/tempo esgotado), com espera crescente: o cache do banco volta aos poucos
+  while (n <= RETRIES && last.level === 'FAIL' && last.seen.length) {
+    await new Promise((resolve) => setTimeout(resolve, RETRY_MS * n));
+    n += 1;
+    last = await attempt(fn);
+  }
+  if (last.level === 'PASS') {
+    record('PASS', name, last.detail ? `${last.detail} (${n}ª tentativa)` : `(${n}ª tentativa)`);
     record(
       'WARN',
       'Checagem repetida',
-      `"${name}": ${first.seen[0]} na 1ª tentativa, passou na 2ª (VPS ocupada?)`,
+      `"${name}": ${first.seen[0]} na 1ª tentativa, passou na ${n}ª (VPS ocupada?)`,
     );
   } else {
-    record(second.level, name, `${second.detail} (após 2 tentativas; 1ª: ${first.seen[0]})`);
+    record(last.level, name, `${last.detail} (após ${n} tentativas; 1ª: ${first.seen[0]})`);
   }
 }
 
