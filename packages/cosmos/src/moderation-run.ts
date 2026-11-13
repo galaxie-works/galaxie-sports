@@ -508,7 +508,7 @@ export async function applyModerationOutcome(
       return null;
     }
     // só dúvida do classificador (as regras deixaram publicar): continua publicado, sem encher a fila. Imagem sem
-    // decisão da Cosmos nunca publica: vai para a fila, fora do ar
+    // decisão da Cosmos nunca publica: vai para a fila, fora do ar (a de cargo isento só é sinalizada)
     if (!item.media && !item.rules.suspect && item.rules.action === 'allow') return null;
     const { caseId } = await holdContent(db, {
       ...target,
@@ -516,7 +516,8 @@ export async function applyModerationOutcome(
       reasons: item.rules.categories.length ? [...item.rules.categories] : [...item.rules.reasons],
       // nu claro na triagem de imagem: na frente da fila, como o que as regras esconderam
       severity: item.rules.action === 'shadow' || o.fallback === 'screened' ? 75 : 25,
-      hide: item.media ? true : item.rules.action !== 'allow',
+      // imagem: fora do ar, menos a de cargo isento (só sinaliza)
+      hide: item.media ? item.media.hold : item.rules.action !== 'allow',
       content,
       detail: { kind: item.kind, fallback: o.fallback ?? null, ...mediaDetail(item) },
       clocks: item.clocks,

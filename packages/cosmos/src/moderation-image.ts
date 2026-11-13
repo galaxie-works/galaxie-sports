@@ -44,7 +44,7 @@ import {
 import type { ModerationConfig } from './moderation-rules.js';
 import { cosmosApiKey } from './models.js';
 import { readCosmosSettings, readModerationCeiling } from './settings.js';
-import { activeFunction, getWallet, release, reserve, settle } from './wallet.js';
+import { activeFunction, getWallet, providerHasCaller, release, reserve, settle } from './wallet.js';
 
 /** Função do catálogo da Cosmos para imagem (mínimo por imagem, provedor e modelo na tela Funções). */
 export const IMAGE_MODERATION_FUNCTION = 'moderation.image';
@@ -260,6 +260,8 @@ const isExempt = (input: ImageModerationInput, config: Pick<ModerationConfig, 'e
  * escada.
  */
 const isVisible = (o: ModerationOutcome) => {
+  // cargo isento sem decisão (sem saldo, modelo fora, triagem segurou): só sinaliza, continua no ar
+  if (o.by === 'fallback') return o.item.media?.hold === false;
   if ((o.by !== 'cosmos' && o.by !== 'classifier') || !o.plan) return false;
   if (o.plan.allow) return true;
   const hide = o.plan.actions.find((a) => a.action === 'hide');
@@ -329,7 +331,9 @@ async function decideImage(
   const env = deps.env ?? process.env;
   const fn = await activeFunction(db, IMAGE_MODERATION_FUNCTION);
   const apiKey = fn ? cosmosApiKey(fn.provider, env) : undefined;
-  if (!fn || (!deps.client && !apiKey)) return fallback('unavailable');
+  // provedor que não lê imagem (cadastro antigo): nem tenta, a imagem vai para a fila
+  if (!fn || !providerHasCaller(IMAGE_MODERATION_FUNCTION, fn.provider) || (!deps.client && !apiKey))
+    return fallback('unavailable');
 
   const prompt = imageModerationPrompt(input.kind, input.locale);
   const wallet = await getWallet(db, input.tenantId);

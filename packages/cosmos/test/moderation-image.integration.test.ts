@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { ledger, moderationCase, tenant, type Database } from '@galaxie/db';
 import type { CompletionClient, CompletionRequest } from '@galaxie/llm';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import {
@@ -55,6 +55,7 @@ async function newTenant(
   autonomy: Record<string, string> = { hide: 'auto', mute: 'auto', suspend: 'flag', ban: 'flag' },
   images = true,
   childAudience = false,
+  exemptRoles: string[] = [],
 ): Promise<string> {
   const slug = `t-${randomBytes(4).toString('hex')}`;
   const [row] = await db
@@ -86,7 +87,7 @@ async function newTenant(
       categories: {},
       autonomy,
       muteHours: 2,
-      exemptRoles: [],
+      exemptRoles,
       hiddenNotice: null,
       childAudience,
     },
@@ -322,6 +323,38 @@ describe('triagem local antes da Cosmos (#1025)', () => {
     });
     expect(c.by).toBe('cosmos');
     expect(client.requests).toHaveLength(2);
+  });
+
+  it('cargo isento: o que a triagem segura só é sinalizado, continua no ar', async () => {
+    await withFunction();
+    const t = await newTenant(10_000, undefined, true, false, ['moderator']);
+    const client = fakeClient(verdict('none', 0));
+    const o = await moderateImage(db, image(t, { authorRole: 'moderator' }), {
+      client,
+      env,
+      settings,
+      ceiling,
+      screen: nude,
+    });
+    expect(o).toMatchObject({ visible: true, fallback: 'screened' });
+    const [c] = await casesOf(t);
+    expect(c?.status).toBe('open');
+    expect(c?.hiddenAt).toBeNull();
+  });
+
+  it('provedor que não lê imagem: fila humana, sem chamar o modelo', async () => {
+    await db.execute(
+      sql`update cosmos.function_def set provider = 'deepseek' where name = ${IMAGE_MODERATION_FUNCTION}`,
+    );
+    try {
+      const t = await newTenant(10_000);
+      const client = fakeClient(verdict('none', 0));
+      const o = await moderateImage(db, image(t), { client, env, settings, ceiling, screen: null });
+      expect(o).toMatchObject({ visible: false, fallback: 'unavailable' });
+      expect(client.requests).toHaveLength(0);
+    } finally {
+      await withFunction();
+    }
   });
 
   it('denúncia não passa pela triagem; triagem que não leu manda para a Cosmos', async () => {
