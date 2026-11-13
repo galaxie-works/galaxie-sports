@@ -59,6 +59,9 @@ export function ShopWidgetEditor({
   const byId = new Map(available.map((s) => [s.id, s]));
   const chosen = current.stores.filter((s) => byId.has(s.storeId));
   const unused = available.filter((s) => !chosen.some((c) => c.storeId === s.id));
+  // lojas salvas que não estão na lista (outro mercado, loja desligada): à mostra para o cliente tirar, nunca
+  // escondidas na configuração
+  const hidden = current.stores.filter((s) => !byId.has(s.storeId));
   // o que vale para mostrar: as respostas na tela, quando completas; senão, as confirmadas
   const shown = complete(answers) ? answers : confirmed?.answers;
   const verdict = shown
@@ -70,7 +73,7 @@ export function ShopWidgetEditor({
       )
     : null;
 
-  const setStores = (next: WidgetShopStore[]) => onChange({ ...current, stores: next });
+  const setStores = (next: WidgetShopStore[]) => onChange({ ...current, stores: [...next, ...hidden] });
   const update = (i: number, patch: Partial<WidgetShopStore>) =>
     setStores(chosen.map((s, j) => (j === i ? ({ ...s, ...patch } as WidgetShopStore) : s)));
   const move = (i: number, by: -1 | 1) => {
@@ -90,7 +93,6 @@ export function ShopWidgetEditor({
     if (!complete(answers)) return;
     onChange({
       ...current,
-      stores: chosen,
       destination: {
         answers,
         rulesVersion: SHOP_DESTINATION_RULES_VERSION,
@@ -241,6 +243,26 @@ export function ShopWidgetEditor({
                 </li>
               );
             })}
+            {hidden.map((s) => (
+              <li
+                key={s.storeId}
+                className="text-muted-foreground flex items-center gap-2 rounded-md border border-dashed p-3"
+              >
+                <span className="flex-1 truncate text-xs">
+                  {fill(T.unavailable, { store: s.storeId, market })}
+                </span>
+                <Button
+                  size="icon-sm"
+                  variant="ghost"
+                  aria-label={T.remove}
+                  onClick={() =>
+                    onChange({ ...current, stores: current.stores.filter((x) => x.storeId !== s.storeId) })
+                  }
+                >
+                  <Trash2 aria-hidden />
+                </Button>
+              </li>
+            ))}
           </ul>
           {unused.length ? (
             <div className="flex flex-wrap gap-2">
