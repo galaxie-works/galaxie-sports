@@ -754,6 +754,13 @@
     {
       "idx": 107,
       "version": "7",
+      "when": 1794529487111,
+      "tag": "0156_indice_var",
+      "breakpoints": true
+    },
+    {
+      "idx": 108,
+      "version": "7",
       "when": 1794529607111,
       "tag": "0157_cosmos_cota_por_sala",
       "breakpoints": true

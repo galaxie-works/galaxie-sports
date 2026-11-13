@@ -1,6 +1,6 @@
 {
   "id": "b9ae8914-4bb6-4a26-824f-c5d93b7f5938",
-  "prevId": "0bc90bfa-1484-4aab-9360-18f60517f103",
+  "prevId": "cd8115fc-8031-42a7-a427-ea660aefa561",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -1552,6 +1552,22 @@
           ],
           "isUnique": false,
           "where": "\"core\".\"event_incident\".\"assist_person_id\" is not null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "event_incident_var_idx": {
+          "name": "event_incident_var_idx",
+          "columns": [
+            {
+              "expression": "event_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"core\".\"event_incident\".\"type\" = 'var'",
           "concurrently": false,
           "method": "btree",
           "with": {}
