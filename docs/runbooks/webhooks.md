@@ -24,7 +24,8 @@ Não tem passo manual (#360):
    outros segredos internos) e nunca troca a que já existe. Na primeira vez, a saída do deploy avisa
    `WARN  WEBHOOK_SIGNING_SECRET nova`: vale guardar uma cópia no cofre de senhas, mas perder a chave não é desastre:
    o deploy gera outra, e cada cliente rotaciona o segredo do webhook dele no portal.
-2. Na subida, o worker cifra os segredos legados em texto puro (e recifra os de uma KEK antiga). Com tudo cifrado, a
+2. Dois minutos depois da subida (a troca lado a lado já terminou), o worker cifra os segredos legados em texto puro
+   (e recifra os de uma KEK antiga), e tenta de novo a cada 15 s se algo falhar. Com tudo cifrado, a
    recusa de segredo sem cifra passa a valer sozinha. O painel (Ajustes → Webhooks) e
    `WEBHOOK_REJECT_PLAINTEXT_SECRETS` no `.env` ainda mandam quando gravados.
 3. A demo recebe a mesma KEK: é ela que cadastra e rotaciona o segredo no portal do cliente.

@@ -496,7 +496,7 @@ describe('webhooks assinados', () => {
     await expect(create({ tenantSlug: 'nao-existe', url: `${base}/x` })).rejects.toThrow(/Tenant/);
   });
 
-  it('ligar sem passo manual (#360): na subida o worker cifra o legado e passa a recusar texto puro', async () => {
+  it('ligar sem passo manual (#360): passada a carência, o worker cifra o legado e passa a recusar texto puro', async () => {
     const legacySecret = generateWebhookSecret();
     const [tenantRow] = await db.select({ id: tenant.id }).from(tenant).where(eq(tenant.slug, 'portal'));
     const [legacy] = await db
@@ -511,9 +511,14 @@ describe('webhooks assinados', () => {
       .returning();
     // a mesma KEK, noutra caixa: a recusa ligada aqui não vaza para o worker de fundo dos outros testes
     const box = new WebhookSecretBox([kek]);
-    const fresh = new WebhookWorker(db, { listen: false, secrets: box, env: {}, cursorName: 'subida' });
-    // os dois passos da subida (start), sem o ciclo de entrega: o worker de fundo segue sendo o único a entregar
-    await fresh.sealLegacySecrets();
+    const fresh = new WebhookWorker(db, {
+      listen: false,
+      secrets: box,
+      env: {},
+      cursorName: 'subida',
+      sealDelayMs: 0,
+    });
+    // a rodada de controles, sem o ciclo de entrega: o worker de fundo segue sendo o único a entregar
     await fresh.refreshControls();
     const [row] = await db.select().from(webhookEndpoint).where(eq(webhookEndpoint.id, legacy!.id));
     expect(row!.secret).toMatch(/^enc:v1:/);
@@ -527,8 +532,8 @@ describe('webhooks assinados', () => {
       secrets: none,
       env: {},
       cursorName: 'subida-sem-kek',
+      sealDelayMs: 0,
     });
-    await noKek.sealLegacySecrets();
     await noKek.refreshControls();
     expect(none.rejectsPlaintext).toBe(false);
     await db.delete(webhookEndpoint).where(eq(webhookEndpoint.id, legacy!.id));
