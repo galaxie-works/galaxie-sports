@@ -10,6 +10,8 @@ type Classify = (pixels: Uint8Array, size: number) => Promise<ImageScores>;
 let loading: Promise<Classify | null> | null = null;
 /** Uma imagem por vez: o classificador é pesado em CPU e as outras esperam na fila daqui. */
 let queue: Promise<unknown> = Promise.resolve();
+/** Imagens na fila ou rodando. */
+let pending = 0;
 
 const CLASS_KEY: Record<string, keyof ImageScores> = {
   Neutral: 'neutral',
@@ -19,13 +21,17 @@ const CLASS_KEY: Record<string, keyof ImageScores> = {
   Hentai: 'hentai',
 };
 
-/** Carrega o classificador uma vez por processo; falhou, fica null e tudo vai para a Cosmos. */
+/**
+ * Carrega o classificador uma vez por processo. Falhou: as imagens vão para a Cosmos e a carga tenta de novo depois de
+ * `retryLoadMs` (uma falha passageira na subida não desliga a triagem até reiniciar).
+ */
 function loadClassifier(): Promise<Classify | null> {
   loading ??= (async () => {
     try {
       const tf = await import('@tensorflow/tfjs');
       await import('@tensorflow/tfjs-backend-wasm');
-      await tf.setBackend('wasm');
+      // sem o WebAssembly, o tfjs cai calado no JS puro, dez vezes mais lento: melhor mandar tudo para a Cosmos
+      if (!(await tf.setBackend('wasm'))) throw new Error('backend wasm indisponível');
       await tf.ready();
       const { load } = await import('nsfwjs/core');
       const { MobileNetV2Model } = await import('nsfwjs/models/mobilenet_v2');
@@ -46,29 +52,51 @@ function loadClassifier(): Promise<Classify | null> {
       };
     } catch (err) {
       console.error('[cosmos] triagem local de imagem não carregou; as imagens vão para a Cosmos', err);
+      setTimeout(() => (loading = null), SCREEN_LIMITS.retryLoadMs).unref();
       return null;
     }
   })();
   return loading;
 }
 
-/** Triagem padrão: decodifica e reduz a imagem (sharp) e passa pelo classificador local. */
+async function pixelsOf(image: Uint8Array, size: number): Promise<Uint8Array | null> {
+  const { default: sharp } = await import('sharp');
+  const opts = { limitInputPixels: 50_000_000 };
+  // animação: a triagem só veria o primeiro quadro; a Cosmos decide
+  if (((await sharp(image, opts).metadata()).pages ?? 1) > 1) return null;
+  const raw = await sharp(image, opts)
+    .rotate()
+    .removeAlpha()
+    .toColourspace('srgb')
+    .resize(size, size, { fit: 'fill' })
+    .raw()
+    .toBuffer();
+  return new Uint8Array(raw.buffer, raw.byteOffset, raw.byteLength);
+}
+
+/**
+ * Triagem padrão: decodifica e reduz a imagem (sharp) e passa pelo classificador local. Com a fila cheia, ou quando a
+ * vez chega depois do prazo de quem pediu, devolve null na hora (a imagem vai para a Cosmos) em vez de acumular
+ * trabalho que ninguém mais espera.
+ */
 export const localImageScreener: ImageScreener = async (image) => {
+  if (pending >= SCREEN_LIMITS.maxQueue) return null;
+  // a vaga é tomada antes de qualquer espera, senão uma rajada passa toda pela conferência
+  pending++;
+  const deadline = Date.now() + SCREEN_LIMITS.timeoutMs;
   const classify = await loadClassifier();
-  if (!classify) return null;
+  if (!classify) {
+    pending--;
+    return null;
+  }
   const run = queue.then(async () => {
-    const { default: sharp } = await import('sharp');
+    if (Date.now() >= deadline) return null;
     const size = SCREEN_LIMITS.inputSize;
-    const pixels = await sharp(image, { limitInputPixels: 50_000_000 })
-      .rotate()
-      .removeAlpha()
-      .toColourspace('srgb')
-      .resize(size, size, { fit: 'fill' })
-      .raw()
-      .toBuffer();
-    return classify(new Uint8Array(pixels.buffer, pixels.byteOffset, pixels.byteLength), size);
+    const pixels = await pixelsOf(image, size);
+    return pixels ? classify(pixels, size) : null;
   });
-  queue = run.catch(() => undefined);
+  const done = run.catch(() => null).finally(() => pending--);
+  queue = done;
   let timer: NodeJS.Timeout | undefined;
   try {
     return await Promise.race([

@@ -290,7 +290,12 @@ async function decideImage(
 
   // triagem local: denúncia não passa por ela (quem denunciou já viu algo; a Cosmos e a equipe decidem)
   if (input.source !== 'report') {
-    const scores = deps.screen ? await deps.screen(input.image).catch(() => null) : null;
+    const screen = deps.screen;
+    const scores = screen
+      ? await Promise.resolve()
+          .then(() => screen(input.image))
+          .catch(() => null)
+      : null;
     if (scores) {
       const strict = config.childAudience || input.authorAgeBand === 'under13';
       const outcome = screenOutcome(scores, strict);

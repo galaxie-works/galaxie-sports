@@ -514,7 +514,8 @@ export async function applyModerationOutcome(
       ...target,
       source: 'filter',
       reasons: item.rules.categories.length ? [...item.rules.categories] : [...item.rules.reasons],
-      severity: item.rules.action === 'shadow' ? 75 : 25,
+      // nu claro na triagem de imagem: na frente da fila, como o que as regras esconderam
+      severity: item.rules.action === 'shadow' || o.fallback === 'screened' ? 75 : 25,
       hide: item.media ? true : item.rules.action !== 'allow',
       content,
       detail: { kind: item.kind, fallback: o.fallback ?? null, ...mediaDetail(item) },

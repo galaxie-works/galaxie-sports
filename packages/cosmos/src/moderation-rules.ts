@@ -297,7 +297,8 @@ export function normalizeModerationConfig(
         : typeof s.hiddenNotice === 'string' && s.hiddenNotice.trim().length <= HIDDEN_NOTICE_MAX
           ? s.hiddenNotice.trim() || null
           : base.hiddenNotice,
-    childAudience: typeof s.childAudience === 'boolean' ? s.childAudience : base.childAudience,
+    // a sala ou comunidade pode ligar o público infantil, nunca desligar o que o cliente ligou
+    childAudience: base.childAudience || s.childAudience === true,
   };
 }
 

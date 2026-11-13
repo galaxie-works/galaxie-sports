@@ -286,6 +286,8 @@ describe('triagem local antes da Cosmos (#1025)', () => {
     expect(c?.status).toBe('open');
     expect(c?.hiddenAt).not.toBeNull();
     expect(c?.reasons).toContain('sexual');
+    // na frente da fila, acima do que caiu só por falta da IA
+    expect(c?.severity).toBe(75);
     expect(await usageOf(t)).toHaveLength(0);
   });
 

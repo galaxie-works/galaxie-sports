@@ -67,4 +67,14 @@ describe('localImageScreener', () => {
     const broken = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0, 0x10, 0x4a, 0x46, 0x49, 0x46]);
     expect(await localImageScreener(broken)).toBeNull();
   }, 60_000);
+
+  it('fila cheia: as excedentes voltam null na hora, sem esperar a vez', async () => {
+    const img = new Uint8Array(await solid(3, 'jpeg'));
+    await localImageScreener(img); // modelo carregado
+    const results = await Promise.all(
+      Array.from({ length: SCREEN_LIMITS.maxQueue + 4 }, () => localImageScreener(img)),
+    );
+    expect(results.filter((r) => r === null).length).toBeGreaterThanOrEqual(4);
+    expect(results.filter((r) => r !== null).length).toBeGreaterThan(0);
+  }, 60_000);
 });
