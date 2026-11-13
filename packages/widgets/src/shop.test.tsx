@@ -97,6 +97,15 @@ describe('widget Shopping (#925)', () => {
     expect(empty.container.textContent).not.toContain('comissão');
   });
 
+  it('falha da API não vira catálogo vazio: a coluna mostra o erro', async () => {
+    const { container } = setup(
+      <ShopTheGame widgetId={W} teamId={PREVIEW_IDS.team} />,
+      (async () => new Response('{}', { status: 503 })) as typeof fetch,
+    );
+    await waitFor(() => expect(container.querySelector('.gs-shop button')).toBeTruthy());
+    expect(container.textContent).not.toContain('Nenhum produto oficial');
+  });
+
   it('catálogo e opções: preso ao widget, 3 a 6 produtos por time', () => {
     expect(WIDGET_CATALOG.shop_the_game.requiredProps).toEqual(['widgetId']);
     expect(parseWidgetOptions('shop_the_game', { perTeam: 9, showPrice: false })).toMatchObject({

@@ -148,10 +148,13 @@ function ShopColumn({
   const products = (query.data?.stores ?? [])
     .flatMap((s) => s.products.map((p) => ({ ...p, store: s.store.name, qr: s.display === 'qr' })))
     .slice(0, perTeam);
-  const isEmpty = !query.loading && products.length === 0;
+  // falha da API (chave, 503, rede) não é catálogo vazio: a coluna mostra o erro com "tentar de novo"
+  const failed = !query.loading && !query.data && !!query.error;
+  const isEmpty = !query.loading && !failed && products.length === 0;
   // a lista vazia de todas as colunas vira um aviso só, no pai
   useReport(isEmpty, onEmpty);
   if (query.loading && !query.data) return <LoadingState lines={3} />;
+  if (failed) return <ErrorState error={query.error} onRetry={query.retry} />;
   if (!products.length) return null;
   const price = (p: (typeof products)[number]) => {
     if (p.price === null || !p.currency) return null;
