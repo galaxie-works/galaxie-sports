@@ -66,7 +66,7 @@ anômalo (§5).
   - a publicável não expira.
 - **Revogação:** pela operação (`.../keys/{keyId}/revoke`) ou pelo painel (publicável). Vale em até 60 s, inclusive em
   stream SSE aberto.
-- **Trial:** plano `trial` em `config/plans.yaml` (`trialDays: 30`, só `core_data`, 60 req/min, cota de 5000/dia).
+- **Trial:** plano `trial` em `config/catalog/plans.yaml` (`trialDays: 30`, só `core_data`, 60 req/min, cota de 5000/dia).
   - O onboarding grava `api.tenant.trial_ends_at`. Depois do prazo, nenhuma chave do tenant autentica (401, secreta ou
     publicável).
   - Trocar o plano (`PATCH /internal/admin/tenants/{id}` com `plan`) tira o prazo; voltar para `trial` dá 30 dias de
@@ -86,7 +86,9 @@ anômalo (§5).
   - toda resposta de chave de produção com cota traz `x-galaxie-quota-limit` e `x-galaxie-quota-remaining`;
   - a partir de 80%, `x-galaxie-quota-warning: <uso>%` e um evento no log (`quota.warning`, uma vez por tenant e dia);
   - acima de 110%: 429 `QUOTA_EXCEEDED` com `retry-after` até a virada do dia UTC, e evento `quota.exceeded`; a
-    requisição recusada não conta;
+    requisição recusada não conta. **Na chave publicável** (widgets), o excesso até 3× a cota passa e conta como
+    excedente (evento `quota.overage`; plataforma comercial, #1137); só acima desse teto ela também toma o 429, para
+    que uma chave pública não gere excedente sem limite. Os dois tipos de chave somam no mesmo contador do tenant;
   - só o uso de produção conta: a chave de teste fica fora, e a publicável conta como produção;
   - `enterprise` não tem cota (`dailyRequestQuota: null`);
   - o total do dia é o uso consolidado em `api.usage_daily` somado ao contador do Valkey, a mesma leitura do

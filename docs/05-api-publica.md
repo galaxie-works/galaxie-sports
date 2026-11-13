@@ -41,13 +41,13 @@ Cada rota declara o módulo exigido (`/mirror` e o catálogo `/v1` exigem `core_
 
 ```bash
 pnpm --filter @galaxie/api tenant:create --slug demo-local --plan enterprise --label dev
-# padrões do modelo do plano (config/plans.yaml, §1.2); ajustes: --markets BR,AR --sports football
+# padrões do modelo do plano (config/catalog/plans.yaml, §1.2); ajustes: --markets BR,AR --sports football
 # --rate-limit 600 --daily-quota 50000|none --scopes core_data --env live
 ```
 
 ### 1.2 Onboarding, autoatendimento e uso
 
-**Modelos de plano** — [`config/plans.yaml`](../config/plans.yaml) define, para cada plano comercial (Trial, Core Data, Fan Experience, Live Intelligence, Enterprise — docs/01 §6), os módulos, mercados e esportes padrão, `rateLimitPerMinute`, `dailyRequestQuota` (aplicada ao uso de produção: aviso a partir de 80%, 429 `QUOTA_EXCEEDED` acima de 110%; `null` = sem cota), o ambiente da chave inicial e `trialDays` (o Trial vale 30 dias, sem SSE nem webhooks; [política](politica-de-chaves.md)). O arquivo é validado na subida da API (Zod); o teste unitário garante que os módulos batem com `PLAN_MODULES`. Mudar o arquivo não altera tenants existentes (use `applyTemplate`).
+**Modelos de plano** — [`config/catalog/plans.yaml`](../config/catalog/plans.yaml) define, para cada plano comercial (Trial, Core Data, Fan Experience, Live Intelligence, Enterprise — docs/01 §6), os módulos, mercados e esportes padrão, `rateLimitPerMinute`, `dailyRequestQuota` (aplicada ao uso de produção: aviso a partir de 80%, 429 `QUOTA_EXCEEDED` acima de 110%; `null` = sem cota), o ambiente da chave inicial e `trialDays` (o Trial vale 30 dias, sem SSE nem webhooks; [política](politica-de-chaves.md)). O arquivo é validado na subida da API (Zod); o teste unitário garante que os módulos batem com `PLAN_MODULES`. Mudar o arquivo não altera tenants existentes (use `applyTemplate`).
 
 **API administrativa** — `/internal/admin/*`, só registrada quando `ADMIN_KEY_HASHES` está definida. Exige a chave administrativa no header `x-galaxie-admin-key` (`gs_admin_<32 bytes>`; gere com `pnpm --filter @galaxie/api admin:key`, que imprime a chave **uma vez** e o hash `sha256$...` para o ambiente) e, com `ADMIN_IP_ALLOWLIST` (IPs/CIDRs), responde **404** fora da allowlist. O proxy público já devolve 404 para `/internal/*` (o router do Traefik em [`infra/vps-telemetry/compose.yml`](../infra/vps-telemetry/compose.yml) não inclui `/internal` nem `/metrics`); o acesso é pela rede privada/VPN. Respostas `no-store`, sem CORS. Corpo e parâmetros validados com Zod (`.strict()`: campo desconhecido → 400).
 
@@ -470,7 +470,9 @@ Convenções implementadas (`apps/api/src/routes/v1/events.ts`, montagem em `app
 | `incidents[].kind` | `goal`, `own_goal`, `penalty_goal`, `penalty_missed`, `yellow_card`, `second_yellow`, `red_card`, `substitution`, `var`, `shootout_scored`, `shootout_missed`, `other`. O fornecedor não separa pênalti perdido de defendido: os dois são `penalty_missed`. O segundo amarelo é derivado (vermelho para quem já tinha amarelo) |
 | `incidents[].clock` | `period` (`first_half`, `second_half`, `extra_time_first`, `extra_time_second`, `penalty_shootout`), `minute`, `extra_minute`, `display`. Na disputa de pênaltis não há minuto |
 | `incidents[].occurred_at`, `occurred_at_source` | Instante UTC (abaixo) |
-| `incidents[].weight`, `key_moment`, `flags` | Peso do momento (0–100): **decisivo 100** > pênalti (convertido ou perdido) 80 > vermelho/segundo amarelo 70 > VAR sobre gol, pênalti ou vermelho 65 > gol 60 > cobrança na disputa 45 > outro VAR 40 > amarelo 30 > substituição 10. `key_moment` = peso ≥ 60 (é o filtro "só os principais"). `flags`: `opener`, `go_ahead`, `equalizer` e `decisive` — o gol da vitória (o do vencedor que o pôs à frente de vez) ou a cobrança que decidiu os pênaltis, **só com o jogo encerrado** |
+| `incidents[].weight`, `key_moment`, `flags` | Peso do momento (0–100): **decisivo 100** > pênalti (convertido ou perdido) 80 > vermelho/segundo amarelo 70 > VAR que muda ou confirma gol, pênalti ou vermelho 65 > gol 60 > VAR em andamento ou de decisão trocada 50 > cobrança na disputa e vermelho confirmado pelo VAR 45 > outro VAR 40 (`var_outcome`, abaixo) > amarelo 30 > substituição 10. `key_moment` = peso ≥ 60 (é o filtro "só os principais"). `flags`: `opener`, `go_ahead`, `equalizer` e `decisive` — o gol da vitória (o do vencedor que o pôs à frente de vez) ou a cobrança que decidiu os pênaltis, **só com o jogo encerrado**. O gol anulado pelo VAR não recebe nenhuma (abaixo) |
+| `incidents[].var_outcome` | Veredito canônico do VAR (só nos lances `var`; null nos demais), com o texto do fornecedor mantido em `detail`: `goal_cancelled` ("Goal cancelled", "Goal Disallowed", "Goal Disallowed - video review"), `goal_disallowed_offside`, `goal_disallowed_foul`, `goal_disallowed_handball`, `goal_confirmed`, `goal_under_review`, `penalty_awarded`, `penalty_confirmed`, `penalty_cancelled`, `card_upgrade`, `card_upgrade_confirmed`, `card_upgrade_cancelled`, `card_reviewed`, `red_card_confirmed`, `red_card_cancelled`, `decision_changed` ("Original decision changed") e `other` (texto novo ou ausente). A lista cobre todo `detail` de VAR já visto no espelho; texto novo dispara o alerta `VarDetailUnknown`. Peso: 65 para o que muda ou confirma gol, pênalti ou vermelho (inclui `card_upgrade`); 50 para `goal_under_review` e `decision_changed`; 45 para `red_card_confirmed` (o vermelho já está na lista); 40 para `card_reviewed`, `card_upgrade_cancelled` e `other` |
+| `incidents[].disallowed`, `cancelled_by` | Gol anulado pelo VAR que continua na lista do fornecedor: `disallowed: true` e, em `cancelled_by`, o `sequence` do lance de VAR que o anulou (`Goal cancelled`, `Goal Disallowed - offside`...). O gol fica na timeline com `flags` vazio, `score_after` e `scoring_team` nulos e peso de VAR comum (40, fora dos momentos-chave: o momento-chave é o próprio VAR). Cada VAR anula no máximo um gol do mesmo time, a até 5 minutos, de preferência do mesmo jogador; VAR que traz um autor que não marcou nessa janela é de um gol que a fonte já apagou e não derruba o gol de outro. Com o placar conhecido, o gol só cai se o time tiver mais gols na lista que no placar (o VAR também chega quando a fonte já apagou o gol, e aí o gol válido de minutos antes não pode cair); no ao vivo, cai na leitura em que o placar cai. No gol contra, a convenção do lado (acima) é a que fecha o placar sem os gols anulados. Assim o `score_after` do último gol bate com `score`. `false`/null nos demais lances. Os widgets tiram o gol anulado da lista de gols do card e o mostram riscado no minuto a minuto |
 | `incidents[].score_after`, `scoring_team` | Placar depois do gol e o time que somou o gol (`scoring_team`, com `side`). Na disputa, o placar da disputa e quem converteu. `team` é o time do lance como o fornecedor manda: no gol contra pode ser o do jogador ou o beneficiado. Com o jogo em andamento, `team` é tratado como o beneficiado (o placar parcial chega antes dos lances e não serve de prova: o lado não troca entre leituras); com o jogo encerrado, vale a convenção que reproduz o placar final (sem nenhuma exata, a que menos passa dele; empate, o beneficiado), o que pode corrigir o lado uma vez no apito final. As bandeiras (`go_ahead`, `decisive`...) valem para `scoring_team` |
 | `incidents[].player_in`, `player_out` | Substituição: quem entra e quem sai. O fornecedor manda quem sai em `player` e quem entra em `assist`; se a escalação disser o contrário (reserva em `player`, titular em `assist`), a API corrige |
 | `player`, `assist`, `player_in`, `player_out` | `TimelinePerson`: `id` do core (ou `null`), nome, `photo`, `number` e `position` (G, D, M, F) da escalação, quando sincronizada |
@@ -792,7 +794,20 @@ Versões editoriais **travam** a chave (região × emissora × meio): o agente n
 }
 ```
 
-`data` por tópico: `status`/`status_detail`/`clock` (+ `previous.status`); `score`; `incidents: [{ id, sequence, minute, extra, type, detail, participant_id, person_id }]`; `countries: ["BR"]` (países afetados — recortados aos mercados do tenant); `contexts: [{ locale, kind, review_status }]`; `added`/`removed`/`changed` (ids dos vídeos) no conteúdo relacionado.
+`data` por tópico: `status`/`status_detail`/`clock` (+ `previous.status`); `score` (+ `previous.score`); `incidents: [{ id, sequence, minute, extra, type, detail, participant_id, person_id }]`; `countries: ["BR"]` (países afetados — recortados aos mercados do tenant); `contexts: [{ locale, kind, review_status }]`; `added`/`removed`/`changed` (ids dos vídeos) no conteúdo relacionado.
+
+**Gol anulado (`goal_cancelled`).** Quem mostrou "GOL!" recebe um sinal explícito para desfazer: `data.goal_cancelled: true` no `event.incident_added` quando o lance novo é um VAR de gol anulado (`Goal cancelled`, `Goal Disallowed - ...`), do fornecedor ou inferido pela Galaxie quando a fonte apaga o gol sem mandar o VAR (sequence a partir de 100000, depois de o gol ficar 45 s fora da timeline). Só o lance confirma a anulação: o placar do fornecedor oscila sozinho (resposta atrasada, gol que volta), então o `event.score_changed` não leva o sinal, só o placar novo e o anterior (`previous.score`). O campo só aparece quando é `true`. Na REST, a timeline marca o gol com `disallowed` (§3.2.1).
+
+```json
+{
+  "topic": "event.incident_added",
+  "changed": ["incidents"],
+  "data": {
+    "incidents": [{ "sequence": 100000, "minute": 62, "type": "var", "detail": "Goal cancelled" }],
+    "goal_cancelled": true
+  }
+}
+```
 
 **Ao vivo (Live Poller, #55) — sem tópico próprio.** O poller (`services/ingestor/src/live`) aplica cada tick pela normalização, que grava `core.event` e `core.event_incident`; os triggers de captura publicam então `event.score_changed`, `event.status_changed` e `event.incident_added` — o mesmo caminho de qualquer outro writer, uma vez só por mudança. O sinal `topic = live` que o poller também publica no change feed (gol, encerramento, fonte *stale*/recuperada) é **interno**: purga as tags `live`, `competition:<id>` e `season:<id>` e serve à operação, mas não sai no SSE nem nos webhooks (não é um tópico público), o que evita entregas duplicadas. A fonte fora do ar não gera mudança pública: o último placar válido fica e `data_freshness.is_stale` aparece na REST. Medido (teste `tests/integration/test/live-sse.integration.test.ts`: `fixtures?live=` falso → `LivePoller.tick` → cliente SSE): gol no stream em ~80 ms (meta ≤ 5 s).
 
@@ -917,7 +932,7 @@ URL: `https://` (http só para `localhost`, ou com `--allow-http`), sem credenci
 | `idempotency-key` | `<endpoint>:<id da mudança>` — igual em todas as tentativas; descarte duplicatas por ela |
 | `user-agent` | `galaxie-sports-webhooks/0.1` |
 
-**Retentativas e DLQ.** Qualquer resposta fora de 2xx (inclusive redirecionamentos, que não são seguidos) ou timeout de 10 s é falha. Retentativa exponencial: 10 s, 20 s, 40 s... (±20% de jitter, teto de 1 h), até 10 tentativas (~2,5 h); depois a entrega vai para a **DLQ** (`status = dead` em `api.webhook_delivery`), listável e reenfileirável pela CLI. O corpo fica congelado no enfileiramento: retentativas reenviam exatamente o mesmo JSON (a assinatura é refeita com o `t` do envio). Configuração do worker: `WEBHOOK_MAX_ATTEMPTS`, `WEBHOOK_RETRY_BASE_MS`, `WEBHOOK_TIMEOUT_MS`.
+**Retentativas e DLQ.** Qualquer resposta fora de 2xx (inclusive redirecionamentos, que não são seguidos) ou timeout de 10 s é falha. Retentativa exponencial: 10 s, 20 s, 40 s... (±20% de jitter, teto de 1 h), até 10 tentativas (~2,5 h); depois a entrega vai para a **DLQ** (`status = dead` em `api.webhook_delivery`), listável e reenfileirável pela CLI. O corpo fica congelado no enfileiramento: retentativas reenviam exatamente o mesmo JSON (a assinatura é refeita com o `t` do envio). Um endpoint que passa 24 h só falhando, com pelo menos 3 entregas na DLQ, é desativado automaticamente (o portal mostra o motivo; reative e reenvie a DLQ depois de corrigir), e cada endpoint recebe no máximo 600 entregas por minuto. Configuração do worker: `WEBHOOK_MAX_ATTEMPTS`, `WEBHOOK_RETRY_BASE_MS`, `WEBHOOK_TIMEOUT_MS`, `WEBHOOK_BREAKER_HOURS`, `WEBHOOK_ENDPOINT_RATE_PER_MIN`.
 
 **Worker** — processo separado da API (`pnpm --filter @galaxie/api webhooks:worker`), para que endpoints lentos nunca disputem recursos com as requisições. Pode rodar em mais de uma instância: o enfileiramento (cursor em `api.webhook_cursor`) e a reivindicação de entregas usam `FOR UPDATE SKIP LOCKED`, e cada entrega é única por (endpoint, mudança). Latência medida (local): mudança → POST no endpoint em ~20–60 ms.
 
@@ -1021,8 +1036,29 @@ A identidade única do torcedor nos módulos de engajamento (#937): Chat ao vivo
 | Faixa | Pode |
 |---|---|
 | `under13` | Recebe token, mas toda rota social responde 403 `FAN_AGE_RESTRICTED` |
-| `13_17` | Ler, palpitar, votar, trivia, ganhar pontos e conquistas. Não escreve texto livre e não resgata |
+| `13`, `14_15`, `16_17` | Ler, palpitar, votar, trivia, ganhar pontos e conquistas. Não escreve texto livre e não resgata |
 | `18plus` | Tudo |
+
+As rotas e as `capabilities` usam a faixa larga (`under13`, `13_17`, `18plus`); a fina vale para os limites de 14 e 16 anos da ficha por país. `13_17` ainda é aceito no pedido do token e vale como `13`, a mais restritiva.
+
+**Comprovação de idade e responsável (#1105).** O pedido do token pode trazer dois blocos opcionais, sempre sem data de nascimento, documento ou foto (campo fora da lista é 400):
+
+- `ageAssurance: { method, at, provider? }`: `self` (declarada), `estimated` (estimativa) ou `verified` (verificação), a data e quem comprovou. Sem o bloco, vale `self`.
+- `guardian: { status, consentId?, linkedAccount? }`: `none`, `pending`, `granted` ou `revoked`. Com `consentId`, a prova da autorização fica no Galaxie; sem ele, fica com o cliente (contrato), e a autorização entra na auditoria como "autorização declarada pelo cliente".
+
+O `GET /v1/fans/me` devolve `age_band_detail`, `age_assurance`, `guardian` e `age_status`, o que falta para o Perfil usar os recursos sociais no país dele, pela ficha por país:
+
+| `age_status` | Quer dizer |
+|---|---|
+| `blocked` | Abaixo da idade para participar |
+| `needs_guardian` | Falta a autorização do responsável ou o vínculo com a conta dele |
+| `needs_verification` | A comprovação está abaixo da que a ficha pede (no Brasil, estimativa) |
+| `read_only` | Participa, mas não escreve |
+| `can_write` | Participa e escreve |
+
+Por enquanto o `age_status` só informa: as rotas ainda liberam pelas `capabilities` da faixa larga, e o portão único de todos os módulos pela ficha do país vem na Idade 3 (#1106). Um adulto do Brasil sem o bloco `ageAssurance` aparece como `needs_verification` e ainda escreve.
+
+Faixa que desce de `18plus` para menor no mesmo Perfil congela as ações de adulto (escrever e resgatar) e abre um caso na fila de moderação do cliente (`age_band_downgrade`). Subir de faixa é normal; a congelada só volta a adulto com a correção da faixa (#1110).
 
 **Rotas.**
 
@@ -1062,7 +1098,11 @@ const res = await fetch('https://api.galaxie.sports/v1/fans/tokens', {
     externalAccountId: user.accountId,
     externalProfileId: user.profileId,
     nickname: user.nickname,
-    ageBand: user.isAdult ? '18plus' : user.age >= 13 ? '13_17' : 'under13',
+    // faixa, nunca a idade nem a data de nascimento
+    ageBand: user.age >= 18 ? '18plus' : user.age >= 16 ? '16_17' : user.age >= 14 ? '14_15' : user.age >= 13 ? '13' : 'under13',
+    ageAssurance: { method: 'estimated', at: user.ageCheckedAt, provider: 'Estimador X' },
+    // menor com autorização guardada por você: sem consentId, a prova é sua
+    guardian: user.isMinor ? { status: 'granted', linkedAccount: true } : undefined,
     country: 'BR',
     locale: 'pt-BR',
     holderAdult: account.holderIsAdult ? 'yes' : 'no',
@@ -1101,6 +1141,15 @@ O caminho é sempre o mesmo: o servidor do site pede o token com a chave secreta
 **No navegador**, o widget manda o token em `Authorization: Bearer` junto da chave publicável do site (`x-galaxie-publishable-key`). A API confere a origem da página contra a chave e exige que o cliente da chave seja o do token: token de outro cliente recebe 401 (`Token de outro cliente.`). A chave e a origem são conferidas antes do token, então qualquer 401 (token vencido, inválido ou de outro cliente) leva o CORS da origem conferida, e o widget consegue ler a recusa e pedir outro token. Só a chave publicável do site leva o token: chave presa a um widget recebe 403 (`PUBLISHABLE_KEY_NOT_ALLOWED`), e o widget mostra o recurso do torcedor como indisponível, sem pedir outro token. O preflight libera `Authorization` e o método de cada rota do torcedor (inclusive `PATCH`) para as origens de alguma chave ativa. Do servidor ou do app nativo, sem chave publicável, vale só o token.
 
 **O que o widget mostra.** Lê `GET /v1/fans/me` e usa as `capabilities` da faixa: sem token, "Entre para participar" (com o botão "Entrar" quando o site trata o login); `13_17`, só leitura onde o recurso escreve; `under13`, recurso indisponível; `18plus`, tudo. Token recusado ou vencido mostra "Sua sessão terminou". Com uma função que busca token novo, o widget pede outro um minuto antes de vencer e de novo se a API recusar (recusas ao mesmo tempo dividem um pedido). Quando o torcedor entra ou sai sem recarregar a página, o site dispara `galaxie:fan-token-changed` no `document` (ou chama `useFanSession().refresh()` no React, `el.refreshFanToken()` no embed), e os widgets pedem o token de novo.
+
+**Estado de idade no embed (#1105).** O `<galaxie-widget>` mostra o `age_status` do torcedor no atributo `fan-status` e dispara `galaxie:fan-status` (sobe até o documento, `detail.status`) quando ele muda, para o site abrir a autorização do responsável (`needs_guardian`) ou a comprovação de idade (`needs_verification`). Sem torcedor, o atributo some e `detail.status` vem `null`. No React, o mesmo valor está em `useFanSession().me?.age_status`.
+
+```js
+document.addEventListener('galaxie:fan-status', (e) => {
+  if (e.detail.status === 'needs_guardian') abrirAutorizacaoDoResponsavel();
+  if (e.detail.status === 'needs_verification') abrirComprovacaoDeIdade();
+});
+```
 
 **HTML puro (embed).** A função na página vale para todos os widgets; o atributo `fan-token` serve para um token fixo. O clique em "Entrar" dispara o evento `galaxie:fan-sign-in`. A função é lida na hora de cada pedido, então pode ser definida depois do `embed.js`.
 
@@ -1154,3 +1203,30 @@ webView.configuration.userContentController.addUserScript(
 **No site Galaxie (demo).** O site Galaxie é cliente de si mesmo: no menu do usuário, "Perfil de torcedor" pede apelido, faixa etária e país (sem data de nascimento) e `POST /api/torcedor/token` emite o token com a chave do tenant da demo, só para a própria demo (mesma origem) e sem nome ou e-mail do login. O apelido passa pelo filtro da moderação já ao salvar; o filtro usa o idioma que vai no token, como a API. Se a API ainda assim recusar o apelido no primeiro token depois de salvar (pelas listas do cliente ou de Ajustes, que a demo não confere, ou porque a pessoa trocou o idioma da demo antes), a rota responde 409 `fan_nickname_rejected` (sem perfil completo, 409 `fan_profile_missing`); as telas que levam a pessoa ao perfil em cada caso chegam com o chat (#985) e o bolão (#945).
 
 Ainda não: tópico `fan.profile.deleted` pelo outbox (#1023).
+
+## 10. Chat ao vivo (`/v1/chat`)
+
+A Sala do Jogo (#915, #959): uma sala por jogo e por cliente, criada no primeiro acesso. Torcidas de clientes diferentes nunca se misturam (o banco recusa mensagem de um cliente na sala de outro). Exige o módulo `live_chat`.
+
+**Ler é livre.** `GET /v1/chat/rooms/{jogo}` devolve o estado, a janela, os ajustes e as últimas mensagens (quantidade em `CHAT_HISTORY_ON_JOIN`). No navegador vai com a chave publicável, sem login; a resposta sai com `cache-control: no-store` e `x-robots-tag: noindex` (mensagens fora dos buscadores). O id do jogo é o mesmo de `/v1/events/{id}`.
+
+**Estados.** `scheduled` (ainda não abriu), `open`, `frozen` (congelada pela moderação), `read_only_peak` (só leitura para quem entra, pico do plano estourado, D6) e `closed` (encerrada, só leitura). A sala abre `CHAT_ROOM_OPEN_BEFORE_MINUTES` antes do início e fecha `CHAT_ROOM_CLOSE_AFTER_MINUTES` depois do fim (o apito, ou o fim previsto se o jogo atrasar). Jogo adiado ou cancelado fecha a sala.
+
+**Enviar.** `POST /v1/chat/rooms/{jogo}/messages` com o token `gft_`. Só `18plus` escreve; `13_17` e `under13` recebem 403 `FAN_AGE_RESTRICTED`. Sala fora de `open` ou punição ativa (Silenciar na sala, Suspensão, Banimento) responde 409 com o motivo em `errors` (`path: refusal`). A mensagem passa pela base de regras (#969): link de fora, dado pessoal e aposta voltam com 400 e o aviso no idioma do torcedor; abuso e Silêncio oculto ficam só para o autor (`status: held`). Modo lento: 429 com `Retry-After`. O texto é apagado pelo relógio de conteúdo da ficha do país (#954).
+
+**Ajustes.** Com a chave secreta: `PATCH /v1/chat/rooms/{jogo}` congela, reabre e muda modo lento e rigor da sala; `GET`/`PUT /v1/chat/config` mudam o padrão do cliente (janela, modo lento, rigor) dentro do teto da Galaxie. `null` volta ao padrão. Rigor `strict` recusa também o palavrão leve.
+
+**Receber em lotes (#964).** `GET /v1/chat/rooms/{jogo}/stream` é um SSE da sala: ao abrir vem `chat.state` (estado; `read_only_peak` quando a faixa estourou) e `ready` com `last_event_id`; depois, um `chat.batch` por lote (um por segundo por instância), com `id:` = `<época>-<lote>` e as mensagens aprovadas. Nunca sai uma mensagem por vez. Entre instâncias, os lotes passam pelo Valkey: quem está ligado em outra instância vê as mesmas mensagens; lote perdido no pub/sub é emendado pelo histórico. Reconexão: `Last-Event-ID` (ou `?last_event_id=`) reenvia os lotes perdidos do histórico curto (120 lotes por sala); se não dá para emendar (buraco fora do histórico, numeração recomeçada porque o Valkey perdeu a sequência), vem `chat.reset` e o widget relê a sala pelo GET. Ler é livre como no GET; no navegador use um cliente SSE sobre `fetch`, com a chave publicável no header (a chave nunca vai na URL), até 20 streams por chave publicável e IP. A fila de cada sala guarda no máximo 2000 mensagens: acima disso saem as mais antigas do lote (continuam no banco e no GET).
+
+**O jogo dentro do chat (#965).** Gol (com time, escudo, autor e placar), cartão vermelho, VAR, início, intervalo e fim viram mensagens de sistema da sala, com o texto pronto em pt-BR, es e en. Chegam no SSE como `chat.game` (na abertura, a lista inteira com `snapshot: true`; depois, cada lote do jogo) e no GET em `game_messages`. Gol anulado pelo VAR não some: a mensagem do gol volta com o mesmo id e `cancelled: true`, e entra uma mensagem de VAR. Mensagem do jogo não se denuncia nem se apaga; o cliente escolhe os tipos em `PUT /v1/chat/config` (`eventKinds`; `null` = todos, lista vazia desliga). Amarelo, substituição, pênalti perdido e cobranças da disputa de pênaltis não entram. As mensagens seguem a linha do tempo inteira do jogo (lance que muda de posição ou é regravado pelo fornecedor não duplica nem some), só nascem com o jogo ao vivo (detalhe que chega depois do fim não despeja o jogo no chat) e o placar do gol é contado pela própria linha do tempo. Mudança de tipos vale para os streams em até 30 s. Futebol primeiro; nos outros esportes valem início, intervalo e fim.
+
+**Pico (D6).** Vale para o cliente inteiro, como a faixa. A faixa `live_chat.peak_connections` do cliente conta as conexões do stream em todas as instâncias. Acima dela ninguém fica sem ler: a conexão entra com `chat.state: read_only_peak` e, enquanto houver conexões excedentes, só escreve quem já vinha escrevendo (mensagem nos últimos 10 minutos); quem chegou depois recebe 409 com `refusal: room_read_only_peak`. A conexão excedente tenta a vaga de novo a cada heartbeat; com vaga, recebe `chat.state` com o estado real, e o pico some quando não há mais excedentes. O pico fica registrado no log da API (um aviso por cliente por minuto) para o painel.
+
+## 11. Shopping (`/v1/shop`, módulo `shopping`)
+
+`GET /v1/shop/{kind}/{id}?country=BR&event=<uuid>&origin=site&lang=pt-BR` devolve os produtos oficiais de uma entidade da página (`kind`: `participant` para time, seleção, atleta ou piloto; `competition`; `person`), por loja de afiliado ligada, com preço, imagem (da própria loja) e a data e a hora da consulta (`fetched_at`, cache de no máximo 24 h). Sem produto, a lista vem vazia e o bloco não deve aparecer.
+
+- **Botão "Comprar":** `buy_url` aponta para a rota de cliques da API (`/go/shop/<id>`), assinado e com validade de 24 h. Link sem assinatura, copiado para outro site depois de vencer ou adulterado vai para a loja sem código de afiliado e não conta. Ela registra o clique sem dado pessoal e redireciona para a loja com o link do programa de afiliado. Abra sempre fora do app (navegador do sistema ou app da loja), nunca em WebView.
+- **Aviso:** `disclosure: "affiliate"`. O aviso "links de parceiros: podemos receber comissão" é obrigatório onde os produtos aparecem.
+- **Destino:** só os tenants da própria Galaxie (`SHOP_GALAXIE_TENANT_IDS`) recebem produtos. Para os demais, a resposta é 200 com a lista vazia até o widget do Builder (#925) trazer a matriz loja × caminho e o código de cada cliente. Por isso o código de afiliado da Galaxie nunca chega a domínio de cliente.
+- **Clique e compra nunca viram ponto**, selo ou prêmio: nada daqui chega à carteira do torcedor nem ao motor de conquistas.

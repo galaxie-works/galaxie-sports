@@ -659,6 +659,104 @@
       "when": 1794447867474,
       "tag": "0098_patrocinador_alcool",
       "breakpoints": true
+    },
+    {
+      "idx": 94,
+      "version": "7",
+      "when": 1794487933533,
+      "tag": "0099_ficha_default",
+      "breakpoints": true
+    },
+    {
+      "idx": 95,
+      "version": "7",
+      "when": 1794487965765,
+      "tag": "0100_ficha_idade",
+      "breakpoints": true
+    },
+    {
+      "idx": 96,
+      "version": "7",
+      "when": 1794487981379,
+      "tag": "0107_idade_token",
+      "breakpoints": true
+    },
+    {
+      "idx": 97,
+      "version": "7",
+      "when": 1794487982379,
+      "tag": "0121_cosmos_funcoes_widget",
+      "breakpoints": true
+    },
+    {
+      "idx": 98,
+      "version": "7",
+      "when": 1794488042379,
+      "tag": "0127_var_gol_anulado",
+      "breakpoints": true
+    },
+    {
+      "idx": 99,
+      "version": "7",
+      "when": 1794505125801,
+      "tag": "0140_plataforma_comercial",
+      "breakpoints": true
+    },
+    {
+      "idx": 100,
+      "version": "7",
+      "when": 1794511062565,
+      "tag": "0144_shopping_catalogo",
+      "breakpoints": true
+    },
+    {
+      "idx": 101,
+      "version": "7",
+      "when": 1794511111999,
+      "tag": "0145_shopping_conectores",
+      "breakpoints": true
+    },
+    {
+      "idx": 102,
+      "version": "7",
+      "when": 1794511151278,
+      "tag": "0146_shopping_cliques",
+      "breakpoints": true
+    },
+    {
+      "idx": 103,
+      "version": "7",
+      "when": 1794520733615,
+      "tag": "0150_chat_salas",
+      "breakpoints": true
+    },
+    {
+      "idx": 104,
+      "version": "7",
+      "when": 1794520832138,
+      "tag": "0151_chat_eventos_jogo",
+      "breakpoints": true
+    },
+    {
+      "idx": 105,
+      "version": "7",
+      "when": 1794527044679,
+      "tag": "0152_ficha_juridico",
+      "breakpoints": true
+    },
+    {
+      "idx": 106,
+      "version": "7",
+      "when": 1794529427111,
+      "tag": "0155_webhook_circuit_breaker",
+      "breakpoints": true
+    },
+    {
+      "idx": 107,
+      "version": "7",
+      "when": 1794529487111,
+      "tag": "0156_indice_var",
+      "breakpoints": true
     }
   ]
 }

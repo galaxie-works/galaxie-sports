@@ -30,6 +30,7 @@ import {
 import { attemptsOf, cursorId, type CursorRef, type CursorStore } from '../jobs/runtime/cursor-store.js';
 import { diffSnapshot, isSignificant, type LiveChange } from './diff.js';
 import { spent } from './poller.js';
+import { moduleTierOf } from '@galaxie/runtime-config';
 import { isRelevant, priorityScore, type LiveSchedulerOptions } from './schedule.js';
 import type { LiveStore } from './store.js';
 import type { LiveCandidate } from './types.js';
@@ -98,11 +99,18 @@ function inCatalog(c: LiveCandidate): boolean {
   return c.livePriority !== 'none' || c.derby;
 }
 
+/** Tier desligado no painel (módulo `live`): fora do ao vivo e da reconciliação, como um jogo fora do catálogo. */
+function tierOn(c: LiveCandidate, tiers: readonly number[] | undefined): boolean {
+  return c.tier == null || !tiers || tiers.includes(moduleTierOf(c.tier));
+}
+
 export function reconcileReason(
   c: LiveCandidate,
   now: Date,
   options: ReconcileTargetOptions = {},
 ): ReconcileReason | null {
+  // vale para todos os motivos (encerrado pelo relógio, parado e --forcar): o pós-jogo e a agenda D-1 cobrem
+  if (!tierOn(c, options.tiers)) return null;
   if (isClockFinished(c)) return inCatalog(c) ? 'unconfirmed' : null;
   if (!isInPlay(c.status) && c.status !== 'starting') return null;
   if (isStale(c, now, options)) return 'stale';

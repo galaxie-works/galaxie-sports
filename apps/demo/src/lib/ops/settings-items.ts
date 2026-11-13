@@ -1,5 +1,5 @@
 /**
- * Itens do menu de Ajustes (épico #1066): Início fixo no topo e 9 grupos com 45 itens, 25 que já existem e 20
+ * Itens do menu de Ajustes (épico #1066): Início fixo no topo e 9 grupos com 45 itens, 26 que já existem e 19
  * planejados com o selo "Em breve" (decisão A5). Puro (sem React nem servidor): o proxy, os redirecionamentos, o mapa
  * ajuste → página e os testes leem daqui; os ícones e os textos ficam em `components/admin/settings-nav.tsx` e no
  * dicionário (`ops.nav`).
@@ -93,7 +93,8 @@ export const SETTINGS_ITEMS = [
   { id: 'liveChat', href: '/ajustes/chat-ao-vivo', group: 'engajamento', soon: { href: issue(915) } },
   { id: 'communities', href: '/ajustes/comunidades', group: 'engajamento', soon: { href: issue(936) } },
   { id: 'gamification', href: '/ajustes/gamificacao', group: 'engajamento', soon: { href: issue(904) } },
-  { id: 'shopping', href: '/ajustes/shopping', group: 'engajamento', soon: { href: issue(909) } },
+  // Shopping (#914): lojas da Galaxie e a curadoria dos produtos oficiais por entidade
+  { id: 'shopping', href: '/ajustes/shopping', group: 'engajamento' },
   // Inteligência
   { id: 'cosmos', href: '/ajustes/cosmos', group: 'inteligencia' },
   { id: 'ai', href: '/ajustes/ia', group: 'inteligencia' },

@@ -17,7 +17,7 @@ import { moduleDef } from '@galaxie/runtime-config';
 describe('rascunho dos módulos por tier', () => {
   it('parte do estado efetivo e grava só o que difere do padrão, nas duas flags', () => {
     const draft = initialModuleDraft('football', null, null);
-    expect(draft['match-detail']).toEqual([true, true, false]);
+    expect(draft['match-detail']).toEqual([true, true, true]);
     expect(draft.standings).toEqual([true, true, true]);
     expect(draft.agenda).toEqual([true]);
     const same = moduleDraftTexts('football', draft, null);
@@ -52,7 +52,7 @@ describe('rascunho dos módulos por tier', () => {
     );
     expect(modulesNotCovering('football', 1).map((d) => d.id)).toEqual(['people-mirror']);
     const draft = initialModuleDraft('football', null, null);
-    expect(rowSummary('football', draft, 3)).toMatchObject({ on: 7 });
+    expect(rowSummary('football', draft, 3)).toMatchObject({ on: 9 });
     expect(modulesOfRow('basketball', 3)).toEqual([]);
   });
 

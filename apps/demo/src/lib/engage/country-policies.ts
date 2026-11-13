@@ -8,6 +8,7 @@ import {
   isPolicyKey,
   normalizePolicy,
   policyChangeIssues,
+  completePolicy,
   type CountryPolicy,
   type PolicyHardening,
   type PolicyIssue,
@@ -52,7 +53,8 @@ export async function listPolicies(): Promise<PolicyRow[]> {
   }>(`select country, policy, version, updated_by, updated_at from engage.country_policy order by country`);
   return rows.map((r) => ({
     country: r.country,
-    policy: r.policy,
+    // ficha gravada antes do #1104 ou do #1115: a tela abre com as regras mais protetivas preenchidas
+    policy: completePolicy(r.policy),
     version: r.version,
     updatedBy: r.updated_by,
     updatedAt: r.updated_at.toISOString(),

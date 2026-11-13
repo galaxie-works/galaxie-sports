@@ -602,6 +602,27 @@ tests:
               summary: 'Tarefa acervo-escudos esperando worker há 1h 12m 0s'
               description: 'Veja se o worker está no ar e atende o tipo acervo-escudos, e se uma tarefa longa ocupa a vaga (ops.job_request, galaxie_queue_tasks_running).'
 
+  - name: VAR com veredito desconhecido avisa depois de 30 min
+    interval: 1m
+    input_series:
+      - series: 'galaxie_var_unknown_details{instance="api:8080",job="galaxie-api",detail="Goal Disallowed - unknown"}'
+        values: '2x40'
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: VarDetailUnknown
+        exp_alerts: []
+      - eval_time: 35m
+        alertname: VarDetailUnknown
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              instance: api:8080
+              job: galaxie-api
+              detail: Goal Disallowed - unknown
+            exp_annotations:
+              summary: 'VAR com veredito desconhecido: "Goal Disallowed - unknown" (2 lances em 7 dias)'
+              description: 'A api-sports mandou um detail de VAR que o contrato não conhece: o lance sai com var_outcome = other, peso 40 e o texto em inglês. Acrescente o texto em VAR_DETAILS (packages/contracts/src/events.ts), o peso em VAR_OUTCOME_WEIGHT (apps/api/src/events/timeline.ts) e as traduções do demo e dos widgets.'
+
   - name: resumo da home Explorar com mais de 30 min dispara depois de 5 min; recalculado a tempo não
     interval: 1m
     input_series:

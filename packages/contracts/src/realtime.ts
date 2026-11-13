@@ -123,12 +123,13 @@ export const RealtimeChange = z
     data: z.record(z.string(), z.unknown()).meta({
       description:
         'Novos valores: `score`; `status`/`status_detail`/`clock`; `incidents` (lances novos); ' +
-        '`countries` (onde assistir); `contexts` (locale/kind publicados).',
+        '`countries` (onde assistir); `contexts` (locale/kind publicados). `goal_cancelled: true` no ' +
+        '`event.incident_added` sinaliza gol anulado (lance de VAR de gol anulado, do fornecedor ou inferido).',
     }),
     previous: z
       .record(z.string(), z.unknown())
       .optional()
-      .meta({ description: 'Valores anteriores relevantes (ex.: `status`).' }),
+      .meta({ description: 'Valores anteriores relevantes (`status`; `score` no `event.score_changed`).' }),
     occurred_at: z.string().meta({ example: '2026-10-21T22:47:12.345Z' }),
   })
   .meta({ id: 'RealtimeChange' });

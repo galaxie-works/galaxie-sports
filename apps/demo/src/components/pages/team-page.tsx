@@ -2,6 +2,7 @@ import type { Photo, TeamColors, TeamSeason, TeamSemantic } from '@galaxie/contr
 import { Calendar, History, MapPin, Megaphone, Quote, Users } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { Suspense } from 'react';
 import { permanentRedirect } from 'next/navigation';
 
 import { LoadingStatus } from '@/components/app-shell/loading-status';
@@ -42,10 +43,11 @@ import {
   teamTraitsRequest,
 } from '@/lib/galaxie/api';
 import type { ApiRequest } from '@/lib/galaxie/request';
-import { contentLocale, type Locale } from '@/lib/i18n/config';
+import { contentLocale, defaultMarket, type Locale } from '@/lib/i18n/config';
 import type { Dictionary } from '@/lib/i18n/dictionary';
 import { calendarDate } from '@/lib/i18n/format';
 import { getI18n } from '@/lib/i18n/server';
+import { ShopShelf } from '@/components/shop/shop-shelf';
 import { fill, plural } from '@/lib/i18n/text';
 import { heroPhotos } from '@/lib/driver-hero';
 import { countryHref, isIndividualKind, participantHref, sportParent } from '@/lib/navigation';
@@ -674,6 +676,15 @@ export async function TeamContent({
               <PortraitCard
                 photo={career?.portrait ?? photos?.photos.find((p) => p.role === 'portrait') ?? null}
               />
+            )}
+            {/* Shopping (#921): fora do exemplo público; sem produto, o bloco não aparece */}
+            {source.showcase ? null : (
+              <Suspense fallback={null}>
+                <ShopShelf
+                  entities={[{ kind: 'participant', id: team.id, name: team.name }]}
+                  country={defaultMarket(locale)}
+                />
+              </Suspense>
             )}
             <ChampionshipCard standings={overview.standings} />
             <IdentityCard

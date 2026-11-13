@@ -25,12 +25,13 @@ RUN mkdir -p /out \
  && cp -r apps/demo/.next/static /out/apps/demo/.next/static \
  && cp -r apps/demo/public /out/apps/demo/public \
  && mkdir -p /out/config \
- && cp -r config/broadcasters config/broadcast-rights /out/config/
+ && cp -r config/broadcasters config/broadcast-rights config/catalog /out/config/
 
 # ── runtime: Node + tini, usuário sem privilégios ──
 FROM ${NODE_IMAGE} AS runtime
 RUN apk add --no-cache tini
-ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000 HOSTNAME=0.0.0.0 WTW_CONFIG_DIR=/srv/config
+ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000 HOSTNAME=0.0.0.0 WTW_CONFIG_DIR=/srv/config \
+    CATALOG_DIR=/srv/config/catalog
 WORKDIR /srv
 COPY --from=build --chown=node:node /out ./
 COPY infra/healthcheck/selfheal.mjs /usr/local/lib/galaxie/selfheal.mjs

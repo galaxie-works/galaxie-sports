@@ -34,7 +34,7 @@ COPY --from=build /out/dist ./dist
 COPY --from=build /repo/config /srv/config
 COPY --from=build /repo/data/knowledge /srv/data/knowledge
 ENV GEO_CONFIG_DIR=/srv/config/geo RULES_CONFIG_DIR=/srv/config/rules WTW_CONFIG_DIR=/srv/config \
-    MEDIA_DENYLIST_PATH=/srv/config/assets/denylist.yaml KNOWLEDGE_DIR=/srv/data/knowledge
+    CATALOG_DIR=/srv/config/catalog MEDIA_DENYLIST_PATH=/srv/config/assets/denylist.yaml KNOWLEDGE_DIR=/srv/data/knowledge
 COPY infra/healthcheck/selfheal.mjs /usr/local/lib/galaxie/selfheal.mjs
 # O hash da entrada da imagem (tag in-<hash>), passado pelo docker.yml. Nunca o SHA do commit: a imagem é reaproveitada
 # entre commits, e o mesmo conteúdo tem de dar a mesma imagem. /version e build_info leem daqui.

@@ -40,16 +40,19 @@ export function moduleTierOf(tier: number | null | undefined): ModuleTier {
 
 // ── Padrões dos passos por tier (os jobs leem daqui; o painel mostra o mesmo) ────────────────────────────────────
 
-/** Sync diário: maior tier com o detalhe dos encerrados (escalação, eventos e estatísticas do jogo). */
-export const MATCH_DETAIL_MAX_TIER = 2;
+/**
+ * Sync diário: maior tier com o detalhe dos encerrados (escalação, eventos e estatísticas do jogo). Tiers 1 a 3
+ * desde o #1160 (decisão do dono em 12/11/2026).
+ */
+export const MATCH_DETAIL_MAX_TIER = 3;
 /** Sync diário: maior tier com a relista da temporada atual (`fixtures?league&season`). */
 export const SEASON_LIST_MAX_TIER = 3;
 /** Sync diário: maior tier dos times no rodízio de elencos, técnicos e transferências (o tier 2+ é do espelho). */
 export const PEOPLE_ROTATION_MAX_TIER = 1;
 /** Sync diário: maior tier das pessoas que recebem `/trophies` e `/sidelined` no rodízio. */
 export const PERSON_ROTATION_MAX_TIER = 1;
-/** Sync diário: maior tier com os números dos jogadores da temporada (`players?league&season`). */
-export const PLAYER_STATS_MAX_TIER = 1;
+/** Sync diário: maior tier com os números dos jogadores da temporada (`players?league&season`). Tiers 1 a 3 (#1160). */
+export const PLAYER_STATS_MAX_TIER = 3;
 /** Agentes de IA (resumo, cenário, vídeos, Onde Assistir): maior tier atendido. */
 export const AGENT_MAX_TIER = 2;
 /** Espelho das outras 11 APIs: maior tier com temporadas, jogos e times. */

@@ -62,7 +62,7 @@ describe('catálogo de módulos', () => {
     const f = DEFAULT_MODULE_CONFIG.api('football');
     expect(f.states('agenda')).toEqual([true]);
     expect(f.tiersOn('season-list')).toEqual([1, 2, 3]);
-    expect(f.tiersOn('match-detail')).toEqual([1, 2]);
+    expect(f.tiersOn('match-detail')).toEqual([1, 2, 3]);
     expect(f.maxTier('match-detail')).toBe(MATCH_DETAIL_MAX_TIER);
     expect(f.tiersOn('live')).toEqual([1, 2, 3]);
     expect(f.tiersOn('people-rotation')).toEqual([1]);
@@ -73,11 +73,12 @@ describe('catálogo de módulos', () => {
     expect(f.tiersOn('odds')).toEqual([1, 2]);
     expect(f.tiersOn('team-stats')).toEqual([1, 2]);
     expect(f.tiersOn('standings')).toEqual([1, 2, 3]);
-    expect(f.tiersOn('player-stats')).toEqual([1]);
+    expect(f.tiersOn('player-stats')).toEqual([1, 2, 3]);
     expect(f.tiersOn('wtw')).toEqual([1, 2]);
     expect(f.maxTier('ai-content')).toBe(AGENT_MAX_TIER);
     expect(f.enabled('h2h')).toBe(true);
-    expect(f.enabled('match-detail', 3)).toBe(false);
+    expect(f.enabled('match-detail', 3)).toBe(true);
+    expect(f.enabled('sidelined', 3)).toBe(false);
     expect(f.enabled('match-detail', 0)).toBe(true);
     expect(f.enabled('match-detail', null)).toBe(true);
     const b = DEFAULT_MODULE_CONFIG.api('basketball');
@@ -145,7 +146,9 @@ describe('MODULES_<API>', () => {
       ['injuries-day', [false]],
       ['live', [false, false, false]],
     ]);
-    expect(formatModules('football', states)).toBe('injuries-day=off; live=off; trophies=on,on,off');
+    expect(formatModules('football', states)).toBe(
+      'injuries-day=off; match-detail=on,on,off; live=off; trophies=on,on,off',
+    );
     expect(formatModules('football', new Map())).toBe('');
   });
 });
@@ -153,12 +156,12 @@ describe('MODULES_<API>', () => {
 describe('moduleConfig', () => {
   it('aplica as sobrescritas e lê os módulos do espelho dos períodos', () => {
     const env: Record<string, string> = {
-      MODULES_FOOTBALL: 'match-detail=on; live=on,on,off',
+      MODULES_FOOTBALL: 'match-detail=on,on,off; live=on,on,off',
       MIRROR_PERIODS_FOOTBALL: '/predictions=1,off; /players/squads=off,14',
     };
     const cfg = moduleConfigFromEnv(env, mirrorConfigFromEnv(env)).api('football');
-    expect(cfg.tiersOn('match-detail')).toEqual([1, 2, 3]);
-    expect(cfg.maxTier('match-detail')).toBe(3);
+    expect(cfg.tiersOn('match-detail')).toEqual([1, 2]);
+    expect(cfg.maxTier('match-detail')).toBe(2);
     expect(cfg.enabled('live', 3)).toBe(false);
     expect(cfg.enabled('live', 5)).toBe(false);
     expect(cfg.enabled('live', 2)).toBe(true);

@@ -4,13 +4,13 @@
  *   pnpm --filter @galaxie/ingestor sync:daily --plan
  *   pnpm --filter @galaxie/ingestor sync:daily
  * Passos: fixtures?date= D-1/D0/D+1 · injuries?date= D0 · /leagues · /status (reconciliação, sem cota)
- *         · detalhe dos encerrados (tier 1 → clássicos → tier 2) · rodízio de entidades tier 1
+ *         · detalhe dos encerrados (tier 1 → clássicos → tier 2 → tier 3) · rodízio de entidades tier 1
  *         · relista da temporada atual (fixtures?league&season, tier 1 a cada 2 dias, os demais a cada 7)
- *         · números dos jogadores da temporada em jogo (players?league&season, todas as páginas; tier 1 a cada 3 dias).
+ *         · números dos jogadores da temporada em jogo (players?league&season, todas as páginas, tiers 1 a 3; tier 1 a cada 3 dias).
  * Módulos por tier (escalação, relista, rodízio, números dos jogadores, lesões do dia): Ajustes → Dados → Módulos
  * por esporte (MODULES_FOOTBALL); padrão: o de sempre.
- * Opções: --max-detalhes N (free 35) · --rodizio N (free 5) · --listas-temporada N (pagos 300, free 0)
- *         · --estatisticas-jogadores N (páginas por dia; pagos 1000, free 0) · --tier-estatisticas 1
+ * Opções: --max-detalhes N (free 35, pagos 2000) · --rodizio N (free 5) · --listas-temporada N (pagos 300, free 0)
+ *         · --estatisticas-jogadores N (páginas por dia; pagos 1000, free 0) · --tier-estatisticas 3
  *         · --dias-atras 3 · --lesoes-amanha
  *         · --outros-esportes (games/races/fights?date= nas outras 11 APIs) · --max-chamadas N · --forcar
  *         · --sem-normalizar (só grava o raw) · --sem-tabelas (não recalcula as classificações)
