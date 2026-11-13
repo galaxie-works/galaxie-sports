@@ -169,7 +169,13 @@ describe('cliques do Shopping (#918)', () => {
     expect((await click(offProductId)).statusCode).toBe(404);
     expect((await click(randomUUID())).statusCode).toBe(404);
     expect((await click('nao-e-uuid')).statusCode).toBe(400);
-    expect((await click(productId, '?origin=client')).statusCode).toBe(400);
+    expect((await click(productId, '?origin=tv')).statusCode).toBe(400);
+  });
+
+  it('origem do widget do cliente sem o widget assinado: loja sem código nenhum (#925)', async () => {
+    const res = await click(productId, '?origin=client');
+    expect(res.statusCode).toBe(302);
+    expect(res.headers.location).not.toContain(TAG);
   });
 
   it('HEAD não é rota (verificador de link não conta clique)', async () => {
