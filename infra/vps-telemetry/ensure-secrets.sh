@@ -6,7 +6,8 @@
 #   bash ensure-secrets.sh [arquivo]     # direto na VPS (padrão: ./.env)
 #
 # Só para segredos que nenhum terceiro conhece: a Galaxie assina e confere sozinha. Chave de fornecedor (Stripe,
-# api-sports, provedores de IA) e segredo combinado com cliente (assinatura dos webhooks) continuam à mão.
+# api-sports, provedores de IA) continua à mão. O segredo de assinatura de cada webhook de cliente é gerado por endpoint
+# no cadastro; aqui entra só a KEK que cifra esses segredos no banco (WEBHOOK_SIGNING_SECRET).
 #
 # Regras:
 #   - gera só quando a chave falta, está vazia ou ainda tem o valor de exemplo do env.example ("troque-por…"); valor que
@@ -28,6 +29,10 @@ KEYS=(
   # Ajustes → Credenciais. Gerada só quando falta; NUNCA troque nem apague: sem a mesma KEK, as chaves gravadas pelo
   # painel não abrem mais e precisam ser cadastradas de novo (rotação só pelo runbook docs/runbooks/chaves-no-painel.md)
   SETTINGS_KEK
+  # KEK dos segredos dos webhooks de clientes (#360): worker de webhooks e painel (site e console) cifram e abrem com
+  # ela. Gerada só quando falta; NUNCA troque nem apague: sem a mesma KEK, os segredos já cadastrados não abrem e cada
+  # cliente precisa rotacionar o dele no portal (rotação da KEK pelo runbook docs/runbooks/webhooks.md)
+  WEBHOOK_SIGNING_SECRET
 )
 # o Prometheus (projeto obs) lê o mesmo token só quando o obs sobe de novo: gerar aqui deixaria a coleta caída até lá.
 # Só avisa; troque à mão e suba o obs junto (deploy-gh.sh --project obs)
@@ -121,6 +126,10 @@ chmod 600 "$tmp"
 mv "$tmp" "$ENV_FILE"
 trap - EXIT
 echo "segredos internos gerados no $ENV_FILE: ${missing[*]}"
+if [[ " ${missing[*]} " == *" WEBHOOK_SIGNING_SECRET "* ]]; then
+  echo "WARN  WEBHOOK_SIGNING_SECRET nova: guarde uma cópia fora da VPS (cofre de senhas). Se ela for perdida ou trocada,"
+  echo "      os segredos dos webhooks já cadastrados não abrem e cada cliente precisa rotacionar o dele no portal"
+fi
 if [[ " ${missing[*]} " == *" SETTINGS_KEK "* ]]; then
   echo "WARN  SETTINGS_KEK nova: guarde uma cópia fora da VPS (cofre de senhas). Se ela for perdida ou trocada, as chaves"
   echo "      gravadas em Ajustes → Credenciais não abrem mais e precisam ser cadastradas de novo"
