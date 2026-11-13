@@ -21220,7 +21220,7 @@
         },
         "profile_avatar_status": {
           "name": "profile_avatar_status",
-          "value": "\"fan\".\"profile\".\"avatar_status\" is null or \"fan\".\"profile\".\"avatar_status\" in ('pending', 'visible', 'held')"
+          "value": "\"fan\".\"profile\".\"avatar_status\" is null or \"fan\".\"profile\".\"avatar_status\" in ('pending', 'visible', 'held', 'removed')"
         },
         "profile_age_band_detail": {
           "name": "profile_age_band_detail",

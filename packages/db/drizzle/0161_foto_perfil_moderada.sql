@@ -5,4 +5,4 @@ ALTER TABLE "fan"."profile" ADD COLUMN "avatar_status" text;--> statement-breakp
 ALTER TABLE "fan"."profile" ADD COLUMN "avatar_ref" text;--> statement-breakpoint
 ALTER TABLE "fan"."profile" ADD COLUMN "avatar_hash" text;--> statement-breakpoint
 ALTER TABLE "fan"."profile" ADD COLUMN "avatar_checked_at" timestamp with time zone;--> statement-breakpoint
-ALTER TABLE "fan"."profile" ADD CONSTRAINT "profile_avatar_status" CHECK ("fan"."profile"."avatar_status" is null or "fan"."profile"."avatar_status" in ('pending', 'visible', 'held'));
+ALTER TABLE "fan"."profile" ADD CONSTRAINT "profile_avatar_status" CHECK ("fan"."profile"."avatar_status" is null or "fan"."profile"."avatar_status" in ('pending', 'visible', 'held', 'removed'));

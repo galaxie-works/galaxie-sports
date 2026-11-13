@@ -3,7 +3,16 @@ import type { FastifyInstance } from 'fastify';
 import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { and, eq } from 'drizzle-orm';
-import { closeDb, createDb, fanProfile, moderationCase, runMigrations, type Database } from '@galaxie/db';
+import {
+  closeDb,
+  createDb,
+  fanAvatarPublicUrl,
+  fanProfile,
+  moderationCase,
+  purgeModeration,
+  runMigrations,
+  type Database,
+} from '@galaxie/db';
 import { generateAdminKey, hashAdminKey } from '../src/admin/guard.js';
 import { loadPlans } from '../src/admin/plans.js';
 import { checkAvatar, publicAvatars, type AvatarCheckInput } from '../src/engage/fan-avatar.js';
@@ -227,6 +236,58 @@ describe('foto de perfil na moderação de imagem (#1025)', () => {
     expect(seen.length).toBe(calls);
     expect(await profileRow(t.id, profile_id)).toEqual({ status: 'visible', ref: decided.ref });
     expect(await publicAvatars(db, t.id, [profile_id])).toEqual(new Map([[profile_id, signed]]));
+  });
+
+  it('o chat usa a mesma regra: pendente e segurada saem sem foto', async () => {
+    const t = await tenantKey('avatar-chat');
+    verdict = false;
+    let release!: () => void;
+    gate = new Promise((r) => (release = r));
+    const { profile_id } = (await issue(t.key, { ...base, avatarUrl: photo(7) })).json().data;
+    const chatUrl = async () =>
+      (
+        await db
+          .select({ url: fanAvatarPublicUrl() })
+          .from(fanProfile)
+          .where(and(eq(fanProfile.tenantId, t.id), eq(fanProfile.id, profile_id)))
+      )[0]!.url;
+    expect(await chatUrl()).toBeNull(); // pendente
+    gate = null;
+    release();
+    await settle();
+    expect(await chatUrl()).toBeNull(); // segurada
+    const { ref } = await profileRow(t.id, profile_id);
+    await caseFor(t.id, ref!, { status: 'dismissed', hidden: false });
+    expect(await chatUrl()).toBe(photo(7));
+  });
+
+  it('a decisão da equipe sobrevive à limpeza do caso', async () => {
+    const t = await tenantKey('avatar-limpeza');
+    verdict = false;
+    const kept = (await issue(t.key, { ...base, avatarUrl: photo(8) })).json().data.profile_id;
+    const gone = (
+      await issue(t.key, {
+        ...base,
+        externalProfileId: 'prof_2',
+        nickname: 'Torcedor_2',
+        avatarUrl: photo(9),
+      })
+    ).json().data.profile_id;
+    await settle();
+    const keptRef = (await profileRow(t.id, kept)).ref!;
+    const goneRef = (await profileRow(t.id, gone)).ref!;
+    await caseFor(t.id, keptRef, { status: 'dismissed', hidden: false });
+    await caseFor(t.id, goneRef, { status: 'resolved', hidden: true });
+    await db
+      .update(moderationCase)
+      .set({ purgeAt: new Date(Date.now() - 1000) })
+      .where(eq(moderationCase.tenantId, t.id));
+    await purgeModeration(db);
+    expect(await db.select().from(moderationCase).where(eq(moderationCase.tenantId, t.id))).toEqual([]);
+    // arquivada sem ação: fica no ar sem o caso; tirada do ar: não volta
+    expect((await profileRow(t.id, kept)).status).toBe('visible');
+    expect((await profileRow(t.id, gone)).status).toBe('removed');
+    expect(await publicAvatars(db, t.id, [kept, gone])).toEqual(new Map([[kept, photo(8)]]));
   });
 
   it('segurada sem caso na fila fica pendente para tentar de novo', async () => {

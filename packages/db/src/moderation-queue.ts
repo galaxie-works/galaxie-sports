@@ -9,6 +9,7 @@
  */
 import { and, asc, desc, eq, gt, gte, inArray, isNull, lte, or, sql } from 'drizzle-orm';
 import type { Database } from './client.js';
+import { settleAvatarsBeforePurge } from './fan-avatar-public.js';
 import {
   fanBlock,
   moderationAppeal,
@@ -1484,6 +1485,13 @@ export async function purgeModeration(
         ),
       )
       .returning({ id: moderationSanction.id });
+    // foto de perfil (#1025): o caso que sai levava a decisão da equipe; ela fica gravada no Perfil
+    await tx.execute(
+      settleAvatarsBeforePurge(
+        sql`${moderationCase.status} in ('resolved', 'dismissed') and ${moderationCase.sanctionId} is null
+          and ${moderationCase.purgeAt} <= now()`,
+      ),
+    );
     const cases = await tx
       .delete(moderationCase)
       .where(

@@ -69,7 +69,7 @@ export type FanVisibility = Partial<Record<FanVisibleField, 'public' | 'private'
  * Foto de perfil na moderação de imagem (#1025): `pending` (esperando a Cosmos), `visible` (liberada) ou `held`
  * (fora do ar até a equipe decidir). Só o próprio torcedor vê a foto que não está `visible`.
  */
-export const FAN_AVATAR_STATUS = ['pending', 'visible', 'held'] as const;
+export const FAN_AVATAR_STATUS = ['pending', 'visible', 'held', 'removed'] as const;
 export type FanAvatarStatus = (typeof FAN_AVATAR_STATUS)[number];
 
 const fanId = () =>
@@ -163,7 +163,7 @@ export const fanProfile = fan.table(
     check('profile_country', sql`${t.country} ~ '^[A-Z]{2}$'`),
     check(
       'profile_avatar_status',
-      sql`${t.avatarStatus} is null or ${t.avatarStatus} in ('pending', 'visible', 'held')`,
+      sql`${t.avatarStatus} is null or ${t.avatarStatus} in ('pending', 'visible', 'held', 'removed')`,
     ),
     check(
       'profile_age_band_detail',

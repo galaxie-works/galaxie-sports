@@ -23,14 +23,14 @@ import {
 import { localImageScreener } from '@galaxie/cosmos/image-screen-local';
 import {
   closeCase,
+  fanAvatarPublic,
   fanProfile,
-  moderationCase,
   type Database,
   type FanAvatarStatus,
   type ModerationClocks,
 } from '@galaxie/db';
 import { guardedFetch, type GuardedFetch } from '@galaxie/net-guard';
-import { and, eq, inArray, isNull, or, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNull } from 'drizzle-orm';
 
 export const AVATAR_LIMITS = {
   /** Tempo máximo para buscar a foto na URL do cliente. */
@@ -52,7 +52,7 @@ export interface AvatarBefore {
 }
 
 /** A decisão anterior, que vale de novo se a imagem for a mesma (mesmo hash). */
-export type AvatarPrevious = { ref: string; hash: string; status: 'visible' | 'held' } | null;
+export type AvatarPrevious = { ref: string; hash: string; status: 'visible' | 'held' | 'removed' } | null;
 
 export interface AvatarPlan {
   /** Campos a gravar no Perfil; vazio = nada muda. */
@@ -66,8 +66,8 @@ export interface AvatarPlan {
   check: { ref: string; url: string; previous: AvatarPrevious } | null;
 }
 
-const decided = (s: FanAvatarStatus | null | undefined): s is 'visible' | 'held' =>
-  s === 'visible' || s === 'held';
+const decided = (s: FanAvatarStatus | null | undefined): s is 'visible' | 'held' | 'removed' =>
+  s === 'visible' || s === 'held' || s === 'removed';
 
 /**
  * O que o pedido de token faz com a foto. Vai para a moderação: foto nova, foto de antes do #1025 (sem estado),
@@ -283,10 +283,8 @@ export function scheduleAvatarCheck(run: () => Promise<unknown>, onError: (err: 
 }
 
 /**
- * A foto que os outros torcedores podem ver, por Perfil. Aparece quando o torcedor não escondeu a foto
- * (`visibility.avatar`), nenhum caso da foto a tirou do ar e: a Cosmos liberou (`visible`), ou a foto estava
- * segurada (`held`) e a equipe já fechou o caso sem esconder. Perfil sem foto liberada fica fora do mapa. O mural
- * (#946) e o chat usam isto para mostrar a foto de alguém.
+ * A foto que os outros torcedores podem ver, por Perfil (regra em `fanAvatarPublic`, de `@galaxie/db`). Perfil sem
+ * foto liberada fica fora do mapa. O mural (#946) usa isto; o chat embute a mesma regra na consulta.
  */
 export async function publicAvatars(
   db: Database,
@@ -294,28 +292,11 @@ export async function publicAvatars(
   profileIds: readonly string[],
 ): Promise<Map<string, string>> {
   if (!profileIds.length) return new Map();
-  const caseOf = (extra: ReturnType<typeof sql>) => sql`exists (
-    select 1 from ${moderationCase}
-    where ${moderationCase.tenantId} = ${fanProfile.tenantId}
-      and ${moderationCase.targetType} = 'profile'
-      and ${moderationCase.targetId} = ${fanProfile.avatarRef}
-      and ${extra}
-  )`;
   const rows = await db
     .select({ id: fanProfile.id, url: fanProfile.avatarUrl })
     .from(fanProfile)
     .where(
-      and(
-        eq(fanProfile.tenantId, tenantId),
-        inArray(fanProfile.id, [...profileIds]),
-        isNull(fanProfile.deletedAt),
-        sql`coalesce(${fanProfile.visibility}->>'avatar', 'public') <> 'private'`,
-        sql`not ${caseOf(sql`${moderationCase.hiddenAt} is not null`)}`,
-        or(
-          eq(fanProfile.avatarStatus, 'visible'),
-          and(eq(fanProfile.avatarStatus, 'held'), caseOf(sql`${moderationCase.status} <> 'open'`)),
-        ),
-      ),
+      and(eq(fanProfile.tenantId, tenantId), inArray(fanProfile.id, [...profileIds]), fanAvatarPublic()),
     );
   return new Map(rows.filter((r) => r.url !== null).map((r) => [r.id, r.url!]));
 }

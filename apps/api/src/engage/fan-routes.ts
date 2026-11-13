@@ -67,7 +67,9 @@ function meBody(p: FanProfileView, policy: CountryPolicy | null): FanMe {
       profile_id: p.profileId,
       nickname: p.nickname,
       avatar_url: p.avatarUrl,
-      avatar_status: p.avatarUrl === null ? null : (p.avatarStatus ?? 'pending'),
+      // `removed` (tirada do ar, caso já apagado) chega como `held`: para o torcedor, é a mesma foto fora do ar
+      avatar_status:
+        p.avatarUrl === null ? null : p.avatarStatus === 'removed' ? 'held' : (p.avatarStatus ?? 'pending'),
       age_band: p.ageBand,
       age_band_detail: p.ageBandDetail,
       age_assurance: { method: p.ageAssurance, at: p.ageAssuranceAt?.toISOString() ?? null },
