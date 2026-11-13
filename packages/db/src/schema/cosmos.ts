@@ -580,3 +580,28 @@ export const docEmbedding = cosmos.table(
   },
   (t) => [primaryKey({ columns: [t.model, t.contentHash] })],
 );
+
+// ─── cota da carteira por sala e produto (#1116) ───────────────────────────────────────────────────
+
+/**
+ * Parte do saldo reservada a uma sala ou produto (`chat`, `chat:<sala>`, `community:<id>`, `pool`…), em % do saldo do
+ * ciclo (`wallet.cycle_base`, o saldo livre logo depois da última entrada de créditos). A reserva de uma função com
+ * esse escopo não passa da cota; escopo sem cota usa só o saldo da carteira. A soma pode passar de 100% (a tela avisa).
+ */
+export const walletQuota = cosmos.table(
+  'wallet_quota',
+  {
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenant.id, { onDelete: 'cascade' }),
+    scope: text('scope').notNull(),
+    percent: numeric('percent', { precision: 5, scale: 2, mode: 'number' }).notNull(),
+    updatedBy: text('updated_by').notNull(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.tenantId, t.scope] }),
+    check('wallet_quota_percent', sql`${t.percent} > 0 and ${t.percent} <= 100`),
+  ],
+);

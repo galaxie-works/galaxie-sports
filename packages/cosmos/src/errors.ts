@@ -46,7 +46,11 @@ export type CosmosErrorCode =
   /** Pedido de créditos inexistente, de outro tenant ou já fechado. */
   | 'request_closed'
   /** Nota da decisão com mais de 500 caracteres. */
-  | 'note_too_long';
+  | 'note_too_long'
+  /** A sala ou o produto passaria da cota da carteira (#1116). */
+  | 'quota_exceeded'
+  /** Cotas inválidas: sala fora do formato, porcentagem fora de 0–100 ou lista grande demais (#1116). */
+  | 'invalid_quota';
 
 export class CosmosError extends Error {
   readonly code: CosmosErrorCode;

@@ -6,10 +6,12 @@
  * da sessão; o pacote garante o estado (um aberto por pessoa, só aberto anda).
  */
 import {
+  approveWithQuota,
   cancelCreditRequest,
   createCreditRequest,
   decideCreditRequest,
   isCosmosError,
+  isQuotaScope,
   listCreditRequests,
 } from '@galaxie/cosmos';
 
@@ -43,6 +45,8 @@ function failure(err: unknown, t: Texts): CreditRequestResult {
     if (err.code === 'request_open') return { ok: false, error: t.errors.alreadyOpen };
     if (err.code === 'request_closed') return { ok: false, error: t.errors.closed };
     if (err.code === 'note_too_long') return { ok: false, error: t.errors.note };
+    if (err.code === 'invalid_quota') return { ok: false, error: t.quotaInvalid };
+    if (err.code === 'no_wallet') return { ok: false, error: t.errors.generic };
   }
   console.error('[cosmos] pedido de créditos falhou', err);
   return { ok: false, error: t.errors.generic };
@@ -116,23 +120,49 @@ export async function requestCosmosCredits(reason: string): Promise<CreditReques
   }
 }
 
+/** Aumento de cota pedido junto com a aprovação (#1116): sala e pontos percentuais. */
+export interface QuotaRaise {
+  scope: string;
+  addPercent: number;
+}
+
+const validRaise = (r: QuotaRaise) =>
+  isQuotaScope(r.scope) && typeof r.addPercent === 'number' && r.addPercent > 0 && r.addPercent <= 100;
+
+/**
+ * Aprova ou recusa. Aprovar com `raise` também aumenta a cota da sala (#1116), em vez de só abrir a compra: aprovação e
+ * aumento entram na mesma transação (se a cota não puder subir, o pedido continua aberto).
+ */
 export async function decideCosmosCreditRequest(
   requestId: string,
   decision: 'approved' | 'declined',
   note?: string,
+  raise?: QuotaRaise,
 ): Promise<CreditRequestResult> {
   const g = await gate(true);
   if ('error' in g) return { ok: false, error: g.error };
   if (!isUuid(requestId) || (decision !== 'approved' && decision !== 'declined'))
     return { ok: false, error: g.t.errors.closed };
+  if (raise && (decision !== 'approved' || typeof raise !== 'object' || !validRaise(raise)))
+    return { ok: false, error: g.t.quotaError };
   try {
-    await decideCreditRequest(builderDb(), {
-      tenantId: g.ctx.tenant.id,
-      requestId,
-      decision,
-      userId: g.ctx.userId,
-      note: typeof note === 'string' ? note : null,
-    });
+    if (raise)
+      await approveWithQuota(builderDb(), {
+        tenantId: g.ctx.tenant.id,
+        requestId,
+        userId: g.ctx.userId,
+        scope: raise.scope,
+        addPercent: raise.addPercent,
+        note: typeof note === 'string' ? note : null,
+      });
+    else
+      await decideCreditRequest(builderDb(), {
+        tenantId: g.ctx.tenant.id,
+        requestId,
+        decision,
+        userId: g.ctx.userId,
+        note: typeof note === 'string' ? note : null,
+      });
     return { ok: true };
   } catch (err) {
     return failure(err, g.t);

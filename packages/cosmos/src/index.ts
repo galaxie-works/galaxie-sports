@@ -20,6 +20,7 @@ export * from './moderation-rules.js';
 export * from './moderation-engine.js';
 export * from './moderation-run.js';
 export * from './purchases.js';
+export * from './quota.js';
 export * from './recharge.js';
 export * from './settings.js';
 export * from './task-run.js';

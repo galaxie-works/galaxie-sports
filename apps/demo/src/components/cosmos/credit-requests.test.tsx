@@ -63,8 +63,24 @@ describe('pedido de créditos ao dono (#996)', () => {
     decide.mockResolvedValue({ ok: true });
     view([req()], true);
     expect(screen.queryByRole('button', { name: T.ask })).toBeNull();
+    await act(async () => screen.getByRole('button', { name: T.approveOpen }).click());
+    // sem salas, o diálogo só oferece a compra
+    expect(screen.queryByRole('button', { name: T.approveQuota })).toBeNull();
     await act(async () => screen.getByRole('button', { name: T.approve }).click());
     expect(decide).toHaveBeenCalledWith(req().id, 'approved');
+  });
+
+  it('com salas, aprovar pode aumentar a cota (#1116); o botão espera sala e pontos', async () => {
+    decide.mockResolvedValue({ ok: true });
+    render(
+      <I18nProvider locale="pt-BR" messages={clientDictionary('pt-BR')}>
+        <CreditRequests requests={[req()]} canManage packages={packages} scopes={['chat', 'community:c1']} />
+      </I18nProvider>,
+    );
+    await act(async () => screen.getByRole('button', { name: T.approveOpen }).click());
+    const raise = screen.getByRole('button', { name: T.approveQuota }) as HTMLButtonElement;
+    expect(raise.disabled).toBe(true);
+    expect(decide).not.toHaveBeenCalled();
   });
 
   it('pedido decidido mostra quem respondeu e a nota', () => {
