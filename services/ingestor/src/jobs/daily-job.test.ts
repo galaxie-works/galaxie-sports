@@ -528,15 +528,25 @@ describe('dailyJob: números dos jogadores da temporada em jogo', () => {
       )
       .sort();
 
-  it('pago: todas as páginas das temporadas tier 1 em jogo, de novo só depois do período do tier', async () => {
+  it('pago: todas as páginas das temporadas em jogo dos tiers 1 a 3, de novo só depois do período do tier', async () => {
     const h = harness({ plan: PRO_PLAN });
     const job = () => dailyJob(h.catalog, h.raw, h.cursors, h.plan, () => new Date(h.clock.t), derbyKeys);
     const r1 = await runJob(job(), h.deps);
     expect(r1.status).toBe('ok');
-    // Série A e Libertadores 2026 (tier 1, temporada atual), 3 páginas cada; a Série B (tier 2) fica de fora
-    expect(pages(h)).toEqual(['13:2026:1', '13:2026:2', '13:2026:3', '71:2026:1', '71:2026:2', '71:2026:3']);
-    expect(r1.phases[4]!.steps['estatisticas-jogadores']!.network).toBe(2);
-    expect(r1.phases[5]!.steps['estatisticas-jogadores']!.network).toBe(4);
+    // Série A e Libertadores 2026 (tier 1) e Série B 2026 (tier 2), 3 páginas cada (decisão do dono em 12/11/2026)
+    expect(pages(h)).toEqual([
+      '13:2026:1',
+      '13:2026:2',
+      '13:2026:3',
+      '71:2026:1',
+      '71:2026:2',
+      '71:2026:3',
+      '72:2026:1',
+      '72:2026:2',
+      '72:2026:3',
+    ]);
+    expect(r1.phases[4]!.steps['estatisticas-jogadores']!.network).toBe(3);
+    expect(r1.phases[5]!.steps['estatisticas-jogadores']!.network).toBe(6);
 
     const again = await planJob(job(), h.deps);
     expect(again.phases[4]!.steps).toEqual({});
@@ -547,10 +557,16 @@ describe('dailyJob: números dos jogadores da temporada em jogo', () => {
     await runJob(job(), h.deps);
     expect(pages(h, before)).toEqual([]);
 
-    h.clock.t += DAY; // venceu: a passada inteira de novo
+    h.clock.t += DAY; // venceu o tier 1: a passada inteira dele de novo; a Série B (7 dias) ainda não
     before = h.api.calls.length;
     await runJob(job(), h.deps);
     expect(pages(h, before)).toHaveLength(6);
+    expect(pages(h, before).some((p) => p.startsWith('72:'))).toBe(false);
+
+    h.clock.t += 4 * DAY; // 7 dias: volta a Série B
+    before = h.api.calls.length;
+    await runJob(job(), h.deps);
+    expect(pages(h, before).filter((p) => p.startsWith('72:'))).toHaveLength(3);
   });
 
   it('período pelo dia UTC: a passada do dia D volta no dia D+3, qualquer que seja a hora de cada execução', async () => {
@@ -561,7 +577,7 @@ describe('dailyJob: números dos jogadores da temporada em jogo', () => {
     await h.cursors.complete([...page1(71), ...page1(13)], {}, new Date('2026-10-21T00:45:00Z'));
     const firstPages = async (iso: string) => {
       const plan = await planJob(
-        dailyJob(h.catalog, h.raw, h.cursors, h.plan, () => new Date(iso), derbyKeys),
+        dailyJob(h.catalog, h.raw, h.cursors, h.plan, () => new Date(iso), derbyKeys, { playerStatsTier: 1 }),
         h.deps,
       );
       return plan.phases[4]!.steps['estatisticas-jogadores']?.total ?? 0;
@@ -599,7 +615,10 @@ describe('dailyJob: números dos jogadores da temporada em jogo', () => {
   it('limite do dia: a passada cortada continua no dia seguinte sem repetir a página 1', async () => {
     const h = harness({ plan: PRO_PLAN });
     const job = () =>
-      dailyJob(h.catalog, h.raw, h.cursors, h.plan, () => new Date(h.clock.t), derbyKeys, { playerStats: 3 });
+      dailyJob(h.catalog, h.raw, h.cursors, h.plan, () => new Date(h.clock.t), derbyKeys, {
+        playerStats: 3,
+        playerStatsTier: 1,
+      });
     await runJob(job(), h.deps);
     const day1 = pages(h);
     expect(day1).toHaveLength(3);

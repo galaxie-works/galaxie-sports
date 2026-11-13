@@ -1042,6 +1042,83 @@ export const SETTINGS: readonly SettingDef[] = [
     apply: 'refresh',
     default: '3',
   },
+  // Chat ao vivo (#915, #959, #964): padrão e teto da Galaxie. O cliente ajusta a janela, o modo lento e o rigor dentro
+  // destes limites (chat.tenant_config); tamanho e histórico ficam só aqui. Relidos a cada minuto
+  {
+    key: 'CHAT_ROOM_OPEN_BEFORE_MINUTES',
+    section: 'engage',
+    type: 'int',
+    min: 0,
+    max: 1440,
+    services: ['api'],
+    apply: 'refresh',
+    default: '60',
+  },
+  {
+    key: 'CHAT_ROOM_CLOSE_AFTER_MINUTES',
+    section: 'engage',
+    type: 'int',
+    min: 0,
+    max: 1440,
+    services: ['api'],
+    apply: 'refresh',
+    default: '30',
+  },
+  {
+    key: 'CHAT_SLOW_MODE_SECONDS',
+    section: 'engage',
+    type: 'int',
+    min: 0,
+    max: 600,
+    services: ['api'],
+    apply: 'refresh',
+    default: '3',
+  },
+  {
+    key: 'CHAT_MESSAGE_MAX_CHARS',
+    section: 'engage',
+    type: 'int',
+    min: 20,
+    max: 500,
+    services: ['api'],
+    apply: 'refresh',
+    default: '280',
+  },
+  {
+    key: 'CHAT_HISTORY_ON_JOIN',
+    section: 'engage',
+    type: 'int',
+    min: 0,
+    max: 200,
+    services: ['api'],
+    apply: 'refresh',
+    default: '50',
+  },
+  // Shopping (#916): horas do cache de preço e estoque dos conectores de loja. O épico fixa o teto em 24 h
+  {
+    key: 'SHOP_PRICE_CACHE_HOURS',
+    section: 'engage',
+    type: 'int',
+    min: 1,
+    max: 24,
+    services: ['api'],
+    apply: 'restart',
+    default: '24',
+  },
+  // Shopping (#921): tenants da própria Galaxie (site e app), os únicos que recebem o código de afiliado da Galaxie.
+  // Vazio = nenhum (o padrão seguro); ids de tenant separados por vírgula
+  {
+    key: 'SHOP_GALAXIE_TENANT_IDS',
+    section: 'engage',
+    type: 'text',
+    pattern:
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}([,;\s]+[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})*$/i,
+    allowEmpty: true,
+    services: ['api'],
+    apply: 'restart',
+    default: '',
+    critical: true,
+  },
 
   // ── Credenciais ─────────────────────────────────────────────────────────────────────────────
   // trocadas no painel (#1087): cifradas no banco, abertas por cada serviço com a SETTINGS_KEK dele

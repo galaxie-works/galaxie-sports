@@ -726,6 +726,8 @@ export interface GsTimelineIncident {
   clock?: GsMatchClock | undefined;
   score_after?: { home: number; away: number } | null | undefined;
   key_moment?: boolean | undefined;
+  /** Gol anulado pelo VAR que continua na lista: não soma no placar. */
+  disallowed?: boolean | undefined;
 }
 
 export interface GsTimelinePerson {
@@ -1844,6 +1846,7 @@ a.gs-tile:hover{border-color:var(--gs-primary)}
 .gs-tl-item:first-child,.gs-tl-marker+.gs-tl-item{border-top:0}
 .gs-tl-item{padding-left:6px}
 .gs-tl-item[data-key]{box-shadow:inset 3px 0 0 var(--gs-primary)}
+.gs-tl-item[data-disallowed] .gs-tl-head .gs-truncate{text-decoration:line-through;opacity:.7}
 .gs-tl-min{padding-top:2px;font-size:.85em;font-weight:700;font-variant-numeric:tabular-nums;color:var(--gs-muted-foreground);text-align:right}
 .gs-tl-icon{display:inline-grid;place-items:center;width:22px;height:22px;border:1px solid var(--gs-border);border-radius:50%;font-size:.7em;font-weight:800;line-height:1;color:var(--gs-muted-foreground)}
 .gs-tl-icon[data-icon=goal]{border-color:color-mix(in srgb,#16a34a 55%,transparent);color:#16a34a}
@@ -2232,6 +2235,8 @@ export interface WidgetTexts {
     var: Record<string, string>;
     /** VAR sem texto conhecido. */
     varReview: string;
+    /** Selo do gol anulado pelo VAR. */
+    disallowed: string;
     /** "Assistência: {name}". */
     assist: string;
     playerIn: string;
@@ -2827,8 +2832,16 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
         'card upgrade': 'Cartão aumentado para vermelho',
         'card reviewed': 'Cartão revisado',
         'red card cancelled': 'Vermelho anulado',
+        'goal disallowed - handball': 'Gol anulado por mão na bola',
+        'goal disallowed - video review': 'Gol anulado pelo VAR',
+        'goal under review - offside': 'Gol em revisão por impedimento',
+        'card upgrade confirmed': 'Vermelho confirmado após revisão',
+        'card upgrade cancelled': 'Cartão mantido após revisão',
+        'red card confirmed': 'Vermelho confirmado',
+        'original decision changed': 'Decisão do árbitro alterada',
       },
       varReview: 'Revisão',
+      disallowed: 'Anulado',
       assist: 'Assistência: {name}',
       playerIn: 'Entra',
       playerOut: 'Sai',
@@ -3406,8 +3419,16 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
         'card upgrade': 'Tarjeta cambiada a roja',
         'card reviewed': 'Tarjeta revisada',
         'red card cancelled': 'Roja anulada',
+        'goal disallowed - handball': 'Gol anulado por mano',
+        'goal disallowed - video review': 'Gol anulado por el VAR',
+        'goal under review - offside': 'Gol en revisión por offside',
+        'card upgrade confirmed': 'Roja confirmada tras la revisión',
+        'card upgrade cancelled': 'Tarjeta mantenida tras la revisión',
+        'red card confirmed': 'Roja confirmada',
+        'original decision changed': 'Decisión original cambiada',
       },
       varReview: 'Revisión',
+      disallowed: 'Anulado',
       assist: 'Asistencia: {name}',
       playerIn: 'Entra',
       playerOut: 'Sale',
@@ -3977,8 +3998,16 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
         'card upgrade': 'Card upgraded to red',
         'card reviewed': 'Card reviewed',
         'red card cancelled': 'Red card overturned',
+        'goal disallowed - handball': 'Goal disallowed for handball',
+        'goal disallowed - video review': 'Goal disallowed after video review',
+        'goal under review - offside': 'Goal under review for offside',
+        'card upgrade confirmed': 'Red card confirmed after review',
+        'card upgrade cancelled': 'Card stands after review',
+        'red card confirmed': 'Red card confirmed',
+        'original decision changed': 'Original decision changed',
       },
       varReview: 'Review',
+      disallowed: 'Disallowed',
       assist: 'Assist: {name}',
       playerIn: 'On',
       playerOut: 'Off',
@@ -4768,7 +4797,25 @@ export interface GsFanMe {
   country: string;
   locale: string;
   capabilities: FanCapability[];
+  /** O que falta para o Perfil usar os recursos sociais no país dele (#1105); ausente em API mais antiga. */
+  age_status?: FanAgeStatus;
 }
+
+/**
+ * Estado de idade do torcedor (#1105): `blocked`, `needs_guardian` (falta a autorização do responsável),
+ * `needs_verification` (falta comprovar a idade), `read_only` ou `can_write`.
+ */
+export const FAN_AGE_STATUSES = [
+  'blocked',
+  'needs_guardian',
+  'needs_verification',
+  'read_only',
+  'can_write',
+] as const;
+export type FanAgeStatus = (typeof FAN_AGE_STATUSES)[number];
+
+/** Evento que o `<galaxie-widget>` dispara (sobe até o documento) quando o estado do torcedor muda. */
+export const FAN_STATUS_EVENT = 'galaxie:fan-status';
 
 export const FAN_TOKEN_PREFIX = 'gft_';
 /** Pede outro token este tanto antes de o atual vencer. */

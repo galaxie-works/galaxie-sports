@@ -23,6 +23,7 @@
   },
   "dependencies": {
     "@galaxie/apisports-client": "workspace:*",
+    "@galaxie/contracts": "workspace:*",
     "@galaxie/db": "workspace:*",
     "@galaxie/runtime-config": "workspace:*",
     "drizzle-orm": "^0.45.4",

@@ -3,6 +3,7 @@
  * (placar, status, relógio, incidentes, *last-known-good*). Função pura — a publicação no change feed
  * fica com quem chama.
  */
+import { isGoalCancellingVarDetail } from '@galaxie/contracts';
 import type { EventClock, EventScore, EventStatus } from '@galaxie/providers';
 
 export interface IncidentSnapshot {
@@ -49,6 +50,11 @@ export interface LiveChange {
   removedIncidents: number;
   /** O placar mudou ou entrou um gol na timeline. */
   goal: boolean;
+  /**
+   * Um gol foi desfeito: entrou um VAR de gol anulado (do fornecedor ou inferido pela Galaxie quando a fonte apaga o
+   * gol). Queda de placar sozinha não conta: o placar do fornecedor oscila sem anulação.
+   */
+  goalCancelled: boolean;
   /** O evento passou a `finished` nesta mudança. */
   finished: boolean;
 }
@@ -101,6 +107,11 @@ export function diffSnapshot(before: EventSnapshot | undefined, after: EventSnap
     before != null &&
     (goals(after.score) > goals(before.score) ||
       changedIncidents.some((i) => GOAL_TYPES.has(i.type) && !prevIncidents.has(i.sequence)));
+  const goalCancelled =
+    before != null &&
+    changedIncidents.some(
+      (i) => i.type === 'var' && !prevIncidents.has(i.sequence) && isGoalCancellingVarDetail(i.detail),
+    );
   return {
     eventId: after.eventId,
     providerEventId: after.providerEventId,
@@ -117,6 +128,7 @@ export function diffSnapshot(before: EventSnapshot | undefined, after: EventSnap
     incidents: changedIncidents,
     removedIncidents,
     goal,
+    goalCancelled,
     finished: after.status === 'finished' && before?.status !== 'finished',
   };
 }

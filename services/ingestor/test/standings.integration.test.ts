@@ -20,6 +20,7 @@ import { upsertBatch } from '@galaxie/core-writer';
 import { emptyBatch } from '@galaxie/providers';
 import { recomputeNbaStandings } from '../src/standings/nba.js';
 import { footballSeasonIds, recomputeSeasonStandings } from '../src/standings/recompute.js';
+import { seasonsWithProviderTable, simulateSeasonStandings } from '../src/standings/simulate.js';
 import { disposableDb } from './db.js';
 
 const disposable = disposableDb();
@@ -229,10 +230,9 @@ describe('recálculo da tabela com grupos do fornecedor', () => {
     expect(table.map((r) => r.group)).toEqual(['Grupo G', 'Grupo G', 'Grupo H', 'Grupo H']);
   });
 
-  it('linha do provedor não é apagada pela limpeza das calculadas', async () => {
+  it('tabela do fornecedor mais nova que o último resultado não prevalece: a calculada a substitui (#880)', async () => {
     const s = await seedSeason('football', 'liga-provedor-fresco', ['E1', 'E2']);
     await finished('football', s.seasonId, s.team('E1'), s.team('E2'), [1, 0]);
-    // tabela do fornecedor mais nova que o último resultado: prevalece, nada é regravado
     await db.insert(standing).values(
       ['E1', 'E2'].map((team, i) => ({
         seasonId: s.seasonId,
@@ -245,8 +245,14 @@ describe('recálculo da tabela com grupos do fornecedor', () => {
       })),
     );
     const report = await recomputeSeasonStandings(db, s.seasonId, { publish: false });
-    expect(report.outcome).toBe('provider_fresh');
-    expect(await tableOf(s.seasonId)).toHaveLength(2);
+    expect(report).toMatchObject({ outcome: 'written', rows: 2 });
+    const rows = await db
+      .select({ team: standing.participantId, points: standing.points, source: standing.source })
+      .from(standing)
+      .where(eq(standing.seasonId, s.seasonId));
+    expect(rows).toHaveLength(2);
+    expect(rows.every((r) => r.source === 'computed')).toBe(true);
+    expect(rows.find((r) => r.team === s.team('E1'))?.points).toBe(3);
   });
 });
 
@@ -1005,5 +1011,34 @@ describe('tabela do fornecedor atrasada (espelho, #855)', () => {
       [1, 'provider'],
       [1, 'provider'],
     ]);
+  });
+});
+
+describe('prévia do recálculo (#880)', () => {
+  it('simula sem gravar: mostra a troca da tabela do fornecedor e deixa o banco como estava', async () => {
+    const s = await seedSeason('football', 'liga-previa', ['P1', 'P2']);
+    await finished('football', s.seasonId, s.team('P1'), s.team('P2'), [0, 2]);
+    await db.insert(standing).values(
+      ['P1', 'P2'].map((team, i) => ({
+        seasonId: s.seasonId,
+        group: '',
+        participantId: s.team(team),
+        rank: i + 1,
+        points: 0,
+        source: 'provider',
+        updatedAt: new Date(Date.now() + 60_000),
+      })),
+    );
+    // os jogos semeados têm data fixa (set/2026): a janela de temporada atual é alargada até eles
+    expect(await seasonsWithProviderTable(db, 3650)).toContain(s.seasonId);
+    const { report, diff } = await simulateSeasonStandings(db, s.seasonId);
+    expect(report).toMatchObject({ outcome: 'written', rows: 2 });
+    expect(diff).toMatchObject({ providerReplaced: 2, moved: 2, maxShift: 1 });
+    const rows = await db
+      .select({ source: standing.source, rank: standing.rank, team: standing.participantId })
+      .from(standing)
+      .where(eq(standing.seasonId, s.seasonId));
+    expect(rows.every((r) => r.source === 'provider')).toBe(true);
+    expect(rows.find((r) => r.team === s.team('P1'))?.rank).toBe(1);
   });
 });

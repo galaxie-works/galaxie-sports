@@ -1,5 +1,7 @@
 import Fastify, { type FastifyContextConfig, type FastifyInstance, type FastifyRequest } from 'fastify';
 import type { Redis } from 'ioredis';
+import type { ShopFetch } from '@galaxie/engage';
+import type { SettingsSecretBox } from '@galaxie/runtime-config/sealed';
 import type { MediaDenylist } from '@galaxie/apisports-client';
 import { pingDb, type Database } from '@galaxie/db';
 import { loadWtwConfig, type WtwConfig } from '@galaxie/where-to-watch';
@@ -19,15 +21,23 @@ import {
   startPresencePurge,
 } from './engage/presence-routes.js';
 import { moderationRoutes } from './engage/moderation-routes.js';
+import { chatRoutes } from './chat/routes.js';
+import { ChatHub } from './chat/hub.js';
+import { ChatGameFeed } from './chat/game.js';
+import { MemoryChatPeak, RedisChatPeak } from './chat/peak.js';
+import type { ChatStreamOptions } from './chat/stream.js';
 import type { FanTokenSigner } from './engage/fan-token.js';
 import { AdminGuard, type AdminGuardOptions } from './admin/guard.js';
 import { loadPlans, type PlanCatalog } from './admin/plans.js';
+import { entitlementsResolver } from './auth/entitlements.js';
+import type { Entitlements } from '@galaxie/billing';
 import { adminRoutes } from './admin/routes.js';
 import {
   assertModule,
   Authenticator,
   type AuthenticatorOptions,
   type TenantContext,
+  withEntitlements,
 } from './auth/authenticator.js';
 import {
   assertPublishableRoute,
@@ -65,6 +75,11 @@ import {
 import { StreamTokenSigner } from './realtime/stream-token.js';
 import { docsRoutes } from './routes/docs.js';
 import { cosmosStripeRoutes } from './routes/internal/cosmos-stripe.js';
+import { internalShopRoutes } from './routes/internal/shop.js';
+import { galaxieShopTenants, shopRoutes } from './routes/v1/shop.js';
+import { ShopClickRecorder, shopClickRoutes } from './shop/clicks.js';
+import { ShopClickSigner } from './shop/click-token.js';
+import { ShopOffers } from './shop/offers.js';
 import { internalWhereToWatchRoutes } from './routes/internal/where-to-watch.js';
 import { Lineup, type LineupOptions } from './lineup/availability.js';
 import { ClientChannelLists } from './channel-list/lists.js';
@@ -96,9 +111,24 @@ export interface ServerOptions {
   redis?: Redis;
   /** Prefixo das chaves no Valkey (permite isolar ambientes/testes). Padrão `gs:`. */
   keyPrefix?: string;
+  /** Shopping (#916): fetch dos conectores de loja (testes) e cofre das credenciais das lojas. */
+  shopFetch?: ShopFetch;
+  shopSecretBox?: Pick<SettingsSecretBox, 'open'>;
+  /** Tenants da Galaxie no Shopping (#921); sem isto, vale `SHOP_GALAXIE_TENANT_IDS`. */
+  shopGalaxieTenantIds?: string;
+  /** Assinatura dos links de compra (#921); sem isto, a chave sai da SETTINGS_KEK. */
+  shopClickSigner?: ShopClickSigner;
+  /** Fila dos cliques do Shopping (#918); nos testes, para gravar na hora. */
+  shopClickRecorder?: ShopClickRecorder;
   logger?: boolean;
   tenantStore?: TenantStore;
   authenticator?: AuthenticatorOptions;
+  /**
+   * Direitos do tenant (plataforma comercial, #1137): módulos com as exceções do acordo e features. Padrão: o
+   * catálogo de `config/catalog` e o banco, com cache no Valkey, quando há db; `false` desliga (os módulos vêm só das
+   * colunas do tenant, como antes).
+   */
+  entitlements?: ((tenantId: string) => Promise<Pick<Entitlements, 'modules' | 'features'> | null>) | false;
   /** Chaves publicáveis (`x-galaxie-publishable-key`); padrão: Postgres, quando há db. */
   publishableStore?: PublishableStore;
   publishableAuthenticator?: PublishableAuthenticatorOptions;
@@ -170,6 +200,8 @@ export interface ServerOptions {
   mediaDenylist?: MediaDenylist;
   /** Relógio injetável (testes de momentum/agenda). */
   now?: () => Date;
+  /** Chat ao vivo (#964): intervalo do lote e opções do stream (testes). */
+  chat?: { intervalMs?: number; stream?: ChatStreamOptions };
   /** Piso editorial da semântica e pasta da base (SEMANTIC_MIN_REVIEW_STATUS, KNOWLEDGE_DIR). */
   semantic?: SemanticConfig;
   /** Grade de canais e ofertas: piso editorial (LINEUP_MIN_REVIEW_STATUS) e consultas (fixas nos testes). */
@@ -233,6 +265,7 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
           onError: (err) => app.log.warn({ err }, 'limite de tentativas de autenticação indisponível'),
         });
   const store = options.tenantStore ?? (options.db ? new PgTenantStore(options.db) : undefined);
+  const resolveEntitlements = entitlementsResolver(options, prefix, app.log);
   const authenticator = store
     ? new Authenticator(store, {
         ...(throttle ? { throttle } : {}),
@@ -299,7 +332,7 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
   const quotaEvent = (
     request: FastifyRequest,
     tenant: TenantContext,
-    level: 'warn' | 'blocked',
+    level: 'warn' | 'over' | 'blocked',
     limit: number,
   ) => {
     const k = `${utcDay()}|${tenant.tenantId}|${level}`;
@@ -307,10 +340,16 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
     if (quotaEvents.size > 10_000) quotaEvents.clear();
     quotaEvents.add(k);
     request.log.warn(
-      { tenant: tenant.slug, quota: limit, event: level === 'warn' ? 'quota.warning' : 'quota.exceeded' },
+      {
+        tenant: tenant.slug,
+        quota: limit,
+        event: level === 'warn' ? 'quota.warning' : level === 'over' ? 'quota.overage' : 'quota.exceeded',
+      },
       level === 'warn'
         ? 'cota diária: tenant passou de 80%'
-        : 'cota diária: tenant passou de 110% (bloqueado)',
+        : level === 'over'
+          ? 'cota diária: widgets passaram de 110% (excedente, sem bloqueio)'
+          : 'cota diária: tenant bloqueado (110% na chave secreta ou teto da publicável)',
     );
   };
 
@@ -323,6 +362,16 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
   const fanRevocations =
     options.fanRevocations ??
     (options.redis ? new RedisFanRevocations(options.redis, prefix) : new MemoryFanRevocations());
+  // Chat ao vivo (#964): lotes de 1 s pelo Valkey e faixa de conexões (D6)
+  const chatHub = new ChatHub({
+    ...(options.redis ? { redis: options.redis } : {}),
+    keyPrefix: prefix,
+    logger: app.log,
+    ...(options.chat?.intervalMs ? { intervalMs: options.chat.intervalMs } : {}),
+  });
+  const chatPeak = options.redis ? new RedisChatPeak(options.redis, prefix) : new MemoryChatPeak();
+  app.addHook('onReady', () => chatHub.start());
+  app.addHook('onClose', () => chatHub.stop());
   registerFanAuth(app, {
     signer: options.fanTokens ?? null,
     publishable,
@@ -366,6 +415,20 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
       authenticate = (maxAgeMs?: number) =>
         authenticator.authenticate(secretKey, { ip: request.ip, maxAgeMs });
     }
+    if (resolveEntitlements) {
+      const raw = authenticate;
+      authenticate = async (maxAgeMs?: number) => {
+        const ctx = await raw(maxAgeMs);
+        try {
+          const ent = await resolveEntitlements.resolve(ctx.tenantId);
+          return ent ? withEntitlements(ctx, ent) : ctx;
+        } catch (err) {
+          // direitos indisponíveis: segue com os módulos das colunas do tenant (fail-open, como o rate limit)
+          request.log.warn({ err }, 'direitos do tenant indisponíveis');
+          return ctx;
+        }
+      };
+    }
     const tenant = await authenticate();
     if (secretKey && queryKeyUsed(request)) {
       // `?key=` aceito até o Sunset; o cliente troca para o token curto (docs/05 §5.1)
@@ -392,10 +455,12 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
     if (module) assertModule(tenant, module);
 
     const route = `${request.method} ${request.routeOptions.url ?? request.url}`;
-    // cota diária de produção (a chave de teste fica fora): aviso a partir de 80%, 429 a partir de 110%
+    // cota diária de produção (a chave de teste fica fora): aviso a partir de 80%, 429 a partir de 110%. A chave
+    // publicável (widgets) só recebe o aviso: acima da cota vira excedente, nunca bloqueio (#1137)
     if (quota && tenant.env === 'live' && tenant.dailyRequestQuota) {
+      const enforce = tenant.keyKind === 'secret';
       try {
-        const q = await quota.check(tenant.tenantId, tenant.dailyRequestQuota);
+        const q = await quota.check(tenant.tenantId, tenant.dailyRequestQuota, { enforce });
         reply
           .header('x-galaxie-quota-limit', String(q.limit))
           .header('x-galaxie-quota-remaining', String(Math.max(0, q.limit - q.used)));
@@ -464,11 +529,43 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
     return { status: 'ok' };
   });
 
+  // link de compra assinado (#921): só a vitrine da Galaxie assina, e a rota de cliques confere
+  const shopSigner = options.shopClickSigner ?? ShopClickSigner.fromEnv();
+  // Shopping (#916, #921): uma instância só, para o cache das lojas e das ofertas valer nas duas rotas
+  const shopOffers = options.db
+    ? new ShopOffers({
+        db: options.db,
+        redis: options.redis ?? null,
+        keyPrefix: prefix,
+        metrics: app.metrics,
+        log: app.log,
+        now: ctx.now,
+        ...(options.shopFetch ? { fetch: options.shopFetch } : {}),
+        ...(options.shopSecretBox ? { box: options.shopSecretBox } : {}),
+      })
+    : undefined;
+
   app.register(async (instance) => {
     await docsRoutes(instance, { publicUrl: options.publicUrl });
     await v1Routes(instance, ctx);
     await mirrorRoutes(instance, ctx);
     await internalWhereToWatchRoutes(instance, ctx);
+    await internalShopRoutes(instance, ctx, { offers: shopOffers });
+    await shopRoutes(instance, ctx, {
+      offers: shopOffers,
+      publicUrl: options.publicUrl,
+      galaxieTenants: galaxieShopTenants(options.shopGalaxieTenantIds ?? process.env.SHOP_GALAXIE_TENANT_IDS),
+      signer: shopSigner,
+      now: ctx.now,
+    });
+    await shopClickRoutes(instance, {
+      db: options.db,
+      signer: shopSigner,
+      limiter,
+      now: ctx.now,
+      ...(options.shopClickRecorder ? { recorder: options.shopClickRecorder } : {}),
+      ...(options.shopSecretBox ? { box: options.shopSecretBox } : {}),
+    });
     await accountRoutes(instance, { db: options.db, usage: usageBackend });
     await fanRoutes(instance, {
       db: options.db,
@@ -486,6 +583,13 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
       instance.addHook('onClose', async () => stopPurge());
     }
     await moderationRoutes(instance, { db: options.db, now: options.now });
+    await chatRoutes(instance, {
+      db: options.db,
+      now: options.now,
+      hub: chatHub,
+      peak: chatPeak,
+      stream: options.chat?.stream,
+    });
   });
 
   // escopo próprio: o parser de corpo cru do webhook não vale para as outras rotas
@@ -498,7 +602,13 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
   if (options.admin?.keyHashes.length && options.db) {
     const guard = adminGuard!;
     const plans = options.admin.plans ?? loadPlans();
-    app.register(adminRoutes, { db: options.db, guard, plans, usage: usageBackend });
+    app.register(adminRoutes, {
+      db: options.db,
+      guard,
+      plans,
+      usage: usageBackend,
+      ...(resolveEntitlements ? { onTenantChanged: (id: string) => resolveEntitlements.invalidate(id) } : {}),
+    });
   }
 
   if (usage) {
@@ -563,6 +673,13 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
         rejected: (reason) => metrics.sseRejected.inc({ reason }),
       },
     });
+    // o jogo dentro do chat (#965): gol, cartão vermelho, VAR, início, intervalo e fim viram mensagem da sala
+    const gameFeed = new ChatGameFeed(options.db, chatHub, {
+      assetsBaseUrl: options.assetsBaseUrl,
+      logger: app.log,
+    });
+    if (app.realtime) app.realtime.subscribe(gameFeed.handle);
+    else app.log.warn('chat: tempo real desligado, o jogo não entra no chat');
   }
 
   return app;

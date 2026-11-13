@@ -106,6 +106,15 @@ Veja o erro em `wh dlq --id <endpoint>` e avise o cliente (o receptor dele respo
 10 s). Se ele não responder e o endpoint só gerar ruído: `wh disable --id <endpoint>`; quando ele corrigir,
 `wh enable --id <endpoint>` e `wh replay --id <endpoint>`.
 
+**Circuit breaker.** O worker desativa sozinho o endpoint que passa 24 h só falhando (nenhuma entrega com sucesso
+desde a primeira falha) e com pelo menos 3 entregas na DLQ nesse período. O portal do cliente mostra "Desativado por
+falhas", com quando e o último erro, e o log do worker registra `endpoint desativado pelo circuit breaker`. Reativar
+(pelo portal, `wh enable` ou o painel) zera a marca; depois, `wh replay` reenvia a DLQ. Falha nossa (segredo que não
+abre sem a KEK) não conta. `WEBHOOK_BREAKER_HOURS` muda o prazo (0 desliga).
+
+**Rate limit por endpoint.** Cada endpoint recebe no máximo 600 entregas por minuto por worker; acima disso a entrega
+espera a próxima janela sem gastar tentativa. `WEBHOOK_ENDPOINT_RATE_PER_MIN` muda o teto (0 desliga).
+
 ### Lento
 
 Quase sempre é o receptor do cliente perto dos 10 s de timeout, o que dispara retentativas. Confira

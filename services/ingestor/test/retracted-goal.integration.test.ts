@@ -280,3 +280,75 @@ describe('gol anulado no upsert', () => {
     expect(rows).toHaveLength(1);
   });
 });
+
+describe('sinal de gol anulado no SSE e nos webhooks (#640)', () => {
+  const varEvent = (minute: number, detail: string, team = AWAY, player = 9001): ApiFixtureEvent => ({
+    time: { elapsed: minute, extra: null },
+    team: { id: team.id, name: team.name },
+    player: { id: player, name: `Jogador ${player}` },
+    assist: { id: null, name: null },
+    type: 'Var',
+    detail,
+    comments: null,
+  });
+  type Payload = { data?: Record<string, unknown>; previous?: Record<string, unknown> };
+  const ofTopic = (rows: { topic: string; payload: unknown }[], topic: string) =>
+    rows.filter((r) => r.topic === topic).map((r) => r.payload as Payload);
+
+  it('São Paulo x Corinthians: a fonte apaga o gol sem VAR; o sinal sai só com o VAR inferido', async () => {
+    await poll(8101, 0, { score: [0, 1], minute: 62, events: [goalEvent(62)] });
+    const id = await eventIdOf(8101);
+    const feed = await lastFeedId(id);
+    await poll(8101, 15, { score: [0, 0], minute: 63, events: [] });
+    // gol fora da timeline, ainda sem confirmação: nada manda desfazer
+    const pending = await feedSince(feed, id);
+    expect(JSON.stringify(pending)).not.toContain('goal_cancelled');
+    const mid = await lastFeedId(id);
+    await poll(8101, 60, { score: [0, 0], minute: 64, events: [] });
+    const confirmed = await feedSince(mid, id);
+    expect(ofTopic(confirmed, 'event.incident_added')).toEqual([
+      expect.objectContaining({
+        data: expect.objectContaining({
+          goal_cancelled: true,
+          incidents: [expect.objectContaining({ type: 'var', detail: 'Goal cancelled' })],
+        }),
+      }),
+    ]);
+    // a queda do placar, quando sai, traz o placar anterior e nunca o sinal
+    for (const p of ofTopic([...pending, ...confirmed], 'event.score_changed')) {
+      expect(p).toMatchObject({ previous: { score: { home: 0, away: 1 } } });
+      expect(p.data).not.toHaveProperty('goal_cancelled');
+    }
+  });
+
+  it('VAR do fornecedor com o gol na lista: o lance leva o sinal', async () => {
+    await poll(8102, 0, { score: [0, 1], minute: 62, events: [goalEvent(62)] });
+    const id = await eventIdOf(8102);
+    const feed = await lastFeedId(id);
+    await poll(8102, 15, {
+      score: [0, 0],
+      minute: 64,
+      events: [goalEvent(62), varEvent(64, 'Goal Disallowed - offside')],
+    });
+    const published = await feedSince(feed, id);
+    expect(ofTopic(published, 'event.incident_added')[0]?.data).toMatchObject({ goal_cancelled: true });
+    expect(ofTopic(published, 'event.score_changed')[0]?.data).not.toHaveProperty('goal_cancelled');
+  });
+
+  it('gol novo e VAR que confirma o gol não levam o sinal', async () => {
+    await poll(8103, 0, { score: [0, 0], minute: 60, events: [] });
+    const id = await eventIdOf(8103);
+    const feed = await lastFeedId(id);
+    await poll(8103, 15, {
+      score: [0, 1],
+      minute: 62,
+      events: [goalEvent(62), varEvent(62, 'Goal confirmed')],
+    });
+    const published = await feedSince(feed, id);
+    expect(ofTopic(published, 'event.score_changed')[0]).toMatchObject({
+      data: { score: { home: 0, away: 1 } },
+      previous: { score: { home: 0, away: 0 } },
+    });
+    expect(JSON.stringify(published)).not.toContain('goal_cancelled');
+  });
+});

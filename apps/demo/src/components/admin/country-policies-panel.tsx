@@ -1,9 +1,19 @@
 'use client';
 
 import {
+  AGE_ASSURANCE_LEVELS,
+  DEFAULT_POLICY_KEY,
   LATAM_POLICY_KEY,
+  MARKETING_CHANNELS,
+  MARKETING_CONSENT_MODES,
   POLICY_LANGUAGES,
+  STRICT_AGE_RULES,
+  STRICT_LEGAL_RULES,
+  type AgeAssuranceFeature,
+  type AgeAssuranceLevel,
   type CountryPolicy,
+  type MarketingChannel,
+  type MarketingConsentMode,
   type PolicyEntity,
   type PolicyLanguage,
   type TenantCountry,
@@ -82,8 +92,13 @@ export function CountryPoliciesPanel({
   const [editing, setEditing] = useState<PolicyView | 'new' | null>(null);
   const regionName = useMemo(() => {
     const names = new Intl.DisplayNames([locale], { type: 'region' });
-    return (key: string) => (key === LATAM_POLICY_KEY ? T.policies.latam : (names.of(key) ?? key));
-  }, [locale, T.policies.latam]);
+    return (key: string) =>
+      key === LATAM_POLICY_KEY
+        ? T.policies.latam
+        : key === DEFAULT_POLICY_KEY
+          ? T.policies.default
+          : (names.of(key) ?? key);
+  }, [locale, T.policies.latam, T.policies.default]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -128,6 +143,7 @@ export function CountryPoliciesPanel({
                     {fill(T.policies.agesValue, {
                       participate: p.policy.minAgeParticipate,
                       write: p.policy.minAgeWrite,
+                      consent: p.policy.parentalConsentUnder,
                     })}
                   </TableCell>
                   <TableCell className="text-xs">
@@ -222,7 +238,10 @@ function TenantCountriesCard({
   const [tenantId, setTenantId] = useState<string | null>(null);
   const tenant = tenants.find((x) => x.id === tenantId) ?? null;
   const [selected, setSelected] = useState<TenantCountry[]>([]);
-  const countryKeys = policies.map((p) => p.country).filter((k) => k !== LATAM_POLICY_KEY);
+  // o cliente marca país, não região nem a ficha padrão
+  const countryKeys = policies
+    .map((p) => p.country)
+    .filter((k) => k !== LATAM_POLICY_KEY && k !== DEFAULT_POLICY_KEY);
   const primary = selected.find((c) => c.primary)?.country ?? null;
 
   const choose = (id: string | null) => {
@@ -339,6 +358,8 @@ const EMPTY: CountryPolicy = {
   prizeCampaign: { maxValue: null, excludedRegions: [], legalClassificationRequired: true },
   punishmentNoticeRequired: false,
   laws: [],
+  ...structuredClone(STRICT_AGE_RULES),
+  ...structuredClone(STRICT_LEGAL_RULES),
 };
 
 function PolicyDialog({
@@ -438,6 +459,75 @@ function PolicyDialog({
       </div>
     </Field>
   );
+  const nullableNumberField = (
+    id: string,
+    label: string,
+    value: number | null,
+    onChange: (n: number | null) => void,
+    hint: string,
+  ) => (
+    <Field>
+      <FieldLabel htmlFor={id}>{label}</FieldLabel>
+      <Input
+        id={id}
+        type="number"
+        inputMode="numeric"
+        value={value !== null && Number.isFinite(value) ? value : ''}
+        onChange={(e) => onChange(e.target.value.trim() === '' ? null : num(e.target.value))}
+        disabled={pending}
+      />
+      <FieldDescription>{hint}</FieldDescription>
+    </Field>
+  );
+  const assuranceItems = AGE_ASSURANCE_LEVELS.map((l) => ({ value: l, label: F.assurance[l] }));
+  const assuranceField = (feature: AgeAssuranceFeature, label: string) => (
+    <Field>
+      <FieldLabel htmlFor={`policy-assurance-${feature}`}>{label}</FieldLabel>
+      <Select
+        items={assuranceItems}
+        value={p.ageAssuranceMin[feature]}
+        onValueChange={(v) =>
+          v && set({ ageAssuranceMin: { ...p.ageAssuranceMin, [feature]: String(v) as AgeAssuranceLevel } })
+        }
+      >
+        <SelectTrigger id={`policy-assurance-${feature}`} className="w-full">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {assuranceItems.map((i) => (
+            <SelectItem key={i.value} value={i.value}>
+              {i.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </Field>
+  );
+  const consentItems = MARKETING_CONSENT_MODES.map((m) => ({ value: m, label: F.consentMode[m] }));
+  const consentField = (channel: MarketingChannel) => (
+    <Field key={channel}>
+      <FieldLabel htmlFor={`policy-marketing-${channel}`}>{F.marketingChannel[channel]}</FieldLabel>
+      <Select
+        items={consentItems}
+        value={p.marketingConsent[channel]}
+        onValueChange={(v) =>
+          v &&
+          set({ marketingConsent: { ...p.marketingConsent, [channel]: String(v) as MarketingConsentMode } })
+        }
+      >
+        <SelectTrigger id={`policy-marketing-${channel}`} className="w-full">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {consentItems.map((i) => (
+            <SelectItem key={i.value} value={i.value}>
+              {i.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </Field>
+  );
   const entityItems = [
     { value: 'ltda', label: F.ltda },
     { value: 'llc', label: F.llc },
@@ -466,7 +556,7 @@ function PolicyDialog({
                 <Input
                   id="policy-country"
                   value={country}
-                  maxLength={5}
+                  maxLength={7}
                   onChange={(e) => setCountry(e.target.value.toUpperCase())}
                   disabled={pending}
                   className="font-mono"
@@ -497,6 +587,38 @@ function PolicyDialog({
                 </div>
               </Field>
             ) : null}
+            <div className="grid gap-4 sm:grid-cols-2">
+              {numberField(
+                'policy-consent',
+                F.parentalConsentUnder,
+                p.parentalConsentUnder,
+                (n) => set({ parentalConsentUnder: n }),
+                F.parentalConsentUnderHint,
+              )}
+              {nullableNumberField(
+                'policy-guardian-link',
+                F.guardianLinkRequiredUnder,
+                p.guardianLinkRequiredUnder,
+                (n) => set({ guardianLinkRequiredUnder: n }),
+                F.guardianLinkRequiredUnderHint,
+              )}
+              {assuranceField('social', F.ageAssuranceSocial)}
+              {assuranceField('restrictedContent', F.ageAssuranceRestricted)}
+            </div>
+            {switchField(
+              'policy-hear-minor',
+              F.hearMinor,
+              p.hearMinor,
+              (v) => set({ hearMinor: v }),
+              F.hearMinorHint,
+            )}
+            {nullableNumberField(
+              'policy-renewal',
+              F.consentRenewalDays,
+              p.consentRenewalDays,
+              (n) => set({ consentRenewalDays: n }),
+              F.consentRenewalDaysHint,
+            )}
             <div className="grid gap-4 sm:grid-cols-3">
               {numberField(
                 'policy-access',
@@ -606,6 +728,25 @@ function PolicyDialog({
               p.punishmentNoticeRequired,
               (v) => set({ punishmentNoticeRequired: v }),
               F.punishmentNoticeHint,
+            )}
+            {switchField(
+              'policy-betting',
+              F.bettingContent,
+              p.bettingContent,
+              (v) => set({ bettingContent: v }),
+              F.bettingContentHint,
+            )}
+            <Field>
+              <FieldLabel>{F.marketingConsent}</FieldLabel>
+              <div className="grid gap-4 sm:grid-cols-3">{MARKETING_CHANNELS.map(consentField)}</div>
+              <FieldDescription>{F.marketingConsentHint}</FieldDescription>
+            </Field>
+            {numberField(
+              'policy-legal-hold',
+              F.legalHoldDays,
+              p.legalHoldDays,
+              (n) => set({ legalHoldDays: n }),
+              F.legalHoldDaysHint,
             )}
             <div className="grid gap-4 sm:grid-cols-2">
               <Field>
