@@ -11,6 +11,9 @@
  *   pelo relógio de conteúdo da ficha) e passa só a referência, que o caso grava para a equipe abrir a imagem. Nenhuma
  *   imagem é usada para treinar.
  * - Texto dentro da imagem é dado, nunca instrução.
+ * - Antes da Cosmos, a triagem local (`image-screen.ts`) segura o nu claro e libera a imagem comum clara, sem custo e
+ *   sem a imagem sair do servidor; só a dúvida vai para a IA. No destino infantil (`childAudience` na moderação, ou
+ *   autor com menos de 13), a imagem comum também passa pela IA, porque a triagem não vê droga, arma nem ódio.
  */
 import { createCompletionClient, type AttachmentMediaType } from '@galaxie/llm';
 import { estimateCostUsd } from '@galaxie/ai-ledger/pricing';
@@ -18,6 +21,7 @@ import type { Database } from '@galaxie/db/client';
 import type { ModerationClocks } from '@galaxie/db/moderation-queue';
 import type { TenantRole } from '@galaxie/engage';
 import { creditsFor } from './credits.js';
+import { screenOutcome, type ImageScreener } from './image-screen.js';
 import { isCosmosError } from './errors.js';
 import { loadModerationConfig } from './moderation-config.js';
 import {
@@ -130,6 +134,8 @@ export interface ImageModerationInput {
   locale?: string;
   /** `report`: a imagem foi denunciada depois de publicada. */
   source?: 'filter' | 'report';
+  /** Faixa de idade do autor; `under13` vale como destino infantil. */
+  authorAgeBand?: string | null;
   clocks: ModerationClocks;
 }
 
@@ -141,7 +147,15 @@ export interface ImageModerationOutcome extends ModerationOutcome {
   visible: boolean | null;
 }
 
-/** Imagem sem marca das regras: a Cosmos decide sempre (não há classificador grátis para imagem). */
+export type ImageModerationDeps = Omit<ModerationDeps, 'onDecision'> & {
+  /**
+   * Triagem antes da Cosmos: a API passa `localImageScreener` (`@galaxie/cosmos/image-screen-local`). Sem ela, tudo vai
+   * para a IA.
+   */
+  screen?: ImageScreener | null;
+};
+
+/** Imagem sem marca das regras: quem decide é a triagem local ou a Cosmos. */
 const IMAGE_RULES: ModerationItem['rules'] = {
   action: 'allow',
   reasons: [],
@@ -179,7 +193,7 @@ function toItem(input: ImageModerationInput, exempt: boolean): ModerationItem {
 export async function moderateImage(
   db: Database,
   input: ImageModerationInput,
-  deps: Omit<ModerationDeps, 'onDecision'> = {},
+  deps: ImageModerationDeps = {},
 ): Promise<ImageModerationOutcome> {
   const now = deps.now ?? (() => new Date());
   let config: Pick<ModerationConfig, 'muteHours' | 'exemptRoles'> = { muteHours: 1, exemptRoles: [] };
@@ -246,7 +260,7 @@ const isExempt = (input: ImageModerationInput, config: Pick<ModerationConfig, 'e
  * escada.
  */
 const isVisible = (o: ModerationOutcome) => {
-  if (o.by !== 'cosmos' || !o.plan) return false;
+  if ((o.by !== 'cosmos' && o.by !== 'classifier') || !o.plan) return false;
   if (o.plan.allow) return true;
   const hide = o.plan.actions.find((a) => a.action === 'hide');
   return o.item.media?.hold === false && (hide === undefined || hide.step === 'flag');
@@ -259,7 +273,7 @@ async function decideImage(
   config: ModerationConfig,
   ceiling: Parameters<typeof planModeration>[2],
   settings: Awaited<ReturnType<typeof readCosmosSettings>>,
-  deps: Omit<ModerationDeps, 'onDecision'>,
+  deps: ImageModerationDeps,
 ): Promise<ModerationOutcome> {
   const fallback = (reason: FallbackReason): ModerationOutcome => ({
     item,
@@ -273,6 +287,39 @@ async function decideImage(
   if (input.image.byteLength > IMAGE_LIMITS.maxBytes) return fallback('too_large');
   const mediaType = sniffImage(input.image);
   if (!mediaType) return fallback('unreadable');
+
+  // triagem local: denúncia não passa por ela (quem denunciou já viu algo; a Cosmos e a equipe decidem)
+  if (input.source !== 'report') {
+    const scores = deps.screen ? await deps.screen(input.image).catch(() => null) : null;
+    if (scores) {
+      const strict = config.childAudience || input.authorAgeBand === 'under13';
+      const outcome = screenOutcome(scores, strict);
+      // nu claro: fora do ar e para a fila humana, sem gastar
+      if (outcome === 'held')
+        return {
+          item: { ...item, rules: { ...item.rules, categories: ['sexual'] } },
+          by: 'fallback',
+          verdict: null,
+          plan: null,
+          fallback: 'screened',
+        };
+      if (outcome === 'clear') {
+        const verdict: Verdict = {
+          category: 'none',
+          severity: 0,
+          reason: 'triagem local: imagem comum',
+          by: 'classifier',
+          credits: 0,
+        };
+        return {
+          item,
+          by: 'classifier',
+          verdict,
+          plan: planModeration(verdict, config, ceiling, input.authorRole),
+        };
+      }
+    }
+  }
 
   const env = deps.env ?? process.env;
   const fn = await activeFunction(db, IMAGE_MODERATION_FUNCTION);

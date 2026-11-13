@@ -15,6 +15,7 @@ import {
   upsertFunctionDef,
   type CosmosSettings,
   type ImageModerationInput,
+  type ImageScores,
   type ModerationCeiling,
 } from '../src/index.js';
 
@@ -53,6 +54,7 @@ async function newTenant(
   credits: number,
   autonomy: Record<string, string> = { hide: 'auto', mute: 'auto', suspend: 'flag', ban: 'flag' },
   images = true,
+  childAudience = false,
 ): Promise<string> {
   const slug = `t-${randomBytes(4).toString('hex')}`;
   const [row] = await db
@@ -86,6 +88,7 @@ async function newTenant(
       muteHours: 2,
       exemptRoles: [],
       hiddenNotice: null,
+      childAudience,
     },
     expectedVersion: 0,
     userId: 'u-config',
@@ -245,5 +248,100 @@ describe('moderação de imagem (#1025)', () => {
     const cases = await casesOf(t);
     expect(cases).toHaveLength(2);
     expect(cases.every((c) => c.hiddenAt !== null)).toBe(true);
+  });
+});
+
+describe('triagem local antes da Cosmos (#1025)', () => {
+  const scores = (over: Partial<ImageScores>): ImageScores => ({
+    neutral: 0,
+    drawing: 0,
+    sexy: 0,
+    porn: 0,
+    hentai: 0,
+    ...over,
+  });
+  const common = async () => scores({ neutral: 0.97, drawing: 0.02, porn: 0.005, sexy: 0.005 });
+  const nude = async () => scores({ porn: 0.93, sexy: 0.05, neutral: 0.02 });
+  const beach = async () => scores({ neutral: 0.6, sexy: 0.35, porn: 0.05 });
+
+  it('imagem comum clara aparece sem chamar a Cosmos e sem lançamento no extrato', async () => {
+    await withFunction();
+    const t = await newTenant(10_000);
+    const client = fakeClient(verdict('none', 0));
+    const o = await moderateImage(db, image(t), { client, env, settings, ceiling, screen: common });
+    expect(o).toMatchObject({ visible: true, by: 'classifier' });
+    expect(client.requests).toHaveLength(0);
+    expect(await casesOf(t)).toHaveLength(0);
+    expect(await usageOf(t)).toHaveLength(0);
+  });
+
+  it('nu claro fica fora do ar e vai para a fila humana, sem chamar a Cosmos', async () => {
+    await withFunction();
+    const t = await newTenant(10_000);
+    const client = fakeClient(verdict('none', 0));
+    const o = await moderateImage(db, image(t), { client, env, settings, ceiling, screen: nude });
+    expect(o).toMatchObject({ visible: false, by: 'fallback', fallback: 'screened' });
+    expect(client.requests).toHaveLength(0);
+    const [c] = await casesOf(t);
+    expect(c?.status).toBe('open');
+    expect(c?.hiddenAt).not.toBeNull();
+    expect(c?.reasons).toContain('sexual');
+    expect(await usageOf(t)).toHaveLength(0);
+  });
+
+  it('faixa de dúvida vai para a Cosmos e cobra como antes', async () => {
+    await withFunction();
+    const t = await newTenant(10_000);
+    const client = fakeClient(verdict('none', 0));
+    const o = await moderateImage(db, image(t), { client, env, settings, ceiling, screen: beach });
+    expect(o).toMatchObject({ visible: true, by: 'cosmos' });
+    expect(client.requests).toHaveLength(1);
+    expect(await usageOf(t)).toHaveLength(1);
+  });
+
+  it('destino infantil: a imagem comum também passa pela Cosmos; o nu continua segurado sem ela', async () => {
+    await withFunction();
+    const kids = await newTenant(10_000, undefined, true, true);
+    const client = fakeClient(verdict('none', 0));
+    const a = await moderateImage(db, image(kids), { client, env, settings, ceiling, screen: common });
+    expect(a.by).toBe('cosmos');
+    expect(client.requests).toHaveLength(1);
+    const b = await moderateImage(db, image(kids), { client, env, settings, ceiling, screen: nude });
+    expect(b.fallback).toBe('screened');
+    expect(client.requests).toHaveLength(1);
+    // autor com menos de 13 vale como destino infantil, mesmo sem a chave
+    const adult = await newTenant(10_000);
+    const c = await moderateImage(db, image(adult, { authorAgeBand: 'under13' }), {
+      client,
+      env,
+      settings,
+      ceiling,
+      screen: common,
+    });
+    expect(c.by).toBe('cosmos');
+    expect(client.requests).toHaveLength(2);
+  });
+
+  it('denúncia não passa pela triagem; triagem que não leu manda para a Cosmos', async () => {
+    await withFunction();
+    const t = await newTenant(10_000);
+    const client = fakeClient(verdict('none', 0));
+    const a = await moderateImage(db, image(t, { source: 'report' }), {
+      client,
+      env,
+      settings,
+      ceiling,
+      screen: common,
+    });
+    expect(a.by).toBe('cosmos');
+    const b = await moderateImage(db, image(t), {
+      client,
+      env,
+      settings,
+      ceiling,
+      screen: async () => null,
+    });
+    expect(b.by).toBe('cosmos');
+    expect(client.requests).toHaveLength(2);
   });
 });
