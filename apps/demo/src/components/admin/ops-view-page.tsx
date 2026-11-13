@@ -17,6 +17,7 @@ import { settingsHref } from '@/lib/ops/settings-items';
 const VIEW_JOBS: Partial<Record<SettingsView, string>> = {
   live: 'live-run',
   mirror: 'sync-mirror',
+  modules: 'sync-daily',
   quality: 'data-quality',
   crests: 'assets-mirror',
 };

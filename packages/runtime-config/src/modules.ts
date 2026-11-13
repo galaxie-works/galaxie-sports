@@ -73,6 +73,12 @@ export interface ModuleDef {
   items: readonly string[];
   /** Agente de IA: não gasta cota da api-sports. */
   ai?: boolean;
+  /**
+   * Passos do job (nomes em `ops.job_run.stats`) que medem o custo do módulo, quando o endpoint não basta: no sync
+   * diário a agenda, a relista e o detalhe usam o mesmo `/fixtures`. Sem isto, o custo medido é o do ledger por
+   * endpoint e job.
+   */
+  steps?: readonly string[];
 }
 
 const tiersUpTo = (maxTier: number): readonly boolean[] => MODULE_TIERS.map((t) => t <= maxTier);
@@ -141,10 +147,14 @@ const FOOTBALL_REFERENCE = MIRROR_CATALOG.football!.filter((i) => i.reference).m
 
 /** Módulos do futebol, na ordem do painel. */
 const FOOTBALL_MODULES: readonly ModuleDef[] = [
-  fixed('agenda', ['sync-daily'], ['/fixtures', '/leagues']),
+  { ...fixed('agenda', ['sync-daily'], ['/fixtures', '/leagues']), steps: ['fixtures-data', 'leagues'] },
   job('injuries-day', ['sync-daily'], ['/injuries'], [true]),
-  job('season-list', ['sync-daily'], ['/fixtures'], tiersUpTo(SEASON_LIST_MAX_TIER)),
-  job('match-detail', ['sync-daily'], ['/fixtures'], tiersUpTo(MATCH_DETAIL_MAX_TIER)),
+  job('season-list', ['sync-daily'], ['/fixtures'], tiersUpTo(SEASON_LIST_MAX_TIER), {
+    steps: ['temporada-atual'],
+  }),
+  job('match-detail', ['sync-daily'], ['/fixtures'], tiersUpTo(MATCH_DETAIL_MAX_TIER), {
+    steps: ['detalhe'],
+  }),
   job('live', ['live-run', 'live-reconcile'], ['/fixtures'], tiersUpTo(3)),
   job(
     'people-rotation',
@@ -203,7 +213,7 @@ function sportModules(api: string): ModuleDef[] {
     ['injuries', ids((i) => i.group === 'por-time' && i.id === '/injuries')],
   ];
   return [
-    fixed('agenda', ['sync-daily'], seasonList),
+    { ...fixed('agenda', ['sync-daily'], seasonList), steps: ['outros-esportes'] },
     ...groups.filter(([, list]) => list.length).map(([id, list]) => mirror(api, id, list)),
   ];
 }

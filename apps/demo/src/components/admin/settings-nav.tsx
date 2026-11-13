@@ -39,6 +39,7 @@ import {
   SquarePlay,
   Tags,
   Timer,
+  ToggleRight,
   Trophy,
   UserPlus,
   Users,
@@ -85,7 +86,7 @@ import {
 } from '@/lib/ops/settings-items';
 
 export { SETTINGS_ITEMS as SETTINGS_NAV, SETTINGS_NAV_GROUPS, type SettingsNavGroupId };
-/** Área ativa de uma página de Ajustes (um dos 44 itens ou o Início). */
+/** Área ativa de uma página de Ajustes (um dos 45 itens ou o Início). */
 export type SettingsSectionId = SettingsNavId;
 
 /** Ícone de cada item do menu de Ajustes. */
@@ -111,6 +112,7 @@ export const SETTINGS_ICONS: Record<SettingsNavId, NavIcon> = {
   terms: FileText,
   crests: Shield,
   mirror: DatabaseBackup,
+  modules: ToggleRight,
   provider: Server,
   quality: BadgeCheck,
   review: ListChecks,

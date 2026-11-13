@@ -1,5 +1,5 @@
 /**
- * Itens do menu de Ajustes (épico #1066): Início fixo no topo e 9 grupos com 44 itens, 24 que já existem e 20
+ * Itens do menu de Ajustes (épico #1066): Início fixo no topo e 9 grupos com 45 itens, 25 que já existem e 20
  * planejados com o selo "Em breve" (decisão A5). Puro (sem React nem servidor): o proxy, os redirecionamentos, o mapa
  * ajuste → página e os testes leem daqui; os ícones e os textos ficam em `components/admin/settings-nav.tsx` e no
  * dicionário (`ops.nav`).
@@ -82,6 +82,8 @@ export const SETTINGS_ITEMS = [
   // Dados
   { id: 'crests', href: '/ajustes/escudos', group: 'dados' },
   { id: 'mirror', href: '/ajustes/espelho', group: 'dados' },
+  // Módulos por esporte e tier (docs/03 §11.6): o liga/desliga de cada dado por esporte e tier, com o custo de cota
+  { id: 'modules', href: '/ajustes/modulos', group: 'dados' },
   { id: 'provider', href: '/ajustes/fornecedor', group: 'dados' },
   { id: 'quality', href: '/ajustes/qualidade', group: 'dados' },
   { id: 'review', href: '/ajustes/revisao', group: 'dados' },
@@ -115,7 +117,7 @@ export const SETTINGS_ITEMS = [
 
 export type SettingsItem = (typeof SETTINGS_ITEMS)[number];
 export type SettingsItemId = SettingsItem['id'];
-/** Item ativo no menu: um dos 44 ou o Início. */
+/** Item ativo no menu: um dos 45 ou o Início. */
 export type SettingsNavId = SettingsItemId | typeof SETTINGS_HOME.id;
 
 type SoonItem = Extract<SettingsItem, { soon: SoonInfo }>;

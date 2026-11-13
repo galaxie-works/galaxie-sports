@@ -51,6 +51,7 @@ export const SETTING_SECTIONS = [
   'related',
   'provider',
   'mirror',
+  'modules',
   'assets',
   'credentials',
   'feedback',
@@ -844,7 +845,7 @@ export const SETTINGS: readonly SettingDef[] = [
   // execução
   ...MODULE_APIS.map((api): SettingDef => ({
     key: modulesKey(api),
-    section: 'mirror',
+    section: 'modules',
     type: 'text',
     services: ['ingestor', 'live', 'agents'],
     apply: 'next-run',

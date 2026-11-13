@@ -66,6 +66,8 @@ import type {
   LiveServiceStatus,
   SecretState,
   MirrorSnapshot,
+  ModuleStepRow,
+  ModulesSnapshot,
   QuotaRow,
   ServiceStatus,
   WorkerView,
@@ -730,6 +732,67 @@ async function readMirror(settings: OpsSetting[]): Promise<MirrorSnapshot> {
   };
 }
 
+/** Janela do custo medido dos módulos: os últimos dias UTC fechados (o ledger guarda 90). */
+const MODULES_WINDOW_DAYS = 7;
+
+interface JobStats {
+  phases?: { name?: string; steps?: Record<string, { network?: number }> }[];
+}
+
+/** Passos do sync diário por esporte: cada API da agenda das outras 11 vale uma chamada por dia e por data. */
+const OTHER_SPORTS_STEP = 'outros-esportes';
+
+/**
+ * Custo medido dos módulos: chamadas do ledger por (API, endpoint, job) e chamadas de rede por passo do sync diário
+ * (a agenda, a relista e o detalhe usam o mesmo `/fixtures`), nos últimos dias UTC fechados. O job vem de
+ * `ops.job_run` pelo `job_id` do ledger (`job-run:<id>`).
+ */
+async function readModules(now: Date): Promise<ModulesSnapshot> {
+  const today = now.toISOString().slice(0, 10);
+  const from = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - MODULES_WINDOW_DAYS),
+  )
+    .toISOString()
+    .slice(0, 10);
+  const [costs, runs] = await Promise.all([
+    query<{ api: string; endpoint: string; job: string; calls: number }>(
+      `select l.api, l.endpoint, coalesce(j.job, l.job_id, '') as job, count(*)::int as calls
+         from ops.quota_ledger l
+         left join ops.job_run j on l.job_id = 'job-run:' || j.id::text
+        where l.provider = 'api-sports' and l.day_utc >= $1::date and l.day_utc < $2::date
+          and l.outcome <> 'pending'
+        group by 1, 2, 3`,
+      [from, today],
+    ),
+    query<{ job: string; stats: JobStats | null }>(
+      `select job, stats from ops.job_run
+        where job in ('sync:daily', 'sync-daily') and started_at >= $1::date and started_at < $2::date
+          and stats is not null`,
+      [from, today],
+    ),
+  ]);
+  const steps = new Map<string, ModuleStepRow>();
+  const add = (api: string, job: string, step: string, calls: number) => {
+    const key = `${api}|${job}|${step}`;
+    const row = steps.get(key) ?? { api, job, step, calls: 0 };
+    row.calls += calls;
+    steps.set(key, row);
+  };
+  for (const run of runs)
+    for (const phase of run.stats?.phases ?? [])
+      for (const [step, counts] of Object.entries(phase.steps ?? {})) {
+        const n = counts?.network ?? 0;
+        if (!n) continue;
+        // a agenda das outras 11 APIs é um passo só: cada API recebe a parte dela pelo ledger
+        if (step === OTHER_SPORTS_STEP) continue;
+        add('football', run.job, step, n);
+      }
+  for (const c of costs)
+    if (c.api !== 'football' && (c.job === 'sync:daily' || c.job === 'sync-daily'))
+      add(c.api, c.job, OTHER_SPORTS_STEP, c.calls);
+  return { windowDays: MODULES_WINDOW_DAYS, from, costs, steps: [...steps.values()] };
+}
+
 /**
  * Tudo que o painel mostra, numa leitura. Quem chama confere a sessão de admin (página e rota usam
  * `requireAdmin`/`adminFromHeaders`); esta função não lê cookies, para servir também à checagem do smoke.
@@ -741,7 +804,7 @@ export async function readOpsSnapshot(
 ): Promise<OpsSnapshot> {
   const dayUtc = now.toISOString().slice(0, 10);
   const { settings, services, feedback } = await readSettings(now);
-  const [jobs, quota, llm, credit, history, requests, quality, youtube, tasks, workers, mirror] =
+  const [jobs, quota, llm, credit, history, requests, quality, youtube, tasks, workers, mirror, modules] =
     await Promise.all([
       readJobs(),
       readQuota(dayUtc, settings),
@@ -754,6 +817,7 @@ export async function readOpsSnapshot(
       readTasks(),
       readWorkers(now),
       readMirror(settings),
+      readModules(now),
     ]);
   return {
     generatedAt: now.toISOString(),
@@ -772,5 +836,6 @@ export async function readOpsSnapshot(
     youtube,
     tasks: tasks ? { ...tasks, workers } : null,
     mirror,
+    modules,
   };
 }
