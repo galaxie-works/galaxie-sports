@@ -49,6 +49,7 @@ const COMPUTED_SPORTS = ['football', 'baseball'];
 export type StandingsOutcome =
   | 'written'
   | 'provider_fresh'
+  | 'provider_ahead'
   | 'knockout'
   | 'no_results'
   | 'no_groups'
@@ -366,7 +367,7 @@ async function writeTables(
   db: Database,
   seasonId: string,
   competitionId: string,
-  tables: readonly StandingsTable[],
+  tables: StandingsTable[],
   options: RecomputeOptions,
   report: (outcome: StandingsOutcome, extra?: Partial<SeasonStandingsReport>) => SeasonStandingsReport,
   extra: { results: number; dropEmpty: boolean; maxRound?: number | null },
@@ -386,6 +387,12 @@ async function writeTables(
       detail: `só parte da temporada no banco: rodada ${extra.maxRound}, no máximo ${maxPlayed} jogos por time`,
     });
   }
+  const ahead = await providerAheadGroups(db, seasonId, tables);
+  if (ahead.length) {
+    tables = tables.filter((t) => !ahead.includes(t.group));
+    if (!tables.length)
+      return report('provider_ahead', { results: extra.results, detail: aheadDetail(ahead) });
+  }
   const rows = await writeComputedStandings(db, seasonId, tables, { mode: 'replace' });
   await dropStaleComputedRows(db, seasonId, tables, extra.dropEmpty);
   if (options.publish !== false && rows > 0) {
@@ -401,8 +408,48 @@ async function writeTables(
       },
     });
   }
-  return report('written', { results: extra.results, rows });
+  return report('written', {
+    results: extra.results,
+    rows,
+    ...(ahead.length ? { detail: aheadDetail(ahead) } : {}),
+  });
 }
+
+/**
+ * Trava do #880: grupo em que algum time tem mais jogos na linha do fornecedor do que na nossa (jogo faltando no
+ * core ou formato que o regulamento ainda não descreve). A nossa tabela sairia errada; fica a do fornecedor até
+ * o core ou o regulamento serem acertados.
+ */
+async function providerAheadGroups(
+  db: Database,
+  seasonId: string,
+  tables: readonly StandingsTable[],
+): Promise<string[]> {
+  const provider = await db
+    .select({ group: standing.group, participantId: standing.participantId, played: standing.played })
+    .from(standing)
+    .where(and(eq(standing.seasonId, seasonId), eq(standing.source, 'provider')));
+  return providerAhead(provider, tables);
+}
+
+/** Grupos calculados que ficam atrás da linha do fornecedor no mesmo grupo (função pura, para teste). */
+export function providerAhead(
+  provider: readonly { group: string; participantId: string; played: number | null }[],
+  tables: readonly { group: string; rows: readonly { teamId: string; played: number }[] }[],
+): string[] {
+  const out: string[] = [];
+  for (const t of tables) {
+    const ours = new Map(t.rows.map((r) => [r.teamId, r.played]));
+    const behind = provider.some(
+      (p) => p.group === t.group && (p.played ?? 0) > (ours.get(p.participantId) ?? 0),
+    );
+    if (behind) out.push(t.group);
+  }
+  return out;
+}
+
+const aheadDetail = (groups: readonly string[]) =>
+  `tabela do fornecedor com mais jogos (fica a dele): ${groups.map((g) => g || '(sem nome)').join(', ')}`;
 
 /** Tabela com bem menos jogos que a rodada numerada pelo fornecedor (a partir da rodada 5): parcial. */
 const PARTIAL_PLAYED_SHARE = 0.6;
@@ -476,11 +523,14 @@ async function recomputeByTables(
       ? [`grupo renomeado pelo fornecedor (apagado): ${out.superseded.join(', ')}`]
       : []),
   ].join('; ');
+  const ahead = await providerAheadGroups(db, seasonId, out.tables);
+  if (ahead.length) out.tables = out.tables.filter((t) => !ahead.includes(t.group));
+  const fullDetail = [detail, ahead.length ? aheadDetail(ahead) : ''].filter(Boolean).join('; ');
   const removed = await dropRenamedAndResidue(db, seasonId, rules, tableRows, out.superseded);
   if (!out.tables.length) {
     if (options.publish !== false && removed > 0) await publishStandings(db, seasonId, competitionId, 0, []);
-    const outcome = out.skipped.length ? 'no_groups' : 'no_results';
-    return report(outcome, { ...extra, ...(detail ? { detail } : {}) });
+    const outcome = out.skipped.length ? 'no_groups' : ahead.length ? 'provider_ahead' : 'no_results';
+    return report(outcome, { ...extra, ...(fullDetail ? { detail: fullDetail } : {}) });
   }
   const rows = await writeComputedStandings(db, seasonId, out.tables, { mode: 'replace' });
   await dropStaleComputedRows(db, seasonId, out.tables);
@@ -492,7 +542,12 @@ async function recomputeByTables(
       rows,
       out.tables.map((t) => t.group),
     );
-  return report('written', { results: out.results, rows, ...extra, ...(detail ? { detail } : {}) });
+  return report('written', {
+    results: out.results,
+    rows,
+    ...extra,
+    ...(fullDetail ? { detail: fullDetail } : {}),
+  });
 }
 
 /** Avisa o change feed de que a tabela da temporada mudou. */

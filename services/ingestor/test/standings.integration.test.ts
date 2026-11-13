@@ -1042,3 +1042,31 @@ describe('prévia do recálculo (#880)', () => {
     expect(rows.find((r) => r.team === s.team('P1'))?.rank).toBe(1);
   });
 });
+
+describe('trava do #880: fornecedor com mais jogos', () => {
+  it('time com mais jogos na tabela do fornecedor: fica a do fornecedor, nada é gravado', async () => {
+    const s = await seedSeason('football', 'liga-fornecedor-a-frente', ['K1', 'K2']);
+    await finished('football', s.seasonId, s.team('K1'), s.team('K2'), [1, 0]);
+    await db.insert(standing).values(
+      ['K1', 'K2'].map((team, i) => ({
+        seasonId: s.seasonId,
+        group: '',
+        participantId: s.team(team),
+        rank: i + 1,
+        points: 6 - i * 3,
+        played: 3,
+        source: 'provider',
+        updatedAt: new Date('2026-01-01T00:00:00Z'),
+      })),
+    );
+    const report = await recomputeSeasonStandings(db, s.seasonId, { publish: false });
+    expect(report.outcome).toBe('provider_ahead');
+    expect(report.detail).toContain('tabela do fornecedor com mais jogos');
+    const rows = await db
+      .select({ source: standing.source, played: standing.played })
+      .from(standing)
+      .where(eq(standing.seasonId, s.seasonId));
+    expect(rows).toHaveLength(2);
+    expect(rows.every((r) => r.source === 'provider' && r.played === 3)).toBe(true);
+  });
+});
