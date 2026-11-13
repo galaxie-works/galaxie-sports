@@ -764,6 +764,13 @@
       "when": 1794530207111,
       "tag": "0160_cosmos_moderacao_imagem",
       "breakpoints": true
+    },
+    {
+      "idx": 109,
+      "version": "7",
+      "when": 1794530327111,
+      "tag": "0161_foto_perfil_moderada",
+      "breakpoints": true
     }
   ]
 }

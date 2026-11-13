@@ -35,6 +35,7 @@ import { parseInput } from '../util.js';
 import { FAN_REVOCATION_TTL_S, type FanRevocations, type FanTokenTtl } from './fan-auth.js';
 import { fanCan, fanCapabilities } from './fan-rules.js';
 import type { FanTokenSigner } from './fan-token.js';
+import { checkAvatar, scheduleAvatarCheck, type AvatarCheckInput } from './fan-avatar.js';
 import { eraseFan, patchFan, readFan, storedNickname, upsertFan, type FanProfileView } from './fans.js';
 import { ModerationLists } from './moderation.js';
 import { clocksFrom, policyForFan } from './moderation-routes.js';
@@ -44,6 +45,11 @@ export interface FanRoutesDeps {
   signer: FanTokenSigner | null;
   ttl: FanTokenTtl;
   revocations: FanRevocations;
+  /**
+   * Moderação da foto de perfil depois da resposta (#1025). Os testes passam a própria função para esperar o
+   * resultado; o padrão roda em segundo plano e só registra a falha.
+   */
+  avatarCheck?: (db: Database, input: AvatarCheckInput) => Promise<unknown>;
 }
 
 /** Chave secreta de um tenant com algum módulo de engajamento. */
@@ -61,6 +67,9 @@ function meBody(p: FanProfileView, policy: CountryPolicy | null): FanMe {
       profile_id: p.profileId,
       nickname: p.nickname,
       avatar_url: p.avatarUrl,
+      // `removed` (tirada do ar, caso já apagado) chega como `held`: para o torcedor, é a mesma foto fora do ar
+      avatar_status:
+        p.avatarUrl === null ? null : p.avatarStatus === 'removed' ? 'held' : (p.avatarStatus ?? 'pending'),
       age_band: p.ageBand,
       age_band_detail: p.ageBandDetail,
       age_assurance: { method: p.ageAssurance, at: p.ageAssuranceAt?.toISOString() ?? null },
@@ -187,6 +196,22 @@ export async function fanRoutes(app: FastifyInstance, deps: FanRoutesDeps): Prom
       },
     );
     const { accountId, profileId } = upserted;
+    // a foto não segura o token: a moderação de imagem roda depois; sem a ficha do país, tenta de novo no próximo
+    // lotado, fica pendente e tenta de novo no próximo pedido
+    const avatarCheck = upserted.avatarCheck;
+    if (avatarCheck && policy)
+      scheduleAvatarCheck(
+        () =>
+          (deps.avatarCheck ?? checkAvatar)(database, {
+            tenantId: tenant.tenantId,
+            profileId,
+            ...avatarCheck,
+            locale: body.locale,
+            ageBand: detailAgeBand(body.ageBand),
+            clocks: clocksFrom(policy, new Date()),
+          }),
+        (err) => request.log.error({ err, tenantId: tenant.tenantId }, 'moderação da foto de perfil falhou'),
+      );
     const ttl = await deps.ttl.seconds();
     const { token, expiresAt } = sign.issue(
       {

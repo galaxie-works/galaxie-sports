@@ -15,11 +15,13 @@ import {
   type FanAgeAssurance,
   type FanAgeBand,
   type FanAgeBandDetail,
+  type FanAvatarStatus,
   type FanGuardianStatus,
   type FanHolderAdult,
   type FanVisibility,
 } from '@galaxie/db';
 import { and, eq, isNull, sql } from 'drizzle-orm';
+import { planAvatar, type AvatarPlan } from './fan-avatar.js';
 
 export interface FanUpsert {
   tenantId: string;
@@ -46,6 +48,8 @@ export interface FanUpsertResult {
   downgradedFrom: FanAgeBand | null;
   /** A autorização passou a valer agora, declarada pelo cliente (sem `consentId`). */
   guardianDeclared: boolean;
+  /** Foto que precisa passar pela moderação de imagem depois da resposta (#1025); null = nenhuma. */
+  avatarCheck: AvatarPlan['check'];
 }
 
 export interface FanProfileView {
@@ -53,6 +57,8 @@ export interface FanProfileView {
   accountId: string;
   nickname: string;
   avatarUrl: string | null;
+  /** A foto na moderação de imagem (#1025); só o próprio torcedor vê a foto que não está `visible`. */
+  avatarStatus: FanAvatarStatus | null;
   ageBand: FanAgeBand;
   ageBandDetail: FanAgeBandDetail | null;
   ageAssurance: FanAgeAssurance;
@@ -108,6 +114,11 @@ export async function upsertFan(
         ageFrozenAt: fanProfile.ageFrozenAt,
         guardianStatus: fanProfile.guardianStatus,
         guardianConsentId: fanProfile.guardianConsentId,
+        avatarUrl: fanProfile.avatarUrl,
+        avatarStatus: fanProfile.avatarStatus,
+        avatarRef: fanProfile.avatarRef,
+        avatarHash: fanProfile.avatarHash,
+        avatarCheckedAt: fanProfile.avatarCheckedAt,
       })
       .from(fanProfile)
       .where(
@@ -140,6 +151,8 @@ export async function upsertFan(
       guardianLinked: input.guardian.linked,
       ...(downgradedFrom ? { ageFrozenAt: sql`now()` as never } : {}),
     };
+    // foto nova (ou de antes do #1025) fica pendente até a moderação de imagem decidir
+    const avatar = planAvatar(before, input.avatarUrl ?? null, new Date());
     const [profile] = await tx
       .insert(fanProfile)
       .values({
@@ -148,6 +161,7 @@ export async function upsertFan(
         externalProfileId: input.externalProfileId,
         nickname: input.nickname,
         avatarUrl: input.avatarUrl ?? null,
+        ...avatar.fields,
         ...ageFields,
         country: input.country,
         locale: input.locale,
@@ -159,6 +173,7 @@ export async function upsertFan(
         set: {
           nickname: input.nickname,
           avatarUrl: input.avatarUrl ?? null,
+          ...avatar.fields,
           ...ageFields,
           country: input.country,
           locale: input.locale,
@@ -167,7 +182,14 @@ export async function upsertFan(
         },
       })
       .returning({ id: fanProfile.id });
-    const result = { accountId, profileId: profile!.id, ageBand, downgradedFrom, guardianDeclared };
+    const result = {
+      accountId,
+      profileId: profile!.id,
+      ageBand,
+      downgradedFrom,
+      guardianDeclared,
+      avatarCheck: avatar.check,
+    };
     if (effects) await effects(tx, result);
     return result;
   });
@@ -210,6 +232,7 @@ export async function readFan(
       accountId: fanProfile.accountId,
       nickname: fanProfile.nickname,
       avatarUrl: fanProfile.avatarUrl,
+      avatarStatus: fanProfile.avatarStatus,
       ageBand: fanProfile.ageBand,
       ageBandDetail: fanProfile.ageBandDetail,
       ageAssurance: fanProfile.ageAssurance,
@@ -300,6 +323,10 @@ export async function eraseFan(
         externalProfileId: null,
         nickname: null,
         avatarUrl: null,
+        avatarStatus: null,
+        avatarRef: null,
+        avatarHash: null,
+        avatarCheckedAt: null,
         favoriteTeamId: null,
         visibility: {},
         ageAssuranceProvider: null,
