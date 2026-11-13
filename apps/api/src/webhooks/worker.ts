@@ -8,6 +8,7 @@ import {
   webhookEndpoint,
   PLANS_WITHOUT_REALTIME,
   readWebhookControls,
+  sealWebhookSecrets,
   reportWebhookWorker,
   WEBHOOK_CONTROLS_REFRESH_MS,
   type ApiPlan,
@@ -132,6 +133,8 @@ export class WebhookWorker {
   private cursor: GapCursor | undefined;
   private timer: NodeJS.Timeout | undefined;
   private controlsTimer: NodeJS.Timeout | undefined;
+  /** Todos os segredos cifrados na subida (`sealLegacySecrets`): a recusa de texto puro vale por padrão. */
+  private allSealed = false;
   /** Pausa geral (Ajustes → Webhooks): enfileira, mas não entrega. */
   private paused = false;
   private unlisten: (() => Promise<void>) | undefined;
@@ -178,6 +181,7 @@ export class WebhookWorker {
       this.unlisten = () => sub.unlisten();
     }
     const refreshMs = this.options.controlsRefreshMs ?? WEBHOOK_CONTROLS_REFRESH_MS;
+    await this.sealLegacySecrets();
     if (refreshMs !== false) {
       await this.refreshControls();
       this.controlsTimer = setInterval(() => void this.refreshControls(), refreshMs);
@@ -190,10 +194,33 @@ export class WebhookWorker {
     return this.paused;
   }
 
+  /**
+   * Na subida, com a KEK: cifra os segredos legados em texto puro e recifra os de uma KEK antiga (o mesmo botão de
+   * Ajustes → Webhooks, idempotente). Tudo cifrado, a recusa de texto puro passa a valer por padrão (#360): ligar os
+   * webhooks na produção não depende de ninguém lembrar de um passo manual.
+   */
+  async sealLegacySecrets(): Promise<void> {
+    if (!this.secrets.configured) return;
+    try {
+      const r = await sealWebhookSecrets(this.db, this.secrets);
+      this.allSealed = r.failed.length === 0;
+      if (r.sealed || r.failed.length)
+        this.options.logger?.[r.failed.length ? 'warn' : 'info'](
+          { sealed: r.sealed, total: r.total, failed: r.failed },
+          'webhooks: segredos legados cifrados na subida',
+        );
+    } catch (err) {
+      this.allSealed = false;
+      this.options.logger?.warn({ err }, 'webhooks: falha ao cifrar os segredos legados na subida');
+    }
+  }
+
   /** Aplica os controles do painel e relata o que vale aqui (também é o sinal de vida do worker no painel). */
   async refreshControls(): Promise<void> {
     try {
-      const controls = await readWebhookControls(this.db, this.options.env ?? process.env);
+      const controls = await readWebhookControls(this.db, this.options.env ?? process.env, {
+        rejectByDefault: this.secrets.configured && this.allSealed,
+      });
       const paused = !controls.deliveryEnabled;
       if (paused !== this.paused)
         this.options.logger?.info(

@@ -27,16 +27,23 @@ export interface WebhookControls {
   rejectPlaintext: boolean;
 }
 
-/** Controles valendo: banco (painel) > env do processo > padrão (entregas ligadas, texto puro aceito). */
+/**
+ * Controles valendo: banco (painel) > env do processo > padrão (entregas ligadas; texto puro aceito, a menos que
+ * `rejectByDefault`). O worker passa `rejectByDefault` quando tem a KEK e já cifrou todos os segredos legados (#360):
+ * aí a recusa liga sozinha, sem ninguém precisar lembrar. Env vazia (o compose passa `VAR=` quando não definida) conta
+ * como não definida.
+ */
 export async function readWebhookControls(
   db: Pick<Database, 'select'>,
   env: NodeJS.ProcessEnv = process.env,
+  options: { rejectByDefault?: boolean } = {},
 ): Promise<WebhookControls> {
   const overrides = await readRuntimeOverrides(db);
-  const reject = overrides.get(WEBHOOK_REJECT_PLAINTEXT_ENV) ?? env[WEBHOOK_REJECT_PLAINTEXT_ENV];
+  const reject =
+    overrides.get(WEBHOOK_REJECT_PLAINTEXT_ENV) ?? (env[WEBHOOK_REJECT_PLAINTEXT_ENV] || undefined);
   return {
     deliveryEnabled: (overrides.get(WEBHOOK_DELIVERY_SETTING) ?? 'on') !== 'off',
-    rejectPlaintext: reject === 'true',
+    rejectPlaintext: reject === undefined ? options.rejectByDefault === true : reject === 'true',
   };
 }
 

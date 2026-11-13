@@ -69,7 +69,8 @@ const latencies: Record<string, number> = {};
 
 const hits = (path: string) => received.filter((r) => r.path === path);
 /** KEK do worker e da "CLI" deste teste. */
-const secrets = new WebhookSecretBox([randomBytes(32).toString('base64')]);
+const kek = randomBytes(32).toString('base64');
+const secrets = new WebhookSecretBox([kek]);
 const create = (input: WebhookInput) => createWebhookEndpoint(db, input, secrets);
 
 async function newEvent(): Promise<string> {
@@ -124,6 +125,8 @@ beforeAll(async () => {
     secrets,
     // o receptor do teste está em 127.0.0.1 (em produção, rede privada é bloqueada)
     allowPrivateTargets: true,
+    // o teste do legado em texto puro precisa dele aceito; a recusa por padrão tem teste próprio
+    env: { WEBHOOK_REJECT_PLAINTEXT_SECRETS: 'false' },
   });
   await worker.start();
 }, 60_000);
@@ -491,6 +494,44 @@ describe('webhooks assinados', () => {
       /https/,
     );
     await expect(create({ tenantSlug: 'nao-existe', url: `${base}/x` })).rejects.toThrow(/Tenant/);
+  });
+
+  it('ligar sem passo manual (#360): na subida o worker cifra o legado e passa a recusar texto puro', async () => {
+    const legacySecret = generateWebhookSecret();
+    const [tenantRow] = await db.select({ id: tenant.id }).from(tenant).where(eq(tenant.slug, 'portal'));
+    const [legacy] = await db
+      .insert(webhookEndpoint)
+      .values({
+        tenantId: tenantRow!.id,
+        url: `${base}/subida`,
+        secret: legacySecret,
+        topics: [],
+        active: false,
+      })
+      .returning();
+    // a mesma KEK, noutra caixa: a recusa ligada aqui não vaza para o worker de fundo dos outros testes
+    const box = new WebhookSecretBox([kek]);
+    const fresh = new WebhookWorker(db, { listen: false, secrets: box, env: {}, cursorName: 'subida' });
+    // os dois passos da subida (start), sem o ciclo de entrega: o worker de fundo segue sendo o único a entregar
+    await fresh.sealLegacySecrets();
+    await fresh.refreshControls();
+    const [row] = await db.select().from(webhookEndpoint).where(eq(webhookEndpoint.id, legacy!.id));
+    expect(row!.secret).toMatch(/^enc:v1:/);
+    expect(box.open(row!.secret, legacy!.id)).toBe(legacySecret);
+    expect(box.rejectsPlaintext).toBe(true);
+
+    // sem KEK: nada é cifrado e a recusa não liga sozinha
+    const none = new WebhookSecretBox([]);
+    const noKek = new WebhookWorker(db, {
+      listen: false,
+      secrets: none,
+      env: {},
+      cursorName: 'subida-sem-kek',
+    });
+    await noKek.sealLegacySecrets();
+    await noKek.refreshControls();
+    expect(none.rejectsPlaintext).toBe(false);
+    await db.delete(webhookEndpoint).where(eq(webhookEndpoint.id, legacy!.id));
   });
 
   it('segredo cifrado com a KEK no banco; legado em texto puro segue entregue e é migrado (auditoria API-9)', async () => {
