@@ -12,6 +12,8 @@ export type {
   WidgetConfig,
   WidgetDefaults,
   WidgetKind,
+  WidgetShopConfig,
+  WidgetShopStore,
   WidgetTheme,
 } from '@galaxie/db/widgets';
 
@@ -25,4 +27,14 @@ export interface BrandThemeItem {
   theme: WidgetTheme;
   /** Widgets ativos que seguem o tema. */
   widgetCount: number;
+}
+
+/** Loja do Shopping que o cliente pode ligar no widget (só o que a tela precisa; credenciais nunca saem). */
+export interface ShopStoreChoice {
+  id: string;
+  name: string;
+  country: string;
+  network: string;
+  /** Caminhos que a Galaxie libera para clientes nesta loja (#916). */
+  clientPaths: ('client_code' | 'subnetwork')[];
 }

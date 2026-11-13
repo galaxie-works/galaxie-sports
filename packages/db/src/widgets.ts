@@ -22,7 +22,14 @@ import {
   type WidgetTheme,
 } from './schema/index.js';
 
-export type { WidgetConfig, WidgetDefaults, WidgetKind, WidgetTheme } from './schema/index.js';
+export type {
+  WidgetConfig,
+  WidgetDefaults,
+  WidgetKind,
+  WidgetShopConfig,
+  WidgetShopStore,
+  WidgetTheme,
+} from './schema/index.js';
 
 export type Widget = typeof widget.$inferSelect;
 

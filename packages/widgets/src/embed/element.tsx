@@ -87,6 +87,7 @@ import { SeasonCalendar } from '../widgets/season-calendar.js';
 import { StandingsTable } from '../widgets/standings-table.js';
 import { TeamCard } from '../widgets/team-card.js';
 import { TeamSchedule } from '../widgets/team-schedule.js';
+import { ShopTheGame } from '../widgets/shop-the-game.js';
 import { TeamSquad } from '../widgets/team-squad.js';
 import { UpcomingDerbies } from '../widgets/upcoming-derbies.js';
 import { WhereToWatch } from '../widgets/where-to-watch.js';
@@ -298,6 +299,18 @@ function EmbeddedWidget({ config, overrides }: { config: EmbedConfig; overrides:
       return <MatchStats {...o} eventId={eventId ?? ''} />;
     case 'upcoming_derbies':
       return <UpcomingDerbies {...o} />;
+    case 'shop_the_game':
+      // lojas e checagem de destino ficam na configuração que só a API lê (rota presa a este widget)
+      return (
+        <ShopTheGame
+          {...o}
+          widgetId={config.id}
+          eventId={eventId}
+          teamId={eventId ? undefined : teamId}
+          competitionId={eventId || teamId ? undefined : competitionId}
+          personId={eventId || teamId ? undefined : personId}
+        />
+      );
   }
 }
 
