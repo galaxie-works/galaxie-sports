@@ -31,6 +31,8 @@ let verdict = true;
 let withCase = true;
 const seen: { input: AvatarCheckInput; bytes: number }[] = [];
 let pending: Promise<unknown>[] = [];
+// segura a decisão até o teste soltar (para ver a foto ainda em análise sem depender de tempo)
+let gate: Promise<void> | null = null;
 const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3]);
 // cada foto tem a sua imagem; `same=N` aponta outra URL para a imagem da foto N (link assinado, `?v=`)
 const imageOf = (u: string) => {
@@ -41,6 +43,7 @@ const check = (database: Database, input: AvatarCheckInput) => {
   const run = checkAvatar(database, input, {
     fetch: async (u) => new Response(imageOf(String(u))),
     moderate: async (_db, image) => {
+      if (gate) await gate;
       seen.push({ input, bytes: image.image.byteLength });
       return { visible: verdict, caseId: verdict || !withCase ? null : 'caso-falso' } as never;
     },
@@ -132,11 +135,15 @@ describe('foto de perfil na moderação de imagem (#1025)', () => {
   it('foto nova fica pendente, a Cosmos libera e os outros passam a ver', async () => {
     const t = await tenantKey('avatar-libera');
     verdict = true;
+    let release!: () => void;
+    gate = new Promise((r) => (release = r));
     const res = await issue(t.key, { ...base, avatarUrl: photo(1) });
     expect(res.statusCode).toBe(201);
     const { token, profile_id } = res.json().data;
     // o token não espera a moderação: a foto aparece só para o dono, em análise
     expect(await publicAvatars(db, t.id, [profile_id])).toEqual(new Map());
+    gate = null;
+    release();
     await settle();
     expect(seen.at(-1)).toMatchObject({
       input: { url: photo(1), profileId: profile_id, ageBand: '18plus' },
