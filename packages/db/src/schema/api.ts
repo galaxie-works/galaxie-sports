@@ -244,7 +244,8 @@ export const tenantModuleLimit = api.table(
 );
 
 /**
- * Uso por módulo de engajamento, tenant e mês (#1018). Os contadores vivem no Valkey durante o mês e são
+ * Uso por módulo (engajamento desde o #1018; dados e capacidade desde a F6, #1138), tenant e mês. As chaves no Valkey
+ * seguem em `engage:usage:` para não perder o que já foi medido. Os contadores vivem no Valkey durante o mês e são
  * consolidados aqui; `value` só cresce dentro do mês (o consolidado guarda o maior visto), então uma perda do
  * Valkey nunca diminui o que o cliente já viu.
  */
@@ -256,7 +257,7 @@ export const moduleUsageMonthly = api.table(
       .references(() => tenant.id, { onDelete: 'cascade' }),
     /** Primeiro dia do mês, em UTC. */
     month: date('month', { mode: 'string' }).notNull(),
-    module: text('module').$type<EngageModule>().notNull(),
+    module: text('module').$type<ApiModule>().notNull(),
     metric: text('metric').$type<ModuleUsageMetric>().notNull(),
     value: bigint('value', { mode: 'number' }).notNull().default(0),
     /**
@@ -449,11 +450,23 @@ export const webhookEndpoint = api.table(
       .references(() => tenant.id, { onDelete: 'cascade' }),
     url: text('url').notNull(),
     secret: text('secret').notNull(),
-    /** Tópicos assinados; lista vazia = todos os tópicos permitidos pelo plano. */
-    topics: text('topics').array().$type<RealtimeTopic[]>().notNull().default([]),
+    /**
+     * Tópicos assinados (nomes do registro em `@galaxie/contracts`, webhook-topics.ts); lista vazia = todos os
+     * tópicos emitidos dos módulos ligados no tenant.
+     */
+    topics: text('topics').array().$type<string[]>().notNull().default([]),
     filters: jsonb('filters').$type<WebhookFilters>().notNull().default({}),
     description: text('description'),
     active: boolean('active').notNull().default(true),
+    /**
+     * Início da sequência atual de tentativas falhas (nenhuma entrega com sucesso desde então); `null` quando a
+     * última tentativa deu certo. O circuit breaker do worker (#360) desativa o endpoint quando passa do prazo.
+     */
+    failingSince: timestamp('failing_since', { withTimezone: true }),
+    /** Quando o circuit breaker desativou o endpoint; some quando o cliente ou a Galaxie reativa. */
+    autoDisabledAt: timestamp('auto_disabled_at', { withTimezone: true }),
+    /** Último erro na hora da desativação automática (mostrado no portal do cliente). */
+    autoDisabledReason: text('auto_disabled_reason'),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },

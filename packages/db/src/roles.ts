@@ -39,6 +39,7 @@ export const APP_SCHEMAS = [
   'cosmos',
   'engage',
   'fan',
+  'chat',
   'billing',
 ] as const;
 
@@ -46,7 +47,7 @@ export const APP_SCHEMAS = [
  * Schemas com dado pessoal pseudonimizado do torcedor (#937): só a API lê e escreve (e a demo lê, para a
  * moderação). Agentes de IA e ingestor ficam de fora.
  */
-const PERSONAL_SCHEMAS: readonly string[] = ['fan'];
+const PERSONAL_SCHEMAS: readonly string[] = ['fan', 'chat'];
 
 /** Schema do login da demo (fora das migrations: a demo cria as tabelas na subida). */
 export const DEMO_AUTH_SCHEMA = 'demo_auth';
@@ -80,7 +81,7 @@ export const ROLE_GRANTS: Record<RoleService, RoleGrants> = {
   // runtime_env/publishable_key/change_feed em ops
   api: {
     read: [...APP_SCHEMAS, `${DEMO_AUTH_SCHEMA}.${DEMO_FEED_CURSOR}`],
-    write: ['api', 'enrich', 'ops', 'fan', 'engage'],
+    write: ['api', 'enrich', 'ops', 'fan', 'engage', 'chat'],
     // Cosmos AI: só o webhook do Stripe (applyStripeEvent: crédito da compra e da recarga automática, #993/#994)
     modify: ['cosmos.stripe_event', 'cosmos.wallet', 'cosmos.recharge_attempt'],
     // a compra e a recarga automática já existem quando o pagamento chega: a API só muda o estado

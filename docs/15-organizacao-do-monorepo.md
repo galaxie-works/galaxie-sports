@@ -102,13 +102,14 @@ flowchart TB
   end
 
   apps_api --> packages_apisports_client & packages_billing & packages_contracts & packages_cosmos & packages_db & packages_engage & packages_explore & packages_geo & packages_knowledge & packages_observability & packages_providers & packages_rules & packages_runtime_config & packages_where_to_watch
-  apps_demo --> packages_apisports_client & packages_contracts & packages_cosmos & packages_crests & packages_db & packages_engage & packages_net_guard & packages_runtime_config & packages_where_to_watch & packages_widgets
+  apps_demo --> packages_apisports_client & packages_billing & packages_contracts & packages_cosmos & packages_crests & packages_db & packages_engage & packages_net_guard & packages_runtime_config & packages_where_to_watch & packages_widgets
   packages_ai_ledger --> packages_db & packages_runtime_config
   packages_apisports_client --> packages_db
   packages_billing --> packages_db
   packages_core_writer --> packages_apisports_client & packages_db & packages_knowledge & packages_observability & packages_providers & packages_rules
   packages_cosmos --> packages_ai_ledger & packages_db & packages_engage & packages_llm & packages_runtime_config
   packages_crests --> packages_db
+  packages_db --> packages_contracts
   packages_explore --> packages_contracts & packages_db & packages_geo & packages_providers
   packages_knowledge --> packages_db
   packages_llm --> packages_ai_ledger
