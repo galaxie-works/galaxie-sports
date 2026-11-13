@@ -387,7 +387,9 @@ export interface ChangeFeedConsumerRow {
  * Lances de VAR dos jogos de futebol que começaram nos últimos 7 dias, por `detail` (#641). A métrica fica só com os
  * textos que o contrato ainda não conhece (`VAR_DETAILS`): um texto novo da api-sports precisa de veredito, peso e
  * tradução. O recorte por esporte e pelas duas pontas do horário usa `event_sport_starts_idx`; os lances saem pelo
- * `event_incident_seq_uq` de cada jogo (sem varrer a tabela inteira).
+ * índice parcial `event_incident_var_idx` (só os lances de VAR, migration 0156). Antes ela descia no
+ * `event_incident_seq_uq` de cada jogo da semana, e com o cache frio do deploy passava do statement_timeout. O `type`
+ * já vem normalizado em minúsculas (`var`).
  */
 export async function recentVarDetails(db: Database): Promise<{ detail: string; n: number }[]> {
   const rows = await db.execute<{ detail: string; n: number | string }>(sql`
@@ -396,7 +398,7 @@ export async function recentVarDetails(db: Database): Promise<{ detail: string; 
       join core.event e on e.id = i.event_id
      where e.sport = 'football'
        and e.starts_at between now() - interval '7 days' and now()
-       and lower(i.type) = 'var'
+       and i.type = 'var'
        and nullif(btrim(i.detail), '') is not null
      group by 1
   `);
