@@ -458,6 +458,15 @@ export const webhookEndpoint = api.table(
     filters: jsonb('filters').$type<WebhookFilters>().notNull().default({}),
     description: text('description'),
     active: boolean('active').notNull().default(true),
+    /**
+     * Início da sequência atual de tentativas falhas (nenhuma entrega com sucesso desde então); `null` quando a
+     * última tentativa deu certo. O circuit breaker do worker (#360) desativa o endpoint quando passa do prazo.
+     */
+    failingSince: timestamp('failing_since', { withTimezone: true }),
+    /** Quando o circuit breaker desativou o endpoint; some quando o cliente ou a Galaxie reativa. */
+    autoDisabledAt: timestamp('auto_disabled_at', { withTimezone: true }),
+    /** Último erro na hora da desativação automática (mostrado no portal do cliente). */
+    autoDisabledReason: text('auto_disabled_reason'),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
