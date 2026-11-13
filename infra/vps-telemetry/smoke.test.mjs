@@ -34,7 +34,7 @@ const routes = {
     if (n === 1) hung.push(res);
     else json(res, 200, { data: [] });
   },
-  // 500 sempre: o resumo da home que estourou o statement_timeout nas duas tentativas
+  // 500 sempre: o resumo da home que estourou o statement_timeout em todas as tentativas
   '/v1/explore/summary': (n, res) => json(res, 500, { code: 'INTERNAL' }),
   '/v1/explore/agenda': (n, res) => json(res, 200, { total: 5, days: [{ count: 5 }] }),
 };
@@ -74,6 +74,7 @@ describe('smoke: retry de 5xx e de tempo esgotado', () => {
             SMOKE_MAINTENANCE_SITE_URL: base,
             SMOKE_MAINTENANCE_API_URL: base,
             SMOKE_RETRY_MS: '50',
+            SMOKE_RETRIES: '3',
             SMOKE_TIMEOUT_MS: '400',
           },
           timeout: 60_000,
@@ -115,10 +116,10 @@ describe('smoke: retry de 5xx e de tempo esgotado', () => {
     assert.equal(hits.get('/v1/glossary'), 1);
   });
 
-  test('5xx nas duas tentativas: FAIL com o motivo da primeira', () => {
+  test('5xx em todas as tentativas: FAIL com o motivo da primeira, depois de 1 + SMOKE_RETRIES tentativas', () => {
     assert.match(
       line('Home Explorar'),
-      /^FAIL {2}Home Explorar.*status 500 \(após 2 tentativas; 1ª: status 500\)/,
+      /^FAIL {2}Home Explorar.*status 500 \(após 4 tentativas; 1ª: status 500\)/,
     );
   });
 
