@@ -56,6 +56,10 @@ export const ShopEntity = z.object({
   stores: z.array(
     z.object({
       store: z.object({ id: z.string(), name: z.string(), country: z.string() }),
+      display: z
+        .enum(['link', 'qr'])
+        .optional()
+        .meta({ description: 'Widget do cliente: `qr` em TV (só o QR code da loja, sem botão).' }),
       products: z.array(ShopProduct),
     }),
   ),
@@ -65,9 +69,37 @@ export const ShopEntity = z.object({
 });
 export type ShopEntity = z.infer<typeof ShopEntity>;
 
+export const WidgetShopParams = z.object({ id: z.uuid() });
+
+export const WidgetShopQuery = z.object({
+  kind: z.enum(SHOP_ENTITY_KINDS).meta({ description: 'De onde vem a entidade da página.' }),
+  entity: z.uuid().meta({ description: 'Id do time, seleção, campeonato, atleta ou piloto da página.' }),
+  event: z.uuid().optional().meta({ description: 'Jogo da página, para o relatório de cliques do cliente.' }),
+  lang: z
+    .string()
+    .regex(/^[a-z]{2,3}(-[A-Z]{2}|-\d{3})?$/)
+    .optional(),
+});
+
 export function shopPaths(): ZodOpenApiPathsObject {
   const e404 = [400, 401, 403, 404, 429, 503] as (400 | 401 | 403 | 404 | 429 | 503)[];
   return {
+    '/v1/widgets/{id}/shop': {
+      get: {
+        ...getOp(
+          'Shopping no widget do cliente: produtos da entidade nas lojas que o cliente ligou',
+          'Torcedor',
+          ShopEntity,
+          { path: WidgetShopParams, query: WidgetShopQuery },
+          e404,
+        ),
+        description:
+          'Módulo shopping, preso a um widget `shop_the_game` do próprio tenant. Só as lojas que o cliente ligou no ' +
+          'Builder, na ordem dele, com o caminho de cada uma (código próprio ou repasse pela Galaxie) e a checagem de ' +
+          'destino confirmada na versão atual das regras; sem ela, a lista vem vazia. O código de afiliado da Galaxie ' +
+          'nunca entra nestes links.',
+      },
+    },
     '/v1/shop/{kind}/{id}': {
       get: {
         ...getOp(

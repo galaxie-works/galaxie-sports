@@ -131,7 +131,8 @@ export class ShopOffers {
     return this.opts.now?.() ?? new Date();
   }
 
-  private async storeConnectors(): Promise<Map<string, ShopStoreConnector>> {
+  /** Lojas com credenciais abertas (relidas a cada minuto). Também usada pela rota de cliques do widget. */
+  async storeConnectors(): Promise<Map<string, ShopStoreConnector>> {
     const t = this.now().getTime();
     if (!this.stores || t - this.stores.at > STORES_TTL_MS) {
       const box = this.opts.box ?? settingsSecretBox();
@@ -186,7 +187,8 @@ export class ShopOffers {
   /** Ofertas da entidade para o destino, por loja ligada (ordem do catálogo). Entidade sem cadastro: null. */
   async entityOffers(
     ref: { kind: ShopEntityKind; id: string },
-    dest: ShopDestination,
+    /** O destino do link, um só ou por loja (widget do cliente: cada loja com o caminho dela; null = sem a loja). */
+    dest: ShopDestination | ((storeId: string) => ShopDestination | null),
     opts: { country?: string | undefined } = {},
   ): Promise<ShopStoreOffers[] | null> {
     const anchors = await shopAnchors(this.opts.db, ref, { country: opts.country });
@@ -197,10 +199,12 @@ export class ShopOffers {
     for (const group of anchors.stores) {
       const store = stores.get(group.store.id);
       if (!store?.active) continue;
+      const storeDest = typeof dest === 'function' ? dest(store.id) : dest;
+      if (!storeDest) continue;
       // sem link para o destino, nem consulta a loja
       const linked = group.products
-        .map((p) => ({ p, link: buildAffiliateLink(store, p, dest) }))
-        .filter((x): x is typeof x & { link: { ok: true; url: string } } => x.link.ok);
+        .map((p) => ({ p, link: storeDest ? buildAffiliateLink(store, p, storeDest) : null }))
+        .filter((x): x is typeof x & { link: { ok: true; url: string } } => !!x.link?.ok);
       if (!linked.length) continue;
 
       const connector = connectorFor(store.network, fetchFn);
