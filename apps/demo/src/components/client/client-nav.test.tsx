@@ -42,6 +42,7 @@ describe('clientNavGroups', () => {
     const groups = clientNavGroups(clientDictionary('pt-BR').client.nav);
     expect(groups[0]!.items.map((i) => i.label)).toEqual([
       'Chaves publicáveis',
+      'Planos e módulos',
       'Usuários e cargos',
       'Visão geral',
     ]);

@@ -37,6 +37,9 @@ export async function publishChange(db: Executor, change: ChangeInput): Promise<
   return Number(rows[0]!.id);
 }
 
+/** Entidade das linhas publicadas por `publishWebhookEvent` (eventos de engajamento para webhooks). */
+export const WEBHOOK_EVENT_ENTITY = 'webhook_event';
+
 /** O que define as tags de uma mudança (subconjunto de uma linha de `ops.change_feed`). */
 export interface ChangeTagSource {
   entityType: string;
@@ -50,6 +53,8 @@ export interface ChangeTagSource {
  * com elas; a demo revalida o cache do Next (`cacheTag`) com as mesmas.
  */
 export function tagsForChange(change: ChangeTagSource): string[] {
+  // evento de webhook (#1023) não muda dado servido: nada a purgar no Valkey nem na CDN
+  if (change.entityType === WEBHOOK_EVENT_ENTITY) return [];
   const tags = [`${change.entityType}:${change.entityId}`, change.entityType];
   const extra = (change.payload as { tags?: unknown } | null)?.tags;
   if (Array.isArray(extra)) for (const t of extra) if (typeof t === 'string') tags.push(t);
