@@ -107,6 +107,8 @@ const snapshot = {
   quality: null,
   youtube: null,
   tasks: null,
+  mirror: { production: false, reservePercent: 25, apis: [] },
+  modules: { windowDays: 0, from: '', costs: [], steps: [] },
 } as unknown as OpsSnapshot;
 
 /** Páginas feitas só de linhas de ajuste e cartões (as outras têm painéis de status com dados próprios). */

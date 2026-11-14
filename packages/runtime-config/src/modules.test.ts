@@ -199,6 +199,14 @@ describe('applyModuleToMirrorPeriods', () => {
     expect(on.get('/predictions')).toEqual([1, 1]);
   });
 
+  it('só as colunas marcadas em `only` mudam; as outras ficam como estão nos itens', () => {
+    const def = moduleDef('football', 'top-players')!;
+    const base = new Map([['/players/topscorers', [null, null, null]]]);
+    const out = applyModuleToMirrorPeriods('football', def, [true, false, true], base, [false, true, false]);
+    expect(out.get('/players/topscorers')).toEqual([null, null, null]);
+    expect(out.get('/players/topassists')).toEqual([1, null, 6]);
+  });
+
   it('módulo com vários itens e sem tier mexe em todos os itens', () => {
     const def = moduleDef('football', 'reference')!;
     const off = applyModuleToMirrorPeriods('football', def, [false], new Map());
