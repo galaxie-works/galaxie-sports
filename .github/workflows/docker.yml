@@ -1,7 +1,7 @@
 name: Imagens e stack de staging
 
-# Constrói e valida em todo PR. No push para a main e na fila de merge (merge_group) publica no GHCR as imagens que a
-# stack usa: na fila com a tag <sha> do commit que vai virar a main; no push
+# Constrói e valida em todo PR fora do rascunho. No push para a main e na fila de merge (merge_group) publica no GHCR
+# as imagens que a stack usa: na fila com a tag <sha> do commit que vai virar a main; no push
 # com <sha>, main e staging. Imagem cuja entrada não mudou não é reconstruída: ganha as tags novas (passo "Entrada da
 # imagem"). O deploy (deploy.yml) sobe a stack com as imagens do SHA — ver infra/vps-telemetry/README.md.
 # A entrada de api, ingestor e demo é calculada por infra/ops/image-inputs.mjs a partir do grafo do pnpm: as pastas do
@@ -11,8 +11,12 @@ name: Imagens e stack de staging
 # config/broadcast-rights, as pastas que o Dockerfile dela copia.
 # Sem filtro de caminhos: todo commit da main precisa das imagens do próprio SHA, e um check obrigatório que não roda
 # (PR só de docs) trava o PR para sempre. PR que não muda a entrada das imagens só reaproveita e termina em segundos.
+# PR em rascunho pula os jobs (if no nível do job; job pulado não trava check obrigatório) e não gasta runner: o build
+# completo roda quando o PR sai do rascunho (evento ready_for_review). Na fila de merge e no push para a main roda sempre.
 on:
   pull_request:
+    # Rascunho não constrói: o build roda quando o PR sai do rascunho (ready_for_review) e a cada push depois disso.
+    types: [opened, synchronize, reopened, ready_for_review]
   merge_group:
   push:
     branches: [main]
@@ -31,6 +35,7 @@ permissions:
 jobs:
   build:
     name: build ${{ matrix.image }}
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -229,6 +234,7 @@ jobs:
   # versão do Playwright (a que o compose usa) e a do SHA.
   lineup-render:
     name: build lineup-render
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -354,6 +360,7 @@ jobs:
 
   stack:
     name: valida stack, alertas e scripts
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -513,6 +520,7 @@ jobs:
 
   backup-restore:
     name: backup e restore ponta a ponta (Postgres ${{ matrix.postgres }})
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
