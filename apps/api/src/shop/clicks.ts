@@ -36,6 +36,7 @@ import { settingsSecretBox, type SettingsSecretBox } from '@galaxie/runtime-conf
 import type { RateLimiter } from '../rate-limit.js';
 import { problems } from '../errors.js';
 import { parseInput } from '../util.js';
+import type { ShopClickSigner } from './click-token.js';
 import { toConnector } from './offers.js';
 
 /** Robôs, pré-visualizações de link e clientes de linha de comando: vão para a loja sem código e não contam. */
@@ -120,6 +121,8 @@ const Query = z.object({
     .regex(/^[a-z]{2,3}(-[A-Z]{2}|-\d{3})?$/)
     .optional()
     .catch(undefined),
+  // assinatura da vitrine da Galaxie (#921): sem ela, nada de código de afiliado
+  t: z.string().max(64).optional().catch(undefined),
 });
 
 /**
@@ -161,6 +164,8 @@ export function originKey(ip: string): string {
 
 export interface ShopClickRoutesOptions {
   db: Database | undefined;
+  /** Confere a assinatura do link (só a vitrine da Galaxie assina). */
+  signer?: ShopClickSigner;
   limiter: RateLimiter;
   recorder?: ShopClickRecorder;
   box?: Pick<SettingsSecretBox, 'open'>;
@@ -227,6 +232,10 @@ export async function shopClickRoutes(app: FastifyInstance, opts: ShopClickRoute
       const store = target ? await storeOf(target.storeId) : null;
       if (!target || !store?.active) throw problems.notFound('Produto');
       reply.header('cache-control', 'no-store').header('referrer-policy', 'strict-origin-when-cross-origin');
+      // link que não veio da vitrine da Galaxie (copiado para outro site, adulterado ou vencido): sem código e sem
+      // contar. Assim o código da Galaxie não roda a partir de domínio de cliente
+      const now = opts.now?.() ?? new Date();
+      if (!opts.signer?.verify(productId, q.origin, q.t, now)) return reply.redirect(plain(target.url), 302);
       const link = buildAffiliateLink(store, target, { kind: 'galaxie' });
       // sem link (credenciais faltando): para a loja sem código nenhum; não há o que medir
       if (!link.ok) return reply.redirect(plain(target.url), 302);

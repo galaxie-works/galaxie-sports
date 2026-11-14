@@ -1,4 +1,4 @@
-import { and, asc, eq, gt, notInArray, sql } from 'drizzle-orm';
+import { and, asc, eq, gt, inArray, isNotNull, notInArray, sql } from 'drizzle-orm';
 import {
   CHANGE_FEED_CHANNEL,
   changeFeed,
@@ -22,6 +22,7 @@ import {
   type TenantScope,
 } from '../realtime/changes.js';
 import { GapCursor } from '../realtime/gap-cursor.js';
+import { engageEventMatches, toEngageWebhook, type EngageEndpointScope } from './engage-events.js';
 import { WebhookSecretBox } from './secret-box.js';
 import { SIGNATURE_HEADER, signWebhook } from './signature.js';
 import { postWebhook } from './transport.js';
@@ -62,6 +63,22 @@ export interface WebhookWorkerOptions {
    * ops.runtime_env, neste intervalo. Padrão 15 s; `false` desliga (testes que não querem o painel).
    */
   controlsRefreshMs?: number | false;
+  /**
+   * Circuit breaker (#360): o endpoint que passa este tempo só falhando (nenhuma entrega com sucesso desde a
+   * primeira falha, e pelo menos `breakerMinDead` entregas na DLQ) é desativado, com o motivo no portal do cliente. Padrão 24 h; 0 desliga. Falha nossa (segredo
+   * que não abre sem a KEK) não conta.
+   */
+  breakerAfterMs?: number;
+  /**
+   * Entregas que esgotaram as tentativas (DLQ) desde o início da sequência, no mínimo, para o breaker desativar:
+   * um endpoint sem tráfego que falhou uma vez há dias não cai na primeira falha seguinte. Padrão 3.
+   */
+  breakerMinDead?: number;
+  /**
+   * Rate limit por endpoint (#360): entregas por minuto por endpoint, neste worker. Acima disso, a entrega espera a
+   * próxima janela sem gastar tentativa. Padrão 600; 0 desliga.
+   */
+  endpointRatePerMinute?: number;
   /** Env para o padrão da recusa de texto puro quando o painel não grava nada (padrão: process.env). */
   env?: NodeJS.ProcessEnv;
   /** Transporte do POST (padrão: postWebhook, com a checagem de destino no socket). */
@@ -73,6 +90,8 @@ export interface DeliveryStats {
   delivered: number;
   failed: number;
   dead: number;
+  /** Adiadas pelo rate limit do endpoint (sem tentativa). */
+  deferred: number;
 }
 
 const BATCH = 500;
@@ -128,6 +147,11 @@ export class WebhookWorker {
   private readonly concurrency: number;
   private readonly cursorName: string;
   private readonly secrets: WebhookSecretBox;
+  private readonly breakerAfterMs: number;
+  private readonly breakerMinDead: number;
+  private readonly endpointRatePerMinute: number;
+  /** Janela do rate limit por endpoint (memória deste worker). */
+  private readonly rateWindows = new Map<string, { start: number; count: number }>();
 
   constructor(
     private readonly db: Database,
@@ -142,6 +166,9 @@ export class WebhookWorker {
     this.concurrency = options.concurrency ?? 10;
     this.cursorName = options.cursorName ?? 'default';
     this.secrets = options.secrets ?? WebhookSecretBox.fromEnv();
+    this.breakerAfterMs = options.breakerAfterMs ?? 24 * 3_600_000;
+    this.breakerMinDead = options.breakerMinDead ?? 3;
+    this.endpointRatePerMinute = options.endpointRatePerMinute ?? 600;
   }
 
   async start(): Promise<void> {
@@ -232,7 +259,12 @@ export class WebhookWorker {
     for (;;) {
       const stats = await this.deliverDue();
       // a pausa pode chegar no meio de um backlog grande: só o lote já reivindicado termina
-      if (stats.delivered + stats.failed + stats.dead < this.batchSize || this.stopped || this.paused) return;
+      if (
+        stats.delivered + stats.failed + stats.dead + stats.deferred < this.batchSize ||
+        this.stopped ||
+        this.paused
+      )
+        return;
     }
   }
 
@@ -282,13 +314,21 @@ export class WebhookWorker {
             )
         ).map(({ endpoint, tenant: t }) => {
           const scope: TenantScope = { modules: t.modules, markets: t.markets, sports: t.sports };
+          // os tópicos de dados marcados (os de engajamento são vistos por engageEventMatches)
           const filter: ChangeFilter = {
-            topics: new Set<ChangeTopic>(endpoint.topics.length ? endpoint.topics : topicsForTenant(scope)),
+            topics: new Set<string>(
+              endpoint.topics.length ? endpoint.topics : topicsForTenant(scope),
+            ) as Set<ChangeTopic>,
             events: new Set(endpoint.filters.events ?? []),
             competitions: new Set(endpoint.filters.competitions ?? []),
             sports: new Set(endpoint.filters.sports ?? []),
           };
-          return { id: endpoint.id, scope, filter };
+          const engage: EngageEndpointScope = {
+            tenantId: t.id,
+            modules: t.modules,
+            topics: endpoint.topics,
+          };
+          return { id: endpoint.id, scope, filter, engage };
         });
 
       let created = 0;
@@ -305,6 +345,25 @@ export class WebhookWorker {
         const endpoints = rows.length ? await loadEndpoints() : [];
         const deliveries = [];
         for (const row of rows) {
+          const event = toEngageWebhook(row);
+          if (event && 'invalid' in event) {
+            this.options.logger?.warn(
+              { changeId: row.id, topic: row.topic, reason: event.invalid },
+              'webhooks: evento de engajamento fora do schema do registro (não enfileirado)',
+            );
+            continue;
+          }
+          if (event) {
+            for (const ep of endpoints)
+              if (engageEventMatches(event, ep.engage))
+                deliveries.push({
+                  endpointId: ep.id,
+                  changeId: row.id,
+                  topic: row.topic,
+                  payload: event.body,
+                });
+            continue;
+          }
           const change = toRealtimeChange(row);
           if (!change) continue;
           for (const ep of endpoints) {
@@ -336,6 +395,14 @@ export class WebhookWorker {
   /** Entrega o lote de entregas vencidas. */
   async deliverDue(): Promise<DeliveryStats> {
     const leaseSec = Math.ceil(this.timeoutMs / 1000) + 30;
+    // endpoints com a janela do rate limit cheia ficam fora da reivindicação: o backlog deles espera sem ser tocado
+    const throttled = this.throttledEndpoints();
+    const skip = throttled.length
+      ? sql`and endpoint_id not in (${sql.join(
+          throttled.map((t) => sql`${t}::uuid`),
+          sql`, `,
+        )})`
+      : sql``;
     // reivindica com lease: se o worker morrer no meio, a entrega volta a vencer sozinha
     const claimed = await this.db.execute<ClaimedDelivery>(sql`
       update api.webhook_delivery d
@@ -346,13 +413,28 @@ export class WebhookWorker {
          and d.id in (
            select id from api.webhook_delivery
             where status = 'pending' and next_retry_at <= now()
+              ${skip}
             order by next_retry_at, id
             limit ${this.batchSize}
             for update skip locked)
       returning d.id::text, d.endpoint_id, d.change_id::text, d.topic, d.payload, d.attempts,
                 e.url, e.secret, e.active, t.status::text as tenant_status, t.plan::text as tenant_plan`);
-    const stats: DeliveryStats = { delivered: 0, failed: 0, dead: 0 };
-    const queue = [...claimed];
+    const stats: DeliveryStats = { delivered: 0, failed: 0, dead: 0, deferred: 0 };
+    // o que passa do teto dentro do lote volta à fila de uma vez, sem gastar tentativa; a próxima reivindicação já
+    // deixa o endpoint de fora até a janela virar
+    const queue: ClaimedDelivery[] = [];
+    const over: number[] = [];
+    for (const d of claimed) {
+      if (this.rateWait(d.endpoint_id) > 0) over.push(Number(d.id));
+      else queue.push(d);
+    }
+    if (over.length) {
+      await this.db
+        .update(webhookDelivery)
+        .set({ nextRetryAt: new Date() })
+        .where(inArray(webhookDelivery.id, over));
+      stats.deferred += over.length;
+    }
     const work = async () => {
       for (let d = queue.shift(); d; d = queue.shift()) {
         const outcome = await this.deliver(d);
@@ -361,6 +443,72 @@ export class WebhookWorker {
     };
     await Promise.all(Array.from({ length: Math.min(this.concurrency, queue.length) }, work));
     return stats;
+  }
+
+  /** Endpoints com a janela do rate limit cheia agora (ficam fora da próxima reivindicação). */
+  private throttledEndpoints(now = Date.now()): string[] {
+    if (this.endpointRatePerMinute <= 0) return [];
+    const out: string[] = [];
+    for (const [id, w] of this.rateWindows)
+      if (now - w.start < 60_000 && w.count >= this.endpointRatePerMinute) out.push(id);
+    return out;
+  }
+
+  /**
+   * Conta a entrega na janela de um minuto do endpoint. `0` se cabe; senão, quantos ms faltam para a próxima
+   * janela.
+   */
+  private rateWait(endpointId: string, now = Date.now()): number {
+    if (this.endpointRatePerMinute <= 0) return 0;
+    const w = this.rateWindows.get(endpointId);
+    if (!w || now - w.start >= 60_000) {
+      this.rateWindows.set(endpointId, { start: now, count: 1 });
+      // não deixa o mapa crescer sem limite com endpoints que somem
+      if (this.rateWindows.size > 10_000)
+        for (const [k, v] of this.rateWindows) if (now - v.start >= 60_000) this.rateWindows.delete(k);
+      return 0;
+    }
+    if (w.count < this.endpointRatePerMinute) {
+      w.count += 1;
+      return 0;
+    }
+    return w.start + 60_000 - now;
+  }
+
+  /**
+   * Registra a falha no endpoint e, se ele já falha há mais que `breakerAfterMs`, desativa (circuit breaker).
+   * Num comando só: o SET lê os valores antigos, então a primeira falha só marca o início da sequência.
+   */
+  private async recordFailure(endpointId: string, error: string): Promise<boolean> {
+    const afterSec = Math.floor(this.breakerAfterMs / 1000);
+    const trip =
+      afterSec > 0
+        ? sql`(e.active and e.failing_since is not null
+             and e.failing_since < now() - make_interval(secs => ${afterSec})
+             and (select count(*) from api.webhook_delivery d
+                   where d.endpoint_id = e.id and d.status = 'dead'
+                     and d.last_attempt_at >= e.failing_since
+                     -- morta por falha nossa (segredo que não abre sem a KEK) não conta
+                     and coalesce(d.last_error, '') not like 'WebhookSecretError%') >= ${this.breakerMinDead})`
+        : sql`false`;
+    const reason = error.slice(0, 500);
+    const [row] = await this.db.execute<{ tripped: boolean }>(sql`
+      update api.webhook_endpoint e
+         set failing_since = coalesce(e.failing_since, now()),
+             active = case when ${trip} then false else e.active end,
+             auto_disabled_at = case when ${trip} then now() else e.auto_disabled_at end,
+             auto_disabled_reason = case when ${trip} then ${reason} else e.auto_disabled_reason end,
+             updated_at = case when ${trip} then now() else e.updated_at end
+       where e.id = ${endpointId}
+      returning coalesce(e.auto_disabled_at = now(), false) as tripped`);
+    // RETURNING lê a linha nova: desativado agora = auto_disabled_at gravado neste comando (now() é o da transação)
+    const tripped = row?.tripped === true;
+    if (tripped)
+      this.options.logger?.warn(
+        { endpoint: endpointId, error: reason, afterHours: this.breakerAfterMs / 3_600_000 },
+        'webhooks: endpoint desativado pelo circuit breaker (falhando sem parar)',
+      );
+    return tripped;
   }
 
   private async deliver(d: ClaimedDelivery): Promise<keyof DeliveryStats> {
@@ -386,9 +534,17 @@ export class WebhookWorker {
     const t = Math.floor(Date.now() / 1000);
     let responseCode: number | null = null;
     let error: string;
+    // falha nossa (segredo que não abre sem a KEK) não conta para o circuit breaker do endpoint
+    let ours = false;
     try {
       // decifra só aqui, no momento de assinar (sem KEK, segredo cifrado vira erro desta tentativa)
-      const secret = this.secrets.open(d.secret, d.endpoint_id);
+      let secret: string;
+      try {
+        secret = this.secrets.open(d.secret, d.endpoint_id);
+      } catch (err) {
+        ours = true;
+        throw err;
+      }
       responseCode = await this.post(d.url, {
         headers: {
           'content-type': 'application/json',
@@ -416,6 +572,12 @@ export class WebhookWorker {
             deliveredAt: new Date(),
           })
           .where(eq(webhookDelivery.id, id));
+        // fim da sequência de falhas, pelo estado atual do banco (não pelo da reivindicação: outra entrega do mesmo
+        // lote pode ter registrado uma falha depois). Linha já sem marca não é tocada.
+        await this.db
+          .update(webhookEndpoint)
+          .set({ failingSince: null })
+          .where(and(eq(webhookEndpoint.id, d.endpoint_id), isNotNull(webhookEndpoint.failingSince)));
         return 'delivered';
       }
       error = `HTTP ${responseCode}`;
@@ -444,6 +606,7 @@ export class WebhookWorker {
         { delivery: id, endpoint: d.endpoint_id, attempts, error },
         'webhooks: entrega enviada para a DLQ',
       );
+    if (!ours) await this.recordFailure(d.endpoint_id, error);
     return dead ? 'dead' : 'failed';
   }
 }

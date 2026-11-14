@@ -58,6 +58,17 @@ export default defineMessages(
       raffle: 'Gamificação: sorteio',
       punishmentNoticeRequired: 'Aviso de punição obrigatório',
       punishmentNoticeHint: 'Ligado, o Silêncio oculto fica desligado no país.',
+      bettingContent: 'Aceita conteúdo de apostas',
+      bettingContentHint:
+        'Odds, anúncio ou link de casa de apostas. Mesmo ligado, só aparece para cliente com licença do país aprovada pela Galaxie.',
+      marketingConsent: 'Consentimento para marketing',
+      marketingConsentHint:
+        'Opt-in exige consentimento prévio; opt-out envia até o torcedor recusar. Menor de 18 nunca recebe.',
+      marketingChannel: { email: 'E-mail', push: 'Push', sms: 'SMS' },
+      consentMode: { 'opt-in': 'Opt-in', 'opt-out': 'Opt-out' },
+      legalHoldDays: 'Guarda legal do conteúdo denunciado (dias)',
+      legalHoldDaysHint:
+        'De 30 a 3650, contados da denúncia às autoridades, fora do relógio do conteúdo removido.',
       prizeMaxValue: 'Valor máximo de prêmio por campanha',
       prizeMaxValueHint: 'Vazio = sem teto na ficha.',
       legalClassification: 'Campanha com prêmio exige classificação jurídica',
@@ -160,6 +171,17 @@ export default defineMessages(
         raffle: 'Gamification: raffle',
         punishmentNoticeRequired: 'Punishment notice required',
         punishmentNoticeHint: 'When on, shadow mute is off in this country.',
+        bettingContent: 'Allows betting content',
+        bettingContentHint:
+          'Odds, ads or links to betting operators. Even when on, it only shows for a client whose licence for the country Galaxie approved.',
+        marketingConsent: 'Marketing consent',
+        marketingConsentHint:
+          'Opt-in needs prior consent; opt-out sends until the fan says no. Under-18s never get marketing.',
+        marketingChannel: { email: 'Email', push: 'Push', sms: 'SMS' },
+        consentMode: { 'opt-in': 'Opt-in', 'opt-out': 'Opt-out' },
+        legalHoldDays: 'Legal hold for reported content (days)',
+        legalHoldDaysHint:
+          'From 30 to 3650, counted from the report to the authorities, outside the removed-content clock.',
         prizeMaxValue: 'Maximum prize value per campaign',
         prizeMaxValueHint: 'Empty = no cap in the rule sheet.',
         legalClassification: 'Prize campaigns need a legal classification',
@@ -262,6 +284,17 @@ export default defineMessages(
         raffle: 'Gamificación: sorteo',
         punishmentNoticeRequired: 'Aviso de sanción obligatorio',
         punishmentNoticeHint: 'Prendido, el Silencio oculto queda apagado en el país.',
+        bettingContent: 'Acepta contenido de apuestas',
+        bettingContentHint:
+          'Cuotas, anuncio o enlace de casa de apuestas. Aun prendido, solo aparece para un cliente con licencia del país aprobada por Galaxie.',
+        marketingConsent: 'Consentimiento para marketing',
+        marketingConsentHint:
+          'Opt-in exige consentimiento previo; opt-out envía hasta que el aficionado lo rechace. Los menores de 18 nunca reciben.',
+        marketingChannel: { email: 'Correo', push: 'Push', sms: 'SMS' },
+        consentMode: { 'opt-in': 'Opt-in', 'opt-out': 'Opt-out' },
+        legalHoldDays: 'Conservación legal del contenido denunciado (días)',
+        legalHoldDaysHint:
+          'De 30 a 3650, contados desde la denuncia a las autoridades, fuera del reloj del contenido eliminado.',
         prizeMaxValue: 'Valor máximo de premio por campaña',
         prizeMaxValueHint: 'Vacío = sin tope en la ficha.',
         legalClassification: 'La campaña con premio exige clasificación jurídica',
