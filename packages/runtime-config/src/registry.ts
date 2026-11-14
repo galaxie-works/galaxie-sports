@@ -373,6 +373,10 @@ const SECRET_FORMATS = {
   token: /^[\x21-\x7e]{16,512}$/,
   /** Usuário e chave de acesso do S3, host e usuário do SMTP. */
   plain: /^[\x21-\x7e]{3,512}$/,
+  /** Id do workflow do Didit (UUID). */
+  uuid: /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/,
+  /** Segredos do webhook do Didit: um ou vários separados por vírgula (o primeiro é o atual, na troca). */
+  tokenList: /^[\x21-\x2b\x2d-\x7e]{16,512}(?:,[\x21-\x2b\x2d-\x7e]{16,512}){0,2}$/,
   /** Senha do SMTP: aceita espaço no meio. */
   password: /^[\x21-\x7e](?:[\x20-\x7e]{0,510}[\x21-\x7e])?$/,
 } as const;
@@ -886,6 +890,11 @@ export const SETTINGS: readonly SettingDef[] = [
   panelSecret('COSMOS_ANTHROPIC_API_KEY', 'cosmos', ['demo'], SECRET_FORMATS.anthropic, 'refresh'),
   panelSecret('COSMOS_GEMINI_API_KEY', 'cosmos', ['demo'], SECRET_FORMATS.google, 'refresh'),
   panelSecret('COSMOS_DEEPSEEK_API_KEY', 'cosmos', ['demo'], SECRET_FORMATS.openai, 'refresh'),
+  // Verificação de idade da Galaxie (#1109, módulo age_verification): conta da Galaxie no Didit. A API lê na partida;
+  // sem as três, as rotas respondem 503 e nada é aberto no provedor
+  panelSecret('DIDIT_API_KEY', 'engage', ['api'], SECRET_FORMATS.token, 'restart'),
+  panelSecret('DIDIT_WORKFLOW_ID', 'engage', ['api'], SECRET_FORMATS.uuid, 'restart'),
+  panelSecret('DIDIT_WEBHOOK_SECRET', 'engage', ['api'], SECRET_FORMATS.tokenList, 'restart'),
 
   // ── Cosmos AI (#989) ──────────────────────────────────────────────────────────────────────────
   // teto de segurança próprio da Cosmos: o custo real somado de todos os clientes no dia UTC (cosmos.ledger), fora do

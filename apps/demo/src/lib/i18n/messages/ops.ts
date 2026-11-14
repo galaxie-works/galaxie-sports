@@ -1203,6 +1203,10 @@ export default defineMessages(
             description: 'Armazenamento, e-mail, login, métricas e assinatura dos webhooks.',
           },
           payments: { title: 'Pagamentos', description: 'Stripe da Cosmos AI e, depois, das assinaturas.' },
+          age: {
+            title: 'Verificação de idade',
+            description: 'Conta da Galaxie no Didit (módulo de verificação de idade).',
+          },
         },
         servicesTitle: 'Status dos serviços',
         servicesDescription: 'Cada contêiner relata o próprio estado; a API relata só ao subir.',
@@ -1729,6 +1733,9 @@ export default defineMessages(
       FEEDBACK_GITHUB_TOKEN: { label: 'Token das sugestões' },
       STRIPE_SECRET_KEY: { label: 'Stripe: chave secreta' },
       STRIPE_WEBHOOK_SECRET: { label: 'Stripe: segredo do webhook' },
+      DIDIT_API_KEY: { label: 'Didit: chave da API' },
+      DIDIT_WORKFLOW_ID: { label: 'Didit: id do workflow de idade' },
+      DIDIT_WEBHOOK_SECRET: { label: 'Didit: segredo do webhook' },
       WTW_ROUND_ALLOCATION: {
         label: 'Alocação por rodada (desenho anterior)',
         description:
@@ -3037,6 +3044,10 @@ export default defineMessages(
               title: 'Payments',
               description: 'Stripe for Cosmos AI and, later, for subscriptions.',
             },
+            age: {
+              title: 'Age verification',
+              description: 'Galaxie account at Didit (age verification module).',
+            },
           },
           servicesTitle: 'Service status',
           servicesDescription: 'Each container reports its own state; the API reports only on startup.',
@@ -3565,6 +3576,9 @@ export default defineMessages(
         FEEDBACK_GITHUB_TOKEN: { label: 'Suggestions token' },
         STRIPE_SECRET_KEY: { label: 'Stripe: secret key' },
         STRIPE_WEBHOOK_SECRET: { label: 'Stripe: webhook secret' },
+        DIDIT_API_KEY: { label: 'Didit: API key' },
+        DIDIT_WORKFLOW_ID: { label: 'Didit: age workflow id' },
+        DIDIT_WEBHOOK_SECRET: { label: 'Didit: webhook secret' },
         WTW_ROUND_ALLOCATION: {
           label: 'Per-round allocation (previous design)',
           description:
@@ -4893,6 +4907,10 @@ export default defineMessages(
               title: 'Pagos',
               description: 'Stripe de Cosmos AI y, después, de las suscripciones.',
             },
+            age: {
+              title: 'Verificación de edad',
+              description: 'Cuenta de Galaxie en Didit (módulo de verificación de edad).',
+            },
           },
           servicesTitle: 'Estado de los servicios',
           servicesDescription: 'Cada contenedor informa su propio estado; la API informa solo al arrancar.',
@@ -5425,6 +5443,9 @@ export default defineMessages(
         FEEDBACK_GITHUB_TOKEN: { label: 'Token de sugerencias' },
         STRIPE_SECRET_KEY: { label: 'Stripe: clave secreta' },
         STRIPE_WEBHOOK_SECRET: { label: 'Stripe: secreto del webhook' },
+        DIDIT_API_KEY: { label: 'Didit: clave de la API' },
+        DIDIT_WORKFLOW_ID: { label: 'Didit: id del workflow de edad' },
+        DIDIT_WEBHOOK_SECRET: { label: 'Didit: secreto del webhook' },
         WTW_ROUND_ALLOCATION: {
           label: 'Asignación por fecha (diseño anterior)',
           description:
