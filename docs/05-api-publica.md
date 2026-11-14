@@ -1058,6 +1058,17 @@ O `GET /v1/fans/me` devolve `age_band_detail`, `age_assurance`, `guardian` e `ag
 
 Por enquanto o `age_status` só informa: as rotas ainda liberam pelas `capabilities` da faixa larga, e o portão único de todos os módulos pela ficha do país vem na Idade 3 (#1106). Um adulto do Brasil sem o bloco `ageAssurance` aparece como `needs_verification` e ainda escreve.
 
+**Verificação de idade da Galaxie (#1109, módulo `age_verification`, pago por verificação).** O cliente que não tem verificação própria contrata o módulo, e a Galaxie verifica pelo Didit. Quem já tem a própria continua mandando `ageAssurance` no token. O fluxo é adaptativo: começa pela estimativa pelo rosto, com prova de vida, e quem fica na dúvida perto dos 18 passa para o documento, com o rosto do documento comparado à selfie.
+
+1. O widget mostra o aviso de biometria e colhe o consentimento. Depois chama `POST /v1/fans/me/age-verification` com `returnUrl` (https; query e fragmento não vão ao provedor) e `consent: { givenAt, textVersion }`, e recebe `url` e `expires_at`.
+2. O torcedor faz a verificação na tela do provedor e volta para o `returnUrl`.
+3. O provedor avisa a API pelo webhook assinado. A API lê a decisão na API do provedor (nunca no corpo do aviso), grava só a faixa e o caminho, e apaga no provedor as imagens, o documento e o template do rosto.
+4. O `GET /v1/fans/me/age-verification` devolve a última verificação: `status` (`pending`, `approved`, `declined`, `review`, `abandoned`, `expired`) e `method` (`estimated` ou `verified`).
+
+Aprovada, o Perfil passa a `age_assurance` `estimated` ou `verified`, com o provedor `galaxie:didit`. O token seguinte mantém essa comprovação, mesmo que o cliente mande uma mais fraca. O cliente não pode mandar `provider` começando com `galaxie:` (400). Data de nascimento, idade estimada, foto e documento nunca são guardados nem devolvidos. Limite: 5 verificações por Perfil em 24 h (429). `under13` não faz (403); o caminho dele é o responsável. Sem o módulo no plano, 403. Faltando qualquer uma de `DIDIT_API_KEY`, `DIDIT_WORKFLOW_ID` e `DIDIT_WEBHOOK_SECRET` (Ajustes → Credenciais → Verificação de idade, ou .env; valem ao reiniciar a API), a abertura e o webhook respondem 503; o `GET` continua mostrando a última verificação.
+
+Cobrança: cada verificação decidida (aprovada, recusada ou em revisão) entra no uso do mês como `age_checks_estimate` ou `age_checks_document`. Abandonada e expirada sem passo cobrável não contam.
+
 Faixa que desce de `18plus` para menor no mesmo Perfil congela as ações de adulto (escrever e resgatar) e abre um caso na fila de moderação do cliente (`age_band_downgrade`). Subir de faixa é normal; a congelada só volta a adulto com a correção da faixa (#1110).
 
 **Rotas.**
@@ -1077,6 +1088,8 @@ Faixa que desce de `18plus` para menor no mesmo Perfil congela as ações de adu
 | `PUT` e `DELETE /v1/fans/me/blocks/{profileId}` | Widget ou app | Token do torcedor. Bloqueia e desbloqueia (204, idempotente) |
 | `GET /v1/fans/me/sanctions` | Widget ou app | Token do torcedor. Punições do Perfil, com as apelações |
 | `POST /v1/fans/me/sanctions/{sanctionId}/appeals` | Widget ou app | Token do torcedor. Apelação (uma por etapa) |
+| `POST /v1/fans/me/age-verification` | Widget ou app | Token do torcedor. Abre a verificação de idade da Galaxie (módulo `age_verification`) |
+| `GET /v1/fans/me/age-verification` | Widget ou app | Token do torcedor. A última verificação de idade do Perfil |
 
 **Token.** HMAC-SHA256 com `FAN_TOKEN_SECRET` (mínimo 32 caracteres, o mesmo em todas as instâncias). Sem o segredo, as rotas do torcedor respondem 503. O token leva o tenant, os ids internos da Conta e do Perfil, a faixa, o país, o idioma, o Titular adulto, a superfície (`web` ou `store_app`), o `kid` e a expiração. Verificar não consulta o banco. Validade padrão de 15 minutos, em `FAN_TOKEN_TTL_SECONDS` (painel, Ajustes → Engajamento → Identidade do torcedor; 60 a 3600). Para trocar o segredo sem derrubar quem está logado, mova o atual para `FAN_TOKEN_SECRET_PREVIOUS` e ponha o novo em `FAN_TOKEN_SECRET`; depois de uma validade, apague o anterior. Limite de 120 requisições por minuto por Perfil.
 

@@ -51,7 +51,7 @@ export interface AgeVerificationDeps {
   now?: (() => Date) | undefined;
 }
 
-/** Lê a configuração do ambiente (o painel de chaves entra no próximo PR). */
+/** Lê a configuração do ambiente (o painel de chaves grava as mesmas variáveis; valem ao reiniciar a API). */
 export function ageVerificationConfigFromEnv(env: NodeJS.ProcessEnv = process.env): AgeVerificationConfig {
   return {
     apiKey: env.DIDIT_API_KEY?.trim() || undefined,
@@ -63,8 +63,9 @@ export function ageVerificationConfigFromEnv(env: NodeJS.ProcessEnv = process.en
   };
 }
 
+/** Sem a chave, o workflow ou o segredo do webhook, nada abre: sessão sem webhook seria paga e nunca aplicada. */
 function clientOf(config: AgeVerificationConfig): DiditClient | null {
-  if (!config.apiKey || !config.workflowId) return null;
+  if (!config.apiKey || !config.workflowId || !config.webhookSecrets?.length) return null;
   return new DiditClient(
     {
       apiKey: config.apiKey,

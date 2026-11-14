@@ -41,3 +41,4 @@ packages/widgets/src/registry/sources.generated.ts
 
 # dump do Valkey/Redis gerado ao rodar o servidor local numa pasta do repo
 dump.rdb
+*.tsbuildinfo

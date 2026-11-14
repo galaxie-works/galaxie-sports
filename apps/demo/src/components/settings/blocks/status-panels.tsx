@@ -16,6 +16,7 @@ import {
   Radio,
   RefreshCw,
   RotateCcw,
+  ScanFace,
   Server,
   ShieldCheck,
 } from 'lucide-react';
@@ -58,6 +59,9 @@ const KEY_ICONS: Readonly<Record<string, ReactNode>> = {
   SETTINGS_KEK: <Lock />,
   STRIPE_SECRET_KEY: 'S',
   STRIPE_WEBHOOK_SECRET: 'S',
+  DIDIT_API_KEY: <ScanFace />,
+  DIDIT_WORKFLOW_ID: <ScanFace />,
+  DIDIT_WEBHOOK_SECRET: <ScanFace />,
   S3_ACCESS_KEY: <HardDrive />,
   S3_SECRET_KEY: <HardDrive />,
   SMTP_HOST: <Mail />,
@@ -77,6 +81,7 @@ const GROUP_ICONS = {
   ai: <Bot />,
   infra: <Server />,
   payments: <CreditCard />,
+  age: <ScanFace />,
 } as const;
 
 /**

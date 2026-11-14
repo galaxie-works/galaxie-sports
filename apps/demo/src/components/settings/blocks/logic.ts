@@ -189,8 +189,8 @@ export function maskSecret(hint: string | null | undefined): string {
   return tail ? `•••• ${tail}` : '••••';
 }
 
-export type CredentialGroup = 'sports' | 'ai' | 'infra' | 'payments';
-export const CREDENTIAL_GROUPS: readonly CredentialGroup[] = ['sports', 'ai', 'infra', 'payments'];
+export type CredentialGroup = 'sports' | 'ai' | 'infra' | 'payments' | 'age';
+export const CREDENTIAL_GROUPS: readonly CredentialGroup[] = ['sports', 'ai', 'infra', 'payments', 'age'];
 
 const GROUP_OF: Readonly<Record<string, CredentialGroup>> = {
   APISPORTS_KEY: 'sports',
@@ -205,6 +205,9 @@ const GROUP_OF: Readonly<Record<string, CredentialGroup>> = {
   COSMOS_DEEPSEEK_API_KEY: 'ai',
   STRIPE_SECRET_KEY: 'payments',
   STRIPE_WEBHOOK_SECRET: 'payments',
+  DIDIT_API_KEY: 'age',
+  DIDIT_WORKFLOW_ID: 'age',
+  DIDIT_WEBHOOK_SECRET: 'age',
 };
 
 /**
