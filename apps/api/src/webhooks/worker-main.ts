@@ -14,7 +14,19 @@ if (!url) {
   process.exit(1);
 }
 
-const num = (name: string): number | undefined => (process.env[name] ? Number(process.env[name]) : undefined);
+const num = (name: string): number | undefined => {
+  const raw = process.env[name];
+  if (!raw) return undefined;
+  const n = Number(raw);
+  // valor inválido não pode virar NaN (no rate limit, NaN adiaria toda entrega para sempre): fica o padrão
+  if (!Number.isFinite(n) || n < 0) {
+    console.warn(
+      JSON.stringify({ level: 'warn', msg: `webhooks: ${name}=${raw} inválido, usando o padrão` }),
+    );
+    return undefined;
+  }
+  return n;
+};
 
 const log =
   (level: 'info' | 'warn') =>
@@ -39,8 +51,14 @@ const db = createDb(url, { max: 5, applicationName: 'galaxie-webhooks' });
 const maxAttempts = num('WEBHOOK_MAX_ATTEMPTS');
 const baseDelayMs = num('WEBHOOK_RETRY_BASE_MS');
 const timeoutMs = num('WEBHOOK_TIMEOUT_MS');
+// circuit breaker (#360): horas de falha seguida até desativar o endpoint; 0 desliga
+const breakerHours = num('WEBHOOK_BREAKER_HOURS');
+// rate limit por endpoint (#360): entregas por minuto; 0 desliga
+const endpointRatePerMinute = num('WEBHOOK_ENDPOINT_RATE_PER_MIN');
 const worker = new WebhookWorker(db, {
   ...(maxAttempts ? { maxAttempts } : {}),
+  ...(breakerHours != null ? { breakerAfterMs: breakerHours * 3_600_000 } : {}),
+  ...(endpointRatePerMinute != null ? { endpointRatePerMinute } : {}),
   ...(baseDelayMs ? { baseDelayMs } : {}),
   ...(timeoutMs ? { timeoutMs } : {}),
   secrets,
