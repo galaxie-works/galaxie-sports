@@ -19,7 +19,7 @@ import {
   type Database,
   type FanAgeAssurance,
 } from '@galaxie/db';
-import { and, count, desc, eq, gte, isNotNull, isNull, lt, ne, sql } from 'drizzle-orm';
+import { and, count, desc, eq, gte, inArray, isNotNull, isNull, lt, ne, sql } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import type { ModuleUsageMeter } from '../engage/module-usage.js';
 import { clocksFrom, policyForFan } from '../engage/moderation-routes.js';
@@ -248,20 +248,9 @@ export async function applyDiditEvent(
 
   let meterFailed = false;
   if (done.meter) {
-    // a decisão já está gravada: medidor fora não vira 503 (o reenvio cairia em `final` e a soma se perderia de vez).
-    // `metered_at` sem soma aparece no log e na conferência mensal contra o painel do provedor
-    try {
-      if (!opts.meter) throw new Error('medidor indisponível');
-      await opts.meter.add(
-        found.tenantId,
-        'age_verification',
-        done.meter === 'document' ? 'age_checks_document' : 'age_checks_estimate',
-        1,
-        opts.now,
-      );
-    } catch {
-      meterFailed = true;
-    }
+    // a decisão já está gravada: medidor fora não vira 503 (o reenvio cairia em `final`). `metered_at` volta a
+    // null e a varredura soma depois (`meterPending`)
+    meterFailed = !(await meterOne(db, opts.meter, found.tenantId, found.id, done.meter, opts.now));
   }
   const purge = outcome.status !== 'pending' && outcome.status !== 'review';
   return {
@@ -271,6 +260,86 @@ export async function applyDiditEvent(
     purge,
     meterFailed,
   };
+}
+
+const metricOf = (path: AgeCheckPath) =>
+  path === 'document' ? 'age_checks_document' : 'age_checks_estimate';
+
+/**
+ * Soma uma verificação já marcada com `metered_at` no medidor. Falhou: desmarca (só se a marca ainda é a nossa) para
+ * a varredura tentar de novo, e devolve false.
+ */
+async function meterOne(
+  db: Database,
+  meter: ModuleUsageMeter | undefined,
+  tenantId: string,
+  id: string,
+  path: AgeCheckPath,
+  at: Date,
+  billAt: Date = at,
+): Promise<boolean> {
+  try {
+    if (!meter) throw new Error('medidor indisponível');
+    await meter.add(tenantId, 'age_verification', metricOf(path), 1, billAt);
+    return true;
+  } catch {
+    await db
+      .update(fanAgeVerification)
+      .set({ meteredAt: null, updatedAt: sql`now()` })
+      .where(
+        and(
+          eq(fanAgeVerification.tenantId, tenantId),
+          eq(fanAgeVerification.id, id),
+          eq(fanAgeVerification.meteredAt, at),
+        ),
+      )
+      .catch(() => {});
+    return false;
+  }
+}
+
+/**
+ * Soma no medidor as verificações cobráveis que ficaram sem soma (medidor fora na hora do webhook). Cada linha é
+ * reservada com `metered_at` antes de somar, para duas varreduras não somarem a mesma. O mês é o da decisão.
+ */
+export async function meterPending(
+  db: Database,
+  meter: ModuleUsageMeter | undefined,
+  now: Date,
+): Promise<{ metered: number; failed: number }> {
+  if (!meter) return { metered: 0, failed: 0 };
+  const claimed = await db
+    .update(fanAgeVerification)
+    .set({ meteredAt: now, updatedAt: sql`now()` })
+    .where(
+      inArray(
+        fanAgeVerification.id,
+        db
+          .select({ id: fanAgeVerification.id })
+          .from(fanAgeVerification)
+          .where(
+            and(
+              isNull(fanAgeVerification.meteredAt),
+              isNotNull(fanAgeVerification.path),
+              inArray(fanAgeVerification.status, ['approved', 'declined', 'review']),
+            ),
+          )
+          .limit(SWEEP_BATCH),
+      ),
+    )
+    .returning({
+      tenantId: fanAgeVerification.tenantId,
+      id: fanAgeVerification.id,
+      path: fanAgeVerification.path,
+      decidedAt: fanAgeVerification.decidedAt,
+    });
+  let metered = 0;
+  for (const c of claimed) {
+    if (!c.path) continue;
+    const ok = await meterOne(db, meter, c.tenantId, c.id, c.path as AgeCheckPath, now, c.decidedAt ?? now);
+    if (ok) metered += 1;
+  }
+  return { metered, failed: claimed.length - metered };
 }
 
 /** Apaga a sessão no provedor e marca `purged_at`. Falhou ou ficou para depois: devolve false (a varredura tenta). */

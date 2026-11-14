@@ -11,7 +11,7 @@ import { FanTokenSigner } from '../src/engage/fan-token.js';
 import { MemoryModuleUsageMeter } from '../src/engage/module-usage.js';
 import { buildServer } from '../src/server.js';
 import { DiditClient } from '../src/age-verification/didit.js';
-import { sweepAgeVerifications } from '../src/age-verification/service.js';
+import { meterPending, sweepAgeVerifications } from '../src/age-verification/service.js';
 
 const adminUrl = process.env.DATABASE_URL;
 if (!adminUrl) throw new Error('DATABASE_URL é obrigatória para os testes de integração (pnpm infra:up).');
@@ -365,6 +365,33 @@ describe('verificação de idade da Galaxie (#1109)', () => {
     }>;
     expect(rows.every((x) => x.purged_at !== null)).toBe(true);
     expect(rows.find((x) => x.provider_session_id === sidA)?.status).toBe('expired');
+  });
+
+  it('soma que falhou no medidor fica pendente e a varredura soma depois, uma vez só', async () => {
+    const t = await tenantKey('idade-i', ['core_data', 'live_chat', 'age_verification']);
+    const fan = await fanToken(t.key);
+    const res = await start(fan.token);
+    const sid = await sessionOf(res.json().data.verification_id);
+    await sql`update fan.age_verification set status = 'declined', path = 'document', decided_at = now()
+      where provider_session_id = ${sid}`;
+    const broken = {
+      add: async () => {
+        throw new Error('valkey fora');
+      },
+    } as unknown as MemoryModuleUsageMeter;
+    expect(await meterPending(db, broken, new Date())).toMatchObject({ metered: 0 });
+    const [row] =
+      (await sql`select metered_at from fan.age_verification where provider_session_id = ${sid}`) as unknown as [
+        { metered_at: Date | null },
+      ];
+    expect(row.metered_at).toBeNull();
+    const month = new Date().toISOString().slice(0, 7);
+    const doc = async () =>
+      (await meter.read(month)).find((u) => u.tenantId === t.id && u.metric === 'age_checks_document')?.value;
+    expect((await meterPending(db, meter, new Date())).metered).toBeGreaterThanOrEqual(1);
+    expect(await doc()).toBe(1);
+    await meterPending(db, meter, new Date());
+    expect(await doc()).toBe(1);
   });
 
   it('o cliente não manda comprovação com o prefixo da Galaxie', async () => {

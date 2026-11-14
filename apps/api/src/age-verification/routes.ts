@@ -28,6 +28,7 @@ import {
   latestAgeVerification,
   purgeAgeVerification,
   startAgeVerification,
+  meterPending,
   sweepAgeVerifications,
 } from './service.js';
 
@@ -178,7 +179,7 @@ export async function ageVerificationWebhookRoutes(
   const client = clientOf(deps.config);
   const secrets = deps.config.webhookSecrets ?? [];
   if (client && deps.db) {
-    const stop = startAgeVerificationSweep(deps.db, client, app.log);
+    const stop = startAgeVerificationSweep(deps.db, client, app.log, () => deps.meter?.());
     app.addHook('onClose', async () => stop());
   }
   app.addContentTypeParser(
@@ -220,7 +221,7 @@ export async function ageVerificationWebhookRoutes(
       if (result.outcome === 'applied' && result.meterFailed)
         request.log.error(
           { session: event.sessionId },
-          'verificação de idade: decisão gravada sem soma no medidor (conferir a cobrança do mês)',
+          'verificação de idade: medidor fora, a soma fica para a varredura',
         );
       if (result.outcome === 'applied' && result.purge) {
         // depois da resposta: o provedor espera no máximo 5 s pelo 2xx
@@ -252,9 +253,15 @@ export function startAgeVerificationSweep(
   db: Database,
   client: DiditClient,
   log: { warn: (obj: object, msg: string) => void; info: (obj: object, msg: string) => void },
+  meter: () => ModuleUsageMeter | undefined = () => undefined,
   everyMs = 3_600_000,
 ): () => void {
   const run = () => {
+    meterPending(db, meter(), new Date())
+      .then((m) => {
+        if (m.metered || m.failed) log.warn(m, 'verificação de idade: somas atrasadas no medidor');
+      })
+      .catch((err: unknown) => log.warn({ err }, 'verificação de idade: soma atrasada falhou'));
     sweepAgeVerifications(db, client, new Date())
       .then((r) => {
         if (r.expired || r.purged || r.pending) log.info(r, 'verificação de idade: varredura');
