@@ -19,6 +19,7 @@ import {
   rotateGroups,
   sportGroups,
   type MirrorCandidate,
+  type MirrorGroup,
   type SportMirrorSource,
 } from './mirror-job.js';
 import { InMemoryCursorStore } from './runtime/cursor-store.js';
@@ -276,8 +277,13 @@ describe('sportGroups', () => {
     expect(urls).toContain('/players?season=2026-2027&team=2');
     expect(urls).toContain('/odds?game=200');
     expect(urls).toContain('/bookmakers?');
-    // tier 3 fora (padrão 2) e temporada passada fora
-    expect(urls.some((u) => u.includes('league=99') || u.includes('2025-2026'))).toBe(false);
+    // tier 3 (nasce desligado): só a lista da temporada, com período nulo, para o inventário; temporada passada fora
+    const tier3 = groups.flatMap((g) => g.candidates).filter((c) => url(c.item).includes('league=99'));
+    expect(tier3.map((c) => [c.item.endpoint, c.periodDays])).toEqual([
+      ['/games', null],
+      ['/standings', null],
+    ]);
+    expect(urls.some((u) => u.includes('2025-2026'))).toBe(false);
     // 12 jogos em lotes de 10: 2 chamadas por endpoint, um cursor por jogo
     const batches = groups[1]!.candidates.filter((c) => c.item.endpoint === '/games/statistics/teams');
     expect(batches).toHaveLength(2);
@@ -429,6 +435,31 @@ describe('configuração do painel (Ajustes → Operação → Espelho)', () => 
     ]);
   });
 
+  it('tier 3+ das outras APIs nasce desligado: fica no inventário com período nulo e entra no espelho quando ligado', async () => {
+    const all = (groups: MirrorGroup[]) => groups.flatMap((g) => g.candidates);
+    const off = await sportGroups('basketball', fakeSports(), ULTRA_PLAN, now);
+    const season99 = all(off).find(
+      (c) => url(c.item).startsWith('/games?') && url(c.item).includes('league=99'),
+    );
+    // a lista da temporada do tier 3 entra desligada (o painel mostra o que ligar custaria), e nada mais dele
+    expect(season99?.periodDays).toBeNull();
+    expect(season99?.slot).toEqual({ id: '/games', column: 2 });
+    expect(all(off).some((c) => url(c.item).startsWith('/teams?') && url(c.item).includes('league=99'))).toBe(
+      false,
+    );
+    const on = await sportGroups('basketball', fakeSports(), ULTRA_PLAN, now, {
+      mirror: cfgOf({ MIRROR_PERIODS_BASKETBALL: '/games=2,7,14' }),
+    });
+    const urls = all(on).map((c) => url(c.item));
+    expect(all(on).find((c) => url(c.item) === url(season99!.item))?.periodDays).toBe(14);
+    expect(urls.some((u) => u.startsWith('/teams?') && u.includes('league=99'))).toBe(true);
+    // a classificação do tier 3 segue desligada (período nulo): fica no inventário, fora do rodízio
+    const standings = all(on).find(
+      (c) => url(c.item).startsWith('/standings?') && url(c.item).includes('league=99'),
+    );
+    expect(standings?.periodDays).toBeNull();
+  });
+
   it('período e endpoint desligado vêm do painel', async () => {
     const mirror = cfgOf({ MIRROR_PERIODS_FOOTBALL: '/standings=3,off,8; /venues=off' }).api('football');
     const groups = await footballGroups(
@@ -508,7 +539,8 @@ describe('configuração do painel (Ajustes → Operação → Espelho)', () => 
     expect(inv?.at).toBe(now.toISOString());
     expect(inv?.plan).toBe('ultra');
     // uma temporada tier 1 no plano: a lista da temporada segue contada na coluna do tier 1
-    expect(inv?.items['/games']).toEqual([1]);
+    // tier 1 ligado, nenhuma temporada tier 2 no mundo falso, e o tier 3 contado mesmo desligado
+    expect(inv?.items['/games']).toEqual([1, 0, 1]);
     expect(inv?.items['/statistics']).toEqual([2]);
     expect(inv?.items['/games/statistics/teams']).toEqual([2]);
   });

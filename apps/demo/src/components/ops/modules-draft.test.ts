@@ -25,10 +25,13 @@ describe('rascunho dos módulos por tier', () => {
 
     draft['match-detail'] = [true, false, false];
     draft.standings = [true, true, false];
-    draft.predictions = [true, false];
+    draft.predictions = [true, false, false];
     const texts = moduleDraftTexts('football', draft, null);
     expect(texts.modules).toBe('match-detail=on,off,off');
-    expect(texts.mirror).toBe('/standings=1,2,off; /predictions=1,off');
+    expect(texts.mirror).toBe('/standings=1,2,off; /predictions=1,off,off');
+    // ligar o tier 3 de palpites (nasce desligado) grava o período do catálogo, coluna a coluna
+    draft.predictions = [true, true, true];
+    expect(moduleDraftTexts('football', draft, null).mirror).toBe('/standings=1,2,off; /predictions=1,1,1');
     expect(validateSettingKey('MODULES_FOOTBALL', texts.modules).ok).toBe(true);
     expect(validateSettingKey('MIRROR_PERIODS_FOOTBALL', texts.mirror).ok).toBe(true);
   });
@@ -50,9 +53,9 @@ describe('rascunho dos módulos por tier', () => {
     // artilharia conta como ligada (os outros três endpoints estão ligados)
     expect(draft['top-players']).toEqual([true, true, true]);
     // mexer em outro módulo não religa o /players/topscorers
-    draft.predictions = [true, false];
+    draft.predictions = [true, false, false];
     expect(moduleDraftTexts('football', draft, mirrorValue).mirror).toBe(
-      '/standings=3,2,4; /players/topscorers=off; /predictions=1,off',
+      '/standings=3,2,4; /players/topscorers=off; /predictions=1,off,off',
     );
     // sem mudança nenhuma, o texto é o que estava gravado
     expect(
@@ -67,14 +70,18 @@ describe('rascunho dos módulos por tier', () => {
 
   it('linhas do painel: sem tier, e por tier com a nota do que o job não cobre', () => {
     expect(modulesOfRow('football', null).map((d) => d.id)).toContain('h2h');
-    expect(modulesOfRow('football', 3).map((d) => d.id)).not.toContain('predictions');
-    expect(modulesNotCovering('football', 3).map((d) => d.id)).toEqual(
+    // palpites, odds e estatísticas de time têm switch no tier 3 (nasce desligado)
+    expect(modulesOfRow('football', 3).map((d) => d.id)).toEqual(
       expect.arrayContaining(['predictions', 'odds', 'team-stats']),
     );
+    expect(modulesNotCovering('football', 3)).toEqual([]);
     expect(modulesNotCovering('football', 1).map((d) => d.id)).toEqual(['people-mirror']);
     const draft = initialModuleDraft('football', null, null);
+    expect(draft.predictions).toEqual([true, true, false]);
     expect(rowSummary('football', draft, 3)).toMatchObject({ on: 9 });
-    expect(modulesOfRow('basketball', 3)).toEqual([]);
+    // outras APIs: o tier 3+ da temporada e da classificação tem switch (nasce desligado); o resto segue a temporada
+    expect(modulesOfRow('basketball', 3).map((d) => d.id)).toEqual(['season', 'standings']);
+    expect(initialModuleDraft('basketball', null, null).season).toEqual([true, true, false]);
   });
 
   it('custo medido: pelos passos do sync diário ou pelo ledger por endpoint e job', () => {

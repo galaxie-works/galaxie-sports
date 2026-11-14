@@ -7,6 +7,7 @@
 import {
   MODULE_TIERS,
   applyModuleToMirrorPeriods,
+  defaultPeriods,
   formatMirrorPeriods,
   formatModules,
   mirrorConfig,
@@ -136,7 +137,7 @@ export function estimatedCallsPerDay(
   for (const item of def.items) {
     const itemDef = mirrorItem(api, item)!;
     const counts = inventory.items[item] ?? [];
-    const p = periods.get(item) ?? itemDef.defaults;
+    const p = periods.get(item) ?? defaultPeriods(itemDef);
     const col = tier === undefined ? null : tierColumn(itemDef, tier);
     counts.forEach((n, i) => {
       if (col !== null && i !== col) return;

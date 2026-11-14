@@ -124,6 +124,57 @@ describe('MIRROR_PERIODS_<API>', () => {
   });
 });
 
+describe('colunas que nascem desligadas (tier 3 de palpites, odds e estatísticas de time; tier 3+ das outras APIs)', () => {
+  it('o padrão é off; um valor só não as liga; por coluna liga; o texto canônico nunca as esconde num valor só', () => {
+    const f = DEFAULT_MIRROR_CONFIG.api('football');
+    expect(f.periods('/predictions')).toEqual([1, 1, null]);
+    expect(f.periods('/teams/statistics')).toEqual([7, 14, null]);
+    expect(f.period('/odds', 3)).toBeNull();
+    expect(DEFAULT_MIRROR_CONFIG.api('basketball').periods('/games')).toEqual([2, 7, null]);
+    const single = parseMirrorPeriods('football', '/predictions=2');
+    expect(single.ok && single.value.get('/predictions')).toEqual([2, 2, null]);
+    const perColumn = parseMirrorPeriods('football', '/predictions=1,1,2');
+    expect(perColumn.ok && perColumn.value.get('/predictions')).toEqual([1, 1, 2]);
+    expect(formatMirrorPeriods('football', new Map([['/predictions', [2, 2, null]]]))).toBe('/predictions=2');
+    expect(formatMirrorPeriods('football', new Map([['/predictions', [1, 1, 1]]]))).toBe(
+      '/predictions=1,1,1',
+    );
+    expect(formatMirrorPeriods('football', new Map([['/predictions', [1, 1, null]]]))).toBe('');
+  });
+
+  it('texto gravado antes da coluna nova continua válido: a coluna que nasce desligada fica desligada', () => {
+    const odds = parseMirrorPeriods('football', '/odds=1,off');
+    expect(odds.ok && odds.value.get('/odds')).toEqual([1, null, null]);
+    const games = parseMirrorPeriods('basketball', '/games=3,10');
+    expect(games.ok && games.value.get('/games')).toEqual([3, 10, null]);
+    expect(validateSettingKey(mirrorPeriodsKey('basketball'), '/games=3,10; /standings=off,2').ok).toBe(true);
+    expect(
+      mirrorConfigFromEnv({ MIRROR_PERIODS_BASKETBALL: '/games=3,10' }).api('basketball').periods('/games'),
+    ).toEqual([3, 10, null]);
+    // o texto canônico já sai com as três colunas
+    expect(formatMirrorPeriods('basketball', new Map([['/games', [3, 10, null]]]))).toBe('/games=3,10,off');
+    // dois valores num item de duas colunas ligadas e três num de três seguem valendo; dois num de três ligadas, não
+    expect(parseMirrorPeriods('football', '/teams/statistics=7,21').ok).toBe(true);
+    expect(parseMirrorPeriods('football', '/standings=1,2,4').ok).toBe(true);
+    expect(parseMirrorPeriods('football', '/standings=1,2').ok).toBe(false);
+  });
+
+  it('maxTierOn: o teto de tier do job vem do painel (2 de fábrica)', () => {
+    const f = DEFAULT_MIRROR_CONFIG.api('football');
+    expect(f.maxTierOn(['/predictions', '/odds', '/teams/statistics'])).toBe(2);
+    expect(f.maxTierOn()).toBe(3);
+    expect(DEFAULT_MIRROR_CONFIG.api('basketball').maxTierOn()).toBe(2);
+    const on = mirrorConfigFromEnv({
+      MIRROR_PERIODS_FOOTBALL: '/odds=1,1,2',
+      MIRROR_PERIODS_BASKETBALL: '/games=2,7,14',
+    });
+    expect(on.api('football').maxTierOn(['/predictions', '/odds', '/teams/statistics'])).toBe(3);
+    expect(on.api('basketball').maxTierOn()).toBe(3);
+    const off = mirrorConfigFromEnv({ MIRROR_PERIODS_BASKETBALL: '/games=off; /standings=off' });
+    expect(off.api('basketball').maxTierOn()).toBe(0);
+  });
+});
+
 describe('orçamento e ordem dos grupos', () => {
   it('orçamento: 1 a 50%, 0 recusado', () => {
     expect(validateSettingKey('MIRROR_BUDGET_PERCENT', '30')).toEqual({ ok: true, value: '30' });

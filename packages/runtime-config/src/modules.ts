@@ -17,6 +17,7 @@
 import {
   DEFAULT_MIRROR_CONFIG,
   MIRROR_CATALOG,
+  defaultPeriods,
   mirrorItem,
   mirrorItems,
   periodColumns,
@@ -141,7 +142,9 @@ function mirror(
     jobs,
     endpoints: [...new Set(defs.map((d) => d.endpoint))],
     tiers,
-    defaults: (tiers.length ? tiers : [1]).map((_, col) => defs.some((d) => d.defaults[col] !== undefined)),
+    // ligado por padrão quando algum item nasce ligado naquela coluna (o tier 3+ de palpites, odds e estatísticas de
+    // time, e das outras APIs, nasce desligado: liga no painel)
+    defaults: (tiers.length ? tiers : [1]).map((_, col) => defs.some((d) => defaultPeriods(d)[col] != null)),
     items,
   };
 }

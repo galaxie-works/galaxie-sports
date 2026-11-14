@@ -96,6 +96,7 @@ export {
 } from './resolve.js';
 export {
   DEFAULT_MIRROR_CONFIG,
+  defaultPeriods,
   FOOTBALL_MIRROR_GROUPS,
   MIRROR_APIS,
   MIRROR_BUDGET_DEFAULT_PERCENT,
