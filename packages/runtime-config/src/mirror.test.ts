@@ -142,6 +142,23 @@ describe('colunas que nascem desligadas (tier 3 de palpites, odds e estatística
     expect(formatMirrorPeriods('football', new Map([['/predictions', [1, 1, null]]]))).toBe('');
   });
 
+  it('texto gravado antes da coluna nova continua válido: a coluna que nasce desligada fica desligada', () => {
+    const odds = parseMirrorPeriods('football', '/odds=1,off');
+    expect(odds.ok && odds.value.get('/odds')).toEqual([1, null, null]);
+    const games = parseMirrorPeriods('basketball', '/games=3,10');
+    expect(games.ok && games.value.get('/games')).toEqual([3, 10, null]);
+    expect(validateSettingKey(mirrorPeriodsKey('basketball'), '/games=3,10; /standings=off,2').ok).toBe(true);
+    expect(
+      mirrorConfigFromEnv({ MIRROR_PERIODS_BASKETBALL: '/games=3,10' }).api('basketball').periods('/games'),
+    ).toEqual([3, 10, null]);
+    // o texto canônico já sai com as três colunas
+    expect(formatMirrorPeriods('basketball', new Map([['/games', [3, 10, null]]]))).toBe('/games=3,10,off');
+    // dois valores num item de duas colunas ligadas e três num de três seguem valendo; dois num de três ligadas, não
+    expect(parseMirrorPeriods('football', '/teams/statistics=7,21').ok).toBe(true);
+    expect(parseMirrorPeriods('football', '/standings=1,2,4').ok).toBe(true);
+    expect(parseMirrorPeriods('football', '/standings=1,2').ok).toBe(false);
+  });
+
   it('maxTierOn: o teto de tier do job vem do painel (2 de fábrica)', () => {
     const f = DEFAULT_MIRROR_CONFIG.api('football');
     expect(f.maxTierOn(['/predictions', '/odds', '/teams/statistics'])).toBe(2);

@@ -317,7 +317,10 @@ export function parseMirrorPeriods(
     if (out.has(id)) return { ok: false, error: { code: 'format', detail: `${id} repetido` } };
     const values = m[2]!.split(/\s*,\s*/);
     const n = periodColumns(def);
-    if (values.length !== 1 && values.length !== n)
+    // texto gravado antes da coluna que nasce desligada existir (`/games=3,10`, `/odds=1,off`): vale para as colunas
+    // que nascem ligadas, e a nova fica desligada
+    const live = def.defaultOff ? def.defaultOff.filter((off) => !off).length : n;
+    if (values.length !== 1 && values.length !== n && values.length !== live)
       return { ok: false, error: { code: 'format', detail: `${id}: ${n} período(s)` } };
     const periods: MirrorPeriod[] = [];
     for (const v of values) {
@@ -336,12 +339,21 @@ export function parseMirrorPeriods(
       periods.push(days);
     }
     // um valor só vale para as colunas que nascem ligadas; a que nasce desligada só liga por coluna
-    out.set(
-      id,
-      values.length === 1
-        ? Array.from({ length: n }, (_, i) => (def.defaultOff?.[i] ? null : periods[0]!))
-        : periods,
-    );
+    if (values.length === 1) {
+      out.set(
+        id,
+        Array.from({ length: n }, (_, i) => (def.defaultOff?.[i] ? null : periods[0]!)),
+      );
+    } else if (values.length === n) {
+      out.set(id, periods);
+    } else {
+      // forma antiga, sem a coluna que nasce desligada: cada valor vai para a próxima coluna que nasce ligada
+      let next = 0;
+      out.set(
+        id,
+        Array.from({ length: n }, (_, i) => (def.defaultOff?.[i] ? null : periods[next++]!)),
+      );
+    }
   }
   if (unknown.length) return { ok: false, error: { code: 'mirrorItem', values: unknown } };
   return { ok: true, value: out };
