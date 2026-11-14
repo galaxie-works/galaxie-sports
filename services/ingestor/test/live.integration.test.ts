@@ -240,7 +240,7 @@ describe('ao vivo no Postgres', () => {
     expect(table.map((r) => r.points)).toEqual([4, 4, 2, 0]);
   }, 90_000);
 
-  it('recálculo de tabelas: temporadas com resultado novo, idempotente; tabela do provedor mais nova prevalece', async () => {
+  it('recálculo de tabelas: temporadas com resultado novo, idempotente; com resultado, a calculada vale mesmo com a do provedor mais nova', async () => {
     const pal = await eventRow(9101);
     const since = new Date(Date.now() - 3_600_000);
     // a janela de "temporada atual" conta a partir de hoje; os jogos semeados têm data fixa (21/10),
@@ -252,13 +252,18 @@ describe('ao vivo no Postgres', () => {
     const again = await recomputeStandings(db, { seasonIds: [pal.seasonId!], publish: false });
     expect(again[0]).toMatchObject({ outcome: 'written', rows: 4 });
 
-    // tabela do provedor (ex.: bootstrap Pro) atualizada depois do último resultado: não sobrescreve
+    // tabela do provedor (ex.: bootstrap Pro) atualizada depois do último resultado: a calculada vale (#880)
     await db
       .update(standing)
       .set({ source: 'provider', updatedAt: new Date(Date.now() + 60_000) })
       .where(eq(standing.seasonId, pal.seasonId!));
-    const kept = await recomputeStandings(db, { seasonIds: [pal.seasonId!], publish: false });
-    expect(kept[0]!.outcome).toBe('provider_fresh');
+    const replaced = await recomputeStandings(db, { seasonIds: [pal.seasonId!], publish: false });
+    expect(replaced[0]).toMatchObject({ outcome: 'written', rows: 4 });
+    const sources = await db
+      .select({ source: standing.source })
+      .from(standing)
+      .where(eq(standing.seasonId, pal.seasonId!));
+    expect(sources.every((r) => r.source === 'computed')).toBe(true);
   });
 
   it('afterFetch normaliza o detalhe buscado pelos jobs; resposta antiga do cache não regride o estado', async () => {
