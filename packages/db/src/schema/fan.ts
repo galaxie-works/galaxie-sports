@@ -345,3 +345,87 @@ export const fanPointsRevokedEvent = fan.table(
     ),
   ],
 );
+
+/**
+ * Verificação de idade feita pela Galaxie (#1109, módulo `age_verification`, cobrado por verificação). O torcedor
+ * passa pelo fluxo do provedor (Didit primeiro): estimativa pelo rosto e, na zona de dúvida, documento. A decisão
+ * chega por webhook e vira a comprovação do Perfil (`age_assurance`).
+ *
+ * Só metadados: nunca imagem, documento, data de nascimento nem a idade estimada. O resultado é a faixa (`result_band`).
+ * Decidida a sessão, pedimos ao provedor que apague os dados dela (`purged_at`).
+ */
+export const AGE_VERIFICATION_PROVIDERS = ['didit'] as const;
+export type AgeVerificationProvider = (typeof AGE_VERIFICATION_PROVIDERS)[number];
+
+/** Estado da sessão: `pending` até o provedor decidir; `review` = o provedor mandou para revisão manual dele. */
+export const AGE_VERIFICATION_STATUSES = [
+  'pending',
+  'approved',
+  'declined',
+  'review',
+  'abandoned',
+  'expired',
+] as const;
+export type AgeVerificationStatus = (typeof AGE_VERIFICATION_STATUSES)[number];
+
+/** Por onde a decisão saiu: só a estimativa do rosto ou com o documento. É o que define a cobrança. */
+export const AGE_VERIFICATION_PATHS = ['estimate', 'document'] as const;
+export type AgeVerificationPath = (typeof AGE_VERIFICATION_PATHS)[number];
+
+export const fanAgeVerification = fan.table(
+  'age_verification',
+  {
+    tenantId: tenantRef(),
+    id: fanId(),
+    profileId: uuid('profile_id').notNull(),
+    provider: text('provider').$type<AgeVerificationProvider>().notNull(),
+    /** Id da sessão no provedor. */
+    providerSessionId: text('provider_session_id').notNull(),
+    status: text('status').$type<AgeVerificationStatus>().notNull().default('pending'),
+    path: text('path').$type<AgeVerificationPath>(),
+    /** Faixa que a decisão comprova; null enquanto pendente ou quando recusada. */
+    resultBand: text('result_band').$type<FanAgeBandDetail>(),
+    /** Último evento do provedor aplicado (idempotência do webhook). */
+    lastEventId: text('last_event_id'),
+    decidedAt: timestamp('decided_at', { withTimezone: true }),
+    /** Medida para a cobrança (uma vez por sessão). */
+    meteredAt: timestamp('metered_at', { withTimezone: true }),
+    /** Dados apagados no provedor. */
+    purgedAt: timestamp('purged_at', { withTimezone: true }),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    primaryKey({ name: 'age_verification_pkey', columns: [t.tenantId, t.id] }),
+    foreignKey({
+      name: 'age_verification_profile_fk',
+      columns: [t.tenantId, t.profileId],
+      foreignColumns: [fanProfile.tenantId, fanProfile.id],
+    }).onDelete('cascade'),
+    uniqueIndex('age_verification_provider_session_uq').on(t.provider, t.providerSessionId),
+    index('age_verification_profile_idx').on(t.tenantId, t.profileId, t.createdAt),
+    // fila do apagamento no provedor: decididas e ainda não apagadas
+    index('age_verification_purge_idx')
+      .on(t.decidedAt)
+      .where(sql`${t.purgedAt} is null and ${t.decidedAt} is not null`),
+    check('age_verification_provider', inList('provider', AGE_VERIFICATION_PROVIDERS)),
+    check('age_verification_status', inList('status', AGE_VERIFICATION_STATUSES)),
+    check('age_verification_path', sql`path is null or ${inList('path', AGE_VERIFICATION_PATHS)}`),
+    check(
+      'age_verification_result_band',
+      sql`result_band is null or ${inList('result_band', FAN_AGE_BANDS_DETAIL)}`,
+    ),
+    check('age_verification_session_len', sql`length(${t.providerSessionId}) between 1 and 128`),
+    check(
+      'age_verification_event_len',
+      sql`last_event_id is null or length(last_event_id) between 1 and 128`,
+    ),
+    // aprovada sempre diz a faixa; pendente nunca tem decisão
+    check(
+      'age_verification_decided',
+      sql`(status = 'pending' and decided_at is null) or (status <> 'pending' and decided_at is not null)`,
+    ),
+    check('age_verification_approved_band', sql`status <> 'approved' or result_band is not null`),
+  ],
+);

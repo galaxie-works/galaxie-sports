@@ -4,10 +4,17 @@
  */
 
 /**
- * Módulos de engajamento: Chat ao vivo (Sala do Jogo), Comunidades, Gamificação, Shopping e Cosmos AI. Ficam fora
- * de todo plano: entram tenant a tenant, por contrato.
+ * Módulos de engajamento: Chat ao vivo (Sala do Jogo), Comunidades, Gamificação, Shopping, Cosmos AI e Verificação de
+ * idade (#1109, cobrada por verificação). Ficam fora de todo plano: entram tenant a tenant, por contrato.
  */
-export const ENGAGE_MODULES = ['live_chat', 'communities', 'gamification', 'shopping', 'cosmos_ai'] as const;
+export const ENGAGE_MODULES = [
+  'live_chat',
+  'communities',
+  'gamification',
+  'shopping',
+  'cosmos_ai',
+  'age_verification',
+] as const;
 export type EngageModule = (typeof ENGAGE_MODULES)[number];
 
 export const isEngageModule = (m: string): m is EngageModule =>
@@ -64,6 +71,10 @@ export const MODULE_USAGE_METRICS = {
   enriched_games: 'count',
   /** Países distintos com uso no mês (Where to Watch: faixa de países). HyperLogLog. */
   active_markets: 'distinct',
+  /** Verificações de idade cobradas pelo provedor e resolvidas só pela estimativa do rosto (#1109). */
+  age_checks_estimate: 'count',
+  /** Verificações de idade cobradas que passaram pelo documento (zona de dúvida da estimativa ou documento direto, #1109). */
+  age_checks_document: 'count',
 } as const;
 export type ModuleUsageMetric = keyof typeof MODULE_USAGE_METRICS;
 type MetricsOfKind<K> = {
