@@ -24,3 +24,6 @@ e8f125f7afd21252928eb928346d6a785ec6340a:packages/runtime-config/src/sealed.test
 # aaa2a1b0 (PR #1131, widget por frase): chave publicável fictícia do teste de instalação; desde o commit seguinte é
 # montada na hora (['gs', 'pk', 'live', …].join('_')).
 aaa2a1b0d770ad5f0a6b0ca04a8adff071c70a9f:apps/demo/src/lib/cosmos/widget-install.test.ts:generic-api-key:23
+# 992f2db3 (PR #1202, verificação de idade): segredo fictício do teste do webhook do Didit; desde o commit seguinte é
+# montado na hora (['segredo', 'teste', 'didit'].join('-')).
+992f2db38d55ede5b868190db1979fd66a46d33c:apps/api/src/age-verification/didit.test.ts:generic-api-key:7

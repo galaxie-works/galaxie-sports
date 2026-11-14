@@ -383,7 +383,7 @@ export const fanAgeVerification = fan.table(
     providerSessionId: text('provider_session_id').notNull(),
     status: text('status').$type<AgeVerificationStatus>().notNull().default('pending'),
     path: text('path').$type<AgeVerificationPath>(),
-    /** Faixa que a decisão comprova; null enquanto pendente ou quando recusada. */
+    /** Faixa que a decisão comprova: `18plus` quando aprovada; a de menor quando o documento recusou; senão null. */
     resultBand: text('result_band').$type<FanAgeBandDetail>(),
     /** Último evento do provedor aplicado (idempotência do webhook). */
     lastEventId: text('last_event_id'),
@@ -426,6 +426,7 @@ export const fanAgeVerification = fan.table(
       'age_verification_decided',
       sql`(status = 'pending' and decided_at is null) or (status <> 'pending' and decided_at is not null)`,
     ),
-    check('age_verification_approved_band', sql`status <> 'approved' or result_band is not null`),
+    // aprovada = adulto comprovado (a idade mínima do workflow é 18)
+    check('age_verification_approved_band', sql`status <> 'approved' or (result_band is not null and result_band = '18plus')`),
   ],
 );

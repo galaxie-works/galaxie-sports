@@ -6,8 +6,8 @@
  * - Sessão: `POST /v3/session/` com o workflow adaptativo (estimativa pelo rosto; documento na zona de dúvida). O
  *   `vendor_data` é uma referência opaca nossa, nunca o id do torcedor nem dado pessoal.
  * - Decisão: `GET /v3/session/{id}/decision/`. O corpo do webhook nunca é usado como decisão: só avisa que mudou.
- * - Apagamento: `DELETE /v3/session/{id}/delete/` assim que a decisão é gravada (o Didit apaga imagens, documento e
- *   embedding facial). 404 = já apagada.
+ * - Apagamento: `DELETE /v3/session/{id}/delete/` com `retain_face_embeddings: false` assim que a decisão é gravada
+ *   (o Didit apaga imagens, documento e template do rosto, mesmo que o console diga para guardar). 404 = já apagada.
  *
  * Documentação: https://docs.didit.me/sessions-api/create-session.md, …/retrieve-session.md, …/delete-session,
  * https://docs.didit.me/integration/webhooks.md
@@ -124,8 +124,17 @@ export class DiditClient {
   /** Apaga a sessão no provedor. `true` = apagada agora ou já não existia. */
   async purge(sessionId: string): Promise<boolean> {
     if (!SESSION_ID.test(sessionId)) throw new DiditError('didit: id de sessão inválido', null);
-    const res = await this.call('DELETE', `/v3/session/${sessionId}/delete/`);
-    if (res.ok || res.status === 404) return true;
+    // o corpo vence a política da aplicação no console: nunca guardar o template do rosto
+    const res = await this.call('DELETE', `/v3/session/${sessionId}/delete/`, {
+      retain_face_embeddings: false,
+    });
+    if (res.status === 404) return true;
+    if (res.ok) {
+      const body = (await res.json().catch(() => null)) as { face_retention_outcome?: unknown } | null;
+      if (body?.face_retention_outcome === 'retained_with_user')
+        throw new DiditError('didit: apagar sessão: o provedor guardou o template do rosto', res.status);
+      return true;
+    }
     // 503 (armazenamento fora) e 429: tenta de novo depois; 409 (relatório regulatório) não se resolve sozinho
     if (res.status === 503 || res.status === 429) return false;
     throw new DiditError(`didit: apagar sessão: HTTP ${res.status}`, res.status);
@@ -144,8 +153,11 @@ export interface DiditWebhookEvent {
 const hmacHex = (secret: string, data: string | Buffer) =>
   createHmac('sha256', secret).update(data).digest('hex');
 
+const HEX_SHA256 = /^[0-9a-f]{64}$/;
+
 function matches(received: string | undefined, expected: string): boolean {
-  if (!received || received.length !== expected.length) return false;
+  // só hex: um caractere de vários bytes faria o timingSafeEqual lançar (500 em vez de 401)
+  if (!received || !HEX_SHA256.test(received)) return false;
   return timingSafeEqual(Buffer.from(received), Buffer.from(expected));
 }
 

@@ -22,7 +22,7 @@ CREATE TABLE "fan"."age_verification" (
 	CONSTRAINT "age_verification_session_len" CHECK (length("fan"."age_verification"."provider_session_id") between 1 and 128),
 	CONSTRAINT "age_verification_event_len" CHECK (last_event_id is null or length(last_event_id) between 1 and 128),
 	CONSTRAINT "age_verification_decided" CHECK ((status = 'pending' and decided_at is null) or (status <> 'pending' and decided_at is not null)),
-	CONSTRAINT "age_verification_approved_band" CHECK (status <> 'approved' or result_band is not null)
+	CONSTRAINT "age_verification_approved_band" CHECK (status <> 'approved' or (result_band is not null and result_band = '18plus'))
 );
 --> statement-breakpoint
 ALTER TABLE "fan"."age_verification" ADD CONSTRAINT "age_verification_tenant_id_tenant_id_fk" FOREIGN KEY ("tenant_id") REFERENCES "api"."tenant"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint

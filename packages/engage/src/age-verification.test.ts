@@ -6,6 +6,9 @@ const NOW = new Date('2026-11-14T12:00:00Z');
 describe('verificação de idade (#1109)', () => {
   it('idade completa pela data de nascimento, com aniversário e data inválida', () => {
     expect(ageOn('2008-11-14', NOW)).toBe(18);
+    // já é dia 15 em UTC, mas ainda é 14 em UTC-12: o aniversário de 15/11 não conta
+    expect(ageOn('2008-11-15', new Date('2026-11-15T03:00:00Z'))).toBe(17);
+    expect(ageOn('2008-11-15', new Date('2026-11-15T12:00:00Z'))).toBe(18);
     expect(ageOn('2008-11-15', NOW)).toBe(17);
     expect(ageOn('2010-02-29', NOW)).toBeNull();
     expect(ageOn('2030-01-01', NOW)).toBeNull();
@@ -39,7 +42,7 @@ describe('verificação de idade (#1109)', () => {
           liveness_checks: [{ status: 'Approved', age_estimation: 31.2 }],
           face_matches: null,
         },
-        NOW,
+        { now: NOW },
       ),
     ).toEqual({ status: 'approved', path: 'estimate', band: '18plus', method: 'estimated', billable: true });
   });
@@ -53,9 +56,35 @@ describe('verificação de idade (#1109)', () => {
           id_verifications: [{ status: 'Approved', date_of_birth: '2007-01-02' }],
           face_matches: [{ status: 'Approved' }],
         },
-        NOW,
+        { now: NOW },
       ),
     ).toEqual({ status: 'approved', path: 'document', band: '18plus', method: 'verified', billable: true });
+  });
+
+  it('aprovada pela estimativa sem prova de vida aprovada ou abaixo de 18 (aprovação manual) não comprova', () => {
+    for (const lives of [
+      [{ status: 'Approved', age_estimation: 15.4 }],
+      [{ status: 'In Review', age_estimation: 25 }],
+      [{ status: 'Approved', age_estimation: null }],
+    ])
+      expect(diditOutcome({ status: 'Approved', liveness_checks: lives }, { now: NOW })).toMatchObject({
+        status: 'review',
+        band: null,
+        method: null,
+      });
+  });
+
+  it('decisão de outro workflow não comprova nada', () => {
+    const d = {
+      status: 'Approved',
+      workflow_id: 'wf-teste',
+      liveness_checks: [{ status: 'Approved', age_estimation: 30 }],
+    };
+    expect(diditOutcome(d, { workflowId: 'wf-idade', now: NOW })).toMatchObject({
+      status: 'review',
+      band: null,
+    });
+    expect(diditOutcome(d, { workflowId: 'wf-teste', now: NOW })).toMatchObject({ status: 'approved' });
   });
 
   it('aprovada com documento sem data ou de menor não comprova nada', () => {
@@ -63,7 +92,7 @@ describe('verificação de idade (#1109)', () => {
       expect(
         diditOutcome(
           { status: 'Approved', id_verifications: [{ status: 'Approved', date_of_birth: dob }] },
-          NOW,
+          { now: NOW },
         ),
       ).toMatchObject({ status: 'review', band: null, method: null });
   });
@@ -72,26 +101,26 @@ describe('verificação de idade (#1109)', () => {
     expect(
       diditOutcome(
         { status: 'Declined', id_verifications: [{ status: 'Approved', date_of_birth: '2011-03-01' }] },
-        NOW,
+        { now: NOW },
       ),
     ).toEqual({ status: 'declined', path: 'document', band: '14_15', method: 'verified', billable: true });
     expect(
       diditOutcome(
         { status: 'Declined', liveness_checks: [{ status: 'Declined', age_estimation: 14 }] },
-        NOW,
+        { now: NOW },
       ),
     ).toEqual({ status: 'declined', path: 'estimate', band: null, method: null, billable: true });
   });
 
   it('sessão abandonada antes de qualquer etapa não é cobrada', () => {
-    expect(diditOutcome({ status: 'Abandoned' }, NOW)).toEqual({
+    expect(diditOutcome({ status: 'Abandoned' }, { now: NOW })).toEqual({
       status: 'abandoned',
       path: null,
       band: null,
       method: null,
       billable: false,
     });
-    expect(diditOutcome({ status: 'Not Started' }, NOW)).toMatchObject({
+    expect(diditOutcome({ status: 'Not Started' }, { now: NOW })).toMatchObject({
       status: 'pending',
       billable: false,
     });

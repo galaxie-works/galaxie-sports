@@ -68,6 +68,8 @@ describe('fan.age_verification (#1109)', () => {
       { status: 'aprovada', decided_at: new Date() },
       { path: 'selfie' },
       { result_band: '13_17', status: 'approved', decided_at: new Date() },
+      // aprovada é sempre adulto comprovado
+      { result_band: '16_17', status: 'approved', decided_at: new Date() },
     ])
       await expect(insert(bad), JSON.stringify(bad)).rejects.toThrow(/violates check constraint/);
   });

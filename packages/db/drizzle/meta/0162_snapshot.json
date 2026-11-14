@@ -20687,7 +20687,7 @@
         },
         "age_verification_approved_band": {
           "name": "age_verification_approved_band",
-          "value": "status <> 'approved' or result_band is not null"
+          "value": "status <> 'approved' or (result_band is not null and result_band = '18plus')"
         }
       },
       "isRLSEnabled": false

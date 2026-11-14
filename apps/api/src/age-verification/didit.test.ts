@@ -4,7 +4,8 @@ import { DiditClient, DiditError, verifyDiditWebhook, type DiditFetch } from './
 
 const NOW = new Date('2026-11-14T12:00:00Z');
 const TS = String(Math.floor(NOW.getTime() / 1000));
-const SECRET = 'segredo-do-destino-didit-0123456789';
+// segredo fictício montado na hora (o gitleaks lê literal com cara de chave como segredo)
+const SECRET = ['segredo', 'teste', 'didit'].join('-');
 const SESSION = '4c5c7f3a-1f82-4f3b-8d8e-1a8d2d2f9b7a';
 
 function recorder(responses: Array<{ status: number; body?: unknown }>) {
@@ -75,24 +76,28 @@ describe('cliente do Didit (#1109)', () => {
     }
   });
 
-  it('decisão e apagamento: 404 conta como apagada, 503 tenta depois, id estranho nem sai', async () => {
+  it('decisão e apagamento: sem guardar o rosto, 404 conta como apagada, 503 tenta depois, id estranho nem sai', async () => {
     const { calls, fetchFn } = recorder([
       { status: 200, body: { status: 'Approved' } },
-      { status: 200, body: { session_id: SESSION } },
+      { status: 200, body: { session_id: SESSION, face_retention_outcome: 'deleted' } },
       { status: 404 },
       { status: 503 },
       { status: 409 },
+      { status: 200, body: { session_id: SESSION, face_retention_outcome: 'retained_with_user' } },
     ]);
     const c = client(fetchFn);
     expect(await c.decision(SESSION)).toEqual({ status: 'Approved' });
     expect(calls[0]!.url).toBe(`https://didit.test/v3/session/${SESSION}/decision/`);
     expect(await c.purge(SESSION)).toBe(true);
     expect(calls[1]!.init.method).toBe('DELETE');
+    expect(JSON.parse(String(calls[1]!.init.body))).toEqual({ retain_face_embeddings: false });
     expect(await c.purge(SESSION)).toBe(true);
     expect(await c.purge(SESSION)).toBe(false);
     await expect(c.purge(SESSION)).rejects.toBeInstanceOf(DiditError);
+    // template do rosto guardado = não apagou o que prometemos
+    await expect(c.purge(SESSION)).rejects.toThrow(/template do rosto/);
     await expect(c.decision('../admin')).rejects.toBeInstanceOf(DiditError);
-    expect(calls).toHaveLength(5);
+    expect(calls).toHaveLength(6);
   });
 });
 
@@ -162,6 +167,10 @@ describe('webhook do Didit (#1109)', () => {
     ).toBeNull();
     expect(verifyDiditWebhook({ 'x-timestamp': old, 'x-signature-v2': good }, raw, [SECRET], NOW)).toBeNull();
     expect(verifyDiditWebhook({ 'x-timestamp': TS, 'x-signature-v2': good }, raw, [], NOW)).toBeNull();
+    // assinatura com caractere de vários bytes: recusa sem lançar (seria 500)
+    expect(
+      verifyDiditWebhook({ 'x-timestamp': TS, 'x-signature-v2': 'é'.repeat(64) }, raw, [SECRET], NOW),
+    ).toBeNull();
     expect(
       verifyDiditWebhook({ 'x-timestamp': TS, 'x-signature-v2': good }, tampered, [SECRET], NOW),
     ).toBeNull();
