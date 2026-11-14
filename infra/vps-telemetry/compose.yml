@@ -96,8 +96,8 @@ services:
       # Cosmos AI (#993): segredo do endpoint do webhook do Stripe (whsec_…). Vazio, POST /webhooks/stripe/cosmos
       # responde 503 e o Stripe tenta de novo depois
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
-      # Verificação de idade da Galaxie (#1109): conta no Didit (também trocáveis no painel). Vazias, as rotas
-      # /v1/fans/me/age-verification e POST /webhooks/didit/age-verification respondem 503
+      # Verificação de idade da Galaxie (#1109): conta no Didit (também trocáveis no painel). Faltando qualquer uma,
+      # POST /v1/fans/me/age-verification e POST /webhooks/didit/age-verification respondem 503
       DIDIT_API_KEY: ${DIDIT_API_KEY:-}
       DIDIT_WORKFLOW_ID: ${DIDIT_WORKFLOW_ID:-}
       DIDIT_WEBHOOK_SECRET: ${DIDIT_WEBHOOK_SECRET:-}
