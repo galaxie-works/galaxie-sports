@@ -62,18 +62,38 @@ export interface ModuleDraftTexts {
   periods: Map<string, MirrorPeriod[]>;
 }
 
-/** O que o rascunho grava: a flag dos jobs e a do espelho, cada uma só com o que difere do padrão. */
+const sameStates = (a: readonly boolean[], b: readonly boolean[]) =>
+  a.length === b.length && a.every((v, i) => v === b[i]);
+
+/**
+ * O que o rascunho grava: a flag dos jobs e a do espelho, cada uma só com o que difere do padrão. No espelho, só os
+ * módulos cujo switch mudou são aplicados aos itens: um módulo com vários endpoints (artilharia e cartões) conta como
+ * ligado quando algum deles está ligado, e reaplicar esse estado agregado religaria um endpoint desligado um a um na
+ * página do espelho.
+ */
 export function moduleDraftTexts(
   api: string,
   draft: ModuleDraft,
   mirrorValue: string | null,
 ): ModuleDraftTexts {
   const jobStates = new Map<string, boolean[]>();
+  const current = initialModuleDraft(api, null, mirrorValue);
   let periods = mirrorPeriodsOf(api, mirrorValue);
   for (const def of moduleDefs(api)) {
     const states = draft[def.id] ?? def.defaults;
     if (def.kind === 'job') jobStates.set(def.id, [...states]);
-    else if (def.kind === 'mirror') periods = applyModuleToMirrorPeriods(api, def, states, periods);
+    else if (def.kind === 'mirror') {
+      const was = current[def.id] ?? def.defaults;
+      if (sameStates(states, was)) continue;
+      // só as colunas (tiers) que mudaram: os outros tiers dos itens ficam como estavam
+      periods = applyModuleToMirrorPeriods(
+        api,
+        def,
+        states,
+        periods,
+        states.map((v, i) => v !== was[i]),
+      );
+    }
   }
   return { modules: formatModules(api, jobStates), mirror: formatMirrorPeriods(api, periods), periods };
 }

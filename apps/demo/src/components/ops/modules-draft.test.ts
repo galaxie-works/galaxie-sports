@@ -47,6 +47,27 @@ describe('rascunho dos módulos por tier', () => {
     expect(texts.modules).toBe('trophies=on,on,off');
   });
 
+  it('módulo do espelho que não mudou não toca nos endpoints: o desligado um a um na página do espelho fica desligado', () => {
+    const mirrorValue = '/players/topscorers=off; /standings=3,2,4';
+    const draft = initialModuleDraft('football', null, mirrorValue);
+    // artilharia conta como ligada (os outros três endpoints estão ligados)
+    expect(draft['top-players']).toEqual([true, true, true]);
+    // mexer em outro módulo não religa o /players/topscorers
+    draft.predictions = [true, false];
+    expect(moduleDraftTexts('football', draft, mirrorValue).mirror).toBe(
+      '/standings=3,2,4; /players/topscorers=off; /predictions=1,off',
+    );
+    // sem mudança nenhuma, o texto é o que estava gravado
+    expect(
+      moduleDraftTexts('football', initialModuleDraft('football', null, mirrorValue), mirrorValue).mirror,
+    ).toBe('/standings=3,2,4; /players/topscorers=off');
+    // desligar o módulo num tier desliga os quatro endpoints nele; os outros tiers ficam como estavam
+    draft['top-players'] = [true, false, true];
+    const off = moduleDraftTexts('football', draft, mirrorValue).mirror;
+    expect(off).toContain('/players/topassists=1,off,6');
+    expect(off).toContain('/players/topscorers=off');
+  });
+
   it('linhas do painel: sem tier, e por tier com a nota do que o job não cobre', () => {
     expect(modulesOfRow('football', null).map((d) => d.id)).toContain('h2h');
     // palpites, odds e estatísticas de time têm switch no tier 3 (nasce desligado)

@@ -432,6 +432,8 @@ export function applyModuleToMirrorPeriods(
   def: ModuleDef,
   states: readonly boolean[],
   periods: ReadonlyMap<string, readonly MirrorPeriod[]>,
+  /** Só estas colunas do módulo mudam (padrão: todas); as outras ficam como estão nos itens. */
+  only?: readonly boolean[],
 ): Map<string, MirrorPeriod[]> {
   const out = new Map<string, MirrorPeriod[]>([...periods].map(([id, p]) => [id, [...p]]));
   for (const item of def.items) {
@@ -442,7 +444,12 @@ export function applyModuleToMirrorPeriods(
     for (let col = 0; col < n; col++) {
       // módulo com tiers: a coluna do item é a do tier da coluna do módulo; sem tiers, a coluna 0
       const moduleCol = def.tiers.length ? def.tiers.findIndex((t) => tierColumn(itemDef, t) === col) : 0;
-      const on = states[moduleCol < 0 ? 0 : moduleCol] ?? true;
+      const mc = moduleCol < 0 ? 0 : moduleCol;
+      if (only && !only[mc]) {
+        next.push(current[col] ?? null);
+        continue;
+      }
+      const on = states[mc] ?? true;
       next.push(on ? (current[col] ?? itemDef.defaults[col] ?? null) : null);
     }
     out.set(item, next);
