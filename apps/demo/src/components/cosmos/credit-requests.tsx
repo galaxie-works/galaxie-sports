@@ -18,6 +18,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Field, FieldDescription, FieldLabel } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import {
   cancelCosmosCreditRequest,
@@ -29,6 +31,7 @@ import { useI18n } from '@/lib/i18n/client';
 import { fill } from '@/lib/i18n/text';
 
 import { PurchaseDialog } from './purchase-dialog';
+import { quotaScopeLabel } from './quota-scope';
 
 const REASON_MIN = 5;
 const REASON_MAX = 500;
@@ -42,16 +45,20 @@ const STATUS_VARIANT = {
 
 /**
  * Pedido de créditos ao dono (#996). Quem não pode comprar pede com uma justificativa e acompanha a resposta; quem
- * pode (`canManage`) vê os pedidos, aprova (abre a compra) ou recusa com uma nota. O servidor confere o cargo de novo.
+ * pode (`canManage`) vê os pedidos, aprova (abre a compra ou aumenta a cota de uma sala, #1116) ou recusa com uma nota.
+ * O servidor confere o cargo de novo.
  */
 export function CreditRequests({
   requests,
   canManage,
   packages,
+  scopes = [],
 }: {
   requests: CreditRequestView[];
   canManage: boolean;
   packages: CreditPackageView[];
+  /** Salas que podem ganhar cota ao aprovar (#1116); vazio = só a compra. */
+  scopes?: string[];
 }) {
   const { t, locale } = useI18n();
   const T = t.cosmos.creditRequests;
@@ -63,6 +70,9 @@ export function CreditRequests({
   const [declining, setDeclining] = useState<CreditRequestView | null>(null);
   const [note, setNote] = useState('');
   const [buying, setBuying] = useState(false);
+  const [approving, setApproving] = useState<CreditRequestView | null>(null);
+  const [raiseScope, setRaiseScope] = useState('');
+  const [raisePercent, setRaisePercent] = useState('');
   const when = new Intl.DateTimeFormat(locale, { dateStyle: 'short', timeStyle: 'short' });
   const open = requests.filter((r) => r.status === 'open');
   const myOpen = open.find((r) => r.mine) ?? null;
@@ -92,11 +102,34 @@ export function CreditRequests({
         setReason('');
       },
     );
-  const approve = (r: CreditRequestView) =>
+  const closeApprove = () => {
+    setApproving(null);
+    setRaiseScope('');
+    setRaisePercent('');
+  };
+  const approve = () =>
+    approving &&
     run(
-      () => decideCosmosCreditRequest(r.id, 'approved'),
+      () => decideCosmosCreditRequest(approving.id, 'approved'),
       T.approved,
-      () => setBuying(true),
+      () => {
+        closeApprove();
+        setBuying(true);
+      },
+    );
+  const percent = Number(raisePercent.replace(',', '.'));
+  const raiseOk = raiseScope !== '' && Number.isFinite(percent) && percent > 0 && percent <= 100;
+  const approveRaise = () =>
+    approving &&
+    raiseOk &&
+    run(
+      () =>
+        decideCosmosCreditRequest(approving.id, 'approved', undefined, {
+          scope: raiseScope,
+          addPercent: percent,
+        }),
+      T.quotaRaised,
+      closeApprove,
     );
   const decline = () =>
     declining &&
@@ -129,8 +162,12 @@ export function CreditRequests({
           <Button size="sm" variant="outline" disabled={pending} onClick={() => setDeclining(r)}>
             {T.decline}
           </Button>
-          <Button size="sm" disabled={pending || !packages.length} onClick={() => approve(r)}>
-            {T.approve}
+          <Button
+            size="sm"
+            disabled={pending || (!packages.length && !scopes.length)}
+            onClick={() => setApproving(r)}
+          >
+            {T.approveOpen}
           </Button>
         </div>
       ) : null}
@@ -231,6 +268,57 @@ export function CreditRequests({
             </Button>
             <Button variant="destructive" disabled={pending} onClick={decline}>
               {T.confirmDecline}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={approving !== null} onOpenChange={(o) => !o && closeApprove()}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{T.approveTitle}</DialogTitle>
+            <DialogDescription>{T.approveDescription}</DialogDescription>
+          </DialogHeader>
+          <p className="text-muted-foreground text-sm whitespace-pre-line">{approving?.reason}</p>
+          {scopes.length ? (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field>
+                <FieldLabel htmlFor={`${ids}-scope`}>{T.quotaScope}</FieldLabel>
+                <Select value={raiseScope} onValueChange={(v) => setRaiseScope(v ?? '')}>
+                  <SelectTrigger id={`${ids}-scope`}>
+                    <SelectValue placeholder={t.cosmos.quotas.pickScope} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {scopes.map((s) => (
+                      <SelectItem key={s} value={s}>
+                        {quotaScopeLabel(t.cosmos.quotas, s)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor={`${ids}-percent`}>{T.quotaAdd}</FieldLabel>
+                <Input
+                  id={`${ids}-percent`}
+                  inputMode="decimal"
+                  value={raisePercent}
+                  onChange={(e) => setRaisePercent(e.target.value)}
+                />
+              </Field>
+            </div>
+          ) : null}
+          <DialogFooter>
+            <Button variant="outline" onClick={closeApprove}>
+              {T.back}
+            </Button>
+            {scopes.length ? (
+              <Button variant="outline" disabled={pending || !raiseOk} onClick={approveRaise}>
+                {T.approveQuota}
+              </Button>
+            ) : null}
+            <Button disabled={pending || !packages.length} onClick={approve}>
+              {T.approve}
             </Button>
           </DialogFooter>
         </DialogContent>
