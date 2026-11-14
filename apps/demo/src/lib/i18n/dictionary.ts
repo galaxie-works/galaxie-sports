@@ -19,6 +19,7 @@ import email from './messages/email';
 import landing from './messages/landing';
 import moderation from './messages/moderation';
 import moderationLists from './messages/moderation-lists';
+import shopping from './messages/shopping';
 import sponsors from './messages/sponsors';
 import equestrian from './messages/equestrian';
 import media from './messages/media';
@@ -63,6 +64,7 @@ export const NAMESPACES = {
   landing,
   moderation,
   moderationLists,
+  shopping,
   sponsors,
   lineup,
   live,
@@ -120,6 +122,7 @@ export const CLIENT_NAMESPACES = [
   'media',
   'moderation',
   'moderationLists',
+  'shopping',
   'sponsors',
   'nav',
   'notifications',

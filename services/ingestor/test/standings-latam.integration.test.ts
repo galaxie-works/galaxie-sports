@@ -276,8 +276,8 @@ describe('Argentina: stakes de jogo encerrado da zona depois da fecha interzonal
   });
 });
 
-describe('Argentina: zona do fornecedor mais nova não segura a anual calculada', () => {
-  it('a fase fresca do fornecedor prevalece; a anual (que o fornecedor não mandou) é calculada', async () => {
+describe('Argentina: zona do fornecedor mais nova não prevalece sobre a calculada (#880)', () => {
+  it('com resultado, as zonas e a anual são calculadas, mesmo com o fornecedor mais novo', async () => {
     const X = ['F1', 'F2'];
     const Y = ['G1', 'G2'];
     const w = await world('argentina-liga-profesional', 2028, [...X, ...Y]);
@@ -292,10 +292,17 @@ describe('Argentina: zona do fornecedor mais nova não segura a anual calculada'
       .set({ updatedAt: new Date(Date.now() + 60_000) })
       .where(and(eq(standing.seasonId, w.seasonId), eq(standing.source, 'provider')));
     const report = await recomputeSeasonStandings(db, w.seasonId, { publish: false });
-    // antes: "provider_fresh" para a temporada inteira, sem a anual e com o resíduo sem nome
-    expect(report).toMatchObject({ outcome: 'written', fresh: ['apertura'] });
+    expect(report).toMatchObject({ outcome: 'written' });
+    expect(report).not.toHaveProperty('fresh');
     const t = await w.table();
-    expect(t.filter((r) => r.group.startsWith('Apertura')).every((r) => r.source === 'provider')).toBe(true);
+    const zones = t.filter((r) => r.group.startsWith('Apertura'));
+    expect(zones.every((r) => r.source === 'computed')).toBe(true);
+    expect(zones.map((r) => [r.group, r.team, r.points])).toEqual(
+      expect.arrayContaining([
+        ['Apertura - Group A', 'F1', 3],
+        ['Apertura - Group A', 'F2', 0],
+      ]),
+    );
     expect(t.filter((r) => r.group === 'Tabla Anual').map((r) => [r.team, r.played, r.points])).toEqual([
       ['F1', 1, 3],
       ['G2', 1, 1], // empate com o G1 desfeito pelos gols como visitante
@@ -303,15 +310,15 @@ describe('Argentina: zona do fornecedor mais nova não segura a anual calculada'
       ['F2', 1, 0],
     ]);
     expect(t.filter((r) => r.group === '')).toHaveLength(0);
-    // com tudo do fornecedor mais novo, nada é regravado
+    // com tudo do fornecedor mais novo, a calculada continua valendo
     await db
       .update(standing)
       .set({ source: 'provider', updatedAt: new Date(Date.now() + 120_000) })
       .where(eq(standing.seasonId, w.seasonId));
     expect(await recomputeSeasonStandings(db, w.seasonId, { publish: false })).toMatchObject({
-      outcome: 'provider_fresh',
-      fresh: ['apertura', 'annual'],
+      outcome: 'written',
     });
+    expect((await w.table()).every((r) => r.source === 'computed')).toBe(true);
   });
 });
 

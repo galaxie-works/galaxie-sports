@@ -43,11 +43,6 @@ export interface TablesByRule {
    */
   unmatchedRounds: string[];
   /**
-   * Tabelas do regulamento em que a do fornecedor é mais nova que o último resultado delas: prevalece e não
-   * é recalculada (as outras tabelas da temporada seguem, como a anual que só existe calculada).
-   */
-  fresh: string[];
-  /**
    * Grupos antigos de uma tabela renomeada pelo fornecedor: todo time deles está num grupo mais novo da
    * mesma tabela do regulamento, então são a mesma tabela sob o nome velho (a gravação os apaga).
    */
@@ -140,13 +135,12 @@ export async function computeTablesByRule(
 ): Promise<TablesByRule> {
   const results = await loadSeasonResults(db, seasonId, { includeCards: true });
   const labels = await db
-    .select({ id: event.id, label: stage.providerLabel, kind: stage.kind, updatedAt: event.updatedAt })
+    .select({ id: event.id, label: stage.providerLabel, kind: stage.kind })
     .from(event)
     .innerJoin(stage, eq(stage.id, event.stageId))
     .where(and(eq(event.seasonId, seasonId), eq(event.status, 'finished')));
   const labelOf = new Map(labels.map((l) => [l.id, l.label ?? '']));
   const kindOf = new Map(labels.map((l) => [l.id, l.kind]));
-  const resultAt = new Map(labels.map((l) => [l.id, l.updatedAt.getTime()]));
   const inRounds = (re: RegExp) => results.filter((m) => re.test(labelOf.get(m.id!) ?? ''));
   // tabelas montadas pelo país do clube (Leagues Cup): quem joga cada rodada da temporada, já jogado ou não
   // (um clube ainda sem jogo encerrado entra zerado), e o país de cada um
@@ -189,14 +183,12 @@ export async function computeTablesByRule(
   const adopted = new Set<string>();
   const tables: StandingsTable[] = [];
   const skipped: SkippedTable[] = [];
-  const fresh: string[] = [];
   const superseded = new Set<string>();
   let used = 0;
   for (const t of rules.tables) {
     const own = rowsOf.get(t.key) ?? [];
     for (const g of renamedAway(own)) superseded.add(g);
     const groupOf = membership(own);
-    const chosen = new Set(groupOf.values());
     if (!t.computed) continue;
     const ownOrphans =
       t.kind === 'phase'
@@ -212,19 +204,7 @@ export async function computeTablesByRule(
       ? [...inRounds(t.rounds), ...ownOrphans]
       : results.filter((m) => matchesPhase(m) || adopted.has(m.id!));
     if (!matches.length) continue; // fase que ainda não começou (ou já sem jogo no core): nada a gravar
-    // tabela do fornecedor mais nova que o último resultado dela: prevalece (por tabela, não pela temporada:
-    // a fase fresca do fornecedor não segura a anual que só existe calculada)
-    const providerAt = Math.max(
-      -Infinity,
-      ...own.filter((r) => r.source === 'provider' && chosen.has(r.group)).map((r) => r.updatedAt.getTime()),
-    );
-    const lastResultAt = Math.max(...matches.map((m) => resultAt.get(m.id!) ?? 0));
-    // linha calculada que sobrou (o fornecedor ainda não contou aquele jogo): a do fornecedor está atrasada
-    const behind = own.some((r) => r.source === 'computed' && chosen.has(r.group));
-    if (providerAt >= lastResultAt && !behind) {
-      fresh.push(t.key);
-      continue;
-    }
+    // com resultado, a tabela é sempre a nossa, mesmo que a do fornecedor seja mais nova (#880)
     // a anual inclui todo time que já está numa tabela da temporada (sem jogo ainda: zerado)
     const known =
       t.kind === 'annual'
@@ -301,7 +281,6 @@ export async function computeTablesByRule(
     skipped,
     unclassified: [...unclassified].sort(),
     unmatchedRounds: [...new Set(orphans.map((m) => labelOf.get(m.id!) ?? ''))].sort(),
-    fresh,
     superseded: [...superseded].sort(),
   };
 }

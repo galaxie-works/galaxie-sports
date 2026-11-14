@@ -1,3 +1,4 @@
+import { ASSISTANT_ATTACHMENT_LIMITS } from '@galaxie/cosmos';
 import type { TenantRole } from '@galaxie/engage';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -8,6 +9,7 @@ import {
   assistantAccessError,
   assistantApiKey,
   parseAssistantRequest,
+  parseAttachmentFiles,
   QUESTION_MAX,
 } from './assistant-server';
 
@@ -93,5 +95,40 @@ describe('quem pode perguntar', () => {
     });
     expect(r?.history[0]).toEqual({ role: 'assistant', text: 'resposta', sig: 'abc' });
     expect(r?.history[1]?.text).toHaveLength(4000);
+  });
+});
+
+describe('anexos da pergunta (#1065)', () => {
+  const b64 = (v: Uint8Array | string) =>
+    Buffer.from(typeof v === 'string' ? new TextEncoder().encode(v) : v).toString('base64');
+  const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3]);
+
+  it('lê pelos bytes: imagem segue em base64, texto entra como texto', () => {
+    const r = parseAttachmentFiles([
+      { name: 'tela.png', data: b64(png) },
+      { name: 'erro.log', data: b64('falhou') },
+    ]);
+    expect(r.ok && r.files).toEqual([
+      { name: 'tela.png', kind: 'image', bytes: 11, mediaType: 'image/png', data: b64(png) },
+      { name: 'erro.log', kind: 'text', bytes: 6, text: 'falhou' },
+    ]);
+    expect(parseAttachmentFiles(undefined)).toEqual({ ok: true, files: [] });
+  });
+
+  it('recusa antes de decodificar o que passa do limite, e tipo que não lê', () => {
+    const big = 'A'.repeat(Math.ceil((ASSISTANT_ATTACHMENT_LIMITS.maxImageBytes * 4) / 3) + 8);
+    expect(parseAttachmentFiles([{ name: 'a.png', data: big }])).toEqual({ ok: false, error: 'size' });
+    expect(parseAttachmentFiles([{ name: 'a.svg', data: b64('<svg/>') }])).toEqual({
+      ok: false,
+      error: 'type',
+    });
+    expect(parseAttachmentFiles([{ name: 'a.png', data: 'não é base64!' }])).toEqual({
+      ok: false,
+      error: 'type',
+    });
+    expect(
+      parseAttachmentFiles(Array.from({ length: 4 }, () => ({ name: 'a.png', data: b64(png) }))),
+    ).toEqual({ ok: false, error: 'count' });
+    expect(parseAttachmentFiles('x')).toEqual({ ok: false, error: 'type' });
   });
 });
