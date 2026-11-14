@@ -311,11 +311,14 @@ describe('verificação de idade da Galaxie (#1109)', () => {
     expect(await profileRow(fan.profileId)).toMatchObject({ age_assurance: 'self' });
   });
 
-  it('sem o módulo 403, menor de 13 não faz, consentimento no corpo é obrigatório e o dia tem limite', async () => {
+  it('sem o módulo 403, menor não faz, consentimento no corpo é obrigatório e o dia tem limite', async () => {
     const without = await tenantKey('idade-d', ['core_data', 'live_chat']);
     expect((await start((await fanToken(without.key)).token)).statusCode).toBe(403);
     const t = await tenantKey('idade-e', ['core_data', 'live_chat', 'age_verification']);
     expect((await start((await fanToken(t.key, { ageBand: 'under13' })).token)).statusCode).toBe(403);
+    // 13 a 17: a verificação comprova 18+ e não muda a faixa; o menor não passa o rosto à toa
+    for (const ageBand of ['13', '14_15', '16_17'])
+      expect((await start((await fanToken(t.key, { ageBand })).token)).statusCode).toBe(403);
     const fan = await fanToken(t.key);
     expect((await start(fan.token, { returnUrl: 'https://cliente.test/volta' })).statusCode).toBe(400);
     expect((await start(fan.token, { returnUrl: 'http://cliente.test', consent })).statusCode).toBe(400);
