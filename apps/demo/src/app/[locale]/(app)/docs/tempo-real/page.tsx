@@ -1,3 +1,4 @@
+import { WEBHOOK_TOPICS } from '@galaxie/contracts';
 import type { Metadata } from 'next';
 
 import { CodeTabs } from '@/components/docs/code-tabs';
@@ -294,6 +295,17 @@ export default async function RealtimePage() {
             ['x-galaxie-attempt', text.webhooks.attempt],
             ['idempotency-key', text.webhooks.idempotency],
           ]}
+        />
+        <P>{docText(text.webhooks.topicsBody)}</P>
+        <DocTable
+          head={[text.webhooks.headTopic, text.webhooks.headName, text.webhooks.headModule, text.webhooks.headStatus]}
+          // vídeos relacionados fora da documentação até decisão do dono (como no /openapi.json)
+          rows={WEBHOOK_TOPICS.filter((d) => !d.modules.includes('related_content')).map((d) => [
+            d.topic,
+            d.label[locale.startsWith('es') ? 'es' : locale === 'en' ? 'en' : 'pt'],
+            d.modules.join(', '),
+            d.status === 'live' ? text.webhooks.live : text.webhooks.soon,
+          ])}
         />
         <CodeTabs examples={verifyExamples(text.webhooks.code)} />
         <Callout title={text.webhooks.retriesTitle} tone="warning">

@@ -192,10 +192,10 @@ beforeAll(async () => {
   // VAR (#641): um veredito conhecido, um sem texto e dois lances com um texto novo
   await db.insert(eventIncident).values(
     [
-      [1, 'Var', 'Goal cancelled'],
+      [1, 'var', 'Goal cancelled'],
       [2, 'var', null],
-      [3, 'Var', 'Goal Disallowed - Unknown reason'],
-      [4, 'Var', 'Goal Disallowed - Unknown reason '],
+      [3, 'var', 'Goal Disallowed - Unknown reason'],
+      [4, 'var', 'Goal Disallowed - Unknown reason '],
     ].map(([sequence, type, detail]) => ({
       eventId: planned[0]!.id,
       sequence: sequence as number,

@@ -100,10 +100,11 @@ pkg services/ingestor @galaxie/ingestor
 pkg services/ai-agents @galaxie/ai-agents
 printf "packages:\n  - 'apps/*'\n  - 'services/*'\n" > "$REPO_T/pnpm-workspace.yaml"
 for f in .dockerignore .nvmrc package.json pnpm-lock.yaml tsconfig.base.json turbo.json; do echo x > "$REPO_T/$f"; done
-mkdir -p "$REPO_T/config/broadcasters" "$REPO_T/config/broadcast-rights" "$REPO_T/data/knowledge" "$REPO_T/infra/healthcheck" \
+mkdir -p "$REPO_T/config/broadcasters" "$REPO_T/config/broadcast-rights" "$REPO_T/config/catalog" "$REPO_T/data/knowledge" "$REPO_T/infra/healthcheck" \
   "$REPO_T/infra/backup" "$REPO_T/infra/observability/prometheus" "$REPO_T/infra/observability/grafana" \
   "$REPO_T/infra/ops" "$REPO_T/infra/vps-telemetry" "$REPO_T/packages/db/drizzle/meta"
-echo x | tee "$REPO_T/config/broadcasters/a" "$REPO_T/config/broadcast-rights/a" "$REPO_T/data/knowledge/a" \
+echo x | tee "$REPO_T/config/broadcasters/a" "$REPO_T/config/broadcast-rights/a" "$REPO_T/config/catalog/a" \
+  "$REPO_T/data/knowledge/a" \
   "$REPO_T/infra/healthcheck/selfheal.mjs" "$REPO_T/infra/backup/a" "$REPO_T/infra/observability/prometheus/a" \
   "$REPO_T/infra/observability/grafana/a" >/dev/null
 printf '{"entries":[{"idx":0}]}\n' | sed 's/{"idx"/\n{"idx"/' > "$REPO_T/packages/db/drizzle/meta/_journal.json"

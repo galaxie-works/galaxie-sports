@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { Suspense } from 'react';
 
 import { LoadingStatus } from '@/components/app-shell/loading-status';
 import { PageHeader } from '@/components/app-shell/page-header';
@@ -51,6 +52,7 @@ import { apiLocale, contentLocale, defaultMarket, type Locale } from '@/lib/i18n
 import type { Dictionary } from '@/lib/i18n/dictionary';
 import type { Formatters } from '@/lib/i18n/format';
 import { getFormatters, getI18n } from '@/lib/i18n/server';
+import { ShopShelf } from '@/components/shop/shop-shelf';
 import { fill, plural } from '@/lib/i18n/text';
 import { announcementText, timeToBeConfirmed } from '@/lib/provisional';
 import { versusColors } from '@/lib/team-colors';
@@ -648,6 +650,30 @@ export async function EventContent({ params, searchParams, source }: PageContent
             )}
           </div>
         </div>
+        {/* Shopping (#921): os dois times e o campeonato, na ordem do contexto do jogo (#923); fora do exemplo público */}
+        {source.showcase || race ? null : (
+          <Suspense fallback={null}>
+            <ShopShelf
+              entities={[
+                ...event.participants
+                  .filter((p) => p.side === 'home' || p.side === 'away')
+                  .map((p) => ({ kind: 'participant' as const, id: p.id, name: p.name })),
+                ...(event.competition
+                  ? [{ kind: 'competition' as const, id: event.competition.id, name: event.competition.name }]
+                  : []),
+              ]}
+              country={country}
+              eventId={event.id}
+              game={{
+                status: event.status,
+                competitionContext: event.competition_context,
+                derby: !!event.derby,
+                // o campeão só sai da partida que decide o título; a API ainda não diz qual é (ida e volta)
+                titleWinnerId: null,
+              }}
+            />
+          </Suspense>
+        )}
         {!source.showcase && related?.data.length ? (
           <div id="conteudo-relacionado" className="scroll-mt-20">
             <Section
