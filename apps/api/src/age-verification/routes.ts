@@ -24,12 +24,11 @@ import { readFan } from '../engage/fans.js';
 import { parseInput } from '../util.js';
 import { DiditClient, DiditError, verifyDiditWebhook, type DiditFetch } from './didit.js';
 import {
-  AGE_VERIFICATION_DAILY_LIMIT,
   applyDiditEvent,
   latestAgeVerification,
-  openedToday,
   purgeAgeVerification,
   startAgeVerification,
+  sweepAgeVerifications,
 } from './service.js';
 
 export const DIDIT_WEBHOOK_PATH = '/webhooks/didit/age-verification';
@@ -109,16 +108,21 @@ export async function ageVerificationFanRoutes(
     if (!client) throw problems.degraded('Verificação de idade não configurada.');
     const profile = await readFan(database, fan.tenantId, fan.profileId);
     if (!profile) throw problems.invalidFanToken('Perfil excluído.');
+    // a faixa gravada vale mais que a do token (o cliente pode ter descido o Perfil depois de emitir)
+    if (!fanCan(profile.ageBand, 'read'))
+      throw problems.fanAgeRestricted('Perfis com menos de 13 anos não fazem a verificação de idade.');
+    // só origem e caminho vão ao provedor: query e fragmento podem levar dado do torcedor
+    const back = new URL(body.returnUrl);
+    back.search = '';
+    back.hash = '';
     const at = now();
-    if ((await openedToday(database, fan.tenantId, fan.profileId, at)) >= AGE_VERIFICATION_DAILY_LIMIT)
-      throw problems.rateLimited(3_600);
     let started;
     try {
       started = await startAgeVerification(database, client, {
         tenantId: fan.tenantId,
         profileId: fan.profileId,
         language: profile.locale.slice(0, 2).toLowerCase(),
-        returnUrl: body.returnUrl,
+        returnUrl: back.toString(),
         consent: { givenAt: new Date(body.consent.givenAt), textVersion: body.consent.textVersion },
         now: at,
       });
@@ -129,6 +133,7 @@ export async function ageVerificationFanRoutes(
       }
       throw err;
     }
+    if (!started) throw problems.rateLimited(3_600);
     reply.header('cache-control', 'no-store');
     const res: AgeVerificationStart = {
       data: {
@@ -172,6 +177,10 @@ export async function ageVerificationWebhookRoutes(
 ): Promise<void> {
   const client = clientOf(deps.config);
   const secrets = deps.config.webhookSecrets ?? [];
+  if (client && deps.db) {
+    const stop = startAgeVerificationSweep(deps.db, client, app.log);
+    app.addHook('onClose', async () => stop());
+  }
   app.addContentTypeParser(
     'application/json',
     { parseAs: 'buffer', bodyLimit: BODY_LIMIT },
@@ -208,19 +217,57 @@ export async function ageVerificationWebhookRoutes(
         { session: event.sessionId, event: event.eventId, outcome: result.outcome },
         'verificação de idade: evento do provedor',
       );
+      if (result.outcome === 'applied' && result.meterFailed)
+        request.log.error(
+          { session: event.sessionId },
+          'verificação de idade: decisão gravada sem soma no medidor (conferir a cobrança do mês)',
+        );
       if (result.outcome === 'applied' && result.purge) {
         // depois da resposta: o provedor espera no máximo 5 s pelo 2xx
         const db = deps.db;
         setImmediate(() => {
-          purgeAgeVerification(db, client, event.sessionId, new Date()).catch((err: unknown) =>
-            request.log.warn(
-              { err, session: event.sessionId },
-              'verificação de idade: apagamento ficou para depois',
-            ),
-          );
+          purgeAgeVerification(db, client, event.sessionId, new Date())
+            .then((ok) => {
+              if (!ok)
+                request.log.warn(
+                  { session: event.sessionId },
+                  'verificação de idade: apagamento ficou para a varredura',
+                );
+            })
+            .catch((err: unknown) =>
+              request.log.warn(
+                { err, session: event.sessionId },
+                'verificação de idade: apagamento ficou para a varredura',
+              ),
+            );
         });
       }
       return reply.code(200).send({ received: true, outcome: result.outcome });
     },
   );
+}
+
+/** Varredura de hora em hora (`sweepAgeVerifications`); a primeira sai poucos minutos depois de subir. */
+export function startAgeVerificationSweep(
+  db: Database,
+  client: DiditClient,
+  log: { warn: (obj: object, msg: string) => void; info: (obj: object, msg: string) => void },
+  everyMs = 3_600_000,
+): () => void {
+  const run = () => {
+    sweepAgeVerifications(db, client, new Date())
+      .then((r) => {
+        if (r.expired || r.purged || r.pending) log.info(r, 'verificação de idade: varredura');
+        if (r.pending) log.warn(r, 'verificação de idade: sessões ainda não apagadas no provedor');
+      })
+      .catch((err: unknown) => log.warn({ err }, 'verificação de idade: varredura falhou'));
+  };
+  const first = setTimeout(run, Math.floor(60_000 + Math.random() * 240_000));
+  first.unref();
+  const timer = setInterval(run, everyMs);
+  timer.unref();
+  return () => {
+    clearTimeout(first);
+    clearInterval(timer);
+  };
 }

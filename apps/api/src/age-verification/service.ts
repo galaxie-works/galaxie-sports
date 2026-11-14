@@ -19,7 +19,7 @@ import {
   type Database,
   type FanAgeAssurance,
 } from '@galaxie/db';
-import { and, count, desc, eq, gte, isNull, sql } from 'drizzle-orm';
+import { and, count, desc, eq, gte, isNotNull, isNull, lt, ne, sql } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import type { ModuleUsageMeter } from '../engage/module-usage.js';
 import { clocksFrom, policyForFan } from '../engage/moderation-routes.js';
@@ -42,26 +42,10 @@ export interface AgeVerificationRow {
   createdAt: Date;
 }
 
-/** Verificações abertas pelo Perfil nas últimas 24 h. */
-export async function openedToday(
-  db: Database,
-  tenantId: string,
-  profileId: string,
-  now: Date,
-): Promise<number> {
-  const [row] = await db
-    .select({ n: count() })
-    .from(fanAgeVerification)
-    .where(
-      and(
-        eq(fanAgeVerification.tenantId, tenantId),
-        eq(fanAgeVerification.profileId, profileId),
-        gte(fanAgeVerification.createdAt, new Date(now.getTime() - 86_400_000)),
-      ),
-    );
-  return row?.n ?? 0;
-}
-
+/**
+ * Abre a sessão no provedor e grava a linha. Um Perfil de cada vez (trava consultiva): o limite do dia vale mesmo com
+ * pedidos em paralelo. Passou do limite: `null`.
+ */
 export async function startAgeVerification(
   db: Database,
   client: DiditClient,
@@ -73,25 +57,41 @@ export async function startAgeVerification(
     consent: { givenAt: Date; textVersion: string };
     now: Date;
   },
-): Promise<{ id: string; url: string; expiresAt: Date; createdAt: Date }> {
-  // a referência que vai ao provedor é o id da linha: nada do torcedor sai daqui
-  const id = randomUUID();
-  const session = await client.createSession(
-    { ref: id, language: input.language, returnUrl: input.returnUrl, consent: input.consent },
-    input.now,
-  );
-  const [row] = await db
-    .insert(fanAgeVerification)
-    .values({
-      tenantId: input.tenantId,
-      id,
-      profileId: input.profileId,
-      provider: 'didit',
-      providerSessionId: session.sessionId,
-      expiresAt: session.expiresAt,
-    })
-    .returning({ createdAt: fanAgeVerification.createdAt });
-  return { id, url: session.url, expiresAt: session.expiresAt, createdAt: row!.createdAt };
+): Promise<{ id: string; url: string; expiresAt: Date; createdAt: Date } | null> {
+  return db.transaction(async (tx) => {
+    await tx.execute(
+      sql`select pg_advisory_xact_lock(hashtextextended(${`fan.age_verification:${input.tenantId}:${input.profileId}`}, 0))`,
+    );
+    const [opened] = await tx
+      .select({ n: count() })
+      .from(fanAgeVerification)
+      .where(
+        and(
+          eq(fanAgeVerification.tenantId, input.tenantId),
+          eq(fanAgeVerification.profileId, input.profileId),
+          gte(fanAgeVerification.createdAt, new Date(input.now.getTime() - 86_400_000)),
+        ),
+      );
+    if ((opened?.n ?? 0) >= AGE_VERIFICATION_DAILY_LIMIT) return null;
+    // a referência que vai ao provedor é o id da linha: nada do torcedor sai daqui
+    const id = randomUUID();
+    const session = await client.createSession(
+      { ref: id, language: input.language, returnUrl: input.returnUrl, consent: input.consent },
+      input.now,
+    );
+    const [row] = await tx
+      .insert(fanAgeVerification)
+      .values({
+        tenantId: input.tenantId,
+        id,
+        profileId: input.profileId,
+        provider: 'didit',
+        providerSessionId: session.sessionId,
+        expiresAt: session.expiresAt,
+      })
+      .returning({ createdAt: fanAgeVerification.createdAt });
+    return { id, url: session.url, expiresAt: session.expiresAt, createdAt: row!.createdAt };
+  });
 }
 
 /** Última verificação do Perfil (null sem nenhuma). */
@@ -120,7 +120,13 @@ export async function latestAgeVerification(
 
 export type ApplyResult =
   | { outcome: 'unknown' | 'duplicate' | 'final' }
-  | { outcome: 'applied'; status: AgeCheckOutcome['status']; profileUpdated: boolean; purge: boolean };
+  | {
+      outcome: 'applied';
+      status: AgeCheckOutcome['status'];
+      profileUpdated: boolean;
+      purge: boolean;
+      meterFailed: boolean;
+    };
 
 /**
  * Aplica um evento do webhook. A decisão vem sempre da API do provedor, nunca do corpo do webhook. Sessão que não é
@@ -171,6 +177,8 @@ export async function applyDiditEvent(
     if (!row || row.lastEventId === event.eventId) return null;
     if (row.status !== 'pending' && row.status !== 'review') return null;
 
+    // a decisão foi lida antes da trava: um evento atrasado não devolve `review` para `pending`
+    if (outcome.status === 'pending' && row.status === 'review') return null;
     const decided = outcome.status !== 'pending';
     const meter = outcome.billable && row.meteredAt === null && outcome.path !== null ? outcome.path : null;
     await tx
@@ -238,16 +246,31 @@ export async function applyDiditEvent(
   });
   if (!done) return { outcome: 'duplicate' };
 
-  if (done.meter && opts.meter)
-    await opts.meter.add(
-      found.tenantId,
-      'age_verification',
-      done.meter === 'document' ? 'age_checks_document' : 'age_checks_estimate',
-      1,
-      opts.now,
-    );
+  let meterFailed = false;
+  if (done.meter) {
+    // a decisão já está gravada: medidor fora não vira 503 (o reenvio cairia em `final` e a soma se perderia de vez).
+    // `metered_at` sem soma aparece no log e na conferência mensal contra o painel do provedor
+    try {
+      if (!opts.meter) throw new Error('medidor indisponível');
+      await opts.meter.add(
+        found.tenantId,
+        'age_verification',
+        done.meter === 'document' ? 'age_checks_document' : 'age_checks_estimate',
+        1,
+        opts.now,
+      );
+    } catch {
+      meterFailed = true;
+    }
+  }
   const purge = outcome.status !== 'pending' && outcome.status !== 'review';
-  return { outcome: 'applied', status: outcome.status, profileUpdated: done.profileUpdated, purge };
+  return {
+    outcome: 'applied',
+    status: outcome.status,
+    profileUpdated: done.profileUpdated,
+    purge,
+    meterFailed,
+  };
 }
 
 /** Apaga a sessão no provedor e marca `purged_at`. Falhou ou ficou para depois: devolve false (a varredura tenta). */
@@ -265,4 +288,45 @@ export async function purgeAgeVerification(
       and(eq(fanAgeVerification.provider, 'didit'), eq(fanAgeVerification.providerSessionId, sessionId)),
     );
   return true;
+}
+
+/** Sessões por rodada da varredura. */
+const SWEEP_BATCH = 50;
+
+/**
+ * Varredura (de hora em hora): apaga no provedor o que já foi decidido e ficou sem apagar (provedor fora, processo
+ * caiu depois da resposta) e fecha como `expired` a sessão aberta que venceu sem decisão, apagando também. `review`
+ * espera: a revisão manual do provedor precisa dos dados.
+ */
+export async function sweepAgeVerifications(
+  db: Database,
+  client: DiditClient,
+  now: Date,
+): Promise<{ expired: number; purged: number; pending: number }> {
+  const expired = await db
+    .update(fanAgeVerification)
+    .set({ status: 'expired', decidedAt: now, updatedAt: sql`now()` })
+    .where(and(eq(fanAgeVerification.status, 'pending'), lt(fanAgeVerification.expiresAt, now)))
+    .returning({ id: fanAgeVerification.id });
+  const rows = await db
+    .select({ sessionId: fanAgeVerification.providerSessionId })
+    .from(fanAgeVerification)
+    .where(
+      and(
+        isNull(fanAgeVerification.purgedAt),
+        isNotNull(fanAgeVerification.decidedAt),
+        ne(fanAgeVerification.status, 'review'),
+      ),
+    )
+    .orderBy(fanAgeVerification.decidedAt)
+    .limit(SWEEP_BATCH);
+  let purged = 0;
+  for (const r of rows) {
+    try {
+      if (await purgeAgeVerification(db, client, r.sessionId, now)) purged += 1;
+    } catch {
+      // 409 (relatório regulatório) ou outro erro: fica para a próxima e aparece em `pending`
+    }
+  }
+  return { expired: expired.length, purged, pending: rows.length - purged };
 }

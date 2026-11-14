@@ -10,6 +10,8 @@ import { loadPlans } from '../src/admin/plans.js';
 import { FanTokenSigner } from '../src/engage/fan-token.js';
 import { MemoryModuleUsageMeter } from '../src/engage/module-usage.js';
 import { buildServer } from '../src/server.js';
+import { DiditClient } from '../src/age-verification/didit.js';
+import { sweepAgeVerifications } from '../src/age-verification/service.js';
 
 const adminUrl = process.env.DATABASE_URL;
 if (!adminUrl) throw new Error('DATABASE_URL é obrigatória para os testes de integração (pnpm infra:up).');
@@ -37,7 +39,7 @@ const meter = new MemoryModuleUsageMeter();
 /** O Didit de mentira: sessões criadas, a decisão que cada uma devolve e os apagamentos. */
 const didit = {
   seq: 0,
-  sessions: new Map<string, { vendorData: string; decision: Record<string, unknown> }>(),
+  sessions: new Map<string, { vendorData: string; callback?: string; decision: Record<string, unknown> }>(),
   deleted: [] as string[],
   decisionCalls: 0,
 };
@@ -46,7 +48,11 @@ const fakeFetch = async (url: string, init: RequestInit): Promise<Response> => {
   if (init.method === 'POST' && u.pathname === '/v3/session/') {
     const body = JSON.parse(String(init.body));
     const id = `00000000-0000-4000-8000-${String(++didit.seq).padStart(12, '0')}`;
-    didit.sessions.set(id, { vendorData: body.vendor_data, decision: { status: 'Not Started' } });
+    didit.sessions.set(id, {
+      vendorData: body.vendor_data,
+      callback: body.callback,
+      decision: { status: 'Not Started' },
+    });
     return Response.json(
       { session_id: id, url: `https://verify.didit.test/s/${id}`, expires_at: '2099-01-01T00:00:00Z' },
       { status: 201 },
@@ -313,9 +319,52 @@ describe('verificação de idade da Galaxie (#1109)', () => {
     const fan = await fanToken(t.key);
     expect((await start(fan.token, { returnUrl: 'https://cliente.test/volta' })).statusCode).toBe(400);
     expect((await start(fan.token, { returnUrl: 'http://cliente.test', consent })).statusCode).toBe(400);
-    for (let i = 0; i < 5; i++) expect((await start(fan.token)).statusCode).toBe(201);
-    expect((await start(fan.token)).statusCode).toBe(429);
+    // em paralelo: o limite vale sob a trava, nem uma a mais
+    const codes = (await Promise.all(Array.from({ length: 7 }, () => start(fan.token)))).map(
+      (r) => r.statusCode,
+    );
+    expect(codes.filter((c) => c === 201)).toHaveLength(5);
+    expect(codes.filter((c) => c === 429)).toHaveLength(2);
     expect((await latest(fan.token)).json().data).toMatchObject({ status: 'pending' });
+  });
+
+  it('só origem e caminho do returnUrl vão ao provedor', async () => {
+    const t = await tenantKey('idade-g', ['core_data', 'live_chat', 'age_verification']);
+    const fan = await fanToken(t.key);
+    const res = await start(fan.token, {
+      returnUrl: 'https://cliente.test/volta?email=a%40b.test&token=x#perfil',
+      consent,
+    });
+    expect(res.statusCode).toBe(201);
+    const sid = await sessionOf(res.json().data.verification_id);
+    expect(didit.sessions.get(sid)?.callback).toBe('https://cliente.test/volta');
+  });
+
+  it('a varredura expira a pendente vencida e apaga no provedor o que ficou decidido sem apagar', async () => {
+    const t = await tenantKey('idade-h', ['core_data', 'live_chat', 'age_verification']);
+    const fan = await fanToken(t.key);
+    const a = await start(fan.token);
+    const b = await start(fan.token);
+    const sidA = await sessionOf(a.json().data.verification_id);
+    const sidB = await sessionOf(b.json().data.verification_id);
+    await sql`update fan.age_verification set expires_at = now() - interval '1 hour' where provider_session_id = ${sidA}`;
+    // decidida e não apagada (o apagamento logo depois do webhook falhou)
+    await sql`update fan.age_verification set status = 'declined', decided_at = now() where provider_session_id = ${sidB}`;
+    const client = new DiditClient(
+      { apiKey: 'chave-didit', workflowId: WORKFLOW, baseUrl: 'https://didit.test' },
+      fakeFetch,
+    );
+    const r = await sweepAgeVerifications(db, client, new Date());
+    expect(r.expired).toBeGreaterThanOrEqual(1);
+    expect(didit.deleted).toEqual(expect.arrayContaining([sidA, sidB]));
+    const rows = (await sql`select provider_session_id, status, purged_at from fan.age_verification
+      where provider_session_id in (${sidA}, ${sidB})`) as unknown as Array<{
+      provider_session_id: string;
+      status: string;
+      purged_at: Date | null;
+    }>;
+    expect(rows.every((x) => x.purged_at !== null)).toBe(true);
+    expect(rows.find((x) => x.provider_session_id === sidA)?.status).toBe('expired');
   });
 
   it('o cliente não manda comprovação com o prefixo da Galaxie', async () => {
