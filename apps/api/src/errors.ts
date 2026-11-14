@@ -12,7 +12,7 @@ export class ProblemError extends Error {
     readonly code: ErrorCode,
     readonly title: string,
     readonly detail?: string,
-    readonly extra: Pick<Problem, 'errors'> & { headers?: Record<string, string> } = {},
+    readonly extra: Pick<Problem, 'errors' | 'upgrade_url'> & { headers?: Record<string, string> } = {},
   ) {
     super(title);
     this.name = 'ProblemError';
@@ -27,7 +27,24 @@ export class ProblemError extends Error {
       ...(this.detail ? { detail: this.detail } : {}),
       ...(instance ? { instance } : {}),
       ...(this.extra.errors ? { errors: this.extra.errors } : {}),
+      ...(this.extra.upgrade_url ? { upgrade_url: this.extra.upgrade_url } : {}),
     };
+  }
+}
+
+/**
+ * Onde o cliente contrata o módulo (cartão em Planos e módulos do console, #1137): `UPGRADE_URL_BASE` com o módulo na
+ * query. Sem a variável, a resposta sai sem o link (a tela ainda não existe em todo ambiente).
+ */
+export function upgradeUrl(module: string): string | undefined {
+  const base = process.env.UPGRADE_URL_BASE?.trim();
+  if (!base || !/^[a-z_]+$/.test(module)) return undefined;
+  try {
+    const url = new URL(base);
+    url.searchParams.set('module', module);
+    return url.toString();
+  } catch {
+    return undefined;
   }
 }
 
@@ -43,8 +60,16 @@ export const problems = {
       'Plano não inclui tempo real',
       `O plano ${plan} não inclui SSE (/v1/stream) nem webhooks.`,
     ),
-  moduleNotInPlan: (module: string) =>
-    new ProblemError(403, 'MODULE_NOT_IN_PLAN', `Plano não inclui o módulo ${module}`),
+  moduleNotInPlan: (module: string) => {
+    const upgrade = upgradeUrl(module);
+    return new ProblemError(
+      403,
+      'MODULE_NOT_IN_PLAN',
+      `Plano não inclui o módulo ${module}`,
+      undefined,
+      upgrade ? { upgrade_url: upgrade } : {},
+    );
+  },
   sportNotInPlan: (sport: string) =>
     new ProblemError(403, 'MODULE_NOT_IN_PLAN', `Plano não inclui o esporte ${sport}`),
   marketNotInPlan: (market: string) =>

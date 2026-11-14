@@ -45,7 +45,10 @@ export function isValidModuleLimit(key: ModuleLimitKey, value: number): boolean 
   return def.tiers ? (def.tiers as readonly number[]).includes(value) : true;
 }
 
-/** Métricas de uso por módulo e mês (#1018), medidas no Valkey e consolidadas em `api.module_usage_monthly`. */
+/**
+ * Métricas de uso por módulo e mês (#1018; módulos de dados e capacidade desde a plataforma comercial F6, #1138), medidas
+ * no Valkey e consolidadas em `api.module_usage_monthly`.
+ */
 export const MODULE_USAGE_METRICS = {
   /** Torcedores (Perfis) distintos no mês: HyperLogLog, erro ~0,8%. */
   active_fans: 'distinct',
@@ -55,5 +58,24 @@ export const MODULE_USAGE_METRICS = {
   clicks: 'count',
   /** Créditos consumidos (Cosmos AI). */
   credits: 'count',
+  /** Visualizações de widget (sinal do widget; soma de todos os módulos = visualizações da faixa de capacidade). */
+  widget_views: 'count',
+  /** Jogos enriquecidos no mês (Live Intelligence: franquia do plano e add-on medido acima dela). */
+  enriched_games: 'count',
+  /** Países distintos com uso no mês (Where to Watch: faixa de países). HyperLogLog. */
+  active_markets: 'distinct',
 } as const;
 export type ModuleUsageMetric = keyof typeof MODULE_USAGE_METRICS;
+type MetricsOfKind<K> = {
+  [M in ModuleUsageMetric]: (typeof MODULE_USAGE_METRICS)[M] extends K ? M : never;
+}[ModuleUsageMetric];
+/** Métricas somadas. */
+export type CountUsageMetric = MetricsOfKind<'count'>;
+/** Métricas de membros distintos (HyperLogLog). */
+export type DistinctUsageMetric = MetricsOfKind<'distinct'>;
+export const COUNT_USAGE_METRICS = (Object.keys(MODULE_USAGE_METRICS) as ModuleUsageMetric[]).filter(
+  (m) => MODULE_USAGE_METRICS[m] === 'count',
+) as CountUsageMetric[];
+export const DISTINCT_USAGE_METRICS = (Object.keys(MODULE_USAGE_METRICS) as ModuleUsageMetric[]).filter(
+  (m) => MODULE_USAGE_METRICS[m] === 'distinct',
+) as DistinctUsageMetric[];

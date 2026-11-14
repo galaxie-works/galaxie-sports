@@ -1,14 +1,15 @@
 import { createHmac } from 'node:crypto';
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import { WEBHOOK_TOPIC_MODULE } from '@galaxie/db/webhooks';
+import { WEBHOOK_TOPICS } from '@galaxie/contracts';
+import { API_MODULES } from '@galaxie/db';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { TOPIC_MODULE } from '../realtime/changes.js';
 import { parseTopics, validateWebhookUrl, WebhookInputError } from './admin.js';
 import { generateWebhookSecret, signWebhook, verifyWebhookSignature } from './signature.js';
 import { WebhookSecretBox, WebhookSecretError } from './secret-box.js';
 import { BlockedTargetError, isBlockedAddress, postWebhook } from './transport.js';
-import { retryDelayMs } from './worker.js';
+import { retryDelayMs, WebhookWorker } from './worker.js';
 
 describe('assinatura HMAC-SHA256', () => {
   const secret = generateWebhookSecret();
@@ -185,6 +186,31 @@ describe('retentativas', () => {
   });
 });
 
+describe('rate limit por endpoint (#360)', () => {
+  const worker = (endpointRatePerMinute: number) =>
+    new WebhookWorker({} as never, { endpointRatePerMinute, secrets: new WebhookSecretBox([]) });
+
+  it('passa até o teto da janela de um minuto e depois espera a próxima, por endpoint', () => {
+    const w = worker(2);
+    const t0 = 1_000_000;
+    expect(w['rateWait']('a', t0)).toBe(0);
+    expect(w['rateWait']('a', t0 + 10)).toBe(0);
+    expect(w['rateWait']('a', t0 + 20_000)).toBe(40_000);
+    // outro endpoint tem a janela dele
+    expect(w['rateWait']('b', t0 + 20_000)).toBe(0);
+    // endpoint com a janela cheia fica fora da próxima reivindicação; o outro não
+    expect(w['throttledEndpoints'](t0 + 20_000)).toEqual(['a']);
+    // janela nova
+    expect(w['rateWait']('a', t0 + 60_000)).toBe(0);
+    expect(w['throttledEndpoints'](t0 + 60_000)).toEqual([]);
+  });
+
+  it('0 desliga', () => {
+    const w = worker(0);
+    for (let i = 0; i < 1_000; i++) expect(w['rateWait']('a', 5)).toBe(0);
+  });
+});
+
 describe('validação do cadastro', () => {
   it('exige https (http só em localhost ou com --allow-http) e URL sem credenciais', () => {
     expect(validateWebhookUrl('https://cliente.example/hooks')).toBe('https://cliente.example/hooks');
@@ -217,8 +243,24 @@ describe('validação do cadastro', () => {
   });
 });
 
-describe('portal do cliente', () => {
-  it('o mapa tópico → módulo do portal é o mesmo do worker', () => {
-    expect(WEBHOOK_TOPIC_MODULE).toEqual(TOPIC_MODULE);
+describe('registro de tópicos', () => {
+  it('todo módulo do registro existe na API e os tópicos de dados mantêm o módulo de sempre', () => {
+    for (const d of WEBHOOK_TOPICS) for (const m of d.modules) expect(API_MODULES, d.topic).toContain(m);
+    expect(TOPIC_MODULE).toEqual({
+      'event.status_changed': 'core_data',
+      'event.score_changed': 'core_data',
+      'event.incident_added': 'core_data',
+      'where_to_watch.changed': 'where_to_watch',
+      'event.context_published': 'live_intelligence',
+      'event.related_content_changed': 'related_content',
+    });
+  });
+
+  it('a CLI aceita o nome completo de um tópico de engajamento', () => {
+    expect(parseTopics(['fan.profile.deleted', 'score'])).toEqual([
+      'fan.profile.deleted',
+      'event.score_changed',
+    ]);
+    expect(() => parseTopics(['reward.triggered'])).toThrow(WebhookInputError);
   });
 });
