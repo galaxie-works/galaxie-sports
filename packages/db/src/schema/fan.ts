@@ -427,6 +427,9 @@ export const fanAgeVerification = fan.table(
       sql`(status = 'pending' and decided_at is null) or (status <> 'pending' and decided_at is not null)`,
     ),
     // aprovada = adulto comprovado (a idade mínima do workflow é 18)
-    check('age_verification_approved_band', sql`status <> 'approved' or (result_band is not null and result_band = '18plus')`),
+    check(
+      'age_verification_approved_band',
+      sql`status <> 'approved' or (result_band is not null and result_band = '18plus')`,
+    ),
   ],
 );
