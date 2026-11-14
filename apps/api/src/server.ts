@@ -75,6 +75,12 @@ import {
 import { StreamTokenSigner } from './realtime/stream-token.js';
 import { docsRoutes } from './routes/docs.js';
 import { cosmosStripeRoutes } from './routes/internal/cosmos-stripe.js';
+import {
+  ageVerificationConfigFromEnv,
+  ageVerificationFanRoutes,
+  ageVerificationWebhookRoutes,
+  type AgeVerificationConfig,
+} from './age-verification/routes.js';
 import { internalShopRoutes } from './routes/internal/shop.js';
 import { galaxieShopTenants, shopRoutes } from './routes/v1/shop.js';
 import { ShopClickRecorder, shopClickRoutes } from './shop/clicks.js';
@@ -208,6 +214,8 @@ export interface ServerOptions {
   lineup?: LineupOptions;
   /** Webhook do Stripe da Cosmos AI (#993); padrão: STRIPE_WEBHOOK_SECRET do ambiente. */
   cosmos?: { stripeWebhookSecret?: string };
+  /** Verificação de idade da Galaxie (#1109); padrão: DIDIT_API_KEY, DIDIT_WORKFLOW_ID e DIDIT_WEBHOOK_SECRET. */
+  ageVerification?: AgeVerificationConfig;
 }
 
 /** Limite fixo da chave secreta de teste, por rota (docs/politica-de-chaves.md §1). */
@@ -218,6 +226,7 @@ export const usageRoute = (env: 'live' | 'test', route: string) => (env === 'tes
 
 /** Monta a API sem iniciar o listener — usado pelo main.ts e pelos testes (inject). */
 export function buildServer(options: ServerOptions = {}): FastifyInstance {
+  const ageVerificationConfig = options.ageVerification ?? ageVerificationConfigFromEnv();
   // o serializer de requisição (apiLoggerOptions) não inclui headers: chaves nunca vão para o log
   const app = Fastify({
     logger: options.logger ? apiLoggerOptions() : false,
@@ -573,6 +582,11 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
       ttl: new FanTokenTtl(options.db),
       revocations: fanRevocations,
     });
+    await ageVerificationFanRoutes(instance, {
+      db: options.db,
+      config: ageVerificationConfig,
+      now: options.now,
+    });
     await presenceRoutes(instance, {
       db: options.db,
       counter: options.redis ? new RedisPresenceCounter(options.redis, prefix) : new MemoryPresenceCounter(),
@@ -590,6 +604,14 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
       peak: chatPeak,
       stream: options.chat?.stream,
     });
+  });
+
+  // escopo próprio: o corpo cru do webhook do provedor da verificação de idade (#1109)
+  app.register(ageVerificationWebhookRoutes, {
+    db: options.db,
+    config: ageVerificationConfig,
+    meter: () => app.moduleUsage,
+    now: options.now,
   });
 
   // escopo próprio: o parser de corpo cru do webhook não vale para as outras rotas
