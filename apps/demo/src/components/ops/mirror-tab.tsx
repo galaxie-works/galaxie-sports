@@ -6,6 +6,7 @@ import {
   MIRROR_GROUP_ORDER_SPORTS_KEY,
   MIRROR_PERIOD_MAX_DAYS,
   MIRROR_PERIOD_MIN_DAYS,
+  defaultPeriods,
   estimateMirrorCalls,
   mirrorBudgetCalls,
   mirrorItems,
@@ -245,7 +246,7 @@ function PeriodsEditor({
         <TableBody>
           {mirrorItems(api).map((def) => {
             const est = perId.get(def.id);
-            const changed = def.defaults.some((d, i) => state.periods.get(def.id)?.[i] !== d);
+            const changed = defaultPeriods(def).some((d, i) => state.periods.get(def.id)?.[i] !== d);
             return (
               <TableRow key={def.id}>
                 <TableCell className="pl-4 align-top">

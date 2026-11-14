@@ -18,14 +18,13 @@ describe('rascunho dos períodos do espelho', () => {
   it('desligar guarda o valor para religar; o texto sai com off e passa na validação do servidor', () => {
     const draft = initialDraft('football', null);
     draft['/teams']![1] = { on: false, days: '14' };
-    // palpites e odds têm coluna por tier (1 e 2+): desligar só o tier 2 sai como `1,off`
+    // palpites e odds têm coluna por tier (1, 2 e 3+, o 3+ nasce desligado): desligar só o tier 2 sai coluna a coluna
     draft['/odds']![1] = { on: false, days: '1' };
-    draft['/predictions']![0] = { on: false, days: '1' };
-    draft['/predictions']![1] = { on: false, days: '1' };
+    for (const cell of draft['/predictions']!) cell.on = false;
     const state = draftState('football', draft);
     expect(state.invalid.size).toBe(0);
     // na ordem do catálogo
-    expect(state.text).toBe('/teams=7,off,28; /predictions=off; /odds=1,off');
+    expect(state.text).toBe('/teams=7,off,28; /predictions=off; /odds=1,off,off');
     expect(validateSettingKey('MIRROR_PERIODS_FOOTBALL', state.text).ok).toBe(true);
   });
 

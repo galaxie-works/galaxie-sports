@@ -319,7 +319,7 @@ const UPCOMING = new Set(['TBD', 'NS']);
 export interface FootballMirrorOptions {
   /** Maior tier com as chamadas por temporada (padrão 3: todo o catálogo). */
   seasonTier?: number | undefined;
-  /** Maior tier com estatísticas de time, palpites e odds (padrão 2). */
+  /** Maior tier com estatísticas de time, palpites e odds (padrão: o maior tier ligado no painel para eles; 2 de fábrica). */
   detailTier?: number | undefined;
   /** Maior tier com elencos/técnicos/transferências no rodízio (padrão 3; o tier 1 é do sync diário). */
   teamTier?: number | undefined;
@@ -336,8 +336,9 @@ export async function footballGroups(
   opts: FootballMirrorOptions = {},
 ): Promise<MirrorGroup[]> {
   const seasonTier = opts.seasonTier ?? 3;
-  const detailTier = opts.detailTier ?? 2;
   const cfg = opts.mirror ?? DEFAULT_MIRROR_CONFIG.api('football');
+  // o tier 3 de palpites, odds e estatísticas de time nasce desligado no catálogo: só entra quando ligado no painel
+  const detailTier = opts.detailTier ?? cfg.maxTierOn(['/predictions', '/odds', '/teams/statistics']);
   const cand = (
     id: string,
     tier: number | undefined,
@@ -657,7 +658,7 @@ const FINISHED = 'finished';
 const SCHEDULED = new Set(['scheduled', 'starting']);
 
 export interface SportMirrorOptions {
-  /** Maior tier do catálogo YAML com temporadas, jogos e times no espelho (padrão 2). */
+  /** Maior tier do catálogo YAML com temporadas, jogos e times no espelho (padrão: o maior tier ligado no painel; 2 de fábrica). */
   maxTier?: number | undefined;
   /** Períodos e endpoints ligados de cada API (padrão: o catálogo do runtime-config). */
   mirror?: MirrorConfig | undefined;
@@ -671,8 +672,9 @@ export async function sportGroups(
   opts: SportMirrorOptions = {},
 ): Promise<MirrorGroup[]> {
   const p = SPORT_MIRROR[sport];
-  const maxTier = opts.maxTier ?? 2;
   const cfg = (opts.mirror ?? DEFAULT_MIRROR_CONFIG).api(sport);
+  // o tier 3+ nasce desligado no catálogo (temporada, classificação, lesões): só entra quando ligado no painel
+  const maxTier = opts.maxTier ?? cfg.maxTierOn();
   const cand = (
     id: string,
     tier: number | undefined,

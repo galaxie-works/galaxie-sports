@@ -157,7 +157,7 @@ describe('moduleConfig', () => {
   it('aplica as sobrescritas e lê os módulos do espelho dos períodos', () => {
     const env: Record<string, string> = {
       MODULES_FOOTBALL: 'match-detail=on,on,off; live=on,on,off',
-      MIRROR_PERIODS_FOOTBALL: '/predictions=1,off; /players/squads=off,14',
+      MIRROR_PERIODS_FOOTBALL: '/predictions=1,off,off; /players/squads=off,14',
     };
     const cfg = moduleConfigFromEnv(env, mirrorConfigFromEnv(env)).api('football');
     expect(cfg.tiersOn('match-detail')).toEqual([1, 2]);
@@ -191,12 +191,19 @@ describe('moduleConfig', () => {
 describe('applyModuleToMirrorPeriods', () => {
   it('desligar vira off na coluna do tier; religar volta ao período de antes ou ao padrão', () => {
     const def = moduleDef('football', 'predictions')!;
-    const base = new Map([['/predictions', [1, 1]]]);
-    const off = applyModuleToMirrorPeriods('football', def, [true, false], base);
-    expect(off.get('/predictions')).toEqual([1, null]);
-    expect(formatMirrorPeriods('football', off)).toBe('/predictions=1,off');
-    const on = applyModuleToMirrorPeriods('football', def, [true, true], off);
-    expect(on.get('/predictions')).toEqual([1, 1]);
+    expect(def.tiers).toEqual([1, 2, 3]);
+    expect(def.defaults).toEqual([true, true, false]);
+    const base = new Map([['/predictions', [1, 1, null]]]);
+    const off = applyModuleToMirrorPeriods('football', def, [true, false, false], base);
+    expect(off.get('/predictions')).toEqual([1, null, null]);
+    expect(formatMirrorPeriods('football', off)).toBe('/predictions=1,off,off');
+    const on = applyModuleToMirrorPeriods('football', def, [true, true, false], off);
+    expect(on.get('/predictions')).toEqual([1, 1, null]);
+    expect(formatMirrorPeriods('football', on)).toBe('');
+    // ligar o tier 3 (que nasce desligado) usa o período do catálogo e sai coluna a coluna, nunca como um valor só
+    const tier3 = applyModuleToMirrorPeriods('football', def, [true, true, true], on);
+    expect(tier3.get('/predictions')).toEqual([1, 1, 1]);
+    expect(formatMirrorPeriods('football', tier3)).toBe('/predictions=1,1,1');
   });
 
   it('módulo com vários itens e sem tier mexe em todos os itens', () => {

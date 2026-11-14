@@ -19,6 +19,7 @@ import {
   rotateGroups,
   sportGroups,
   type MirrorCandidate,
+  type MirrorGroup,
   type SportMirrorSource,
 } from './mirror-job.js';
 import { InMemoryCursorStore } from './runtime/cursor-store.js';
@@ -427,6 +428,22 @@ describe('configuração do painel (Ajustes → Operação → Espelho)', () => 
       'tier3',
       'elencos',
     ]);
+  });
+
+  it('tier 3+ das outras APIs nasce desligado e entra no espelho quando ligado no painel', async () => {
+    const urls = (groups: MirrorGroup[]) => groups.flatMap((g) => g.candidates).map((c) => url(c.item));
+    const off = await sportGroups('basketball', fakeSports(), ULTRA_PLAN, now);
+    expect(urls(off).some((u) => u.includes('league=99'))).toBe(false);
+    const on = await sportGroups('basketball', fakeSports(), ULTRA_PLAN, now, {
+      mirror: cfgOf({ MIRROR_PERIODS_BASKETBALL: '/games=2,7,14' }),
+    });
+    const tier3 = urls(on).filter((u) => u.includes('league=99'));
+    expect(tier3.some((u) => u.startsWith('/games?'))).toBe(true);
+    // a classificação do tier 3 segue desligada (período nulo): fica no inventário, fora do rodízio
+    const standings = on
+      .flatMap((g) => g.candidates)
+      .find((c) => url(c.item).startsWith('/standings?') && url(c.item).includes('league=99'));
+    expect(standings?.periodDays).toBeNull();
   });
 
   it('período e endpoint desligado vêm do painel', async () => {

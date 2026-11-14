@@ -52,8 +52,13 @@ export interface MirrorItemDef {
   group: MirrorGroupId;
   /** Rótulos das colunas de tier com período próprio; vazio = um período só para todos. */
   tiers: readonly string[];
-  /** Período padrão (dias) de cada coluna (uma só quando `tiers` é vazio). */
+  /** Período padrão (dias) de cada coluna (uma só quando `tiers` é vazio); numa coluna `defaultOff`, o período ao ligar. */
   defaults: readonly number[];
+  /**
+   * Colunas que nascem desligadas (ex.: palpites, odds e estatísticas de time no tier 3; as outras APIs acima do tier
+   * 2): o job não as busca até alguém ligar no painel. Um valor só em `MIRROR_PERIODS_<API>` não as liga.
+   */
+  defaultOff?: readonly boolean[];
   /** Grupo de cada coluna de tier, quando difere de `group`. */
   tierGroups?: readonly MirrorGroupId[];
   /**
@@ -73,7 +78,8 @@ const item = (
 
 /** Tier 1, 2 e 3+ (o 3 num grupo próprio, com o dobro do período dos demais). */
 const SEASON_TIERS = ['1', '2', '3'] as const;
-const TWO_TIERS = ['1', '2'] as const;
+/** Tier 1, 2 e 3+ com o 3+ nascendo desligado (liga no painel; custo só então). */
+const OFF_TIER3 = [false, false, true] as const;
 /** Tier 2 e 3+ (o tier 1 gira no sync diário). */
 const UPPER_TIERS = ['2', '3'] as const;
 
@@ -104,11 +110,11 @@ const FOOTBALL_ITEMS: readonly MirrorItemDef[] = [
   footballSeason('/fixtures/rounds', 7, 7),
   footballSeason('/teams', 7, 14),
   item('/venues', 'temporada', [30]),
-  // jogos das próximas 48 h (tier ≤ 2: a coluna do tier é o liga/desliga por tier dos módulos)
-  item('/predictions', 'palpites-odds', [1, 1], TWO_TIERS),
-  item('/odds', 'palpites-odds', [1, 1], TWO_TIERS),
-  // por time da temporada em jogo (tier ≤ 2) e clássicos
-  item('/teams/statistics', 'estatisticas', [7, 14], TWO_TIERS),
+  // jogos das próximas 48 h: a coluna do tier é o liga/desliga por tier dos módulos; o tier 3 nasce desligado
+  item('/predictions', 'palpites-odds', [1, 1, 1], SEASON_TIERS, { defaultOff: OFF_TIER3 }),
+  item('/odds', 'palpites-odds', [1, 1, 1], SEASON_TIERS, { defaultOff: OFF_TIER3 }),
+  // por time da temporada em jogo (tier 3 nasce desligado) e clássicos
+  item('/teams/statistics', 'estatisticas', [7, 14, 28], SEASON_TIERS, { defaultOff: OFF_TIER3 }),
   item('/fixtures/headtohead', 'estatisticas', [30]),
   // tier 2+ (o tier 1 gira no sync diário); as duas colunas têm o mesmo período, só o liga/desliga difere
   item('/players/squads', 'elencos', [14, 14], UPPER_TIERS),
@@ -136,8 +142,11 @@ interface SportSpec {
 function sportItems(s: SportSpec): MirrorItemDef[] {
   return [
     ...s.reference.map((e) => item(e, 'temporada', [e === '/leagues' ? 1 : 7], [], { reference: true })),
-    item(s.season, 'temporada', [2, 7], TWO_TIERS),
-    ...(s.standings ?? []).map((e) => item(e, 'temporada', [1, 2], TWO_TIERS)),
+    // o tier 3+ nasce desligado: ligado, as temporadas dele entram no espelho (jogos, times, odds e o resto junto)
+    item(s.season, 'temporada', [2, 7, 14], SEASON_TIERS, { defaultOff: OFF_TIER3 }),
+    ...(s.standings ?? []).map((e) =>
+      item(e, 'temporada', [1, 2, 4], SEASON_TIERS, { defaultOff: OFF_TIER3 }),
+    ),
     ...(s.teams ? [item('/teams', 'temporada', [7])] : []),
     ...(s.finished ?? []).map((f) =>
       typeof f === 'string'
@@ -148,7 +157,9 @@ function sportItems(s: SportSpec): MirrorItemDef[] {
     ...(s.participants ?? []).map((e) => item(e, 'por-jogo', [30])),
     ...(s.teamStats ? [item(s.teamStats, 'por-time', [14])] : []),
     ...(s.roster ?? []).map((e) => item(e, 'por-time', [14])),
-    ...(s.injuries ? [item('/injuries', 'por-time', [1, 3], TWO_TIERS)] : []),
+    ...(s.injuries
+      ? [item('/injuries', 'por-time', [1, 3, 6], SEASON_TIERS, { defaultOff: OFF_TIER3 })]
+      : []),
   ];
 }
 
@@ -257,6 +268,10 @@ export type MirrorPeriod = number | null;
 /** Colunas de período de um item (uma quando ele não tem tier). */
 export const periodColumns = (def: MirrorItemDef) => Math.max(1, def.tiers.length);
 
+/** Períodos padrão efetivos: o período de cada coluna, `null` nas que nascem desligadas. */
+export const defaultPeriods = (def: MirrorItemDef): MirrorPeriod[] =>
+  def.defaults.map((d, i) => (def.defaultOff?.[i] ? null : d));
+
 /**
  * Coluna do tier de uma competição: a última coluna cujo rótulo (o menor tier dela) não passa do tier; abaixo do
  * primeiro rótulo (tier 0 num item de tier 1+, tier 1 num item de tier 2+) vale a primeira coluna, acima do último
@@ -320,7 +335,13 @@ export function parseMirrorPeriods(
         };
       periods.push(days);
     }
-    out.set(id, values.length === 1 ? Array.from({ length: n }, () => periods[0]!) : periods);
+    // um valor só vale para as colunas que nascem ligadas; a que nasce desligada só liga por coluna
+    out.set(
+      id,
+      values.length === 1
+        ? Array.from({ length: n }, (_, i) => (def.defaultOff?.[i] ? null : periods[0]!))
+        : periods,
+    );
   }
   if (unknown.length) return { ok: false, error: { code: 'mirrorItem', values: unknown } };
   return { ok: true, value: out };
@@ -346,9 +367,16 @@ export function formatMirrorPeriods(
   const parts: string[] = [];
   for (const def of mirrorItems(api)) {
     const p = periods.get(def.id);
-    if (!p || samePeriods(p, def.defaults)) continue;
+    if (!p || samePeriods(p, defaultPeriods(def))) continue;
     const text = p.map((v) => (v === null ? 'off' : String(v)));
-    parts.push(`${def.id}=${text.every((v) => v === text[0]) ? text[0] : text.join(',')}`);
+    // um valor só vale para as colunas que nascem ligadas e deixa desligada a que nasce desligada: o texto só
+    // colapsa quando é exatamente isso que ele descreve (com ela ligada, sai coluna a coluna)
+    const live = text.filter((_, i) => !def.defaultOff?.[i]);
+    const collapsible =
+      live.length > 0 &&
+      live.every((v) => v === live[0]) &&
+      !(def.defaultOff ?? []).some((off, i) => off && p[i] !== null);
+    parts.push(`${def.id}=${collapsible ? live[0] : text.join(',')}`);
   }
   return parts.join('; ');
 }
@@ -382,6 +410,11 @@ export interface MirrorApiConfig {
   period(id: string, tier?: number): MirrorPeriod;
   /** Ordem dos grupos de prioridade. */
   groupOrder: readonly MirrorGroupId[];
+  /**
+   * Maior tier com alguma coluna ligada nos itens dados (padrão: todos os itens com coluna de tier); 0 = nenhuma. É o
+   * teto de tier do job: palpites, odds e estatísticas de time do futebol e as temporadas das outras 11 APIs.
+   */
+  maxTierOn(ids?: readonly string[]): number;
 }
 
 export interface MirrorConfig {
@@ -432,13 +465,25 @@ export function mirrorConfig(
     const periods = (id: string): MirrorPeriod[] => {
       const def = byId.get(id);
       if (!def) throw new Error(`Espelho ${api}: item fora do catálogo: ${id}`);
-      return [...(overrides.get(id) ?? def.defaults)];
+      return [...(overrides.get(id) ?? defaultPeriods(def))];
+    };
+    const maxTierOn = (ids?: readonly string[]): number => {
+      let max = 0;
+      for (const def of items) {
+        if (!def.tiers.length || (ids && !ids.includes(def.id))) continue;
+        const p = periods(def.id);
+        def.tiers.forEach((label, i) => {
+          if (p[i] != null) max = Math.max(max, Number(label));
+        });
+      }
+      return max;
     };
     const cfg: MirrorApiConfig = {
       api,
       periods,
       period: (id, tier) => periods(id)[tierColumn(byId.get(id)!, tier)] ?? null,
       groupOrder: order.ok ? order.value : [...mirrorGroups(api)],
+      maxTierOn,
     };
     cache.set(api, cfg);
     return cfg;
