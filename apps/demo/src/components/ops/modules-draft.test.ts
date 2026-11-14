@@ -53,9 +53,9 @@ describe('rascunho dos módulos por tier', () => {
     // artilharia conta como ligada (os outros três endpoints estão ligados)
     expect(draft['top-players']).toEqual([true, true, true]);
     // mexer em outro módulo não religa o /players/topscorers
-    draft.predictions = [true, false];
+    draft.predictions = [true, false, false];
     expect(moduleDraftTexts('football', draft, mirrorValue).mirror).toBe(
-      '/standings=3,2,4; /players/topscorers=off; /predictions=1,off',
+      '/standings=3,2,4; /players/topscorers=off; /predictions=1,off,off',
     );
     // sem mudança nenhuma, o texto é o que estava gravado
     expect(
