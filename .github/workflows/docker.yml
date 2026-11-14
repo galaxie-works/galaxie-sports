@@ -16,7 +16,8 @@ name: Imagens e stack de staging
 on:
   pull_request:
     # Rascunho não constrói: o build roda quando o PR sai do rascunho (ready_for_review) e a cada push depois disso.
-    types: [opened, synchronize, reopened, ready_for_review]
+    # converted_to_draft entra no grupo de concorrência e cancela o build em andamento; os jobs dessa execução pulam.
+    types: [opened, synchronize, reopened, ready_for_review, converted_to_draft]
   merge_group:
   push:
     branches: [main]
