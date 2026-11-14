@@ -8,12 +8,16 @@ import type { Locale } from '@/lib/i18n/config';
 import type { Dictionary } from '@/lib/i18n/dictionary';
 
 /** O que cada módulo mede no mês (o pico do chat aparece no medidor da faixa). */
-const METRICS: Record<EngageModule, readonly ('active_fans' | 'clicks' | 'credits')[]> = {
+const METRICS: Record<
+  EngageModule,
+  readonly ('active_fans' | 'clicks' | 'credits' | 'age_checks_estimate' | 'age_checks_document')[]
+> = {
   live_chat: ['active_fans'],
   communities: ['active_fans'],
   gamification: ['active_fans'],
   shopping: ['clicks'],
   cosmos_ai: ['credits'],
+  age_verification: ['age_checks_estimate', 'age_checks_document'],
 };
 
 /**

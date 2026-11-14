@@ -319,6 +319,10 @@ export default defineMessages(
             name: 'Cosmos AI',
             what: 'Moderação assistida e assistente no painel, cobrados por créditos.',
           },
+          age_verification: {
+            name: 'Verificação de idade',
+            what: 'Comprovação da idade do torcedor feita pela Galaxie (rosto e, na dúvida, documento), cobrada por verificação.',
+          },
         },
       },
       outside: {
@@ -784,6 +788,10 @@ export default defineMessages(
             cosmos_ai: {
               name: 'Cosmos AI',
               what: 'Assisted moderation and a dashboard assistant, billed in credits.',
+            },
+            age_verification: {
+              name: 'Age verification',
+              what: 'Fan age assurance run by Galaxie (face, with an ID document when in doubt), billed per check.',
             },
           },
         },
@@ -1258,6 +1266,10 @@ export default defineMessages(
             cosmos_ai: {
               name: 'Cosmos AI',
               what: 'Moderación asistida y asistente en el panel, cobrados por créditos.',
+            },
+            age_verification: {
+              name: 'Verificación de edad',
+              what: 'Comprobación de la edad del hincha hecha por Galaxie (rostro y, en la duda, documento), cobrada por verificación.',
             },
           },
         },
