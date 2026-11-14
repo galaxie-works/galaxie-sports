@@ -93,6 +93,8 @@ export const FanTokenBody = z
           .min(1)
           .max(64)
           .regex(/^[\w .:-]+$/, 'use só letras, números, espaço e . _ : -')
+          // `galaxie:` é o prefixo da verificação feita pela Galaxie (#1109): o cliente não se passa por ela
+          .refine((v) => !v.toLowerCase().startsWith('galaxie:'), 'prefixo reservado: galaxie:')
           .optional()
           .meta({ description: 'Quem estimou ou verificou. Nunca o documento nem a foto.' }),
       })
@@ -269,8 +271,106 @@ const json = (schema: z.ZodType) => ({ 'application/json': { schema } });
 const TAG = 'Torcedor';
 const fanAuth = [{ galaxieFanToken: [] }];
 
+/** `POST /v1/fans/me/age-verification` (#1109): abre a verificação de idade feita pela Galaxie. */
+export const AgeVerificationStartBody = z
+  .strictObject({
+    returnUrl: z
+      .url({ protocol: /^https$/ })
+      .max(2048)
+      .meta({ description: 'Para onde o torcedor volta ao terminar (https).' }),
+    consent: z
+      .strictObject({
+        givenAt: z.iso
+          .datetime({ offset: true })
+          .refine((v) => Date.parse(v) <= Date.now() + 300_000, 'data no futuro')
+          .meta({ description: 'Quando o torcedor aceitou o uso do rosto para estimar a idade.' }),
+        textVersion: z
+          .string()
+          .trim()
+          .min(1)
+          .max(32)
+          .regex(/^[\w.-]+$/)
+          .meta({ description: 'Versão do texto de consentimento mostrado.', example: 'v1' }),
+      })
+      .meta({ description: 'Consentimento biométrico colhido pelo widget antes de abrir a verificação.' }),
+  })
+  .meta({ id: 'AgeVerificationStartBody' });
+export type AgeVerificationStartBody = z.infer<typeof AgeVerificationStartBody>;
+
+export const AGE_VERIFICATION_STATUSES = [
+  'pending',
+  'approved',
+  'declined',
+  'review',
+  'abandoned',
+  'expired',
+] as const;
+
+const AgeVerificationItem = z.object({
+  verification_id: z.uuid(),
+  status: z.enum(AGE_VERIFICATION_STATUSES).meta({
+    description:
+      '`pending` até o fim; `approved` = adulto comprovado; `review` = em revisão manual do provedor; ' +
+      '`declined`, `abandoned` e `expired` não comprovam nada.',
+  }),
+  method: z
+    .enum(['estimated', 'verified'])
+    .nullable()
+    .meta({ description: '`estimated` pelo rosto; `verified` com documento. Só quando aprovada.' }),
+  decided_at: z.string().nullable(),
+  created_at: z.string(),
+});
+
+export const AgeVerificationStart = z
+  .object({
+    data: AgeVerificationItem.extend({
+      url: z.url().meta({ description: 'Tela do provedor: abra num iframe ou redirecione o torcedor.' }),
+      expires_at: z.string(),
+    }),
+  })
+  .meta({ id: 'AgeVerificationStart' });
+export type AgeVerificationStart = z.infer<typeof AgeVerificationStart>;
+
+export const AgeVerificationLatest = z
+  .object({ data: AgeVerificationItem.nullable() })
+  .meta({ id: 'AgeVerificationLatest' });
+export type AgeVerificationLatest = z.infer<typeof AgeVerificationLatest>;
+
 /** Paths da identidade do torcedor para o documento OpenAPI. */
 export const fanPaths: ZodOpenApiPathsObject = {
+  '/v1/fans/me/age-verification': {
+    post: {
+      summary: 'Abre a verificação de idade',
+      description:
+        'Módulo `age_verification` (#1109), cobrado por verificação. A Galaxie estima a idade pelo rosto, com ' +
+        'prova de vida, e pede o documento só na zona de dúvida. Devolve a URL da tela do provedor; a decisão ' +
+        'chega depois e vira a comprovação do Perfil (`age_assurance`). Nada de imagem, documento ou data de ' +
+        'nascimento fica guardado. `under13` recebe 403.',
+      tags: [TAG],
+      security: fanAuth,
+      requestBody: { content: json(AgeVerificationStartBody) },
+      responses: {
+        '201': { description: 'Verificação aberta', content: json(AgeVerificationStart) },
+        '400': problem('Campo inválido (INVALID_PARAMS)'),
+        '401': problem('Token ausente, inválido ou vencido (INVALID_KEY)'),
+        '403': problem(
+          'Módulo fora do plano (MODULE_NOT_IN_PLAN) ou faixa sem permissão (FAN_AGE_RESTRICTED)',
+        ),
+        '429': problem('Limite de verificações do dia (RATE_LIMITED)'),
+        '503': problem('Provedor não configurado ou fora do ar (DEGRADED)'),
+      },
+    },
+    get: {
+      summary: 'Última verificação de idade do torcedor',
+      tags: [TAG],
+      security: fanAuth,
+      responses: {
+        '200': { description: 'OK (`data` null sem verificação)', content: json(AgeVerificationLatest) },
+        '401': problem('Token ausente, inválido ou vencido (INVALID_KEY)'),
+        '403': problem('Módulo fora do plano (MODULE_NOT_IN_PLAN)'),
+      },
+    },
+  },
   '/v1/fans/tokens': {
     post: {
       summary: 'Token do torcedor',

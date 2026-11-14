@@ -108,6 +108,9 @@ export async function upsertFan(
         ageFrozenAt: fanProfile.ageFrozenAt,
         guardianStatus: fanProfile.guardianStatus,
         guardianConsentId: fanProfile.guardianConsentId,
+        ageAssurance: fanProfile.ageAssurance,
+        ageAssuranceAt: fanProfile.ageAssuranceAt,
+        ageAssuranceProvider: fanProfile.ageAssuranceProvider,
       })
       .from(fanProfile)
       .where(
@@ -129,12 +132,28 @@ export async function upsertFan(
       input.guardian.status === 'granted' &&
       input.guardian.consentId === null &&
       (before?.guardianStatus !== 'granted' || before.guardianConsentId !== null);
+    // a verificação feita pela Galaxie (#1109, provedor `galaxie:…`) vale mais que o token: o adulto que ela comprovou
+    // continua comprovado mesmo que o cliente mande só `self` no pedido seguinte. Descer de faixa a desfaz.
+    const keepGalaxie =
+      ageBand === '18plus' &&
+      !frozen &&
+      before?.ageAssuranceProvider?.startsWith('galaxie:') === true &&
+      ASSURANCE_RANK[before.ageAssurance] >= ASSURANCE_RANK[input.ageAssurance.method];
+    const assurance = keepGalaxie
+      ? {
+          ageAssurance: before!.ageAssurance,
+          ageAssuranceAt: before!.ageAssuranceAt,
+          ageAssuranceProvider: before!.ageAssuranceProvider,
+        }
+      : {
+          ageAssurance: input.ageAssurance.method,
+          ageAssuranceAt: input.ageAssurance.at,
+          ageAssuranceProvider: input.ageAssurance.provider,
+        };
     const ageFields = {
       ageBand,
       ageBandDetail,
-      ageAssurance: input.ageAssurance.method,
-      ageAssuranceAt: input.ageAssurance.at,
-      ageAssuranceProvider: input.ageAssurance.provider,
+      ...assurance,
       guardianStatus: input.guardian.status,
       guardianConsentId: input.guardian.consentId,
       guardianLinked: input.guardian.linked,
@@ -172,6 +191,8 @@ export async function upsertFan(
     return result;
   });
 }
+
+const ASSURANCE_RANK: Record<FanAgeAssurance, number> = { self: 0, estimated: 1, verified: 2 };
 
 /** Apelido gravado do Perfil pelos ids do cliente (null se o Perfil ainda não existe ou foi excluído). */
 export async function storedNickname(

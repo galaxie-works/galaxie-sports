@@ -154,6 +154,8 @@ describe('auditoria de rotas', () => {
     'OPTIONS /*',
     // webhook do Stripe da Cosmos AI: autenticado pela assinatura do Stripe (Stripe-Signature), não por chave nossa
     'POST /webhooks/stripe/cosmos',
+    // webhook do provedor da verificação de idade (#1109): autenticado pela assinatura do Didit, não por chave nossa
+    'POST /webhooks/didit/age-verification',
     // "Comprar" do Shopping (#918): o torcedor clica sem chave; destino só do produto curado, limite por origem
     'GET /go/shop/:productId',
   ]);
