@@ -4,11 +4,16 @@ import {
   AGE_ASSURANCE_LEVELS,
   DEFAULT_POLICY_KEY,
   LATAM_POLICY_KEY,
+  MARKETING_CHANNELS,
+  MARKETING_CONSENT_MODES,
   POLICY_LANGUAGES,
   STRICT_AGE_RULES,
+  STRICT_LEGAL_RULES,
   type AgeAssuranceFeature,
   type AgeAssuranceLevel,
   type CountryPolicy,
+  type MarketingChannel,
+  type MarketingConsentMode,
   type PolicyEntity,
   type PolicyLanguage,
   type TenantCountry,
@@ -354,6 +359,7 @@ const EMPTY: CountryPolicy = {
   punishmentNoticeRequired: false,
   laws: [],
   ...structuredClone(STRICT_AGE_RULES),
+  ...structuredClone(STRICT_LEGAL_RULES),
 };
 
 function PolicyDialog({
@@ -489,6 +495,31 @@ function PolicyDialog({
         </SelectTrigger>
         <SelectContent>
           {assuranceItems.map((i) => (
+            <SelectItem key={i.value} value={i.value}>
+              {i.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </Field>
+  );
+  const consentItems = MARKETING_CONSENT_MODES.map((m) => ({ value: m, label: F.consentMode[m] }));
+  const consentField = (channel: MarketingChannel) => (
+    <Field key={channel}>
+      <FieldLabel htmlFor={`policy-marketing-${channel}`}>{F.marketingChannel[channel]}</FieldLabel>
+      <Select
+        items={consentItems}
+        value={p.marketingConsent[channel]}
+        onValueChange={(v) =>
+          v &&
+          set({ marketingConsent: { ...p.marketingConsent, [channel]: String(v) as MarketingConsentMode } })
+        }
+      >
+        <SelectTrigger id={`policy-marketing-${channel}`} className="w-full">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {consentItems.map((i) => (
             <SelectItem key={i.value} value={i.value}>
               {i.label}
             </SelectItem>
@@ -697,6 +728,25 @@ function PolicyDialog({
               p.punishmentNoticeRequired,
               (v) => set({ punishmentNoticeRequired: v }),
               F.punishmentNoticeHint,
+            )}
+            {switchField(
+              'policy-betting',
+              F.bettingContent,
+              p.bettingContent,
+              (v) => set({ bettingContent: v }),
+              F.bettingContentHint,
+            )}
+            <Field>
+              <FieldLabel>{F.marketingConsent}</FieldLabel>
+              <div className="grid gap-4 sm:grid-cols-3">{MARKETING_CHANNELS.map(consentField)}</div>
+              <FieldDescription>{F.marketingConsentHint}</FieldDescription>
+            </Field>
+            {numberField(
+              'policy-legal-hold',
+              F.legalHoldDays,
+              p.legalHoldDays,
+              (n) => set({ legalHoldDays: n }),
+              F.legalHoldDaysHint,
             )}
             <div className="grid gap-4 sm:grid-cols-2">
               <Field>

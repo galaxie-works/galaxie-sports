@@ -36,6 +36,8 @@ export interface AdminRoutesOptions {
   guard: AdminGuard;
   plans: PlanCatalog;
   usage?: UsageBackend | undefined;
+  /** Depois de mudar o tenant (plano, módulos, status, faixas): apaga o cache dos direitos (#1137). */
+  onTenantChanged?: (tenantId: string) => Promise<void>;
 }
 
 // ─── Schemas de entrada (todas as rotas validam params, query e corpo com Zod) ────────────────────
@@ -123,6 +125,9 @@ const SECRET_NOTICE = 'Guarde a chave agora: ela não será exibida novamente.';
  */
 export async function adminRoutes(app: FastifyInstance, opts: AdminRoutesOptions): Promise<void> {
   const { db, guard, plans } = opts;
+  const changed = async (tenantId: string) => {
+    await opts.onTenantChanged?.(tenantId).catch(() => {});
+  };
   const config = { admin: true } as const;
 
   app.addHook('onRequest', async (request) => guard.check(request));
@@ -186,6 +191,7 @@ export async function adminRoutes(app: FastifyInstance, opts: AdminRoutesOptions
     const body = parseInput(PatchTenantBody, request.body ?? {});
     const updated = await updateTenant(db, plans, id, body);
     if (!updated) throw problems.notFound('Tenant');
+    await changed(updated.id);
     request.log.info(
       { tenant: updated.slug, admin: 'tenant.update', fields: Object.keys(body) },
       'tenant alterado',
@@ -266,6 +272,7 @@ export async function adminRoutes(app: FastifyInstance, opts: AdminRoutesOptions
         throw problems.invalidParams([{ path: `limits.${err.key}`, message: err.message }]);
       throw err;
     });
+    await changed(t.id);
     request.log.info(
       { tenant: t.slug, admin: 'tenant.module_limits', keys: Object.keys(limits) },
       'faixas de módulo alteradas',

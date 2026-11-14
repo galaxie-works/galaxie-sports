@@ -1,9 +1,4 @@
-import {
-  listTenantWebhooks,
-  MAX_WEBHOOKS_PER_TENANT,
-  PLANS_WITHOUT_REALTIME,
-  WEBHOOK_TOPIC_MODULE,
-} from '@galaxie/db/webhooks';
+import { listTenantWebhooks, MAX_WEBHOOKS_PER_TENANT, PLANS_WITHOUT_REALTIME } from '@galaxie/db/webhooks';
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 
@@ -15,8 +10,8 @@ import { WebhooksPanel } from '@/components/client/webhooks-panel';
 import { CosmosHelpSlot } from '@/components/cosmos/integration-help-slot';
 import { WebhookReceiver } from '@/components/cosmos/integration-help';
 import { builderDb } from '@/lib/builder/store';
-import { webhookSecrets } from '@/lib/client/webhooks';
-import { getT, getTimeZone } from '@/lib/i18n/server';
+import { webhookSecrets, webhookTopicChoices } from '@/lib/client/webhooks';
+import { getLocale, getT, getTimeZone } from '@/lib/i18n/server';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getT();
@@ -26,16 +21,15 @@ export async function generateMetadata(): Promise<Metadata> {
 const iso = (d: Date | null) => (d ? d.toISOString() : null);
 
 async function Webhooks() {
-  const timeZone = await getTimeZone();
+  const [timeZone, locale] = await Promise.all([getTimeZone(), getLocale()]);
   return (
     <ClientArea section="webhooks">
       {async (ctx) => {
         const { tenant } = ctx;
         // O tenant vem da sessão (ClientArea): o cliente só vê e muda os webhooks dele.
         const rows = await listTenantWebhooks(builderDb(), tenant.id);
-        const topicsInPlan = Object.entries(WEBHOOK_TOPIC_MODULE)
-          .filter(([, mod]) => tenant.modules.includes(mod))
-          .map(([topic]) => topic);
+        // só os tópicos emitidos dos módulos ligados no tenant (registro de tópicos, #1023)
+        const { options, labels } = webhookTopicChoices(tenant.modules, locale);
         return (
           <div className="flex flex-col gap-4">
             <WebhooksPanel
@@ -46,6 +40,8 @@ async function Webhooks() {
                 topics: w.topics,
                 filters: w.filters,
                 active: w.active,
+                autoDisabledAt: iso(w.autoDisabledAt),
+                autoDisabledReason: w.autoDisabledReason,
                 createdAt: w.createdAt.toISOString(),
                 pending: w.pending,
                 dead: w.dead,
@@ -54,7 +50,8 @@ async function Webhooks() {
                 lastFailureAt: iso(w.lastFailureAt),
                 lastError: w.lastError,
               }))}
-              topicsInPlan={topicsInPlan}
+              topicOptions={options}
+              topicLabels={labels}
               planAllows={!(PLANS_WITHOUT_REALTIME as readonly string[]).includes(tenant.plan)}
               available={webhookSecrets() !== null}
               max={MAX_WEBHOOKS_PER_TENANT}

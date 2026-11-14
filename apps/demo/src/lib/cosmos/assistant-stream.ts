@@ -16,6 +16,8 @@ export type AssistantErrorCode =
   | 'busy'
   | 'rate_limited'
   | 'tenant_limit'
+  | 'attachment'
+  | 'attachment_unsupported'
   | 'failed';
 
 export type AssistantEvent =
@@ -38,6 +40,8 @@ const CODES: readonly AssistantErrorCode[] = [
   'busy',
   'rate_limited',
   'tenant_limit',
+  'attachment',
+  'attachment_unsupported',
   'failed',
 ];
 
