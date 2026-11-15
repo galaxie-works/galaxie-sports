@@ -25,6 +25,7 @@ import { creditsFor } from './credits.js';
 import { isCosmosError } from './errors.js';
 import { cosmosApiKey } from './models.js';
 import type { CosmosSettings } from './settings.js';
+import { BRANDBOOK_PROVIDERS } from './brandbook.js';
 import { activeFunction, getWallet, release, reserve, settle } from './wallet.js';
 
 /** Limites das tarefas de uma chamada. Fora daqui, nada; ajustar é mudar estes números. */
@@ -210,6 +211,9 @@ export async function runCosmosTask<T>(
   const fn = await activeFunction(db, input.functionName);
   const apiKey = fn ? cosmosApiKey(fn.provider, env) : null;
   if (!fn || (!deps.client && !apiKey)) return { ok: false, error: 'unavailable' };
+  // arquivo para um provedor que não lê arquivo (DeepSeek) falharia no envio: recusa antes de reservar
+  if (input.attachments?.length && !(BRANDBOOK_PROVIDERS as readonly string[]).includes(fn.provider))
+    return { ok: false, error: 'unavailable' };
   if (await overLimit(db, input, now())) return { ok: false, error: 'rate_limited' };
 
   const call = () => {

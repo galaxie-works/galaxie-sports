@@ -115,9 +115,15 @@ export interface FunctionDefInput {
  * A função tem quem chame esse provedor? O assistente chama os provedores com chamador (`ASSISTANT_STREAMERS`); o
  * tema a partir do brandbook, só os que leem PDF. Salvar outro deixaria a função "Ativa" respondendo indisponível.
  */
+/**
+ * Funções que mandam arquivo (PDF ou imagem) ao modelo: só os provedores que leem arquivo. A lista de canais lida de
+ * PDF ou print (#1008) tem o nome aqui porque a função mora na demo.
+ */
+const FILE_FUNCTIONS: readonly string[] = [BRANDBOOK_FUNCTION, 'channels.import'];
+
 export function providerHasCaller(functionName: string, provider: CosmosProvider): boolean {
   if (functionName === ASSISTANT_FUNCTION) return Boolean(ASSISTANT_STREAMERS[provider]);
-  if (functionName === BRANDBOOK_FUNCTION)
+  if (FILE_FUNCTIONS.includes(functionName))
     return (BRANDBOOK_PROVIDERS as readonly string[]).includes(provider);
   return true;
 }

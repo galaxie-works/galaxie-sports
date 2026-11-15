@@ -8,6 +8,17 @@ import {
   PDF_PAGE_TOKENS,
   pdfPages,
 } from './task-run.js';
+import { providerHasCaller } from './wallet.js';
+
+describe('provedor das funções com arquivo', () => {
+  it('lista de canais e brandbook só com provedor que lê arquivo (a DeepSeek não lê)', () => {
+    for (const name of ['channels.import', 'theme.from_brandbook']) {
+      expect(providerHasCaller(name, 'deepseek')).toBe(false);
+      expect(providerHasCaller(name, 'anthropic')).toBe(true);
+    }
+    expect(providerHasCaller('lineup.review', 'deepseek')).toBe(true);
+  });
+});
 
 describe('parseModelJson', () => {
   it('objeto direto, embrulhado em cerca de código ou com texto em volta; o resto é null', () => {
