@@ -4,8 +4,16 @@
  * buscadores leem para classificar o domínio.
  */
 
-/** Endereço público da demo (canônico das páginas públicas, sitemap e JSON-LD). */
-export const SITE_URL = 'https://sports.galaxie.works';
+/**
+ * Endereço público da plataforma (canônico das páginas públicas, sitemap, JSON-LD, embed e registry dos widgets).
+ * Vem de `NEXT_PUBLIC_SITE_URL` no build (o Next embute o valor); o padrão é o domínio de produção. É o único lugar
+ * com o host do produto no app: a troca de domínio (#635) muda só este padrão, o da API em `galaxie/request.ts` e o
+ * `.env` da VPS (`DEMO_DOMAIN`, `API_DOMAIN`).
+ */
+export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'https://sports.galaxie.works').replace(/\/+$/, '');
+
+/** Só o host de `SITE_URL` (sem protocolo), para os textos que citam o endereço (termos e privacidade). */
+export const SITE_HOST = new URL(SITE_URL).host;
 
 export const SITE_NAME = 'Galaxie Sports';
 
