@@ -11,7 +11,7 @@ import {
 import { RotateCcw, Save, Undo2 } from 'lucide-react';
 import { useState } from 'react';
 
-import { resetAiPolicy, saveAiPolicy } from '@/app/[locale]/(app)/ajustes/operacao/actions';
+import { resetAiPolicy, saveAiPolicy } from '@/app/[locale]/(app)/settings/operations/actions';
 import {
   AlertDialog,
   AlertDialogAction,

@@ -5,7 +5,7 @@
  *
  * Roda dentro dos contêineres do app web, `site` e `console` (têm a chave da demo e a URL interna da API), e cada um
  * confere o que o papel dele atende (APP_ROLE do contêiner, apps/demo/src/lib/app-role.ts): o site, a API, o público, a
- * demo e o 404 no portal e no painel; o console, o portal, o painel (inclusive /api/ajustes/operacao) e o 404 no
+ * demo e o 404 no portal e no painel; o console, o portal, o painel (inclusive /api/settings/operations) e o 404 no
  * público. Sem APP_ROLE (a demo de antes da divisão), tudo:
  *   docker compose exec -T site node - < smoke.mjs
  *   docker compose exec -T console node - < smoke.mjs
@@ -164,8 +164,8 @@ await check('Papel do contêiner: 404 no que é do outro serviço', async () => 
   if (version.service !== ROLE) return fail(`/api/version diz service ${version.service}, não ${ROLE}`);
   const other =
     ROLE === 'site'
-      ? ['/ajustes', '/cliente', '/cliente/builder', '/api/ajustes/operacao']
-      : ['/', '/sobre', '/times', '/docs', '/embed.js', '/r/00000000-0000-7000-8000-000000000000.json'];
+      ? ['/settings', '/client', '/client/builder', '/api/settings/operations']
+      : ['/', '/about', '/teams', '/docs', '/embed.js', '/r/00000000-0000-7000-8000-000000000000.json'];
   for (const path of other) {
     const res = await fetch(`${DEMO}${path}`, { redirect: 'manual' });
     if (res.status !== 404) return fail(`${path} no ${ROLE}: status ${res.status} (esperado 404)`);
@@ -188,7 +188,7 @@ await check('Página de manutenção (503 do Traefik quando demo ou API saem do 
     });
   const nocache = (res) =>
     res.headers.get('retry-after') === '30' && res.headers.get('cache-control') === 'no-store';
-  const site = await get(`${MAINT_SITE}/competicoes/brasileirao-serie-a`);
+  const site = await get(`${MAINT_SITE}/competitions/brasileirao-serie-a`);
   const html = await site.text();
   if (site.status !== 503) return fail(`página: status ${site.status} (esperado 503)`);
   if (!nocache(site)) return fail('página sem Retry-After: 30 e Cache-Control: no-store');
@@ -427,23 +427,23 @@ await check('Demo: páginas públicas e proteção do resto', async () => {
   for (const path of [
     '/login',
     '/',
-    '/sobre',
-    '/termos',
-    '/privacidade',
+    '/about',
+    '/terms',
+    '/privacy',
     '/robots.txt',
     '/sitemap.xml',
     '/flags/br.svg',
     '/crests/palmeiras.png',
-    '/exemplo/jogo',
+    '/example/match',
   ]) {
     const res = await fetch(`${DEMO}${path}`, { redirect: 'manual' });
     if (res.status !== 200) return fail(`${path} sem sessão: status ${res.status} (esperado 200)`);
   }
-  const about = await (await fetch(`${DEMO}/sobre`)).text();
+  const about = await (await fetch(`${DEMO}/about`)).text();
   if (!about.includes('application/ld+json') || !about.includes('og:title'))
-    return fail('/sobre sem JSON-LD ou Open Graph');
-  // o resto continua exigindo login (/ajustes e /cliente: no console, abaixo)
-  for (const path of ['/times', '/docs', '/sobre/x']) {
+    return fail('/about sem JSON-LD ou Open Graph');
+  // o resto continua exigindo login (/settings e /client: no console, abaixo)
+  for (const path of ['/teams', '/docs', '/about/x']) {
     const res = await fetch(`${DEMO}${path}`, { redirect: 'manual' });
     if (res.status !== 307 && res.status !== 302)
       return fail(`${path} sem sessão deveria redirecionar para o login (status ${res.status})`);
@@ -468,7 +468,7 @@ await check('Demo: páginas públicas sem termos internos', async () => {
     /192\.168\.|\blocalhost\b|\bapi:8080\b/,
   ];
   const found = [];
-  for (const path of ['/sobre', '/exemplo/jogo'])
+  for (const path of ['/about', '/example/match'])
     for (const lang of ['pt-BR', 'en', 'es-AR']) {
       const html = await (await fetch(`${DEMO}${path}`, { headers: { 'accept-language': lang } })).text();
       for (const re of internal) {
@@ -480,17 +480,37 @@ await check('Demo: páginas públicas sem termos internos', async () => {
 });
 
 await check('Demo: links antigos de esporte levam à família', async () => {
-  // o menu agrupa por família (Basquete com a NBA, Automobilismo com a F1): /esportes/<esporte da API>
-  // guardado em favoritos e links continua chegando, com redirecionamento permanente e a query
+  // o menu agrupa por família (Basquete com a NBA, Automobilismo com a F1): /sports/<esporte da API>
+  // guardado em favoritos e links continua chegando, com 301 e a query; a rota em português de antes do #630
+  // (/pt-BR/esportes/nba, ?temporada=) chega à família num salto só
   for (const [from, to] of [
-    ['/esportes/nba', '/esportes/basquete#nba'],
-    ['/esportes/formula-1?temporada=2024', '/esportes/automobilismo?temporada=2024'],
-    ['/esportes/football', '/esportes/futebol'],
+    ['/sports/nba', '/sports/basketball#nba'],
+    ['/pt-BR/esportes/nba', '/pt-BR/sports/basketball#nba'],
+    ['/sports/formula-1?temporada=2024', '/sports/motorsport?season=2024'],
+    ['/sports/mma', '/sports/combat-sports'],
   ]) {
     const res = await fetch(`${DEMO}${from}`, { redirect: 'manual' });
     const location = res.headers.get('location') ?? '';
-    if (res.status !== 308 || !location.endsWith(to))
-      return fail(`${from}: status ${res.status} → ${location || '(sem location)'} (esperado 308 → ${to})`);
+    if (res.status !== 301 || !location.endsWith(to))
+      return fail(`${from}: status ${res.status} → ${location || '(sem location)'} (esperado 301 → ${to})`);
+  }
+  return true;
+});
+
+await check('Demo: rotas em português levam às em inglês (#630)', async () => {
+  // 301 por 12 meses (até 15/11/2027), com ou sem o idioma no caminho, mantendo o resto do caminho; slug da família e
+  // query em português mudam no mesmo salto
+  for (const [from, to] of [
+    ['/sobre', '/about'],
+    ['/times/1?temporada=2025', '/teams/1?season=2025'],
+    ['/pt-BR/esportes/futebol?aba=jogos', '/pt-BR/sports/football?tab=matches'],
+    ['/pt-BR/eventos/1', '/pt-BR/events/1'],
+    ['/exemplo/jogo', '/example/match'],
+  ]) {
+    const res = await fetch(`${DEMO}${from}`, { redirect: 'manual' });
+    const location = res.headers.get('location') ?? '';
+    if (res.status !== 301 || !location.endsWith(to))
+      return fail(`${from}: status ${res.status} → ${location || '(sem location)'} (esperado 301 → ${to})`);
   }
   return true;
 });
@@ -511,7 +531,7 @@ await check('Builder: registry público dos widgets', async () => {
 only(CONSOLE);
 
 await check('Portal do cliente, Builder e Ajustes protegidos', async () => {
-  for (const path of ['/cliente', '/cliente/builder', '/ajustes']) {
+  for (const path of ['/client', '/client/builder', '/settings']) {
     const page = await fetch(`${DEMO}${path}`, { redirect: 'manual' });
     if (page.status !== 307 && page.status !== 302)
       return fail(`${path} sem sessão deveria redirecionar para o login (status ${page.status})`);
@@ -520,7 +540,7 @@ await check('Portal do cliente, Builder e Ajustes protegidos', async () => {
 });
 
 await check('Painel de Operação: configuração protegida e sem segredos', async () => {
-  const url = `${DEMO}/api/ajustes/operacao`;
+  const url = `${DEMO}/api/settings/operations`;
   const anon = await fetch(url, { redirect: 'manual' });
   if (anon.status !== 401) return fail(`sem sessão deveria responder 401 (status ${anon.status})`);
   const secret = process.env.BETTER_AUTH_SECRET;

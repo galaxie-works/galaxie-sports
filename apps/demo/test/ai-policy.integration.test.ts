@@ -25,7 +25,7 @@ const testUrl = (() => {
 })();
 
 let sql: Client;
-let actions: typeof import('../src/app/[locale]/(app)/ajustes/operacao/actions');
+let actions: typeof import('../src/app/[locale]/(app)/settings/operations/actions');
 let data: typeof import('../src/lib/ops/data');
 
 beforeAll(async () => {
@@ -38,7 +38,7 @@ beforeAll(async () => {
   await sql.connect();
   // o pool da demo lê a URL ao ser importado
   process.env.DEMO_DATABASE_URL = testUrl;
-  actions = await import('../src/app/[locale]/(app)/ajustes/operacao/actions');
+  actions = await import('../src/app/[locale]/(app)/settings/operations/actions');
   data = await import('../src/lib/ops/data');
 }, 120_000);
 

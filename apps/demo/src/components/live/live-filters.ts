@@ -51,20 +51,20 @@ export const NO_LIVE_FILTERS: LiveFilters = {
   competition: [],
 };
 
-/** Nome de cada filtro na URL (`?esporte=football,basketball&pais=BR`), como os demais da demo. */
+/** Nome de cada filtro na URL (`?sport=football,basketball&country=BR`), como os demais da demo. */
 export const LIVE_FILTER_PARAMS: Record<LiveFilterField, string> = {
   status: 'status',
-  window: 'janela',
-  sport: 'esporte',
-  country: 'pais',
-  competition: 'competicao',
+  window: 'window',
+  sport: 'sport',
+  country: 'country',
+  competition: 'competition',
 };
 
-/** Status na URL: `?status=ao-vivo`, `?status=proximos` ou `?status=encerrados` (com `&janela=24`). */
+/** Status na URL: `?status=live`, `?status=upcoming` ou `?status=finished` (com `&window=24`). */
 const STATUS_PARAM: Record<LiveStatus, string> = {
-  live: 'ao-vivo',
-  upcoming: 'proximos',
-  finished: 'encerrados',
+  live: 'live',
+  upcoming: 'upcoming',
+  finished: 'finished',
 };
 
 /** Operador dos chips: "é um destes" (escolha múltipla). */
@@ -75,8 +75,8 @@ export const WINDOW_FILTER_OPERATOR = 'is';
 const isWindow = (v: string) => (FINISHED_WINDOWS as readonly number[]).includes(Number(v));
 
 /**
- * A janela só vale com "Encerrados" escolhido e a padrão não é guardada: assim `?status=encerrados` e
- * `?status=encerrados&janela=12` são o mesmo filtro.
+ * A janela só vale com "Encerrados" escolhido e a padrão não é guardada: assim `?status=finished` e
+ * `?status=finished&window=12` são o mesmo filtro.
  */
 function normalizeWindow(status: LiveStatus[], window: string[]): string[] {
   const value = window.filter(isWindow).at(-1);

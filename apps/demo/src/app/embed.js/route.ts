@@ -1,5 +1,5 @@
 /**
- * Script do embed HTML dos widgets (`<script src="https://sports.galaxie.works/embed.js" async>`): registra
+ * Script do embed HTML dos widgets (`<script src="<SITE_URL>/embed.js" async>`): registra
  * `<galaxie-widget>`. O conteúdo vem empacotado de `@galaxie/widgets` (`scripts/build-embed.mjs`), com o
  * React junto, então a página do portal não precisa de build nem de framework. Público e igual para todos.
  */

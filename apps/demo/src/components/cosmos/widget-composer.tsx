@@ -115,7 +115,7 @@ export function WidgetComposer({ minCredits }: { minCredits: number | null }) {
                   <Button
                     size="sm"
                     variant="outline"
-                    render={<Link href={`/cliente/builder/novo?cosmos=${encodeURIComponent(w.draft)}`} />}
+                    render={<Link href={`/client/builder/new?cosmos=${encodeURIComponent(w.draft)}`} />}
                     nativeButton={false}
                   >
                     {T.open}

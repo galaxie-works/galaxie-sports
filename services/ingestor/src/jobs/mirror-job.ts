@@ -1,6 +1,7 @@
 import type { ApiSport, PlanLimits, PlanRules } from '@galaxie/apisports-client';
 import { PlanViolationError, ttlFor } from '@galaxie/apisports-client';
 import {
+  SPORT_MIRROR_MAX_TIER,
   DEFAULT_MIRROR_CONFIG,
   MIRROR_INVENTORY_CURSOR,
   mirrorBudgetCalls,
@@ -66,6 +67,8 @@ export const FINISHED_LOOKBACK_DAYS = 3;
 export const UPCOMING_HOURS = 48;
 /** Ids por chamada nos endpoints que aceitam `ids` (lote). */
 export const IDS_PER_CALL = 10;
+/** Tier mais alto do catálogo YAML das outras APIs: até ele as temporadas entram no inventário mesmo desligadas. */
+const SPORT_INVENTORY_MAX_TIER = 3;
 
 export interface MirrorCandidate {
   item: PlannedRequest;
@@ -319,7 +322,7 @@ const UPCOMING = new Set(['TBD', 'NS']);
 export interface FootballMirrorOptions {
   /** Maior tier com as chamadas por temporada (padrão 3: todo o catálogo). */
   seasonTier?: number | undefined;
-  /** Maior tier com estatísticas de time, palpites e odds (padrão 2). */
+  /** Maior tier com estatísticas de time, palpites e odds (padrão: o do catálogo; o tier 3 nasce desligado no painel). */
   detailTier?: number | undefined;
   /** Maior tier com elencos/técnicos/transferências no rodízio (padrão 3; o tier 1 é do sync diário). */
   teamTier?: number | undefined;
@@ -336,8 +339,11 @@ export async function footballGroups(
   opts: FootballMirrorOptions = {},
 ): Promise<MirrorGroup[]> {
   const seasonTier = opts.seasonTier ?? 3;
-  const detailTier = opts.detailTier ?? 2;
   const cfg = opts.mirror ?? DEFAULT_MIRROR_CONFIG.api('football');
+  // palpites, odds e estatísticas de time: a coluna do tier 3 nasce desligada no catálogo, então os candidatos dele
+  // entram com período nulo (fora do rodízio, dentro do inventário: o painel mostra o que ligar custaria); a opção da
+  // CLI corta antes
+  const detailTier = opts.detailTier ?? seasonTier;
   const cand = (
     id: string,
     tier: number | undefined,
@@ -375,9 +381,10 @@ export async function footballGroups(
     const at = Date.parse(f.date);
     if (Number.isNaN(at) || at < now.getTime() || at > until) continue;
     const cov = c.seasons.find((s) => s.year === f.season)?.coverage ?? null;
+    // a coluna do tier é o liga/desliga por tier do painel (módulos `predictions` e `odds`)
     if (covers(cov, 'predictions'))
-      upcoming.push(cand('/predictions', undefined, 'predictions', '/predictions', { fixture: f.id }));
-    if (covers(cov, 'odds')) upcoming.push(cand('/odds', undefined, 'odds', '/odds', { fixture: f.id }));
+      upcoming.push(cand('/predictions', c.tier, 'predictions', '/predictions', { fixture: f.id }));
+    if (covers(cov, 'odds')) upcoming.push(cand('/odds', c.tier, 'odds', '/odds', { fixture: f.id }));
   }
 
   const teamStats: MirrorCandidate[] = [];
@@ -400,8 +407,9 @@ export async function footballGroups(
   // tier 2+ (o tier 1 já gira no sync diário): padrão elenco a cada 14 dias, técnicos e transferências a cada 30
   const teams = (await teamTargets(catalog, raw, opts.teamTier ?? 3)).filter((t) => t.tier >= 2);
   const squads: MirrorCandidate[] = [];
+  // colunas tier 2 e 3+ (módulo `people-mirror` do painel): o tier do time é o da sua melhor competição
   for (const e of TEAM_ENDPOINTS)
-    for (const t of teams) squads.push(cand(e.endpoint, undefined, e.step, e.endpoint, { team: t.teamId }));
+    for (const t of teams) squads.push(cand(e.endpoint, t.tier, e.step, e.endpoint, { team: t.teamId }));
 
   return [
     {
@@ -655,7 +663,7 @@ const FINISHED = 'finished';
 const SCHEDULED = new Set(['scheduled', 'starting']);
 
 export interface SportMirrorOptions {
-  /** Maior tier do catálogo YAML com temporadas, jogos e times no espelho (padrão 2). */
+  /** Maior tier do catálogo YAML com temporadas, jogos e times no espelho (padrão: o ligado no painel; 2 de fábrica). */
   maxTier?: number | undefined;
   /** Períodos e endpoints ligados de cada API (padrão: o catálogo do runtime-config). */
   mirror?: MirrorConfig | undefined;
@@ -669,8 +677,15 @@ export async function sportGroups(
   opts: SportMirrorOptions = {},
 ): Promise<MirrorGroup[]> {
   const p = SPORT_MIRROR[sport];
-  const maxTier = opts.maxTier ?? 2;
   const cfg = (opts.mirror ?? DEFAULT_MIRROR_CONFIG).api(sport);
+  // tiers 1 e 2 como sempre (SPORT_MIRROR_MAX_TIER); o tier 3+ nasce desligado e só entra quando a lista da temporada
+  // dele é ligada no painel. Os itens com coluna de tier (temporada, classificação, lesões) ainda geram candidatos do
+  // tier 3 com período nulo para o inventário (o painel mostra o que ligar custaria); os de um período só (times, por
+  // jogo, por time) ficam fora até a temporada ligar, para a estimativa deles não misturar os tiers
+  const seasonEndpoint = p.seasonList('', '').endpoint;
+  const maxTier = opts.maxTier ?? Math.max(SPORT_MIRROR_MAX_TIER, cfg.maxTierOn([seasonEndpoint]));
+  const tierCovered = (tier: number) => tier <= maxTier;
+  const inventoryTier = opts.maxTier ?? Math.max(maxTier, SPORT_INVENTORY_MAX_TIER);
   const cand = (
     id: string,
     tier: number | undefined,
@@ -682,7 +697,7 @@ export async function sportGroups(
   const reference = p.reference.map((e) => cand(e, undefined, 'referencia', e, {}));
   // F1 e MMA: uma "competição" com a temporada no parâmetro; o mesmo pedido vale uma vez
   const playing = (await source.seasons(sport)).filter(
-    (s) => s.tier <= maxTier && inPlay(s, now) && seasonAccessible(s.year, limits),
+    (s) => s.tier <= inventoryTier && inPlay(s, now) && seasonAccessible(s.year, limits),
   );
   const season: MirrorCandidate[] = [];
   const perTeam: MirrorCandidate[] = [];
@@ -692,6 +707,7 @@ export async function sportGroups(
     const cov = (path: readonly string[] | undefined) => covered(s.coverage, path);
     for (const t of cov(p.covers?.standings) ? p.standings(s.league, s.key) : [])
       season.push(cand(t.endpoint, s.tier, 'classificacao', t.endpoint, t.params));
+    if (!tierCovered(s.tier)) continue;
     if (p.seasonTeams)
       season.push(cand('/teams', undefined, 'times', '/teams', { league: s.league, season: s.key }));
     if (!p.teamStats && !p.roster && !p.injuries) continue;

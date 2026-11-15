@@ -18,6 +18,7 @@ import {
 } from '@galaxie/db';
 import { generateAdminKey, hashAdminKey } from '../src/admin/guard.js';
 import { loadPlans } from '../src/admin/plans.js';
+import { FanAgeGate } from '../src/engage/age-gate.js';
 import { FanTokenSigner } from '../src/engage/fan-token.js';
 import { buildServer } from '../src/server.js';
 
@@ -103,6 +104,8 @@ const base = {
   ageBand: '18plus',
   country: 'br',
   locale: 'pt-BR',
+  // o Brasil pede comprovação estimada para os recursos sociais (ficha do #1104, portão do #1106)
+  ageAssurance: { method: 'estimated', at: '2026-11-01' },
 };
 
 describe('identidade do torcedor (#937)', () => {
@@ -131,7 +134,8 @@ describe('identidade do torcedor (#937)', () => {
       nickname: 'Tricolor_78',
       age_band: '13_17',
       holder_adult: 'unknown',
-      capabilities: ['read', 'predict'],
+      // 13 no Brasil sem a autorização do responsável: o portão (#1106) não libera nada
+      capabilities: [],
     });
     const sql = postgres(testUrl, { max: 1 });
     const count = await sql`select count(*)::int as n from fan.profile where tenant_id = ${t.id}`;
@@ -168,7 +172,7 @@ describe('identidade do torcedor (#937)', () => {
       where tenant_id = ${t.id} and action = 'guardian.declared'`;
     // faixa larga antiga vale como 13; adulto declarado no Brasil precisa comprovar
     const legacy = await issue(t.key, { ...base, externalProfileId: 'prof_legacy', ageBand: '13_17' });
-    const adult = await issue(t.key, { ...base, externalProfileId: 'prof_adult' });
+    const adult = await issue(t.key, { ...base, externalProfileId: 'prof_adult', ageAssurance: undefined });
     await sql.end();
     expect(rows).toEqual([{ action: 'guardian.declared', reason: 'autorização declarada pelo cliente' }]);
     expect((await me(legacy.json().data.token)).json().data).toMatchObject({
@@ -197,7 +201,7 @@ describe('identidade do torcedor (#937)', () => {
       age_band_detail: '18plus',
       // congelado vale a faixa larga gravada (13): no Brasil, sem responsável
       age_status: 'needs_guardian',
-      capabilities: ['read', 'predict'],
+      capabilities: [],
     });
     const sql = postgres(testUrl, { max: 1 });
     const cases = await sql`select source, target_type, target_id, reasons, detail from engage.moderation_case
@@ -413,5 +417,80 @@ describe('carteira de pontos (#938)', () => {
       (select count(*)::int from fan.points_ledger where profile_id = ${adult.profile_id}) as l`;
     await sql.end();
     expect(left[0]).toEqual({ w: 0, l: 0 });
+  });
+});
+
+describe('portão de idade (#1106)', () => {
+  const wallet = (token: string) =>
+    app.inject({ method: 'GET', url: '/v1/fans/me/wallet', headers: { authorization: `Bearer ${token}` } });
+  const teen = {
+    ...base,
+    externalProfileId: 'prof_portao',
+    ageBand: '14_15',
+    guardian: { status: 'granted', linkedAccount: true },
+  };
+
+  it('recusa com o motivo e o próximo passo; o /me continua aberto para o cliente ver o estado', async () => {
+    const t = await tenantKey('fans-portao', ['core_data', 'live_chat']);
+    const token = (await issue(t.key, { ...teen, guardian: undefined })).json().data.token as string;
+    const res = await wallet(token);
+    expect(res.statusCode).toBe(403);
+    expect(res.json()).toMatchObject({
+      code: 'FAN_AGE_RESTRICTED',
+      age_gate: { reason: 'guardian_consent', next: 'guardian_consent' },
+    });
+    expect((await me(token)).statusCode).toBe(200);
+    // com a autorização e o vínculo, o token antigo já passa: o portão relê o Perfil, não o token
+    await issue(t.key, teen);
+    expect((await wallet(token)).statusCode).toBe(200);
+    // adulto sem a comprovação que o Brasil pede
+    const adult = (
+      await issue(t.key, { ...base, externalProfileId: 'prof_portao_a', ageAssurance: undefined })
+    ).json().data.token as string;
+    expect((await wallet(adult)).json().age_gate).toEqual({ reason: 'age_assurance', next: 'verify_age' });
+    // a recusa entra na métrica por motivo, capacidade e país, sem o torcedor
+    const metrics = await app.inject({ method: 'GET', url: '/metrics' });
+    expect(metrics.body).toMatch(
+      /galaxie_fan_age_denied_total\{reason="guardian_consent",capability="read",country="BR"\} [1-9]/,
+    );
+    expect(metrics.body).not.toContain('prof_portao');
+  });
+
+  it('revogação da autorização corta o token em uso na hora neste processo e no prazo do cache nos outros', async () => {
+    const t = await tenantKey('fans-revoga', ['core_data', 'live_chat']);
+    const first = (await issue(t.key, teen)).json().data;
+    expect((await wallet(first.token)).statusCode).toBe(200);
+    // o cliente avisa a revogação pedindo outro token: o antigo para de valer na próxima ação
+    await issue(t.key, { ...teen, guardian: { status: 'revoked', linkedAccount: true } });
+    expect((await wallet(first.token)).json().age_gate).toEqual({
+      reason: 'guardian_consent',
+      next: 'guardian_consent',
+    });
+
+    // outro processo, com o Perfil no cache: a revogação gravada no banco vale quando o cache vence
+    await issue(t.key, teen);
+    let clock = 1_000_000;
+    const other = new FanAgeGate(db, { now: () => clock });
+    const fan = { tenantId: t.id, profileId: first.profile_id as string, country: 'BR' };
+    expect((await other.check(fan, 'read')).allowed).toBe(true);
+    await db.update(fanProfile).set({ guardianStatus: 'revoked' }).where(eq(fanProfile.id, fan.profileId));
+    expect((await other.check(fan, 'read')).allowed).toBe(true);
+    clock += 5_001;
+    expect(await other.check(fan, 'read')).toMatchObject({ allowed: false, reason: 'guardian_consent' });
+  });
+
+  it('a ficha do país que mudou vale na próxima ação, sem esperar o token vencer', async () => {
+    const t = await tenantKey('fans-ficha', ['core_data', 'live_chat']);
+    const token = (await issue(t.key, { ...base, externalProfileId: 'prof_ficha', country: 'us' })).json()
+      .data.token as string;
+    expect((await wallet(token)).statusCode).toBe(200);
+    // o cliente endurece a ficha dos EUA: comprovação verificada para os recursos sociais
+    const sql = postgres(testUrl, { max: 1 });
+    await sql`insert into engage.tenant_country (tenant_id, country, is_primary, hardening, updated_by)
+      values (${t.id}, 'US', true, ${sql.json({ ageAssuranceMin: { social: 'verified' } })}, 'teste')
+      on conflict (tenant_id, country) do update set hardening = excluded.hardening`;
+    await sql.end();
+    await new Promise((r) => setTimeout(r, 5_100));
+    expect((await wallet(token)).json().age_gate).toEqual({ reason: 'age_assurance', next: 'verify_age' });
   });
 });

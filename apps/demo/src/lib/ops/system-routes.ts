@@ -44,7 +44,7 @@ export function systemTabRoute(tab: string | undefined | null): string | null {
 /**
  * Destino de um link antigo de Ajustes (caminho, query que sobra e âncora), ou null quando o caminho não é um deles.
  * Aceita o prefixo de idioma (`/pt-BR/ajustes/operacao`), que o proxy acrescenta ao reescrever. Os outros parâmetros
- * seguem (a busca dos canais: `/ajustes/esportes?aba=related&q=x` → `/ajustes/videos?q=x`).
+ * seguem (a busca dos canais: `/ajustes/esportes?aba=related&q=x` → `/settings/videos?q=x`).
  */
 export function legacySettingsRedirect(pathname: string, search: URLSearchParams): string | null {
   const path = pathname.replace(/^\/[a-z]{2}(-[A-Z]{2})?(?=\/ajustes\/)/, '').replace(/\/+$/, '');

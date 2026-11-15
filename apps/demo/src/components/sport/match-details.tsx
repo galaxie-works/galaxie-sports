@@ -39,7 +39,7 @@ function PanelIntro({ text, api }: { text: string; api: ApiRequest }) {
 /**
  * "Detalhes da partida": frame colapsável (ReUI c-frame-5, aberto por padrão) com as abas Minuto a minuto,
  * Estatísticas e Escalação — esta com as sub-abas Titulares, Reservas e Campo. A aba ativa fica na URL
- * (`?detalhes=escalacao&escalacao=campo`). Aba sem dado não aparece; sem nenhuma, o bloco não aparece.
+ * (`?details=lineups&lineup=pitch`). Aba sem dado não aparece; sem nenhuma, o bloco não aparece.
  * Os painéis ficam montados ao trocar de aba, para o minuto a minuto ao vivo seguir atualizando.
  */
 export function MatchDetails({
@@ -76,31 +76,31 @@ export function MatchDetails({
   const hasLineups = !!lineups?.available && lineups.lineups.length > 0;
   const hasStats = statRows(stats).length > 0;
   const tabs = new Set<DetailTab>([
-    ...(timeline ? (['minuto'] as const) : []),
-    ...(hasStats ? (['estatisticas'] as const) : []),
-    ...(hasLineups ? (['escalacao'] as const) : []),
+    ...(timeline ? (['timeline'] as const) : []),
+    ...(hasStats ? (['statistics'] as const) : []),
+    ...(hasLineups ? (['lineups'] as const) : []),
   ]);
   const tab = activeTab(query[DETAIL_PARAM], DETAIL_TABS, tabs);
   if (!tab) return null;
   const lineupTabs = new Set<LineupTab>(
     hasLineups
       ? [
-          'titulares',
-          ...(lineups!.lineups.some((l) => l.substitutes.length) ? (['reservas'] as const) : []),
-          ...(hasPitch(lineups!) ? (['campo'] as const) : []),
+          'starters',
+          ...(lineups!.lineups.some((l) => l.substitutes.length) ? (['substitutes'] as const) : []),
+          ...(hasPitch(lineups!) ? (['pitch'] as const) : []),
         ]
       : [],
   );
-  const lineupTab = activeTab(query[LINEUP_PARAM], LINEUP_TABS, lineupTabs) ?? 'titulares';
+  const lineupTab = activeTab(query[LINEUP_PARAM], LINEUP_TABS, lineupTabs) ?? 'starters';
   const labels: Record<DetailTab, string> = {
-    minuto: tx.tabs.timeline,
-    estatisticas: tx.tabs.stats,
-    escalacao: tx.tabs.lineups,
+    timeline: tx.tabs.timeline,
+    statistics: tx.tabs.stats,
+    lineups: tx.tabs.lineups,
   };
   const lineupLabels: Record<LineupTab, string> = {
-    titulares: tx.lineupTabs.starters,
-    reservas: tx.lineupTabs.bench,
-    campo: tx.lineupTabs.pitch,
+    starters: tx.lineupTabs.starters,
+    substitutes: tx.lineupTabs.bench,
+    pitch: tx.lineupTabs.pitch,
   };
   // a escalação é do navegador (segue o minuto a minuto ao vivo): só os textos que ela usa
   const lineupTexts = lineupDictionary(t);
@@ -139,10 +139,10 @@ export function MatchDetails({
 
               {timeline ? (
                 <TabsContent
-                  value="minuto"
+                  value="timeline"
                   keepMounted
                   className="flex flex-col gap-3"
-                  {...panelSemantics(tabs, labels.minuto)}
+                  {...panelSemantics(tabs, labels.timeline)}
                 >
                   <PanelIntro
                     text={t.live.timeline.description}
@@ -154,11 +154,11 @@ export function MatchDetails({
 
               {stats && hasStats ? (
                 <TabsContent
-                  value="estatisticas"
+                  value="statistics"
                   keepMounted
                   // container: as duas colunas de MatchStats seguem a largura do painel, não a da tela
                   className="@container flex flex-col gap-3"
-                  {...panelSemantics(tabs, labels.estatisticas)}
+                  {...panelSemantics(tabs, labels.statistics)}
                 >
                   <PanelIntro text={t.event.stats.description} api={statsRequest(eventId, locale, content)} />
                   <MatchStats stats={stats} colors={colors} locale={locale} t={t} />
@@ -167,10 +167,10 @@ export function MatchDetails({
 
               {hasLineups ? (
                 <TabsContent
-                  value="escalacao"
+                  value="lineups"
                   keepMounted
                   className="flex flex-col gap-3"
-                  {...panelSemantics(tabs, labels.escalacao)}
+                  {...panelSemantics(tabs, labels.lineups)}
                 >
                   <PanelIntro text={tx.lineupsDescription} api={lineupsRequest(eventId, locale, content)} />
                   <UrlTabs param={LINEUP_PARAM} value={lineupTab} className="gap-3">

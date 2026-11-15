@@ -12,7 +12,8 @@ import { parseArgs } from 'node:util';
 import { closeDb, createDb } from '@galaxie/db';
 import { loadWtwConfig, syncBroadcasterLibrary } from '@galaxie/where-to-watch';
 import { rightsLlmEnv } from '../llm/config.js';
-import { createAgentLlm } from './common.js';
+import { createAgentLlm, runtimeEnv } from './common.js';
+import { moduleTiers } from '../common/tiers.js';
 import type { LlmClient } from '../llm/types.js';
 import { HttpPageFetcher } from '../wtw/fetcher.js';
 import { wtwPolicyFromEnv } from '../wtw/relevance.js';
@@ -44,6 +45,8 @@ async function main(): Promise<void> {
       .filter(Boolean);
     const needs = await planRightsResearch(db, {
       now,
+      // tiers do módulo `wtw` do painel (MODULES_FOOTBALL)
+      tiers: moduleTiers(await runtimeEnv(db), 'wtw'),
       config,
       ...(markets?.length ? { markets } : {}),
       horizonDays: values.dias ? Number(values.dias) : 45,

@@ -11,7 +11,7 @@ import { settingsNavGroups } from './settings-nav';
 
 /**
  * Mapa dos 9 grupos de Ajustes (o mesmo menu, em cartões), abaixo dos cartões do que pede ação no Início (#1073):
- * quem chega por `/ajustes` no celular, sem a coluna do menu, vê todas as áreas.
+ * quem chega por `/settings` no celular, sem a coluna do menu, vê todas as áreas.
  */
 export function SettingsGroupsMap() {
   const { t } = useI18n();

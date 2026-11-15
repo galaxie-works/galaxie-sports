@@ -4,7 +4,7 @@ import { Pencil, Plus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useId, useState } from 'react';
 
-import { saveFunction, type FunctionForm } from '@/app/[locale]/(app)/ajustes/carteiras/actions';
+import { saveFunction, type FunctionForm } from '@/app/[locale]/(app)/settings/wallets/actions';
 import { Badge } from '@/components/reui/badge';
 import { SettingsSection } from '@/components/settings';
 import { Button } from '@/components/ui/button';
