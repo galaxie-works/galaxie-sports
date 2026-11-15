@@ -137,7 +137,9 @@ services:
   # Fala com a API pela rede interna; a chave fica só no servidor.
   #
   # Traefik, no mesmo host: o router do console casa os prefixos dele (PathRegexp igual ao CONSOLE_PATH_REGEXP do
-  # app-role.ts, conferido no teste) com prioridade 2000; o do site casa o host inteiro com prioridade 1000; o de
+  # app-role.ts, conferido no teste; com ou sem o prefixo de idioma, como o proxy aceita; os prefixos em português
+  # `ajustes` e `cliente` ficam enquanto valer o 301 do #630,
+  # até 15/11/2027) com prioridade 2000; o do site casa o host inteiro com prioridade 1000; o de
   # manutenção do console (1500, declarado no site, aponta para o serviço maintenance) cobre os prefixos do console quando
   # ele sai do ar, e o de manutenção da demo (1) o resto. Um contêiner `demo` de antes da divisão (rótulo sem prioridade:
   # a do tamanho da regra, ~30) perde dos dois; o deploy o tira depois que eles sobem (deploy-plan.sh › SAI). Login e /api/auth ficam no site: o cookie de sessão é do host, vale nos dois.
@@ -182,7 +184,7 @@ services:
       # Chaves de API trocadas no painel (Ajustes → Credenciais, #1087): a demo cifra ao gravar e abre ao reler (a cada
       # minuto). Vazia: o painel não grava chaves; o token das sugestões gravado antes abre pela WEBHOOK_SIGNING_SECRET
       SETTINGS_KEK: ${SETTINGS_KEK:-}
-      # Webhooks no painel do cliente (/cliente/webhooks): a mesma KEK do worker cifra o segredo no cadastro e na
+      # Webhooks no painel do cliente (/client/webhooks): a mesma KEK do worker cifra o segredo no cadastro e na
       # rotação. Vazia: o painel lista, testa e reenvia, mas não cadastra (docs/runbooks/webhooks.md)
       WEBHOOK_SIGNING_SECRET: ${WEBHOOK_SIGNING_SECRET:-}
       # Cosmos AI (#993): chave secreta do Stripe da Galaxie Works LLC (sk_test_… no ensaio), para abrir o Checkout dos
@@ -230,7 +232,7 @@ services:
       # console fora do ar (reinício, OOM): os prefixos dele vão para a página de manutenção (serviço maintenance), não
       # para o 404 do site. Fica no site para o compose do maintenance não mudar; com o site também fora, o router de
       # manutenção da demo (prioridade 1) cobre o host inteiro
-      - traefik.http.routers.gsports-console-maintenance.rule=Host(`${DEMO_DOMAIN:?defina DEMO_DOMAIN}`) && PathRegexp(`^/(ajustes|api/ajustes|api/cliente|cliente)(/|$$)`)
+      - traefik.http.routers.gsports-console-maintenance.rule=Host(`${DEMO_DOMAIN:?defina DEMO_DOMAIN}`) && PathRegexp(`^/((pt-BR|en|es-AR)/)?(ajustes|api/ajustes|api/client|api/cliente|api/settings|client|cliente|settings)(/|$$)`)
       - traefik.http.routers.gsports-console-maintenance.entrypoints=websecure
       - traefik.http.routers.gsports-console-maintenance.tls.certresolver=letsencrypt
       - traefik.http.routers.gsports-console-maintenance.middlewares=${EDGE_MIDDLEWARES:-}
@@ -253,7 +255,7 @@ services:
       - traefik.http.middlewares.gsports-compress.compress.includedcontenttypes=application/json,application/problem+json,text/html,text/css,text/javascript,application/javascript,image/svg+xml,text/plain
       - traefik.http.middlewares.gsports-retry.retry.attempts=2
       - traefik.http.middlewares.gsports-retry.retry.initialinterval=100ms
-      - traefik.http.routers.gsports-console.rule=Host(`${DEMO_DOMAIN:?defina DEMO_DOMAIN}`) && PathRegexp(`^/(ajustes|api/ajustes|api/cliente|cliente)(/|$$)`)
+      - traefik.http.routers.gsports-console.rule=Host(`${DEMO_DOMAIN:?defina DEMO_DOMAIN}`) && PathRegexp(`^/((pt-BR|en|es-AR)/)?(ajustes|api/ajustes|api/client|api/cliente|api/settings|client|cliente|settings)(/|$$)`)
       - traefik.http.routers.gsports-console.entrypoints=websecure
       - traefik.http.routers.gsports-console.tls.certresolver=letsencrypt
       - traefik.http.routers.gsports-console.middlewares=${EDGE_MIDDLEWARES:-}

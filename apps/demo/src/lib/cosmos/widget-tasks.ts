@@ -209,7 +209,7 @@ export async function composeWidgets(
       maxOutputTokens: composeMaxOutputTokens(input.mode),
       metadata: { mode: input.mode },
       evaluate,
-      ...(ctx.role === 'admin' ? { staff: { route: '/cliente/builder#cosmos-widget' } } : {}),
+      ...(ctx.role === 'admin' ? { staff: { route: '/client/builder#cosmos-widget' } } : {}),
     },
     { settings: await readCosmosSettings(db) },
   );
@@ -256,7 +256,7 @@ export async function installGuide(
         const guide = parseInstallAnswer(parseModelJson(text));
         return { usable: guide !== null, value: guide! };
       },
-      ...(ctx.role === 'admin' ? { staff: { route: '/cliente/builder#cosmos-install' } } : {}),
+      ...(ctx.role === 'admin' ? { staff: { route: '/client/builder#cosmos-install' } } : {}),
     },
     { settings: await readCosmosSettings(db) },
   );

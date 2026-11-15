@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
 
-import { setShowOtherOperators } from '@/app/[locale]/(app)/cliente/grade/actions';
+import { setShowOtherOperators } from '@/app/[locale]/(app)/client/lineup/actions';
 import { Alert, AlertDescription } from '@/components/reui/alert';
 import { Badge } from '@/components/reui/badge';
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';

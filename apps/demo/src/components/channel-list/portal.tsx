@@ -10,7 +10,7 @@ import {
   correctChannels,
   reprocessChannels,
   uploadChannels,
-} from '@/app/[locale]/(app)/cliente/canais/actions';
+} from '@/app/[locale]/(app)/client/channels/actions';
 import { EmptyState } from '@/components/app-shell/empty-state';
 import { Alert, AlertDescription } from '@/components/reui/alert';
 import { Badge } from '@/components/reui/badge';

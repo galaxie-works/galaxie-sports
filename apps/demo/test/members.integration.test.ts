@@ -23,8 +23,8 @@ vi.mock('next/navigation', () => ({
 }));
 
 let db: AuthTestDb;
-let actions: typeof import('../src/app/[locale]/(app)/cliente/usuarios/actions');
-let admin: typeof import('../src/app/[locale]/(app)/ajustes/actions');
+let actions: typeof import('../src/app/[locale]/(app)/client/users/actions');
+let admin: typeof import('../src/app/[locale]/(app)/settings/actions');
 let session: typeof import('../src/lib/client/session');
 const T1 = randomUUID();
 const T2 = randomUUID();
@@ -66,8 +66,8 @@ beforeAll(async () => {
   await db.sql.query(`update "user" set tenant_id = $1 where email = 'dono@dois.test'`, [T2]);
   await db.sql.query(`update "user" set tenant_id = $1 where email = 'troca@um.test'`, [T1]);
   await db.sql.query(`update "user" set tenant_id = $1 where email = 'retenta@um.test'`, [T1]);
-  actions = await import('../src/app/[locale]/(app)/cliente/usuarios/actions');
-  admin = await import('../src/app/[locale]/(app)/ajustes/actions');
+  actions = await import('../src/app/[locale]/(app)/client/users/actions');
+  admin = await import('../src/app/[locale]/(app)/settings/actions');
 }, 120_000);
 
 const userId = async (email: string) =>

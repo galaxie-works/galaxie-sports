@@ -1,7 +1,7 @@
 import { defineMessages } from '../define';
 
 /**
- * Grades e ofertas das operadoras: o portal do cliente (`/cliente/grade`), Ajustes → Grades e ofertas
+ * Grades e ofertas das operadoras: o portal do cliente (`/client/lineup`), Ajustes → Grades e ofertas
  * (revisão, pedidos das operadoras e operadora de cada tenant) e o aviso de domínio no convite.
  */
 export default defineMessages(
@@ -107,10 +107,10 @@ export default defineMessages(
       description:
         'A Galaxie monta sozinha a grade de cada operadora a partir de fontes públicas: tudo entra como rascunho e só o aprovado sai na API. As operadoras acompanham a própria grade no portal e pedem revisão por lá.',
       tabs: {
-        revisao: 'Revisão',
-        pedidos: 'Pedidos das operadoras',
+        review: 'Revisão',
+        requests: 'Pedidos das operadoras',
         tenants: 'Operadora de cada tenant',
-        ajustes: 'Ajustes da grade',
+        settings: 'Ajustes da grade',
       },
       filters: {
         country: 'País',
@@ -444,10 +444,10 @@ export default defineMessages(
         description:
           "Galaxie builds each operator's lineup on its own from public sources: everything comes in as a draft and only what is approved goes to the API. Operators follow their own lineup in the portal and request reviews there.",
         tabs: {
-          revisao: 'Review',
-          pedidos: 'Operator requests',
+          review: 'Review',
+          requests: 'Operator requests',
           tenants: "Each tenant's operator",
-          ajustes: 'Lineup settings',
+          settings: 'Lineup settings',
         },
         filters: {
           country: 'Country',
@@ -784,10 +784,10 @@ export default defineMessages(
         description:
           'Galaxie arma sola la grilla de cada operadora a partir de fuentes públicas: todo entra como borrador y solo lo aprobado sale en la API. Las operadoras siguen su grilla en el portal y piden revisión desde ahí.',
         tabs: {
-          revisao: 'Revisión',
-          pedidos: 'Pedidos de las operadoras',
+          review: 'Revisión',
+          requests: 'Pedidos de las operadoras',
           tenants: 'Operadora de cada tenant',
-          ajustes: 'Ajustes de la grilla',
+          settings: 'Ajustes de la grilla',
         },
         filters: {
           country: 'País',

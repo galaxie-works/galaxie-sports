@@ -18,7 +18,7 @@ describe('entrada do assistente', () => {
     const r = parseAssistantRequest({
       question: '  O que é isto?  ',
       context: {
-        route: '/cliente',
+        route: '/client',
         title: 'Painel',
         visible: 'x'.repeat(10_000),
         destinations: [

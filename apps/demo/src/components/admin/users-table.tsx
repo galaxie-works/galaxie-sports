@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useMemo, useState, useTransition } from 'react';
 import { toast } from 'sonner';
 
-import { resendInvite, setDisabled } from '@/app/[locale]/(app)/ajustes/actions';
+import { resendInvite, setDisabled } from '@/app/[locale]/(app)/settings/actions';
 import {
   DataGrid,
   DataGridContainer,
@@ -72,7 +72,7 @@ function RowActions({ user }: { user: DemoUser }) {
           <MoreHorizontal />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="min-w-48">
-          <DropdownMenuItem onClick={() => router.push(`/ajustes/usuarios/${user.id}`)}>
+          <DropdownMenuItem onClick={() => router.push(`/settings/users/${user.id}`)}>
             {t.admin.table.viewDetails}
           </DropdownMenuItem>
           {user.status === 'pending' ? (
@@ -315,7 +315,7 @@ export function UsersTable({
           table={table}
           recordCount={data.length}
           emptyMessage={t.admin.table.empty}
-          onRowClick={(u) => router.push(`/ajustes/usuarios/${u.id}`)}
+          onRowClick={(u) => router.push(`/settings/users/${u.id}`)}
           tableLayout={{ headerBackground: true }}
           i18n={{
             labels: {

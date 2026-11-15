@@ -29,7 +29,7 @@ function SettingsLayout() {
   return null;
 }
 
-/** Navegação: dentro ou fora de /ajustes. */
+/** Navegação: dentro ou fora de /settings. */
 let navigate: (inSettings: boolean) => void = () => {};
 function App({ start }: { start: boolean }) {
   const [inSettings, setInSettings] = useState(start);

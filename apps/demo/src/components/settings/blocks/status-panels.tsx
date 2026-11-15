@@ -23,8 +23,8 @@ import {
 import { useRouter } from 'next/navigation';
 import { useState, type ReactNode } from 'react';
 
-import { checkAiCreditNow } from '@/app/[locale]/(app)/ajustes/operacao/actions';
-import { resealSecrets } from '@/app/[locale]/(app)/ajustes/operacao/secret-actions';
+import { checkAiCreditNow } from '@/app/[locale]/(app)/settings/operations/actions';
+import { resealSecrets } from '@/app/[locale]/(app)/settings/operations/secret-actions';
 import { settingText } from '@/components/ops/format';
 import { useOpsAction } from '@/components/ops/use-ops-action';
 import { Badge } from '@/components/reui/badge';
