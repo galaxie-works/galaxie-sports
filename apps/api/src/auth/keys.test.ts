@@ -347,6 +347,24 @@ describe('erros de acesso para o diagnóstico (#1007)', () => {
     expect(r.seen.map((d) => d.reason)).toEqual(['expired', 'tenant_inactive']);
   });
 
+  it('a chave já provada (SSE e revalidação) também registra revogada, expirada e tenant suspenso', async () => {
+    const { store, prefix } = await memoryTenant();
+    const rec = store.keys.get(prefix)!;
+    const r = recorder();
+    const proven = () =>
+      new Authenticator(store, { onDenied: r.onDenied }).authenticateProvenKey(prefix, rec.keyId);
+    rec.revokedAt = new Date(Date.now() - 1);
+    await expect(proven()).rejects.toMatchObject({ code: 'INVALID_KEY' });
+    rec.revokedAt = null;
+    rec.expiresAt = new Date(Date.now() - 1);
+    await expect(proven()).rejects.toMatchObject({ code: 'INVALID_KEY' });
+    rec.expiresAt = null;
+    rec.tenant.status = 'suspended';
+    await expect(proven()).rejects.toMatchObject({ code: 'INVALID_KEY' });
+    expect(r.seen.map((d) => d.reason)).toEqual(['revoked', 'expired', 'tenant_inactive']);
+    expect(r.seen.every((d) => d.tenantId === rec.tenant.id && d.keyPrefix === prefix)).toBe(true);
+  });
+
   it('um onDenied que lança não muda a resposta', async () => {
     const { store, key } = await memoryTenant();
     const auth = new Authenticator(store, {

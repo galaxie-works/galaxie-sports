@@ -239,9 +239,22 @@ export class Authenticator {
       return cached.ctx;
     const record = await this.store.findKeyByPrefix(prefix);
     if (!record || record.keyId !== keyId) throw problems.invalidKey();
-    if (record.revokedAt && record.revokedAt <= now) throw problems.invalidKey('Chave revogada.');
-    if (record.expiresAt && record.expiresAt <= now) throw problems.invalidKey('Chave expirada.');
-    this.assertKeyState(record, now, record.env, (d) => d);
+    // a recusa por este caminho (SSE e revalidação da conexão aberta) também entra no diagnóstico do tenant
+    if (record.revokedAt && record.revokedAt <= now) {
+      this.denied(record.tenant.id, 'revoked', prefix);
+      throw problems.invalidKey('Chave revogada.');
+    }
+    if (record.expiresAt && record.expiresAt <= now) {
+      this.denied(record.tenant.id, 'expired', prefix);
+      throw problems.invalidKey('Chave expirada.');
+    }
+    this.assertKeyState(
+      record,
+      now,
+      record.env,
+      (d) => d,
+      (reason) => this.denied(record.tenant.id, reason, prefix),
+    );
     const ctx = contextOf(record, prefix);
     put(this.cache, cacheKey, { ctx, at: t, expiresAt: t + this.cacheTtlMs });
     this.touch(record.keyId, now);
