@@ -47,6 +47,9 @@ export function parseCursor(raw: string | undefined): ChatCursor | null | undefi
   return m ? { epoch: m[1]!, id: Number(m[2]) } : null;
 }
 
+/** Sala das reações no hub: a contagem do segundo sai por `broadcast`, sem fila (#967). */
+export const reactionRoomKey = (tenantId: string, fixtureId: string) => `react:${tenantId}:${fixtureId}`;
+
 export type ChatBatchListener = (batch: ChatBatch) => void;
 
 export interface ChatHubOptions {
@@ -140,6 +143,17 @@ export class ChatHub {
   /** Ouvintes locais (conexões nesta instância) da sala. */
   localListeners(room: string): number {
     return this.listeners.get(room)?.size ?? 0;
+  }
+
+  /**
+   * Publica já, para todas as instâncias, sem fila, número nem histórico: o que já sai agregado por segundo (contagem
+   * das reações, #967). Não serve para mensagem: quem perde a conexão não recupera.
+   */
+  async broadcast(room: string, message: object): Promise<void> {
+    const batch: ChatBatch = { room, epoch: 'live', id: 0, messages: [message] };
+    const { redis } = this.options;
+    if (!redis) return this.dispatch(batch);
+    await redis.publish(this.k('batches'), JSON.stringify(batch));
   }
 
   /** Põe a mensagem aprovada na fila da sala; sai no próximo lote. */
