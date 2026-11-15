@@ -8,6 +8,9 @@ import {
 } from './mirror.js';
 import {
   AGENT_MAX_TIER,
+  DAILY_CAPS,
+  dailyCapValue,
+  dailyCapsFromEnv,
   DEFAULT_MODULE_CONFIG,
   MATCH_DETAIL_MAX_TIER,
   MODULE_APIS,
@@ -234,5 +237,42 @@ describe('applyModuleToMirrorPeriods', () => {
     expect(formatMirrorPeriods('football', off)).toBe(
       '/players/squads=14,off; /coachs=30,off; /transfers=30,off',
     );
+  });
+});
+
+describe('tetos diários (DAILY_*)', () => {
+  it('padrões são os de antes do painel, por plano; unlimited = sem teto; inválido = padrão', () => {
+    expect(DAILY_CAPS.map((c) => [c.key, c.defaults.free, c.defaults.paid])).toEqual([
+      ['DAILY_MAX_DETAILS', 35, 2000],
+      ['DAILY_ROTATION_CALLS', 5, 1500],
+      ['DAILY_SEASON_LISTS', 0, 300],
+      ['DAILY_PLAYER_STATS_PAGES', 0, 1000],
+    ]);
+    expect(dailyCapValue('DAILY_MAX_DETAILS', '', true)).toBe(2000);
+    expect(dailyCapValue('DAILY_MAX_DETAILS', undefined, false)).toBe(35);
+    expect(dailyCapValue('DAILY_MAX_DETAILS', 'unlimited', true)).toBe(Number.POSITIVE_INFINITY);
+    expect(dailyCapValue('DAILY_MAX_DETAILS', '120', true)).toBe(120);
+    expect(dailyCapValue('DAILY_MAX_DETAILS', 'x', true)).toBe(2000);
+    expect(dailyCapsFromEnv({ DAILY_SEASON_LISTS: '50' }, true)).toEqual({
+      DAILY_MAX_DETAILS: 2000,
+      DAILY_ROTATION_CALLS: 1500,
+      DAILY_SEASON_LISTS: 50,
+      DAILY_PLAYER_STATS_PAGES: 1000,
+    });
+    for (const c of DAILY_CAPS) for (const m of c.modules) expect(moduleDef('football', m)?.cap).toBe(c.key);
+  });
+
+  it('o registro aceita o número, unlimited e vazio; recusa 0', () => {
+    expect(validateSettingKey('DAILY_MAX_DETAILS', '500')).toEqual({ ok: true, value: '500' });
+    expect(validateSettingKey('DAILY_MAX_DETAILS', 'unlimited')).toEqual({ ok: true, value: 'unlimited' });
+    expect(validateSettingKey('DAILY_MAX_DETAILS', '')).toEqual({ ok: true, value: '' });
+    expect(validateSettingKey('DAILY_MAX_DETAILS', '0')).toMatchObject({
+      ok: false,
+      error: { code: 'zero' },
+    });
+    expect(validateSettingKey('DAILY_ROTATION_CALLS', '200000')).toMatchObject({
+      ok: false,
+      error: { code: 'range' },
+    });
   });
 });

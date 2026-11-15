@@ -7,7 +7,12 @@ import {
   type ProviderStatus,
 } from '@galaxie/apisports-client';
 import { isInPlay, mapFootballStatus } from '@galaxie/providers';
-import { DEFAULT_MODULE_CONFIG, moduleTierOf, type ModuleApiConfig } from '@galaxie/runtime-config';
+import {
+  DEFAULT_MODULE_CONFIG,
+  dailyCapDefault,
+  moduleTierOf,
+  type ModuleApiConfig,
+} from '@galaxie/runtime-config';
 import {
   compareCompetitions,
   covers,
@@ -66,10 +71,10 @@ export const ROTATION_PERIOD_DAYS: Record<string, number> = {
  * tier 1, lotes de 20): elencos 850/7 ≈ 120, transferências 850/7 ≈ 120, técnicos 850/30 ≈ 30, títulos
  * 1.300/30 ≈ 45, afastamentos 1.300/2 ≈ 650; ≈ 965/dia. A folga cobre a primeira passada e elenco novo.
  */
-export const PAID_ROTATION_LIMIT = 1500;
+export const PAID_ROTATION_LIMIT = dailyCapDefault('DAILY_ROTATION_CALLS', true);
 
 /** Partidas detalhadas por dia nos planos pagos (`fixtures?ids=`, 20 por chamada): até 100 chamadas. */
-export const PAID_MAX_DETAILS = 2000;
+export const PAID_MAX_DETAILS = dailyCapDefault('DAILY_MAX_DETAILS', true);
 
 /**
  * Período da relista da temporada atual (`fixtures?league&season`) por tier: tier 1 a cada 2 dias (remarcação e
@@ -146,7 +151,7 @@ export function startOfUtcDay(d: Date): Date {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
 }
 
-function isPaid(plan: PlanRules): boolean {
+export function isPaid(plan: PlanRules): boolean {
   return !plan.current.forbiddenParams.includes('ids');
 }
 
@@ -641,7 +646,7 @@ export function dailyJob(
             ranked.map((f) => f.id),
             cursors,
           );
-          const max = opts.maxDetails ?? (isPaid(plan) ? PAID_MAX_DETAILS : 35);
+          const max = opts.maxDetails ?? dailyCapDefault('DAILY_MAX_DETAILS', isPaid(plan));
           return buildDetailRequests(pending.slice(0, max), plan.current);
         },
       },
@@ -689,7 +694,7 @@ export function dailyJob(
             candidates,
             cursors,
             now(),
-            opts.rotation ?? (isPaid(plan) ? PAID_ROTATION_LIMIT : 5),
+            opts.rotation ?? dailyCapDefault('DAILY_ROTATION_CALLS', isPaid(plan)),
             undefined,
             (item) => item.endpoint,
           );
@@ -703,7 +708,7 @@ export function dailyJob(
             cursors,
             plan.current,
             now(),
-            opts.seasonLists ?? (isPaid(plan) ? 300 : 0),
+            opts.seasonLists ?? dailyCapDefault('DAILY_SEASON_LISTS', isPaid(plan)),
             opts.force,
           ),
       },
@@ -736,5 +741,5 @@ export function dailyJob(
 }
 
 function playerStatsLimit(plan: PlanRules, opts: DailyOptions): number {
-  return opts.playerStats ?? (isPaid(plan) ? 1000 : 0);
+  return opts.playerStats ?? dailyCapDefault('DAILY_PLAYER_STATS_PAGES', isPaid(plan));
 }

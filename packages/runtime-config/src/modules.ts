@@ -59,6 +59,80 @@ export const AGENT_MAX_TIER = 2;
 /** Espelho das outras 11 APIs: maior tier com temporadas, jogos e times. */
 export const SPORT_MIRROR_MAX_TIER = 2;
 
+// ── Tetos diários do sync diário (Ajustes → Dados → Módulos por esporte, abaixo dos módulos) ───────────────────────
+
+/** Chaves dos tetos diários do futebol no sync diário; vazio = o padrão do plano, `unlimited` = sem teto. */
+export const DAILY_CAP_KEYS = [
+  'DAILY_MAX_DETAILS',
+  'DAILY_ROTATION_CALLS',
+  'DAILY_SEASON_LISTS',
+  'DAILY_PLAYER_STATS_PAGES',
+] as const;
+export type DailyCapKey = (typeof DAILY_CAP_KEYS)[number];
+
+export interface DailyCapDef {
+  key: DailyCapKey;
+  /** Padrão do código por plano (os valores de antes do painel): free e pagos. */
+  defaults: { free: number; paid: number };
+  /** Módulos do futebol que o teto governa (o do rodízio é compartilhado por três). */
+  modules: readonly string[];
+  /** Unidade: chamadas ou páginas (1 página = 1 chamada). */
+  unit: 'calls' | 'pages';
+}
+
+/**
+ * Os tetos diários do sync diário, com os padrões que o job usava fixos no código. O teto maior aceito é a cota do
+ * maior plano (mega); a tela ainda corta pelo plano da API.
+ */
+export const DAILY_CAPS: readonly DailyCapDef[] = [
+  { key: 'DAILY_MAX_DETAILS', defaults: { free: 35, paid: 2000 }, modules: ['match-detail'], unit: 'calls' },
+  {
+    key: 'DAILY_ROTATION_CALLS',
+    defaults: { free: 5, paid: 1500 },
+    modules: ['people-rotation', 'sidelined', 'trophies'],
+    unit: 'calls',
+  },
+  { key: 'DAILY_SEASON_LISTS', defaults: { free: 0, paid: 300 }, modules: ['season-list'], unit: 'calls' },
+  {
+    key: 'DAILY_PLAYER_STATS_PAGES',
+    defaults: { free: 0, paid: 1000 },
+    modules: ['player-stats'],
+    unit: 'pages',
+  },
+];
+export const DAILY_CAP_MAX = 150_000;
+
+export function dailyCap(key: DailyCapKey): DailyCapDef {
+  return DAILY_CAPS.find((c) => c.key === key)!;
+}
+
+/** Padrão do teto no plano (free ou pago). */
+export const dailyCapDefault = (key: DailyCapKey, paid: boolean): number =>
+  paid ? dailyCap(key).defaults.paid : dailyCap(key).defaults.free;
+
+/**
+ * Teto efetivo a partir do valor da flag: vazio ou inválido = o padrão do plano; `unlimited` = sem teto (Infinity);
+ * número = o número.
+ */
+export function dailyCapValue(key: DailyCapKey, raw: string | null | undefined, paid: boolean): number {
+  const text = (raw ?? '').trim().toLowerCase();
+  if (!text) return dailyCapDefault(key, paid);
+  if (text === 'unlimited') return Number.POSITIVE_INFINITY;
+  const n = Number(text);
+  return Number.isInteger(n) && n >= 0 ? n : dailyCapDefault(key, paid);
+}
+
+/** Os quatro tetos do env do job (com as sobrescritas do painel), já com o padrão do plano onde está vazio. */
+export function dailyCapsFromEnv(
+  env: Record<string, string | undefined>,
+  paid: boolean,
+): Record<DailyCapKey, number> {
+  return Object.fromEntries(DAILY_CAP_KEYS.map((key) => [key, dailyCapValue(key, env[key], paid)])) as Record<
+    DailyCapKey,
+    number
+  >;
+}
+
 export type ModuleKind = 'fixed' | 'job' | 'mirror';
 
 export interface ModuleDef {
@@ -83,6 +157,8 @@ export interface ModuleDef {
    * endpoint e job.
    */
   steps?: readonly string[];
+  /** Teto diário que governa o módulo (DAILY_CAPS); o painel mostra o teto abaixo dos módulos. */
+  cap?: DailyCapKey;
 }
 
 const tiersUpTo = (maxTier: number): readonly boolean[] => MODULE_TIERS.map((t) => t <= maxTier);
@@ -157,9 +233,11 @@ const FOOTBALL_MODULES: readonly ModuleDef[] = [
   job('injuries-day', ['sync-daily'], ['/injuries'], [true]),
   job('season-list', ['sync-daily'], ['/fixtures'], tiersUpTo(SEASON_LIST_MAX_TIER), {
     steps: ['temporada-atual'],
+    cap: 'DAILY_SEASON_LISTS',
   }),
   job('match-detail', ['sync-daily'], ['/fixtures'], tiersUpTo(MATCH_DETAIL_MAX_TIER), {
     steps: ['detalhe'],
+    cap: 'DAILY_MAX_DETAILS',
   }),
   job('live', ['live-run', 'live-reconcile'], ['/fixtures'], tiersUpTo(3)),
   job(
@@ -167,11 +245,16 @@ const FOOTBALL_MODULES: readonly ModuleDef[] = [
     ['sync-daily'],
     ['/players/squads', '/coachs', '/transfers'],
     tiersUpTo(PEOPLE_ROTATION_MAX_TIER),
+    { cap: 'DAILY_ROTATION_CALLS' },
   ),
   mirror('football', 'people-mirror', ['/players/squads', '/coachs', '/transfers']),
   mirror('football', 'injuries-season', ['/injuries']),
-  job('sidelined', ['sync-daily'], ['/sidelined'], tiersUpTo(PERSON_ROTATION_MAX_TIER)),
-  job('trophies', ['sync-daily'], ['/trophies'], tiersUpTo(PERSON_ROTATION_MAX_TIER)),
+  job('sidelined', ['sync-daily'], ['/sidelined'], tiersUpTo(PERSON_ROTATION_MAX_TIER), {
+    cap: 'DAILY_ROTATION_CALLS',
+  }),
+  job('trophies', ['sync-daily'], ['/trophies'], tiersUpTo(PERSON_ROTATION_MAX_TIER), {
+    cap: 'DAILY_ROTATION_CALLS',
+  }),
   mirror('football', 'predictions', ['/predictions']),
   mirror('football', 'odds', ['/odds']),
   mirror('football', 'team-stats', ['/teams/statistics']),
@@ -185,7 +268,9 @@ const FOOTBALL_MODULES: readonly ModuleDef[] = [
   mirror('football', 'standings', ['/standings']),
   mirror('football', 'rounds-teams', ['/fixtures/rounds', '/teams']),
   mirror('football', 'venues', ['/venues']),
-  job('player-stats', ['sync-daily'], ['/players'], tiersUpTo(PLAYER_STATS_MAX_TIER)),
+  job('player-stats', ['sync-daily'], ['/players'], tiersUpTo(PLAYER_STATS_MAX_TIER), {
+    cap: 'DAILY_PLAYER_STATS_PAGES',
+  }),
   mirror('football', 'reference', FOOTBALL_REFERENCE),
   job('wtw', ['wtw-run', 'wtw-channel', 'wtw-rights'], [], tiersUpTo(AGENT_MAX_TIER), { ai: true }),
   job('ai-content', ['recap-run', 'context-run', 'related-run'], [], tiersUpTo(AGENT_MAX_TIER), { ai: true }),

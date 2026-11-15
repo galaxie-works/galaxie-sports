@@ -23,6 +23,7 @@ import { parseArgs } from 'node:util';
 import { closeDb } from '@galaxie/db';
 import { ApiSportsProvider } from '@galaxie/providers';
 import { moduleConfig } from '@galaxie/runtime-config';
+import { panelEnv } from '../assets/commons/panel-env.js';
 import { contextFromEnv } from '../context.js';
 import { PgCursorStore } from '../jobs/runtime/cursor-store.js';
 import { PgJobRunStore } from '../jobs/runtime/job-run-store.js';
@@ -92,13 +93,14 @@ await runCli(async () => {
         ? live
         : null;
     const intervalS = Math.max(today?.intervalSeconds ?? 0, today?.baseIntervalSeconds ?? 0);
+    const env = await panelEnv(ctx.db);
     const triage: ReconcileTargetOptions = {
       lookbackHours,
       force: values.forcar,
       staleMinutes: positive(values['parado-min'], '--parado-min'),
       minPriority,
-      // tiers do módulo `live` do painel (o scheduler entrega o env com MODULES_FOOTBALL)
-      tiers: moduleConfig((key) => process.env[key])
+      // tiers do módulo `live` do painel (MODULES_FOOTBALL), também quando o job roda à mão
+      tiers: moduleConfig((key) => env[key])
         .api('football')
         .tiersOn('live'),
       planIntervalMs: intervalS > 0 ? intervalS * 1000 : null,

@@ -4,7 +4,13 @@ import { describe, expect, it } from 'vitest';
 import type { ModulesSnapshot } from '@/lib/ops/types';
 
 import {
+  capSliderMax,
+  capStep,
+  capText,
   estimatedCallsPerDay,
+  initialCapDraft,
+  partialInTier,
+  rotationOverloaded,
   initialModuleDraft,
   measuredCallsPerDay,
   moduleDraftTexts,
@@ -13,6 +19,8 @@ import {
   rowSummary,
 } from './modules-draft';
 import { moduleDef } from '@galaxie/runtime-config';
+
+import { mirrorPeriodsOf } from './modules-draft';
 
 describe('rascunho dos módulos por tier', () => {
   it('parte do estado efetivo e grava só o que difere do padrão, nas duas flags', () => {
@@ -136,5 +144,48 @@ describe('rascunho dos módulos por tier', () => {
       estimatedCallsPerDay('football', moduleDef('football', 'live')!, periods, inventory, 1),
     ).toBeNull();
     expect(estimatedCallsPerDay('football', standings, periods, null, 1)).toBeNull();
+  });
+});
+
+describe('tetos diários', () => {
+  it('rascunho e texto: vazio = padrão do plano, unlimited, ou o número', () => {
+    expect(initialCapDraft('DAILY_MAX_DETAILS', null, true)).toEqual({ unlimited: false, value: 2000 });
+    expect(initialCapDraft('DAILY_MAX_DETAILS', null, false)).toEqual({ unlimited: false, value: 35 });
+    expect(initialCapDraft('DAILY_ROTATION_CALLS', 'unlimited', true)).toEqual({
+      unlimited: true,
+      value: 1500,
+    });
+    expect(initialCapDraft('DAILY_SEASON_LISTS', '120', true)).toEqual({ unlimited: false, value: 120 });
+    expect(capText('DAILY_MAX_DETAILS', { unlimited: false, value: 2000 }, true)).toBe('');
+    expect(capText('DAILY_MAX_DETAILS', { unlimited: false, value: 2000 }, false)).toBe('2000');
+    expect(capText('DAILY_MAX_DETAILS', { unlimited: true, value: 2000 }, true)).toBe('unlimited');
+    expect(capText('DAILY_PLAYER_STATS_PAGES', { unlimited: false, value: 640 }, true)).toBe('640');
+  });
+
+  it('o slider para na cota do plano', () => {
+    expect(capSliderMax(7500)).toBe(7500);
+    expect(capSliderMax(12_987)).toBe(12_987);
+    expect(capSliderMax(null)).toBe(150_000);
+    expect(capStep(300)).toBe(1);
+    expect(capStep(7500)).toBe(10);
+    expect(capStep(75_000)).toBe(50);
+  });
+
+  it('aviso do rodízio: afastamentos ou títulos fora do tier 1 com o teto no padrão', () => {
+    const draft = initialModuleDraft('football', null, null);
+    expect(rotationOverloaded(draft, 1500, true)).toBe(false);
+    draft.sidelined = [true, true, false];
+    expect(rotationOverloaded(draft, 1500, true)).toBe(true);
+    expect(rotationOverloaded(draft, 4000, true)).toBe(false);
+    expect(rotationOverloaded(draft, Number.POSITIVE_INFINITY, true)).toBe(false);
+  });
+
+  it('módulo parcial: parte dos endpoints desligada na página do espelho', () => {
+    const top = moduleDef('football', 'top-players')!;
+    expect(partialInTier('football', top, mirrorPeriodsOf('football', null), 1)).toBe(false);
+    const periods = mirrorPeriodsOf('football', '/players/topscorers=off,3,6');
+    expect(partialInTier('football', top, periods, 1)).toBe(true);
+    expect(partialInTier('football', top, periods, 2)).toBe(false);
+    expect(partialInTier('football', moduleDef('football', 'standings')!, periods, 1)).toBe(false);
   });
 });

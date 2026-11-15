@@ -135,7 +135,16 @@ export {
 } from './mirror.js';
 export {
   AGENT_MAX_TIER,
+  DAILY_CAPS,
+  DAILY_CAP_KEYS,
+  DAILY_CAP_MAX,
   DEFAULT_MODULE_CONFIG,
+  dailyCap,
+  dailyCapDefault,
+  dailyCapValue,
+  dailyCapsFromEnv,
+  type DailyCapDef,
+  type DailyCapKey,
   MATCH_DETAIL_MAX_TIER,
   MODULE_APIS,
   MODULE_CATALOG,
