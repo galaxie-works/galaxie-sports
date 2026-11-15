@@ -215,6 +215,8 @@ export default defineMessages(
       empty:
         'Nenhum clique no período. Os cliques aparecem quando o widget do Shopping estiver no seu site ou app.',
       csv: 'Exportar CSV',
+      csvTruncated:
+        'Exportação cortada em {max} linhas: escolha um período menor ou um filtro para ver o resto.',
       removedWidget: 'Widget removido',
     },
     builder: {
@@ -529,6 +531,7 @@ export default defineMessages(
         byDay: 'By day',
         empty: 'No clicks in this period. Clicks show up once the Shopping widget is on your site or app.',
         csv: 'Export CSV',
+        csvTruncated: 'Export cut at {max} rows: pick a shorter period or a filter to see the rest.',
         removedWidget: 'Removed widget',
       },
       builder: {
@@ -842,6 +845,8 @@ export default defineMessages(
         empty:
           'No hay clics en el período. Los clics aparecen cuando el widget de Shopping esté en tu sitio o app.',
         csv: 'Exportar CSV',
+        csvTruncated:
+          'Exportación cortada en {max} filas: elige un período más corto o un filtro para ver el resto.',
         removedWidget: 'Widget eliminado',
       },
       builder: {

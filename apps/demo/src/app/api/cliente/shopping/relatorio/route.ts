@@ -8,6 +8,10 @@ import { shopClientReportRows, shopReportCsv, shopReportFilter } from '@/lib/cli
 import { periodFrom } from '@/lib/cosmos/data-utils';
 import { getDictionary } from '@/lib/i18n/dictionary';
 import { getRequestLocale, getTimeZone } from '@/lib/i18n/server';
+import { fill } from '@/lib/i18n/text';
+
+/** Teto de linhas por exportação. */
+const MAX_ROWS = 20_000;
 
 export async function GET(request: Request) {
   const ctx = await readClientContext();
@@ -27,11 +31,19 @@ export async function GET(request: Request) {
     store: q('store'),
   });
   const T = t.shopping.report;
-  const rows = await shopClientReportRows(ctx.tenant.id, filter);
-  const csv = shopReportCsv(
+  // uma linha a mais que o teto diz se cortou; cortado, a última linha avisa (ninguém acha que acabou ali)
+  const all = await shopClientReportRows(ctx.tenant.id, filter, MAX_ROWS + 1);
+  const rows = all.slice(0, MAX_ROWS);
+  const body = shopReportCsv(
     [T.day, T.event, T.competition, T.team, T.store, T.widget, T.product, T.clicks],
     rows,
   );
+  const note = fill(T.csvTruncated, { max: MAX_ROWS });
+  const csv =
+    all.length > MAX_ROWS
+      ? `${body}"${note.replaceAll('"', '""')}"
+`
+      : body;
   return new Response(csv, {
     headers: {
       'content-type': 'text/csv; charset=utf-8',
