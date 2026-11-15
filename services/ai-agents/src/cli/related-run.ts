@@ -30,7 +30,8 @@ import {
   type RelatedRunReport,
 } from '../related/run.js';
 import { YOUTUBE_OFF_MESSAGE, YoutubeClient, youtubeStatus } from '../related/youtube.js';
-import { dbFromEnv, intFlag } from './common.js';
+import { dbFromEnv, intFlag, runtimeEnv } from './common.js';
+import { moduleTiers } from '../common/tiers.js';
 
 const { values } = parseArgs({
   options: {
@@ -130,6 +131,8 @@ async function main(): Promise<void> {
       researchHours: envInt('RELATED_RESEARCH_HOURS', DEFAULT_RESEARCH_HOURS),
       ...(values.evento ? { eventId: values.evento } : {}),
       ...(lookback !== undefined ? { lookbackHours: lookback } : {}),
+      // tiers do módulo `ai-content` do painel (MODULES_FOOTBALL); --tier vale por cima
+      tiers: moduleTiers(await runtimeEnv(db), 'ai-content'),
       ...(tier !== undefined ? { maxTier: tier } : {}),
       ...(limit !== undefined ? { limit } : {}),
     });

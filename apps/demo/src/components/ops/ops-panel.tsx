@@ -42,6 +42,7 @@ import type { JobStatus, OpsSetting, OpsSnapshot } from '@/lib/ops/types';
 
 import { AiPolicyCard } from './ai-policy-card';
 import { MirrorTab } from './mirror-tab';
+import { ModulesTab } from './modules-tab';
 import { aiStateText, displayValue, formatDuration, settingText, tokenUsage } from './format';
 import { QualityTab } from './quality-tab';
 import { SettingRow, useOpsAction } from './setting-row';
@@ -149,6 +150,7 @@ export function OpsPanel({
     ),
     credentials: () => <SectionCard block="credentials" snapshot={snapshot} timeZone={timeZone} />,
     mirror: () => <MirrorTab snapshot={snapshot} timeZone={timeZone} />,
+    modules: () => <ModulesTab snapshot={snapshot} />,
     suggestions: () => (
       <>
         {/* cartão de integração (#1077): o liga/desliga aberto quando conectado; repo e token gravados juntos nele */}
@@ -236,7 +238,10 @@ function RowsFrame({
 }
 
 /** Título e descrição de cada bloco de linhas (o das sugestões é o texto da seção `feedback` do registro). */
-type SectionBlock = Exclude<PanelBlock, 'status' | 'quality' | 'schedule' | 'tasks' | 'mirror' | 'history'>;
+type SectionBlock = Exclude<
+  PanelBlock,
+  'status' | 'quality' | 'schedule' | 'tasks' | 'mirror' | 'modules' | 'history'
+>;
 const sectionTextKey = (block: SectionBlock) => (block === 'suggestions' ? 'feedback' : block);
 
 /**
