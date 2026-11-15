@@ -119,7 +119,7 @@ export interface FunctionDefInput {
  * Funções que mandam arquivo (PDF ou imagem) ao modelo: só os provedores que leem arquivo. A lista de canais lida de
  * PDF ou print (#1008) tem o nome aqui porque a função mora na demo.
  */
-const FILE_FUNCTIONS: readonly string[] = [BRANDBOOK_FUNCTION, 'channels.import'];
+export const FILE_FUNCTIONS: readonly string[] = [BRANDBOOK_FUNCTION, 'channels.import'];
 
 export function providerHasCaller(functionName: string, provider: CosmosProvider): boolean {
   if (functionName === ASSISTANT_FUNCTION) return Boolean(ASSISTANT_STREAMERS[provider]);
