@@ -162,7 +162,7 @@ export function eventParents(
   const sport = sportParent(event.sport, t);
   if (sport) parents.push(sport);
   if (!event.competition) return parents;
-  const season = new URLSearchParams({ data: event.starts_at.slice(0, 10) });
+  const season = new URLSearchParams({ date: event.starts_at.slice(0, 10) });
   parents.push({
     path: `/competitions/${event.competition.slug}?${season}`,
     label: event.competition.name,

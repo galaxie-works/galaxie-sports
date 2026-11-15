@@ -1,4 +1,4 @@
-import { existsSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -279,5 +279,73 @@ describe('slugs de família e query em português (#630)', () => {
       expect(f.slug, f.id).toMatch(/^[a-z0-9-]+$/);
       expect(LEGACY_FAMILY_SLUGS[f.id], f.id).toBe(f.slug);
     }
+  });
+});
+
+/**
+ * Guarda dos links internos (#630): o código monta URL só com nomes, valores e slugs em inglês. Link com `?data=` ou
+ * `?aba=jogos` funcionaria pelo 301, mas cada clique pagaria um salto a mais. Ficam de fora os testes e os módulos
+ * que tratam os links antigos de propósito.
+ */
+describe('guarda dos links montados no código', () => {
+  const SRC = join(__dirname, '..');
+  const LEGACY_FILES = new Set([
+    'lib/legacy-routes.ts',
+    'lib/ops/system-routes.ts',
+    'lib/ops/panel-tabs.ts',
+    'proxy.ts',
+  ]);
+
+  function sources(dir = SRC, rel = ''): string[] {
+    return readdirSync(dir, { withFileTypes: true }).flatMap((d) => {
+      const path = rel ? `${rel}/${d.name}` : d.name;
+      if (d.isDirectory()) return sources(join(dir, d.name), path);
+      return /\.tsx?$/.test(d.name) && !/\.test\.tsx?$/.test(d.name) && !LEGACY_FILES.has(path) ? [path] : [];
+    });
+  }
+
+  const names = Object.keys(LEGACY_QUERY_PARAMS).join('|');
+  const values = Object.entries(LEGACY_QUERY_VALUES)
+    .map(([name, map]) => `${name}=(?:${Object.keys(map).join('|')})(?![\\w-])`)
+    .join('|');
+  const families = Object.keys(LEGACY_FAMILY_SLUGS).join('|');
+  const RULES: [string, RegExp][] = [
+    ['parâmetro antigo na query', new RegExp(`[?&](?:${names})=`)],
+    ['parâmetro antigo no URLSearchParams', new RegExp(`URLSearchParams\\(\\{[^}]*\\b(?:${names})\\s*:`)],
+    [
+      'parâmetro antigo lido ou gravado',
+      new RegExp(`\\.(?:get|getAll|set|has|append|delete)\\('(?:${names})'`),
+    ],
+    ['valor antigo na query', new RegExp(`[?&](?:${values})`)],
+    ['slug de família antigo', new RegExp(`/sports/(?:${families})(?![\\w-])`)],
+  ];
+
+  it('nenhum link interno com nome, valor ou slug em português', () => {
+    const files = sources();
+    expect(files.length).toBeGreaterThan(300);
+    const found: string[] = [];
+    for (const file of files) {
+      const lines = readFileSync(join(SRC, file), 'utf8').split('\n');
+      lines.forEach((line, i) => {
+        for (const [rule, re] of RULES)
+          if (re.test(line)) found.push(`${file}:${i + 1} ${rule}: ${line.trim()}`);
+      });
+    }
+    expect(found).toEqual([]);
+  });
+
+  it('as regras pegam o que deveriam', () => {
+    const hits = (line: string) => RULES.filter(([, re]) => re.test(line)).map(([rule]) => rule);
+    expect(hits("new URLSearchParams({ data: '2026-11-15' })")).toEqual([
+      'parâmetro antigo no URLSearchParams',
+    ]);
+    expect(hits('`/competitions/${slug}?tab=jogos&temporada=2025`')).toEqual([
+      'parâmetro antigo na query',
+      'valor antigo na query',
+    ]);
+    expect(hits("params.get('pais')")).toEqual(['parâmetro antigo lido ou gravado']);
+    expect(hits("href: '/sports/basquete'")).toEqual(['slug de família antigo']);
+    expect(hits("new URLSearchParams({ date: '2026-11-15', tab: 'matches' })")).toEqual([]);
+    expect(hits('`/sports/football?season=2025&status=live`')).toEqual([]);
   });
 });
