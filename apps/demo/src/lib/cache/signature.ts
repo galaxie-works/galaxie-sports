@@ -11,7 +11,7 @@
  */
 import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 
-export const REVALIDATE_ROUTE = '/api/interno/revalidar';
+export const REVALIDATE_ROUTE = '/api/internal/revalidate';
 export const REVALIDATE_HEADER = 'x-galaxie-revalidate';
 const MAX_SKEW_S = 300;
 

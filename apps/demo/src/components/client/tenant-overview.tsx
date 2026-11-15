@@ -145,8 +145,8 @@ export async function TenantOverview({
           <div className="grid gap-3 sm:grid-cols-2">
             {(
               [
-                { href: '/cliente/chaves', icon: KeyRound, text: o.nextKeys, label: t.client.nav.keys },
-                { href: '/cliente/builder', icon: Blocks, text: o.nextBuilder, label: t.client.nav.builder },
+                { href: '/client/keys', icon: KeyRound, text: o.nextKeys, label: t.client.nav.keys },
+                { href: '/client/builder', icon: Blocks, text: o.nextBuilder, label: t.client.nav.builder },
               ] as const
             ).map(({ href, icon: Icon, text, label }) => (
               <Link

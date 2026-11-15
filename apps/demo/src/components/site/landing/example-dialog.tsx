@@ -16,7 +16,7 @@ import { EXAMPLE_ESCAPE } from '@/components/example/example-provider';
 import { cn } from '@/lib/utils';
 
 /**
- * Janela com uma página do exemplo público (`/exemplo/...`) navegável: o app de verdade, com a cópia
+ * Janela com uma página do exemplo público (`/example/...`) navegável: o app de verdade, com a cópia
  * gravada dos dados, num iframe. O iframe só carrega quando a janela abre; o link "tela cheia" abre a
  * mesma página numa aba nova.
  */

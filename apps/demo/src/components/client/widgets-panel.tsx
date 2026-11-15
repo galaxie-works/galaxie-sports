@@ -52,7 +52,7 @@ import { useRouter } from 'next/navigation';
 import { useTransition } from 'react';
 import { toast } from 'sonner';
 
-import { archiveWidgetAction } from '@/app/[locale]/(app)/cliente/actions';
+import { archiveWidgetAction } from '@/app/[locale]/(app)/client/actions';
 import { Badge } from '@/components/reui/badge';
 import { Frame, FrameDescription, FrameHeader, FramePanel, FrameTitle } from '@/components/reui/frame';
 import {
@@ -162,7 +162,7 @@ function FamilyIcon({ id, className }: { id: CatalogFamilyId; className?: string
 }
 
 /** Cartão de um tipo de widget no catálogo, com o link de criar já na aba (esporte) de onde veio. */
-function KindCard({ kind, family }: { kind: WidgetKind; family: CatalogFamilyId }) {
+function KindCard({ kind, family }: { kind: WidgetKind; family: string }) {
   const { t } = useI18n();
   const kindTexts = useKindTexts();
   const Icon = KIND_ICONS[kind];
@@ -180,7 +180,7 @@ function KindCard({ kind, family }: { kind: WidgetKind; family: CatalogFamilyId 
         variant="outline"
         size="sm"
         nativeButton={false}
-        render={<Link href={`/cliente/builder/novo?tipo=${kind}&${CATALOG_TAB_PARAM}=${family}`} />}
+        render={<Link href={`/client/builder/new?type=${kind}&${CATALOG_TAB_PARAM}=${family}`} />}
       >
         <Plus />
         {t.client.builder.create}
@@ -237,7 +237,7 @@ export function WidgetsPanel({
   timeZone: string;
   /** Esportes do plano (vazio = todos): as abas são só das famílias liberadas. */
   sports: string[];
-  /** Aba pedida na URL (`?esporte=`). */
+  /** Aba pedida na URL (`?sport=`). */
   tab?: string | undefined;
 }) {
   const { t } = useI18n();
@@ -255,24 +255,24 @@ export function WidgetsPanel({
             <FrameDescription>{b.description}</FrameDescription>
           </FrameHeader>
           {active ? (
-            <UrlTabs param={CATALOG_TAB_PARAM} value={active.family.id} className="gap-4">
+            <UrlTabs param={CATALOG_TAB_PARAM} value={active.family.slug} className="gap-4">
               {/* rola só na horizontal e sem barra visível (o mesmo das abas do jogo) */}
               <TabsList
                 aria-label={b.sportTabs}
                 className="max-w-full justify-start overflow-x-auto overflow-y-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
               >
                 {tabs.map(({ family }) => (
-                  <TabsTrigger key={family.id} value={family.id}>
+                  <TabsTrigger key={family.id} value={family.slug}>
                     <FamilyIcon id={family.id} className="size-4" />
                     {t.nav.families[family.id]}
                   </TabsTrigger>
                 ))}
               </TabsList>
               {tabs.map(({ family, kinds }) => (
-                <TabsContent key={family.id} value={family.id}>
+                <TabsContent key={family.id} value={family.slug}>
                   <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     {kinds.map((kind) => (
-                      <KindCard key={kind} kind={kind} family={family.id} />
+                      <KindCard key={kind} kind={kind} family={family.slug} />
                     ))}
                   </div>
                 </TabsContent>
@@ -307,7 +307,7 @@ export function WidgetsPanel({
                   return (
                     <TableRow key={w.id}>
                       <TableCell className="pl-4 font-medium">
-                        <Link href={`/cliente/builder/${w.id}`} className="hover:underline">
+                        <Link href={`/client/builder/${w.id}`} className="hover:underline">
                           {w.name}
                         </Link>
                       </TableCell>
@@ -342,7 +342,7 @@ export function WidgetsPanel({
                             variant="outline"
                             size="sm"
                             nativeButton={false}
-                            render={<Link href={`/cliente/builder/${w.id}`} />}
+                            render={<Link href={`/client/builder/${w.id}`} />}
                           >
                             {b.edit}
                           </Button>

@@ -61,7 +61,7 @@ export function settingPage(key: string): SettingPage | undefined {
   }
   if ((MOVED_AI_MODEL_KEYS as readonly string[]).includes(key)) return { item: 'ai', block: 'ai' };
   // em Grades e ofertas os LINEUP_* ficam na aba Ajustes (a inicial é a Revisão)
-  if (key.startsWith('LINEUP_')) return { item: 'lineup', block: 'lineup', query: 'aba=ajustes' };
+  if (key.startsWith('LINEUP_')) return { item: 'lineup', block: 'lineup', query: 'tab=settings' };
   if (def.section === 'live' && isPostgame(key)) return { item: 'postgame', block: 'postgame' };
   if (def.section === 'provider' && key.startsWith('APISPORTS_PLAN_')) {
     return { item: 'provider', block: 'sports' };
@@ -72,7 +72,7 @@ export function settingPage(key: string): SettingPage | undefined {
 /** Bloco do ajuste (para filtrar as linhas de um cartão); undefined fora do registro. */
 export const settingBlock = (key: string): PanelBlock | undefined => settingPage(key)?.block;
 
-/** Link para a linha do ajuste na página dele (`/ajustes/ia#AI_RIGHTS_MODEL`, `/ajustes/grades?aba=ajustes#…`). */
+/** Link para a linha do ajuste na página dele (`/settings/ai#AI_RIGHTS_MODEL`, `/settings/lineups?tab=settings#…`). */
 export function settingHref(key: string): string | null {
   const page = settingPage(key);
   if (!page) return null;

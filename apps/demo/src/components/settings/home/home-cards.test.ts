@@ -143,12 +143,12 @@ describe('cartões do Início', () => {
     expect(cards.map((c) => c.id)).toEqual([...HOME_CARDS]);
     const by = Object.fromEntries(cards.map((c) => [c.id, c]));
     expect(by.review).toMatchObject({ state: 'pending', count: 12, href: HOME_LINKS.review });
-    expect(by.requests).toMatchObject({ state: 'pending', count: 3, href: '/ajustes/grades?aba=pedidos' });
+    expect(by.requests).toMatchObject({ state: 'pending', count: 3, href: '/settings/lineups?tab=requests' });
     expect(by.failedJobs).toMatchObject({ state: 'pending', count: 2, tone: 'destructive' });
     expect(by.alerts).toMatchObject({ state: 'pending', count: 2 });
     expect(by.credentials).toMatchObject({ state: 'pending', count: 2, tone: 'warning' });
     expect(by.aiCeiling).toMatchObject({ state: 'pending', count: 1, percent: 85 });
-    expect(by.signups).toMatchObject({ state: 'soon', href: '/ajustes/cadastros' });
+    expect(by.signups).toMatchObject({ state: 'soon', href: '/settings/signups' });
     expect(homePendingTotal(cards)).toBe(12 + 3 + 2 + 2 + 2 + 1);
   });
 
@@ -179,22 +179,22 @@ describe('cartões do Início', () => {
 
   it('cada cartão leva ao item do menu novo (#1068)', () => {
     expect(HOME_LINKS).toEqual({
-      review: '/ajustes/revisao',
-      requests: '/ajustes/grades?aba=pedidos',
-      failedJobs: '/ajustes/tarefas',
-      alerts: '/ajustes/status',
-      credentials: '/ajustes/credenciais',
-      aiCeiling: '/ajustes/ia',
-      signups: '/ajustes/cadastros',
+      review: '/settings/review',
+      requests: '/settings/lineups?tab=requests',
+      failedJobs: '/settings/tasks',
+      alerts: '/settings/status',
+      credentials: '/settings/credentials',
+      aiCeiling: '/settings/ai',
+      signups: '/settings/signups',
     });
   });
 
   it('aceita outros links', () => {
-    const links = { ...HOME_LINKS, failedJobs: '/ajustes/tarefas' };
+    const links = { ...HOME_LINKS, failedJobs: '/settings/tasks' };
     const card = buildHomeCards({ review: null, requests: null, ops: null }, links).find(
       (c) => c.id === 'failedJobs',
     );
-    expect(card?.href).toBe('/ajustes/tarefas');
+    expect(card?.href).toBe('/settings/tasks');
   });
 
   it.each(LOCALES)('todo cartão tem texto (%s)', (locale) => {

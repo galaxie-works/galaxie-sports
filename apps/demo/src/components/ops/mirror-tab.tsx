@@ -16,7 +16,7 @@ import {
 import { RotateCcw, Save } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
-import { resetSetting, saveSetting } from '@/app/[locale]/(app)/ajustes/operacao/actions';
+import { resetSetting, saveSetting } from '@/app/[locale]/(app)/settings/operations/actions';
 import { Badge } from '@/components/reui/badge';
 import { Frame, FrameDescription, FrameHeader, FramePanel, FrameTitle } from '@/components/reui/frame';
 import { isChanged, sportsByLabel } from '@/components/settings/blocks/logic';

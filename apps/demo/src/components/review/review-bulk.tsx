@@ -51,7 +51,7 @@ export function ReviewBulkBar({ ids, onDone }: Props) {
     new Promise<boolean>((resolve) =>
       startTransition(async () => {
         try {
-          const res = await fetch('/api/ajustes/revisao/lote', {
+          const res = await fetch('/api/settings/review/batch', {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
             body: JSON.stringify({ ids, action, ...extra }),

@@ -7,7 +7,7 @@ import { clientDictionary } from '@/lib/i18n/dictionary';
 import type { OpsTasks, TaskDetailView, TaskListItem } from '@/lib/ops/types';
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
-vi.mock('@/app/[locale]/(app)/ajustes/operacao/task-actions', () => ({
+vi.mock('@/app/[locale]/(app)/settings/operations/task-actions', () => ({
   approveTaskAction: vi.fn(),
   cancelTaskAction: vi.fn(),
   enqueueTask: vi.fn(),

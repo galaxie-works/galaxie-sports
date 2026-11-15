@@ -16,7 +16,7 @@ describe('revalidateOverHttp', () => {
     });
     await send(['f1_editorial', 'team:t1']);
     const [url, init] = fetchMock.mock.calls[0]!;
-    expect(url).toBe('http://127.0.0.1:3000/api/interno/revalidar');
+    expect(url).toBe('http://127.0.0.1:3000/api/internal/revalidate');
     expect(init?.method).toBe('POST');
     const body = init?.body as string;
     expect(JSON.parse(body)).toEqual({ tags: ['f1_editorial', 'team:t1'] });

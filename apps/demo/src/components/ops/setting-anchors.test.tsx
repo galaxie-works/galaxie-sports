@@ -11,11 +11,11 @@ import type { LlmSpend, OpsSetting, OpsSnapshot } from '@/lib/ops/types';
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }),
-  usePathname: () => '/ajustes',
+  usePathname: () => '/settings',
   useSearchParams: () => new URLSearchParams(),
 }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() } }));
-vi.mock('@/app/[locale]/(app)/ajustes/operacao/actions', () => ({
+vi.mock('@/app/[locale]/(app)/settings/operations/actions', () => ({
   saveSetting: vi.fn(),
   saveAiPolicy: vi.fn(),
   resetAiPolicy: vi.fn(),
@@ -27,13 +27,13 @@ vi.mock('@/app/[locale]/(app)/ajustes/operacao/actions', () => ({
   checkAiCreditNow: vi.fn(),
 }));
 
-vi.mock('@/app/[locale]/(app)/ajustes/operacao/secret-actions', () => ({
+vi.mock('@/app/[locale]/(app)/settings/operations/secret-actions', () => ({
   saveSecret: vi.fn(),
   resetSecret: vi.fn(),
   testSecret: vi.fn(),
   resealSecrets: vi.fn(),
 }));
-vi.mock('@/app/[locale]/(app)/ajustes/operacao/task-actions', () => ({
+vi.mock('@/app/[locale]/(app)/settings/operations/task-actions', () => ({
   approveTaskAction: vi.fn(),
   cancelTaskAction: vi.fn(),
   enqueueTask: vi.fn(),

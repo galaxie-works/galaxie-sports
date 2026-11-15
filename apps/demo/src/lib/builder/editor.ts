@@ -98,8 +98,8 @@ async function resolveEntity(
 }
 
 /**
- * Widget novo do catálogo: o tipo (`?tipo=`) e a aba de onde veio (`?esporte=`, que dá o esporte). Com
- * `?tema=<id>` (vindo da aba Temas), já ligado àquele tema da marca; sem ele, ligado ao único tema da
+ * Widget novo do catálogo: o tipo (`?type=`) e a aba de onde veio (`?sport=`, que dá o esporte). Com
+ * `?theme=<id>` (vindo da aba Temas), já ligado àquele tema da marca; sem ele, ligado ao único tema da
  * marca do tenant, quando há um só; senão, o tema escuro pronto.
  */
 export function newDraft(
