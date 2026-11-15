@@ -106,7 +106,7 @@ services:
       - traefik.http.routers.site.priority=1000
       - traefik.http.routers.site.service=site
       - traefik.http.services.site.loadbalancer.server.port=80
-      - traefik.http.routers.console-maintenance.rule=Host(`web.test`) && PathRegexp(`^/(ajustes|api/ajustes|api/client|api/cliente|api/settings|client|cliente|settings)(/|$$)`)
+      - traefik.http.routers.console-maintenance.rule=Host(`web.test`) && PathRegexp(`^/((pt-BR|en|es-AR)/)?(ajustes|api/ajustes|api/client|api/cliente|api/settings|client|cliente|settings)(/|$$)`)
       - traefik.http.routers.console-maintenance.entrypoints=websecure
       - traefik.http.routers.console-maintenance.priority=1500
       - traefik.http.routers.console-maintenance.service=maintenance
@@ -115,7 +115,7 @@ services:
     command: ['caddy', 'respond', '--listen', ':80', '--body', 'console']
     labels:
       - traefik.enable=true
-      - traefik.http.routers.console.rule=Host(`web.test`) && PathRegexp(`^/(ajustes|api/ajustes|api/client|api/cliente|api/settings|client|cliente|settings)(/|$$)`)
+      - traefik.http.routers.console.rule=Host(`web.test`) && PathRegexp(`^/((pt-BR|en|es-AR)/)?(ajustes|api/ajustes|api/client|api/cliente|api/settings|client|cliente|settings)(/|$$)`)
       - traefik.http.routers.console.entrypoints=websecure
       - traefik.http.routers.console.priority=2000
       - traefik.http.routers.console.service=console
@@ -317,7 +317,9 @@ expect_web() {
 APP_VERSION=4 docker compose up -d --quiet-pull site console maintenance
 expect_web /=site /teams/1=site /clientes=site /clients=site /settings-old=site /ajustes-antigos=site /login=site \
   /api/auth/x=site /client=console /client/builder/new=console /settings=console /api/settings/operations=console \
-  /api/client/x=console /cliente=console /ajustes/usuarios=console /api/ajustes/operacao=console /api/cliente/x=console
+  /api/client/x=console /cliente=console /ajustes/usuarios=console /api/ajustes/operacao=console /api/cliente/x=console \
+  /pt-BR/settings/users=console /en/client=console /es-AR/cliente=console /pt-BR/ajustes/usuarios=console \
+  /pt-BR/teams/1=site /en/clients=site
 echo "ok  console pelos prefixos dele (PathRegexp e prioridade), o resto no site"
 
 APP_VERSION=4 docker compose stop console >/dev/null

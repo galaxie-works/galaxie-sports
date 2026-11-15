@@ -166,6 +166,12 @@ describe('Traefik', () => {
       '/ajustes/usuarios',
       '/api/ajustes/operacao',
       '/api/cliente/x',
+      // com o prefixo de idioma, que o proxy aceita (o 301 de /pt-BR/ajustes/usuarios sai do console)
+      '/pt-BR/settings/users',
+      '/en/client',
+      '/es-AR/client/builder/new',
+      '/pt-BR/ajustes/usuarios',
+      '/en/cliente',
     ])
       expect(re.test(path)).toBe(true);
     for (const path of [
@@ -177,6 +183,10 @@ describe('Traefik', () => {
       '/teams/1',
       '/api/auth/x',
       '/login',
+      '/pt-BR/teams/1',
+      '/en/clients',
+      '/fr/settings',
+      '/pt-BR',
     ])
       expect(re.test(path)).toBe(false);
   });

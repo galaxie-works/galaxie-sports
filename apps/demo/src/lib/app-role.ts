@@ -15,6 +15,7 @@
  * Puro: serve ao proxy, à partida do servidor, à rota de versão e aos testes.
  */
 import { accessPathname } from '@/lib/auth/roles';
+import { LOCALES } from '@/lib/i18n/config';
 
 export const APP_ROLES = ['site', 'console', 'all'] as const;
 export type AppRole = (typeof APP_ROLES)[number];
@@ -140,4 +141,8 @@ export const CONSOLE_PATHS = ROLE_ROUTES.filter((r) => r.owner === 'console')
   .map((r) => r.path)
   .sort();
 
-export const CONSOLE_PATH_REGEXP = `^/(${CONSOLE_PATHS.map((p) => p.slice(1)).join('|')})(/|$)`;
+/**
+ * Expressão do Traefik: os caminhos do console, com ou sem o prefixo de idioma (/pt-BR/settings/users), que o proxy
+ * aceita e tira ao decidir o dono (ccessPathname).
+ */
+export const CONSOLE_PATH_REGEXP = `^/((${LOCALES.join('|')})/)?(${CONSOLE_PATHS.map((p) => p.slice(1)).join('|')})(/|$)`;
