@@ -19,14 +19,14 @@ export interface DocNav {
  */
 export const DOCS_NAV: DocNav[] = [
   { id: 'start', href: '/docs', icon: Rocket },
-  { id: 'auth', href: '/docs/autenticacao', icon: KeyRound },
-  { id: 'concepts', href: '/docs/conceitos', icon: Lightbulb },
-  { id: 'modules', href: '/docs/modulos-e-planos', icon: Layers },
-  { id: 'realtime', href: '/docs/tempo-real', icon: Radio },
-  { id: 'reference', href: '/docs/referencia', icon: FileCode2 },
+  { id: 'auth', href: '/docs/authentication', icon: KeyRound },
+  { id: 'concepts', href: '/docs/concepts', icon: Lightbulb },
+  { id: 'modules', href: '/docs/modules-and-plans', icon: Layers },
+  { id: 'realtime', href: '/docs/realtime', icon: Radio },
+  { id: 'reference', href: '/docs/reference', icon: FileCode2 },
 ];
 
-/** Guia de um caminho (`/docs/conceitos` → `concepts`). */
+/** Guia de um caminho (`/docs/concepts` → `concepts`). */
 export const docNavByHref = (href: string) => DOCS_NAV.find((d) => d.href === href);
 
 /** Seção de um guia (`<DocSection id title>`): âncora, nó da árvore, linha do sumário e resultado da busca. */

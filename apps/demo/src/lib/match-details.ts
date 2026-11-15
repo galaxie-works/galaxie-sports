@@ -1,19 +1,19 @@
 /**
  * Abas do bloco "Detalhes da partida" na página do jogo. A aba ativa fica na URL para dar para compartilhar
- * (`?detalhes=escalacao&escalacao=campo`); aba sem dado não aparece.
+ * (`?details=lineups&lineup=pitch`); aba sem dado não aparece.
  */
 
 /** Abas do bloco, na ordem: minuto a minuto, estatísticas, escalação. */
-export const DETAIL_TABS = ['minuto', 'estatisticas', 'escalacao'] as const;
+export const DETAIL_TABS = ['timeline', 'statistics', 'lineups'] as const;
 export type DetailTab = (typeof DETAIL_TABS)[number];
 
 /** Sub-abas da escalação: titulares, reservas, campo. */
-export const LINEUP_TABS = ['titulares', 'reservas', 'campo'] as const;
+export const LINEUP_TABS = ['starters', 'substitutes', 'pitch'] as const;
 export type LineupTab = (typeof LINEUP_TABS)[number];
 
 /** Parâmetros da URL de cada nível de abas. */
-export const DETAIL_PARAM = 'detalhes';
-export const LINEUP_PARAM = 'escalacao';
+export const DETAIL_PARAM = 'details';
+export const LINEUP_PARAM = 'lineup';
 
 /**
  * Aba ativa: a pedida na URL, se existir e tiver dado; senão a primeira disponível (na ordem de `all`);

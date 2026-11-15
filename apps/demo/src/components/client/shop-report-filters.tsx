@@ -86,7 +86,7 @@ export function ShopReportFilters({
         size="sm"
         className="lg:ml-auto"
         nativeButton={false}
-        render={<a href={`/api/cliente/shopping/relatorio?${csv.toString()}`} download />}
+        render={<a href={`/api/client/shopping/report?${csv.toString()}`} download />}
       >
         <Download aria-hidden />
         {T.csv}

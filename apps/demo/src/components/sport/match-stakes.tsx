@@ -97,7 +97,7 @@ function TeamStakes({
       className="border-border flex flex-col gap-2 border-l-4 pl-3"
       style={p.colors?.primary ? { borderLeftColor: p.colors.primary } : undefined}
     >
-      <Link href={`/times/${p.id}`} className="flex w-fit items-center gap-2 font-medium hover:underline">
+      <Link href={`/teams/${p.id}`} className="flex w-fit items-center gap-2 font-medium hover:underline">
         <Crest src={p.logo} name={p.name} size="xs" />
         {p.name}
       </Link>

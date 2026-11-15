@@ -25,7 +25,7 @@ const VIEW_JOBS: Partial<Record<SettingsView, string>> = {
 interface PanelProps {
   view: SettingsView;
   extra?: () => Promise<ReactNode>;
-  /** Chave do filtro do histórico (`?chave=`), lida da URL dentro do Suspense: o filtro vai na leitura do banco. */
+  /** Chave do filtro do histórico (`?key=`), lida da URL dentro do Suspense: o filtro vai na leitura do banco. */
   historyKey?: Promise<string | null>;
 }
 

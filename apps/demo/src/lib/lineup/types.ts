@@ -652,7 +652,7 @@ export function emailMatchesDomains(email: string, domains: readonly string[]): 
 // ─── filtros da revisão (URL) ────────────────────────────────────────────────────────────────────
 
 /** Abas de Ajustes → Grades e ofertas; `ajustes` são os `LINEUP_*` (#1070), que saíram de Onde Assistir. */
-export const ADMIN_TABS = ['revisao', 'pedidos', 'tenants', 'ajustes'] as const;
+export const ADMIN_TABS = ['review', 'requests', 'tenants', 'settings'] as const;
 export type AdminTab = (typeof ADMIN_TABS)[number];
 
 /** `pending` = espera decisão (rascunho, conferido ou com mudança encontrada); null = todos. */
@@ -693,36 +693,36 @@ export function isTargetId(type: TargetType, id: unknown): id is string {
 }
 
 export function parseAdminTab(params: Params): AdminTab {
-  return pick(ADMIN_TABS, getter(params)('aba')) ?? 'revisao';
+  return pick(ADMIN_TABS, getter(params)('tab')) ?? 'review';
 }
 
 /** Filtros da revisão. Sem situação escolhida, a lista abre no que espera decisão. */
 export function parseLineupFilters(params: Params): LineupFilters {
   const get = getter(params);
-  const country = get('pais')?.trim().toUpperCase() ?? '';
-  const platform = get('plataforma');
+  const country = get('country')?.trim().toUpperCase() ?? '';
+  const platform = get('platform');
   const status = get('status');
   return {
     country: /^[A-Z]{2}$/.test(country) ? country : null,
     platform: isId(platform) ? platform : null,
-    type: pick(TARGET_TYPES, get('tipo')),
-    status: status === 'todos' ? null : (pick(STATUS_FILTERS, status) ?? 'pending'),
+    type: pick(TARGET_TYPES, get('type')),
+    status: status === 'all' ? null : (pick(STATUS_FILTERS, status) ?? 'pending'),
   };
 }
 
 export function lineupFiltersQuery(filters: LineupFilters): string {
-  const q = new URLSearchParams({ aba: 'revisao' });
-  if (filters.country) q.set('pais', filters.country);
-  if (filters.platform) q.set('plataforma', filters.platform);
-  if (filters.type) q.set('tipo', filters.type);
-  q.set('status', filters.status ?? 'todos');
+  const q = new URLSearchParams({ tab: 'review' });
+  if (filters.country) q.set('country', filters.country);
+  if (filters.platform) q.set('platform', filters.platform);
+  if (filters.type) q.set('type', filters.type);
+  q.set('status', filters.status ?? 'all');
   return `?${q.toString()}`;
 }
 
 /** Fila de pedidos: abre nos em aberto. */
 export function parseRequestFilters(params: Params): RequestFilters {
   const status = getter(params)('status');
-  return { status: status === 'todos' ? null : (pick(REQUEST_STATUSES, status) ?? 'open') };
+  return { status: status === 'all' ? null : (pick(REQUEST_STATUSES, status) ?? 'open') };
 }
 
 export function matchesFilters(

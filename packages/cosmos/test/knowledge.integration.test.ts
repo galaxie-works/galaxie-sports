@@ -20,10 +20,10 @@ beforeEach(() => knowledgeTesting.reset());
 const docs: DocChunk[] = [
   {
     title: 'Escalações',
-    href: '/docs/referencia#get-v1-lineups',
+    href: '/docs/reference#get-v1-lineups',
     text: 'GET /v1/lineups titulares e reservas',
   },
-  { title: 'Webhooks', href: '/docs/tempo-real', text: 'assinatura HMAC dos avisos em tempo real' },
+  { title: 'Webhooks', href: '/docs/realtime', text: 'assinatura HMAC dos avisos em tempo real' },
 ];
 
 /** Vetores de brinquedo: "escalação/time/titular" aponta para um eixo, o resto para o outro. */

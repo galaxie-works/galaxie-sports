@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useTransition } from 'react';
 import { toast } from 'sonner';
 
-import type { OpsActionResult } from '@/app/[locale]/(app)/ajustes/operacao/actions';
+import type { OpsActionResult } from '@/app/[locale]/(app)/settings/operations/actions';
 import { useI18n } from '@/lib/i18n/client';
 
 /** Roda uma ação do servidor com toast e atualiza a página. */

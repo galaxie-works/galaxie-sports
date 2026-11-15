@@ -56,7 +56,7 @@ export function raceWeekends(events: Event[]): RaceWeekend[] {
   });
 }
 
-/** Por que o GP está em destaque: pedido na URL (`?rodada=`), o próximo (ou em andamento) ou o último. */
+/** Por que o GP está em destaque: pedido na URL (`?round=`), o próximo (ou em andamento) ou o último. */
 export type FeaturedKind = 'focus' | 'next' | 'last';
 
 /**

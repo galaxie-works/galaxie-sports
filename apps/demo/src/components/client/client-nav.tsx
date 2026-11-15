@@ -43,25 +43,25 @@ export type ClientNavIcon = ComponentType<SVGProps<SVGSVGElement>>;
  * Sem a permissão ou o módulo, a área some do menu e a página mostra o aviso.
  */
 export const CLIENT_NAV = [
-  { id: 'overview', href: '/cliente', icon: LayoutDashboard, group: 'account' },
-  { id: 'members', href: '/cliente/usuarios', icon: Users, group: 'account', action: 'members.view' },
-  { id: 'keys', href: '/cliente/chaves', icon: KeyRound, group: 'account', action: 'settings.manage' },
+  { id: 'overview', href: '/client', icon: LayoutDashboard, group: 'account' },
+  { id: 'members', href: '/client/users', icon: Users, group: 'account', action: 'members.view' },
+  { id: 'keys', href: '/client/keys', icon: KeyRound, group: 'account', action: 'settings.manage' },
   // loja de features (plataforma comercial, #1137): todo cargo vê o que o plano inclui, como a visão geral
-  { id: 'plans', href: '/cliente/planos', icon: Package, group: 'account' },
-  { id: 'builder', href: '/cliente/builder', icon: Blocks, group: 'content', action: 'settings.manage' },
-  { id: 'themes', href: '/cliente/temas', icon: Palette, group: 'content', action: 'settings.manage' },
-  { id: 'lineup', href: '/cliente/grade', icon: Tv, group: 'content', action: 'settings.manage' },
-  { id: 'channels', href: '/cliente/canais', icon: ListVideo, group: 'content', action: 'settings.manage' },
+  { id: 'plans', href: '/client/plans', icon: Package, group: 'account' },
+  { id: 'builder', href: '/client/builder', icon: Blocks, group: 'content', action: 'settings.manage' },
+  { id: 'themes', href: '/client/themes', icon: Palette, group: 'content', action: 'settings.manage' },
+  { id: 'lineup', href: '/client/lineup', icon: Tv, group: 'content', action: 'settings.manage' },
+  { id: 'channels', href: '/client/channels', icon: ListVideo, group: 'content', action: 'settings.manage' },
   {
     id: 'sponsors',
-    href: '/cliente/patrocinadores',
+    href: '/client/sponsors',
     icon: Handshake,
     group: 'engagement',
     action: 'settings.manage',
   },
   {
     id: 'shopping',
-    href: '/cliente/shopping',
+    href: '/client/shopping',
     icon: ShoppingBag,
     group: 'engagement',
     // relatório de cliques e, com a conciliação (#929), de comissão: dinheiro do tenant
@@ -70,17 +70,17 @@ export const CLIENT_NAV = [
   },
   {
     id: 'moderation',
-    href: '/cliente/moderacao',
+    href: '/client/moderation',
     icon: ShieldCheck,
     group: 'engagement',
     action: 'moderation.queue.view',
     // o moderador de uma sala entra e vê só a sala dele
     scoped: true,
   },
-  { id: 'cosmos', href: '/cliente/cosmos', icon: CosmosIcon, group: 'intelligence', action: 'cosmos.view' },
+  { id: 'cosmos', href: '/client/cosmos', icon: CosmosIcon, group: 'intelligence', action: 'cosmos.view' },
   {
     id: 'webhooks',
-    href: '/cliente/webhooks',
+    href: '/client/webhooks',
     icon: Webhook,
     group: 'integrations',
     action: 'settings.manage',

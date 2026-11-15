@@ -23,8 +23,8 @@ const RESEND_SECONDS = 60;
 
 type AuthErrors = Dictionary['auth']['errors'];
 
-/** Motivo do redirecionamento para o login (`?motivo=`). */
-const REASON: Record<string, keyof AuthErrors> = { expirado: 'expired' };
+/** Motivo do redirecionamento para o login (`?reason=`). */
+const REASON: Record<string, keyof AuthErrors> = { expired: 'expired' };
 
 /** Mensagens dos erros do login por código (códigos do Better Auth e os da própria demo). */
 const OTP_ERROR: Record<string, keyof AuthErrors> = {
@@ -71,7 +71,7 @@ export function LoginForm() {
   const params = useSearchParams();
   const { t, locale } = useI18n();
   const errors = t.auth.errors;
-  const reason = REASON[params.get('motivo') ?? ''];
+  const reason = REASON[params.get('reason') ?? ''];
   const [step, setStep] = useState<'email' | 'code'>('email');
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
@@ -148,7 +148,7 @@ export function LoginForm() {
     await authClient.updateUser({ locale }).catch(() => {});
     // Trilha nova a cada login: a da aba pode ser de outra pessoa (sessão vencida, troca de usuário).
     clearTrail();
-    router.replace(safeNext(params.get('voltar')));
+    router.replace(safeNext(params.get('next')));
     router.refresh();
   }
 

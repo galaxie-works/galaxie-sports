@@ -19,14 +19,14 @@ describe('base de conhecimento do assistente', () => {
 
   it('acha o guia de webhooks pela pergunta', () => {
     const hits = searchDocs('como assinar o webhook com HMAC', docChunks(getDictionary('pt-BR').docs));
-    expect(hits[0]?.href).toBe('/docs/tempo-real');
+    expect(hits[0]?.href).toBe('/docs/realtime');
   });
 
   it('contrato da API: um trecho por operação, com âncora da referência e parâmetros', () => {
     const chunks = apiChunks(openApiDocument());
     expect(chunks.length).toBeGreaterThan(20);
     for (const c of chunks) {
-      expect(c.href).toMatch(/^\/docs\/referencia#[a-z0-9-]+$/);
+      expect(c.href).toMatch(/^\/docs\/reference#[a-z0-9-]+$/);
       expect(c.text).toMatch(/^(GET|POST|PUT|PATCH|DELETE) \//);
       expect(c.text.length).toBeLessThanOrEqual(1500);
     }

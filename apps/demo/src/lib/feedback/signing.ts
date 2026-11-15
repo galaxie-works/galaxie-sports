@@ -4,7 +4,7 @@
  * - referências opacas de quem enviou: `u_<12 hex>` para o usuário e `t_<12 hex>` para o tenant, HMAC-SHA256 do id.
  *   Estáveis (o mesmo usuário tem sempre a mesma referência, então dá para agrupar issues), mas não revertem para o
  *   e-mail ou o nome do tenant sem o segredo; quem tem o segredo confere com `feedbackRef`;
- * - link assinado dos anexos: `/api/feedback/anexo/<aaaa-mm>/<uuid>.<ext>?e=<expira>&s=<assinatura>`. O arquivo fica
+ * - link assinado dos anexos: `/api/feedback/attachment/<aaaa-mm>/<uuid>.<ext>?e=<expira>&s=<assinatura>`. O arquivo fica
  *   no bucket privado; a rota só entrega com assinatura válida e dentro do prazo.
  *
  * O segredo de base é o BETTER_AUTH_SECRET (quem o tem já forjaria uma sessão), separado por finalidade.
@@ -34,7 +34,7 @@ const linkMac = (secret: string, key: string, expires: number) =>
 /** Caminho assinado do anexo (sem o domínio). */
 export function signAttachmentPath(secret: string, key: string, nowS: number): string {
   const expires = nowS + FEEDBACK_LINK_TTL_S;
-  return `/api/feedback/anexo/${key}?e=${expires}&s=${linkMac(secret, key, expires)}`;
+  return `/api/feedback/attachment/${key}?e=${expires}&s=${linkMac(secret, key, expires)}`;
 }
 
 /** Assinatura válida e dentro do prazo? */
