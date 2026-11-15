@@ -1,5 +1,5 @@
 /**
- * Itens do menu de Ajustes (épico #1066): Início fixo no topo e 9 grupos com 45 itens, 26 que já existem e 19
+ * Itens do menu de Ajustes (épico #1066): Início fixo no topo e 9 grupos com 46 itens, 27 que já existem e 19
  * planejados com o selo "Em breve" (decisão A5). Puro (sem React nem servidor): o proxy, os redirecionamentos, o mapa
  * ajuste → página e os testes leem daqui; os ícones e os textos ficam em `components/admin/settings-nav.tsx` e no
  * dicionário (`ops.nav`).
