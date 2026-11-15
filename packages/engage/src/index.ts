@@ -14,3 +14,4 @@ export * from './shop-order.js';
 export * from './shop-destination.js';
 export * from './shop.js';
 export * from './age-verification.js';
+export * from './chat-reactions.js';
