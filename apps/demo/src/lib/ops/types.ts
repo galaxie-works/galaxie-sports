@@ -260,6 +260,7 @@ export interface OpsSnapshot {
   tasks: OpsTasks | null;
   /** Espelho da api-sports (sync:mirror): cota de cada API e o inventário da última execução. */
   mirror: MirrorSnapshot;
+  modules: ModulesSnapshot;
 }
 
 /** Uma API no espelho: plano efetivo, cota do dia e o inventário gravado pelo job (base da estimativa). */
@@ -272,6 +273,32 @@ export interface MirrorApiView {
   inventory: MirrorInventory | null;
   /** Inventário descartado por ser de outro plano (a contagem depende do plano): o plano dele. */
   inventoryOtherPlan: string | null;
+}
+
+/** Chamadas do ledger na janela, por API, endpoint e job (nome de `ops.job_run.job`, ou o `job_id` cru). */
+export interface ModuleCostRow {
+  api: string;
+  endpoint: string;
+  job: string;
+  calls: number;
+}
+
+/** Chamadas de rede de um passo de um job na janela (`ops.job_run.stats`), por API quando o passo é por esporte. */
+export interface ModuleStepRow {
+  api: string;
+  job: string;
+  step: string;
+  calls: number;
+}
+
+/** Custo medido dos módulos (Ajustes → Dados → Módulos por esporte): a janela de dias UTC fechados e as contagens. */
+export interface ModulesSnapshot {
+  /** Dias da janela (0 = sem ledger). */
+  windowDays: number;
+  /** Primeiro dia da janela (AAAA-MM-DD, UTC). */
+  from: string;
+  costs: ModuleCostRow[];
+  steps: ModuleStepRow[];
 }
 
 export interface MirrorSnapshot {

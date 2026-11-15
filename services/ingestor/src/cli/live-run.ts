@@ -7,7 +7,8 @@
  * Opções: --esporte football · --destaque off|auto|on (detalhe do jogo principal a cada tick) · --intervalo-max-min 15
  *         · --proteger-daily N · --ocioso-min 15 · --prioridade-min high|medium|low · --sem-confirmar-final
  *         · --sem-publicar · --sem-tabelas
- * Variáveis: LIVE_FEATURED, LIVE_MAX_INTERVAL_MINUTES, LIVE_IDLE_EXIT_MINUTES, LIVE_PROTECT_DAILY, LIVE_MIN_PRIORITY.
+ * Variáveis: LIVE_FEATURED, LIVE_MAX_INTERVAL_MINUTES, LIVE_IDLE_EXIT_MINUTES, LIVE_PROTECT_DAILY, LIVE_MIN_PRIORITY e
+ * MODULES_FOOTBALL (tiers do módulo `live`, Ajustes → Dados → Módulos por esporte).
  * O painel de Operação sobrescreve essas variáveis pelo banco; o processo relê a cada minuto, sem reiniciar.
  * SIGTERM/SIGINT encerram com elegância (termina o tick em andamento, registra ops.job_run, fecha o banco).
  * LIVE_LEADER=on (padrão off) liga líder e reserva (live/leader.ts): fica no ar como --continuo, só a cópia com a
@@ -16,7 +17,7 @@
 import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { closeDb, jobLockContender, readRuntimeOverrides } from '@galaxie/db';
-import { applyOverrides, runtimeBaseEnv } from '@galaxie/runtime-config';
+import { applyOverrides, moduleConfig, runtimeBaseEnv } from '@galaxie/runtime-config';
 import { settingsSecretBox } from '@galaxie/runtime-config/sealed';
 import { ApiSportsProvider } from '@galaxie/providers';
 import { contextFromEnv } from '../context.js';
@@ -150,7 +151,12 @@ await runCli(async () => {
       LiveSchedulerOptions['minPriority'] | undefined;
     if (minPriority && !['high', 'medium', 'low'].includes(minPriority))
       throw new Error('--prioridade-min deve ser high, medium ou low.');
+    // tiers do módulo `live` do painel (MODULES_FOOTBALL); valor inválido vale o padrão (todos), não derruba o ao vivo
+    const tiers = moduleConfig((key) => env[key])
+      .api('football')
+      .tiersOn('live');
     return {
+      tiers,
       featured: featured as LiveSchedulerOptions['featured'],
       maxIntervalMs:
         maxIntervalMin !== undefined ? maxIntervalMin * 60_000 : DEFAULT_LIVE_OPTIONS.maxIntervalMs,
@@ -164,6 +170,7 @@ await runCli(async () => {
   const { featured } = initial;
   const options: Partial<LiveSchedulerOptions> = {
     featured,
+    tiers: initial.tiers,
     finalize: !values['sem-confirmar-final'],
     maxIntervalMs: initial.maxIntervalMs,
     ...(initial.protectDaily !== undefined ? { protectDaily: initial.protectDaily } : {}),

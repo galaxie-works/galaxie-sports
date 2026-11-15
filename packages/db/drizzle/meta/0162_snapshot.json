@@ -1,6 +1,6 @@
 {
-  "id": "3b0ad926-c674-43bd-b85d-c9de0e2889a5",
-  "prevId": "cd8115fc-8031-42a7-a427-ea660aefa561",
+  "id": "7dee846d-cfb3-483d-9462-f9892bd2e1be",
+  "prevId": "b9ae8914-4bb6-4a26-824f-c5d93b7f5938",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -496,12 +496,8 @@
           "tableFrom": "asset_credit",
           "tableTo": "asset",
           "schemaTo": "core",
-          "columnsFrom": [
-            "asset_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["asset_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -652,12 +648,8 @@
           "tableFrom": "competition",
           "tableTo": "sport",
           "schemaTo": "core",
-          "columnsFrom": [
-            "sport"
-          ],
-          "columnsTo": [
-            "slug"
-          ],
+          "columnsFrom": ["sport"],
+          "columnsTo": ["slug"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -666,12 +658,8 @@
           "tableFrom": "competition",
           "tableTo": "country",
           "schemaTo": "core",
-          "columnsFrom": [
-            "country_code"
-          ],
-          "columnsTo": [
-            "code"
-          ],
+          "columnsFrom": ["country_code"],
+          "columnsTo": ["code"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -680,12 +668,8 @@
           "tableFrom": "competition",
           "tableTo": "asset",
           "schemaTo": "core",
-          "columnsFrom": [
-            "logo_asset_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["logo_asset_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -694,12 +678,8 @@
           "tableFrom": "competition",
           "tableTo": "asset",
           "schemaTo": "core",
-          "columnsFrom": [
-            "custom_logo_asset_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["custom_logo_asset_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -858,12 +838,8 @@
           "tableFrom": "competition_title",
           "tableTo": "competition",
           "schemaTo": "core",
-          "columnsFrom": [
-            "competition_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["competition_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -872,12 +848,8 @@
           "tableFrom": "competition_title",
           "tableTo": "participant",
           "schemaTo": "core",
-          "columnsFrom": [
-            "participant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["participant_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -944,12 +916,8 @@
           "tableFrom": "competition_title_coverage",
           "tableTo": "competition",
           "schemaTo": "core",
-          "columnsFrom": [
-            "competition_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["competition_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1009,12 +977,8 @@
           "tableFrom": "country",
           "tableTo": "asset",
           "schemaTo": "core",
-          "columnsFrom": [
-            "flag_asset_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["flag_asset_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1330,12 +1294,8 @@
           "tableFrom": "event",
           "tableTo": "sport",
           "schemaTo": "core",
-          "columnsFrom": [
-            "sport"
-          ],
-          "columnsTo": [
-            "slug"
-          ],
+          "columnsFrom": ["sport"],
+          "columnsTo": ["slug"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1344,12 +1304,8 @@
           "tableFrom": "event",
           "tableTo": "competition",
           "schemaTo": "core",
-          "columnsFrom": [
-            "competition_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["competition_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1358,12 +1314,8 @@
           "tableFrom": "event",
           "tableTo": "season",
           "schemaTo": "core",
-          "columnsFrom": [
-            "season_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["season_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1372,12 +1324,8 @@
           "tableFrom": "event",
           "tableTo": "stage",
           "schemaTo": "core",
-          "columnsFrom": [
-            "stage_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["stage_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1386,12 +1334,8 @@
           "tableFrom": "event",
           "tableTo": "venue",
           "schemaTo": "core",
-          "columnsFrom": [
-            "venue_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["venue_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1400,12 +1344,8 @@
           "tableFrom": "event",
           "tableTo": "derby",
           "schemaTo": "semantic",
-          "columnsFrom": [
-            "derby_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["derby_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -1579,12 +1519,8 @@
           "tableFrom": "event_incident",
           "tableTo": "event",
           "schemaTo": "core",
-          "columnsFrom": [
-            "event_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["event_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1593,12 +1529,8 @@
           "tableFrom": "event_incident",
           "tableTo": "participant",
           "schemaTo": "core",
-          "columnsFrom": [
-            "participant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["participant_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1607,12 +1539,8 @@
           "tableFrom": "event_incident",
           "tableTo": "person",
           "schemaTo": "core",
-          "columnsFrom": [
-            "person_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["person_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1621,12 +1549,8 @@
           "tableFrom": "event_incident",
           "tableTo": "person",
           "schemaTo": "core",
-          "columnsFrom": [
-            "assist_person_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["assist_person_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1695,12 +1619,8 @@
           "tableFrom": "event_participant",
           "tableTo": "event",
           "schemaTo": "core",
-          "columnsFrom": [
-            "event_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["event_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1709,12 +1629,8 @@
           "tableFrom": "event_participant",
           "tableTo": "participant",
           "schemaTo": "core",
-          "columnsFrom": [
-            "participant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["participant_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1722,10 +1638,7 @@
       "compositePrimaryKeys": {
         "event_participant_event_id_participant_id_pk": {
           "name": "event_participant_event_id_participant_id_pk",
-          "columns": [
-            "event_id",
-            "participant_id"
-          ]
+          "columns": ["event_id", "participant_id"]
         }
       },
       "uniqueConstraints": {},
@@ -1813,12 +1726,8 @@
           "tableFrom": "event_state_log",
           "tableTo": "event",
           "schemaTo": "core",
-          "columnsFrom": [
-            "event_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["event_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1863,10 +1772,7 @@
       "compositePrimaryKeys": {
         "explore_summary_sport_market_pk": {
           "name": "explore_summary_sport_market_pk",
-          "columns": [
-            "sport",
-            "market"
-          ]
+          "columns": ["sport", "market"]
         }
       },
       "uniqueConstraints": {},
@@ -1963,12 +1869,8 @@
           "tableFrom": "football_fixture",
           "tableTo": "event",
           "schemaTo": "core",
-          "columnsFrom": [
-            "event_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["event_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -2158,12 +2060,8 @@
           "tableFrom": "participant",
           "tableTo": "sport",
           "schemaTo": "core",
-          "columnsFrom": [
-            "sport"
-          ],
-          "columnsTo": [
-            "slug"
-          ],
+          "columnsFrom": ["sport"],
+          "columnsTo": ["slug"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -2172,12 +2070,8 @@
           "tableFrom": "participant",
           "tableTo": "country",
           "schemaTo": "core",
-          "columnsFrom": [
-            "country_code"
-          ],
-          "columnsTo": [
-            "code"
-          ],
+          "columnsFrom": ["country_code"],
+          "columnsTo": ["code"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -2186,12 +2080,8 @@
           "tableFrom": "participant",
           "tableTo": "venue",
           "schemaTo": "core",
-          "columnsFrom": [
-            "home_venue_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["home_venue_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -2200,12 +2090,8 @@
           "tableFrom": "participant",
           "tableTo": "asset",
           "schemaTo": "core",
-          "columnsFrom": [
-            "logo_asset_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["logo_asset_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -2214,12 +2100,8 @@
           "tableFrom": "participant",
           "tableTo": "asset",
           "schemaTo": "core",
-          "columnsFrom": [
-            "custom_logo_asset_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["custom_logo_asset_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -2228,12 +2110,8 @@
           "tableFrom": "participant",
           "tableTo": "country",
           "schemaTo": "core",
-          "columnsFrom": [
-            "birth_country_code"
-          ],
-          "columnsTo": [
-            "code"
-          ],
+          "columnsFrom": ["birth_country_code"],
+          "columnsTo": ["code"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -2328,12 +2206,8 @@
           "tableFrom": "participant_photo",
           "tableTo": "participant",
           "schemaTo": "core",
-          "columnsFrom": [
-            "participant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["participant_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -2342,12 +2216,8 @@
           "tableFrom": "participant_photo",
           "tableTo": "asset",
           "schemaTo": "core",
-          "columnsFrom": [
-            "asset_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["asset_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -2355,11 +2225,7 @@
       "compositePrimaryKeys": {
         "participant_photo_participant_id_asset_id_role_pk": {
           "name": "participant_photo_participant_id_asset_id_role_pk",
-          "columns": [
-            "participant_id",
-            "asset_id",
-            "role"
-          ]
+          "columns": ["participant_id", "asset_id", "role"]
         }
       },
       "uniqueConstraints": {},
@@ -2460,12 +2326,8 @@
           "tableFrom": "person",
           "tableTo": "asset",
           "schemaTo": "core",
-          "columnsFrom": [
-            "photo_asset_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["photo_asset_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -2628,12 +2490,8 @@
           "tableFrom": "person_season_stat",
           "tableTo": "person",
           "schemaTo": "core",
-          "columnsFrom": [
-            "person_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["person_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -2642,12 +2500,8 @@
           "tableFrom": "person_season_stat",
           "tableTo": "participant",
           "schemaTo": "core",
-          "columnsFrom": [
-            "participant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["participant_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -2656,12 +2510,8 @@
           "tableFrom": "person_season_stat",
           "tableTo": "season",
           "schemaTo": "core",
-          "columnsFrom": [
-            "season_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["season_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -2669,11 +2519,7 @@
       "compositePrimaryKeys": {
         "person_season_stat_person_id_participant_id_season_id_pk": {
           "name": "person_season_stat_person_id_participant_id_season_id_pk",
-          "columns": [
-            "person_id",
-            "participant_id",
-            "season_id"
-          ]
+          "columns": ["person_id", "participant_id", "season_id"]
         }
       },
       "uniqueConstraints": {},
@@ -2724,12 +2570,8 @@
           "tableFrom": "person_sidelined",
           "tableTo": "person",
           "schemaTo": "core",
-          "columnsFrom": [
-            "person_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["person_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -2739,11 +2581,7 @@
         "person_sidelined_uq": {
           "name": "person_sidelined_uq",
           "nullsNotDistinct": true,
-          "columns": [
-            "person_id",
-            "type",
-            "start_date"
-          ]
+          "columns": ["person_id", "type", "start_date"]
         }
       },
       "policies": {},
@@ -2854,12 +2692,8 @@
           "tableFrom": "person_transfer",
           "tableTo": "person",
           "schemaTo": "core",
-          "columnsFrom": [
-            "person_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["person_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -2868,12 +2702,8 @@
           "tableFrom": "person_transfer",
           "tableTo": "participant",
           "schemaTo": "core",
-          "columnsFrom": [
-            "from_participant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["from_participant_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -2882,12 +2712,8 @@
           "tableFrom": "person_transfer",
           "tableTo": "participant",
           "schemaTo": "core",
-          "columnsFrom": [
-            "to_participant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["to_participant_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -2897,13 +2723,7 @@
         "person_transfer_uq": {
           "name": "person_transfer_uq",
           "nullsNotDistinct": true,
-          "columns": [
-            "person_id",
-            "date",
-            "from_participant_id",
-            "to_participant_id",
-            "type"
-          ]
+          "columns": ["person_id", "date", "from_participant_id", "to_participant_id", "type"]
         }
       },
       "policies": {},
@@ -2959,12 +2779,8 @@
           "tableFrom": "person_trophy",
           "tableTo": "person",
           "schemaTo": "core",
-          "columnsFrom": [
-            "person_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["person_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -2974,13 +2790,7 @@
         "person_trophy_uq": {
           "name": "person_trophy_uq",
           "nullsNotDistinct": true,
-          "columns": [
-            "person_id",
-            "league",
-            "country",
-            "season",
-            "place"
-          ]
+          "columns": ["person_id", "league", "country", "season", "place"]
         }
       },
       "policies": {},
@@ -3056,12 +2866,7 @@
       "compositePrimaryKeys": {
         "provider_map_provider_sport_entity_type_provider_id_pk": {
           "name": "provider_map_provider_sport_entity_type_provider_id_pk",
-          "columns": [
-            "provider",
-            "sport",
-            "entity_type",
-            "provider_id"
-          ]
+          "columns": ["provider", "sport", "entity_type", "provider_id"]
         }
       },
       "uniqueConstraints": {},
@@ -3145,12 +2950,8 @@
           "tableFrom": "roster",
           "tableTo": "participant",
           "schemaTo": "core",
-          "columnsFrom": [
-            "participant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["participant_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -3159,12 +2960,8 @@
           "tableFrom": "roster",
           "tableTo": "person",
           "schemaTo": "core",
-          "columnsFrom": [
-            "person_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["person_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -3173,12 +2970,8 @@
           "tableFrom": "roster",
           "tableTo": "season",
           "schemaTo": "core",
-          "columnsFrom": [
-            "season_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["season_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -3188,12 +2981,7 @@
         "roster_uq": {
           "name": "roster_uq",
           "nullsNotDistinct": true,
-          "columns": [
-            "participant_id",
-            "person_id",
-            "role",
-            "season_id"
-          ]
+          "columns": ["participant_id", "person_id", "role", "season_id"]
         }
       },
       "policies": {},
@@ -3298,12 +3086,8 @@
           "tableFrom": "season",
           "tableTo": "competition",
           "schemaTo": "core",
-          "columnsFrom": [
-            "competition_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["competition_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -3441,12 +3225,8 @@
           "tableFrom": "sport_event_detail",
           "tableTo": "event",
           "schemaTo": "core",
-          "columnsFrom": [
-            "event_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["event_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -3455,12 +3235,8 @@
           "tableFrom": "sport_event_detail",
           "tableTo": "sport",
           "schemaTo": "core",
-          "columnsFrom": [
-            "sport"
-          ],
-          "columnsTo": [
-            "slug"
-          ],
+          "columnsFrom": ["sport"],
+          "columnsTo": ["slug"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -3550,12 +3326,8 @@
           "tableFrom": "stage",
           "tableTo": "season",
           "schemaTo": "core",
-          "columnsFrom": [
-            "season_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["season_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -3711,12 +3483,8 @@
           "tableFrom": "standing",
           "tableTo": "season",
           "schemaTo": "core",
-          "columnsFrom": [
-            "season_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["season_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -3725,12 +3493,8 @@
           "tableFrom": "standing",
           "tableTo": "participant",
           "schemaTo": "core",
-          "columnsFrom": [
-            "participant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["participant_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -3738,11 +3502,7 @@
       "compositePrimaryKeys": {
         "standing_season_id_group_participant_id_pk": {
           "name": "standing_season_id_group_participant_id_pk",
-          "columns": [
-            "season_id",
-            "group",
-            "participant_id"
-          ]
+          "columns": ["season_id", "group", "participant_id"]
         }
       },
       "uniqueConstraints": {},
@@ -3863,12 +3623,8 @@
           "tableFrom": "team_season_stat",
           "tableTo": "participant",
           "schemaTo": "core",
-          "columnsFrom": [
-            "participant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["participant_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -3877,12 +3633,8 @@
           "tableFrom": "team_season_stat",
           "tableTo": "season",
           "schemaTo": "core",
-          "columnsFrom": [
-            "season_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["season_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -3890,10 +3642,7 @@
       "compositePrimaryKeys": {
         "team_season_stat_participant_id_season_id_pk": {
           "name": "team_season_stat_participant_id_season_id_pk",
-          "columns": [
-            "participant_id",
-            "season_id"
-          ]
+          "columns": ["participant_id", "season_id"]
         }
       },
       "uniqueConstraints": {},
@@ -3988,12 +3737,8 @@
           "tableFrom": "venue",
           "tableTo": "country",
           "schemaTo": "core",
-          "columnsFrom": [
-            "country_code"
-          ],
-          "columnsTo": [
-            "code"
-          ],
+          "columnsFrom": ["country_code"],
+          "columnsTo": ["code"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -4002,12 +3747,8 @@
           "tableFrom": "venue",
           "tableTo": "asset",
           "schemaTo": "core",
-          "columnsFrom": [
-            "image_asset_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["image_asset_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -4100,12 +3841,8 @@
           "tableFrom": "competition_profile",
           "tableTo": "competition",
           "schemaTo": "core",
-          "columnsFrom": [
-            "competition_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["competition_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -4408,9 +4145,7 @@
         "derby_slug_unique": {
           "name": "derby_slug_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "slug"
-          ]
+          "columns": ["slug"]
         }
       },
       "policies": {},
@@ -4457,12 +4192,8 @@
           "tableFrom": "derby_team",
           "tableTo": "derby",
           "schemaTo": "semantic",
-          "columnsFrom": [
-            "derby_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["derby_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -4471,12 +4202,8 @@
           "tableFrom": "derby_team",
           "tableTo": "team_profile",
           "schemaTo": "semantic",
-          "columnsFrom": [
-            "team_slug"
-          ],
-          "columnsTo": [
-            "slug"
-          ],
+          "columnsFrom": ["team_slug"],
+          "columnsTo": ["slug"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -4484,10 +4211,7 @@
       "compositePrimaryKeys": {
         "derby_team_derby_id_team_slug_pk": {
           "name": "derby_team_derby_id_team_slug_pk",
-          "columns": [
-            "derby_id",
-            "team_slug"
-          ]
+          "columns": ["derby_id", "team_slug"]
         }
       },
       "uniqueConstraints": {},
@@ -5231,12 +4955,8 @@
           "tableFrom": "team_profile",
           "tableTo": "participant",
           "schemaTo": "core",
-          "columnsFrom": [
-            "participant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["participant_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -5370,12 +5090,8 @@
           "tableFrom": "broadcast_audit",
           "tableTo": "broadcast_option",
           "schemaTo": "enrich",
-          "columnsFrom": [
-            "option_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["option_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -5384,12 +5100,8 @@
           "tableFrom": "broadcast_audit",
           "tableTo": "event",
           "schemaTo": "core",
-          "columnsFrom": [
-            "event_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["event_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -5520,12 +5232,8 @@
           "tableFrom": "broadcast_correction",
           "tableTo": "event",
           "schemaTo": "core",
-          "columnsFrom": [
-            "event_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["event_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -5751,12 +5459,8 @@
           "tableFrom": "broadcast_option",
           "tableTo": "event",
           "schemaTo": "core",
-          "columnsFrom": [
-            "event_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["event_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -6035,12 +5739,8 @@
           "tableFrom": "broadcaster",
           "tableTo": "asset",
           "schemaTo": "core",
-          "columnsFrom": [
-            "logo_asset_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["logo_asset_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -6049,12 +5749,8 @@
           "tableFrom": "broadcaster",
           "tableTo": "asset",
           "schemaTo": "core",
-          "columnsFrom": [
-            "custom_logo_asset_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["custom_logo_asset_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -6063,12 +5759,8 @@
           "tableFrom": "broadcaster",
           "tableTo": "asset",
           "schemaTo": "core",
-          "columnsFrom": [
-            "custom_logo_dark_asset_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["custom_logo_dark_asset_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -6077,12 +5769,8 @@
           "tableFrom": "broadcaster",
           "tableTo": "asset",
           "schemaTo": "core",
-          "columnsFrom": [
-            "logo_dark_asset_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["logo_dark_asset_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -6161,12 +5849,8 @@
           "tableFrom": "event_context",
           "tableTo": "event",
           "schemaTo": "core",
-          "columnsFrom": [
-            "event_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["event_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -6174,12 +5858,7 @@
       "compositePrimaryKeys": {
         "event_context_event_id_locale_kind_created_at_pk": {
           "name": "event_context_event_id_locale_kind_created_at_pk",
-          "columns": [
-            "event_id",
-            "locale",
-            "kind",
-            "created_at"
-          ]
+          "columns": ["event_id", "locale", "kind", "created_at"]
         }
       },
       "uniqueConstraints": {},
@@ -6398,12 +6077,8 @@
           "tableFrom": "match_channel",
           "tableTo": "event",
           "schemaTo": "core",
-          "columnsFrom": [
-            "event_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["event_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -6606,12 +6281,8 @@
           "tableFrom": "related_channel",
           "tableTo": "participant",
           "schemaTo": "core",
-          "columnsFrom": [
-            "participant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["participant_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -6620,12 +6291,8 @@
           "tableFrom": "related_channel",
           "tableTo": "competition",
           "schemaTo": "core",
-          "columnsFrom": [
-            "competition_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["competition_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -6635,13 +6302,7 @@
         "related_channel_uq": {
           "name": "related_channel_uq",
           "nullsNotDistinct": true,
-          "columns": [
-            "channel_id",
-            "kind",
-            "participant_id",
-            "competition_id",
-            "broadcaster_id"
-          ]
+          "columns": ["channel_id", "kind", "participant_id", "competition_id", "broadcaster_id"]
         }
       },
       "policies": {},
@@ -6701,10 +6362,7 @@
       "compositePrimaryKeys": {
         "related_channel_rule_provider_channel_id_pk": {
           "name": "related_channel_rule_provider_channel_id_pk",
-          "columns": [
-            "provider",
-            "channel_id"
-          ]
+          "columns": ["provider", "channel_id"]
         }
       },
       "uniqueConstraints": {},
@@ -7003,12 +6661,8 @@
           "tableFrom": "related_content",
           "tableTo": "event",
           "schemaTo": "core",
-          "columnsFrom": [
-            "event_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["event_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -7115,10 +6769,7 @@
       "compositePrimaryKeys": {
         "related_playback_block_provider_external_id_pk": {
           "name": "related_playback_block_provider_external_id_pk",
-          "columns": [
-            "provider",
-            "external_id"
-          ]
+          "columns": ["provider", "external_id"]
         }
       },
       "uniqueConstraints": {},
@@ -7228,11 +6879,7 @@
       "compositePrimaryKeys": {
         "related_playback_report_provider_external_id_tenant_id_pk": {
           "name": "related_playback_report_provider_external_id_tenant_id_pk",
-          "columns": [
-            "provider",
-            "external_id",
-            "tenant_id"
-          ]
+          "columns": ["provider", "external_id", "tenant_id"]
         }
       },
       "uniqueConstraints": {},
@@ -7420,12 +7067,8 @@
           "tableFrom": "related_run",
           "tableTo": "event",
           "schemaTo": "core",
-          "columnsFrom": [
-            "event_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["event_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -7798,12 +7441,8 @@
           "tableFrom": "wtw_run",
           "tableTo": "event",
           "schemaTo": "core",
-          "columnsFrom": [
-            "event_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["event_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -8007,12 +7646,8 @@
           "tableFrom": "lineup_page",
           "tableTo": "platform",
           "schemaTo": "enrich",
-          "columnsFrom": [
-            "platform_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["platform_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -8126,12 +7761,8 @@
           "tableFrom": "logo_upload",
           "tableTo": "asset",
           "schemaTo": "core",
-          "columnsFrom": [
-            "asset_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["asset_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -8140,12 +7771,8 @@
           "tableFrom": "logo_upload",
           "tableTo": "asset",
           "schemaTo": "core",
-          "columnsFrom": [
-            "previous_asset_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["previous_asset_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -8268,12 +7895,8 @@
           "tableFrom": "plan_channel",
           "tableTo": "platform_plan",
           "schemaTo": "enrich",
-          "columnsFrom": [
-            "plan_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["plan_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -8282,12 +7905,8 @@
           "tableFrom": "plan_channel",
           "tableTo": "broadcaster",
           "schemaTo": "enrich",
-          "columnsFrom": [
-            "channel_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["channel_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -8295,10 +7914,7 @@
       "compositePrimaryKeys": {
         "plan_channel_plan_id_channel_id_pk": {
           "name": "plan_channel_plan_id_channel_id_pk",
-          "columns": [
-            "plan_id",
-            "channel_id"
-          ]
+          "columns": ["plan_id", "channel_id"]
         }
       },
       "uniqueConstraints": {},
@@ -8418,12 +8034,8 @@
           "tableFrom": "plan_service",
           "tableTo": "platform_plan",
           "schemaTo": "enrich",
-          "columnsFrom": [
-            "plan_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["plan_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -8432,12 +8044,8 @@
           "tableFrom": "plan_service",
           "tableTo": "broadcaster",
           "schemaTo": "enrich",
-          "columnsFrom": [
-            "service_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["service_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -8445,10 +8053,7 @@
       "compositePrimaryKeys": {
         "plan_service_plan_id_service_id_pk": {
           "name": "plan_service_plan_id_service_id_pk",
-          "columns": [
-            "plan_id",
-            "service_id"
-          ]
+          "columns": ["plan_id", "service_id"]
         }
       },
       "uniqueConstraints": {},
@@ -8667,12 +8272,8 @@
           "tableFrom": "platform",
           "tableTo": "asset",
           "schemaTo": "core",
-          "columnsFrom": [
-            "logo_asset_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["logo_asset_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -8681,12 +8282,8 @@
           "tableFrom": "platform",
           "tableTo": "asset",
           "schemaTo": "core",
-          "columnsFrom": [
-            "custom_logo_asset_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["custom_logo_asset_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -8695,12 +8292,8 @@
           "tableFrom": "platform",
           "tableTo": "asset",
           "schemaTo": "core",
-          "columnsFrom": [
-            "custom_logo_dark_asset_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["custom_logo_dark_asset_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -8709,12 +8302,8 @@
           "tableFrom": "platform",
           "tableTo": "broadcaster",
           "schemaTo": "enrich",
-          "columnsFrom": [
-            "broadcaster_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["broadcaster_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -8913,12 +8502,8 @@
           "tableFrom": "platform_addon",
           "tableTo": "platform",
           "schemaTo": "enrich",
-          "columnsFrom": [
-            "platform_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["platform_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -8927,12 +8512,8 @@
           "tableFrom": "platform_addon",
           "tableTo": "broadcaster",
           "schemaTo": "enrich",
-          "columnsFrom": [
-            "ref_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["ref_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -9140,12 +8721,8 @@
           "tableFrom": "platform_plan",
           "tableTo": "platform",
           "schemaTo": "enrich",
-          "columnsFrom": [
-            "platform_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["platform_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -9831,16 +9408,7 @@
       "compositePrimaryKeys": {
         "llm_usage_daily_day_utc_budget_day_band_agent_provider_model_tier_outcome_pk": {
           "name": "llm_usage_daily_day_utc_budget_day_band_agent_provider_model_tier_outcome_pk",
-          "columns": [
-            "day_utc",
-            "budget_day",
-            "band",
-            "agent",
-            "provider",
-            "model",
-            "tier",
-            "outcome"
-          ]
+          "columns": ["day_utc", "budget_day", "band", "agent", "provider", "model", "tier", "outcome"]
         }
       },
       "uniqueConstraints": {},
@@ -9921,11 +9489,7 @@
       "compositePrimaryKeys": {
         "normalize_failure_provider_sport_raw_id_pk": {
           "name": "normalize_failure_provider_sport_raw_id_pk",
-          "columns": [
-            "provider",
-            "sport",
-            "raw_id"
-          ]
+          "columns": ["provider", "sport", "raw_id"]
         }
       },
       "uniqueConstraints": {},
@@ -10034,12 +9598,8 @@
           "tableFrom": "quality_failure",
           "tableTo": "quality_run",
           "schemaTo": "ops",
-          "columnsFrom": [
-            "run_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["run_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -10141,12 +9701,8 @@
           "tableFrom": "quality_result",
           "tableTo": "quality_run",
           "schemaTo": "ops",
-          "columnsFrom": [
-            "run_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["run_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -10154,11 +9710,7 @@
       "compositePrimaryKeys": {
         "quality_result_run_id_rule_id_sport_pk": {
           "name": "quality_result_run_id_rule_id_sport_pk",
-          "columns": [
-            "run_id",
-            "rule_id",
-            "sport"
-          ]
+          "columns": ["run_id", "rule_id", "sport"]
         }
       },
       "uniqueConstraints": {},
@@ -10346,12 +9898,7 @@
       "compositePrimaryKeys": {
         "quota_budget_provider_api_day_utc_priority_pk": {
           "name": "quota_budget_provider_api_day_utc_priority_pk",
-          "columns": [
-            "provider",
-            "api",
-            "day_utc",
-            "priority"
-          ]
+          "columns": ["provider", "api", "day_utc", "priority"]
         }
       },
       "uniqueConstraints": {},
@@ -10523,11 +10070,7 @@
       "compositePrimaryKeys": {
         "quota_snapshot_provider_api_day_utc_pk": {
           "name": "quota_snapshot_provider_api_day_utc_pk",
-          "columns": [
-            "provider",
-            "api",
-            "day_utc"
-          ]
+          "columns": ["provider", "api", "day_utc"]
         }
       },
       "uniqueConstraints": {},
@@ -10576,10 +10119,7 @@
       "compositePrimaryKeys": {
         "runtime_check_service_name_pk": {
           "name": "runtime_check_service_name_pk",
-          "columns": [
-            "service",
-            "name"
-          ]
+          "columns": ["service", "name"]
         }
       },
       "uniqueConstraints": {},
@@ -10628,10 +10168,7 @@
       "compositePrimaryKeys": {
         "runtime_env_service_key_pk": {
           "name": "runtime_env_service_key_pk",
-          "columns": [
-            "service",
-            "key"
-          ]
+          "columns": ["service", "key"]
         }
       },
       "uniqueConstraints": {},
@@ -10830,12 +10367,7 @@
       "compositePrimaryKeys": {
         "sync_cursor_provider_sport_endpoint_key_pk": {
           "name": "sync_cursor_provider_sport_endpoint_key_pk",
-          "columns": [
-            "provider",
-            "sport",
-            "endpoint",
-            "key"
-          ]
+          "columns": ["provider", "sport", "endpoint", "key"]
         }
       },
       "uniqueConstraints": {},
@@ -10903,12 +10435,8 @@
           "tableFrom": "discipline",
           "tableTo": "sport",
           "schemaTo": "multisport",
-          "columnsFrom": [
-            "sport_code"
-          ],
-          "columnsTo": [
-            "code"
-          ],
+          "columnsFrom": ["sport_code"],
+          "columnsTo": ["code"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -11109,12 +10637,8 @@
           "tableFrom": "games",
           "tableTo": "noc",
           "schemaTo": "multisport",
-          "columnsFrom": [
-            "host_noc"
-          ],
-          "columnsTo": [
-            "code"
-          ],
+          "columnsFrom": ["host_noc"],
+          "columnsTo": ["code"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -11208,12 +10732,8 @@
           "tableFrom": "games_competition",
           "tableTo": "games",
           "schemaTo": "multisport",
-          "columnsFrom": [
-            "games_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["games_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -11222,12 +10742,8 @@
           "tableFrom": "games_competition",
           "tableTo": "competition",
           "schemaTo": "core",
-          "columnsFrom": [
-            "competition_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["competition_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -11236,12 +10752,8 @@
           "tableFrom": "games_competition",
           "tableTo": "season",
           "schemaTo": "core",
-          "columnsFrom": [
-            "season_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["season_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -11249,10 +10761,7 @@
       "compositePrimaryKeys": {
         "games_competition_games_id_competition_id_pk": {
           "name": "games_competition_games_id_competition_id_pk",
-          "columns": [
-            "games_id",
-            "competition_id"
-          ]
+          "columns": ["games_id", "competition_id"]
         }
       },
       "uniqueConstraints": {},
@@ -11322,11 +10831,7 @@
       "compositePrimaryKeys": {
         "games_provider_league_provider_sport_provider_league_id_pk": {
           "name": "games_provider_league_provider_sport_provider_league_id_pk",
-          "columns": [
-            "provider",
-            "sport",
-            "provider_league_id"
-          ]
+          "columns": ["provider", "sport", "provider_league_id"]
         }
       },
       "uniqueConstraints": {},
@@ -11480,12 +10985,8 @@
           "tableFrom": "medal",
           "tableTo": "event",
           "schemaTo": "multisport",
-          "columnsFrom": [
-            "event_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["event_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -11494,12 +10995,8 @@
           "tableFrom": "medal",
           "tableTo": "participant",
           "schemaTo": "multisport",
-          "columnsFrom": [
-            "participant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["participant_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -11508,12 +11005,8 @@
           "tableFrom": "medal",
           "tableTo": "noc",
           "schemaTo": "multisport",
-          "columnsFrom": [
-            "noc_code"
-          ],
-          "columnsTo": [
-            "code"
-          ],
+          "columnsFrom": ["noc_code"],
+          "columnsTo": ["code"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -11585,12 +11078,8 @@
           "tableFrom": "medal_reference",
           "tableTo": "games",
           "schemaTo": "multisport",
-          "columnsFrom": [
-            "games_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["games_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -11599,12 +11088,8 @@
           "tableFrom": "medal_reference",
           "tableTo": "noc",
           "schemaTo": "multisport",
-          "columnsFrom": [
-            "noc_code"
-          ],
-          "columnsTo": [
-            "code"
-          ],
+          "columnsFrom": ["noc_code"],
+          "columnsTo": ["code"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -11612,11 +11097,7 @@
       "compositePrimaryKeys": {
         "medal_reference_games_id_noc_code_source_pk": {
           "name": "medal_reference_games_id_noc_code_source_pk",
-          "columns": [
-            "games_id",
-            "noc_code",
-            "source"
-          ]
+          "columns": ["games_id", "noc_code", "source"]
         }
       },
       "uniqueConstraints": {},
@@ -11691,12 +11172,8 @@
           "tableFrom": "medal_table_snapshot",
           "tableTo": "games",
           "schemaTo": "multisport",
-          "columnsFrom": [
-            "games_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["games_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -11705,12 +11182,8 @@
           "tableFrom": "medal_table_snapshot",
           "tableTo": "noc",
           "schemaTo": "multisport",
-          "columnsFrom": [
-            "noc_code"
-          ],
-          "columnsTo": [
-            "code"
-          ],
+          "columnsFrom": ["noc_code"],
+          "columnsTo": ["code"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -11718,10 +11191,7 @@
       "compositePrimaryKeys": {
         "medal_table_snapshot_games_id_noc_code_pk": {
           "name": "medal_table_snapshot_games_id_noc_code_pk",
-          "columns": [
-            "games_id",
-            "noc_code"
-          ]
+          "columns": ["games_id", "noc_code"]
         }
       },
       "uniqueConstraints": {},
@@ -11883,12 +11353,8 @@
           "tableFrom": "event",
           "tableTo": "games",
           "schemaTo": "multisport",
-          "columnsFrom": [
-            "games_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["games_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -11897,12 +11363,8 @@
           "tableFrom": "event",
           "tableTo": "discipline",
           "schemaTo": "multisport",
-          "columnsFrom": [
-            "discipline_code"
-          ],
-          "columnsTo": [
-            "code"
-          ],
+          "columnsFrom": ["discipline_code"],
+          "columnsTo": ["code"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -12029,12 +11491,8 @@
           "tableFrom": "participant",
           "tableTo": "noc",
           "schemaTo": "multisport",
-          "columnsFrom": [
-            "noc_code"
-          ],
-          "columnsTo": [
-            "code"
-          ],
+          "columnsFrom": ["noc_code"],
+          "columnsTo": ["code"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -12043,12 +11501,8 @@
           "tableFrom": "participant",
           "tableTo": "person",
           "schemaTo": "multisport",
-          "columnsFrom": [
-            "person_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["person_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -12404,12 +11858,8 @@
           "tableFrom": "phase",
           "tableTo": "event",
           "schemaTo": "multisport",
-          "columnsFrom": [
-            "event_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["event_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -12494,12 +11944,8 @@
           "tableFrom": "result",
           "tableTo": "unit",
           "schemaTo": "multisport",
-          "columnsFrom": [
-            "unit_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["unit_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -12508,12 +11954,8 @@
           "tableFrom": "result",
           "tableTo": "participant",
           "schemaTo": "multisport",
-          "columnsFrom": [
-            "participant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["participant_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -12521,10 +11963,7 @@
       "compositePrimaryKeys": {
         "result_unit_id_participant_id_pk": {
           "name": "result_unit_id_participant_id_pk",
-          "columns": [
-            "unit_id",
-            "participant_id"
-          ]
+          "columns": ["unit_id", "participant_id"]
         }
       },
       "uniqueConstraints": {},
@@ -12607,12 +12046,7 @@
       "compositePrimaryKeys": {
         "source_ref_entity_type_entity_id_source_source_id_pk": {
           "name": "source_ref_entity_type_entity_id_source_source_id_pk",
-          "columns": [
-            "entity_type",
-            "entity_id",
-            "source",
-            "source_id"
-          ]
+          "columns": ["entity_type", "entity_id", "source", "source_id"]
         }
       },
       "uniqueConstraints": {},
@@ -12644,12 +12078,8 @@
           "tableFrom": "team_member",
           "tableTo": "participant",
           "schemaTo": "multisport",
-          "columnsFrom": [
-            "team_participant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["team_participant_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -12658,12 +12088,8 @@
           "tableFrom": "team_member",
           "tableTo": "person",
           "schemaTo": "multisport",
-          "columnsFrom": [
-            "person_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["person_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -12671,10 +12097,7 @@
       "compositePrimaryKeys": {
         "team_member_team_participant_id_person_id_pk": {
           "name": "team_member_team_participant_id_person_id_pk",
-          "columns": [
-            "team_participant_id",
-            "person_id"
-          ]
+          "columns": ["team_participant_id", "person_id"]
         }
       },
       "uniqueConstraints": {},
@@ -12803,12 +12226,8 @@
           "tableFrom": "unit",
           "tableTo": "phase",
           "schemaTo": "multisport",
-          "columnsFrom": [
-            "phase_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["phase_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -12817,12 +12236,8 @@
           "tableFrom": "unit",
           "tableTo": "event",
           "schemaTo": "core",
-          "columnsFrom": [
-            "core_event_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["core_event_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -13027,12 +12442,8 @@
           "tableFrom": "athlete",
           "tableTo": "participant",
           "schemaTo": "core",
-          "columnsFrom": [
-            "participant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["participant_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -13041,12 +12452,8 @@
           "tableFrom": "athlete",
           "tableTo": "import_run",
           "schemaTo": "equestrian",
-          "columnsFrom": [
-            "import_run_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["import_run_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -13331,12 +12738,8 @@
           "tableFrom": "competition",
           "tableTo": "import_run",
           "schemaTo": "equestrian",
-          "columnsFrom": [
-            "import_run_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["import_run_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -13556,12 +12959,8 @@
           "tableFrom": "horse",
           "tableTo": "import_run",
           "schemaTo": "equestrian",
-          "columnsFrom": [
-            "import_run_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["import_run_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -13688,12 +13087,8 @@
           "tableFrom": "horse_owner",
           "tableTo": "horse",
           "schemaTo": "equestrian",
-          "columnsFrom": [
-            "horse_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["horse_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -13702,12 +13097,8 @@
           "tableFrom": "horse_owner",
           "tableTo": "import_run",
           "schemaTo": "equestrian",
-          "columnsFrom": [
-            "import_run_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["import_run_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -13967,12 +13358,8 @@
           "tableFrom": "ranking_observation",
           "tableTo": "athlete",
           "schemaTo": "equestrian",
-          "columnsFrom": [
-            "athlete_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["athlete_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -13981,12 +13368,8 @@
           "tableFrom": "ranking_observation",
           "tableTo": "horse",
           "schemaTo": "equestrian",
-          "columnsFrom": [
-            "horse_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["horse_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -13995,12 +13378,8 @@
           "tableFrom": "ranking_observation",
           "tableTo": "import_run",
           "schemaTo": "equestrian",
-          "columnsFrom": [
-            "import_run_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["import_run_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -14331,12 +13710,8 @@
           "tableFrom": "result",
           "tableTo": "competition",
           "schemaTo": "equestrian",
-          "columnsFrom": [
-            "competition_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["competition_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -14345,12 +13720,8 @@
           "tableFrom": "result",
           "tableTo": "athlete",
           "schemaTo": "equestrian",
-          "columnsFrom": [
-            "athlete_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["athlete_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -14359,12 +13730,8 @@
           "tableFrom": "result",
           "tableTo": "horse",
           "schemaTo": "equestrian",
-          "columnsFrom": [
-            "horse_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["horse_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -14373,12 +13740,8 @@
           "tableFrom": "result",
           "tableTo": "import_run",
           "schemaTo": "equestrian",
-          "columnsFrom": [
-            "import_run_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["import_run_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -14635,12 +13998,8 @@
           "tableFrom": "round",
           "tableTo": "athlete",
           "schemaTo": "equestrian",
-          "columnsFrom": [
-            "athlete_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["athlete_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -14649,12 +14008,8 @@
           "tableFrom": "round",
           "tableTo": "horse",
           "schemaTo": "equestrian",
-          "columnsFrom": [
-            "horse_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["horse_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -14663,12 +14018,8 @@
           "tableFrom": "round",
           "tableTo": "import_run",
           "schemaTo": "equestrian",
-          "columnsFrom": [
-            "import_run_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["import_run_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -14783,12 +14134,8 @@
           "tableFrom": "source_disagreement",
           "tableTo": "athlete",
           "schemaTo": "equestrian",
-          "columnsFrom": [
-            "athlete_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["athlete_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -14797,12 +14144,8 @@
           "tableFrom": "source_disagreement",
           "tableTo": "import_run",
           "schemaTo": "equestrian",
-          "columnsFrom": [
-            "import_run_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["import_run_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -14953,12 +14296,8 @@
           "tableFrom": "team_result",
           "tableTo": "import_run",
           "schemaTo": "equestrian",
-          "columnsFrom": [
-            "import_run_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["import_run_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -15094,12 +14433,8 @@
           "tableFrom": "api_key",
           "tableTo": "tenant",
           "schemaTo": "api",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -15199,12 +14534,8 @@
           "tableFrom": "api_key_event",
           "tableTo": "tenant",
           "schemaTo": "api",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -15348,12 +14679,8 @@
           "tableFrom": "backfill_request",
           "tableTo": "tenant",
           "schemaTo": "api",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -15475,12 +14802,8 @@
           "tableFrom": "module_usage_monthly",
           "tableTo": "tenant",
           "schemaTo": "api",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -15488,12 +14811,7 @@
       "compositePrimaryKeys": {
         "module_usage_monthly_tenant_id_month_module_metric_pk": {
           "name": "module_usage_monthly_tenant_id_month_module_metric_pk",
-          "columns": [
-            "tenant_id",
-            "month",
-            "module",
-            "metric"
-          ]
+          "columns": ["tenant_id", "month", "module", "metric"]
         }
       },
       "uniqueConstraints": {},
@@ -15631,12 +14949,8 @@
           "tableFrom": "tenant",
           "tableTo": "platform",
           "schemaTo": "enrich",
-          "columnsFrom": [
-            "operator_platform_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["operator_platform_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -15646,9 +14960,7 @@
         "tenant_slug_unique": {
           "name": "tenant_slug_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "slug"
-          ]
+          "columns": ["slug"]
         }
       },
       "policies": {},
@@ -15795,12 +15107,8 @@
           "tableFrom": "tenant_member",
           "tableTo": "tenant",
           "schemaTo": "api",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -15913,12 +15221,8 @@
           "tableFrom": "tenant_member_event",
           "tableTo": "tenant",
           "schemaTo": "api",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -15972,12 +15276,8 @@
           "tableFrom": "tenant_module_limit",
           "tableTo": "tenant",
           "schemaTo": "api",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -15985,10 +15285,7 @@
       "compositePrimaryKeys": {
         "tenant_module_limit_tenant_id_key_pk": {
           "name": "tenant_module_limit_tenant_id_key_pk",
-          "columns": [
-            "tenant_id",
-            "key"
-          ]
+          "columns": ["tenant_id", "key"]
         }
       },
       "uniqueConstraints": {},
@@ -16045,12 +15342,8 @@
           "tableFrom": "tenant_role_permission",
           "tableTo": "tenant",
           "schemaTo": "api",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -16058,11 +15351,7 @@
       "compositePrimaryKeys": {
         "tenant_role_permission_tenant_id_role_action_pk": {
           "name": "tenant_role_permission_tenant_id_role_action_pk",
-          "columns": [
-            "tenant_id",
-            "role",
-            "action"
-          ]
+          "columns": ["tenant_id", "role", "action"]
         }
       },
       "uniqueConstraints": {},
@@ -16148,12 +15437,8 @@
           "tableFrom": "usage_daily",
           "tableTo": "tenant",
           "schemaTo": "api",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -16161,11 +15446,7 @@
       "compositePrimaryKeys": {
         "usage_daily_tenant_id_day_route_pk": {
           "name": "usage_daily_tenant_id_day_route_pk",
-          "columns": [
-            "tenant_id",
-            "day",
-            "route"
-          ]
+          "columns": ["tenant_id", "day", "route"]
         }
       },
       "uniqueConstraints": {},
@@ -16343,12 +15624,8 @@
           "tableFrom": "webhook_delivery",
           "tableTo": "webhook_endpoint",
           "schemaTo": "api",
-          "columnsFrom": [
-            "endpoint_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["endpoint_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -16477,12 +15754,8 @@
           "tableFrom": "webhook_endpoint",
           "tableTo": "tenant",
           "schemaTo": "api",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -16605,12 +15878,8 @@
           "tableFrom": "publishable_key",
           "tableTo": "tenant",
           "schemaTo": "api",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -16619,12 +15888,8 @@
           "tableFrom": "publishable_key",
           "tableTo": "widget",
           "schemaTo": "ops",
-          "columnsFrom": [
-            "widget_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["widget_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -16733,12 +15998,8 @@
           "tableFrom": "widget",
           "tableTo": "tenant",
           "schemaTo": "api",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -16828,12 +16089,8 @@
           "tableFrom": "widget_theme",
           "tableTo": "tenant",
           "schemaTo": "api",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -17001,12 +16258,8 @@
           "tableFrom": "lineup_review_request",
           "tableTo": "tenant",
           "schemaTo": "api",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -17144,12 +16397,8 @@
           "tableFrom": "tenant_channel_list",
           "tableTo": "tenant",
           "schemaTo": "api",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -17205,9 +16454,7 @@
         "bookmaker_slug_unique": {
           "name": "bookmaker_slug_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "slug"
-          ]
+          "columns": ["slug"]
         }
       },
       "policies": {},
@@ -17269,12 +16516,8 @@
           "tableFrom": "event_odds",
           "tableTo": "event",
           "schemaTo": "core",
-          "columnsFrom": [
-            "event_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["event_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -17283,12 +16526,8 @@
           "tableFrom": "event_odds",
           "tableTo": "bookmaker",
           "schemaTo": "core",
-          "columnsFrom": [
-            "bookmaker_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["bookmaker_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -17296,10 +16535,7 @@
       "compositePrimaryKeys": {
         "event_odds_event_id_bookmaker_id_pk": {
           "name": "event_odds_event_id_bookmaker_id_pk",
-          "columns": [
-            "event_id",
-            "bookmaker_id"
-          ]
+          "columns": ["event_id", "bookmaker_id"]
         }
       },
       "uniqueConstraints": {},
@@ -17420,12 +16656,8 @@
           "tableFrom": "event_prediction",
           "tableTo": "event",
           "schemaTo": "core",
-          "columnsFrom": [
-            "event_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["event_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -17434,12 +16666,8 @@
           "tableFrom": "event_prediction",
           "tableTo": "participant",
           "schemaTo": "core",
-          "columnsFrom": [
-            "winner_participant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["winner_participant_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -17531,12 +16759,8 @@
           "tableFrom": "auto_recharge",
           "tableTo": "tenant",
           "schemaTo": "api",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -17545,12 +16769,8 @@
           "tableFrom": "auto_recharge",
           "tableTo": "package",
           "schemaTo": "cosmos",
-          "columnsFrom": [
-            "package_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["package_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -17662,12 +16882,8 @@
           "tableFrom": "balance_alert",
           "tableTo": "tenant",
           "schemaTo": "api",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -17913,12 +17129,8 @@
           "tableFrom": "credit_request",
           "tableTo": "tenant",
           "schemaTo": "api",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -17977,10 +17189,7 @@
       "compositePrimaryKeys": {
         "doc_embedding_model_content_hash_pk": {
           "name": "doc_embedding_model_content_hash_pk",
-          "columns": [
-            "model",
-            "content_hash"
-          ]
+          "columns": ["model", "content_hash"]
         }
       },
       "uniqueConstraints": {},
@@ -18314,12 +17523,8 @@
           "tableFrom": "ledger",
           "tableTo": "tenant",
           "schemaTo": "api",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -18438,12 +17643,8 @@
           "tableFrom": "moderation_config",
           "tableTo": "tenant",
           "schemaTo": "api",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -18560,12 +17761,8 @@
           "tableFrom": "moderation_config_log",
           "tableTo": "tenant",
           "schemaTo": "api",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -18711,12 +17908,8 @@
           "tableFrom": "purchase_intent",
           "tableTo": "tenant",
           "schemaTo": "api",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -18725,12 +17918,8 @@
           "tableFrom": "purchase_intent",
           "tableTo": "package",
           "schemaTo": "cosmos",
-          "columnsFrom": [
-            "package_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["package_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -18740,9 +17929,7 @@
         "purchase_intent_checkout_session_id_unique": {
           "name": "purchase_intent_checkout_session_id_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "checkout_session_id"
-          ]
+          "columns": ["checkout_session_id"]
         }
       },
       "policies": {},
@@ -18883,12 +18070,8 @@
           "tableFrom": "recharge_attempt",
           "tableTo": "tenant",
           "schemaTo": "api",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -18897,12 +18080,8 @@
           "tableFrom": "recharge_attempt",
           "tableTo": "package",
           "schemaTo": "cosmos",
-          "columnsFrom": [
-            "package_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["package_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -18912,9 +18091,7 @@
         "recharge_attempt_payment_intent_id_unique": {
           "name": "recharge_attempt_payment_intent_id_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "payment_intent_id"
-          ]
+          "columns": ["payment_intent_id"]
         }
       },
       "policies": {},
@@ -19059,12 +18236,8 @@
           "tableFrom": "reservation",
           "tableTo": "tenant",
           "schemaTo": "api",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -19164,12 +18337,8 @@
           "tableFrom": "staff_action",
           "tableTo": "tenant",
           "schemaTo": "api",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -19318,12 +18487,8 @@
           "tableFrom": "staff_usage",
           "tableTo": "tenant",
           "schemaTo": "api",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -19521,12 +18686,8 @@
           "tableFrom": "wallet",
           "tableTo": "tenant",
           "schemaTo": "api",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -19554,6 +18715,78 @@
         "wallet_alert_level": {
           "name": "wallet_alert_level",
           "value": "\"cosmos\".\"wallet\".\"alert_level\" in (0, 80, 90, 100)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "cosmos.wallet_quota": {
+      "name": "wallet_quota",
+      "schema": "cosmos",
+      "columns": {
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "scope": {
+          "name": "scope",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "percent": {
+          "name": "percent",
+          "type": "numeric(5, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_by": {
+          "name": "updated_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "wallet_quota_tenant_id_tenant_id_fk": {
+          "name": "wallet_quota_tenant_id_tenant_id_fk",
+          "tableFrom": "wallet_quota",
+          "tableTo": "tenant",
+          "schemaTo": "api",
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "wallet_quota_tenant_id_scope_pk": {
+          "name": "wallet_quota_tenant_id_scope_pk",
+          "columns": ["tenant_id", "scope"]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "wallet_quota_percent": {
+          "name": "wallet_quota_percent",
+          "value": "\"cosmos\".\"wallet_quota\".\"percent\" > 0 and \"cosmos\".\"wallet_quota\".\"percent\" <= 100"
         }
       },
       "isRLSEnabled": false
@@ -19802,12 +19035,8 @@
           "tableFrom": "moderation_list",
           "tableTo": "tenant",
           "schemaTo": "api",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -19950,12 +19179,8 @@
           "tableFrom": "moderation_list_log",
           "tableTo": "moderation_list",
           "schemaTo": "engage",
-          "columnsFrom": [
-            "list_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["list_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -20117,12 +19342,8 @@
           "tableFrom": "sponsor",
           "tableTo": "tenant",
           "schemaTo": "api",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -20203,14 +19424,8 @@
           "tableFrom": "sponsor_impression_daily",
           "tableTo": "sponsor",
           "schemaTo": "engage",
-          "columnsFrom": [
-            "tenant_id",
-            "sponsor_id"
-          ],
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
+          "columnsFrom": ["tenant_id", "sponsor_id"],
+          "columnsTo": ["tenant_id", "id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -20218,13 +19433,7 @@
       "compositePrimaryKeys": {
         "sponsor_impression_daily_pkey": {
           "name": "sponsor_impression_daily_pkey",
-          "columns": [
-            "tenant_id",
-            "sponsor_id",
-            "surface",
-            "surface_id",
-            "day"
-          ]
+          "columns": ["tenant_id", "sponsor_id", "surface", "surface_id", "day"]
         }
       },
       "uniqueConstraints": {},
@@ -20312,12 +19521,8 @@
           "tableFrom": "tenant_country",
           "tableTo": "tenant",
           "schemaTo": "api",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -20325,10 +19530,7 @@
       "compositePrimaryKeys": {
         "tenant_country_pkey": {
           "name": "tenant_country_pkey",
-          "columns": [
-            "tenant_id",
-            "country"
-          ]
+          "columns": ["tenant_id", "country"]
         }
       },
       "uniqueConstraints": {},
@@ -20415,12 +19617,8 @@
           "tableFrom": "account",
           "tableTo": "tenant",
           "schemaTo": "api",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -20428,10 +19626,7 @@
       "compositePrimaryKeys": {
         "account_pkey": {
           "name": "account_pkey",
-          "columns": [
-            "tenant_id",
-            "id"
-          ]
+          "columns": ["tenant_id", "id"]
         }
       },
       "uniqueConstraints": {},
@@ -20619,12 +19814,8 @@
           "tableFrom": "age_verification",
           "tableTo": "tenant",
           "schemaTo": "api",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -20633,14 +19824,8 @@
           "tableFrom": "age_verification",
           "tableTo": "profile",
           "schemaTo": "fan",
-          "columnsFrom": [
-            "tenant_id",
-            "profile_id"
-          ],
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
+          "columnsFrom": ["tenant_id", "profile_id"],
+          "columnsTo": ["tenant_id", "id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -20648,10 +19833,7 @@
       "compositePrimaryKeys": {
         "age_verification_pkey": {
           "name": "age_verification_pkey",
-          "columns": [
-            "tenant_id",
-            "id"
-          ]
+          "columns": ["tenant_id", "id"]
         }
       },
       "uniqueConstraints": {},
@@ -20764,12 +19946,8 @@
           "tableFrom": "erasure_log",
           "tableTo": "tenant",
           "schemaTo": "api",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -20777,10 +19955,7 @@
       "compositePrimaryKeys": {
         "erasure_log_pkey": {
           "name": "erasure_log_pkey",
-          "columns": [
-            "tenant_id",
-            "id"
-          ]
+          "columns": ["tenant_id", "id"]
         }
       },
       "uniqueConstraints": {},
@@ -20988,12 +20163,8 @@
           "tableFrom": "points_ledger",
           "tableTo": "tenant",
           "schemaTo": "api",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -21002,16 +20173,8 @@
           "tableFrom": "points_ledger",
           "tableTo": "wallet",
           "schemaTo": "fan",
-          "columnsFrom": [
-            "tenant_id",
-            "profile_id",
-            "program_country"
-          ],
-          "columnsTo": [
-            "tenant_id",
-            "profile_id",
-            "program_country"
-          ],
+          "columnsFrom": ["tenant_id", "profile_id", "program_country"],
+          "columnsTo": ["tenant_id", "profile_id", "program_country"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -21020,18 +20183,8 @@
           "tableFrom": "points_ledger",
           "tableTo": "points_ledger",
           "schemaTo": "fan",
-          "columnsFrom": [
-            "tenant_id",
-            "profile_id",
-            "program_country",
-            "reverts_id"
-          ],
-          "columnsTo": [
-            "tenant_id",
-            "profile_id",
-            "program_country",
-            "id"
-          ],
+          "columnsFrom": ["tenant_id", "profile_id", "program_country", "reverts_id"],
+          "columnsTo": ["tenant_id", "profile_id", "program_country", "id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -21039,10 +20192,7 @@
       "compositePrimaryKeys": {
         "points_ledger_pkey": {
           "name": "points_ledger_pkey",
-          "columns": [
-            "tenant_id",
-            "id"
-          ]
+          "columns": ["tenant_id", "id"]
         }
       },
       "uniqueConstraints": {},
@@ -21134,12 +20284,8 @@
           "tableFrom": "points_revoked_event",
           "tableTo": "tenant",
           "schemaTo": "api",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -21148,14 +20294,8 @@
           "tableFrom": "points_revoked_event",
           "tableTo": "profile",
           "schemaTo": "fan",
-          "columnsFrom": [
-            "tenant_id",
-            "profile_id"
-          ],
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
+          "columnsFrom": ["tenant_id", "profile_id"],
+          "columnsTo": ["tenant_id", "id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -21163,14 +20303,7 @@
       "compositePrimaryKeys": {
         "points_revoked_event_pkey": {
           "name": "points_revoked_event_pkey",
-          "columns": [
-            "tenant_id",
-            "profile_id",
-            "program_country",
-            "source",
-            "source_event",
-            "reason"
-          ]
+          "columns": ["tenant_id", "profile_id", "program_country", "source", "source_event", "reason"]
         }
       },
       "uniqueConstraints": {},
@@ -21392,12 +20525,8 @@
           "tableFrom": "profile",
           "tableTo": "tenant",
           "schemaTo": "api",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -21406,14 +20535,8 @@
           "tableFrom": "profile",
           "tableTo": "account",
           "schemaTo": "fan",
-          "columnsFrom": [
-            "tenant_id",
-            "account_id"
-          ],
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
+          "columnsFrom": ["tenant_id", "account_id"],
+          "columnsTo": ["tenant_id", "id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -21421,10 +20544,7 @@
       "compositePrimaryKeys": {
         "profile_pkey": {
           "name": "profile_pkey",
-          "columns": [
-            "tenant_id",
-            "id"
-          ]
+          "columns": ["tenant_id", "id"]
         }
       },
       "uniqueConstraints": {},
@@ -21523,12 +20643,8 @@
           "tableFrom": "wallet",
           "tableTo": "tenant",
           "schemaTo": "api",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -21537,14 +20653,8 @@
           "tableFrom": "wallet",
           "tableTo": "profile",
           "schemaTo": "fan",
-          "columnsFrom": [
-            "tenant_id",
-            "profile_id"
-          ],
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
+          "columnsFrom": ["tenant_id", "profile_id"],
+          "columnsTo": ["tenant_id", "id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -21552,11 +20662,7 @@
       "compositePrimaryKeys": {
         "wallet_pkey": {
           "name": "wallet_pkey",
-          "columns": [
-            "tenant_id",
-            "profile_id",
-            "program_country"
-          ]
+          "columns": ["tenant_id", "profile_id", "program_country"]
         }
       },
       "uniqueConstraints": {},
@@ -21715,12 +20821,8 @@
           "tableFrom": "presence_window",
           "tableTo": "tenant",
           "schemaTo": "api",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -21729,14 +20831,8 @@
           "tableFrom": "presence_window",
           "tableTo": "profile",
           "schemaTo": "fan",
-          "columnsFrom": [
-            "tenant_id",
-            "profile_id"
-          ],
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
+          "columnsFrom": ["tenant_id", "profile_id"],
+          "columnsTo": ["tenant_id", "id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -21744,10 +20840,7 @@
       "compositePrimaryKeys": {
         "presence_window_pkey": {
           "name": "presence_window_pkey",
-          "columns": [
-            "tenant_id",
-            "id"
-          ]
+          "columns": ["tenant_id", "id"]
         }
       },
       "uniqueConstraints": {},
@@ -21812,12 +20905,8 @@
           "tableFrom": "presence_limit",
           "tableTo": "tenant",
           "schemaTo": "api",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -21892,12 +20981,8 @@
           "tableFrom": "fan_block",
           "tableTo": "tenant",
           "schemaTo": "api",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -21906,14 +20991,8 @@
           "tableFrom": "fan_block",
           "tableTo": "profile",
           "schemaTo": "fan",
-          "columnsFrom": [
-            "tenant_id",
-            "blocker_profile_id"
-          ],
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
+          "columnsFrom": ["tenant_id", "blocker_profile_id"],
+          "columnsTo": ["tenant_id", "id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -21922,14 +21001,8 @@
           "tableFrom": "fan_block",
           "tableTo": "profile",
           "schemaTo": "fan",
-          "columnsFrom": [
-            "tenant_id",
-            "blocked_profile_id"
-          ],
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
+          "columnsFrom": ["tenant_id", "blocked_profile_id"],
+          "columnsTo": ["tenant_id", "id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -21937,11 +21010,7 @@
       "compositePrimaryKeys": {
         "fan_block_pkey": {
           "name": "fan_block_pkey",
-          "columns": [
-            "tenant_id",
-            "blocker_profile_id",
-            "blocked_profile_id"
-          ]
+          "columns": ["tenant_id", "blocker_profile_id", "blocked_profile_id"]
         }
       },
       "uniqueConstraints": {},
@@ -22097,12 +21166,8 @@
           "tableFrom": "moderation_appeal",
           "tableTo": "tenant",
           "schemaTo": "api",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -22111,14 +21176,8 @@
           "tableFrom": "moderation_appeal",
           "tableTo": "moderation_sanction",
           "schemaTo": "engage",
-          "columnsFrom": [
-            "tenant_id",
-            "sanction_id"
-          ],
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
+          "columnsFrom": ["tenant_id", "sanction_id"],
+          "columnsTo": ["tenant_id", "id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -22127,14 +21186,8 @@
           "tableFrom": "moderation_appeal",
           "tableTo": "moderation_case",
           "schemaTo": "engage",
-          "columnsFrom": [
-            "tenant_id",
-            "case_id"
-          ],
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
+          "columnsFrom": ["tenant_id", "case_id"],
+          "columnsTo": ["tenant_id", "id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -22332,12 +21385,8 @@
           "tableFrom": "moderation_audit",
           "tableTo": "tenant",
           "schemaTo": "api",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -22611,12 +21660,8 @@
           "tableFrom": "moderation_case",
           "tableTo": "tenant",
           "schemaTo": "api",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -22625,14 +21670,8 @@
           "tableFrom": "moderation_case",
           "tableTo": "profile",
           "schemaTo": "fan",
-          "columnsFrom": [
-            "tenant_id",
-            "target_profile_id"
-          ],
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
+          "columnsFrom": ["tenant_id", "target_profile_id"],
+          "columnsTo": ["tenant_id", "id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -22641,14 +21680,8 @@
           "tableFrom": "moderation_case",
           "tableTo": "moderation_sanction",
           "schemaTo": "engage",
-          "columnsFrom": [
-            "tenant_id",
-            "sanction_id"
-          ],
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
+          "columnsFrom": ["tenant_id", "sanction_id"],
+          "columnsTo": ["tenant_id", "id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -22832,12 +21865,8 @@
           "tableFrom": "moderation_report",
           "tableTo": "tenant",
           "schemaTo": "api",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -22846,14 +21875,8 @@
           "tableFrom": "moderation_report",
           "tableTo": "moderation_case",
           "schemaTo": "engage",
-          "columnsFrom": [
-            "tenant_id",
-            "case_id"
-          ],
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
+          "columnsFrom": ["tenant_id", "case_id"],
+          "columnsTo": ["tenant_id", "id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -22862,14 +21885,8 @@
           "tableFrom": "moderation_report",
           "tableTo": "profile",
           "schemaTo": "fan",
-          "columnsFrom": [
-            "tenant_id",
-            "reporter_profile_id"
-          ],
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
+          "columnsFrom": ["tenant_id", "reporter_profile_id"],
+          "columnsTo": ["tenant_id", "id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -23078,12 +22095,8 @@
           "tableFrom": "moderation_sanction",
           "tableTo": "tenant",
           "schemaTo": "api",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -23092,14 +22105,8 @@
           "tableFrom": "moderation_sanction",
           "tableTo": "profile",
           "schemaTo": "fan",
-          "columnsFrom": [
-            "tenant_id",
-            "profile_id"
-          ],
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
+          "columnsFrom": ["tenant_id", "profile_id"],
+          "columnsTo": ["tenant_id", "id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -23108,14 +22115,8 @@
           "tableFrom": "moderation_sanction",
           "tableTo": "account",
           "schemaTo": "fan",
-          "columnsFrom": [
-            "tenant_id",
-            "account_id"
-          ],
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
+          "columnsFrom": ["tenant_id", "account_id"],
+          "columnsTo": ["tenant_id", "id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -23124,14 +22125,8 @@
           "tableFrom": "moderation_sanction",
           "tableTo": "moderation_case",
           "schemaTo": "engage",
-          "columnsFrom": [
-            "tenant_id",
-            "case_id"
-          ],
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
+          "columnsFrom": ["tenant_id", "case_id"],
+          "columnsTo": ["tenant_id", "id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -23423,12 +22418,8 @@
           "tableFrom": "message",
           "tableTo": "tenant",
           "schemaTo": "api",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -23437,14 +22428,8 @@
           "tableFrom": "message",
           "tableTo": "room",
           "schemaTo": "chat",
-          "columnsFrom": [
-            "tenant_id",
-            "room_id"
-          ],
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
+          "columnsFrom": ["tenant_id", "room_id"],
+          "columnsTo": ["tenant_id", "id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -23453,14 +22438,8 @@
           "tableFrom": "message",
           "tableTo": "profile",
           "schemaTo": "fan",
-          "columnsFrom": [
-            "tenant_id",
-            "profile_id"
-          ],
-          "columnsTo": [
-            "tenant_id",
-            "id"
-          ],
+          "columnsFrom": ["tenant_id", "profile_id"],
+          "columnsTo": ["tenant_id", "id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -23468,10 +22447,7 @@
       "compositePrimaryKeys": {
         "message_pkey": {
           "name": "message_pkey",
-          "columns": [
-            "tenant_id",
-            "id"
-          ]
+          "columns": ["tenant_id", "id"]
         }
       },
       "uniqueConstraints": {},
@@ -23586,12 +22562,8 @@
           "tableFrom": "room",
           "tableTo": "tenant",
           "schemaTo": "api",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -23599,10 +22571,7 @@
       "compositePrimaryKeys": {
         "room_pkey": {
           "name": "room_pkey",
-          "columns": [
-            "tenant_id",
-            "id"
-          ]
+          "columns": ["tenant_id", "id"]
         }
       },
       "uniqueConstraints": {},
@@ -23684,12 +22653,8 @@
           "tableFrom": "tenant_config",
           "tableTo": "tenant",
           "schemaTo": "api",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -23918,12 +22883,8 @@
           "tableFrom": "price",
           "tableTo": "catalog_version",
           "schemaTo": "billing",
-          "columnsFrom": [
-            "catalog_version"
-          ],
-          "columnsTo": [
-            "version"
-          ],
+          "columnsFrom": ["catalog_version"],
+          "columnsTo": ["version"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -24061,12 +23022,8 @@
           "tableFrom": "tenant_override",
           "tableTo": "tenant",
           "schemaTo": "api",
-          "columnsFrom": [
-            "tenant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tenant_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -24487,12 +23444,8 @@
           "tableFrom": "shop_entity_store",
           "tableTo": "shop_entity",
           "schemaTo": "engage",
-          "columnsFrom": [
-            "entity_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["entity_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -24501,12 +23454,8 @@
           "tableFrom": "shop_entity_store",
           "tableTo": "shop_store",
           "schemaTo": "engage",
-          "columnsFrom": [
-            "store_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["store_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -24514,10 +23463,7 @@
       "compositePrimaryKeys": {
         "shop_entity_store_pkey": {
           "name": "shop_entity_store_pkey",
-          "columns": [
-            "entity_id",
-            "store_id"
-          ]
+          "columns": ["entity_id", "store_id"]
         }
       },
       "uniqueConstraints": {},
@@ -24728,12 +23674,8 @@
           "tableFrom": "shop_product",
           "tableTo": "shop_entity",
           "schemaTo": "engage",
-          "columnsFrom": [
-            "entity_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["entity_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -24742,12 +23684,8 @@
           "tableFrom": "shop_product",
           "tableTo": "shop_store",
           "schemaTo": "engage",
-          "columnsFrom": [
-            "store_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["store_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -24976,21 +23914,12 @@
     "core.asset_origin": {
       "name": "asset_origin",
       "schema": "core",
-      "values": [
-        "provider",
-        "acervo",
-        "commons"
-      ]
+      "values": ["provider", "acervo", "commons"]
     },
     "core.competition_type": {
       "name": "competition_type",
       "schema": "core",
-      "values": [
-        "league",
-        "cup",
-        "tournament",
-        "multisport"
-      ]
+      "values": ["league", "cup", "tournament", "multisport"]
     },
     "core.event_status": {
       "name": "event_status",
@@ -25010,68 +23939,32 @@
     "core.participant_kind": {
       "name": "participant_kind",
       "schema": "core",
-      "values": [
-        "club",
-        "national_team",
-        "athlete",
-        "driver",
-        "constructor",
-        "fighter"
-      ]
+      "values": ["club", "national_team", "athlete", "driver", "constructor", "fighter"]
     },
     "semantic.review_status": {
       "name": "review_status",
       "schema": "semantic",
-      "values": [
-        "draft",
-        "reviewed",
-        "approved"
-      ]
+      "values": ["draft", "reviewed", "approved"]
     },
     "enrich.access_model": {
       "name": "access_model",
       "schema": "enrich",
-      "values": [
-        "free",
-        "subscription",
-        "ppv",
-        "unknown"
-      ]
+      "values": ["free", "subscription", "ppv", "unknown"]
     },
     "enrich.broadcast_medium": {
       "name": "broadcast_medium",
       "schema": "enrich",
-      "values": [
-        "free_tv",
-        "pay_tv",
-        "streaming_svod",
-        "streaming_free",
-        "youtube",
-        "official_app",
-        "radio"
-      ]
+      "values": ["free_tv", "pay_tv", "streaming_svod", "streaming_free", "youtube", "official_app", "radio"]
     },
     "enrich.broadcast_status": {
       "name": "broadcast_status",
       "schema": "enrich",
-      "values": [
-        "confirmed",
-        "probable",
-        "pending",
-        "omitted",
-        "retracted"
-      ]
+      "values": ["confirmed", "probable", "pending", "omitted", "retracted"]
     },
     "enrich.related_content_status": {
       "name": "related_content_status",
       "schema": "enrich",
-      "values": [
-        "published",
-        "pending",
-        "rejected",
-        "retracted",
-        "expired"
-      ]
+      "values": ["published", "pending", "rejected", "retracted", "expired"]
     },
     "enrich.related_content_type": {
       "name": "related_content_type",
@@ -25092,152 +23985,77 @@
     "ops.quota_priority": {
       "name": "quota_priority",
       "schema": "ops",
-      "values": [
-        "BOOTSTRAP",
-        "DAILY",
-        "LIVE",
-        "ADHOC"
-      ]
+      "values": ["BOOTSTRAP", "DAILY", "LIVE", "ADHOC"]
     },
     "multisport.event_gender": {
       "name": "event_gender",
       "schema": "multisport",
-      "values": [
-        "M",
-        "W",
-        "X",
-        "O"
-      ]
+      "values": ["M", "W", "X", "O"]
     },
     "multisport.games_season": {
       "name": "games_season",
       "schema": "multisport",
-      "values": [
-        "summer",
-        "winter"
-      ]
+      "values": ["summer", "winter"]
     },
     "multisport.games_status": {
       "name": "games_status",
       "schema": "multisport",
-      "values": [
-        "completed",
-        "in_progress",
-        "upcoming"
-      ]
+      "values": ["completed", "in_progress", "upcoming"]
     },
     "multisport.games_type": {
       "name": "games_type",
       "schema": "multisport",
-      "values": [
-        "OG",
-        "YOG",
-        "PAN",
-        "PARAPAN",
-        "PAN_JR"
-      ]
+      "values": ["OG", "YOG", "PAN", "PARAPAN", "PAN_JR"]
     },
     "multisport.medal_type": {
       "name": "medal_type",
       "schema": "multisport",
-      "values": [
-        "G",
-        "S",
-        "B"
-      ]
+      "values": ["G", "S", "B"]
     },
     "multisport.participant_kind": {
       "name": "participant_kind",
       "schema": "multisport",
-      "values": [
-        "athlete",
-        "team"
-      ]
+      "values": ["athlete", "team"]
     },
     "multisport.result_type": {
       "name": "result_type",
       "schema": "multisport",
-      "values": [
-        "time",
-        "points",
-        "distance",
-        "score",
-        "rank"
-      ]
+      "values": ["time", "points", "distance", "score", "rank"]
     },
     "multisport.unit_status": {
       "name": "unit_status",
       "schema": "multisport",
-      "values": [
-        "scheduled",
-        "live",
-        "finished",
-        "delayed",
-        "cancelled"
-      ]
+      "values": ["scheduled", "live", "finished", "delayed", "cancelled"]
     },
     "api.tenant_status": {
       "name": "tenant_status",
       "schema": "api",
-      "values": [
-        "active",
-        "suspended"
-      ]
+      "values": ["active", "suspended"]
     },
     "cosmos.ledger_kind": {
       "name": "ledger_kind",
       "schema": "cosmos",
-      "values": [
-        "trial",
-        "trial_expiry",
-        "purchase",
-        "usage",
-        "refund",
-        "adjustment",
-        "quota_change"
-      ]
+      "values": ["trial", "trial_expiry", "purchase", "usage", "refund", "adjustment", "quota_change"]
     },
     "cosmos.purchase_status": {
       "name": "purchase_status",
       "schema": "cosmos",
-      "values": [
-        "pending",
-        "paid",
-        "failed",
-        "canceled",
-        "expired",
-        "review"
-      ]
+      "values": ["pending", "paid", "failed", "canceled", "expired", "review"]
     },
     "cosmos.recharge_status": {
       "name": "recharge_status",
       "schema": "cosmos",
-      "values": [
-        "pending",
-        "processing",
-        "succeeded",
-        "failed",
-        "cancelled",
-        "review"
-      ]
+      "values": ["pending", "processing", "succeeded", "failed", "cancelled", "review"]
     },
     "cosmos.reservation_status": {
       "name": "reservation_status",
       "schema": "cosmos",
-      "values": [
-        "open",
-        "settled",
-        "released",
-        "expired"
-      ]
+      "values": ["open", "settled", "released", "expired"]
     },
     "cosmos.wallet_status": {
       "name": "wallet_status",
       "schema": "cosmos",
-      "values": [
-        "active",
-        "blocked"
-      ]
+      "values": ["active", "blocked"]
     }
   },
   "schemas": {

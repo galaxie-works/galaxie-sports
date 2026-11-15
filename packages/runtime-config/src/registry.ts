@@ -25,6 +25,7 @@ import {
   mirrorPeriodsError,
   mirrorPeriodsKey,
 } from './mirror.js';
+import { DAILY_CAP_KEYS, DAILY_CAP_MAX, MODULE_APIS, modulesError, modulesKey } from './modules.js';
 import type { ValidationError } from './resolve.js';
 
 /**
@@ -50,6 +51,7 @@ export const SETTING_SECTIONS = [
   'related',
   'provider',
   'mirror',
+  'modules',
   'assets',
   'credentials',
   'feedback',
@@ -838,6 +840,39 @@ export const SETTINGS: readonly SettingDef[] = [
     apply: 'next-run',
     allowEmpty: true,
     check: (value) => mirrorPeriodsError(api, value),
+    default: null,
+    critical: true,
+  })),
+
+  // módulos por esporte e tier fora do espelho (sync diário, ao vivo, agentes): só o que difere do padrão do código
+  // (modules.ts); os do espelho ficam em MIRROR_PERIODS_<API>. O ao vivo relê a cada minuto; os jobs, na próxima
+  // execução
+  ...MODULE_APIS.map((api): SettingDef => ({
+    key: modulesKey(api),
+    section: 'modules',
+    type: 'text',
+    services: ['ingestor', 'live', 'agents'],
+    apply: 'next-run',
+    applyIn: { live: 'refresh' },
+    allowEmpty: true,
+    check: (value) => modulesError(api, value),
+    default: null,
+    critical: true,
+  })),
+
+  // tetos diários do sync diário do futebol (modules.ts, DAILY_CAPS): vazio = o padrão do plano (free ou pago),
+  // `unlimited` = sem teto; 0 não vale (para parar, desligue o módulo). A tela corta o slider pela cota do plano
+  ...DAILY_CAP_KEYS.map((key): SettingDef => ({
+    key,
+    section: 'modules',
+    type: 'int',
+    services: ['ingestor'],
+    apply: 'next-run',
+    min: 1,
+    max: DAILY_CAP_MAX,
+    unlimited: true,
+    zeroInvalid: true,
+    allowEmpty: true,
     default: null,
     critical: true,
   })),
