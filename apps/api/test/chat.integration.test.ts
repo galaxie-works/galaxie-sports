@@ -90,6 +90,8 @@ const fan = async (key: string, n: number, ageBand = '18plus') => {
       nickname: `Torcedor${n}`,
       ageBand,
       country: 'br',
+      // adulto do Brasil escreve com a estimativa (ficha do país, portão de idade #1106)
+      ageAssurance: { method: 'estimated', at: '2026-11-01' },
       locale: 'pt-BR',
     },
   });

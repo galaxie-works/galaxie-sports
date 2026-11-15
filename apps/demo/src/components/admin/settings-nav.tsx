@@ -2,6 +2,7 @@
 
 import {
   Activity,
+  Captions,
   Archive,
   AtSign,
   BadgeCheck,
@@ -135,6 +136,7 @@ export const SETTINGS_ICONS: Record<SettingsNavId, NavIcon> = {
   lineup: MonitorPlay,
   wtw: Clapperboard,
   postgame: Timer,
+  narration: Captions,
   related: SquarePlay,
   widgets: LayoutGrid,
 };
