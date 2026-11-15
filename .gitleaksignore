@@ -33,3 +33,6 @@ aaa2a1b0d770ad5f0a6b0ca04a8adff071c70a9f:apps/demo/src/lib/cosmos/widget-install
 5c2f838a5e78f9061ba0076bf604194cad12c84c:apps/demo/src/lib/cosmos/integration-help.test.ts:generic-api-key:50
 5c2f838a5e78f9061ba0076bf604194cad12c84c:apps/demo/src/lib/cosmos/integration-help.test.ts:generic-api-key:57
 5c2f838a5e78f9061ba0076bf604194cad12c84c:apps/demo/src/lib/cosmos/integration-help.test.ts:generic-api-key:88
+# valores fictícios do teste de mascaramento do diagnóstico de webhooks (#1007); o commit seguinte monta-os em partes
+3af55d627198e4e913879ee82504199158980550:apps/demo/src/lib/cosmos/integration-help.test.ts:generic-api-key:178
+3af55d627198e4e913879ee82504199158980550:apps/demo/src/lib/cosmos/integration-help.test.ts:jwt:180
