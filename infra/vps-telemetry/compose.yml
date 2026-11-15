@@ -127,11 +127,11 @@ services:
       - traefik.http.routers.gsports-api-legacy.rule=Host(`${LEGACY_API_DOMAIN:-legacy-api.invalid}`)
       - traefik.http.routers.gsports-api-legacy.entrypoints=websecure
       - traefik.http.routers.gsports-api-legacy.tls.certresolver=letsencrypt
-      - traefik.http.routers.gsports-api-legacy.middlewares=gsports-api-legacy-301
+      - traefik.http.routers.gsports-api-legacy.middlewares=galaxie-legacy-api-301
       - traefik.http.routers.gsports-api-legacy.service=gsports-api
-      - traefik.http.middlewares.gsports-api-legacy-301.redirectregex.regex=^https?://[^/]+/(.*)
-      - traefik.http.middlewares.gsports-api-legacy-301.redirectregex.replacement=https://${API_DOMAIN:?defina API_DOMAIN}/$${1}
-      - traefik.http.middlewares.gsports-api-legacy-301.redirectregex.permanent=true
+      - traefik.http.middlewares.galaxie-legacy-api-301.redirectregex.regex=^https?://[^/]+/(.*)
+      - traefik.http.middlewares.galaxie-legacy-api-301.redirectregex.replacement=https://${API_DOMAIN:?defina API_DOMAIN}/$${1}
+      - traefik.http.middlewares.galaxie-legacy-api-301.redirectregex.permanent=true
     # Healthcheck vem da imagem (GET /health).
     logging: *logging
 
@@ -240,11 +240,11 @@ services:
       - traefik.http.routers.gsports-site-legacy.entrypoints=websecure
       - traefik.http.routers.gsports-site-legacy.tls.certresolver=letsencrypt
       - traefik.http.routers.gsports-site-legacy.priority=3000
-      - traefik.http.routers.gsports-site-legacy.middlewares=gsports-site-legacy-301
+      - traefik.http.routers.gsports-site-legacy.middlewares=galaxie-legacy-site-301
       - traefik.http.routers.gsports-site-legacy.service=gsports-site
-      - traefik.http.middlewares.gsports-site-legacy-301.redirectregex.regex=^https?://[^/]+/(.*)
-      - traefik.http.middlewares.gsports-site-legacy-301.redirectregex.replacement=https://${DEMO_DOMAIN:?defina DEMO_DOMAIN}/$${1}
-      - traefik.http.middlewares.gsports-site-legacy-301.redirectregex.permanent=true
+      - traefik.http.middlewares.galaxie-legacy-site-301.redirectregex.regex=^https?://[^/]+/(.*)
+      - traefik.http.middlewares.galaxie-legacy-site-301.redirectregex.replacement=https://${DEMO_DOMAIN:?defina DEMO_DOMAIN}/$${1}
+      - traefik.http.middlewares.galaxie-legacy-site-301.redirectregex.permanent=true
       # console fora do ar (reinício, OOM): os prefixos dele vão para a página de manutenção (serviço maintenance), não
       # para o 404 do site. Fica no site para o compose do maintenance não mudar; com o site também fora, o router de
       # manutenção da demo (prioridade 1) cobre o host inteiro
