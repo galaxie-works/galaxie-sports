@@ -25,6 +25,11 @@ export function settingText(t: T, def: SettingDef): { label: string; description
       description: t.mirrorPeriodsFor.description,
     };
   }
+  if (def.key.startsWith('MODULES_')) {
+    const api = def.key.slice('MODULES_'.length).toLowerCase().replace(/_/g, '-');
+    const name = t.apis[api as keyof T['apis']] ?? api;
+    return { label: fill(t.modulesFor.label, { api: name }), description: t.modulesFor.description };
+  }
   if (def.key.startsWith('POSTGAME_') && def.key !== 'POSTGAME_MAX_CALLS_DAY') {
     const interval = def.key.endsWith('_MIN');
     const api = def.key

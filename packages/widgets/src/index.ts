@@ -139,6 +139,7 @@ export { MatchPrediction, type MatchPredictionProps } from './widgets/match-pred
 export { MatchOdds, type MatchOddsProps } from './widgets/match-odds.js';
 export { TeamStats, type TeamStatsProps } from './widgets/team-stats.js';
 export { UpcomingDerbies, type UpcomingDerbiesProps } from './widgets/upcoming-derbies.js';
+export { ShopTheGame, type ShopTheGameProps } from './widgets/shop-the-game.js';
 export {
   TransferMarket,
   type TransferMarketDirection,
