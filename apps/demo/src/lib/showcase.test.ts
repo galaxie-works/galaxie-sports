@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { LOCALES } from './i18n/config';
 import { showcase } from './showcase';
 
-describe('vitrine pública (/sobre)', () => {
+describe('vitrine pública (/about)', () => {
   it('histórico geral só de par aprovado na base semântica (a API retém o rascunho)', async () => {
     const kb = await loadKnowledge();
     for (const locale of LOCALES) {

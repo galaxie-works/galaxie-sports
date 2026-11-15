@@ -5,7 +5,7 @@ import { History, MoreVertical, RotateCcw, Save } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
-import { resetSetting, saveSetting } from '@/app/[locale]/(app)/ajustes/operacao/actions';
+import { resetSetting, saveSetting } from '@/app/[locale]/(app)/settings/operations/actions';
 import { displayValue, settingText } from '@/components/ops/format';
 import { useOpsAction } from '@/components/ops/use-ops-action';
 import { Badge } from '@/components/reui/badge';

@@ -13,8 +13,8 @@
  *   redes tratam clique forçado como fraude);
  * - clique e compra nunca viram ponto, selo, conquista ou prêmio: nada daqui é publicado no change feed nem chega à
  *   carteira do torcedor ou ao motor de conquistas;
- * - o widget do cliente (#925) entra quando a matriz e o código de cada cliente estiverem no Builder; até lá, só
- *   site e app Galaxie.
+ * - widget do cliente (#925): `origin=client&w=<widget>`, assinado pela rota do widget; o destino sai de novo da
+ *   configuração do widget (código do cliente ou repasse pela Galaxie), nunca com o código da Galaxie.
  *
  * No app, o link abre no navegador do sistema (ou no app da loja), nunca em WebView: é o app que abre esta URL fora.
  */
@@ -25,19 +25,27 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import * as z from 'zod';
 import {
   event,
+  getWidget,
   listShopStoreConnectorRows,
   recordShopClicks,
   shopClickTarget,
   type Database,
   type ShopClickRow,
+  type Widget,
 } from '@galaxie/db';
-import { buildAffiliateLink, stripAffiliateParams, type ShopStoreConnector } from '@galaxie/engage';
+import {
+  buildAffiliateLink,
+  stripAffiliateParams,
+  type ShopDestination,
+  type ShopStoreConnector,
+} from '@galaxie/engage';
 import { settingsSecretBox, type SettingsSecretBox } from '@galaxie/runtime-config/sealed';
 import type { RateLimiter } from '../rate-limit.js';
 import { problems } from '../errors.js';
 import { parseInput } from '../util.js';
 import type { ShopClickSigner } from './click-token.js';
 import { toConnector } from './offers.js';
+import { widgetShopDestinations } from './widget.js';
 
 /** Robôs, pré-visualizações de link e clientes de linha de comando: vão para a loja sem código e não contam. */
 export const BOT_UA =
@@ -113,7 +121,9 @@ export class ShopClickRecorder {
 const Params = z.object({ productId: z.uuid() });
 const Query = z.object({
   // origem desconhecida (ex.: widget de cliente antes do #925) é recusada: não pode contar como Galaxie
-  origin: z.enum(['site', 'app']).default('site'),
+  origin: z.enum(['site', 'app', 'client']).default('site'),
+  // widget do cliente (#925): o widget que montou o link
+  w: z.uuid().optional().catch(undefined),
   event: z.uuid().optional().catch(undefined),
   // idioma fora do formato não quebra o "Comprar": só não é gravado
   lang: z
@@ -206,6 +216,19 @@ export async function shopClickRoutes(app: FastifyInstance, opts: ShopClickRoute
     }
     return stores!.byId.get(id) ?? null;
   };
+  const allStores = async () => {
+    await storeOf('');
+    return stores!.byId;
+  };
+  const widgetCache = new Map<string, { value: Widget | null; at: number }>();
+  const widgetOf = async (id: string): Promise<Widget | null> => {
+    const hit = widgetCache.get(id);
+    if (hit && Date.now() - hit.at < 60_000) return hit.value;
+    const value = await getWidget(db, id);
+    if (widgetCache.size > 10_000) widgetCache.clear();
+    widgetCache.set(id, { value, at: Date.now() });
+    return value;
+  };
 
   const plain = (url: string) => stripAffiliateParams(new URL(url)).toString();
 
@@ -235,8 +258,25 @@ export async function shopClickRoutes(app: FastifyInstance, opts: ShopClickRoute
       // link que não veio da vitrine da Galaxie (copiado para outro site, adulterado ou vencido): sem código e sem
       // contar. Assim o código da Galaxie não roda a partir de domínio de cliente
       const now = opts.now?.() ?? new Date();
-      if (!opts.signer?.verify(productId, q.origin, q.t, now)) return reply.redirect(plain(target.url), 302);
-      const link = buildAffiliateLink(store, target, { kind: 'galaxie' });
+      // origem assinada: a da vitrine da Galaxie (`site`/`app`) ou a do widget do cliente (`client:<widget>`)
+      const signedOrigin = q.origin === 'client' ? (q.w ? `client:${q.w}` : null) : q.origin;
+      if (!signedOrigin || !opts.signer?.verify(productId, signedOrigin, q.t, now))
+        return reply.redirect(plain(target.url), 302);
+      // widget do cliente: o destino sai da configuração dele de novo (loja ainda ligada, checagem em dia), sempre
+      // com o código do cliente ou o repasse pela Galaxie, nunca com o código da Galaxie
+      let widget: Widget | null = null;
+      let dest: ShopDestination = { kind: 'galaxie' };
+      if (q.origin === 'client') {
+        widget = await widgetOf(q.w!);
+        if (!widget || widget.archivedAt || widget.kind !== 'shop_the_game')
+          return reply.redirect(plain(target.url), 302);
+        const d = widgetShopDestinations(widget.tenantId, widget.config.shop, await allStores()).get(
+          store.id,
+        );
+        if (!d) return reply.redirect(plain(target.url), 302);
+        dest = d.dest;
+      }
+      const link = buildAffiliateLink(store, target, dest);
       // sem link (credenciais faltando): para a loja sem código nenhum; não há o que medir
       if (!link.ok) return reply.redirect(plain(target.url), 302);
 
@@ -263,9 +303,9 @@ export async function shopClickRoutes(app: FastifyInstance, opts: ShopClickRoute
         entityId: target.entityId,
         productId: target.productId,
         storeId: target.storeId,
-        origin: q.origin === 'app' ? 'galaxie_app' : 'galaxie_site',
-        tenantId: null,
-        widgetId: null,
+        origin: widget ? 'client' : q.origin === 'app' ? 'galaxie_app' : 'galaxie_site',
+        tenantId: widget?.tenantId ?? null,
+        widgetId: widget?.id ?? null,
         country: countryOf(request.headers['cf-ipcountry']),
         locale: q.lang ?? null,
       });

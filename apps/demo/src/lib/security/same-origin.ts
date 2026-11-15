@@ -7,7 +7,7 @@
  * passar pelo preflight do CORS, que a demo não libera).
  *
  * As server actions do Next já fazem a conferência de `Origin` sozinhas; o login (`/api/auth`) tem a do
- * Better Auth; a revalidação interna (`/api/interno/revalidar`) é servidor a servidor, com assinatura.
+ * Better Auth; a revalidação interna (`/api/internal/revalidate`) é servidor a servidor, com assinatura.
  */
 
 const NO_STORE = { 'cache-control': 'no-store' };

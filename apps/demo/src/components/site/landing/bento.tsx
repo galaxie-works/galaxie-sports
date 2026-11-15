@@ -125,7 +125,7 @@ function TimelineWidget({ t, app, locale }: { t: Text['timeline']; app: AppText;
       </div>
 
       <ExampleDialog
-        src="/exemplo/jogo"
+        src="/example/match"
         title={fill(app.title, { home: SEMI.home.name, away: SEMI.away.name })}
         description={app.description}
         closeLabel={app.close}

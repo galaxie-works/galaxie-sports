@@ -1,5 +1,5 @@
 /**
- * Fonte de dados do exemplo público (`/exemplo`): responde às mesmas leituras da API com a cópia gravada
+ * Fonte de dados do exemplo público (`/example`): responde às mesmas leituras da API com a cópia gravada
  * em `snapshot.json` (`scripts/example-snapshot.mjs`). Nunca chama a API. Leitura que não está na cópia:
  * as principais (jogo, time, campeonato, pessoa) viram "não encontrado"; as demais, ausência (`null`).
  */

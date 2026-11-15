@@ -20,9 +20,20 @@ import {
   type FanTokenResponse,
   type FanWallet,
 } from '@galaxie/contracts';
-import { detailAgeBand, fanAgeStatus, screen, screenNotice, type CountryPolicy } from '@galaxie/engage';
+import {
+  ageGate,
+  detailAgeBand,
+  effectiveVisibility,
+  fanAgeStatus,
+  minorDefaultsApply,
+  minorProtections,
+  screen,
+  screenNotice,
+  type CountryPolicy,
+} from '@galaxie/engage';
 import {
   auditFanEvent,
+  closeAgeDowngradeCases,
   holdContent,
   isEngageModule,
   readLedger,
@@ -33,9 +44,18 @@ import type { TenantContext } from '../auth/authenticator.js';
 import { problems } from '../errors.js';
 import { parseInput } from '../util.js';
 import { FAN_REVOCATION_TTL_S, type FanRevocations, type FanTokenTtl } from './fan-auth.js';
-import { fanCan, fanCapabilities } from './fan-rules.js';
+import { FAN_CAPABILITIES } from './fan-rules.js';
 import type { FanTokenSigner } from './fan-token.js';
-import { eraseFan, patchFan, readFan, storedNickname, upsertFan, type FanProfileView } from './fans.js';
+import type { FanAgeGate } from './age-gate.js';
+import {
+  eraseFan,
+  patchFan,
+  profileAgeFacts,
+  readFan,
+  storedNickname,
+  upsertFan,
+  type FanProfileView,
+} from './fans.js';
 import { ModerationLists } from './moderation.js';
 import { clocksFrom, policyForFan } from './moderation-routes.js';
 
@@ -44,6 +64,8 @@ export interface FanRoutesDeps {
   signer: FanTokenSigner | null;
   ttl: FanTokenTtl;
   revocations: FanRevocations;
+  /** Portão de idade: o pedido de token e a exclusão limpam o cache do Perfil neste processo (#1106). */
+  gate?: FanAgeGate | null;
 }
 
 /** Chave secreta de um tenant com algum módulo de engajamento. */
@@ -56,31 +78,35 @@ function engageTenant(request: FastifyRequest): TenantContext {
 }
 
 function meBody(p: FanProfileView, policy: CountryPolicy | null): FanMe {
+  const facts = profileAgeFacts(p);
   return {
     data: {
       profile_id: p.profileId,
       nickname: p.nickname,
-      avatar_url: p.avatarUrl,
+      // menor não mostra foto própria, nem a gravada antes do #1107
+      avatar_url: minorDefaultsApply(facts) ? null : p.avatarUrl,
       age_band: p.ageBand,
       age_band_detail: p.ageBandDetail,
       age_assurance: { method: p.ageAssurance, at: p.ageAssuranceAt?.toISOString() ?? null },
       guardian: { status: p.guardianStatus, linked_account: p.guardianLinked },
-      age_status: fanAgeStatus(
-        {
-          // Perfil de antes do #1105 só tem a larga (`13_17` vale como 13); congelado vale a larga gravada, a menor
-          band: p.ageFrozenAt !== null ? p.ageBand : (p.ageBandDetail ?? p.ageBand),
-          assurance: p.ageAssurance,
-          guardianStatus: p.guardianStatus,
-          guardianLinked: p.guardianLinked,
-          frozen: p.ageFrozenAt !== null,
-        },
-        policy,
-      ),
+      age_status: fanAgeStatus(facts, policy),
       country: p.country,
       locale: p.locale,
       favorite_team_id: p.favoriteTeamId,
-      visibility: p.visibility,
-      capabilities: fanCapabilities(p.ageBand),
+      // o que vale para os outros torcedores: menor fica privado (#1107)
+      visibility: effectiveVisibility(facts, p.visibility),
+      minor_protections: minorDefaultsApply(facts)
+        ? minorProtections(p.locale).map((m) => ({
+            id: m.id,
+            title: m.title,
+            relaxed: m.relaxed,
+            guardian_can_relax: m.guardianCanRelax,
+          }))
+        : [],
+      // o que o portão (#1106) libera hoje, para o widget esconder botões
+      capabilities: FAN_CAPABILITIES.filter(
+        (capability) => ageGate({ policy, fan: facts, capability }).allowed,
+      ),
       holder_adult: p.holderAdult,
     },
   };
@@ -152,8 +178,12 @@ export async function fanRoutes(app: FastifyInstance, deps: FanRoutesDeps): Prom
       },
       // caso na fila e auditoria na mesma transação: falhou, nada fica gravado e a nova tentativa refaz tudo
       async (tx, done) => {
-        if (!done.downgradedFrom && !done.guardianDeclared) return;
-        if (!policy) throw problems.degraded('Ficha do país não configurada para este cliente.');
+        if (!done.downgradedFrom && !done.guardianDeclared && !done.unfrozen && !done.bandChange) return;
+        if (!policy) {
+          // a troca de faixa sozinha não trava o token: sem ficha, só fica fora da auditoria
+          if (!done.downgradedFrom && !done.guardianDeclared && !done.unfrozen) return;
+          throw problems.degraded('Ficha do país não configurada para este cliente.');
+        }
         const now = new Date();
         const clocks = clocksFrom(policy, now);
         if (done.downgradedFrom)
@@ -175,6 +205,36 @@ export async function fanRoutes(app: FastifyInstance, deps: FanRoutesDeps): Prom
             clocks,
             now,
           });
+        const system = { id: `key:${tenant.keyPrefix}`, kind: 'system' } as const;
+        // aniversário ou correção: fica na auditoria só a troca de faixa, nunca a data de nascimento (#1110)
+        if (done.bandChange)
+          await auditFanEvent(tx, {
+            tenantId: tenant.tenantId,
+            actor: system,
+            action: 'age.band_changed',
+            clocks,
+            subjectProfileId: done.profileId,
+            rules: { from: done.bandChange.from, to: done.bandChange.to },
+          });
+        if (done.unfrozen) {
+          // a comprovação nova corrige a faixa: o caso de `age_band_downgrade` sai da fila da equipe do cliente
+          await auditFanEvent(tx, {
+            tenantId: tenant.tenantId,
+            actor: system,
+            action: 'age.unfrozen',
+            clocks,
+            subjectProfileId: done.profileId,
+            reason: 'age.reassured',
+            rules: { method: body.ageAssurance?.method ?? 'self' },
+          });
+          await closeAgeDowngradeCases(tx, {
+            tenantId: tenant.tenantId,
+            profileId: done.profileId,
+            actor: system,
+            clocks,
+            now,
+          });
+        }
         if (done.guardianDeclared)
           await auditFanEvent(tx, {
             tenantId: tenant.tenantId,
@@ -186,6 +246,8 @@ export async function fanRoutes(app: FastifyInstance, deps: FanRoutesDeps): Prom
           });
       },
     );
+    // a autorização revogada ou a faixa nova valem na próxima ação, sem esperar o cache do portão
+    deps.gate?.invalidate(tenant.tenantId, upserted.profileId);
     const { accountId, profileId } = upserted;
     const ttl = await deps.ttl.seconds();
     const { token, expiresAt } = sign.issue(
@@ -208,39 +270,46 @@ export async function fanRoutes(app: FastifyInstance, deps: FanRoutesDeps): Prom
     return reply.code(201).send(res);
   });
 
-  app.get('/v1/fans/me', { config: { fan: true } }, async (request) => {
+  app.get('/v1/fans/me', { config: { fan: true, age: 'exempt' } }, async (request) => {
     const fan = request.fan!;
     const profile = await readFan(db(), fan.tenantId, fan.profileId);
     if (!profile) throw problems.invalidFanToken('Perfil excluído.');
-    return meBody(profile, await policyForFan(db(), fan.tenantId, profile.country));
+    // a ficha do país do token, a mesma do portão
+    return meBody(profile, await policyForFan(db(), fan.tenantId, fan.country));
   });
 
-  app.patch('/v1/fans/me', { config: { fan: true } }, async (request) => {
+  app.patch('/v1/fans/me', { config: { fan: true, age: 'read' } }, async (request) => {
     const fan = request.fan!;
-    if (!fanCan(fan.ageBand, 'read'))
-      throw problems.fanAgeRestricted('Perfis com menos de 13 anos não usam os recursos sociais.');
     const body = parseInput(FanMePatchBody, request.body);
-    const changed = await patchFan(db(), fan.tenantId, fan.profileId, {
-      favoriteTeamId: body.favoriteTeamId,
-      visibility: body.visibility,
-    });
+    // Perfil de menor fica privado para os outros torcedores (#1107); abrir só grava se ainda for adulto
+    const opens = body.visibility !== undefined && Object.values(body.visibility).includes('public');
+    const changed = await patchFan(
+      db(),
+      fan.tenantId,
+      fan.profileId,
+      { favoriteTeamId: body.favoriteTeamId, visibility: body.visibility },
+      { adultOnly: opens },
+    );
+    if (!changed && opens && (await readFan(db(), fan.tenantId, fan.profileId)))
+      throw problems.fanAgeRestricted('Perfil de menor de 18 anos fica privado para os outros torcedores.', {
+        reason: 'adult_only',
+      });
     if (!changed) throw problems.invalidFanToken('Perfil excluído.');
     const profile = await readFan(db(), fan.tenantId, fan.profileId);
     if (!profile) throw problems.invalidFanToken('Perfil excluído.');
-    return meBody(profile, await policyForFan(db(), fan.tenantId, profile.country));
+    // a ficha do país do token, a mesma do portão
+    return meBody(profile, await policyForFan(db(), fan.tenantId, fan.country));
   });
 
-  /** Torcedor do token, com Perfil ativo e faixa que participa (menor de 13 fica fora, D1). */
+  /** Torcedor do token, com Perfil ativo (a idade, o portão já conferiu no hook do token, #1106). */
   async function walletFan(request: FastifyRequest) {
     const fan = request.fan!;
-    if (!fanCan(fan.ageBand, 'read'))
-      throw problems.fanAgeRestricted('Perfis com menos de 13 anos não usam os recursos sociais.');
     const profile = await readFan(db(), fan.tenantId, fan.profileId);
     if (!profile) throw problems.invalidFanToken('Perfil excluído.');
     return { fan, profile };
   }
 
-  app.get('/v1/fans/me/wallet', { config: { fan: true } }, async (request, reply) => {
+  app.get('/v1/fans/me/wallet', { config: { fan: true, age: 'read' } }, async (request, reply) => {
     const { fan } = await walletFan(request);
     const wallets = await readWallets(db(), fan.tenantId, fan.profileId);
     reply.header('cache-control', 'no-store');
@@ -250,7 +319,7 @@ export async function fanRoutes(app: FastifyInstance, deps: FanRoutesDeps): Prom
     return res;
   });
 
-  app.get('/v1/fans/me/wallet/ledger', { config: { fan: true } }, async (request, reply) => {
+  app.get('/v1/fans/me/wallet/ledger', { config: { fan: true, age: 'read' } }, async (request, reply) => {
     const { fan, profile } = await walletFan(request);
     const q = parseInput(FanLedgerQuery, request.query);
     const programCountry = q.country ?? profile.country;
@@ -292,6 +361,7 @@ export async function fanRoutes(app: FastifyInstance, deps: FanRoutesDeps): Prom
         requestedBy: `key:${tenant.keyPrefix}`,
       });
       if (erased) {
+        deps.gate?.invalidate(tenant.tenantId, erased.profileId);
         try {
           await deps.revocations.revoke(tenant.tenantId, erased.profileId, FAN_REVOCATION_TTL_S);
         } catch (err) {

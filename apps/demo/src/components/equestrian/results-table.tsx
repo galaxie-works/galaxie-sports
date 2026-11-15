@@ -58,7 +58,7 @@ export function ResultsTable({
                   <div className="flex min-w-0 flex-col gap-0.5">
                     {r.competition ? (
                       <Link
-                        href={`/hipismo/provas/${r.competition.id}`}
+                        href={`/equestrian/competitions/${r.competition.id}`}
                         className="truncate font-medium hover:underline"
                       >
                         {r.competition.name}

@@ -24,7 +24,7 @@ export function useDecide(id: string) {
     new Promise<boolean>((resolve) =>
       startTransition(async () => {
         try {
-          const res = await fetch(`/api/ajustes/revisao/${itemSegment(id)}`, {
+          const res = await fetch(`/api/settings/review/${itemSegment(id)}`, {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
             body: JSON.stringify({ action, ...body }),

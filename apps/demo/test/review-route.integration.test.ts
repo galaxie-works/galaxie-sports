@@ -30,8 +30,8 @@ const testUrl = (() => {
 const ADMIN = { id: 'u-admin', email: 'teste.admin@galaxie.test', role: 'admin' };
 
 let sql: Client;
-let list: typeof import('../src/app/api/ajustes/revisao/route');
-let item: typeof import('../src/app/api/ajustes/revisao/[id]/route');
+let list: typeof import('../src/app/api/settings/review/route');
+let item: typeof import('../src/app/api/settings/review/[id]/route');
 
 beforeAll(async () => {
   const admin = new Client({ connectionString: adminUrl });
@@ -46,8 +46,8 @@ beforeAll(async () => {
   await sql.connect();
   // o pool da demo lê a URL ao ser importado
   process.env.DEMO_DATABASE_URL = testUrl;
-  list = await import('../src/app/api/ajustes/revisao/route');
-  item = await import('../src/app/api/ajustes/revisao/[id]/route');
+  list = await import('../src/app/api/settings/review/route');
+  item = await import('../src/app/api/settings/review/[id]/route');
 });
 
 afterAll(async () => {
@@ -61,7 +61,7 @@ afterAll(async () => {
 });
 
 const ctx = (id: string) => ({ params: Promise.resolve({ id: encodeURIComponent(id) }) });
-const getList = (query: string) => list.GET(new Request(`http://demo.test/api/ajustes/revisao${query}`));
+const getList = (query: string) => list.GET(new Request(`http://demo.test/api/settings/review${query}`));
 const getItem = (id: string) => item.GET(new Request('http://demo.test/x'), ctx(id));
 const post = (id: string, body: unknown) =>
   item.POST(
@@ -96,7 +96,7 @@ describe('revisão de um perfil', () => {
     expect(res.status).toBe(200);
     expect((await teamStatus('palmeiras')).review_status).toBe('draft');
 
-    const body = await (await getList('?tipo=team&mercado=BR&status=draft&esporte=football')).json();
+    const body = await (await getList('?type=team&market=BR&status=draft&sport=football')).json();
     const items = body.data.items as { id: string; kind: string; market: string }[];
     expect(items.map((i) => i.id)).toContain('team:palmeiras');
     expect(items.every((i) => i.kind === 'team' && i.market === 'BR')).toBe(true);
@@ -240,7 +240,7 @@ describe('veredito e edição da IA (job review-suggestions)', () => {
        values ('glossary:pt-BR.torcedor', $1, $2, $3, 'gemini', 'Exemplo mais natural.')`,
       [{ example: content.example }, { example: 'A torcida encheu o estádio.' }, hash],
     );
-    const list = await (await getList('?tipo=glossary&q=torcedor')).json();
+    const list = await (await getList('?type=glossary&q=torcedor')).json();
     expect(list.data.items.find((i: { id: string }) => i.id === 'glossary:pt-BR.torcedor').edited).toBe(true);
     const detail = (await (await getItem('glossary:pt-BR.torcedor')).json()).data;
     expect(detail.override).toMatchObject({

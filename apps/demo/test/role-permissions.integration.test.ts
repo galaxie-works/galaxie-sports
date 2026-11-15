@@ -24,7 +24,7 @@ vi.mock('next/navigation', () => ({
 }));
 
 let db: AuthTestDb;
-let actions: typeof import('../src/app/[locale]/(app)/cliente/usuarios/actions');
+let actions: typeof import('../src/app/[locale]/(app)/client/users/actions');
 let session: typeof import('../src/lib/client/session');
 let permissions: typeof import('../src/lib/client/permissions');
 const T1 = randomUUID();
@@ -75,7 +75,7 @@ beforeAll(async () => {
   await db.sql.query(`update "user" set tenant_id = $1 where email = 'dono@p2.test'`, [T2]);
   session = await import('../src/lib/client/session');
   permissions = await import('../src/lib/client/permissions');
-  actions = await import('../src/app/[locale]/(app)/cliente/usuarios/actions');
+  actions = await import('../src/app/[locale]/(app)/client/users/actions');
   as('dono@p1.test');
   await context();
   expect((await actions.inviteMember({ email: 'admin@p1.test', name: 'Admin', role: 'admin' })).ok).toBe(

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
 
-import { inviteUser, type InviteInput } from '@/app/[locale]/(app)/ajustes/actions';
+import { inviteUser, type InviteInput } from '@/app/[locale]/(app)/settings/actions';
 import { Alert, AlertDescription, AlertTitle } from '@/components/reui/alert';
 import { Button } from '@/components/ui/button';
 import {

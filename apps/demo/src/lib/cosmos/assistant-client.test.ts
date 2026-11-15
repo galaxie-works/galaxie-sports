@@ -50,10 +50,10 @@ describe('resposta em fluxo no navegador', () => {
 
 describe('contexto da tela', () => {
   it('rota sem idioma e grupo de sugestões', () => {
-    expect(routeOf('/en/cliente/cosmos')).toBe('/cliente/cosmos');
+    expect(routeOf('/en/client/cosmos')).toBe('/client/cosmos');
     expect(routeOf('/es-AR')).toBe('/');
     expect(routeOf('/docs/webhooks')).toBe('/docs/webhooks');
-    expect(suggestionGroup('/cliente/cosmos/uso')).toBe('cosmos');
+    expect(suggestionGroup('/client/cosmos/uso')).toBe('cosmos');
     expect(suggestionGroup('/docs')).toBe('docs');
     expect(suggestionGroup('/documentos')).toBe('general');
     expect(suggestionGroup('/futebol')).toBe('general');
@@ -62,7 +62,7 @@ describe('contexto da tela', () => {
   it('título, texto da área principal sem campos nem o assistente, e destinos do menu', () => {
     document.body.innerHTML = `
       <div data-sidebar="menu">
-        <a href="/en/cliente">Painel</a><a href="/cliente">Painel</a><a href="https://x.com">Fora</a>
+        <a href="/en/client">Painel</a><a href="/client">Painel</a><a href="https://x.com">Fora</a>
         <a href="/docs">Docs</a>
       </div>
       <main>
@@ -73,9 +73,9 @@ describe('contexto da tela', () => {
         <div data-cosmos-assistant>conversa anterior</div>
         <span aria-hidden="true">decorativo</span>
       </main>`;
-    history.replaceState(null, '', '/pt-BR/cliente/webhooks');
+    history.replaceState(null, '', '/pt-BR/client/webhooks');
     const ctx = readScreenContext();
-    expect(ctx.route).toBe('/cliente/webhooks');
+    expect(ctx.route).toBe('/client/webhooks');
     expect(ctx.title).toBe('Webhooks');
     expect(ctx.visible).toContain('Entregas de hoje: 12');
     expect(ctx.visible).not.toContain('segredo');
@@ -83,7 +83,7 @@ describe('contexto da tela', () => {
     expect(ctx.visible).not.toContain('conversa anterior');
     expect(ctx.visible).not.toContain('decorativo');
     expect(ctx.destinations).toEqual([
-      { label: 'Painel', href: '/cliente' },
+      { label: 'Painel', href: '/client' },
       { label: 'Docs', href: '/docs' },
     ]);
   });

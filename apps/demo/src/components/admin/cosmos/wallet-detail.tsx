@@ -4,7 +4,7 @@ import { type ColumnDef, useTable } from '@tanstack/react-table';
 import { usePathname, useRouter } from 'next/navigation';
 import { useId, useMemo, useState } from 'react';
 
-import { creditWallet, setBlocked, setMultiplier } from '@/app/[locale]/(app)/ajustes/carteiras/actions';
+import { creditWallet, setBlocked, setMultiplier } from '@/app/[locale]/(app)/settings/wallets/actions';
 import { Badge } from '@/components/reui/badge';
 import {
   DataGrid,

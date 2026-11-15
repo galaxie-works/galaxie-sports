@@ -30,7 +30,7 @@ export const AI_NEAR_CEILING = 0.8;
  */
 export const HOME_LINKS: Record<HomeCardId, string | null> = {
   review: settingsHref('review'),
-  requests: `${settingsHref('lineup')}?aba=pedidos`,
+  requests: `${settingsHref('lineup')}?tab=requests`,
   failedJobs: settingsHref('tasks'),
   alerts: settingsHref('status'),
   credentials: settingsHref('credentials'),

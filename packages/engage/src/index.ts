@@ -8,6 +8,8 @@ export * from './moderation-queue.js';
 export * from './chat-room.js';
 export * from './chat-game.js';
 export * from './fan-age.js';
+export * from './age-gate.js';
+export * from './minor-defaults.js';
 export * from './shop-order.js';
 export * from './shop-destination.js';
 export * from './shop.js';

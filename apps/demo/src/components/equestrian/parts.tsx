@@ -147,7 +147,10 @@ export function Combination({
         <span className="flex min-w-0 items-center gap-1.5">
           <Flag country={r.country ?? r.athlete?.country ?? null} />
           {r.athlete ? (
-            <Link href={`/hipismo/atletas/${r.athlete.id}`} className="truncate font-medium hover:underline">
+            <Link
+              href={`/equestrian/athletes/${r.athlete.id}`}
+              className="truncate font-medium hover:underline"
+            >
               {r.athlete.name}
             </Link>
           ) : (
@@ -159,7 +162,7 @@ export function Combination({
         <span className="text-muted-foreground flex min-w-0 items-center gap-1 text-xs">
           <span aria-hidden>🐴</span>
           {r.horse ? (
-            <Link href={`/hipismo/cavalos/${r.horse.id}`} className="truncate hover:underline">
+            <Link href={`/equestrian/horses/${r.horse.id}`} className="truncate hover:underline">
               {r.horse.name}
             </Link>
           ) : (

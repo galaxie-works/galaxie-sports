@@ -217,7 +217,7 @@ function Scoreboard({ event, t, f }: { event: Event; t: Dictionary; f: Formatter
               : fill(tx.dateAtTime, { date: f.dateLong(event.starts_at), time: f.time(event.starts_at) })}
           </span>
           {event.venue ? (
-            <Link href={`/locais/${event.venue.id}`} className="flex items-center gap-1.5 hover:underline">
+            <Link href={`/venues/${event.venue.id}`} className="flex items-center gap-1.5 hover:underline">
               <MapPin className="size-3.5" aria-hidden />
               {event.venue.name}
               {event.venue.city ? `, ${event.venue.city}` : ''}
@@ -291,7 +291,7 @@ function AboutCard({ event, t }: { event: Event; t: Dictionary }) {
       <CardContent className="flex flex-col gap-4 text-sm">
         {event.derby ? (
           <Link
-            href={`/classicos/${event.derby.slug}`}
+            href={`/derbies/${event.derby.slug}`}
             className="hover:bg-accent -mx-2 flex items-center gap-3 rounded-md px-2 py-2 transition-colors"
           >
             <Flame className="text-warning size-5" aria-hidden />
@@ -510,7 +510,7 @@ export async function EventContent({ params, searchParams, source }: PageContent
   ]);
   // Onde assistir começa no mercado do idioma (Argentina em espanhol; Brasil nos demais). O país dele
   // não mexe na relevância: o card "Sobre o jogo" mostra todos os países (`relevance_by_market`).
-  const country = typeof query.pais === 'string' ? query.pais.toUpperCase() : defaultMarket(locale);
+  const country = typeof query.country === 'string' ? query.country.toUpperCase() : defaultMarket(locale);
 
   const first = await source.getEvent(id, locale);
   // tags do torcedor, gritos e contexto na voz do país do mandante (um jogo no Chile sai em es-CL), com a

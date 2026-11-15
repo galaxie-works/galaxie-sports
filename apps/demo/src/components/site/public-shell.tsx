@@ -29,7 +29,7 @@ export async function PublicShell({
   onLanding?: boolean;
 }) {
   const t = (await getT()).site;
-  const anchor = (id: string) => `${onLanding ? '' : '/sobre'}#${id}`;
+  const anchor = (id: string) => `${onLanding ? '' : '/about'}#${id}`;
   return (
     <div className="flex min-h-svh flex-col">
       <a
@@ -97,13 +97,13 @@ export async function PublicShell({
           </div>
           <div className="flex flex-col gap-4 md:items-end">
             <nav aria-label={t.nav.legal} className="flex flex-wrap gap-x-5 gap-y-2">
-              <a href={onLanding ? '#conteudo' : '/sobre'} className="hover:text-foreground">
+              <a href={onLanding ? '#conteudo' : '/about'} className="hover:text-foreground">
                 {t.nav.about}
               </a>
-              <a href="/termos" className="hover:text-foreground">
+              <a href="/terms" className="hover:text-foreground">
                 {t.nav.terms}
               </a>
-              <a href="/privacidade" className="hover:text-foreground">
+              <a href="/privacy" className="hover:text-foreground">
                 {t.nav.privacy}
               </a>
               <a href={STATUS_URL} className="hover:text-foreground">

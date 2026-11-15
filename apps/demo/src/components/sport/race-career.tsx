@@ -187,7 +187,7 @@ function SeasonRow({
       <TableCell>
         <div className="flex flex-wrap gap-x-3 gap-y-1">
           {s.teams.map((t) => (
-            <Link key={t.id} href={`/times/${t.id}`} className="flex items-center gap-1.5 hover:underline">
+            <Link key={t.id} href={`/teams/${t.id}`} className="flex items-center gap-1.5 hover:underline">
               <Crest src={t.logo} name={t.name} size="xs" round={constructor} />
               <span className="truncate text-sm">{t.name}</span>
             </Link>
@@ -270,7 +270,7 @@ export async function CareerSection({
           {milestones.map((m) => (
             <Link
               key={m.label}
-              href={`/eventos/${m.race!.event_id}`}
+              href={`/events/${m.race!.event_id}`}
               className="hover:bg-accent flex flex-col rounded-md border px-3 py-2 transition-colors"
             >
               <span className="text-muted-foreground flex items-center gap-1 text-xs">

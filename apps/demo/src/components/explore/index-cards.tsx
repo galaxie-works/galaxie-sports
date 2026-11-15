@@ -15,7 +15,7 @@ import { SportTexture, TEXTURE_TONE } from './sport-texture';
 const CARD = cn(TILE, 'w-full p-4');
 
 /**
- * Família de esporte no índice (`/esportes`): o card inteiro leva à página da família. Os números são a soma
+ * Família de esporte no índice (`/sports`): o card inteiro leva à página da família. Os números são a soma
  * dos esportes dela no resumo; família com mais de um esporte (Basquete com a NBA) lista cada um.
  */
 export function FamilyCard({ stats, t, locale }: { stats: FamilyStats; t: Dictionary; locale: Locale }) {
@@ -64,7 +64,7 @@ export function FamilyCard({ stats, t, locale }: { stats: FamilyStats; t: Dictio
   );
 }
 
-/** País no índice (`/paises`): bandeira, liga principal, competições e jogos da semana; o card leva ao país. */
+/** País no índice (`/countries`): bandeira, liga principal, competições e jogos da semana; o card leva ao país. */
 export function CountryIndexCard({
   country,
   name,
