@@ -7,7 +7,13 @@ import { EditorSkeleton } from '@/components/app-shell/skeletons';
 import { ClientArea } from '@/components/client/client-area';
 import { WidgetEditor } from '@/components/client/widget-editor';
 import { ENTITY_TYPES, marketsFor, parseWidgetInput } from '@/lib/builder/config';
-import { brandThemeItems, draftOf, guideChannelChoices, newDraft } from '@/lib/builder/editor';
+import {
+  brandThemeItems,
+  draftOf,
+  guideChannelChoices,
+  newDraft,
+  shopStoreChoices,
+} from '@/lib/builder/editor';
 import { decodeDraftParam } from '@/lib/cosmos/widget-compose';
 import { getI18n, getT } from '@/lib/i18n/server';
 
@@ -59,6 +65,7 @@ async function NewWidget({
             markets={marketsFor(tenant.markets)}
             sports={tenant.sports}
             guideChannels={await guideChannelChoices(tenant.id)}
+            shopStores={await shopStoreChoices()}
             brandThemes={brandThemes}
           />
         );

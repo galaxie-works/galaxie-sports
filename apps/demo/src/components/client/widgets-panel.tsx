@@ -15,6 +15,7 @@ import {
   Dna,
   Flag,
   Flame,
+  ShoppingBag,
   Goal,
   GalleryHorizontalEnd,
   History,
@@ -123,6 +124,7 @@ export const KIND_ICONS: Record<WidgetKind, LucideIcon> = {
   channel_guide: MonitorPlay,
   match_stats: ChartNoAxesColumn,
   upcoming_derbies: Flame,
+  shop_the_game: ShoppingBag,
 };
 
 /** Nome e descrição do tipo de widget no idioma da tela (vêm do catálogo de `@galaxie/widgets`). */

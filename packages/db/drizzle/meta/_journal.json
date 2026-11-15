@@ -761,8 +761,15 @@
     {
       "idx": 108,
       "version": "7",
+      "when": 1794529607111,
+      "tag": "0157_cosmos_cota_por_sala",
+      "breakpoints": true
+    },
+    {
+      "idx": 109,
+      "version": "7",
       "when": 1794530207111,
-      "tag": "0160_cosmos_moderacao_imagem",
+      "tag": "0170_cosmos_moderacao_imagem",
       "breakpoints": true
     }
   ]

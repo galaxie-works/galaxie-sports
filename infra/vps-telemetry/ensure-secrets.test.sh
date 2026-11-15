@@ -36,17 +36,23 @@ kek="$(val SETTINGS_KEK)"
   ko "STREAM_TOKEN_SECRET mudou"
 [[ "$kek" =~ ^[0-9a-f]{64}$ ]] && ok "SETTINGS_KEK ausente vira 64 hex" || ko "SETTINGS_KEK não foi gerada: '$kek'"
 [[ "$out" == *"WARN  SETTINGS_KEK nova"* ]] && ok "aviso de guardar a SETTINGS_KEK nova" || ko "sem aviso da SETTINGS_KEK nova"
+wkek="$(val WEBHOOK_SIGNING_SECRET)"
+[[ "$wkek" =~ ^[0-9a-f]{64}$ ]] && ok "WEBHOOK_SIGNING_SECRET ausente vira 64 hex" ||
+  ko "WEBHOOK_SIGNING_SECRET não foi gerada: '$wkek'"
+[[ "$out" == *"WARN  WEBHOOK_SIGNING_SECRET nova"* ]] && ok "aviso de guardar a WEBHOOK_SIGNING_SECRET nova" ||
+  ko "sem aviso da WEBHOOK_SIGNING_SECRET nova"
 [ "$(val METRICS_TOKEN)" = troque-por-um-segredo ] && ok "METRICS_TOKEN só avisa" || ko "METRICS_TOKEN mudou"
 [[ "$out" == *"WARN  METRICS_TOKEN"* ]] && ok "aviso do METRICS_TOKEN" || ko "sem aviso do METRICS_TOKEN"
 [ -z "$(val STRIPE_SECRET_KEY)" ] && ok "chave de fornecedor fica vazia" || ko "STRIPE_SECRET_KEY foi gerada"
 [ "$(val API_DOMAIN)" = api.example.test ] && ok "o resto do .env fica" || ko "API_DOMAIN mudou"
 [ "$(grep -c '^FAN_TOKEN_SECRET=' "$WORK/.env")" = 1 ] && ok "uma linha por chave" || ko "FAN_TOKEN_SECRET duplicado"
-[[ "$out" != *"$fan"* && "$out" != *"$auth"* && "$out" != *"$kek"* ]] && ok "valor não aparece na saída" || ko "valor vazou na saída"
+[[ "$out" != *"$fan"* && "$out" != *"$auth"* && "$out" != *"$kek"* && "$out" != *"$wkek"* ]] && ok "valor não aparece na saída" || ko "valor vazou na saída"
 [ "$(stat -c %a "$WORK/.env")" = 600 ] && ok ".env com 600" || ko ".env com $(stat -c %a "$WORK/.env")"
 ls "$WORK"/.env.segredos.* >/dev/null 2>&1 && ko "sobrou arquivo temporário" || ok "sem temporário"
 
 out2="$(cd "$WORK" && bash "$HERE/ensure-secrets.sh")"
-[ "$(val FAN_TOKEN_SECRET)" = "$fan" ] && [ "$(val BETTER_AUTH_SECRET)" = "$auth" ] && [ "$(val SETTINGS_KEK)" = "$kek" ] && ok "segunda rodada não troca" ||
+[ "$(val FAN_TOKEN_SECRET)" = "$fan" ] && [ "$(val BETTER_AUTH_SECRET)" = "$auth" ] && [ "$(val SETTINGS_KEK)" = "$kek" ] &&
+  [ "$(val WEBHOOK_SIGNING_SECRET)" = "$wkek" ] && ok "segunda rodada não troca" ||
   ko "segunda rodada trocou um segredo"
 [[ "$out2" == *"todos definidos"* ]] && ok "segunda rodada: nada a gerar" || ko "segunda rodada: '$out2'"
 
@@ -75,7 +81,7 @@ if out4="$(cd "$WORK" && bash "$HERE/ensure-secrets.sh" dup.env)"; then ko "dupl
 fi
 [ "$(cat "$WORK/dup.env")" = "$before" ] && ok "duplicada: .env intocado" || ko "duplicada: .env mudou"
 # exemplo esquecido em cima do valor real: vale a última (como no compose), nada a gerar
-printf 'BETTER_AUTH_SECRET=troque-por-x\nBETTER_AUTH_SECRET=real\nFAN_TOKEN_SECRET=a\nSTREAM_TOKEN_SECRET=b\nSETTINGS_KEK=c\n' > "$WORK/exemplo-em-cima.env"
+printf 'BETTER_AUTH_SECRET=troque-por-x\nBETTER_AUTH_SECRET=real\nFAN_TOKEN_SECRET=a\nSTREAM_TOKEN_SECRET=b\nSETTINGS_KEK=c\nWEBHOOK_SIGNING_SECRET=d\n' > "$WORK/exemplo-em-cima.env"
 (cd "$WORK" && bash "$HERE/ensure-secrets.sh" exemplo-em-cima.env | grep -q "todos definidos") && ok "exemplo em cima do valor real passa" ||
   ko "exemplo em cima do valor real falhou"
 # duas linhas vazias: gera uma só
@@ -89,6 +95,13 @@ printf 'SETTINGS_KEK=\r\n' > "$WORK/crlf.env"
 # rotação em cima e vazia embaixo: para
 printf 'SETTINGS_KEK=nova,antiga\nSETTINGS_KEK=\n' > "$WORK/rot-dup.env"
 if (cd "$WORK" && bash "$HERE/ensure-secrets.sh" rot-dup.env >/dev/null); then ko "rotação + vazia passou"; else ok "rotação + vazia falha"; fi
+# KEK dos webhooks em uso (inclusive em rotação nova,antiga) nunca muda, e sem aviso de chave nova
+printf 'WEBHOOK_SIGNING_SECRET=nova-0123456789abcdef0123456789abcdef,antiga-0123456789abcdef0123456789ab\n' > "$WORK/wkek.env"
+out5="$(cd "$WORK" && bash "$HERE/ensure-secrets.sh" wkek.env)"
+[ "$(sed -n 's/^WEBHOOK_SIGNING_SECRET=//p' "$WORK/wkek.env" | tail -n 1)" = nova-0123456789abcdef0123456789abcdef,antiga-0123456789abcdef0123456789ab ] &&
+  ok "WEBHOOK_SIGNING_SECRET existente fica" || ko "WEBHOOK_SIGNING_SECRET existente mudou"
+[[ "$out5" != *"WEBHOOK_SIGNING_SECRET nova"* ]] && ok "sem aviso quando a KEK dos webhooks já existe" ||
+  ko "aviso de KEK nova dos webhooks com KEK existente"
 # repetida com o mesmo valor não atrapalha
 printf 'FAN_TOKEN_SECRET=\nSTREAM_TOKEN_SECRET=igual\nSTREAM_TOKEN_SECRET=igual\n' > "$WORK/dup-igual.env"
 (cd "$WORK" && bash "$HERE/ensure-secrets.sh" dup-igual.env >/dev/null) && ok "repetida com o mesmo valor passa" ||

@@ -156,7 +156,7 @@ Regras de economia aplicadas pelo `packages/apisports-client`:
 1. **Nunca chamar duas vezes** a mesma `request_hash` dentro do TTL do endpoint (tabela abaixo).
 2. **Pré-validar** temporada/data/parâmetros contra as restrições do plano vigente.
 3. **Ler `coverage`** antes de pedir eventos, escalações, estatísticas, jogadores, injuries ou odds.
-4. **Tabelas da temporada atual são calculadas localmente** a partir dos resultados (o free não acessa `standings` da temporada corrente), com o motor determinístico de `@galaxie/rules` (`config/rules/<slug>.yaml` ou o genérico) e `source = 'computed'`: ao fim do `sync:daily` (temporadas com resultado novo) e a cada jogo encerrado no ao vivo. Espelho dos dados, não do formato: no grupo que já tem tabela calculada, a `standings` do fornecedor fica só no raw (conferência) e o writer não a grava no core; os grupos que não calculamos (promedios, tabela anual, fase nova) entram como reserva, inteiros. Sem `tables:` no regulamento, o grupo do fornecedor em que a maioria dos times já está num grupo nosso calculado e com nome (acumulada, promedios, a mesma liga com outro rótulo) é sombra da nossa tabela: fica no core como reserva e não define grupo (o promovido que só tem linha nos promedios entra na liga). O rótulo que o fornecedor dá ao nosso grupo sem nome ou deduzido continua sendo adotado. Com resultado encerrado e regulamento (o genérico também conta), a tabela é sempre a calculada, mesmo que a do provedor tenha sido gravada depois do último resultado: ela é substituída com os mesmos grupos (#880, decisão de 07/11). A do provedor só vale no mata-mata e na temporada sem jogo. O beisebol fica de fora: a calculada é uma tabela única e a do fornecedor vem por liga e divisão, então a do fornecedor mais nova que o último resultado continua prevalecendo. O recálculo não aplica punição de pontos (o motor aceita `adjustments`, mas nenhum regulamento os traz): a tabela do fornecedor trazia a punição aplicada. Antes de recalcular à mão, rodar a prévia: `standings:recompute --com-fornecedor --simular` (transação desfeita, nada gravado). Reprocessar à mão: `pnpm --filter @galaxie/ingestor standings:recompute`.
+4. **Tabelas da temporada atual são calculadas localmente** a partir dos resultados (o free não acessa `standings` da temporada corrente), com o motor determinístico de `@galaxie/rules` (`config/rules/<slug>.yaml` ou o genérico) e `source = 'computed'`: ao fim do `sync:daily` (temporadas com resultado novo) e a cada jogo encerrado no ao vivo. Espelho dos dados, não do formato: no grupo que já tem tabela calculada, a `standings` do fornecedor fica só no raw (conferência) e o writer não a grava no core; os grupos que não calculamos (promedios, tabela anual, fase nova) entram como reserva, inteiros. Sem `tables:` no regulamento, o grupo do fornecedor em que a maioria dos times já está num grupo nosso calculado e com nome (acumulada, promedios, a mesma liga com outro rótulo) é sombra da nossa tabela: fica no core como reserva e não define grupo (o promovido que só tem linha nos promedios entra na liga). O rótulo que o fornecedor dá ao nosso grupo sem nome ou deduzido continua sendo adotado. Com resultado encerrado e regulamento (o genérico também conta), a tabela é sempre a calculada, mesmo que a do provedor tenha sido gravada depois do último resultado: ela é substituída com os mesmos grupos (#880, decisão de 07/11). A do provedor só vale no mata-mata e na temporada sem jogo. O beisebol fica de fora: a calculada é uma tabela única e a do fornecedor vem por liga e divisão, então a do fornecedor mais nova que o último resultado continua prevalecendo. O recálculo não aplica punição de pontos (o motor aceita `adjustments`, mas nenhum regulamento os traz): a tabela do fornecedor trazia a punição aplicada. Trava: no grupo em que algum time tem mais jogos na linha do fornecedor do que na nossa (jogo faltando no core ou formato que o regulamento ainda não descreve), fica a do fornecedor e o relatório sai `provider_ahead`. Antes de recalcular à mão, rodar a prévia: `standings:recompute --com-fornecedor --simular` (transação desfeita, nada gravado). Reprocessar à mão: `pnpm --filter @galaxie/ingestor standings:recompute`.
    - **Com `tables:` no regulamento** (Argentina, Uruguai, Colômbia, Peru, Liga MX, Libertadores...): o regulamento decide as tabelas (docs/rules §1.4).
    - **Sem regulamento e com mais de uma fase** nas rodadas do fornecedor ("Regular Season - 3", "Second Stage - 2", "North - 5"): uma tabela por fase, só com os jogos dela, e grupo do fornecedor ligado à fase pelo nome ou por ser fechado nela (`services/ingestor/src/standings/phases-auto.ts`). A 1ª fase de nome genérico vira `first_phase` ("1ª fase"); duas ou mais fases com quase todos os times somam em `annual` ("Tabela anual"). Rodada sem número (mata-mata) não entra, e o grupo vazio que misturava as fases sai.
    - **Fornecedor com só parte dos grupos** (Série D 2026: 8 de 16): os times sem grupo ganham grupos deduzidos dos jogos entre eles (`unnamed:1`… — "Grupo sem nome 1").
@@ -561,8 +561,16 @@ execução do job (08:00 UTC ou um `sync:mirror` manual).
 | `MIRROR_GROUP_ORDER_SPORTS` | A mesma ordem para as outras 11 APIs | `temporada,por-jogo,por-time` | cada grupo uma vez |
 
 Colunas de tier: no futebol, os endpoints por temporada têm tier 1, 2 e 3+ (o 3+ é o grupo `tier3`; o padrão é o
-dobro do tier 2) e o `/teams/statistics` tem tier 1 e 2+. Nas outras APIs, a lista da temporada, a classificação e as
-lesões têm tier 1 e 2+. O resto tem um período só.
+dobro do tier 2); `/teams/statistics`, `/predictions` e `/odds` têm tier 1, 2 e 3+, com o **3+ nascendo desligado**
+(a coluna é o liga/desliga por tier; ligado, o job passa a cobrir o tier 3 desses endpoints, com o período do
+catálogo); elencos, técnicos e transferências têm tier 2 e 3+ (o tier 1 é do sync diário). Nas outras APIs, a lista da
+temporada, a classificação e as lesões têm tier 1, 2 e 3+, também com o 3+ nascendo desligado: ligar a temporada do
+tier 3+ põe as temporadas dele no espelho inteiro (jogos, times, odds, elencos e estatísticas junto, que têm um período
+só). O resto tem um período só. A coluna de uma competição é a última cujo rótulo não passa do tier dela (tier 5 cai
+no 3+; tier 1 num item de tier 2+ cai na primeira, mas o job não o busca). Um valor só em `MIRROR_PERIODS_<API>`
+(`/odds=2`) vale para as colunas que nascem ligadas e deixa desligada a que nasce desligada; para ligá-la, o valor vai
+por coluna (`/odds=1,1,2`). O teto de tier do job vem do painel: palpites, odds e estatísticas de time até o maior tier
+ligado neles; nas outras APIs, até o maior tier ligado na temporada, na classificação ou nas lesões (`maxTierOn`).
 
 **Uma fonte só.** O catálogo com os padrões, os grupos e a validação fica em
 [`packages/runtime-config/src/mirror.ts`](../packages/runtime-config/src/mirror.ts). O job lê dele (com as
@@ -585,3 +593,41 @@ guarda pelo menos 70% para a produção ([§9](#9-quota-governor)).
 
 Valor inválido no `.env` (o painel não grava valor inválido) para o `sync:mirror` antes da primeira chamada, com a
 flag no erro. Nas métricas e no painel, vale o padrão daquela flag.
+
+### 11.6 Módulos por esporte e tier
+
+A camada que a pessoa reconhece em cima dos endpoints e dos jobs: **escalação, ao vivo, elenco, desfalques, títulos,
+palpites, odds, estatísticas…**, cada um ligado ou desligado por esporte e por tier da competição (1, 2 e 3+) em
+**Ajustes → Dados → Módulos por esporte**. O catálogo fica em
+[`packages/runtime-config/src/modules.ts`](../packages/runtime-config/src/modules.ts); o padrão de cada módulo é o
+comportamento do código (as constantes `*_MAX_TIER` de lá, que os jobs também usam), então o estado inicial é o de
+sempre e a tela segue o que entrar na `main`.
+
+| Tipo | Módulos | Onde o estado fica | Quem obedece |
+|---|---|---|---|
+| Espelho | lesões por temporada, palpites, odds, estatísticas de time, confronto direto, artilharia e cartões, classificação, rodadas e times, estádios, referência, elencos tier 2+ (futebol); temporada, classificação, times, estatísticas por jogo, odds, lutadores, elenco, estatísticas de time, lesões (outras APIs) | a coluna do tier em `MIRROR_PERIODS_<API>` (`off` = desligado; religar volta ao período de antes ou ao padrão) | `sync:mirror` e o alerta de frescor, sem outra flag ([§11.5](#115-espelho-configurável-pelo-painel)) |
+| Job | lesões do dia, relista da temporada, escalação/eventos/estatísticas do jogo (detalhe dos encerrados), ao vivo, elencos tier 1 (rodízio), afastamentos, títulos, números dos jogadores, Onde Assistir (IA), resumo/cenário/vídeos (IA) | `MODULES_<API>` (ex.: `MODULES_FOOTBALL`): só o que difere do padrão, `modulo=on,off,off` por tier (um valor só vale para todos); vazio = padrão | `sync:daily` (filtra as competições de cada passo pelos tiers ligados: competição de tier desligado sai do detalhe, da relista e dos números dos jogadores; o rodízio pega os times dos tiers ligados em `people-rotation` e as pessoas dos elencos dos tiers ligados em `trophies` e `sidelined`), `live:run` e `live:reconcile` (tier desligado fica fora mesmo com prioridade alta ou clássico; relê a cada minuto), os agentes `recap-run`, `context-run`, `related-run` (`ai-content`) e `wtw-*` (`wtw`), que trocam o `tier ≤ 2` fixo pelos tiers ligados |
+| Fixo | agenda do dia (`fixtures?date=`, `/leagues`; `games/races/fights?date=` nas outras APIs) | — | sempre ligada: os outros módulos dependem dela |
+
+Padrões (os de antes do painel): relista, detalhe dos encerrados e números dos jogadores nos tiers 1 a 3 (#1160);
+ao vivo em todos os tiers (quem entra continua sendo a `live_priority`); rodízio de elencos, afastamentos e títulos
+só no tier 1; palpites, odds e estatísticas de time até o tier 2, com o switch do tier 3 nascendo desligado (ligar
+cria o custo: a estimativa do inventário aparece antes de confirmar); agentes de IA até o tier 2; nas outras APIs o
+espelho para no tier 2 (`SPORT_MIRROR_MAX_TIER`), com o switch do tier 3+ da temporada, da classificação e das lesões
+nascendo desligado. Todo módulo tem switch em todo tier que o dado alcança.
+
+**Tetos diários.** Abaixo dos módulos, a mesma página mostra os tetos do sync diário do futebol, um por passo, com
+"Ilimitado" sim ou não e, com não, um slider até a cota diária do plano da API (não adianta ir a 150 mil com 7.500
+disponíveis): `DAILY_MAX_DETAILS` (detalhe dos encerrados; free 35, pagos 2.000), `DAILY_ROTATION_CALLS` (rodízio de
+elencos, afastamentos e títulos, um teto só dividido pelo ritmo de cada endpoint; free 5, pagos 1.500),
+`DAILY_SEASON_LISTS` (relista da temporada; free 0, pagos 300) e `DAILY_PLAYER_STATS_PAGES` (números dos jogadores;
+free 0, pagos 1.000). Vazio = o padrão do plano (os valores de antes do painel); `unlimited` = sem teto; 0 é recusado
+(para parar, desligue o módulo). A opção da CLI (`--max-detalhes`, `--rodizio`, `--listas-temporada`,
+`--estatisticas-jogadores`) vale por cima. Cada teto tem um tooltip com o que ele segura, os tiers envolvidos e a
+demanda normal; a tela avisa quando afastamentos ou títulos ligados fora do tier 1 dividem o teto do rodízio com os
+elencos (no padrão, o tier 1 passa a atrasar). O catálogo fica em `DAILY_CAPS` (`runtime-config/modules.ts`), que o
+sync diário também usa como padrão. As opções de
+tier da CLI (`--tier`, `--tier-estatisticas`) valem por cima do módulo. Valor inválido no `.env` para o `sync:daily`
+antes da primeira chamada; o ao vivo e os agentes caem no padrão do módulo. Cada gravação fica em
+`ops.runtime_setting_log` com quem mudou e o valor de antes e de depois.
+

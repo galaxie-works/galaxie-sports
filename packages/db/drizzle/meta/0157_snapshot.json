@@ -1,5 +1,5 @@
 {
-  "id": "eac53e8e-3320-40ec-96c9-6b38fd0036c2",
+  "id": "b9ae8914-4bb6-4a26-824f-c5d93b7f5938",
   "prevId": "cd8115fc-8031-42a7-a427-ea660aefa561",
   "version": "7",
   "dialect": "postgresql",
@@ -24705,6 +24705,85 @@
         "shop_store_credentials_sealed": {
           "name": "shop_store_credentials_sealed",
           "value": "\"engage\".\"shop_store\".\"credentials_sealed\" is null or \"engage\".\"shop_store\".\"credentials_sealed\" like 'enc:%'"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "cosmos.wallet_quota": {
+      "name": "wallet_quota",
+      "schema": "cosmos",
+      "columns": {
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "scope": {
+          "name": "scope",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "percent": {
+          "name": "percent",
+          "type": "numeric(5, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_by": {
+          "name": "updated_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "wallet_quota_tenant_id_tenant_id_fk": {
+          "name": "wallet_quota_tenant_id_tenant_id_fk",
+          "tableFrom": "wallet_quota",
+          "tableTo": "tenant",
+          "schemaTo": "api",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "wallet_quota_tenant_id_scope_pk": {
+          "name": "wallet_quota_tenant_id_scope_pk",
+          "columns": [
+            "tenant_id",
+            "scope"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "wallet_quota_percent": {
+          "name": "wallet_quota_percent",
+          "value": "\"cosmos\".\"wallet_quota\".\"percent\" > 0 and \"cosmos\".\"wallet_quota\".\"percent\" <= 100"
         }
       },
       "isRLSEnabled": false
