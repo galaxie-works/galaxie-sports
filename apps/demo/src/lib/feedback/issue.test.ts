@@ -8,7 +8,7 @@ const base = {
   user: 'u_0123456789ab',
   tenant: 't_ba9876543210',
   role: 'client',
-  page: '/eventos/1',
+  page: '/events/1',
   locale: 'pt-BR',
   userAgent: 'Mozilla/5.0',
   viewport: '1440x900',
@@ -56,11 +56,14 @@ describe('corpo', () => {
     const body = feedbackIssueBody({
       ...base,
       attachments: [
-        { url: 'https://sports.exemplo/api/feedback/anexo/2026-11/x.png?e=1&s=a', name: 'print](x)[.png' },
+        {
+          url: 'https://sports.exemplo/api/feedback/attachment/2026-11/x.png?e=1&s=a',
+          name: 'print](x)[.png',
+        },
       ],
     });
     expect(body).toContain(
-      '![print(x).png](https://sports.exemplo/api/feedback/anexo/2026-11/x.png?e=1&s=a)',
+      '![print(x).png](https://sports.exemplo/api/feedback/attachment/2026-11/x.png?e=1&s=a)',
     );
   });
 });

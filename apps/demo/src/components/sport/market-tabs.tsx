@@ -7,7 +7,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { cn } from '@/lib/utils';
 
 export interface MarketTab {
-  /** Código do `?pais=` (GB para a Inglaterra). */
+  /** Código do `?country=` (GB para a Inglaterra). */
   code: string;
   /** Código da navegação, que tem a bandeira (GB-ENG). */
   flag: string;
@@ -33,7 +33,7 @@ export function MarketTabs({
             <TooltipTrigger
               render={
                 <Link
-                  href={`/eventos/${eventId}?pais=${m.code}`}
+                  href={`/events/${eventId}?country=${m.code}`}
                   scroll={false}
                   aria-label={m.name}
                   aria-current={selected ? 'page' : undefined}

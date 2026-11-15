@@ -45,7 +45,7 @@ export function LiveLineup({
   });
   const marks = useMemo(() => lineupMarks(q.data ?? timeline), [q.data, timeline]);
   const props = { lineups, colors, marks, t };
-  if (view === 'reservas') return <LineupBench {...props} />;
-  if (view === 'campo') return <LineupPitch {...props} />;
+  if (view === 'substitutes') return <LineupBench {...props} />;
+  if (view === 'pitch') return <LineupPitch {...props} />;
   return <LineupStarters {...props} />;
 }

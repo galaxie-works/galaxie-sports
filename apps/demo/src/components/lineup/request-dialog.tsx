@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
 
-import { requestLineupReview } from '@/app/[locale]/(app)/cliente/grade/actions';
+import { requestLineupReview } from '@/app/[locale]/(app)/client/lineup/actions';
 import { Alert, AlertDescription } from '@/components/reui/alert';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';

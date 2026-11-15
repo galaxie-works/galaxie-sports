@@ -27,7 +27,7 @@ import {
   savePolicyAction,
   setTenantCountriesAction,
   type PolicyActionResult,
-} from '@/app/[locale]/(app)/ajustes/ficha-por-pais/actions';
+} from '@/app/[locale]/(app)/settings/country-profile/actions';
 import { Badge } from '@/components/reui/badge';
 import { Frame, FrameDescription, FrameHeader, FramePanel, FrameTitle } from '@/components/reui/frame';
 import { Button } from '@/components/ui/button';

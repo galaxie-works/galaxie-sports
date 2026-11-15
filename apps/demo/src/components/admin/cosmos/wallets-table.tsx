@@ -235,7 +235,7 @@ export function WalletsTable({ rows, timeZone }: { rows: StaffWalletRow[]; timeZ
           table={table}
           recordCount={data.length}
           emptyMessage={T.filteredEmpty}
-          onRowClick={(r) => router.push(`/ajustes/carteiras/${r.tenantId}`)}
+          onRowClick={(r) => router.push(`/settings/wallets/${r.tenantId}`)}
           tableLayout={{ headerBackground: true }}
           i18n={{
             labels: {

@@ -1,5 +1,5 @@
 /**
- * Apresentação pública (/sobre e a raiz sem sessão): herói, números, a camada Galaxie (o que vai por cima
+ * Apresentação pública (/about e a raiz sem sessão): herói, números, a camada Galaxie (o que vai por cima
  * do dado), para quem é, a grade com exemplos reais da base (jogos, lances, tags e números copiados da API
  * em 23/10/2026), esportes, mercados e acesso. Só no servidor.
  *

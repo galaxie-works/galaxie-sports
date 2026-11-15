@@ -66,7 +66,7 @@ const f = (over: Partial<LiveFilters>): LiveFilters => ({ ...NO_LIVE_FILTERS, ..
 
 describe('filtros do Ao vivo na URL', () => {
   it('lê listas separadas por vírgula, sem repetição, e ignora status desconhecido', () => {
-    const p = new URLSearchParams('status=ao-vivo,xyz&esporte=football,,football,mma&pais=br&competicao=nbb');
+    const p = new URLSearchParams('status=live,xyz&sport=football,,football,mma&country=br&competition=nbb');
     expect(parseLiveFilters(p)).toEqual({
       status: ['live'],
       window: [],
@@ -82,8 +82,11 @@ describe('filtros do Ao vivo na URL', () => {
   });
 
   it('escreve os filtros e preserva os outros parâmetros', () => {
-    const search = liveFiltersSearch(f({ status: ['upcoming'], sport: ['football', 'mma'] }), '?x=1&pais=AR');
-    expect(new URLSearchParams(search).toString()).toBe('x=1&status=proximos&esporte=football%2Cmma');
+    const search = liveFiltersSearch(
+      f({ status: ['upcoming'], sport: ['football', 'mma'] }),
+      '?x=1&country=AR',
+    );
+    expect(new URLSearchParams(search).toString()).toBe('x=1&status=upcoming&sport=football%2Cmma');
     expect(liveFiltersSearch(NO_LIVE_FILTERS, '')).toBe('');
   });
 
@@ -277,22 +280,22 @@ describe('buscas de próximos combinadas', () => {
 describe('janela dos encerrados', () => {
   it('lê a janela da URL; padrão 12 h, valor fora da lista vira a padrão', () => {
     const p = (q: string) => parseLiveFilters(new URLSearchParams(q));
-    expect(p('status=encerrados&janela=48').window).toEqual(['48']);
-    expect(finishedWindowHours(p('status=encerrados&janela=48'))).toBe(48);
-    expect(finishedWindowHours(p('status=encerrados'))).toBe(12);
-    expect(p('status=encerrados&janela=13').window).toEqual([]);
+    expect(p('status=finished&window=48').window).toEqual(['48']);
+    expect(finishedWindowHours(p('status=finished&window=48'))).toBe(48);
+    expect(finishedWindowHours(p('status=finished'))).toBe(12);
+    expect(p('status=finished&window=13').window).toEqual([]);
     // a padrão não fica guardada: as duas URLs são o mesmo filtro
-    expect(p('status=encerrados&janela=12')).toEqual(p('status=encerrados'));
+    expect(p('status=finished&window=12')).toEqual(p('status=finished'));
   });
 
   it('a janela só vale com "Encerrados"', () => {
-    expect(parseLiveFilters(new URLSearchParams('status=ao-vivo&janela=24')).window).toEqual([]);
+    expect(parseLiveFilters(new URLSearchParams('status=live&window=24')).window).toEqual([]);
   });
 
   it('ida e volta pela URL', () => {
     const filters = f({ status: ['finished'], window: ['72'], sport: ['football'] });
     const search = liveFiltersSearch(filters);
-    expect(new URLSearchParams(search).toString()).toBe('status=encerrados&janela=72&esporte=football');
+    expect(new URLSearchParams(search).toString()).toBe('status=finished&window=72&sport=football');
     expect(parseLiveFilters(new URLSearchParams(search))).toEqual(filters);
   });
 

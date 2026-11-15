@@ -82,7 +82,7 @@ async function notifyOwners(input: {
         requester: r.requester?.trim() || getDictionary(input.locale).cosmos.creditRequests.someone,
         tenant: input.tenantName,
         reason: input.reason,
-        url: `${base}/cliente/cosmos`,
+        url: `${base}/client/cosmos`,
         locale: input.locale,
       }),
     ),

@@ -37,7 +37,7 @@ let db: Database;
 const settings: CosmosSettings = { dailyUsdCeiling: null, creditUsd: 0.0001 };
 const prompt = buildPrompt({
   question: 'Como confiro a assinatura do webhook?',
-  context: { route: '/cliente/webhooks', title: 'Webhooks', visible: 'Entregas de hoje: 12' },
+  context: { route: '/client/webhooks', title: 'Webhooks', visible: 'Entregas de hoje: 12' },
   docs: [],
   history: [],
   locale: 'pt-BR',
@@ -101,7 +101,7 @@ async function run(
     {
       tenantId: t,
       userId: extra.userId ?? 'u1',
-      route: '/cliente/webhooks',
+      route: '/client/webhooks',
       prompt: extra.prompt ?? prompt,
       credits: extra.credits ?? 5,
       settings: extra.settings ?? settings,
@@ -119,7 +119,7 @@ async function run(
 const ask = (t: string, stream: ReturnType<typeof fakeStream>, signal?: AbortSignal) =>
   askAssistant(
     db,
-    { tenantId: t, userId: 'u1', route: '/cliente/webhooks', prompt, credits: 5, settings },
+    { tenantId: t, userId: 'u1', route: '/client/webhooks', prompt, credits: 5, settings },
     { stream, settleBackoffMs: [1, 1], ...(signal ? { signal } : {}) },
   );
 
@@ -430,7 +430,7 @@ describe('equipe Galaxie no assistente', () => {
       {
         tenantId: t,
         userId: 'staff-1',
-        route: '/esportes/futebol',
+        route: '/sports/football',
         prompt,
         provider: 'anthropic',
         model: ASSISTANT_MODEL,
@@ -518,7 +518,7 @@ describe('anexos na pergunta (#1065)', () => {
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
   const withFile = buildPrompt({
     question: 'O que tem nesta imagem?',
-    context: { route: '/cliente/webhooks', title: 'Webhooks', visible: '' },
+    context: { route: '/client/webhooks', title: 'Webhooks', visible: '' },
     docs: [],
     history: [],
     locale: 'pt-BR',

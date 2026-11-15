@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useState, useTransition, type ReactNode } from 'react';
 import { toast } from 'sonner';
 
-import { changeMemberRole, inviteMember, removeMember } from '@/app/[locale]/(app)/cliente/usuarios/actions';
+import { changeMemberRole, inviteMember, removeMember } from '@/app/[locale]/(app)/client/users/actions';
 import { Badge } from '@/components/reui/badge';
 import { Frame, FrameDescription, FrameHeader, FramePanel, FrameTitle } from '@/components/reui/frame';
 import { SafetyNote, SettingsSection } from '@/components/settings';

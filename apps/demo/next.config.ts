@@ -57,8 +57,8 @@ const nextConfig: NextConfig = {
     ];
   },
   cacheComponents: true,
-  // por server action chegam a lista de canais do portal (/cliente/canais, até 2 MB de nomes) e o escudo
-  // enviado em Ajustes → Escudos (até 5 MB, o teto do acervo). O proxy (src/proxy.ts) roda em /api/cliente e copia o
+  // por server action chegam a lista de canais do portal (/client/channels, até 2 MB de nomes) e o escudo
+  // enviado em Ajustes → Escudos (até 5 MB, o teto do acervo). O proxy (src/proxy.ts) roda em /api/client e copia o
   // corpo com teto de 10 MB por padrão, cortando o resto em silêncio: o brandbook da Cosmos vai até 20 MB (#1004)
   experimental: { serverActions: { bodySizeLimit: '6mb' }, proxyClientMaxBodySize: '21mb' },
   partialPrefetching: true,
