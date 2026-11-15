@@ -38,7 +38,7 @@ export function DocsNavProvider({ guides, tags, children }: DocsNavData & { chil
 
 type Texts = ClientDictionary['docsUi'];
 
-const REFERENCE_HREF = '/docs/referencia';
+const REFERENCE_HREF = '/docs/reference';
 
 type Action =
   | { kind: 'link'; href: string }

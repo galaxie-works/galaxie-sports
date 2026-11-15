@@ -1,5 +1,5 @@
 /**
- * Itens do menu de Ajustes (épico #1066): Início fixo no topo e 9 grupos com 45 itens, 26 que já existem e 19
+ * Itens do menu de Ajustes (épico #1066): Início fixo no topo e 9 grupos com 46 itens, 27 que já existem e 19
  * planejados com o selo "Em breve" (decisão A5). Puro (sem React nem servidor): o proxy, os redirecionamentos, o mapa
  * ajuste → página e os testes leem daqui; os ícones e os textos ficam em `components/admin/settings-nav.tsx` e no
  * dicionário (`ops.nav`).
@@ -37,83 +37,89 @@ export interface SettingsItemDef {
 }
 
 /** Início: fora dos grupos e da ordem alfabética (A2). */
-export const SETTINGS_HOME = { id: 'home', href: '/ajustes' } as const;
+export const SETTINGS_HOME = { id: 'home', href: '/settings' } as const;
 
 export const SETTINGS_ITEMS = [
   // Canais
-  { id: 'tvApps', href: '/ajustes/apps-de-tv', group: 'canais', soon: { href: SETTINGS_EPIC_URL } },
-  { id: 'site', href: '/ajustes/site', group: 'canais', soon: { href: SETTINGS_EPIC_URL } },
-  { id: 'messaging', href: '/ajustes/whatsapp-telegram', group: 'canais', soon: { href: SETTINGS_EPIC_URL } },
+  { id: 'tvApps', href: '/settings/tv-apps', group: 'canais', soon: { href: SETTINGS_EPIC_URL } },
+  { id: 'site', href: '/settings/site', group: 'canais', soon: { href: SETTINGS_EPIC_URL } },
+  {
+    id: 'messaging',
+    href: '/settings/whatsapp-telegram',
+    group: 'canais',
+    soon: { href: SETTINGS_EPIC_URL },
+  },
   // Clientes
   // Carteiras da Cosmos (#1060): a primeira parte de Assinaturas e carteiras; a rota fica a do #1060
-  { id: 'subscriptions', href: '/ajustes/carteiras', group: 'clientes' },
-  { id: 'signups', href: '/ajustes/cadastros', group: 'clientes', soon: { href: SETTINGS_EPIC_URL } },
-  { id: 'domains', href: '/ajustes/dominios', group: 'clientes', soon: { href: SETTINGS_EPIC_URL } },
+  { id: 'subscriptions', href: '/settings/wallets', group: 'clientes' },
+  { id: 'signups', href: '/settings/signups', group: 'clientes', soon: { href: SETTINGS_EPIC_URL } },
+  { id: 'domains', href: '/settings/domains', group: 'clientes', soon: { href: SETTINGS_EPIC_URL } },
   {
     id: 'organizations',
-    href: '/ajustes/organizacoes',
+    href: '/settings/organizations',
     group: 'clientes',
     soon: { href: SETTINGS_EPIC_URL },
   },
-  { id: 'users', href: '/ajustes/usuarios', group: 'clientes' },
-  { id: 'webhooks', href: '/ajustes/webhooks', group: 'clientes' },
+  { id: 'users', href: '/settings/users', group: 'clientes' },
+  { id: 'webhooks', href: '/settings/webhooks', group: 'clientes' },
   // Comercial
-  { id: 'catalog', href: '/ajustes/catalogo', group: 'comercial', soon: { href: SETTINGS_EPIC_URL } },
-  { id: 'metering', href: '/ajustes/medicao', group: 'comercial', soon: { href: SETTINGS_EPIC_URL } },
-  { id: 'plans', href: '/ajustes/planos', group: 'comercial', soon: { href: SETTINGS_EPIC_URL } },
-  { id: 'advertising', href: '/ajustes/publicidade', group: 'comercial', soon: { href: SETTINGS_EPIC_URL } },
+  { id: 'catalog', href: '/settings/catalog', group: 'comercial', soon: { href: SETTINGS_EPIC_URL } },
+  { id: 'metering', href: '/settings/metering', group: 'comercial', soon: { href: SETTINGS_EPIC_URL } },
+  { id: 'plans', href: '/settings/plans', group: 'comercial', soon: { href: SETTINGS_EPIC_URL } },
+  { id: 'advertising', href: '/settings/advertising', group: 'comercial', soon: { href: SETTINGS_EPIC_URL } },
   // Conformidade
   // Ficha por país (#954): regras de idade, entidade, moeda e prêmio por país, com versão e histórico
-  { id: 'countryProfile', href: '/ajustes/ficha-por-pais', group: 'conformidade' },
+  { id: 'countryProfile', href: '/settings/country-profile', group: 'conformidade' },
   {
     id: 'legalHold',
-    href: '/ajustes/guarda-legal',
+    href: '/settings/legal-hold',
     group: 'conformidade',
     soon: { href: SETTINGS_EPIC_URL },
   },
-  { id: 'moderation', href: '/ajustes/moderacao', group: 'conformidade' },
+  { id: 'moderation', href: '/settings/moderation', group: 'conformidade' },
   {
     id: 'secondAppeal',
-    href: '/ajustes/segunda-apelacao',
+    href: '/settings/second-appeal',
     group: 'conformidade',
     soon: { href: SETTINGS_EPIC_URL },
   },
-  { id: 'terms', href: '/ajustes/termos', group: 'conformidade', soon: { href: issue(1022) } },
+  { id: 'terms', href: '/settings/terms', group: 'conformidade', soon: { href: issue(1022) } },
   // Dados
-  { id: 'crests', href: '/ajustes/escudos', group: 'dados' },
-  { id: 'mirror', href: '/ajustes/espelho', group: 'dados' },
+  { id: 'crests', href: '/settings/crests', group: 'dados' },
+  { id: 'mirror', href: '/settings/mirror', group: 'dados' },
   // Módulos por esporte e tier (docs/03 §11.6): o liga/desliga de cada dado por esporte e tier, com o custo de cota
-  { id: 'modules', href: '/ajustes/modulos', group: 'dados' },
-  { id: 'provider', href: '/ajustes/fornecedor', group: 'dados' },
-  { id: 'quality', href: '/ajustes/qualidade', group: 'dados' },
-  { id: 'review', href: '/ajustes/revisao', group: 'dados' },
+  { id: 'modules', href: '/settings/modules', group: 'dados' },
+  { id: 'provider', href: '/settings/provider', group: 'dados' },
+  { id: 'quality', href: '/settings/quality', group: 'dados' },
+  { id: 'review', href: '/settings/review', group: 'dados' },
   // Engajamento
   // Identidade do torcedor (#937): a validade do token gft_; o segredo fica em Credenciais
-  { id: 'fanIdentity', href: '/ajustes/torcedor', group: 'engajamento' },
-  { id: 'liveChat', href: '/ajustes/chat-ao-vivo', group: 'engajamento', soon: { href: issue(915) } },
-  { id: 'communities', href: '/ajustes/comunidades', group: 'engajamento', soon: { href: issue(936) } },
-  { id: 'gamification', href: '/ajustes/gamificacao', group: 'engajamento', soon: { href: issue(904) } },
+  { id: 'fanIdentity', href: '/settings/fan-identity', group: 'engajamento' },
+  { id: 'liveChat', href: '/settings/live-chat', group: 'engajamento', soon: { href: issue(915) } },
+  { id: 'communities', href: '/settings/communities', group: 'engajamento', soon: { href: issue(936) } },
+  { id: 'gamification', href: '/settings/gamification', group: 'engajamento', soon: { href: issue(904) } },
   // Shopping (#914): lojas da Galaxie e a curadoria dos produtos oficiais por entidade
-  { id: 'shopping', href: '/ajustes/shopping', group: 'engajamento' },
+  { id: 'shopping', href: '/settings/shopping', group: 'engajamento' },
   // Inteligência
-  { id: 'cosmos', href: '/ajustes/cosmos', group: 'inteligencia' },
-  { id: 'ai', href: '/ajustes/ia', group: 'inteligencia' },
+  { id: 'cosmos', href: '/settings/cosmos', group: 'inteligencia' },
+  { id: 'ai', href: '/settings/ai', group: 'inteligencia' },
   // Plataforma
-  { id: 'schedule', href: '/ajustes/agenda', group: 'plataforma' },
-  { id: 'credentials', href: '/ajustes/credenciais', group: 'plataforma' },
-  { id: 'emails', href: '/ajustes/emails', group: 'plataforma', soon: { href: SETTINGS_EPIC_URL } },
-  { id: 'history', href: '/ajustes/historico', group: 'plataforma' },
-  { id: 'languages', href: '/ajustes/idiomas', group: 'plataforma', soon: { href: issue(1024) } },
-  { id: 'status', href: '/ajustes/status', group: 'plataforma' },
-  { id: 'suggestions', href: '/ajustes/sugestoes', group: 'plataforma' },
-  { id: 'tasks', href: '/ajustes/tarefas', group: 'plataforma' },
+  { id: 'schedule', href: '/settings/schedule', group: 'plataforma' },
+  { id: 'credentials', href: '/settings/credentials', group: 'plataforma' },
+  { id: 'emails', href: '/settings/emails', group: 'plataforma', soon: { href: SETTINGS_EPIC_URL } },
+  { id: 'history', href: '/settings/history', group: 'plataforma' },
+  { id: 'languages', href: '/settings/languages', group: 'plataforma', soon: { href: issue(1024) } },
+  { id: 'status', href: '/settings/status', group: 'plataforma' },
+  { id: 'suggestions', href: '/settings/suggestions', group: 'plataforma' },
+  { id: 'tasks', href: '/settings/tasks', group: 'plataforma' },
   // Produtos
-  { id: 'live', href: '/ajustes/ao-vivo', group: 'produtos' },
-  { id: 'lineup', href: '/ajustes/grades', group: 'produtos' },
-  { id: 'wtw', href: '/ajustes/onde-assistir', group: 'produtos' },
-  { id: 'postgame', href: '/ajustes/pos-jogo', group: 'produtos' },
-  { id: 'related', href: '/ajustes/videos', group: 'produtos' },
-  { id: 'widgets', href: '/ajustes/widgets', group: 'produtos', soon: { href: SETTINGS_EPIC_URL } },
+  { id: 'live', href: '/settings/live', group: 'produtos' },
+  { id: 'lineup', href: '/settings/lineups', group: 'produtos' },
+  { id: 'wtw', href: '/settings/where-to-watch', group: 'produtos' },
+  { id: 'postgame', href: '/settings/post-game', group: 'produtos' },
+  { id: 'narration', href: '/settings/play-by-play', group: 'produtos' },
+  { id: 'related', href: '/settings/videos', group: 'produtos' },
+  { id: 'widgets', href: '/settings/widgets', group: 'produtos', soon: { href: SETTINGS_EPIC_URL } },
 ] as const satisfies readonly SettingsItemDef[];
 
 export type SettingsItem = (typeof SETTINGS_ITEMS)[number];
@@ -126,8 +132,8 @@ export type SoonItemId = SoonItem['id'];
 
 export const SOON_ITEMS: readonly SoonItem[] = SETTINGS_ITEMS.filter((i): i is SoonItem => 'soon' in i);
 
-/** Último segmento da rota do item planejado (`/ajustes/apps-de-tv` → `apps-de-tv`). */
-export const soonSlug = (item: { href: string }) => item.href.slice('/ajustes/'.length);
+/** Último segmento da rota do item planejado (`/settings/tv-apps` → `tv-apps`). */
+export const soonSlug = (item: { href: string }) => item.href.slice('/settings/'.length);
 
 export function soonItemBySlug(slug: string): SoonItem | undefined {
   return SOON_ITEMS.find((i) => soonSlug(i) === slug);
@@ -141,12 +147,12 @@ export const settingsHref = (id: SettingsNavId): string =>
   id === SETTINGS_HOME.id ? SETTINGS_HOME.href : settingsItem(id).href;
 
 /**
- * Item de Ajustes de um caminho (`/ajustes/ao-vivo`, `/ajustes/revisao/123`, também com o prefixo de idioma que o
+ * Item de Ajustes de um caminho (`/settings/live`, `/settings/review/123`, também com o prefixo de idioma que o
  * proxy acrescenta ao reescrever). Fora de Ajustes: null.
  */
 export function settingsNavIdOf(pathname: string | null): SettingsNavId | null {
   if (!pathname) return null;
-  const path = pathname.replace(/^\/[a-z]{2}(-[A-Z]{2})?(?=\/ajustes(\/|$))/, '').replace(/\/+$/, '');
+  const path = pathname.replace(/^\/[a-z]{2}(-[A-Z]{2})?(?=\/settings(\/|$))/, '').replace(/\/+$/, '');
   if (path === SETTINGS_HOME.href) return SETTINGS_HOME.id;
   const item = SETTINGS_ITEMS.find((i) => path === i.href || path.startsWith(`${i.href}/`));
   return item?.id ?? null;

@@ -248,7 +248,7 @@ export function EventCardView({
   const venue = event.venue ? [event.venue.name, event.venue.city].filter(Boolean).join(', ') : null;
 
   return (
-    <Link href={`/eventos/${event.id}`} className="group/event focus-visible:outline-none">
+    <Link href={`/events/${event.id}`} className="group/event focus-visible:outline-none">
       <Card
         size="sm"
         className="group-hover/event:bg-accent group-focus-visible/event:ring-ring h-full gap-3 transition-colors group-focus-visible/event:ring-2"

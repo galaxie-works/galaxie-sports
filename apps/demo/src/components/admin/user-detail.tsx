@@ -28,7 +28,7 @@ import {
   updateAccess,
   updateProfile,
   type ActionResult,
-} from '@/app/[locale]/(app)/ajustes/actions';
+} from '@/app/[locale]/(app)/settings/actions';
 import { Badge } from '@/components/reui/badge';
 import {
   Frame,
@@ -558,7 +558,7 @@ function DangerTab({ user, isSelf }: { user: DemoUser; isSelf: boolean }) {
                     run(
                       () => removeUser(user.id),
                       d.removed,
-                      () => router.replace('/ajustes/usuarios'),
+                      () => router.replace('/settings/users'),
                     )
                   }
                 >
@@ -607,7 +607,7 @@ export function UserDetail({
   return (
     <div className="flex flex-col gap-6">
       <Link
-        href="/ajustes/usuarios"
+        href="/settings/users"
         className="text-muted-foreground hover:text-foreground flex w-fit items-center gap-1.5 text-sm transition-colors"
       >
         <ArrowLeft className="size-4" />

@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
 
-import { resolveLineupRequest } from '@/app/[locale]/(app)/ajustes/grades/actions';
+import { resolveLineupRequest } from '@/app/[locale]/(app)/settings/lineups/actions';
 import { Alert, AlertDescription } from '@/components/reui/alert';
 import { Badge } from '@/components/reui/badge';
 import { Button } from '@/components/ui/button';
@@ -34,7 +34,7 @@ const isAdding = (r: QueueRequest) =>
   r.platform !== null &&
   r.proposed?.removed !== true;
 
-const ALL = 'todos';
+const ALL = 'all';
 
 function StatusChips({
   active,
@@ -53,7 +53,9 @@ function StatusChips({
       key={status ?? ALL}
       type="button"
       aria-pressed={active === status}
-      onClick={() => startTransition(() => router.replace(`${pathname}?aba=pedidos&status=${status ?? ALL}`))}
+      onClick={() =>
+        startTransition(() => router.replace(`${pathname}?tab=requests&status=${status ?? ALL}`))
+      }
       className={`flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-sm transition-colors ${
         active === status
           ? 'border-primary bg-primary/5 text-foreground'

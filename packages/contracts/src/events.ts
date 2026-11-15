@@ -983,6 +983,15 @@ export const TimelineIncident = z
           'Gol anulado: `sequence` do lance de VAR que o anulou (`Goal cancelled`, `Goal Disallowed - ...`). ' +
           'Null nos demais lances.',
       }),
+    narration: z
+      .string()
+      .nullable()
+      .meta({
+        description:
+          'Frase pronta do lance no idioma pedido (`locale`/`Accept-Language`: pt, es ou en), montada só com o ' +
+          'que o lance traz (tipo, autor, assistência, time, placar, VAR). Sem IA. Null quando não há o que dizer.',
+        example: 'Palmeiras marca! Estêvão abre o placar. Palmeiras 1 x 0 Fluminense.',
+      }),
     player_in: TimelinePerson.nullable().meta({ description: 'Substituição: quem entra.' }),
     player_out: TimelinePerson.nullable().meta({ description: 'Substituição: quem sai.' }),
   })

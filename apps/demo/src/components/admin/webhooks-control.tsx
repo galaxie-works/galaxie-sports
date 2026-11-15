@@ -10,7 +10,7 @@ import {
   setDeliveryAction,
   setRejectPlaintextAction,
   type WebhookControlResult,
-} from '@/app/[locale]/(app)/ajustes/webhooks/actions';
+} from '@/app/[locale]/(app)/settings/webhooks/actions';
 import { formatDuration } from '@/components/ops/format';
 import { Alert, AlertDescription } from '@/components/reui/alert';
 import { Frame, FrameDescription, FrameHeader, FramePanel, FrameTitle } from '@/components/reui/frame';

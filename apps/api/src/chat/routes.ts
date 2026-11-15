@@ -34,7 +34,6 @@ import {
 import type { TenantContext } from '../auth/authenticator.js';
 import { ProblemError, problems } from '../errors.js';
 import { parseInput } from '../util.js';
-import { fanCan } from '../engage/fan-rules.js';
 import { publicAvatars } from '../engage/fan-avatar.js';
 import { readFan } from '../engage/fans.js';
 import { clocksFor } from '../engage/moderation-routes.js';
@@ -230,173 +229,179 @@ export async function chatRoutes(app: FastifyInstance, deps: ChatRoutesDeps): Pr
     return roomBody(tenant.tenantId, fixtureId, after);
   });
 
-  app.post('/v1/chat/rooms/:fixtureId/messages', { config: { fan: true } }, async (request, reply) => {
-    const fan = request.fan!;
-    const { fixtureId } = parseInput(ChatRoomParams, request.params);
-    const body = parseInput(ChatMessageBody, request.body);
-    const database = db();
-    if (!(await tenantHasLiveChat(database, fan.tenantId))) throw problems.moduleNotInPlan('live_chat');
-    if (!canReadRoom(fan.ageBand))
-      throw problems.fanAgeRestricted('Perfis com menos de 13 anos não usam os recursos sociais.');
-    if (!fanCan(fan.ageBand, 'write'))
-      throw problems.fanAgeRestricted(sendRefusalNotice('age_band', fan.locale));
+  app.post(
+    '/v1/chat/rooms/:fixtureId/messages',
+    { config: { fan: true, age: 'write' } },
+    async (request, reply) => {
+      const fan = request.fan!;
+      const { fixtureId } = parseInput(ChatRoomParams, request.params);
+      const body = parseInput(ChatMessageBody, request.body);
+      const database = db();
+      if (!(await tenantHasLiveChat(database, fan.tenantId))) throw problems.moduleNotInPlan('live_chat');
+      if (!canReadRoom(fan.ageBand))
+        throw problems.fanAgeRestricted('Perfis com menos de 13 anos não usam os recursos sociais.');
+      // o portão (config.age 'write') já conferiu a ficha do país; a faixa larga fica como segunda trava
+      if (fan.ageBand !== '18plus')
+        throw problems.fanAgeRestricted(sendRefusalNotice('age_band', fan.locale));
 
-    const loaded = await loadRoom(fan.tenantId, fixtureId);
-    const room = loaded.room!;
-    const { eff, window } = loaded;
-    const refusal = sendRefusal(window.state, fan.ageBand);
-    if (refusal)
-      throw new ProblemError(
-        409,
-        'CONFLICT',
-        'Sala fechada para envio',
-        sendRefusalNotice(refusal, fan.locale),
+      const loaded = await loadRoom(fan.tenantId, fixtureId);
+      const room = loaded.room!;
+      const { eff, window } = loaded;
+      const refusal = sendRefusal(window.state, fan.ageBand);
+      if (refusal)
+        throw new ProblemError(
+          409,
+          'CONFLICT',
+          'Sala fechada para envio',
+          sendRefusalNotice(refusal, fan.locale),
+          {
+            errors: [{ path: 'refusal', message: refusal }],
+          },
+        );
+
+      // pico da faixa (D6): quem já estava escrevendo continua; quem chegou depois lê
+      const peakFailOpen = (err: unknown) => {
+        request.log.warn({ err }, 'chat: pico indisponível');
+        return false;
+      };
+      if (
+        (await peak.inPeak(fan.tenantId).catch(peakFailOpen)) &&
+        !(await peak.hasSeat(fan.tenantId, fan.profileId).catch(() => true))
+      )
+        throw new ProblemError(
+          409,
+          'CONFLICT',
+          'Sala fechada para envio',
+          sendRefusalNotice('room_read_only_peak', fan.locale),
+          { errors: [{ path: 'refusal', message: 'room_read_only_peak' }] },
+        );
+
+      const at = now();
+      const [profile, sanctions, last, lists] = await Promise.all([
+        readFan(database, fan.tenantId, fan.profileId),
+        activeSanctions(database, {
+          tenantId: fan.tenantId,
+          profileId: fan.profileId,
+          accountId: fan.accountId,
+          now: at,
+        }),
+        eff.slowModeSeconds > 0
+          ? lastSentAt(database, fan.tenantId, room.id, fan.profileId)
+          : Promise.resolve(null),
+        moderation!.forTenant(fan.tenantId),
+      ]);
+      if (!profile) throw problems.invalidFanToken('Perfil excluído.');
+      // a faixa do banco vale sobre a do token (mudou depois de o token sair)
+      if (profile.ageBand !== '18plus')
+        throw problems.fanAgeRestricted(sendRefusalNotice('age_band', fan.locale));
+
+      // Suspensão e Banimento valem em todas as salas do cliente; Silenciar, só onde aconteceu. O Silêncio oculto não
+      // recusa: a mensagem fica só para o autor (ele não é avisado, é a exceção ao aviso)
+      const here = (s: { scope: string; scopeId: string | null }) =>
+        s.scope === 'tenant' || (s.scope === 'place' && s.scopeId === room.id);
+      const blocking = sanctions.find(
+        (s) =>
+          here(s) && (s.level === 'suspension' || s.level === 'ban' || (s.level === 'mute' && !s.hidden)),
+      );
+      if (blocking)
+        throw new ProblemError(
+          409,
+          'CONFLICT',
+          'Envio bloqueado por punição',
+          'Você não pode enviar mensagens agora. Veja suas punições no seu Perfil.',
+          {
+            errors: [{ path: 'refusal', message: 'sanctioned' }],
+          },
+        );
+      const shadowMuted = sanctions.some((s) => here(s) && s.level === 'mute' && s.hidden);
+
+      const text = body.body.trim();
+      if ([...text].length > eff.maxChars)
+        throw problems.invalidParams(
+          [{ path: 'body', message: `até ${eff.maxChars} caracteres` }],
+          'Mensagem longa demais.',
+        );
+      const screened = screen(
+        text,
         {
-          errors: [{ path: 'refusal', message: refusal }],
+          kind: 'chat_message',
+          locale: fan.locale,
+          rate: { intervalS: eff.slowModeSeconds, lastSentAt: last?.getTime() ?? null, now: at.getTime() },
         },
+        lists,
       );
+      if (screened.reasons.includes('slow_mode'))
+        throw new ProblemError(
+          429,
+          'RATE_LIMITED',
+          'Modo lento',
+          screenNotice(screened, fan.locale) ?? undefined,
+          {
+            headers: { 'retry-after': String(screened.retryAfterS ?? eff.slowModeSeconds) },
+          },
+        );
+      // rigor `strict`: o palavrão leve também volta para o autor, com aviso
+      const strictBlock = eff.strictness === 'strict' && screened.reasons.includes('profanity');
+      if (screened.action === 'block' || strictBlock)
+        throw problems.invalidParams(
+          [{ path: 'body', message: screenNotice(screened, fan.locale) ?? 'Mensagem não permitida.' }],
+          'Mensagem recusada pelas regras do chat.',
+        );
 
-    // pico da faixa (D6): quem já estava escrevendo continua; quem chegou depois lê
-    const peakFailOpen = (err: unknown) => {
-      request.log.warn({ err }, 'chat: pico indisponível');
-      return false;
-    };
-    if (
-      (await peak.inPeak(fan.tenantId).catch(peakFailOpen)) &&
-      !(await peak.hasSeat(fan.tenantId, fan.profileId).catch(() => true))
-    )
-      throw new ProblemError(
-        409,
-        'CONFLICT',
-        'Sala fechada para envio',
-        sendRefusalNotice('room_read_only_peak', fan.locale),
-        { errors: [{ path: 'refusal', message: 'room_read_only_peak' }] },
-      );
-
-    const at = now();
-    const [profile, sanctions, last, lists] = await Promise.all([
-      readFan(database, fan.tenantId, fan.profileId),
-      activeSanctions(database, {
-        tenantId: fan.tenantId,
-        profileId: fan.profileId,
-        accountId: fan.accountId,
-        now: at,
-      }),
-      eff.slowModeSeconds > 0
-        ? lastSentAt(database, fan.tenantId, room.id, fan.profileId)
-        : Promise.resolve(null),
-      moderation!.forTenant(fan.tenantId),
-    ]);
-    if (!profile) throw problems.invalidFanToken('Perfil excluído.');
-    // a faixa do banco vale sobre a do token (mudou depois de o token sair)
-    if (!fanCan(profile.ageBand, 'write'))
-      throw problems.fanAgeRestricted(sendRefusalNotice('age_band', fan.locale));
-
-    // Suspensão e Banimento valem em todas as salas do cliente; Silenciar, só onde aconteceu. O Silêncio oculto não
-    // recusa: a mensagem fica só para o autor (ele não é avisado, é a exceção ao aviso)
-    const here = (s: { scope: string; scopeId: string | null }) =>
-      s.scope === 'tenant' || (s.scope === 'place' && s.scopeId === room.id);
-    const blocking = sanctions.find(
-      (s) => here(s) && (s.level === 'suspension' || s.level === 'ban' || (s.level === 'mute' && !s.hidden)),
-    );
-    if (blocking)
-      throw new ProblemError(
-        409,
-        'CONFLICT',
-        'Envio bloqueado por punição',
-        'Você não pode enviar mensagens agora. Veja suas punições no seu Perfil.',
+      const visibility = screened.action === 'shadow' || shadowMuted ? 'shadow' : 'public';
+      const flags = [
+        ...screened.reasons,
+        ...(screened.suspect ? ['suspect'] : []),
+        ...(shadowMuted ? ['muted'] : []),
+      ];
+      const purgeAt = await purgeAtFor(fan.tenantId, profile.country, at);
+      const saved = await insertMessage(
+        database,
         {
-          errors: [{ path: 'refusal', message: 'sanctioned' }],
+          tenantId: fan.tenantId,
+          roomId: room.id,
+          profileId: fan.profileId,
+          body: text,
+          visibility,
+          flags,
+          purgeAt,
         },
+        { seconds: eff.slowModeSeconds, now: at },
       );
-    const shadowMuted = sanctions.some((s) => here(s) && s.level === 'mute' && s.hidden);
-
-    const text = body.body.trim();
-    if ([...text].length > eff.maxChars)
-      throw problems.invalidParams(
-        [{ path: 'body', message: `até ${eff.maxChars} caracteres` }],
-        'Mensagem longa demais.',
-      );
-    const screened = screen(
-      text,
-      {
-        kind: 'chat_message',
-        locale: fan.locale,
-        rate: { intervalS: eff.slowModeSeconds, lastSentAt: last?.getTime() ?? null, now: at.getTime() },
-      },
-      lists,
-    );
-    if (screened.reasons.includes('slow_mode'))
-      throw new ProblemError(
-        429,
-        'RATE_LIMITED',
-        'Modo lento',
-        screenNotice(screened, fan.locale) ?? undefined,
-        {
-          headers: { 'retry-after': String(screened.retryAfterS ?? eff.slowModeSeconds) },
-        },
-      );
-    // rigor `strict`: o palavrão leve também volta para o autor, com aviso
-    const strictBlock = eff.strictness === 'strict' && screened.reasons.includes('profanity');
-    if (screened.action === 'block' || strictBlock)
-      throw problems.invalidParams(
-        [{ path: 'body', message: screenNotice(screened, fan.locale) ?? 'Mensagem não permitida.' }],
-        'Mensagem recusada pelas regras do chat.',
-      );
-
-    const visibility = screened.action === 'shadow' || shadowMuted ? 'shadow' : 'public';
-    const flags = [
-      ...screened.reasons,
-      ...(screened.suspect ? ['suspect'] : []),
-      ...(shadowMuted ? ['muted'] : []),
-    ];
-    const purgeAt = await purgeAtFor(fan.tenantId, profile.country, at);
-    const saved = await insertMessage(
-      database,
-      {
-        tenantId: fan.tenantId,
-        roomId: room.id,
-        profileId: fan.profileId,
+      if (!saved.ok)
+        throw new ProblemError(
+          429,
+          'RATE_LIMITED',
+          'Modo lento',
+          `Espere ${saved.retryAfterS} s para mandar outra mensagem.`,
+          { headers: { 'retry-after': String(saved.retryAfterS) } },
+        );
+      const view = messageView({
+        id: saved.id,
         body: text,
-        visibility,
-        flags,
-        purgeAt,
-      },
-      { seconds: eff.slowModeSeconds, now: at },
-    );
-    if (!saved.ok)
-      throw new ProblemError(
-        429,
-        'RATE_LIMITED',
-        'Modo lento',
-        `Espere ${saved.retryAfterS} s para mandar outra mensagem.`,
-        { headers: { 'retry-after': String(saved.retryAfterS) } },
-      );
-    const view = messageView({
-      id: saved.id,
-      body: text,
-      profileId: fan.profileId,
-      nickname: profile.nickname,
-      // a mensagem vai para a sala: só a foto liberada pela moderação (#1025)
-      avatarUrl: (await publicAvatars(database, fan.tenantId, [fan.profileId])).get(fan.profileId) ?? null,
-      avatarVisibility: profile.visibility.avatar,
-      createdAt: saved.createdAt,
-    });
-    // só a mensagem pública entra no lote; a retida fica com o autor (ele a vê pela resposta)
-    // Valkey fora: a mensagem já está gravada e aparece pelo GET; o envio não volta com erro (o torcedor não repete)
-    if (visibility === 'public')
-      await hub.enqueue(ChatHub.roomKey(fan.tenantId, fixtureId), view).catch((err: unknown) => {
-        request.log.warn({ err }, 'chat: fila do lote indisponível');
+        profileId: fan.profileId,
+        nickname: profile.nickname,
+        // a mensagem vai para a sala: só a foto liberada pela moderação (#1025)
+        avatarUrl: (await publicAvatars(database, fan.tenantId, [fan.profileId])).get(fan.profileId) ?? null,
+        avatarVisibility: profile.visibility.avatar,
+        createdAt: saved.createdAt,
       });
-    await peak.seat(fan.tenantId, fan.profileId).catch((err: unknown) => {
-      request.log.warn({ err }, 'chat: lugar do torcedor indisponível');
-    });
-    reply.header('cache-control', 'no-store');
-    const res: ChatMessageResponse = {
-      data: { ...view, status: visibility === 'public' ? 'published' : 'held' },
-    };
-    return reply.code(201).send(res);
-  });
+      // só a mensagem pública entra no lote; a retida fica com o autor (ele a vê pela resposta)
+      // Valkey fora: a mensagem já está gravada e aparece pelo GET; o envio não volta com erro (o torcedor não repete)
+      if (visibility === 'public')
+        await hub.enqueue(ChatHub.roomKey(fan.tenantId, fixtureId), view).catch((err: unknown) => {
+          request.log.warn({ err }, 'chat: fila do lote indisponível');
+        });
+      await peak.seat(fan.tenantId, fan.profileId).catch((err: unknown) => {
+        request.log.warn({ err }, 'chat: lugar do torcedor indisponível');
+      });
+      reply.header('cache-control', 'no-store');
+      const res: ChatMessageResponse = {
+        data: { ...view, status: visibility === 'public' ? 'published' : 'held' },
+      };
+      return reply.code(201).send(res);
+    },
+  );
 
   // reconexão em massa (deploy, pico): a lista do jogo e os tipos do cliente vêm de um cache curto
   const shortCache = <T>(ttlMs: number, load: (k: string) => Promise<T>) => {

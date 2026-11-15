@@ -227,7 +227,7 @@ function ApiCodeButtonInner({ request, labeled = false }: { request: ApiRequest;
           </section>
 
           <Link
-            href={`/docs/referencia#${operationAnchor(request.method, request.route)}`}
+            href={`/docs/reference#${operationAnchor(request.method, request.route)}`}
             onClick={() => setOpen(false)}
             className="text-primary flex items-center gap-1.5 text-xs hover:underline"
           >

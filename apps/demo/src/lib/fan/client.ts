@@ -6,7 +6,7 @@
  */
 export async function getDemoFanToken(fetchImpl: typeof fetch = fetch): Promise<string | null> {
   try {
-    const res = await fetchImpl('/api/torcedor/token', { method: 'POST', cache: 'no-store' });
+    const res = await fetchImpl('/api/fan/token', { method: 'POST', cache: 'no-store' });
     if (!res.ok) return null;
     const body = (await res.json()) as { token?: unknown };
     return typeof body.token === 'string' && body.token.startsWith('gft_') ? body.token : null;

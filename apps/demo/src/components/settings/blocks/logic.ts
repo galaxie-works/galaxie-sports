@@ -59,9 +59,9 @@ export const canReset = (s: Pick<OpsSetting, 'source' | 'overrideInvalid'>): boo
 
 // ── Links (rotas da navegação nova de Ajustes, #1069) ──────────────────────────────────────────
 
-/** Histórico das mudanças, filtrado na chave (`?chave=`). */
+/** Histórico das mudanças, filtrado na chave (`?key=`). */
 export const historyHref = (key: string): string =>
-  `${settingsHref('history')}?chave=${encodeURIComponent(key)}`;
+  `${settingsHref('history')}?key=${encodeURIComponent(key)}`;
 
 /** Todas as chaves são vistas em Credenciais (A4). */
 export const CREDENTIALS_HREF = settingsHref('credentials');

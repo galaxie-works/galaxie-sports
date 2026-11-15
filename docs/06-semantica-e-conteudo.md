@@ -38,7 +38,7 @@ flowchart LR
 
 ### 2.1 Revisão pelo painel (Ajustes → Revisão)
 
-O dono do produto revisa a base na demo (`/ajustes/revisao`, só admin), sem editar YAML: lista filtrável por tipo (perfil, clássico, competição, copy, glossário, tradução), esporte, país/mercado, idioma e status, com contagem por status; detalhe com o conteúdo legível, o original ao lado nas traduções, a prévia do que a API serviria se aprovado, **se o item é servido hoje** (com o piso editorial que a API relata em `ops.runtime_env` ao iniciar) e em cada piso que o cliente pode pedir, e o histórico. Ações: **aprovar**, **voltar para rascunho** e **sugerir edição** (comentário obrigatório e, opcionalmente, valores propostos campo a campo).
+O dono do produto revisa a base na demo (`/settings/review`, só admin), sem editar YAML: lista filtrável por tipo (perfil, clássico, competição, copy, glossário, tradução), esporte, país/mercado, idioma e status, com contagem por status; detalhe com o conteúdo legível, o original ao lado nas traduções, a prévia do que a API serviria se aprovado, **se o item é servido hoje** (com o piso editorial que a API relata em `ops.runtime_env` ao iniciar) e em cada piso que o cliente pode pedir, e o histórico. Ações: **aprovar**, **voltar para rascunho** e **sugerir edição** (comentário obrigatório e, opcionalmente, valores propostos campo a campo).
 
 **Desenho escolhido: camada de decisões no banco (opção "a").** O YAML continua sendo a fonte do *conteúdo*; o status passa a ter uma segunda fonte, que vence a do YAML enquanto o conteúdo for o mesmo que foi revisado:
 

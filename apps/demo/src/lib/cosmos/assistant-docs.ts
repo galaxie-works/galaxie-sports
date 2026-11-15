@@ -12,11 +12,11 @@ import { groupByTag, type OpenApiDoc, type Schema } from '@/lib/openapi-referenc
 /** Guia da documentação → rota da página. */
 const GUIDES = {
   start: '/docs',
-  auth: '/docs/autenticacao',
-  concepts: '/docs/conceitos',
-  modules: '/docs/modulos-e-planos',
-  realtime: '/docs/tempo-real',
-  reference: '/docs/referencia',
+  auth: '/docs/authentication',
+  concepts: '/docs/concepts',
+  modules: '/docs/modules-and-plans',
+  realtime: '/docs/realtime',
+  reference: '/docs/reference',
 } as const;
 
 const clean = (s: string) =>
@@ -51,7 +51,7 @@ export function docChunks(docs: Dictionary['docs']): DocChunk[] {
   return out;
 }
 
-const REFERENCE_HREF = '/docs/referencia';
+const REFERENCE_HREF = '/docs/reference';
 const CHUNK_MAX = 1500;
 
 const typeOf = (s: Schema | undefined): string =>

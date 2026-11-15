@@ -66,7 +66,7 @@ export function SettingsPageHeader({
     () => createFormatters(locale, timeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone),
     [locale, timeZone],
   );
-  const path: SettingsCrumb[] = [{ label: T.root, href: '/ajustes' }, ...crumbs];
+  const path: SettingsCrumb[] = [{ label: T.root, href: '/settings' }, ...crumbs];
 
   return (
     <header className="flex flex-col gap-3">

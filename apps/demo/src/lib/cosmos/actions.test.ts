@@ -41,7 +41,7 @@ const {
   startCosmosCheckout,
 } = await import('./actions');
 const { olderCosmosEntries } = await import('./statement-actions');
-const { GET: csv } = await import('@/app/api/cliente/cosmos/extrato/route');
+const { GET: csv } = await import('@/app/api/client/cosmos/statement/route');
 
 const TENANT = { id: '01a16029-0000-7000-8000-000000000001', name: 'Operadora Exemplo', markets: ['BR'] };
 const PACKAGE = '01a16029-0000-7000-8000-0000000000aa';
@@ -137,13 +137,13 @@ describe('cosmos.view: pacotes, situação da compra, extrato e CSV', () => {
 
   it('CSV: 403 com o motivo para quem não vê; 200 para o Admin', async () => {
     readClientContext.mockResolvedValue(as('moderator'));
-    const denied = await csv(new Request('http://demo.test/api/cliente/cosmos/extrato'));
+    const denied = await csv(new Request('http://demo.test/api/client/cosmos/statement'));
     expect(denied.status).toBe(403);
     expect(((await denied.json()) as { title: string }).title).toMatch(/Seu cargo não abre a Cosmos AI/);
     expect(cosmos.listLedger).not.toHaveBeenCalled();
 
     readClientContext.mockResolvedValue(as('admin'));
-    const ok = await csv(new Request('http://demo.test/api/cliente/cosmos/extrato'));
+    const ok = await csv(new Request('http://demo.test/api/client/cosmos/statement'));
     expect(ok.status).toBe(200);
     expect(cosmos.listLedger).toHaveBeenCalledWith({}, TENANT.id, expect.anything());
   });
