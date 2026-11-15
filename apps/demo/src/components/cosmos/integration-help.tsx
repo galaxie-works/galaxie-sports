@@ -42,19 +42,21 @@ export function CosmosHelp({
   const S = T[kind];
   const ids = useId();
   const [webhookId, setWebhookId] = useState(webhooks?.[0]?.id ?? '');
-  const [result, setResult] = useState<{ answer: HelpAnswer | null } | null>(null);
+  // o resultado guarda o webhook pedido: resposta que chega depois de trocar a seleção não aparece sob o outro
+  const [result, setResult] = useState<{ answer: HelpAnswer | null; webhookId: string } | null>(null);
   const [pending, startTransition] = useTransition();
   // webhook apagado ou lista nova: volta para o primeiro da lista em vez de pedir por um id que não existe mais
   const selected = webhooks?.some((w) => w.id === webhookId) ? webhookId : (webhooks?.[0]?.id ?? '');
 
   const run = () =>
     startTransition(async () => {
-      const r = await askCosmosHelp({ kind, webhookId: selected });
+      const asked = selected;
+      const r = await askCosmosHelp({ kind, webhookId: asked });
       if (!r.ok) {
         toast.error(r.error);
         return;
       }
-      setResult({ answer: r.answer });
+      setResult({ answer: r.answer, webhookId: asked });
     });
 
   if (kind === 'webhooks' && !webhooks?.length) return null;
@@ -73,6 +75,7 @@ export function CosmosHelp({
               <FieldLabel htmlFor={`${ids}-webhook`}>{T.webhooks.endpoint}</FieldLabel>
               <Select
                 value={selected}
+                disabled={pending}
                 onValueChange={(v) => {
                   setWebhookId(v as string);
                   setResult(null);
@@ -99,7 +102,7 @@ export function CosmosHelp({
           </div>
         </div>
 
-        {result ? (
+        {result && (kind !== 'webhooks' || result.webhookId === selected) ? (
           <div className="flex flex-col gap-2" aria-live="polite">
             {result.answer ? (
               <>

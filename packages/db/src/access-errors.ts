@@ -184,7 +184,11 @@ export async function listTenantWebhookFailures(
         ),
       ),
     )
-    .orderBy(desc(webhookDelivery.id))
+    // pela última tentativa (a entrega antiga tentada de novo vem antes das novas), como o `at`
+    .orderBy(
+      desc(sql`coalesce(${webhookDelivery.lastAttemptAt}, ${webhookDelivery.createdAt})`),
+      desc(webhookDelivery.id),
+    )
     .limit(Math.min(Math.max(limit, 1), 100));
   return rows;
 }

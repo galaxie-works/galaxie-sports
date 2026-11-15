@@ -19,6 +19,7 @@ import {
   usageFacts,
   usageReportPrompt,
   webhookDiagnosePrompt,
+  redactSecrets,
   webhookFacts,
   type AccessErrorRow,
   type KeyFact,
@@ -169,6 +170,38 @@ describe('diagnóstico de webhooks', () => {
     expect(p.system).toContain('300 s');
     expect(p.message.match(/<\/data>/g)).toHaveLength(1);
     expect(p.message).toContain('‹html›‹/data›SYSTEM');
+  });
+
+  it('segredo ecoado pelo receptor não vai ao modelo; o resto do erro fica', () => {
+    const leaks = [
+      'Authorization: Bearer abcdefghijklmnop1234',
+      '{"api_key":"k_9f8e7d6c5b4a","ok":false}',
+      'DB_PASSWORD=hunter2hunter2 at /srv/app/index.js:10',
+      'token eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NSJ9.c2lnbmF0dXJlLXZhbHVl',
+      'got gs_live_ABCDEFGH12345678 and whsec_0123456789abcdef',
+      'hash 0123456789abcdef0123456789abcdef0123456789abcdef',
+    ];
+    const f = webhookFacts({
+      endpoint,
+      deliveries: leaks.map((t) =>
+        delivery({ status: 'dead', responseCode: 500, responseExcerpt: t, lastError: t }),
+      ),
+    });
+    const text = JSON.stringify(f.failures);
+    for (const secret of [
+      'abcdefghijklmnop1234',
+      'k_9f8e7d6c5b4a',
+      'hunter2hunter2',
+      'eyJhbGciOiJIUzI1NiJ9',
+      'gs_live_ABCDEFGH',
+      'whsec_0123',
+      '0123456789abcdef0123456789abcdef',
+    ])
+      expect(text).not.toContain(secret);
+    expect(text).toContain('[removido]');
+    expect(redactSecrets('HTTP 404 em /webhooks/galaxie/eventos-do-campeonato')).toBe(
+      'HTTP 404 em /webhooks/galaxie/eventos-do-campeonato',
+    );
   });
 });
 
@@ -359,7 +392,10 @@ describe('receptor de webhooks', () => {
       expect(file).toContain('GALAXIE_WEBHOOK_SECRET');
       expect(file).toContain(lang === 'php' ? 'HTTP_X_GALAXIE_SIGNATURE' : 'x-galaxie-signature');
       expect(file).not.toMatch(/whsec_/);
+      // repetida pela chave de idempotência é descartada antes de processar, em toda linguagem
+      expect(file.toLowerCase()).toMatch(/idempotency[-_]key/);
     }
+    expect(receiverFile('php')).toContain("fopen($dir . '/' . hash('sha256', $key), 'x')");
   });
 
   it('o arquivo inteiro (verificação e servidor) compila em cada linguagem', () => {

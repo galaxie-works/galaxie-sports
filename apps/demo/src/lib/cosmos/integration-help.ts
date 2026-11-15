@@ -135,6 +135,34 @@ export const isFailedDelivery = (d: WebhookDeliveryFact) =>
     d.attempts > 0 &&
     (d.lastError !== null || (d.responseCode !== null && (d.responseCode < 200 || d.responseCode > 299))));
 
+/**
+ * O corpo e o erro vêm do servidor do cliente e podem ecoar segredo (chave, token, senha, variável de ambiente num
+ * stack trace). Antes de ir ao provedor do modelo, o que tem cara de segredo vira "[removido]".
+ */
+const SECRET_PATTERNS: RegExp[] = [
+  // cabeçalho de autorização e esquemas de token
+  /\b(bearer|basic|token)\s+[A-Za-z0-9._~+/=-]{8,}/gi,
+  // par nome=valor ou "nome": "valor" com nome de segredo
+  /((?:api[_-]?key|apikey|secret|token|password|passwd|pwd|authorization|auth|credential|private[_-]?key|access[_-]?key|client[_-]?secret|signature|session|cookie)[A-Za-z0-9_-]*["']?\s*[:=]\s*["']?)[^\s"',;&}]{4,}/gi,
+  // JWT
+  /\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/g,
+  // prefixos conhecidos de chave
+  /\b(?:gs_(?:live|test)_|whsec_|sk[-_](?:live|test|proj)?[-_]?|pk_(?:live|test)_|AKIA|ghp_|gho_|xox[abpr]-)[A-Za-z0-9_-]{8,}/g,
+  // sequência longa de hex ou base64 (hash, segredo cru)
+  /\b[A-Fa-f0-9]{32,}\b/g,
+  // (sem a barra, para não apagar caminho de URL)
+  /[A-Za-z0-9+_-]{40,}={0,2}/g,
+];
+
+export function redactSecrets(text: string): string {
+  let out = text;
+  for (const re of SECRET_PATTERNS)
+    out = out.replace(re, (_m, keep?: unknown) =>
+      typeof keep === 'string' && /[:=]\s*["']?$/.test(keep) ? `${keep}[removido]` : '[removido]',
+    );
+  return out;
+}
+
 export function webhookFacts(input: {
   endpoint: WebhookFacts['endpoint'];
   deliveries: WebhookDeliveryFact[];
@@ -146,8 +174,8 @@ export function webhookFacts(input: {
       .slice(0, WEBHOOK_FAILURES_MAX)
       .map((d) => ({
         ...d,
-        lastError: d.lastError?.slice(0, DETAIL_MAX) ?? null,
-        responseExcerpt: d.responseExcerpt?.slice(0, EXCERPT_MAX) ?? null,
+        lastError: d.lastError ? redactSecrets(d.lastError).slice(0, DETAIL_MAX) : null,
+        responseExcerpt: d.responseExcerpt ? redactSecrets(d.responseExcerpt).slice(0, EXCERPT_MAX) : null,
       })),
   };
 }
@@ -529,8 +557,20 @@ export function receiverCode(lang: ReceiverLanguage): ReceiverCode {
           '    http_response_code(401);',
           '    exit;',
           '}',
-          '// responda rápido (o tempo limite padrão é 10 s); descarte repetidas pelo HTTP_IDEMPOTENCY_KEY',
+          '// responda rápido (o tempo limite padrão é 10 s) e processe depois',
           'http_response_code(204);',
+          '// repetida (a Galaxie tenta de novo quando não recebe a resposta): a chave já foi gravada, nada a fazer. O arquivo',
+          '// é criado com "x", que falha se já existe; troque por banco ou Redis se houver mais de um servidor.',
+          "$key = $_SERVER['HTTP_IDEMPOTENCY_KEY'] ?? '';",
+          "if ($key !== '') {",
+          "    $dir = sys_get_temp_dir() . '/galaxie-webhooks';",
+          '    @mkdir($dir, 0700, true);',
+          "    $mark = @fopen($dir . '/' . hash('sha256', $key), 'x');",
+          '    if ($mark === false) {',
+          '        exit;',
+          '    }',
+          '    fclose($mark);',
+          '}',
           '$event = json_decode($raw, true);',
           "error_log(($_SERVER['HTTP_X_GALAXIE_EVENT'] ?? '') . ' ' . json_encode($event));",
         ].join('\n'),
