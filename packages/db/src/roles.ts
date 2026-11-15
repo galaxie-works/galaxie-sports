@@ -39,6 +39,7 @@ export const APP_SCHEMAS = [
   'cosmos',
   'engage',
   'fan',
+  'chat',
   'billing',
 ] as const;
 
@@ -46,7 +47,7 @@ export const APP_SCHEMAS = [
  * Schemas com dado pessoal pseudonimizado do torcedor (#937): só a API lê e escreve (e a demo lê, para a
  * moderação). Agentes de IA e ingestor ficam de fora.
  */
-const PERSONAL_SCHEMAS: readonly string[] = ['fan'];
+const PERSONAL_SCHEMAS: readonly string[] = ['fan', 'chat'];
 
 /** Schema do login da demo (fora das migrations: a demo cria as tabelas na subida). */
 export const DEMO_AUTH_SCHEMA = 'demo_auth';
@@ -80,7 +81,7 @@ export const ROLE_GRANTS: Record<RoleService, RoleGrants> = {
   // runtime_env/publishable_key/change_feed em ops
   api: {
     read: [...APP_SCHEMAS, `${DEMO_AUTH_SCHEMA}.${DEMO_FEED_CURSOR}`],
-    write: ['api', 'enrich', 'ops', 'fan', 'engage'],
+    write: ['api', 'enrich', 'ops', 'fan', 'engage', 'chat'],
     // Cosmos AI: só o webhook do Stripe (applyStripeEvent: crédito da compra e da recarga automática, #993/#994)
     modify: ['cosmos.stripe_event', 'cosmos.wallet', 'cosmos.recharge_attempt'],
     // a compra e a recarga automática já existem quando o pagamento chega: a API só muda o estado
@@ -108,10 +109,12 @@ export const ROLE_GRANTS: Record<RoleService, RoleGrants> = {
       'core.competition',
       // configuração da moderação (#997): remover a exceção de uma sala ou comunidade apaga a linha
       'cosmos.moderation_config',
+      // cota da carteira por sala e produto (#1116): tirar a cota de uma sala apaga a linha
+      'cosmos.wallet_quota',
     ],
     // Cosmos AI (#1064): tabela por tabela e operação por operação, pelo que as funções de @galaxie/cosmos que a
-    // demo chama gravam. Sem DELETE em nada da Cosmos (exceto apagar a exceção de moderação de uma sala) e sem
-    // nenhuma escrita no registro de eventos do Stripe (cosmos.stripe_event), que é só da API.
+    // demo chama gravam. Sem DELETE em nada da Cosmos (exceto apagar a exceção de moderação de uma sala e a cota de uma
+    // sala, #1116) e sem nenhuma escrita no registro de eventos do Stripe (cosmos.stripe_event), que é só da API.
     // - ligar e desligar, assistente (reserve/settle/release) e ações da equipe Galaxie: carteira e reservas;
     // - Funções e Pacotes da equipe Galaxie (#1002, #1088); compra, recarga automática, pedido de créditos (#996);
     // - uso do assistente pela equipe (#1100).

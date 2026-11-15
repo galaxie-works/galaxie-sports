@@ -11,6 +11,7 @@ import {
   competition,
   createDb,
   event,
+  publishWebhookEvent,
   runMigrations,
   sport,
   tenant,
@@ -68,7 +69,8 @@ const latencies: Record<string, number> = {};
 
 const hits = (path: string) => received.filter((r) => r.path === path);
 /** KEK do worker e da "CLI" deste teste. */
-const secrets = new WebhookSecretBox([randomBytes(32).toString('base64')]);
+const kek = randomBytes(32).toString('base64');
+const secrets = new WebhookSecretBox([kek]);
 const create = (input: WebhookInput) => createWebhookEndpoint(db, input, secrets);
 
 async function newEvent(): Promise<string> {
@@ -123,6 +125,10 @@ beforeAll(async () => {
     secrets,
     // o receptor do teste está em 127.0.0.1 (em produção, rede privada é bloqueada)
     allowPrivateTargets: true,
+    // o teste do legado em texto puro precisa dele aceito; a recusa por padrão tem teste próprio
+    env: { WEBHOOK_REJECT_PLAINTEXT_SECRETS: 'false' },
+    // a cifra automática dos legados tem teste próprio; aqui ela não roda nem se o arquivo passar de 2 min
+    sealDelayMs: Number.POSITIVE_INFINITY,
   });
   await worker.start();
 }, 60_000);
@@ -301,6 +307,89 @@ describe('webhooks assinados', () => {
       .toMatchObject({ status: 'delivered', attempts: 1 });
   });
 
+  it('circuit breaker (#360): falhando há mais de 24 h, o endpoint é desativado; reativar zera a marca', async () => {
+    const id = await newEvent();
+    // 3 entregas × 3 tentativas (maxAttempts do worker do teste), todas com 500
+    script['/breaker'] = Array<number>(9).fill(500);
+    const ep = await create({
+      tenantSlug: 'portal',
+      url: `${base}/breaker`,
+      topics: ['score'],
+      filters: { events: [id] },
+    });
+    // a sequência de falhas começou há 25 h (sem nenhuma entrega com sucesso desde então)
+    await db
+      .update(webhookEndpoint)
+      .set({ failingSince: new Date(Date.now() - 25 * 3_600_000) })
+      .where(eq(webhookEndpoint.id, ep.id));
+    // três mudanças: o breaker só desativa com pelo menos 3 entregas na DLQ desde o início da sequência
+    for (const home of [1, 2, 3]) {
+      await db
+        .update(event)
+        .set({ score: { home, away: 2 } })
+        .where(eq(event.id, id));
+      if (home < 3)
+        await expect
+          .poll(async () => (await listDeadDeliveries(db, { endpointId: ep.id })).length, { timeout: 10_000 })
+          .toBe(home);
+      // antes da 3ª entrega morrer, segue ativo
+      if (home < 3)
+        expect(
+          (await db.select().from(webhookEndpoint).where(eq(webhookEndpoint.id, ep.id)))[0]?.active,
+        ).toBe(true);
+    }
+    await expect
+      .poll(async () => (await db.select().from(webhookEndpoint).where(eq(webhookEndpoint.id, ep.id)))[0], {
+        timeout: 10_000,
+      })
+      .toMatchObject({ active: false, autoDisabledReason: 'HTTP 500' });
+    const [off] = await db.select().from(webhookEndpoint).where(eq(webhookEndpoint.id, ep.id));
+    expect(off!.autoDisabledAt).toBeInstanceOf(Date);
+
+    expect(await setWebhookActive(db, ep.id, true)).toBe(true);
+    const [on] = await db.select().from(webhookEndpoint).where(eq(webhookEndpoint.id, ep.id));
+    expect(on).toMatchObject({
+      active: true,
+      failingSince: null,
+      autoDisabledAt: null,
+      autoDisabledReason: null,
+    });
+  });
+
+  it('circuit breaker: falhas recentes só marcam a sequência (sem desativar), e o sucesso limpa', async () => {
+    const id = await newEvent();
+    // uma entrega com as 3 tentativas do worker do teste, todas com 500: vai para a DLQ
+    script['/breaker-recente'] = [500, 500, 500];
+    const ep = await create({
+      tenantSlug: 'portal',
+      url: `${base}/breaker-recente`,
+      topics: ['score'],
+      filters: { events: [id] },
+    });
+    await db
+      .update(event)
+      .set({ score: { home: 4, away: 0 } })
+      .where(eq(event.id, id));
+    await expect
+      .poll(async () => (await listDeadDeliveries(db, { endpointId: ep.id })).length, { timeout: 10_000 })
+      .toBe(1);
+    const [mid] = await db.select().from(webhookEndpoint).where(eq(webhookEndpoint.id, ep.id));
+    // a sequência começou agora: nada de desativar
+    expect(mid!.failingSince).toBeInstanceOf(Date);
+    expect(mid).toMatchObject({ active: true, autoDisabledAt: null });
+
+    // o reenvio da DLQ dá 200: fim da sequência
+    expect(await replayDeadDeliveries(db, { endpointId: ep.id })).toBe(1);
+    await expect.poll(() => hits('/breaker-recente').length, { timeout: 5_000 }).toBe(4);
+    await expect
+      .poll(
+        async () =>
+          (await db.select().from(webhookEndpoint).where(eq(webhookEndpoint.id, ep.id)))[0]?.failingSince,
+        { timeout: 5_000 },
+      )
+      .toBeNull();
+  });
+
   it('respeita o contrato do tenant: onde assistir só para os mercados contratados', async () => {
     const id = await newEvent();
     await create({
@@ -331,6 +420,44 @@ describe('webhooks assinados', () => {
       topic: 'where_to_watch.changed',
       data: { countries: ['AR'] },
     });
+  });
+
+  it('evento de engajamento (#1023): só para o tenant dele, com o módulo ligado, sem dado pessoal', async () => {
+    const profileId = '0192c7e2-6c1f-7a33-9a51-5b3e0f7c2d10';
+    const com = await upsertTenant(db, {
+      slug: 'com-chat',
+      name: 'Com chat',
+      plan: 'enterprise',
+      // sem core_data: o webhook sem tópico marcado não recebe mudanças de jogo dos outros testes
+      modules: ['live_chat'],
+    });
+    const sem = await upsertTenant(db, {
+      slug: 'sem-engajamento',
+      name: 'Sem engajamento',
+      plan: 'enterprise',
+      modules: ['core_data'],
+    });
+    await create({ tenantSlug: 'com-chat', url: `${base}/fan-on`, topics: ['fan.profile.deleted'] });
+    await create({ tenantSlug: 'sem-engajamento', url: `${base}/fan-off`, topics: ['fan.profile.deleted'] });
+    // sem tópico marcado: tópico "em breve" não entra no "todos"
+    await create({ tenantSlug: 'com-chat', url: `${base}/fan-all` });
+
+    for (const t of [com, sem])
+      await publishWebhookEvent(db, {
+        tenantId: t.id,
+        topic: 'fan.profile.deleted',
+        data: { profile_id: profileId, email: 'torcedor@exemplo.com' },
+      });
+    await expect.poll(() => hits('/fan-on').length, { timeout: 5_000 }).toBe(1);
+    await new Promise((r) => setTimeout(r, 300));
+    expect(hits('/fan-off')).toHaveLength(0);
+    expect(hits('/fan-all')).toHaveLength(0);
+    const hit = hits('/fan-on')[0]!;
+    expect(hit.headers['x-galaxie-event']).toBe('fan.profile.deleted');
+    const body = JSON.parse(hit.body);
+    expect(body).toMatchObject({ topic: 'fan.profile.deleted', data: { profile_id: profileId } });
+    expect(hit.body).not.toContain('torcedor@exemplo.com');
+    expect(hit.body).not.toContain(com.id);
   });
 
   it('plano trial não tem webhooks: cadastro recusado', async () => {
@@ -369,6 +496,49 @@ describe('webhooks assinados', () => {
       /https/,
     );
     await expect(create({ tenantSlug: 'nao-existe', url: `${base}/x` })).rejects.toThrow(/Tenant/);
+  });
+
+  it('ligar sem passo manual (#360): passada a carência, o worker cifra o legado e passa a recusar texto puro', async () => {
+    const legacySecret = generateWebhookSecret();
+    const [tenantRow] = await db.select({ id: tenant.id }).from(tenant).where(eq(tenant.slug, 'portal'));
+    const [legacy] = await db
+      .insert(webhookEndpoint)
+      .values({
+        tenantId: tenantRow!.id,
+        url: `${base}/subida`,
+        secret: legacySecret,
+        topics: [],
+        active: false,
+      })
+      .returning();
+    // a mesma KEK, noutra caixa: a recusa ligada aqui não vaza para o worker de fundo dos outros testes
+    const box = new WebhookSecretBox([kek]);
+    const fresh = new WebhookWorker(db, {
+      listen: false,
+      secrets: box,
+      env: {},
+      cursorName: 'subida',
+      sealDelayMs: 0,
+    });
+    // a rodada de controles, sem o ciclo de entrega: o worker de fundo segue sendo o único a entregar
+    await fresh.refreshControls();
+    const [row] = await db.select().from(webhookEndpoint).where(eq(webhookEndpoint.id, legacy!.id));
+    expect(row!.secret).toMatch(/^enc:v1:/);
+    expect(box.open(row!.secret, legacy!.id)).toBe(legacySecret);
+    expect(box.rejectsPlaintext).toBe(true);
+
+    // sem KEK: nada é cifrado e a recusa não liga sozinha
+    const none = new WebhookSecretBox([]);
+    const noKek = new WebhookWorker(db, {
+      listen: false,
+      secrets: none,
+      env: {},
+      cursorName: 'subida-sem-kek',
+      sealDelayMs: 0,
+    });
+    await noKek.refreshControls();
+    expect(none.rejectsPlaintext).toBe(false);
+    await db.delete(webhookEndpoint).where(eq(webhookEndpoint.id, legacy!.id));
   });
 
   it('segredo cifrado com a KEK no banco; legado em texto puro segue entregue e é migrado (auditoria API-9)', async () => {

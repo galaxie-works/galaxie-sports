@@ -99,6 +99,7 @@ export default defineMessages(
       terms: 'Termos e políticas',
       crests: 'Escudos e logos',
       mirror: 'Espelho da api-sports',
+      modules: 'Módulos por esporte',
       provider: 'Fornecedor e cota',
       quality: 'Qualidade dos dados',
       review: 'Revisão do catálogo',
@@ -121,6 +122,7 @@ export default defineMessages(
       lineup: 'Grades e ofertas',
       wtw: 'Onde assistir',
       postgame: 'Pós-jogo',
+      narration: 'Lance a lance',
       related: 'Vídeos relacionados',
       widgets: 'Widgets e Builder',
       groups: {
@@ -152,6 +154,7 @@ export default defineMessages(
       sports: 'Esportes',
       tasks: 'Tarefas',
       mirror: 'Espelho',
+      modules: 'Módulos',
       postgame: 'Pós-jogo',
       credentials: 'Credenciais',
       lineup: 'Grade de canais',
@@ -258,6 +261,8 @@ export default defineMessages(
       provider: 'Plano padrão e reserva da cota da api-sports, e o plano de cada esporte.',
       credentials: 'Todas as chaves e segredos, configurados ou faltando. Para trocar, edite o .env da VPS.',
       mirror: 'O que o espelho diário da api-sports renova, em que ordem e com quanto da cota.',
+      modules:
+        'Cada módulo de dados (escalação, ao vivo, elenco, palpites…) ligado ou desligado por esporte e tier, com o custo de cota ao lado.',
       wtw: 'Mercados e limites do Onde Assistir. Os modelos de IA ficam em IA interna.',
       related: 'Cota do YouTube, canais e as regras da busca de vídeos relacionados.',
       lineup: 'Revisão mínima e limites de texto da grade de canais.',
@@ -285,6 +290,11 @@ export default defineMessages(
         title: 'Espelho da api-sports (sync:mirror)',
         description:
           'O que o espelho diário renova além da agenda: de quantos em quantos dias cada endpoint volta, a ordem dos grupos e quanto da cota ele gasta.',
+      },
+      modules: {
+        title: 'Módulos por esporte e tier',
+        description:
+          'O liga/desliga de cada módulo de dados por esporte e tier da competição. Os módulos do espelho gravam nos períodos do espelho; os demais, em MODULES_<API>.',
       },
       schedule: {
         title: 'Agenda dos jobs',
@@ -895,6 +905,104 @@ export default defineMessages(
       label: 'Períodos do espelho: {api}',
       description: 'Só o que difere do padrão do código, no formato endpoint=t1,t2,t3 (off = desligado).',
     },
+    modulesFor: {
+      label: 'Módulos por tier: {api}',
+      description:
+        'Módulos do sync diário, do ao vivo e dos agentes ligados por tier, só o que difere do padrão do código, no formato modulo=on,off,off. Os do espelho ficam nos períodos do espelho.',
+    },
+    modules: {
+      intro:
+        'Um frame por esporte, uma linha por tier. Cada switch liga ou desliga um módulo de dados naquele tier; ao lado, o custo medido nos últimos {days} dias (ledger da api-sports) e a estimativa do espelho para o tier. Salvar grava as flags da API e fica no histórico com quem mudou.',
+      introNoLedger:
+        'Um frame por esporte, uma linha por tier. Cada switch liga ou desliga um módulo de dados naquele tier. Sem ledger ainda: o custo medido aparece depois das primeiras execuções.',
+      plan: 'Plano {plan} · {limit} chamadas/dia',
+      noPlan: 'Plano desconhecido',
+      measuredTotal: '{calls} chamadas/dia',
+      measuredWindow: 'média dos últimos {days} dias',
+      noLedger: 'sem medição',
+      allTiers: 'Todos os tiers',
+      tier: 'Tier {tier}',
+      tierLast: 'Tier {tier}+',
+      rowSummary: '{on} de {total} ligados',
+      rowEstimate: 'espelho ≈ {calls}/dia',
+      measured: '{calls}/dia medidos',
+      measuredAllTiers: 'todos os tiers (o ledger não separa)',
+      estimated: 'neste tier ≈ {calls}/dia',
+      aiCost: 'IA: sem cota da api-sports',
+      period: 'a cada {days} d',
+      fixed: 'sempre ligado',
+      notCovered: 'Sem switch neste tier (o job não cobre): {names}.',
+      pending: 'Mudanças pendentes em {keys}.',
+      noChanges: 'Sem mudanças pendentes.',
+      discard: 'Desfazer',
+      save: 'Salvar módulos',
+      saveTitle: 'Salvar os módulos de {api}?',
+      saveBody:
+        'Vale na próxima execução de cada job; o ao vivo relê em até 1 minuto. Fica no histórico com o seu e-mail. O que será gravado:',
+      emptyValue: '(padrão)',
+      saved: 'Módulos de {api} salvos.',
+      partial: 'parcial',
+      partialHint:
+        'Parte dos endpoints deste módulo está desligada endpoint a endpoint na página do espelho.',
+      openMirror: 'Abrir no Espelho',
+      liveHint:
+        'Quem entra no ao vivo é a prioridade mínima (LIVE_MIN_PRIORITY); o tier só filtra. Ligar o tier 3 não põe jogos tier 3 no ao vivo se a prioridade deles for baixa.',
+      openLive: 'Abrir Ao vivo',
+      caps: {
+        title: 'Tetos diários',
+        description:
+          'Quantas chamadas por dia cada passo do sync diário pode gastar, abaixo dos módulos que ele governa. Vale na próxima execução.',
+        unlimited: 'Ilimitado',
+        noCap: 'sem teto',
+        planDefault: 'padrão do plano {plan}: {value}',
+        max: 'o slider vai até {max}, a cota diária do plano',
+        valueCalls: '{value} chamadas/dia',
+        valuePages: '{value} páginas/dia',
+        governs: 'Vale para: {modules}',
+        rotationWarning:
+          'Afastamentos ou títulos ligados fora do tier 1 dividem este teto com os elencos: no padrão, o tier 1 passa a atrasar (o /sidelined volta a cada 2 dias). Suba o teto ou deixe ilimitado.',
+        explain: {
+          DAILY_MAX_DETAILS:
+            'Detalhe dos jogos encerrados (escalação, eventos e estatísticas), 20 jogos por chamada, nos tiers ligados em "Escalação, eventos e estatísticas do jogo". Com teto baixo, os jogos de ontem ficam sem escalação e eventos até caber no dia seguinte; o tier 1 e os clássicos passam na frente, o tier 3 fica por último. Com tiers 1 a 3 ligados a demanda normal é cerca de 60 a 100 chamadas por dia (pico de fim de semana maior).',
+          DAILY_ROTATION_CALLS:
+            'Rodízio de pessoas: elencos, técnicos e transferências dos times (tier 1 por padrão) e afastamentos e títulos das pessoas desses elencos. Um teto só, dividido pelo ritmo de cada endpoint. No tier 1 a demanda normal é cerca de 965 chamadas por dia; ligar afastamentos nos tiers 2 e 3 soma cerca de 590 e títulos cerca de 275. Abaixo da demanda, os itens envelhecem e o dado de 30 dias depois precisa de carga manual.',
+          DAILY_SEASON_LISTS:
+            'Relista da temporada em jogo (fixtures?league&season) nos tiers ligados em "Relista da temporada": tier 1 a cada 2 dias, os demais a cada 7. Traz remarcações e chaves de copa antes da véspera. Demanda normal com tiers 1 a 3: cerca de 150 chamadas por dia. Abaixo disso, as temporadas revezam e algumas ficam sem a lista atualizada.',
+          DAILY_PLAYER_STATS_PAGES:
+            'Números dos jogadores da temporada (players?league&season, 20 jogadores por página) nos tiers ligados em "Números dos jogadores na temporada": tier 1 a cada 3 dias, os demais a cada 7. Alimenta artilharia e perfil do jogador. Demanda normal com tiers 1 a 3: cerca de 630 páginas por dia. Abaixo disso, a passada corta e continua no dia seguinte.',
+        } as Record<string, string>,
+      },
+      names: {
+        agenda: 'Agenda do dia',
+        'injuries-day': 'Lesões do dia',
+        'season-list': 'Relista da temporada',
+        'match-detail': 'Escalação, eventos e estatísticas do jogo',
+        live: 'Ao vivo',
+        'people-rotation': 'Elenco, técnicos e transferências',
+        'people-mirror': 'Elenco, técnicos e transferências',
+        'injuries-season': 'Lesões por temporada',
+        sidelined: 'Afastamentos (histórico)',
+        trophies: 'Títulos de pessoa',
+        predictions: 'Palpites',
+        odds: 'Odds',
+        'team-stats': 'Estatísticas de time',
+        h2h: 'Confronto direto dos clássicos',
+        'top-players': 'Artilharia, assistências e cartões',
+        standings: 'Classificação',
+        'rounds-teams': 'Rodadas e times',
+        venues: 'Estádios',
+        'player-stats': 'Números dos jogadores na temporada',
+        reference: 'Referência',
+        wtw: 'Onde assistir',
+        'ai-content': 'Resumo, cenário e vídeos',
+        season: 'Temporada inteira',
+        teams: 'Times',
+        'game-stats': 'Estatísticas e eventos por jogo',
+        participants: 'Lutadores',
+        roster: 'Elenco e números dos jogadores',
+        injuries: 'Lesões',
+      } as Record<string, string>,
+    },
     mirror: {
       settingsTitle: 'Orçamento e prioridade',
       settingsDescription:
@@ -1386,6 +1494,26 @@ export default defineMessages(
       },
     },
     settings: {
+      DAILY_MAX_DETAILS: {
+        label: 'Teto diário: detalhe dos encerrados',
+        description:
+          'Chamadas de fixtures?ids= por dia no sync diário (20 jogos por chamada). Vazio = padrão do plano (free 35, pagos 2.000); unlimited = sem teto.',
+      },
+      DAILY_ROTATION_CALLS: {
+        label: 'Teto diário: rodízio de elencos, afastamentos e títulos',
+        description:
+          'Chamadas por dia do rodízio de pessoas do sync diário, dividido entre elencos, técnicos, transferências, afastamentos e títulos. Vazio = padrão do plano (free 5, pagos 1.500); unlimited = sem teto.',
+      },
+      DAILY_SEASON_LISTS: {
+        label: 'Teto diário: relista da temporada',
+        description:
+          'Chamadas de fixtures?league&season por dia no sync diário. Vazio = padrão do plano (free 0, pagos 300); unlimited = sem teto.',
+      },
+      DAILY_PLAYER_STATS_PAGES: {
+        label: 'Teto diário: números dos jogadores',
+        description:
+          'Páginas de players?league&season por dia no sync diário (1 página = 1 chamada). Vazio = padrão do plano (free 0, pagos 1.000); unlimited = sem teto.',
+      },
       MIRROR_BUDGET_PERCENT: {
         label: 'Orçamento do espelho',
         description:
@@ -1807,7 +1935,40 @@ export default defineMessages(
           'Por quantas horas o preço e o estoque de um produto valem antes de consultar a loja de novo. O teto é 24 horas; a data e a hora da consulta aparecem ao lado do preço.',
         unit: 'horas',
       },
+      SHOP_GALAXIE_TENANT_IDS: {
+        label: 'Tenants da Galaxie no Shopping',
+        description:
+          'Os tenants do site e do app Galaxie, os únicos que recebem o código de afiliado da Galaxie. Vazio, nenhum tenant recebe. Ids separados por vírgula.',
+      },
       FAN_TOKEN_SECRET: { label: 'Segredo do token do torcedor (.env)' },
+      CHAT_ROOM_OPEN_BEFORE_MINUTES: {
+        label: 'Chat: abertura da sala',
+        description:
+          'Quantos minutos antes do início a Sala do Jogo abre. O cliente pode mudar para a operação dele, até 24 horas.',
+        unit: 'minutos',
+      },
+      CHAT_ROOM_CLOSE_AFTER_MINUTES: {
+        label: 'Chat: encerramento da sala',
+        description:
+          'Quantos minutos depois do fim a sala fecha e fica só leitura. O cliente pode mudar, até 24 horas.',
+        unit: 'minutos',
+      },
+      CHAT_SLOW_MODE_SECONDS: {
+        label: 'Chat: modo lento padrão',
+        description:
+          'Intervalo mínimo entre duas mensagens do mesmo torcedor. 0 desliga. O cliente e a moderação mudam por sala.',
+        unit: 'segundos',
+      },
+      CHAT_MESSAGE_MAX_CHARS: {
+        label: 'Chat: tamanho da mensagem',
+        description: 'Máximo de caracteres por mensagem. Vale para todos os clientes.',
+        unit: 'caracteres',
+      },
+      CHAT_HISTORY_ON_JOIN: {
+        label: 'Chat: histórico ao entrar',
+        description: 'Quantas mensagens recentes o torcedor recebe ao entrar na sala.',
+        unit: 'mensagens',
+      },
       APISPORTS_KEY: { label: 'Chave da api-sports' },
       OPENAI_API_KEY: { label: 'Chave da OpenAI' },
       ANTHROPIC_API_KEY: { label: 'Chave da Anthropic' },
@@ -1919,6 +2080,7 @@ export default defineMessages(
         terms: 'Terms and policies',
         crests: 'Crests and logos',
         mirror: 'api-sports mirror',
+        modules: 'Modules by sport',
         provider: 'Provider and quota',
         quality: 'Data quality',
         review: 'Catalog review',
@@ -1941,6 +2103,7 @@ export default defineMessages(
         lineup: 'Lineups and offers',
         wtw: 'Where to watch',
         postgame: 'Post-game',
+        narration: 'Play-by-play',
         related: 'Related videos',
         widgets: 'Widgets and Builder',
         groups: {
@@ -1972,6 +2135,7 @@ export default defineMessages(
         sports: 'Sports',
         tasks: 'Tasks',
         mirror: 'Mirror',
+        modules: 'Modules',
         postgame: 'Post-game',
         credentials: 'Credentials',
         lineup: 'Channel lineup',
@@ -2078,6 +2242,8 @@ export default defineMessages(
         provider: 'Default api-sports plan, quota reserve and each sport plan.',
         credentials: 'Every key and secret, set or missing. To change them, edit the VPS .env.',
         mirror: 'What the daily api-sports mirror refreshes, in which order and with how much quota.',
+        modules:
+          'Each data module (lineups, live, squads, predictions…) switched on or off per sport and tier, with its quota cost beside it.',
         wtw: 'Where to Watch markets and limits. AI models live in Internal AI.',
         related: 'YouTube quota, channels and the related video search rules.',
         lineup: 'Minimum review and text limits of the channel lineup.',
@@ -2105,6 +2271,11 @@ export default defineMessages(
           title: 'api-sports mirror (sync:mirror)',
           description:
             'What the daily mirror refreshes beyond the schedule: how many days between refreshes of each endpoint, the group order and how much of the quota it spends.',
+        },
+        modules: {
+          title: 'Modules by sport and tier',
+          description:
+            'The on/off switch of each data module per sport and competition tier. Mirror modules write to the mirror periods; the others to MODULES_<API>.',
         },
         schedule: {
           title: 'Job schedule',
@@ -2691,6 +2862,103 @@ export default defineMessages(
         label: 'Mirror periods: {api}',
         description: 'Only what differs from the code default, as endpoint=t1,t2,t3 (off = turned off).',
       },
+      modulesFor: {
+        label: 'Modules by tier: {api}',
+        description:
+          'Daily sync, live and agent modules switched on per tier, only what differs from the code default, as module=on,off,off. Mirror modules live in the mirror periods.',
+      },
+      modules: {
+        intro:
+          'One frame per sport, one row per tier. Each switch turns a data module on or off for that tier; beside it, the cost measured over the last {days} days (api-sports ledger) and the mirror estimate for the tier. Saving writes the API flags and goes to the history with who changed it.',
+        introNoLedger:
+          'One frame per sport, one row per tier. Each switch turns a data module on or off for that tier. No ledger yet: the measured cost shows up after the first runs.',
+        plan: 'Plan {plan} · {limit} calls/day',
+        noPlan: 'Unknown plan',
+        measuredTotal: '{calls} calls/day',
+        measuredWindow: 'average of the last {days} days',
+        noLedger: 'not measured',
+        allTiers: 'All tiers',
+        tier: 'Tier {tier}',
+        tierLast: 'Tier {tier}+',
+        rowSummary: '{on} of {total} on',
+        rowEstimate: 'mirror ≈ {calls}/day',
+        measured: '{calls}/day measured',
+        measuredAllTiers: 'all tiers (the ledger does not split them)',
+        estimated: 'this tier ≈ {calls}/day',
+        aiCost: 'AI: no api-sports quota',
+        period: 'every {days} d',
+        fixed: 'always on',
+        notCovered: 'No switch in this tier (the job does not cover it): {names}.',
+        pending: 'Pending changes in {keys}.',
+        noChanges: 'No pending changes.',
+        discard: 'Undo',
+        save: 'Save modules',
+        saveTitle: 'Save the {api} modules?',
+        saveBody:
+          'Applies on the next run of each job; live re-reads within a minute. Goes to the history with your e-mail. What will be written:',
+        emptyValue: '(default)',
+        saved: '{api} modules saved.',
+        partial: 'partial',
+        partialHint: 'Some endpoints of this module are switched off one by one on the mirror page.',
+        openMirror: 'Open in Mirror',
+        liveHint:
+          'What enters live is the minimum priority (LIVE_MIN_PRIORITY); the tier only filters. Turning tier 3 on does not put tier-3 matches live if their priority is low.',
+        openLive: 'Open Live',
+        caps: {
+          title: 'Daily caps',
+          description:
+            'How many calls per day each daily-sync step may spend, below the modules it governs. Applies on the next run.',
+          unlimited: 'Unlimited',
+          noCap: 'no cap',
+          planDefault: '{plan} plan default: {value}',
+          max: 'the slider goes up to {max}, the plan daily quota',
+          valueCalls: '{value} calls/day',
+          valuePages: '{value} pages/day',
+          governs: 'Applies to: {modules}',
+          rotationWarning:
+            'Sidelined or trophies switched on outside tier 1 share this cap with squads: at the default, tier 1 starts to lag (/sidelined comes back every 2 days). Raise the cap or set it unlimited.',
+          explain: {
+            DAILY_MAX_DETAILS:
+              'Details of finished matches (lineups, events and statistics), 20 matches per call, in the tiers switched on in "Lineups, events and match statistics". With a low cap, yesterday\'s matches stay without lineups and events until they fit the next day; tier 1 and derbies go first, tier 3 last. With tiers 1 to 3 on, normal demand is about 60 to 100 calls per day (higher at weekends).',
+            DAILY_ROTATION_CALLS:
+              'People rotation: squads, coaches and transfers of the teams (tier 1 by default) and sidelined and trophies of the people in those squads. One cap, shared by the pace of each endpoint. In tier 1 normal demand is about 965 calls per day; switching sidelined on in tiers 2 and 3 adds about 590 and trophies about 275. Below demand the items age, and 30 days later the data needs a manual load.',
+            DAILY_SEASON_LISTS:
+              'Relist of the season in play (fixtures?league&season) in the tiers switched on in "Season relist": tier 1 every 2 days, the others every 7. Brings reschedules and cup brackets before the eve. Normal demand with tiers 1 to 3: about 150 calls per day. Below that, seasons take turns and some stay without the updated list.',
+            DAILY_PLAYER_STATS_PAGES:
+              'Season player numbers (players?league&season, 20 players per page) in the tiers switched on in "Season player numbers": tier 1 every 3 days, the others every 7. Feeds top scorers and player profiles. Normal demand with tiers 1 to 3: about 630 pages per day. Below that, the pass is cut and continues the next day.',
+          } as Record<string, string>,
+        },
+        names: {
+          agenda: 'Daily schedule',
+          'injuries-day': 'Injuries of the day',
+          'season-list': 'Season relist',
+          'match-detail': 'Lineups, events and match statistics',
+          live: 'Live',
+          'people-rotation': 'Squads, coaches and transfers',
+          'people-mirror': 'Squads, coaches and transfers',
+          'injuries-season': 'Injuries by season',
+          sidelined: 'Sidelined (history)',
+          trophies: 'Trophies',
+          predictions: 'Predictions',
+          odds: 'Odds',
+          'team-stats': 'Team statistics',
+          h2h: 'Derby head-to-head',
+          'top-players': 'Top scorers, assists and cards',
+          standings: 'Standings',
+          'rounds-teams': 'Rounds and teams',
+          venues: 'Venues',
+          'player-stats': 'Season player numbers',
+          reference: 'Reference',
+          wtw: 'Where to watch',
+          'ai-content': 'Recap, scenario and videos',
+          season: 'Full season',
+          teams: 'Teams',
+          'game-stats': 'Statistics and events per game',
+          participants: 'Fighters',
+          roster: 'Roster and player numbers',
+          injuries: 'Injuries',
+        } as Record<string, string>,
+      },
       mirror: {
         settingsTitle: 'Budget and priority',
         settingsDescription:
@@ -3187,6 +3455,26 @@ export default defineMessages(
         },
       },
       settings: {
+        DAILY_MAX_DETAILS: {
+          label: 'Daily cap: finished match details',
+          description:
+            'fixtures?ids= calls per day in the daily sync (20 matches per call). Empty = plan default (free 35, paid 2,000); unlimited = no cap.',
+        },
+        DAILY_ROTATION_CALLS: {
+          label: 'Daily cap: squads, sidelined and trophies rotation',
+          description:
+            'Calls per day of the people rotation in the daily sync, shared by squads, coaches, transfers, sidelined and trophies. Empty = plan default (free 5, paid 1,500); unlimited = no cap.',
+        },
+        DAILY_SEASON_LISTS: {
+          label: 'Daily cap: season relist',
+          description:
+            'fixtures?league&season calls per day in the daily sync. Empty = plan default (free 0, paid 300); unlimited = no cap.',
+        },
+        DAILY_PLAYER_STATS_PAGES: {
+          label: 'Daily cap: player numbers',
+          description:
+            'players?league&season pages per day in the daily sync (1 page = 1 call). Empty = plan default (free 0, paid 1,000); unlimited = no cap.',
+        },
         MIRROR_BUDGET_PERCENT: {
           label: 'Mirror budget',
           description:
@@ -3610,7 +3898,40 @@ export default defineMessages(
             'For how many hours a product price and stock stay valid before the store is asked again. The ceiling is 24 hours; the date and time of the check appear next to the price.',
           unit: 'hours',
         },
+        SHOP_GALAXIE_TENANT_IDS: {
+          label: 'Galaxie tenants in Shopping',
+          description:
+            "The Galaxie site and app tenants, the only ones that get Galaxie's affiliate code. Empty, no tenant gets it. Ids separated by commas.",
+        },
         FAN_TOKEN_SECRET: { label: 'Fan token secret (.env)' },
+        CHAT_ROOM_OPEN_BEFORE_MINUTES: {
+          label: 'Chat: room opening',
+          description:
+            'How many minutes before kickoff the Match Room opens. The client can change it for its operation, up to 24 hours.',
+          unit: 'minutes',
+        },
+        CHAT_ROOM_CLOSE_AFTER_MINUTES: {
+          label: 'Chat: room closing',
+          description:
+            'How many minutes after the final whistle the room closes and becomes read-only. The client can change it, up to 24 hours.',
+          unit: 'minutes',
+        },
+        CHAT_SLOW_MODE_SECONDS: {
+          label: 'Chat: default slow mode',
+          description:
+            'Minimum interval between two messages from the same fan. 0 turns it off. The client and moderators change it per room.',
+          unit: 'seconds',
+        },
+        CHAT_MESSAGE_MAX_CHARS: {
+          label: 'Chat: message length',
+          description: 'Maximum characters per message. Applies to every client.',
+          unit: 'characters',
+        },
+        CHAT_HISTORY_ON_JOIN: {
+          label: 'Chat: history on join',
+          description: 'How many recent messages a fan receives when joining the room.',
+          unit: 'messages',
+        },
         APISPORTS_KEY: { label: 'api-sports key' },
         OPENAI_API_KEY: { label: 'OpenAI key' },
         ANTHROPIC_API_KEY: { label: 'Anthropic key' },
@@ -3722,6 +4043,7 @@ export default defineMessages(
         terms: 'Términos y políticas',
         crests: 'Escudos y logos',
         mirror: 'Espejo de api-sports',
+        modules: 'Módulos por deporte',
         provider: 'Proveedor y cuota',
         quality: 'Calidad de los datos',
         review: 'Revisión del catálogo',
@@ -3744,6 +4066,7 @@ export default defineMessages(
         lineup: 'Grillas y ofertas',
         wtw: 'Dónde ver',
         postgame: 'Pospartido',
+        narration: 'Jugada a jugada',
         related: 'Videos relacionados',
         widgets: 'Widgets y Builder',
         groups: {
@@ -3775,6 +4098,7 @@ export default defineMessages(
         sports: 'Deportes',
         tasks: 'Tareas',
         mirror: 'Espejo',
+        modules: 'Módulos',
         postgame: 'Pospartido',
         credentials: 'Credenciales',
         lineup: 'Grilla de canales',
@@ -3882,6 +4206,8 @@ export default defineMessages(
         credentials:
           'Todas las claves y secretos, configurados o faltantes. Para cambiarlos, edite el .env de la VPS.',
         mirror: 'Lo que el espejo diario de api-sports renueva, en qué orden y con cuánta cuota.',
+        modules:
+          'Cada módulo de datos (alineaciones, en vivo, plantel, pronósticos…) encendido o apagado por deporte y tier, con el costo de cuota al lado.',
         wtw: 'Mercados y límites de Dónde ver. Los modelos de IA están en IA interna.',
         related: 'Cuota de YouTube, canales y las reglas de la búsqueda de videos relacionados.',
         lineup: 'Revisión mínima y límites de texto de la grilla de canales.',
@@ -3910,6 +4236,11 @@ export default defineMessages(
           title: 'Espejo de api-sports (sync:mirror)',
           description:
             'Lo que el espejo diario renueva además de la agenda: cada cuántos días vuelve cada endpoint, el orden de los grupos y cuánto de la cuota gasta.',
+        },
+        modules: {
+          title: 'Módulos por deporte y tier',
+          description:
+            'El encendido/apagado de cada módulo de datos por deporte y tier de la competición. Los módulos del espejo escriben en los períodos del espejo; los demás, en MODULES_<API>.',
         },
         schedule: {
           title: 'Agenda de los jobs',
@@ -4513,6 +4844,103 @@ export default defineMessages(
         description:
           'Solo lo que difiere del valor por defecto del código, en el formato endpoint=t1,t2,t3 (off = apagado).',
       },
+      modulesFor: {
+        label: 'Módulos por tier: {api}',
+        description:
+          'Módulos del sync diario, del en vivo y de los agentes encendidos por tier, solo lo que difiere del valor por defecto del código, en el formato modulo=on,off,off. Los del espejo están en los períodos del espejo.',
+      },
+      modules: {
+        intro:
+          'Un marco por deporte, una fila por tier. Cada switch enciende o apaga un módulo de datos en ese tier; al lado, el costo medido en los últimos {days} días (ledger de api-sports) y la estimación del espejo para el tier. Guardar escribe las flags de la API y queda en el historial con quién cambió.',
+        introNoLedger:
+          'Un marco por deporte, una fila por tier. Cada switch enciende o apaga un módulo de datos en ese tier. Sin ledger todavía: el costo medido aparece después de las primeras ejecuciones.',
+        plan: 'Plan {plan} · {limit} llamadas/día',
+        noPlan: 'Plan desconocido',
+        measuredTotal: '{calls} llamadas/día',
+        measuredWindow: 'promedio de los últimos {days} días',
+        noLedger: 'sin medición',
+        allTiers: 'Todos los tiers',
+        tier: 'Tier {tier}',
+        tierLast: 'Tier {tier}+',
+        rowSummary: '{on} de {total} encendidos',
+        rowEstimate: 'espejo ≈ {calls}/día',
+        measured: '{calls}/día medidos',
+        measuredAllTiers: 'todos los tiers (el ledger no los separa)',
+        estimated: 'en este tier ≈ {calls}/día',
+        aiCost: 'IA: sin cuota de api-sports',
+        period: 'cada {days} d',
+        fixed: 'siempre encendido',
+        notCovered: 'Sin switch en este tier (el job no lo cubre): {names}.',
+        pending: 'Cambios pendientes en {keys}.',
+        noChanges: 'Sin cambios pendientes.',
+        discard: 'Deshacer',
+        save: 'Guardar módulos',
+        saveTitle: '¿Guardar los módulos de {api}?',
+        saveBody:
+          'Vale en la próxima ejecución de cada job; el en vivo relee en hasta 1 minuto. Queda en el historial con tu e-mail. Lo que se escribirá:',
+        emptyValue: '(por defecto)',
+        saved: 'Módulos de {api} guardados.',
+        partial: 'parcial',
+        partialHint: 'Parte de los endpoints de este módulo está apagada uno a uno en la página del espejo.',
+        openMirror: 'Abrir en el Espejo',
+        liveHint:
+          'Lo que entra al en vivo es la prioridad mínima (LIVE_MIN_PRIORITY); el tier solo filtra. Encender el tier 3 no pone partidos tier 3 en vivo si su prioridad es baja.',
+        openLive: 'Abrir En vivo',
+        caps: {
+          title: 'Topes diarios',
+          description:
+            'Cuántas llamadas por día puede gastar cada paso del sync diario, debajo de los módulos que gobierna. Vale en la próxima ejecución.',
+          unlimited: 'Ilimitado',
+          noCap: 'sin tope',
+          planDefault: 'valor del plan {plan}: {value}',
+          max: 'el slider llega hasta {max}, la cuota diaria del plan',
+          valueCalls: '{value} llamadas/día',
+          valuePages: '{value} páginas/día',
+          governs: 'Vale para: {modules}',
+          rotationWarning:
+            'Ausencias o títulos encendidos fuera del tier 1 comparten este tope con los planteles: en el valor por defecto, el tier 1 empieza a atrasarse (/sidelined vuelve cada 2 días). Suba el tope o déjelo ilimitado.',
+          explain: {
+            DAILY_MAX_DETAILS:
+              'Detalle de los partidos terminados (alineaciones, eventos y estadísticas), 20 partidos por llamada, en los tiers encendidos en "Alineaciones, eventos y estadísticas del partido". Con un tope bajo, los partidos de ayer quedan sin alineación y eventos hasta caber al día siguiente; el tier 1 y los clásicos van primero, el tier 3 último. Con tiers 1 a 3 encendidos la demanda normal es de unas 60 a 100 llamadas por día (más los fines de semana).',
+            DAILY_ROTATION_CALLS:
+              'Rotación de personas: planteles, técnicos y transferencias de los equipos (tier 1 por defecto) y ausencias y títulos de las personas de esos planteles. Un solo tope, repartido por el ritmo de cada endpoint. En el tier 1 la demanda normal es de unas 965 llamadas por día; encender ausencias en los tiers 2 y 3 suma unas 590 y títulos unas 275. Por debajo de la demanda los ítems envejecen y 30 días después el dato necesita carga manual.',
+            DAILY_SEASON_LISTS:
+              'Relistado de la temporada en juego (fixtures?league&season) en los tiers encendidos en "Relistado de la temporada": tier 1 cada 2 días, los demás cada 7. Trae reprogramaciones y llaves de copa antes de la víspera. Demanda normal con tiers 1 a 3: unas 150 llamadas por día. Por debajo, las temporadas se alternan y algunas quedan sin la lista actualizada.',
+            DAILY_PLAYER_STATS_PAGES:
+              'Números de los jugadores de la temporada (players?league&season, 20 jugadores por página) en los tiers encendidos en "Números de los jugadores en la temporada": tier 1 cada 3 días, los demás cada 7. Alimenta goleadores y perfil del jugador. Demanda normal con tiers 1 a 3: unas 630 páginas por día. Por debajo, la pasada se corta y sigue al día siguiente.',
+          } as Record<string, string>,
+        },
+        names: {
+          agenda: 'Agenda del día',
+          'injuries-day': 'Lesiones del día',
+          'season-list': 'Relistado de la temporada',
+          'match-detail': 'Alineaciones, eventos y estadísticas del partido',
+          live: 'En vivo',
+          'people-rotation': 'Plantel, técnicos y transferencias',
+          'people-mirror': 'Plantel, técnicos y transferencias',
+          'injuries-season': 'Lesiones por temporada',
+          sidelined: 'Ausencias (historial)',
+          trophies: 'Títulos de persona',
+          predictions: 'Pronósticos',
+          odds: 'Cuotas',
+          'team-stats': 'Estadísticas de equipo',
+          h2h: 'Historial de los clásicos',
+          'top-players': 'Goleadores, asistencias y tarjetas',
+          standings: 'Tabla de posiciones',
+          'rounds-teams': 'Fechas y equipos',
+          venues: 'Estadios',
+          'player-stats': 'Números de los jugadores en la temporada',
+          reference: 'Referencia',
+          wtw: 'Dónde ver',
+          'ai-content': 'Resumen, escenario y videos',
+          season: 'Temporada completa',
+          teams: 'Equipos',
+          'game-stats': 'Estadísticas y eventos por partido',
+          participants: 'Luchadores',
+          roster: 'Plantel y números de los jugadores',
+          injuries: 'Lesiones',
+        } as Record<string, string>,
+      },
       mirror: {
         settingsTitle: 'Presupuesto y prioridad',
         settingsDescription:
@@ -5010,6 +5438,26 @@ export default defineMessages(
         },
       },
       settings: {
+        DAILY_MAX_DETAILS: {
+          label: 'Tope diario: detalle de los partidos terminados',
+          description:
+            'Llamadas de fixtures?ids= por día en el sync diario (20 partidos por llamada). Vacío = valor del plan (free 35, pagos 2.000); unlimited = sin tope.',
+        },
+        DAILY_ROTATION_CALLS: {
+          label: 'Tope diario: rotación de planteles, ausencias y títulos',
+          description:
+            'Llamadas por día de la rotación de personas del sync diario, compartida entre planteles, técnicos, transferencias, ausencias y títulos. Vacío = valor del plan (free 5, pagos 1.500); unlimited = sin tope.',
+        },
+        DAILY_SEASON_LISTS: {
+          label: 'Tope diario: relistado de la temporada',
+          description:
+            'Llamadas de fixtures?league&season por día en el sync diario. Vacío = valor del plan (free 0, pagos 300); unlimited = sin tope.',
+        },
+        DAILY_PLAYER_STATS_PAGES: {
+          label: 'Tope diario: números de los jugadores',
+          description:
+            'Páginas de players?league&season por día en el sync diario (1 página = 1 llamada). Vacío = valor del plan (free 0, pagos 1.000); unlimited = sin tope.',
+        },
         MIRROR_BUDGET_PERCENT: {
           label: 'Presupuesto del espejo',
           description:
@@ -5438,7 +5886,40 @@ export default defineMessages(
             'Por cuántas horas el precio y el stock de un producto valen antes de consultar la tienda de nuevo. El tope es de 24 horas; la fecha y la hora de la consulta aparecen junto al precio.',
           unit: 'horas',
         },
+        SHOP_GALAXIE_TENANT_IDS: {
+          label: 'Tenants de Galaxie en Shopping',
+          description:
+            'Los tenants del sitio y de la app Galaxie, los únicos que reciben el código de afiliado de Galaxie. Vacío, ningún tenant lo recibe. Ids separados por comas.',
+        },
         FAN_TOKEN_SECRET: { label: 'Secreto del token del hincha (.env)' },
+        CHAT_ROOM_OPEN_BEFORE_MINUTES: {
+          label: 'Chat: apertura de la sala',
+          description:
+            'Cuántos minutos antes del inicio abre la Sala del Partido. El cliente puede cambiarlo para su operación, hasta 24 horas.',
+          unit: 'minutos',
+        },
+        CHAT_ROOM_CLOSE_AFTER_MINUTES: {
+          label: 'Chat: cierre de la sala',
+          description:
+            'Cuántos minutos después del final cierra la sala y queda solo de lectura. El cliente puede cambiarlo, hasta 24 horas.',
+          unit: 'minutos',
+        },
+        CHAT_SLOW_MODE_SECONDS: {
+          label: 'Chat: modo lento por defecto',
+          description:
+            'Intervalo mínimo entre dos mensajes del mismo hincha. 0 lo desactiva. El cliente y la moderación lo cambian por sala.',
+          unit: 'segundos',
+        },
+        CHAT_MESSAGE_MAX_CHARS: {
+          label: 'Chat: largo del mensaje',
+          description: 'Máximo de caracteres por mensaje. Vale para todos los clientes.',
+          unit: 'caracteres',
+        },
+        CHAT_HISTORY_ON_JOIN: {
+          label: 'Chat: historial al entrar',
+          description: 'Cuántos mensajes recientes recibe el hincha al entrar a la sala.',
+          unit: 'mensajes',
+        },
         APISPORTS_KEY: { label: 'Clave de api-sports' },
         OPENAI_API_KEY: { label: 'Clave de OpenAI' },
         ANTHROPIC_API_KEY: { label: 'Clave de Anthropic' },

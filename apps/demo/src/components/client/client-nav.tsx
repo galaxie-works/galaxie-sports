@@ -7,8 +7,10 @@ import {
   KeyRound,
   LayoutDashboard,
   ListVideo,
+  Package,
   Palette,
   ShieldCheck,
+  ShoppingBag,
   Tv,
   Users,
   Webhook,
@@ -44,6 +46,8 @@ export const CLIENT_NAV = [
   { id: 'overview', href: '/cliente', icon: LayoutDashboard, group: 'account' },
   { id: 'members', href: '/cliente/usuarios', icon: Users, group: 'account', action: 'members.view' },
   { id: 'keys', href: '/cliente/chaves', icon: KeyRound, group: 'account', action: 'settings.manage' },
+  // loja de features (plataforma comercial, #1137): todo cargo vê o que o plano inclui, como a visão geral
+  { id: 'plans', href: '/cliente/planos', icon: Package, group: 'account' },
   { id: 'builder', href: '/cliente/builder', icon: Blocks, group: 'content', action: 'settings.manage' },
   { id: 'themes', href: '/cliente/temas', icon: Palette, group: 'content', action: 'settings.manage' },
   { id: 'lineup', href: '/cliente/grade', icon: Tv, group: 'content', action: 'settings.manage' },
@@ -54,6 +58,15 @@ export const CLIENT_NAV = [
     icon: Handshake,
     group: 'engagement',
     action: 'settings.manage',
+  },
+  {
+    id: 'shopping',
+    href: '/cliente/shopping',
+    icon: ShoppingBag,
+    group: 'engagement',
+    // relatório de cliques e, com a conciliação (#929), de comissão: dinheiro do tenant
+    action: 'billing.view',
+    module: 'shopping',
   },
   {
     id: 'moderation',

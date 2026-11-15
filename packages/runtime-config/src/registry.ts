@@ -25,6 +25,7 @@ import {
   mirrorPeriodsError,
   mirrorPeriodsKey,
 } from './mirror.js';
+import { DAILY_CAP_KEYS, DAILY_CAP_MAX, MODULE_APIS, modulesError, modulesKey } from './modules.js';
 import type { ValidationError } from './resolve.js';
 
 /**
@@ -50,6 +51,7 @@ export const SETTING_SECTIONS = [
   'related',
   'provider',
   'mirror',
+  'modules',
   'assets',
   'credentials',
   'feedback',
@@ -838,6 +840,39 @@ export const SETTINGS: readonly SettingDef[] = [
     critical: true,
   })),
 
+  // módulos por esporte e tier fora do espelho (sync diário, ao vivo, agentes): só o que difere do padrão do código
+  // (modules.ts); os do espelho ficam em MIRROR_PERIODS_<API>. O ao vivo relê a cada minuto; os jobs, na próxima
+  // execução
+  ...MODULE_APIS.map((api): SettingDef => ({
+    key: modulesKey(api),
+    section: 'modules',
+    type: 'text',
+    services: ['ingestor', 'live', 'agents'],
+    apply: 'next-run',
+    applyIn: { live: 'refresh' },
+    allowEmpty: true,
+    check: (value) => modulesError(api, value),
+    default: null,
+    critical: true,
+  })),
+
+  // tetos diários do sync diário do futebol (modules.ts, DAILY_CAPS): vazio = o padrão do plano (free ou pago),
+  // `unlimited` = sem teto; 0 não vale (para parar, desligue o módulo). A tela corta o slider pela cota do plano
+  ...DAILY_CAP_KEYS.map((key): SettingDef => ({
+    key,
+    section: 'modules',
+    type: 'int',
+    services: ['ingestor'],
+    apply: 'next-run',
+    min: 1,
+    max: DAILY_CAP_MAX,
+    unlimited: true,
+    zeroInvalid: true,
+    allowEmpty: true,
+    default: null,
+    critical: true,
+  })),
+
   // ── Logos ───────────────────────────────────────────────────────────────────────────────────
   {
     // acervo customizado (assets:acervo): ligado, a API serve o logo do acervo onde houver mapeamento
@@ -1025,6 +1060,58 @@ export const SETTINGS: readonly SettingDef[] = [
     apply: 'refresh',
     default: '3',
   },
+  // Chat ao vivo (#915, #959, #964): padrão e teto da Galaxie. O cliente ajusta a janela, o modo lento e o rigor dentro
+  // destes limites (chat.tenant_config); tamanho e histórico ficam só aqui. Relidos a cada minuto
+  {
+    key: 'CHAT_ROOM_OPEN_BEFORE_MINUTES',
+    section: 'engage',
+    type: 'int',
+    min: 0,
+    max: 1440,
+    services: ['api'],
+    apply: 'refresh',
+    default: '60',
+  },
+  {
+    key: 'CHAT_ROOM_CLOSE_AFTER_MINUTES',
+    section: 'engage',
+    type: 'int',
+    min: 0,
+    max: 1440,
+    services: ['api'],
+    apply: 'refresh',
+    default: '30',
+  },
+  {
+    key: 'CHAT_SLOW_MODE_SECONDS',
+    section: 'engage',
+    type: 'int',
+    min: 0,
+    max: 600,
+    services: ['api'],
+    apply: 'refresh',
+    default: '3',
+  },
+  {
+    key: 'CHAT_MESSAGE_MAX_CHARS',
+    section: 'engage',
+    type: 'int',
+    min: 20,
+    max: 500,
+    services: ['api'],
+    apply: 'refresh',
+    default: '280',
+  },
+  {
+    key: 'CHAT_HISTORY_ON_JOIN',
+    section: 'engage',
+    type: 'int',
+    min: 0,
+    max: 200,
+    services: ['api'],
+    apply: 'refresh',
+    default: '50',
+  },
   // Shopping (#916): horas do cache de preço e estoque dos conectores de loja. O épico fixa o teto em 24 h
   {
     key: 'SHOP_PRICE_CACHE_HOURS',
@@ -1035,6 +1122,20 @@ export const SETTINGS: readonly SettingDef[] = [
     services: ['api'],
     apply: 'restart',
     default: '24',
+  },
+  // Shopping (#921): tenants da própria Galaxie (site e app), os únicos que recebem o código de afiliado da Galaxie.
+  // Vazio = nenhum (o padrão seguro); ids de tenant separados por vírgula
+  {
+    key: 'SHOP_GALAXIE_TENANT_IDS',
+    section: 'engage',
+    type: 'text',
+    pattern:
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}([,;\s]+[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})*$/i,
+    allowEmpty: true,
+    services: ['api'],
+    apply: 'restart',
+    default: '',
+    critical: true,
   },
 
   // ── Credenciais ─────────────────────────────────────────────────────────────────────────────

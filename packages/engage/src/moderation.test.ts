@@ -474,7 +474,9 @@ describe('desempenho', () => {
     for (let i = 0; i < n; i += 1) chat(`${samples[i % samples.length]} ${i}`);
     const perSecond = n / ((performance.now() - t0) / 1000);
     expect(perSecond).toBeGreaterThan(500);
-  });
+    // o limite de tempo do vitest (5 s) não é a medida: em runner lento as 5000 mensagens passavam dele mesmo acima
+    // de 500/s; quem decide é o ritmo medido acima
+  }, 30_000);
 
   it('cobre todos os tipos de texto', () => {
     for (const kind of SCREEN_KINDS) expect(screen('ola', { kind }, lists).action).toBe('allow');

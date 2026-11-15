@@ -13,27 +13,30 @@ wh list
 ```
 
 `wh` usa a imagem e o ambiente do próprio worker: a KEK (`WEBHOOK_SIGNING_SECRET`) e o `DATABASE_URL` vêm do
-`.env`. O script [`infra/vps-telemetry/ligar-webhooks.sh`](../../infra/vps-telemetry/ligar-webhooks.sh) faz a primeira
-ligação (KEK, cifra e teste): copie-o para `/docker/galaxie-sports` e o `rolling-swap.sh` para `/tmp` na VPS.
+`.env`. O script [`infra/vps-telemetry/ligar-webhooks.sh`](../../infra/vps-telemetry/ligar-webhooks.sh) era a primeira
+ligação à mão (KEK, cifra e teste); hoje o deploy e o worker fazem isso sozinhos (abaixo).
 
-## Ligar na produção (uma vez)
+## Ligar na produção
 
-1. Gere a KEK e guarde-a no cofre de senhas **antes** de pôr no `.env` (sem ela os segredos cifrados não abrem, e
-   ela não vai para o repositório nem para o backup do banco):
-   `openssl rand -base64 32`.
-2. `WEBHOOK_SIGNING_SECRET=<kek>` no `.env` e troque lado a lado `api webhooks site console` (`rolling-swap.sh`). O log do worker deixa
-   de mostrar o aviso `WEBHOOK_SIGNING_SECRET não definida`.
-3. **Cifrar segredos antigos** em Ajustes → Webhooks (ou `wh seal-secrets`, idempotente): cifra os endpoints
-   legados em texto puro, se houver.
-4. Com **Segredos sem cifra** em "Nenhum", ligue **Recusar segredo sem cifra** em Ajustes → Webhooks (o painel não
-   deixa ligar antes). O worker aplica em até 15 s, sem reiniciar. `WEBHOOK_REJECT_PLAINTEXT_SECRETS=true` no `.env`
-   ainda vale como padrão quando o painel não gravou nada.
-5. Teste com um receptor seu (ex.: um endpoint de teste do webhook.site) num tenant de teste:
-   `wh create --tenant <slug> --url https://... --topics score,status`, depois **Enviar teste** no portal
-   (`/cliente/webhooks`) ou espere um gol. `wh list` mostra pendentes e DLQ.
+Não tem passo manual (#360):
 
-A demo também recebe a KEK: é ela que cadastra e rotaciona o segredo no portal do cliente e cifra os legados pelo
-painel.
+1. O deploy gera a KEK (`WEBHOOK_SIGNING_SECRET`) no `.env` da VPS quando ela falta (`ensure-secrets.sh`, junto dos
+   outros segredos internos) e nunca troca a que já existe. Na primeira vez, a saída do deploy avisa
+   `WARN  WEBHOOK_SIGNING_SECRET nova`: guarde uma cópia no cofre de senhas. Se ela for perdida, o deploy gera outra,
+   mas os segredos já cadastrados (inclusive os legados, que o worker cifra sozinho) não abrem mais: as entregas falham
+   até cada cliente rotacionar o segredo no portal.
+2. Dois minutos depois da subida (a troca lado a lado já terminou), o worker cifra os segredos legados em texto puro
+   (e recifra os de uma KEK antiga), e tenta de novo a cada 15 s se algo falhar. Com tudo cifrado, a
+   recusa de segredo sem cifra passa a valer sozinha. O painel (Ajustes → Webhooks) e
+   `WEBHOOK_REJECT_PLAINTEXT_SECRETS` no `.env` ainda mandam quando gravados.
+3. A demo recebe a mesma KEK: é ela que cadastra e rotaciona o segredo no portal do cliente.
+
+Se mesmo assim a KEK faltar (o deploy não conseguiu gerar), o início de Ajustes mostra a credencial faltando, o portal
+do cliente diz que o cadastro está indisponível e Ajustes → Webhooks mostra "Chave de cifra no worker" desligada.
+
+Para testar com um receptor seu (ex.: um endpoint de teste do webhook.site) num tenant de teste:
+`wh create --tenant <slug> --url https://... --topics score,status`, depois **Enviar teste** no portal
+(`/cliente/webhooks`) ou espere um gol. `wh list` mostra pendentes e DLQ.
 
 ## Ajustes → Webhooks (painel de admin)
 
@@ -105,6 +108,15 @@ como segunda da lista (`nova,antiga`), suba o worker e rode `wh replay`.
 Veja o erro em `wh dlq --id <endpoint>` e avise o cliente (o receptor dele responde fora de 2xx ou não responde em
 10 s). Se ele não responder e o endpoint só gerar ruído: `wh disable --id <endpoint>`; quando ele corrigir,
 `wh enable --id <endpoint>` e `wh replay --id <endpoint>`.
+
+**Circuit breaker.** O worker desativa sozinho o endpoint que passa 24 h só falhando (nenhuma entrega com sucesso
+desde a primeira falha) e com pelo menos 3 entregas na DLQ nesse período. O portal do cliente mostra "Desativado por
+falhas", com quando e o último erro, e o log do worker registra `endpoint desativado pelo circuit breaker`. Reativar
+(pelo portal, `wh enable` ou o painel) zera a marca; depois, `wh replay` reenvia a DLQ. Falha nossa (segredo que não
+abre sem a KEK) não conta. `WEBHOOK_BREAKER_HOURS` muda o prazo (0 desliga).
+
+**Rate limit por endpoint.** Cada endpoint recebe no máximo 600 entregas por minuto por worker; acima disso a entrega
+espera a próxima janela sem gastar tentativa. `WEBHOOK_ENDPOINT_RATE_PER_MIN` muda o teto (0 desliga).
 
 ### Lento
 

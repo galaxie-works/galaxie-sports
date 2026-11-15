@@ -4,8 +4,10 @@
  * recalculada a partir dos resultados do core com o motor determinístico de `@galaxie/rules`
  * (regulamento em `config/rules/<slug>.yaml`, ou o genérico) e gravada com `source = 'computed'`.
  *
- * Quando já existe tabela do provedor (ex.: bootstrap Pro) e ela é mais nova que o último resultado,
- * a do provedor prevalece. Mais velha: a calculada a substitui, com os mesmos nomes de grupo.
+ * Com resultado encerrado e regulamento (o genérico também conta), a tabela é sempre a calculada, mesmo que a
+ * do provedor (ex.: bootstrap Pro) seja mais nova que o último resultado: a calculada a substitui, com os mesmos
+ * nomes de grupo (#880). A do provedor só vale no mata-mata e na temporada sem jogo. O beisebol fica de fora:
+ * a calculada é uma tabela única e a do fornecedor vem por divisão (`recomputeWinPct`).
  */
 import { and, eq, gte, inArray, isNotNull, sql } from 'drizzle-orm';
 import {
@@ -47,6 +49,7 @@ const COMPUTED_SPORTS = ['football', 'baseball'];
 export type StandingsOutcome =
   | 'written'
   | 'provider_fresh'
+  | 'provider_ahead'
   | 'knockout'
   | 'no_results'
   | 'no_groups'
@@ -75,20 +78,22 @@ export interface SeasonStandingsReport {
   unclassified?: string[] | undefined;
   /** Rodadas de fase de grupos que o regulamento não reconhece (contadas só na fase inequívoca dos dois times). */
   unmatchedRounds?: string[] | undefined;
-  /** Tabelas do regulamento em que a do fornecedor, mais nova que os resultados, prevaleceu. */
-  fresh?: string[] | undefined;
   /** Grupos com o nome antigo de uma tabela renomeada pelo fornecedor (apagados). */
   superseded?: string[] | undefined;
+  /** Grupos em que a tabela do fornecedor tem mais jogos que a nossa e prevaleceu (trava do #880). */
+  providerAhead?: string[] | undefined;
 }
 
 /**
- * Relatório que pede atenção da operação: tabela parada (grupo ambíguo, regulamento ou entrada inválidos),
+ * Relatório que pede atenção da operação: tabela parada (grupo ambíguo, regulamento ou entrada inválidos, tabela
+ * do fornecedor com mais jogos que a nossa),
  * tabela do regulamento sem recálculo ou grupo que o regulamento não reconhece. O resto (tabela do
- * fornecedor mais nova, mata-mata, sem resultado) é o normal.
+ * fornecedor mais nova no beisebol, mata-mata, sem resultado) é o normal.
  */
 export function needsAttention(r: SeasonStandingsReport): boolean {
   return (
-    ['no_groups', 'rules_error', 'invalid_input'].includes(r.outcome) ||
+    ['no_groups', 'provider_ahead', 'rules_error', 'invalid_input'].includes(r.outcome) ||
+    !!r.providerAhead?.length ||
     !!r.skipped?.length ||
     !!r.unclassified?.length ||
     !!r.unmatchedRounds?.length
@@ -197,8 +202,8 @@ export async function recomputeSeasonStandings(
   if (rules.format === 'cup') return report('knockout');
 
   // pertença aos grupos de qualquer origem: o replace grava `computed` sobre a linha do provedor (mesma chave),
-  // então a partir do 2º recálculo não há mais linha `provider` e os grupos sumiriam; a origem só decide o
-  // atalho provider_fresh
+  // então a partir do 2º recálculo não há mais linha `provider` e os grupos sumiriam. Com resultado e
+  // regulamento (o genérico também conta), a tabela é sempre nossa, mesmo com a do fornecedor mais nova (#880)
   const tableRows = await db
     .select({
       participantId: standing.participantId,
@@ -210,23 +215,9 @@ export async function recomputeSeasonStandings(
     .where(eq(standing.seasonId, seasonId));
 
   // regulamento com as tabelas da temporada (Apertura/Clausura, anual, promedios...): cada fase com as suas
-  // rodadas e os seus grupos, e a frescura do fornecedor vista por tabela (não pela temporada inteira)
+  // rodadas e os seus grupos
   if (rules.tables.length)
     return recomputeByTables(db, seasonId, info.competitionId, rules, tableRows, report, options);
-
-  const providerRows = tableRows.filter((r) => r.source === 'provider');
-  const [latest] = await db
-    .select({ at: sql<string | null>`max(${event.updatedAt})` })
-    .from(event)
-    .where(and(eq(event.seasonId, seasonId), eq(event.status, 'finished')));
-  const latestResultAt = latest?.at ? new Date(latest.at) : null;
-  // grupo com tabela calculada: o writer não grava mais a do fornecedor nele, então só o recálculo o mantém em dia
-  // (o fornecedor fresco em outro grupo, como promedios, não pode congelar o nosso)
-  const behind = tableRows.some((r) => r.source === 'computed');
-  if (providerRows.length && latestResultAt && !behind) {
-    const providerAt = Math.max(...providerRows.map((r) => r.updatedAt.getTime()));
-    if (providerAt >= latestResultAt.getTime()) return report('provider_fresh');
-  }
 
   const stages = await db
     .select({ id: stage.id })
@@ -380,7 +371,7 @@ async function writeTables(
   db: Database,
   seasonId: string,
   competitionId: string,
-  tables: readonly StandingsTable[],
+  tables: StandingsTable[],
   options: RecomputeOptions,
   report: (outcome: StandingsOutcome, extra?: Partial<SeasonStandingsReport>) => SeasonStandingsReport,
   extra: { results: number; dropEmpty: boolean; maxRound?: number | null },
@@ -400,6 +391,16 @@ async function writeTables(
       detail: `só parte da temporada no banco: rodada ${extra.maxRound}, no máximo ${maxPlayed} jogos por time`,
     });
   }
+  const ahead = await providerAheadGroups(db, seasonId, tables);
+  if (ahead.length) {
+    tables = tables.filter((t) => !ahead.includes(t.group));
+    if (!tables.length)
+      return report('provider_ahead', {
+        results: extra.results,
+        providerAhead: ahead,
+        detail: aheadDetail(ahead),
+      });
+  }
   const rows = await writeComputedStandings(db, seasonId, tables, { mode: 'replace' });
   await dropStaleComputedRows(db, seasonId, tables, extra.dropEmpty);
   if (options.publish !== false && rows > 0) {
@@ -415,8 +416,48 @@ async function writeTables(
       },
     });
   }
-  return report('written', { results: extra.results, rows });
+  return report('written', {
+    results: extra.results,
+    rows,
+    ...(ahead.length ? { providerAhead: ahead, detail: aheadDetail(ahead) } : {}),
+  });
 }
+
+/**
+ * Trava do #880: grupo em que algum time tem mais jogos na linha do fornecedor do que na nossa (jogo faltando no
+ * core ou formato que o regulamento ainda não descreve). A nossa tabela sairia errada; fica a do fornecedor até
+ * o core ou o regulamento serem acertados.
+ */
+async function providerAheadGroups(
+  db: Database,
+  seasonId: string,
+  tables: readonly StandingsTable[],
+): Promise<string[]> {
+  const provider = await db
+    .select({ group: standing.group, participantId: standing.participantId, played: standing.played })
+    .from(standing)
+    .where(and(eq(standing.seasonId, seasonId), eq(standing.source, 'provider')));
+  return providerAhead(provider, tables);
+}
+
+/** Grupos calculados que ficam atrás da linha do fornecedor no mesmo grupo (função pura, para teste). */
+export function providerAhead(
+  provider: readonly { group: string; participantId: string; played: number | null }[],
+  tables: readonly { group: string; rows: readonly { teamId: string; played: number }[] }[],
+): string[] {
+  const out: string[] = [];
+  for (const t of tables) {
+    const ours = new Map(t.rows.map((r) => [r.teamId, r.played]));
+    const behind = provider.some(
+      (p) => p.group === t.group && (p.played ?? 0) > (ours.get(p.participantId) ?? 0),
+    );
+    if (behind) out.push(t.group);
+  }
+  return out;
+}
+
+const aheadDetail = (groups: readonly string[]) =>
+  `tabela do fornecedor com mais jogos (fica a dele): ${groups.map((g) => g || '(sem nome)').join(', ')}`;
 
 /** Tabela com bem menos jogos que a rodada numerada pelo fornecedor (a partir da rodada 5): parcial. */
 const PARTIAL_PLAYED_SHARE = 0.6;
@@ -458,9 +499,9 @@ async function roundLabels(
 /**
  * Recálculo pelas tabelas do regulamento: cada fase com as rodadas e os grupos dela, a anual com todas as
  * fases. Tabela sem como montar (sem grupos do fornecedor, grupo ambíguo) e grupo que o regulamento não
- * reconhece vão para o relatório; as demais são gravadas mesmo assim. A tabela do fornecedor mais nova que
- * os resultados dela prevalece só nela; o grupo de nome antigo de uma tabela renomeada e o resíduo no grupo
- * sem nome saem mesmo quando nada é regravado.
+ * reconhece vão para o relatório; as demais são gravadas mesmo assim, ainda que a do fornecedor seja mais
+ * nova (#880). O grupo de nome antigo de uma tabela renomeada e o resíduo no grupo sem nome saem mesmo quando
+ * nada é regravado.
  */
 async function recomputeByTables(
   db: Database,
@@ -476,7 +517,6 @@ async function recomputeByTables(
     ...(out.skipped.length ? { skipped: out.skipped } : {}),
     ...(out.unclassified.length ? { unclassified: out.unclassified } : {}),
     ...(out.unmatchedRounds.length ? { unmatchedRounds: out.unmatchedRounds } : {}),
-    ...(out.fresh.length ? { fresh: out.fresh } : {}),
     ...(out.superseded.length ? { superseded: out.superseded } : {}),
   };
   const detail = [
@@ -487,16 +527,19 @@ async function recomputeByTables(
           `rodadas de grupo fora do regulamento (contadas só com fase inequívoca): ${out.unmatchedRounds.join(', ')}`,
         ]
       : []),
-    ...(out.fresh.length ? [`tabela do fornecedor mais nova: ${out.fresh.join(', ')}`] : []),
     ...(out.superseded.length
       ? [`grupo renomeado pelo fornecedor (apagado): ${out.superseded.join(', ')}`]
       : []),
   ].join('; ');
+  const ahead = await providerAheadGroups(db, seasonId, out.tables);
+  if (ahead.length) out.tables = out.tables.filter((t) => !ahead.includes(t.group));
+  const fullDetail = [detail, ahead.length ? aheadDetail(ahead) : ''].filter(Boolean).join('; ');
+  if (ahead.length) Object.assign(extra, { providerAhead: ahead });
   const removed = await dropRenamedAndResidue(db, seasonId, rules, tableRows, out.superseded);
   if (!out.tables.length) {
     if (options.publish !== false && removed > 0) await publishStandings(db, seasonId, competitionId, 0, []);
-    const outcome = out.skipped.length ? 'no_groups' : out.fresh.length ? 'provider_fresh' : 'no_results';
-    return report(outcome, { ...extra, ...(detail ? { detail } : {}) });
+    const outcome = out.skipped.length ? 'no_groups' : ahead.length ? 'provider_ahead' : 'no_results';
+    return report(outcome, { ...extra, ...(fullDetail ? { detail: fullDetail } : {}) });
   }
   const rows = await writeComputedStandings(db, seasonId, out.tables, { mode: 'replace' });
   await dropStaleComputedRows(db, seasonId, out.tables);
@@ -508,7 +551,12 @@ async function recomputeByTables(
       rows,
       out.tables.map((t) => t.group),
     );
-  return report('written', { results: out.results, rows, ...extra, ...(detail ? { detail } : {}) });
+  return report('written', {
+    results: out.results,
+    rows,
+    ...extra,
+    ...(fullDetail ? { detail: fullDetail } : {}),
+  });
 }
 
 /** Avisa o change feed de que a tabela da temporada mudou. */
@@ -601,7 +649,9 @@ async function dropStaleComputedRows(
 
 /**
  * Beisebol: tabela única por aproveitamento com os jogos da fase regular (sem fase ou fase de tabela; os
- * playoffs ficam de fora). Tabela do fornecedor mais nova que o último resultado prevalece, como no futebol.
+ * playoffs ficam de fora). Fica fora do #880: a calculada é uma tabela única, e a do fornecedor vem por liga
+ * e divisão, então a do fornecedor mais nova que o último resultado continua prevalecendo (gravar a calculada
+ * por cima criaria uma tabela paralela de 30 times ao lado das divisões).
  */
 async function recomputeWinPct(
   db: Database,

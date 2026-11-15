@@ -12,6 +12,7 @@ import {
   registerFanAuth,
   type FanRevocations,
 } from './engage/fan-auth.js';
+import { FanAgeGate } from './engage/age-gate.js';
 import { fanRoutes } from './engage/fan-routes.js';
 import {
   MemoryPresenceCounter,
@@ -21,6 +22,11 @@ import {
   startPresencePurge,
 } from './engage/presence-routes.js';
 import { moderationRoutes } from './engage/moderation-routes.js';
+import { chatRoutes } from './chat/routes.js';
+import { ChatHub } from './chat/hub.js';
+import { ChatGameFeed } from './chat/game.js';
+import { MemoryChatPeak, RedisChatPeak } from './chat/peak.js';
+import type { ChatStreamOptions } from './chat/stream.js';
 import type { FanTokenSigner } from './engage/fan-token.js';
 import { AdminGuard, type AdminGuardOptions } from './admin/guard.js';
 import { loadPlans, type PlanCatalog } from './admin/plans.js';
@@ -71,7 +77,9 @@ import { StreamTokenSigner } from './realtime/stream-token.js';
 import { docsRoutes } from './routes/docs.js';
 import { cosmosStripeRoutes } from './routes/internal/cosmos-stripe.js';
 import { internalShopRoutes } from './routes/internal/shop.js';
+import { galaxieShopTenants, shopRoutes } from './routes/v1/shop.js';
 import { ShopClickRecorder, shopClickRoutes } from './shop/clicks.js';
+import { ShopClickSigner } from './shop/click-token.js';
 import { ShopOffers } from './shop/offers.js';
 import { internalWhereToWatchRoutes } from './routes/internal/where-to-watch.js';
 import { Lineup, type LineupOptions } from './lineup/availability.js';
@@ -107,6 +115,10 @@ export interface ServerOptions {
   /** Shopping (#916): fetch dos conectores de loja (testes) e cofre das credenciais das lojas. */
   shopFetch?: ShopFetch;
   shopSecretBox?: Pick<SettingsSecretBox, 'open'>;
+  /** Tenants da Galaxie no Shopping (#921); sem isto, vale `SHOP_GALAXIE_TENANT_IDS`. */
+  shopGalaxieTenantIds?: string;
+  /** Assinatura dos links de compra (#921); sem isto, a chave sai da SETTINGS_KEK. */
+  shopClickSigner?: ShopClickSigner;
   /** Fila dos cliques do Shopping (#918); nos testes, para gravar na hora. */
   shopClickRecorder?: ShopClickRecorder;
   logger?: boolean;
@@ -189,6 +201,8 @@ export interface ServerOptions {
   mediaDenylist?: MediaDenylist;
   /** Relógio injetável (testes de momentum/agenda). */
   now?: () => Date;
+  /** Chat ao vivo (#964): intervalo do lote e opções do stream (testes). */
+  chat?: { intervalMs?: number; stream?: ChatStreamOptions };
   /** Piso editorial da semântica e pasta da base (SEMANTIC_MIN_REVIEW_STATUS, KNOWLEDGE_DIR). */
   semantic?: SemanticConfig;
   /** Grade de canais e ofertas: piso editorial (LINEUP_MIN_REVIEW_STATUS) e consultas (fixas nos testes). */
@@ -349,12 +363,29 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
   const fanRevocations =
     options.fanRevocations ??
     (options.redis ? new RedisFanRevocations(options.redis, prefix) : new MemoryFanRevocations());
+  const fanAgeGate = options.db
+    ? new FanAgeGate(options.db, {
+        onDenied: (d) =>
+          metrics.fanAgeDenied.inc({ reason: d.reason, capability: d.capability, country: d.country }),
+      })
+    : null;
+  // Chat ao vivo (#964): lotes de 1 s pelo Valkey e faixa de conexões (D6)
+  const chatHub = new ChatHub({
+    ...(options.redis ? { redis: options.redis } : {}),
+    keyPrefix: prefix,
+    logger: app.log,
+    ...(options.chat?.intervalMs ? { intervalMs: options.chat.intervalMs } : {}),
+  });
+  const chatPeak = options.redis ? new RedisChatPeak(options.redis, prefix) : new MemoryChatPeak();
+  app.addHook('onReady', () => chatHub.start());
+  app.addHook('onClose', () => chatHub.stop());
   registerFanAuth(app, {
     signer: options.fanTokens ?? null,
     publishable,
     revocations: fanRevocations,
     limiter,
     windowMs,
+    gate: fanAgeGate,
   });
 
   // Autenticação, módulo do plano, uso e rate limit — rotas com `config.module` ou `config.authenticated`.
@@ -506,27 +537,38 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
     return { status: 'ok' };
   });
 
+  // link de compra assinado (#921): só a vitrine da Galaxie assina, e a rota de cliques confere
+  const shopSigner = options.shopClickSigner ?? ShopClickSigner.fromEnv();
+  // Shopping (#916, #921): uma instância só, para o cache das lojas e das ofertas valer nas duas rotas
+  const shopOffers = options.db
+    ? new ShopOffers({
+        db: options.db,
+        redis: options.redis ?? null,
+        keyPrefix: prefix,
+        metrics: app.metrics,
+        log: app.log,
+        now: ctx.now,
+        ...(options.shopFetch ? { fetch: options.shopFetch } : {}),
+        ...(options.shopSecretBox ? { box: options.shopSecretBox } : {}),
+      })
+    : undefined;
+
   app.register(async (instance) => {
     await docsRoutes(instance, { publicUrl: options.publicUrl });
     await v1Routes(instance, ctx);
     await mirrorRoutes(instance, ctx);
     await internalWhereToWatchRoutes(instance, ctx);
-    await internalShopRoutes(instance, ctx, {
-      offers: options.db
-        ? new ShopOffers({
-            db: options.db,
-            redis: options.redis ?? null,
-            keyPrefix: prefix,
-            metrics: app.metrics,
-            log: app.log,
-            now: ctx.now,
-            ...(options.shopFetch ? { fetch: options.shopFetch } : {}),
-            ...(options.shopSecretBox ? { box: options.shopSecretBox } : {}),
-          })
-        : undefined,
+    await internalShopRoutes(instance, ctx, { offers: shopOffers });
+    await shopRoutes(instance, ctx, {
+      offers: shopOffers,
+      publicUrl: options.publicUrl,
+      galaxieTenants: galaxieShopTenants(options.shopGalaxieTenantIds ?? process.env.SHOP_GALAXIE_TENANT_IDS),
+      signer: shopSigner,
+      now: ctx.now,
     });
     await shopClickRoutes(instance, {
       db: options.db,
+      signer: shopSigner,
       limiter,
       now: ctx.now,
       ...(options.shopClickRecorder ? { recorder: options.shopClickRecorder } : {}),
@@ -538,6 +580,7 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
       signer: options.fanTokens ?? null,
       ttl: new FanTokenTtl(options.db),
       revocations: fanRevocations,
+      gate: fanAgeGate,
     });
     await presenceRoutes(instance, {
       db: options.db,
@@ -548,7 +591,14 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
       const stopPurge = startPresencePurge(options.db, instance.log);
       instance.addHook('onClose', async () => stopPurge());
     }
-    await moderationRoutes(instance, { db: options.db, now: options.now });
+    await moderationRoutes(instance, { db: options.db, now: options.now, gate: fanAgeGate });
+    await chatRoutes(instance, {
+      db: options.db,
+      now: options.now,
+      hub: chatHub,
+      peak: chatPeak,
+      stream: options.chat?.stream,
+    });
   });
 
   // escopo próprio: o parser de corpo cru do webhook não vale para as outras rotas
@@ -632,6 +682,13 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
         rejected: (reason) => metrics.sseRejected.inc({ reason }),
       },
     });
+    // o jogo dentro do chat (#965): gol, cartão vermelho, VAR, início, intervalo e fim viram mensagem da sala
+    const gameFeed = new ChatGameFeed(options.db, chatHub, {
+      assetsBaseUrl: options.assetsBaseUrl,
+      logger: app.log,
+    });
+    if (app.realtime) app.realtime.subscribe(gameFeed.handle);
+    else app.log.warn('chat: tempo real desligado, o jogo não entra no chat');
   }
 
   return app;

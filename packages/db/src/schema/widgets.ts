@@ -49,6 +49,7 @@ export const WIDGET_KINDS = [
   'channel_guide',
   'match_stats',
   'upcoming_derbies',
+  'shop_the_game',
 ] as const;
 export type WidgetKind = (typeof WIDGET_KINDS)[number];
 
@@ -77,6 +78,27 @@ export interface WidgetDefaults {
   sport?: string;
 }
 
+/** Uma loja ligada no widget do Shopping. */
+export interface WidgetShopStore {
+  storeId: string;
+  /** `subnetwork`: repasse pela Galaxie (clickref do cliente); `client_code`: código de afiliado do cliente. */
+  path: 'client_code' | 'subnetwork';
+  /** Código de rastreio do cliente naquela loja (caminho `client_code`). */
+  clientCode?: string;
+}
+
+export interface WidgetShopConfig {
+  stores: WidgetShopStore[];
+  /** Checagem de destino (#927): respostas, versão das regras e quando foi confirmada. */
+  destination?: {
+    answers: Record<'ownSite' | 'mobileApp' | 'smartTv' | 'under13' | 'rewardsArea', boolean>;
+    rulesVersion: number;
+    confirmedAt: string;
+    /** Widget num bloco de engajamento (comunidade, sala): público infantil vale "não" sozinho. */
+    engagementBlock?: boolean;
+  };
+}
+
 /** Configuração salva do widget (`ops.widget.config`). */
 export interface WidgetConfig {
   /**
@@ -95,6 +117,12 @@ export interface WidgetConfig {
   defaults: WidgetDefaults;
   /** Só na tabela de classificação: legenda e cor de cada faixa (`direct`, `relegation`… → `#rrggbb`). */
   standings?: { showLegend?: boolean; zoneColors?: Record<string, string> };
+  /**
+   * Só no Shopping (#925): as lojas que o cliente ligou, na ordem dele, com o caminho de cada uma (repasse pela
+   * Galaxie ou código do próprio cliente) e a checagem de destino confirmada (#927). Lido só pela API
+   * (`/v1/widgets/{id}/shop`); não sai em `/e/<id>.json`.
+   */
+  shop?: WidgetShopConfig;
   /**
    * Só na lista de jogos: só ao vivo, agrupar por campeonato, atualização automática, máximo de jogos e os
    * dados extras de cada linha (logo do campeonato, rodada, estádio, cidade).
