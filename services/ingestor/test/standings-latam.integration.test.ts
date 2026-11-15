@@ -115,7 +115,8 @@ async function world(slug: string, year: number, teams: readonly string[]): Prom
           participantId: ids.get(t)!,
           rank: i + 1,
           points: 50 - i,
-          played: 30,
+          // só marca o grupo: jogos do fornecedor acima dos nossos acionariam a trava do #880 (fornecedor à frente)
+          played: 0,
           source,
           updatedAt: OLD,
         })),
@@ -189,7 +190,7 @@ describe('Argentina (2026): zonas do Apertura e do Clausura, anual e promedios',
     expect(row('Tabla Anual', 'A1')).toMatchObject({ played: 3, points: 3, source: 'computed' });
     expect(t.filter((r) => r.group === 'Tabla Anual')).toHaveLength(8);
     expect(
-      t.filter((r) => r.group === 'Promedios').every((r) => r.source === 'provider' && r.played === 30),
+      t.filter((r) => r.group === 'Promedios').every((r) => r.source === 'provider' && r.played === 0),
     ).toBe(true);
     // o resíduo no grupo sem nome sai
     expect(t.filter((r) => r.group === '')).toHaveLength(0);

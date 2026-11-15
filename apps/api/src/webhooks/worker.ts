@@ -8,6 +8,7 @@ import {
   webhookEndpoint,
   PLANS_WITHOUT_REALTIME,
   readWebhookControls,
+  sealWebhookSecrets,
   reportWebhookWorker,
   WEBHOOK_CONTROLS_REFRESH_MS,
   type ApiPlan,
@@ -79,6 +80,11 @@ export interface WebhookWorkerOptions {
    * próxima janela sem gastar tentativa. Padrão 600; 0 desliga.
    */
   endpointRatePerMinute?: number;
+  /**
+   * Carência depois da subida antes de cifrar os segredos legados (#360): a troca lado a lado termina e o worker
+   * antigo sai antes. Padrão 2 min.
+   */
+  sealDelayMs?: number;
   /** Env para o padrão da recusa de texto puro quando o painel não grava nada (padrão: process.env). */
   env?: NodeJS.ProcessEnv;
   /** Transporte do POST (padrão: postWebhook, com a checagem de destino no socket). */
@@ -95,6 +101,8 @@ export interface DeliveryStats {
 }
 
 const BATCH = 500;
+/** Carência da subida antes de cifrar os segredos legados (`sealDelayMs`). */
+const WEBHOOK_SEAL_DELAY_MS = 120_000;
 const USER_AGENT = 'galaxie-sports-webhooks/0.1';
 
 type ClaimedDelivery = {
@@ -132,6 +140,9 @@ export class WebhookWorker {
   private cursor: GapCursor | undefined;
   private timer: NodeJS.Timeout | undefined;
   private controlsTimer: NodeJS.Timeout | undefined;
+  /** Todos os segredos cifrados (`sealLegacySecrets`): a recusa de texto puro vale por padrão. */
+  private allSealed = false;
+  private startedAt = 0;
   /** Pausa geral (Ajustes → Webhooks): enfileira, mas não entrega. */
   private paused = false;
   private unlisten: (() => Promise<void>) | undefined;
@@ -178,6 +189,7 @@ export class WebhookWorker {
       this.unlisten = () => sub.unlisten();
     }
     const refreshMs = this.options.controlsRefreshMs ?? WEBHOOK_CONTROLS_REFRESH_MS;
+    this.startedAt = Date.now();
     if (refreshMs !== false) {
       await this.refreshControls();
       this.controlsTimer = setInterval(() => void this.refreshControls(), refreshMs);
@@ -190,10 +202,43 @@ export class WebhookWorker {
     return this.paused;
   }
 
+  /**
+   * Com a KEK: cifra os segredos legados em texto puro e recifra os de uma KEK antiga (o mesmo botão de Ajustes →
+   * Webhooks, idempotente). Tudo cifrado, a recusa de texto puro passa a valer por padrão (#360): ligar os webhooks na
+   * produção não depende de ninguém lembrar de um passo manual. Roda pela rodada de controles depois de
+   * `sealDelayMs` da subida (na troca lado a lado, o worker antigo, que pode não ter a KEK nova, ainda entrega nesse
+   * intervalo) e de novo a cada rodada enquanto alguma linha falhar.
+   */
+  async sealLegacySecrets(): Promise<void> {
+    if (!this.secrets.configured) return;
+    try {
+      const r = await sealWebhookSecrets(this.db, this.secrets);
+      this.allSealed = r.failed.length === 0;
+      if (r.sealed || r.failed.length)
+        this.options.logger?.[r.failed.length ? 'warn' : 'info'](
+          { sealed: r.sealed, total: r.total, failed: r.failed },
+          'webhooks: segredos legados cifrados na subida',
+        );
+    } catch (err) {
+      this.allSealed = false;
+      this.options.logger?.warn({ err }, 'webhooks: falha ao cifrar os segredos legados na subida');
+    }
+  }
+
   /** Aplica os controles do painel e relata o que vale aqui (também é o sinal de vida do worker no painel). */
   async refreshControls(): Promise<void> {
     try {
-      const controls = await readWebhookControls(this.db, this.options.env ?? process.env);
+      // cifra os legados depois da carência da subida (o worker antigo da troca lado a lado já saiu) e tenta de novo
+      // a cada rodada enquanto alguma linha falhar
+      if (
+        this.secrets.configured &&
+        !this.allSealed &&
+        Date.now() - this.startedAt >= (this.options.sealDelayMs ?? WEBHOOK_SEAL_DELAY_MS)
+      )
+        await this.sealLegacySecrets();
+      const controls = await readWebhookControls(this.db, this.options.env ?? process.env, {
+        rejectByDefault: this.secrets.configured && this.allSealed,
+      });
       const paused = !controls.deliveryEnabled;
       if (paused !== this.paused)
         this.options.logger?.info(
