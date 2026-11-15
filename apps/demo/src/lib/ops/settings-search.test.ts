@@ -148,8 +148,8 @@ describe('busca de ajustes', () => {
     });
   });
 
-  it('Páginas traz os 45 itens do menu, os "Em breve" com o selo', () => {
-    expect(pages.filter((p) => !p.parent)).toHaveLength(45);
+  it('Páginas traz os 46 itens do menu, os "Em breve" com o selo', () => {
+    expect(pages.filter((p) => !p.parent)).toHaveLength(46);
     const soon = pages.find((p) => p.id === 'tvApps')!;
     expect(soon).toMatchObject({ href: '/ajustes/apps-de-tv', soon: true });
     expect(pages.find((p) => p.id === 'live')!.soon).toBeUndefined();
