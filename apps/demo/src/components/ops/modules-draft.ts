@@ -158,7 +158,32 @@ export function modulesOfRow(api: string, tier: ModuleTier | null): ModuleDef[] 
 
 /** Módulos com tiers que não chegam a este tier (o job não cobre): a nota "sem switch". */
 export function modulesNotCovering(api: string, tier: ModuleTier): ModuleDef[] {
-  return moduleDefs(api).filter((d) => d.tiers.length > 0 && !d.tiers.includes(tier));
+  const defs = moduleDefs(api);
+  const sameEndpoints = (a: ModuleDef, b: ModuleDef) =>
+    a.endpoints.length > 0 &&
+    a.endpoints.length === b.endpoints.length &&
+    a.endpoints.every((e) => b.endpoints.includes(e));
+  return defs.filter(
+    (d) =>
+      d.tiers.length > 0 &&
+      !d.tiers.includes(tier) &&
+      // o mesmo dado coberto por outro módulo neste tier (elencos: tier 1 no sync diário, 2+ no espelho) não é falta
+      !defs.some((o) => o !== d && o.tiers.includes(tier) && sameEndpoints(o, d)),
+  );
+}
+
+/** Chamadas por dia medidas dos módulos de uma API (sem os agentes de IA), na janela do ledger; `null` sem janela. */
+export function measuredModulesPerDay(api: string, snapshot: ModulesSnapshot): number | null {
+  if (!snapshot.windowDays) return null;
+  let total = 0;
+  for (const def of moduleDefs(api)) total += measuredCallsPerDay(api, def, snapshot) ?? 0;
+  return total;
+}
+
+/** Chamadas por dia de toda a API no ledger (módulos, cargas e o resto), na janela; `null` sem janela. */
+export function measuredApiPerDay(api: string, snapshot: ModulesSnapshot): number | null {
+  if (!snapshot.windowDays) return null;
+  return snapshot.costs.filter((c) => c.api === api).reduce((s, c) => s + c.calls, 0) / snapshot.windowDays;
 }
 
 /** Coluna do rascunho de um módulo num tier (0 nos módulos sem tier). */
