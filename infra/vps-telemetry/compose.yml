@@ -127,6 +127,16 @@ services:
       - traefik.http.routers.gsports-api.tls.certresolver=letsencrypt
       - traefik.http.routers.gsports-api.middlewares=${EDGE_MIDDLEWARES:-}
       - traefik.http.services.gsports-api.loadbalancer.server.port=8080
+      # domínio antigo da API (#627): 301 para o novo, mesmo caminho e query, por 12 meses (até 11/2027). Sem
+      # LEGACY_API_DOMAIN no .env o router casa um host que não existe e fica inerte.
+      - traefik.http.routers.gsports-api-legacy.rule=Host(`${LEGACY_API_DOMAIN:-legacy-api.invalid}`)
+      - traefik.http.routers.gsports-api-legacy.entrypoints=websecure
+      - traefik.http.routers.gsports-api-legacy.tls.certresolver=letsencrypt
+      - traefik.http.routers.gsports-api-legacy.middlewares=galaxie-legado-301-backend
+      - traefik.http.routers.gsports-api-legacy.service=gsports-api
+      - traefik.http.middlewares.galaxie-legado-301-backend.redirectregex.regex=^https?://[^/]+/(.*)
+      - traefik.http.middlewares.galaxie-legado-301-backend.redirectregex.replacement=https://${API_DOMAIN:?defina API_DOMAIN}/$${1}
+      - traefik.http.middlewares.galaxie-legado-301-backend.redirectregex.permanent=true
     # Healthcheck vem da imagem (GET /health).
     logging: *logging
 
@@ -229,6 +239,17 @@ services:
       - traefik.http.routers.gsports-site.priority=1000
       - traefik.http.routers.gsports-site.service=gsports-site
       - traefik.http.services.gsports-site.loadbalancer.server.port=3000
+      # domínio antigo da plataforma (#627): 301 para o novo, mesmo caminho e query, por 12 meses (até 11/2027). O
+      # app traduz o caminho antigo (#630) no salto seguinte. Sem LEGACY_DEMO_DOMAIN no .env o router fica inerte.
+      - traefik.http.routers.gsports-site-legacy.rule=Host(`${LEGACY_DEMO_DOMAIN:-legacy-platform.invalid}`)
+      - traefik.http.routers.gsports-site-legacy.entrypoints=websecure
+      - traefik.http.routers.gsports-site-legacy.tls.certresolver=letsencrypt
+      - traefik.http.routers.gsports-site-legacy.priority=3000
+      - traefik.http.routers.gsports-site-legacy.middlewares=galaxie-legado-301-plataforma
+      - traefik.http.routers.gsports-site-legacy.service=gsports-site
+      - traefik.http.middlewares.galaxie-legado-301-plataforma.redirectregex.regex=^https?://[^/]+/(.*)
+      - traefik.http.middlewares.galaxie-legado-301-plataforma.redirectregex.replacement=https://${DEMO_DOMAIN:?defina DEMO_DOMAIN}/$${1}
+      - traefik.http.middlewares.galaxie-legado-301-plataforma.redirectregex.permanent=true
       # console fora do ar (reinício, OOM): os prefixos dele vão para a página de manutenção (serviço maintenance), não
       # para o 404 do site. Fica no site para o compose do maintenance não mudar; com o site também fora, o router de
       # manutenção da demo (prioridade 1) cobre o host inteiro
