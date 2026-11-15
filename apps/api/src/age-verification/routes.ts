@@ -19,7 +19,6 @@ import { tenant as tenantTable, type Database } from '@galaxie/db';
 import { and, eq, sql } from 'drizzle-orm';
 import { problems } from '../errors.js';
 import type { ModuleUsageMeter } from '../engage/module-usage.js';
-import { fanCan } from '../engage/fan-rules.js';
 import { readFan } from '../engage/fans.js';
 import { parseInput } from '../util.js';
 import { DiditClient, DiditError, verifyDiditWebhook, type DiditFetch } from './didit.js';
@@ -98,77 +97,94 @@ export async function ageVerificationFanRoutes(
     return deps.db;
   };
 
-  app.post('/v1/fans/me/age-verification', { config: { fan: true } }, async (request, reply) => {
-    const fan = request.fan!;
-    const database = db();
-    if (!(await tenantHasModule(database, fan.tenantId))) throw problems.moduleNotInPlan('age_verification');
-    // menor de 13 não passa o rosto por ninguém: o caminho dele é o responsável (#1108)
-    if (!fanCan(fan.ageBand, 'read'))
-      throw problems.fanAgeRestricted('Perfis com menos de 13 anos não fazem a verificação de idade.');
-    const body = parseInput(AgeVerificationStartBody, request.body);
-    if (!client) throw problems.degraded('Verificação de idade não configurada.');
-    const profile = await readFan(database, fan.tenantId, fan.profileId);
-    if (!profile) throw problems.invalidFanToken('Perfil excluído.');
-    // a faixa gravada vale mais que a do token (o cliente pode ter descido o Perfil depois de emitir)
-    if (!fanCan(profile.ageBand, 'read'))
-      throw problems.fanAgeRestricted('Perfis com menos de 13 anos não fazem a verificação de idade.');
-    // só origem e caminho vão ao provedor: query e fragmento podem levar dado do torcedor
-    const back = new URL(body.returnUrl);
-    back.search = '';
-    back.hash = '';
-    const at = now();
-    let started;
-    try {
-      started = await startAgeVerification(database, client, {
-        tenantId: fan.tenantId,
-        profileId: fan.profileId,
-        language: profile.locale.slice(0, 2).toLowerCase(),
-        returnUrl: back.toString(),
-        consent: { givenAt: new Date(body.consent.givenAt), textVersion: body.consent.textVersion },
-        now: at,
-      });
-    } catch (err) {
-      if (err instanceof DiditError) {
-        request.log.warn({ err: err.message, status: err.status }, 'verificação de idade: provedor recusou');
-        throw problems.degraded('Provedor da verificação de idade indisponível. Tente de novo em instantes.');
+  // fora do portão de idade (#1106), como o GET /v1/fans/me: é a saída do `needs_verification`; a faixa é conferida aqui
+  app.post(
+    '/v1/fans/me/age-verification',
+    { config: { fan: true, age: 'exempt' } },
+    async (request, reply) => {
+      const fan = request.fan!;
+      const database = db();
+      if (!(await tenantHasModule(database, fan.tenantId)))
+        throw problems.moduleNotInPlan('age_verification');
+      // só o Perfil declarado adulto: a verificação comprova 18+ e não muda a faixa, então o menor passaria o rosto pelo
+      // provedor sem ganhar nada (revisão jurídica do #1109). Menor de 13 tem o caminho do responsável (#1108)
+      if (fan.ageBand !== '18plus')
+        throw problems.fanAgeRestricted('A verificação de idade só vale para Perfis declarados adultos.');
+      const body = parseInput(AgeVerificationStartBody, request.body);
+      if (!client) throw problems.degraded('Verificação de idade não configurada.');
+      const profile = await readFan(database, fan.tenantId, fan.profileId);
+      if (!profile) throw problems.invalidFanToken('Perfil excluído.');
+      // a faixa gravada vale mais que a do token (o cliente pode ter descido o Perfil depois de emitir)
+      if (profile.ageBand !== '18plus')
+        throw problems.fanAgeRestricted('A verificação de idade só vale para Perfis declarados adultos.');
+      // só origem e caminho vão ao provedor: query e fragmento podem levar dado do torcedor
+      const back = new URL(body.returnUrl);
+      back.search = '';
+      back.hash = '';
+      const at = now();
+      let started;
+      try {
+        started = await startAgeVerification(database, client, {
+          tenantId: fan.tenantId,
+          profileId: fan.profileId,
+          language: profile.locale.slice(0, 2).toLowerCase(),
+          returnUrl: back.toString(),
+          consent: { givenAt: new Date(body.consent.givenAt), textVersion: body.consent.textVersion },
+          now: at,
+        });
+      } catch (err) {
+        if (err instanceof DiditError) {
+          request.log.warn(
+            { err: err.message, status: err.status },
+            'verificação de idade: provedor recusou',
+          );
+          throw problems.degraded(
+            'Provedor da verificação de idade indisponível. Tente de novo em instantes.',
+          );
+        }
+        throw err;
       }
-      throw err;
-    }
-    if (!started) throw problems.rateLimited(3_600);
-    reply.header('cache-control', 'no-store');
-    const res: AgeVerificationStart = {
-      data: {
-        verification_id: started.id,
-        status: 'pending',
-        method: null,
-        decided_at: null,
-        created_at: started.createdAt.toISOString(),
-        url: started.url,
-        expires_at: started.expiresAt.toISOString(),
-      },
-    };
-    return reply.code(201).send(res);
-  });
+      if (!started) throw problems.rateLimited(3_600);
+      reply.header('cache-control', 'no-store');
+      const res: AgeVerificationStart = {
+        data: {
+          verification_id: started.id,
+          status: 'pending',
+          method: null,
+          decided_at: null,
+          created_at: started.createdAt.toISOString(),
+          url: started.url,
+          expires_at: started.expiresAt.toISOString(),
+        },
+      };
+      return reply.code(201).send(res);
+    },
+  );
 
-  app.get('/v1/fans/me/age-verification', { config: { fan: true } }, async (request, reply) => {
-    const fan = request.fan!;
-    const database = db();
-    if (!(await tenantHasModule(database, fan.tenantId))) throw problems.moduleNotInPlan('age_verification');
-    const row = await latestAgeVerification(database, fan.tenantId, fan.profileId);
-    reply.header('cache-control', 'no-store');
-    const res: AgeVerificationLatest = {
-      data: row
-        ? {
-            verification_id: row.id,
-            status: row.status as AgeVerificationStart['data']['status'],
-            method: row.method,
-            decided_at: row.decidedAt?.toISOString() ?? null,
-            created_at: row.createdAt.toISOString(),
-          }
-        : null,
-    };
-    return res;
-  });
+  app.get(
+    '/v1/fans/me/age-verification',
+    { config: { fan: true, age: 'exempt' } },
+    async (request, reply) => {
+      const fan = request.fan!;
+      const database = db();
+      if (!(await tenantHasModule(database, fan.tenantId)))
+        throw problems.moduleNotInPlan('age_verification');
+      const row = await latestAgeVerification(database, fan.tenantId, fan.profileId);
+      reply.header('cache-control', 'no-store');
+      const res: AgeVerificationLatest = {
+        data: row
+          ? {
+              verification_id: row.id,
+              status: row.status as AgeVerificationStart['data']['status'],
+              method: row.method,
+              decided_at: row.decidedAt?.toISOString() ?? null,
+              created_at: row.createdAt.toISOString(),
+            }
+          : null,
+      };
+      return res;
+    },
+  );
 }
 
 /** Webhook do provedor (escopo próprio: o corpo chega cru, para conferir a assinatura dos bytes). */
