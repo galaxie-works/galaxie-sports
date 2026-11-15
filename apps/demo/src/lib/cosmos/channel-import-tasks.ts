@@ -106,7 +106,7 @@ export async function importChannels(
         const result = parseChannelImportAnswer(parseModelJson(text));
         return { usable: result !== null, value: result! };
       },
-      ...(ctx.role === 'admin' ? { staff: { route: '/cliente/canais#cosmos-import' } } : {}),
+      ...(ctx.role === 'admin' ? { staff: { route: '/client/channels#cosmos-import' } } : {}),
     },
     { settings: await readCosmosSettings(db) },
   );
