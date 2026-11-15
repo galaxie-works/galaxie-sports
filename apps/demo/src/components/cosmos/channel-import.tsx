@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useId, useRef, useState, useTransition } from 'react';
 import { toast } from 'sonner';
 
-import { uploadChannels } from '@/app/[locale]/(app)/cliente/canais/actions';
+import { uploadChannels } from '@/app/[locale]/(app)/client/channels/actions';
 import { Frame, FrameDescription, FrameHeader, FramePanel, FrameTitle } from '@/components/reui/frame';
 import { SafetyNote } from '@/components/settings';
 import { Button } from '@/components/ui/button';
