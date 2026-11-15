@@ -23,8 +23,8 @@ afterAll(async () => {
 
 describe('Chat ao vivo: reações no Valkey (#967)', () => {
   it('duas instâncias somam e fecham o segundo sem contar duas vezes', async () => {
-    const a = new RedisReactionCounter(redis, prefix);
-    const b = new RedisReactionCounter(redis, prefix);
+    const a = new RedisReactionCounter(redis, prefix, 5, 50);
+    const b = new RedisReactionCounter(redis, prefix, 5, 50);
     const room = 't1:jogo1';
     await Promise.all(
       Array.from({ length: 40 }, (_, i) => (i % 2 ? a : b).add(room, `p${i}`, i % 3 ? 'fire' : 'clap')),
@@ -34,7 +34,8 @@ describe('Chat ao vivo: reações no Valkey (#967)', () => {
     expect(all).toHaveLength(1);
     expect(all[0]!.tally.delta).toEqual({ fire: 26, clap: 14 });
     expect(all[0]!.tally.total).toEqual({ fire: 26, clap: 14 });
-    // segundo seguinte: só o que entrou nele; o total continua
+    // segundo seguinte (a trava do fechamento é de 50 ms aqui): só o que entrou nele; o total continua
+    await new Promise((r) => setTimeout(r, 60));
     await a.add(room, 'p0', 'fire');
     const next = await b.flush();
     expect(next[0]!.tally).toEqual({ delta: { fire: 1 }, total: { fire: 27, clap: 14 } });
@@ -42,10 +43,11 @@ describe('Chat ao vivo: reações no Valkey (#967)', () => {
   });
 
   it('spam de uma pessoa é limitado por segundo; salas e clientes não se misturam', async () => {
-    const c = new RedisReactionCounter(redis, prefix, 3);
+    const c = new RedisReactionCounter(redis, prefix, 3, 50);
     const accepted = await Promise.all(Array.from({ length: 10 }, () => c.add('t1:spam', 'p1', 'laugh')));
     expect(accepted.filter(Boolean)).toHaveLength(3);
     await c.add('t2:spam', 'p1', 'laugh');
+    await new Promise((r) => setTimeout(r, 60));
     const out = await c.flush();
     const byRoom = Object.fromEntries(out.map((f) => [f.room, f.tally.delta]));
     expect(byRoom['t1:spam']).toEqual({ laugh: 3 });

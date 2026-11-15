@@ -88,12 +88,10 @@ export const ChatRoomSettings = z
 export const CHAT_REACTION_VALUES = ['fire', 'clap', 'shock', 'laugh', 'angry', 'ball'] as const;
 
 /** Contagem das reações por reação (só as que têm contagem). */
-export const ChatReactionCounts = z
-  .partialRecord(z.enum(CHAT_REACTION_VALUES), z.number().int())
-  .meta({
-    id: 'ChatReactionCounts',
-    description: 'fire 🔥, clap 👏, shock 😱, laugh 😂, angry 😡, ball ⚽.',
-  });
+export const ChatReactionCounts = z.partialRecord(z.enum(CHAT_REACTION_VALUES), z.number().int()).meta({
+  id: 'ChatReactionCounts',
+  description: 'fire 🔥, clap 👏, shock 😱, laugh 😂, angry 😡, ball ⚽.',
+});
 
 export const ChatReactionBody = z
   .strictObject({ reaction: z.enum(CHAT_REACTION_VALUES) })
@@ -104,7 +102,9 @@ export const ChatReactionResponse = z
   .object({
     data: z.object({
       accepted: z.boolean().meta({
-        description: '`false`: passou do limite de reações por segundo; a reação foi descartada (sem erro).',
+        description:
+          '`false`: a reação foi descartada sem erro (passou do limite por segundo, ou o contador está ' +
+          'indisponível no momento).',
       }),
     }),
   })
@@ -308,7 +308,8 @@ export const chatPaths: ZodOpenApiPathsObject = {
         '(`{state, reason?}`; `read_only_peak` com `reason: peak` quando a faixa de conexões do cliente estourou) e ' +
         '`ready` com `last_event_id`. Reconexão: header `Last-Event-ID` (ou `?last_event_id=`) reenvia os lotes ' +
         'perdidos do histórico curto; se não dá para emendar (buraco fora do histórico, numeração recomeçada), vem ' +
-        '`chat.reset` e o cliente relê a sala pelo GET. `access_revoked` antes de fechar quando a chave ou o módulo ' +
+        '`chat.reset` e o cliente relê a sala pelo GET. Reações (#967): `chat.reactions` uma vez por segundo, ' +
+        '`{delta, total}` (na abertura, o total com `snapshot: true`); use o maior `total` visto por reação. `access_revoked` antes de fechar quando a chave ou o módulo ' +
         'deixam de valer. No navegador use um cliente SSE sobre `fetch` com a chave publicável no header (a chave ' +
         'nunca vai na URL); máximo de 20 streams por chave publicável e IP (429). Exige o módulo `live_chat`.',
       tags: [TAG],

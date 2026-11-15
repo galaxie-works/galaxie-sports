@@ -123,8 +123,13 @@ export async function chatRoutes(app: FastifyInstance, deps: ChatRoutesDeps): Pr
   const now = () => deps.now?.() ?? new Date();
   const hub = deps.hub ?? new ChatHub();
   const reactions = deps.reactions ?? new MemoryReactionCounter();
-  // fecha o segundo das reações: toda instância roda, o script atômico garante que cada reação conta uma vez
+  // Fecha o segundo das reações. Toda instância roda o relógio, mas só uma fecha cada segundo (trava no Valkey) e o
+  // script atômico garante que cada reação conta uma vez. Uma rodada por vez; o log de falha sai no máximo por minuto
+  let flushing = false;
+  let reactionErrorAt = 0;
   const reactionTimer = setInterval(() => {
+    if (flushing) return;
+    flushing = true;
     reactions
       .flush()
       .then((list) =>
@@ -135,7 +140,14 @@ export async function chatRoutes(app: FastifyInstance, deps: ChatRoutesDeps): Pr
           }),
         ),
       )
-      .catch((err: unknown) => app.log.warn({ err }, 'chat: reações indisponíveis'));
+      .catch((err: unknown) => {
+        if (Date.now() - reactionErrorAt < 60_000) return;
+        reactionErrorAt = Date.now();
+        app.log.warn({ err }, 'chat: reações indisponíveis');
+      })
+      .finally(() => {
+        flushing = false;
+      });
   }, deps.reactionsIntervalMs ?? 1_000);
   reactionTimer.unref();
   app.addHook('onClose', async () => clearInterval(reactionTimer));
@@ -253,18 +265,40 @@ export async function chatRoutes(app: FastifyInstance, deps: ChatRoutesDeps): Pr
     return roomBody(tenant.tenantId, fixtureId, after);
   });
 
+  // Módulo e estado da sala para a reação, guardados por 5 s por cliente e jogo (num gol, milhares de reações por
+  // segundo na mesma sala não podem virar milhares de consultas no banco)
+  const reactionGates = new Map<
+    string,
+    { at: number; value: Promise<{ liveChat: boolean; state: ChatRoomState }> }
+  >();
+  function reactionGate(tenantId: string, fixtureId: string) {
+    const key = `${tenantId}:${fixtureId}`;
+    const hit = reactionGates.get(key);
+    if (hit && Date.now() - hit.at < 5_000) return hit.value;
+    const value = (async () => {
+      const liveChat = await tenantHasLiveChat(db(), tenantId);
+      if (!liveChat) return { liveChat, state: 'closed' as ChatRoomState };
+      return { liveChat, state: (await loadRoom(tenantId, fixtureId, false)).window.state };
+    })();
+    value.catch(() => reactionGates.delete(key));
+    if (reactionGates.size > 10_000) reactionGates.clear();
+    reactionGates.set(key, { at: Date.now(), value });
+    return value;
+  }
+
   // Reação (#967): não é texto, então quem tem 13 a 17 também reage (`age: 'react'`; o portão de idade decide pela
   // ficha do país). Passou do limite por segundo: 202 com `accepted: false`, sem erro (o widget só não soma)
   app.post(
     '/v1/chat/rooms/:fixtureId/reactions',
-    { config: { fan: true, age: 'react' } },
+    // balde próprio (fora dos 120/min do torcedor): tocar 🔥 num gol não pode travar o envio de mensagem
+    { config: { fan: true, age: 'react', fanBucket: { name: 'react', perMinute: 600 } } },
     async (request, reply) => {
       const fan = request.fan!;
       const { fixtureId } = parseInput(ChatRoomParams, request.params);
       const body = parseInput(ChatReactionBody, request.body);
-      const database = db();
-      if (!(await tenantHasLiveChat(database, fan.tenantId))) throw problems.moduleNotInPlan('live_chat');
-      const { window } = await loadRoom(fan.tenantId, fixtureId, false);
+      const { liveChat, state } = await reactionGate(fan.tenantId, fixtureId);
+      if (!liveChat) throw problems.moduleNotInPlan('live_chat');
+      const window = { state };
       if (window.state === 'scheduled' || window.state === 'closed')
         throw new ProblemError(
           409,

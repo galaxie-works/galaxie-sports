@@ -62,6 +62,8 @@ export class RedisReactionCounter implements ReactionCounter {
     private readonly redis: Redis,
     private readonly prefix = 'gs:',
     private readonly perSecond = REACTIONS_PER_SECOND,
+    /** Trava do fechamento do segundo (um pouco menos que o intervalo do relógio). */
+    private readonly flushLockMs = 900,
   ) {}
 
   private k(name: string, room?: string, who?: string): string {
@@ -85,6 +87,9 @@ export class RedisReactionCounter implements ReactionCounter {
   }
 
   async flush(): Promise<ReactionFlush[]> {
+    // uma instância fecha cada segundo: sem a trava, K instâncias mandariam K eventos por segundo para cada tela
+    const lock = await this.redis.set(this.k('rflush'), '1', 'PX', this.flushLockMs, 'NX');
+    if (lock !== 'OK') return [];
     const rooms = await this.redis.smembers(this.k('rd:rooms'));
     const out: ReactionFlush[] = [];
     for (const room of rooms) {
@@ -96,6 +101,7 @@ export class RedisReactionCounter implements ReactionCounter {
         this.k('rd:rooms'),
         room,
       )) as [string[], string[]] | [];
+      // o delta já saiu do Valkey: se o PUBLISH depois falhar, as telas perdem este segundo (o total continua certo)
       if (r.length) out.push({ room, tally: { delta: toRecord(r[0]), total: toRecord(r[1]) } });
     }
     return out;
@@ -110,6 +116,8 @@ export class MemoryReactionCounter implements ReactionCounter {
   private readonly delta = new Map<string, Partial<Record<ChatReaction, number>>>();
   private readonly total = new Map<string, Partial<Record<ChatReaction, number>>>();
   private readonly rate = new Map<string, { at: number; n: number }>();
+  /** Última reação por sala: sala parada há 24 h sai da memória (como o TTL do total no Valkey). */
+  private readonly lastAt = new Map<string, number>();
 
   constructor(
     private readonly perSecond = REACTIONS_PER_SECOND,
@@ -122,9 +130,10 @@ export class MemoryReactionCounter implements ReactionCounter {
     const r = this.rate.get(key);
     const cur = r && t - r.at < 1000 ? r : { at: t, n: 0 };
     cur.n += 1;
-    if (this.rate.size > 100_000) this.rate.clear();
+    if (this.rate.size > 100_000) for (const [k, v] of this.rate) if (t - v.at >= 1000) this.rate.delete(k);
     this.rate.set(key, cur);
     if (cur.n > this.perSecond) return false;
+    this.lastAt.set(room, t);
     for (const map of [this.delta, this.total]) {
       const m = map.get(room) ?? {};
       m[reaction] = (m[reaction] ?? 0) + 1;
@@ -138,6 +147,12 @@ export class MemoryReactionCounter implements ReactionCounter {
     for (const [room, delta] of this.delta)
       out.push({ room, tally: { delta, total: { ...(this.total.get(room) ?? {}) } } });
     this.delta.clear();
+    const t = this.now();
+    for (const [room, at] of this.lastAt)
+      if (t - at > 24 * 3600_000) {
+        this.lastAt.delete(room);
+        this.total.delete(room);
+      }
     return out;
   }
 
