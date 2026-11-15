@@ -545,3 +545,119 @@ describe('padrão protetivo para menores (#1107)', () => {
     expect((await me(token)).json().data.avatar_url).toBeNull();
   });
 });
+
+describe('mudança de faixa (#1110)', () => {
+  const wallet = (token: string) =>
+    app.inject({ method: 'GET', url: '/v1/fans/me/wallet', headers: { authorization: `Bearer ${token}` } });
+  const audits = async (tenantId: string, action: string) => {
+    const sql = postgres(testUrl, { max: 1 });
+    const rows = await sql`select rules, reason from engage.moderation_audit
+      where tenant_id = ${tenantId} and action = ${action} order by created_at`;
+    await sql.end();
+    return rows.map((r) => ({ rules: r.rules, reason: r.reason }));
+  };
+
+  it('aniversários no Brasil: 13 → 14_15 → 16_17 → 18plus, sem pedir o que não precisa nem abrir o Perfil', async () => {
+    const t = await tenantKey('fans-aniversario', ['core_data', 'live_chat']);
+    const who = { ...base, externalProfileId: 'prof_aniv' };
+    const guardian = { status: 'granted', linkedAccount: true };
+    const t13 = (await issue(t.key, { ...who, ageBand: '13', guardian })).json().data.token as string;
+    expect((await wallet(t13)).statusCode).toBe(200);
+    // 14_15 sem a autorização: o Brasil ainda pede abaixo de 16
+    const t14 = (await issue(t.key, { ...who, ageBand: '14_15' })).json().data.token as string;
+    expect((await wallet(t14)).json().age_gate).toEqual({
+      reason: 'guardian_consent',
+      next: 'guardian_consent',
+    });
+    // 16_17: a autorização e o vínculo deixam de ser exigidos; escrever e resgatar continuam fechados
+    const t16 = (await issue(t.key, { ...who, ageBand: '16_17' })).json().data.token as string;
+    expect((await wallet(t16)).statusCode).toBe(200);
+    expect((await me(t16)).json().data.capabilities).not.toContain('write');
+    // 18: escreve e resgata, mas o Perfil continua fechado até o torcedor escolher (#1107)
+    const t18 = (await issue(t.key, { ...who, ageBand: '18plus' })).json().data.token as string;
+    const adult = (await me(t18)).json().data;
+    expect(adult.capabilities).toEqual(expect.arrayContaining(['write', 'redeem']));
+    expect(adult.visibility).toEqual({});
+    expect(adult.minor_protections).toEqual([]);
+    // a auditoria guarda só a troca de faixa, nunca uma data
+    expect(await audits(t.id, 'age.band_changed')).toEqual([
+      { rules: { from: '13', to: '14_15' }, reason: null },
+      { rules: { from: '14_15', to: '16_17' }, reason: null },
+      { rules: { from: '16_17', to: '18plus' }, reason: null },
+    ]);
+  });
+
+  it('a faixa congelada só volta a adulto com uma comprovação feita depois do congelamento', async () => {
+    const t = await tenantKey('fans-corrige', ['core_data', 'live_chat']);
+    const who = {
+      ...base,
+      externalProfileId: 'prof_corrige',
+      ageAssurance: { method: 'verified', at: '2026-11-01' },
+    };
+    // um minuto à frente: depois do `now()` do banco mesmo com relógios um pouco desencontrados, dentro da folga
+    const fresh = (method: string) => ({ method, at: new Date(Date.now() + 60_000).toISOString() });
+    const band = async (body: Record<string, unknown>) =>
+      (await me((await issue(t.key, body)).json().data.token)).json().data.age_band as string;
+    await issue(t.key, who);
+    await issue(t.key, { ...who, ageBand: '14_15' });
+    // o token volta a dizer adulto com a comprovação antiga: continua congelado
+    expect(await band(who)).toBe('13_17');
+    // declaração não basta, mesmo nova; data no futuro também não
+    expect(await band({ ...who, ageAssurance: fresh('self') })).toBe('13_17');
+    expect(
+      await band({
+        ...who,
+        ageAssurance: { method: 'verified', at: new Date(Date.now() + 3_600_000).toISOString() },
+      }),
+    ).toBe('13_17');
+    // verificação nova: volta a adulto, e o caso sai da fila da equipe do cliente
+    const back = (await issue(t.key, { ...who, ageAssurance: fresh('verified') })).json().data
+      .token as string;
+    expect((await me(back)).json().data).toMatchObject({ age_band: '18plus', age_status: 'can_write' });
+    const cases = async () => {
+      const sql = postgres(testUrl, { max: 1 });
+      const rows = await sql`select status, reasons, resolved_by from engage.moderation_case
+        where tenant_id = ${t.id} order by created_at`;
+      await sql.end();
+      return rows.map((r) => ({ status: r.status, reasons: r.reasons, resolved_by: r.resolved_by }));
+    };
+    expect(await cases()).toEqual([
+      { status: 'resolved', reasons: ['age_band_downgrade'], resolved_by: expect.stringMatching(/^key:/) },
+    ]);
+    expect(await audits(t.id, 'age.unfrozen')).toEqual([
+      { rules: { method: 'verified' }, reason: 'age.reassured' },
+    ]);
+    // descer de novo congela de novo, com caso novo na fila
+    await issue(t.key, { ...who, ageBand: '16_17' });
+    expect(await band(who)).toBe('13_17');
+    // uma denúncia de outro motivo cai no mesmo caso: a estimativa nova destrava a idade, mas a denúncia fica
+    const reporter = (await issue(t.key, { ...base, externalProfileId: 'prof_denuncia' })).json().data.token;
+    const profileId = (await issue(t.key, who)).json().data.profile_id as string;
+    const rep = await app.inject({
+      method: 'POST',
+      url: '/v1/moderation/reports',
+      headers: { authorization: `Bearer ${reporter}` },
+      payload: { targetType: 'profile', targetId: profileId, module: 'profile', reason: 'spam' },
+    });
+    expect(rep.statusCode).toBe(201);
+    expect(await band({ ...who, ageAssurance: fresh('estimated') })).toBe('18plus');
+    expect((await cases())[1]).toEqual({ status: 'open', reasons: ['spam'], resolved_by: null });
+    expect((await audits(t.id, 'age.band_changed')).map((a) => a.rules)).toEqual([
+      { from: '18plus', to: '14_15' },
+      { from: '14_15', to: '18plus' },
+      { from: '18plus', to: '16_17' },
+      { from: '16_17', to: '18plus' },
+    ]);
+  });
+
+  it('mudar de país aplica a ficha nova: a autorização que o Brasil dispensa aos 16 o México pede', async () => {
+    const t = await tenantKey('fans-pais', ['core_data', 'live_chat']);
+    const who = { ...base, externalProfileId: 'prof_pais', ageBand: '16_17' };
+    expect((await wallet((await issue(t.key, who)).json().data.token)).statusCode).toBe(200);
+    const mx = (await issue(t.key, { ...who, country: 'mx', locale: 'es-MX' })).json().data.token as string;
+    expect((await wallet(mx)).json().age_gate).toEqual({
+      reason: 'guardian_consent',
+      next: 'guardian_consent',
+    });
+  });
+});
