@@ -65,9 +65,35 @@ describe('relatório do Shopping do cliente (#930)', () => {
     expect(byStore.total).toBe(1);
     const byTeam = await report.shopClientReport(T1, report.shopReportFilter(period, { team }));
     expect(byTeam.total).toBe(2);
-    expect(report.shopReportFilter(period, { team: 'x', store: "a'; drop" })).toEqual(period);
+    expect(report.shopReportFilter(period, { team: 'x', store: "a'; drop" })).toEqual({
+      ...period,
+      timeZone: 'UTC',
+    });
+    expect(report.shopReportFilter({ ...period, timeZone: 'Nada/Aqui' }, {}).timeZone).toBe('UTC');
     // as opções seguem com tudo do período (o filtro não esconde as outras escolhas)
     expect(byStore.options.stores).toHaveLength(2);
+  });
+
+  it('campeonato: o clique da página do próprio campeonato entra no filtro e nas opções', async () => {
+    const competition = randomUUID();
+    const T3 = randomUUID();
+    await db.sql.query(
+      `insert into engage.shop_click (entity_kind, entity_id, product_id, store_id, origin, tenant_id, widget_id)
+       values ('competition', $1, $2, 'loja_a', 'client', $3, $4)`,
+      [competition, productA, T3, W1],
+    );
+    const r = await report.shopClientReport(T3, report.shopReportFilter(period, { competition }));
+    expect(r.total).toBe(1);
+  });
+
+  it('dias no fuso de quem olha', async () => {
+    const r = await report.shopClientReport(
+      T1,
+      report.shopReportFilter({ ...period, timeZone: 'America/Sao_Paulo' }, {}),
+    );
+    const sum = r.byDay.reduce((a, d) => a + d.clicks, 0);
+    expect(sum).toBe(r.total);
+    expect(r.byDay.every((d) => /^\d{4}-\d{2}-\d{2}$/.test(d.day))).toBe(true);
   });
 
   it('CSV: uma linha por grupo, sem fórmula de planilha', async () => {

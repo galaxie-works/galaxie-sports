@@ -16,16 +16,30 @@ export interface ShopReportFilter {
   competitionId?: string | undefined;
   teamId?: string | undefined;
   storeId?: string | undefined;
+  /** Fuso de quem olha: os dias do relatório e do CSV são os dele, como o período. */
+  timeZone: string;
 }
+
+/** Fuso IANA conhecido pelo Intl; senão, UTC. */
+const zoneOf = (tz: string | undefined) => {
+  if (!tz) return 'UTC';
+  try {
+    new Intl.DateTimeFormat('en', { timeZone: tz });
+    return tz;
+  } catch {
+    return 'UTC';
+  }
+};
 
 /** Só os filtros em formato válido (vêm da URL). */
 export function shopReportFilter(
-  period: { from: Date; to: Date },
+  period: { from: Date; to: Date; timeZone?: string | undefined },
   raw: { competition?: string | undefined; team?: string | undefined; store?: string | undefined },
 ): ShopReportFilter {
   return {
     from: period.from,
     to: period.to,
+    timeZone: zoneOf(period.timeZone),
     ...(raw.competition && UUID.test(raw.competition) ? { competitionId: raw.competition } : {}),
     ...(raw.team && UUID.test(raw.team) ? { teamId: raw.team } : {}),
     ...(raw.store && STORE.test(raw.store) ? { storeId: raw.store } : {}),
@@ -56,7 +70,8 @@ function where(tenantId: string, f: ShopReportFilter, withFilters = true) {
   const conds = ['c.tenant_id = $1', 'c.clicked_at >= $2', 'c.clicked_at < $3'];
   if (withFilters && f.competitionId) {
     params.push(f.competitionId);
-    conds.push(`e.competition_id = $${params.length}`);
+    // o jogo do campeonato ou a página do próprio campeonato (widget sem jogo)
+    conds.push(`${COMPETITION} = $${params.length}`);
   }
   if (withFilters && f.teamId) {
     params.push(f.teamId);
@@ -71,23 +86,39 @@ function where(tenantId: string, f: ShopReportFilter, withFilters = true) {
 
 const FROM = `engage.shop_click c left join core.event e on e.id = c.event_id`;
 
+/** Campeonato do clique: o do jogo ou, na página do campeonato, a própria entidade. */
+const COMPETITION = `coalesce(e.competition_id, case when c.entity_kind = 'competition' then c.entity_id end)`;
+
+/** Dia do clique no fuso de quem olha (`$n` = o fuso). */
+const DAY = (n: number) => `to_char(c.clicked_at at time zone $${n}, 'YYYY-MM-DD')`;
+
 const n = (v: string | number) => Number(v);
 
 export async function shopClientReport(tenantId: string, f: ShopReportFilter): Promise<ShopReport> {
   const w = where(tenantId, f);
   const all = where(tenantId, f, false);
+  const day = [...w.params, f.timeZone];
+  // uma conexão só, em sequência: o pool da demo é pequeno e serve também ao login e aos outros painéis
+  const client = await pool.connect();
   const q = <T extends object>(sql: string, params = w.params) =>
-    pool.query<T>(sql, params).then((r) => r.rows);
-  const [events, teams, stores, widgets, products, days, competitions, teamOptions, storeOptions] =
-    await Promise.all([
-      q<{
-        id: string;
-        starts_at: Date | null;
-        competition: string | null;
-        title: string | null;
-        clicks: string;
-      }>(
-        `select c.event_id as id, e.starts_at, co.name as competition,
+    client.query<T>(sql, params).then((r) => r.rows);
+  const run = async <T extends readonly (() => Promise<unknown>)[]>(fns: T) => {
+    const out: unknown[] = [];
+    for (const fn of fns) out.push(await fn());
+    return out as { [K in keyof T]: Awaited<ReturnType<T[K]>> };
+  };
+  let results;
+  try {
+    results = await run([
+      () =>
+        q<{
+          id: string;
+          starts_at: Date | null;
+          competition: string | null;
+          title: string | null;
+          clicks: string;
+        }>(
+          `select c.event_id as id, e.starts_at, co.name as competition,
                 (select string_agg(p.name, ' x ' order by (ep.side = 'away')) from core.event_participant ep
                    join core.participant p on p.id = ep.participant_id
                   where ep.event_id = c.event_id and ep.side in ('home', 'away')) as title,
@@ -95,50 +126,63 @@ export async function shopClientReport(tenantId: string, f: ShopReportFilter): P
            from ${FROM} left join core.competition co on co.id = e.competition_id
           where ${w.sql} and c.event_id is not null
           group by c.event_id, e.starts_at, co.name order by count(*) desc, e.starts_at desc limit 20`,
-      ),
-      q<{ id: string; label: string | null; clicks: string }>(
-        `select c.entity_id as id, p.name as label, count(*) as clicks
+        ),
+      () =>
+        q<{ id: string; label: string | null; clicks: string }>(
+          `select c.entity_id as id, p.name as label, count(*) as clicks
            from ${FROM} left join core.participant p on p.id = c.entity_id
           where ${w.sql} and c.entity_kind = 'participant'
           group by c.entity_id, p.name order by count(*) desc limit 20`,
-      ),
-      q<{ id: string; label: string | null; clicks: string }>(
-        `select c.store_id as id, s.name as label, count(*) as clicks
+        ),
+      () =>
+        q<{ id: string; label: string | null; clicks: string }>(
+          `select c.store_id as id, s.name as label, count(*) as clicks
            from ${FROM} left join engage.shop_store s on s.id = c.store_id
           where ${w.sql} group by c.store_id, s.name order by count(*) desc`,
-      ),
-      q<{ id: string | null; label: string | null; clicks: string }>(
-        `select c.widget_id as id, wd.name as label, count(*) as clicks
+        ),
+      () =>
+        q<{ id: string | null; label: string | null; clicks: string }>(
+          `select c.widget_id as id, wd.name as label, count(*) as clicks
            from ${FROM} left join ops.widget wd on wd.id::text = c.widget_id and wd.tenant_id = c.tenant_id
           where ${w.sql} group by c.widget_id, wd.name order by count(*) desc`,
-      ),
-      q<{ id: string; label: string | null; store: string | null; clicks: string }>(
-        `select c.product_id as id, pr.title as label, s.name as store, count(*) as clicks
+        ),
+      () =>
+        q<{ id: string; label: string | null; store: string | null; clicks: string }>(
+          `select c.product_id as id, pr.title as label, s.name as store, count(*) as clicks
            from ${FROM} left join engage.shop_product pr on pr.id = c.product_id
                         left join engage.shop_store s on s.id = c.store_id
           where ${w.sql} group by c.product_id, pr.title, s.name order by count(*) desc limit 10`,
-      ),
-      q<{ day: string; clicks: string }>(
-        `select to_char(date_trunc('day', c.clicked_at), 'YYYY-MM-DD') as day, count(*) as clicks
+        ),
+      () =>
+        q<{ day: string; clicks: string }>(
+          `select ${DAY(day.length)} as day, count(*) as clicks
            from ${FROM} where ${w.sql} group by 1 order by 1`,
-      ),
-      q<{ id: string; label: string }>(
-        `select distinct co.id, co.name as label
-           from ${FROM} join core.competition co on co.id = e.competition_id where ${all.sql}`,
-        all.params,
-      ),
-      q<{ id: string; label: string }>(
-        `select distinct p.id, p.name as label
+          day,
+        ),
+      () =>
+        q<{ id: string; label: string }>(
+          `select distinct co.id, co.name as label
+           from ${FROM} join core.competition co on co.id = ${COMPETITION} where ${all.sql}`,
+          all.params,
+        ),
+      () =>
+        q<{ id: string; label: string }>(
+          `select distinct p.id, p.name as label
            from ${FROM} join core.participant p on p.id = c.entity_id
           where ${all.sql} and c.entity_kind = 'participant'`,
-        all.params,
-      ),
-      q<{ id: string; label: string | null }>(
-        `select distinct c.store_id as id, s.name as label
+          all.params,
+        ),
+      () =>
+        q<{ id: string; label: string | null }>(
+          `select distinct c.store_id as id, s.name as label
            from ${FROM} left join engage.shop_store s on s.id = c.store_id where ${all.sql}`,
-        all.params,
-      ),
-    ]);
+          all.params,
+        ),
+    ] as const);
+  } finally {
+    client.release();
+  }
+  const [events, teams, stores, widgets, products, days, competitions, teamOptions, storeOptions] = results;
   const row = (r: { id: string | null; label: string | null; clicks?: string }) => ({
     id: r.id ?? '',
     label: r.label ?? r.id ?? '',
@@ -167,6 +211,7 @@ export async function shopClientReport(tenantId: string, f: ShopReportFilter): P
 /** Uma linha por clique agrupado (dia × jogo × time × loja × widget × produto), para o CSV. */
 export async function shopClientReportRows(tenantId: string, f: ShopReportFilter, limit = 20_000) {
   const w = where(tenantId, f);
+  const params = [...w.params, f.timeZone];
   const { rows } = await pool.query<{
     day: string;
     event: string | null;
@@ -177,14 +222,14 @@ export async function shopClientReportRows(tenantId: string, f: ShopReportFilter
     product: string | null;
     clicks: string;
   }>(
-    `select to_char(date_trunc('day', c.clicked_at), 'YYYY-MM-DD') as day,
+    `select ${DAY(params.length)} as day,
             (select string_agg(p.name, ' x ' order by (ep.side = 'away')) from core.event_participant ep
                join core.participant p on p.id = ep.participant_id
               where ep.event_id = c.event_id and ep.side in ('home', 'away')) as event,
             co.name as competition, tp.name as team, s.name as store, wd.name as widget, pr.title as product,
             count(*) as clicks
        from ${FROM}
-       left join core.competition co on co.id = e.competition_id
+       left join core.competition co on co.id = ${COMPETITION}
        left join core.participant tp on c.entity_kind = 'participant' and tp.id = c.entity_id
        left join engage.shop_store s on s.id = c.store_id
        left join ops.widget wd on wd.id::text = c.widget_id and wd.tenant_id = c.tenant_id
@@ -193,7 +238,7 @@ export async function shopClientReportRows(tenantId: string, f: ShopReportFilter
       group by 1, c.event_id, co.name, tp.name, s.name, wd.name, pr.title
       order by 1, count(*) desc
       limit ${Math.max(1, Math.min(50_000, Math.floor(limit)))}`,
-    w.params,
+    params,
   );
   return rows.map((r) => ({ ...r, clicks: n(r.clicks) }));
 }
