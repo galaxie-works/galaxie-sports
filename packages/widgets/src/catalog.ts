@@ -43,6 +43,7 @@ import type { BracketProps } from './widgets/bracket.js';
 import type { ChannelGuideProps } from './widgets/channel-guide.js';
 import type { MatchStatsProps } from './widgets/match-stats.js';
 import type { UpcomingDerbiesProps } from './widgets/upcoming-derbies.js';
+import type { ShopTheGameProps } from './widgets/shop-the-game.js';
 
 export interface WidgetPropsByKind {
   match_card: MatchCardProps;
@@ -87,6 +88,7 @@ export interface WidgetPropsByKind {
   channel_guide: ChannelGuideProps;
   match_stats: MatchStatsProps;
   upcoming_derbies: UpcomingDerbiesProps;
+  shop_the_game: ShopTheGameProps;
 }
 
 export interface WidgetCatalogEntry<K extends WidgetKind = WidgetKind> {
@@ -134,7 +136,8 @@ export interface WidgetCatalogEntry<K extends WidgetKind = WidgetKind> {
     | 'TransferMarket'
     | 'Bracket'
     | 'ChannelGuide'
-    | 'UpcomingDerbies';
+    | 'UpcomingDerbies'
+    | 'ShopTheGame';
   /** Componente que o arquivo instalado pelo registry exporta (com provider e tema embutidos). */
   registryComponent: string;
   name: Record<WidgetLocale, string>;
@@ -1018,6 +1021,23 @@ export const WIDGET_CATALOG: { [K in WidgetKind]: WidgetCatalogEntry<K> } = {
     exampleProps: {},
     polling: true,
     sports: FOOTBALL_ONLY,
+  },
+  shop_the_game: {
+    kind: 'shop_the_game',
+    component: 'ShopTheGame',
+    registryComponent: 'GalaxieShopTheGame',
+    name: { 'pt-BR': 'Shopping', es: 'Shopping', en: 'Shopping' },
+    description: {
+      'pt-BR':
+        'Produtos oficiais dos times do jogo (ou do time, campeonato ou atleta da página) nas lojas parceiras que você escolher, com o seu código de afiliado.',
+      es: 'Productos oficiales de los equipos del partido (o del equipo, torneo o atleta de la página) en las tiendas socias que elijas, con tu código de afiliado.',
+      en: 'Official merchandise for the teams in the game (or the team, competition or athlete on the page) from the partner stores you pick, with your own affiliate code.',
+    },
+    requiredProps: ['widgetId'],
+    optionalProps: ['eventId', 'teamId', 'competitionId', 'personId', 'perTeam', 'showPrice'],
+    exampleProps: { widgetId: PREVIEW_IDS.shopWidget, eventId: PREVIEW_IDS.scheduledEvent },
+    polling: false,
+    sports: [],
   },
 };
 

@@ -56,6 +56,7 @@ const WIDGETS = {
   channel_guide: { file: 'src/widgets/channel-guide.tsx', component: 'ChannelGuide' },
   match_stats: { file: 'src/widgets/match-stats.tsx', component: 'MatchStats' },
   upcoming_derbies: { file: 'src/widgets/upcoming-derbies.tsx', component: 'UpcomingDerbies' },
+  shop_the_game: { file: 'src/widgets/shop-the-game.tsx', component: 'ShopTheGame' },
 };
 
 const IMPORT_RE = /^import\s+(type\s+)?\{([^}]*)\}\s+from\s+'([^']+)';\n/gm;

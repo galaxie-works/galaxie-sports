@@ -135,7 +135,7 @@ Módulo `core_data`. Contratos Zod em `packages/contracts/src/equestrian.ts`; Op
 ## 6. Demo
 
 - **Sidebar:** item "Hipismo", com ícone animado (Lottie `horse.json` assado para `equestrian`) e `Award` como ícone estático de fallback.
-- **`/hipismo`:**
+- **`/equestrian`:**
   - aviso de licenciamento ("Fora da oferta comercial");
   - destaques da América do Sul, com Lucas Werthein fixo;
   - busca de atletas;
@@ -143,15 +143,15 @@ Módulo `core_data`. Contratos Zod em `packages/contracts/src/equestrian.ts`; Op
   - campeonatos com rodadas documentadas;
   - cobertura da base;
   - rankings observados.
-- **`/hipismo/atletas`:** busca com filtros por país e cobertura.
-- **`/hipismo/atletas/[id]`:**
+- **`/equestrian/athletes`:** busca com filtros por país e cobertura.
+- **`/equestrian/athletes/[id]`:**
   - perfil e nota de cobertura do histórico;
   - estatísticas, cavalos e prêmios publicados;
   - histórico com filtros de período, cavalo e "só pódios";
   - rodadas documentadas, rankings e divergências.
-- **`/hipismo/cavalos/[id]`:** ficha (raça, idade, pedigree, criador), proprietários, cavaleiros, resultados e rankings.
-- **`/hipismo/provas/[id]`:** dados da prova e classificação. Mostra faltas e tempo quando o placar é explícito e, quando não, as células das rodadas como publicadas. Conjuntos sul-americanos ficam destacados, e há um selo de completude.
-- **`/hipismo/campeonatos/[key]`:** rodadas por etapa com o significado da pontuação, equipes com a conferência aritmética e divergências.
+- **`/equestrian/horses/[id]`:** ficha (raça, idade, pedigree, criador), proprietários, cavaleiros, resultados e rankings.
+- **`/equestrian/competitions/[id]`:** dados da prova e classificação. Mostra faltas e tempo quando o placar é explícito e, quando não, as células das rodadas como publicadas. Conjuntos sul-americanos ficam destacados, e há um selo de completude.
+- **`/equestrian/championships/[key]`:** rodadas por etapa com o significado da pontuação, equipes com a conferência aritmética e divergências.
 - **Em toda seção:** o botão "Ver código" com a chamada da API, links "Fonte" com data de leitura e página do PDF, e "não publicado" no lugar de zero.
 
 ## 7. Próximos passos

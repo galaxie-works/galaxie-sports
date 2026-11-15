@@ -85,7 +85,7 @@ export function CountryLive({
                   <div className="text-muted-foreground flex items-center gap-2 text-sm">
                     {c.competition ? (
                       <Link
-                        href={`/competicoes/${c.competition.slug}`}
+                        href={`/competitions/${c.competition.slug}`}
                         className="text-foreground flex items-center gap-2 font-medium hover:underline"
                       >
                         <Crest src={c.competition.logo} name={c.competition.name} size="xs" />

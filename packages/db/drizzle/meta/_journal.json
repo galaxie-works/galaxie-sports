@@ -768,15 +768,22 @@
     {
       "idx": 109,
       "version": "7",
-      "when": 1794700420000,
-      "tag": "0164_cosmos_diagnostico_dados",
+      "when": 1794529667111,
+      "tag": "0158_narracao_frases",
       "breakpoints": true
     },
     {
       "idx": 110,
       "version": "7",
+      "when": 1794700420000,
+      "tag": "0173_cosmos_diagnostico_dados",
+      "breakpoints": true
+    },
+    {
+      "idx": 111,
+      "version": "7",
       "when": 1794700480000,
-      "tag": "0165_cosmos_funcoes_diagnostico",
+      "tag": "0174_cosmos_funcoes_diagnostico",
       "breakpoints": true
     }
   ]

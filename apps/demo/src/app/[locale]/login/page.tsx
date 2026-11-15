@@ -26,7 +26,7 @@ export default async function LoginPage() {
       <p className="text-muted-foreground mt-8 text-center text-sm leading-relaxed text-balance">
         {rich(t.auth.about.text, {
           more: (chunk) => (
-            <a href="/sobre" className="text-foreground underline underline-offset-4">
+            <a href="/about" className="text-foreground underline underline-offset-4">
               {chunk}
             </a>
           ),

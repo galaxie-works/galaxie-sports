@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { I18nProvider } from '@/lib/i18n/client';
 import { clientDictionary } from '@/lib/i18n/dictionary';
 
-vi.mock('next/navigation', () => ({ usePathname: () => '/ajustes/usuarios/1' }));
+vi.mock('next/navigation', () => ({ usePathname: () => '/settings/users/1' }));
 vi.mock('@/components/search/search-provider', () => ({
   useSearch: () => ({ setOpen: vi.fn() }),
   useShortcutLabel: () => null,

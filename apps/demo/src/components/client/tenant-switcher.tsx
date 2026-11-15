@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useTransition } from 'react';
 import { toast } from 'sonner';
 
-import { selectTenant } from '@/app/[locale]/(app)/cliente/actions';
+import { selectTenant } from '@/app/[locale]/(app)/client/actions';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { TenantOption } from '@/lib/client/tenants';
 import { useI18n } from '@/lib/i18n/client';

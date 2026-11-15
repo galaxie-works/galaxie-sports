@@ -234,7 +234,7 @@ export function SettingsHomeSkeleton() {
 }
 
 /**
- * Início de Ajustes (#1073), pronto para montar em `/ajustes`: título, frase e, sem segurar a página (Suspense com
+ * Início de Ajustes (#1073), pronto para montar em `/settings`: título, frase e, sem segurar a página (Suspense com
  * esqueleto), os cartões do que pede ação e as últimas mudanças do painel. O título fica com quem monta
  * (`SettingsPageHeader` ou `PageHeader`); aqui só o conteúdo.
  */

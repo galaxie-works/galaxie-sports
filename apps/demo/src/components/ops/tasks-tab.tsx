@@ -17,7 +17,7 @@ import {
   loadTask,
   reprocessTaskAction,
   type TaskActionResult,
-} from '@/app/[locale]/(app)/ajustes/operacao/task-actions';
+} from '@/app/[locale]/(app)/settings/operations/task-actions';
 import { Badge } from '@/components/reui/badge';
 import { CodeBlock } from '@/components/reui/code-block/code-block';
 import { Frame, FrameDescription, FrameHeader, FramePanel, FrameTitle } from '@/components/reui/frame';

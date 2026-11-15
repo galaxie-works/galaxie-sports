@@ -35,7 +35,7 @@ export interface CodeExample {
  * o padrão é a API de produção.
  */
 export const PUBLIC_API_URL = (
-  process.env.NEXT_PUBLIC_GALAXIE_DOCS_API_URL || 'https://api.sports.galaxie.works'
+  process.env.NEXT_PUBLIC_GALAXIE_DOCS_API_URL || 'https://api.galaxiesports.com'
 ).replace(/\/+$/, '');
 
 /**
