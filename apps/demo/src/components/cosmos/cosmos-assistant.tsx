@@ -930,7 +930,7 @@ function DataSources({
               <ApiCodeButton request={s.request} labeled />
               {s.widget ? (
                 <Link
-                  href={`/cliente/builder/novo?cosmos=${s.widget.draft}`}
+                  href={`/client/builder/new?cosmos=${encodeURIComponent(s.widget.draft)}`}
                   onClick={onNavigate}
                   className={buttonVariants({ variant: 'outline', size: 'xs' })}
                 >
