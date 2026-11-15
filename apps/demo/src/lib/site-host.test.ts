@@ -10,7 +10,8 @@ import { describe, expect, it } from 'vitest';
  */
 const ROOT = fileURLToPath(new URL('../../../../', import.meta.url));
 const DIRS = ['apps', 'packages', 'infra'];
-const HOST = /sports\.galaxie\.works/;
+// o antigo não volta ao código (o 301 dele vive no .env da VPS, LEGACY_*); o novo só nos padrões
+const HOST = /sports\.galaxie\.works|(platform|api)\.galaxiesports\.com/;
 const ALLOWED = new Set([
   'apps/demo/src/lib/site.ts',
   'apps/demo/src/lib/galaxie/request.ts',
