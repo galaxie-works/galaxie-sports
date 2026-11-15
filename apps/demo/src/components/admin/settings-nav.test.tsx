@@ -101,12 +101,12 @@ describe('menu de Ajustes (#1068)', () => {
   });
 
   it('item aceso pelo caminho, com ou sem o prefixo de idioma', () => {
-    expect(settingsNavIdOf('/ajustes')).toBe('home');
-    expect(settingsNavIdOf('/pt-BR/ajustes/ao-vivo')).toBe('live');
-    expect(settingsNavIdOf('/ajustes/revisao/abc')).toBe('review');
-    expect(settingsNavIdOf('/ajustes/apps-de-tv')).toBe('tvApps');
+    expect(settingsNavIdOf('/settings')).toBe('home');
+    expect(settingsNavIdOf('/pt-BR/settings/live')).toBe('live');
+    expect(settingsNavIdOf('/settings/review/abc')).toBe('review');
+    expect(settingsNavIdOf('/settings/tv-apps')).toBe('tvApps');
     expect(settingsNavIdOf('/ajustes-x')).toBeNull();
-    expect(settingsNavIdOf('/times/1')).toBeNull();
+    expect(settingsNavIdOf('/teams/1')).toBeNull();
     expect(settingsNavIdOf(null)).toBeNull();
   });
 });

@@ -55,7 +55,7 @@ function render(client: QueryClient, initial: EventTimeline | null) {
   return renderToStaticMarkup(
     <QueryClientProvider client={client}>
       <LiveLineup
-        view="titulares"
+        view="starters"
         eventId={EVENT}
         timeline={initial}
         lineups={lineups}

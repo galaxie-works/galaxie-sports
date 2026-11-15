@@ -50,7 +50,7 @@ export async function LegalPage({ doc }: { doc: LegalDoc }) {
         ))}
         <p className="mt-12 text-sm">
           <a
-            href="/sobre"
+            href="/about"
             className="text-muted-foreground hover:text-foreground underline underline-offset-4"
           >
             {t.back}

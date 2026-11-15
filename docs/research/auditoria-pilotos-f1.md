@@ -7,7 +7,7 @@ em vitórias e em GPs.
 
 São conferidos:
 
-- a página `/pilotos/[slug]` da demo, inclusive o herói com cada temporada do seletor;
+- a página `/drivers/[slug]` da demo, inclusive o herói com cada temporada do seletor;
 - o `GET /v1/teams/{id}/career`;
 - o país do `GET /v1/teams/{id}`;
 - a campanha do `GET /v1/teams/{id}/overview`.

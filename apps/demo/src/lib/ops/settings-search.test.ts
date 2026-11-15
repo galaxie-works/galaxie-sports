@@ -32,36 +32,36 @@ describe('índice da busca de ajustes', () => {
     for (const e of index) {
       expect(e.label, e.key).not.toBe('');
       expect(e.crumbs.length, e.key).toBeGreaterThanOrEqual(2);
-      expect(e.href, e.key).toMatch(new RegExp(`^/ajustes/[^#]+#${e.key}$`));
+      expect(e.href, e.key).toMatch(new RegExp(`^/settings/[^#]+#${e.key}$`));
     }
   });
 
   it('usa o resolvedor recebido', () => {
     const { index } = setup('pt-BR', (key) =>
-      key === 'AI_DAILY_USD_BUDGET' ? { item: 'ai', href: '/ajustes/ia', group: 'inteligencia' } : undefined,
+      key === 'AI_DAILY_USD_BUDGET' ? { item: 'ai', href: '/settings/ai', group: 'inteligencia' } : undefined,
     );
     expect(keys(index)).toEqual(['AI_DAILY_USD_BUDGET']);
     expect(index[0]!.crumbs).toEqual(['Inteligência', 'IA interna']);
-    expect(index[0]!.href).toBe('/ajustes/ia#AI_DAILY_USD_BUDGET');
+    expect(index[0]!.href).toBe('/settings/ai#AI_DAILY_USD_BUDGET');
   });
 
   it('o resolvedor padrão segue o settingPage do #1070, nas rotas novas', () => {
     expect(resolveSettingPage('LIVE_FEATURED')).toEqual({
       item: 'live',
-      href: '/ajustes/ao-vivo',
+      href: '/settings/live',
       group: 'produtos',
     });
-    expect(resolveSettingPage('POSTGAME_NBA_MIN')).toMatchObject({ href: '/ajustes/pos-jogo' });
-    expect(resolveSettingPage('YOUTUBE_API_KEY')).toMatchObject({ href: '/ajustes/credenciais' });
-    expect(resolveSettingPage('AI_RIGHTS_MODEL')).toMatchObject({ href: '/ajustes/ia' });
+    expect(resolveSettingPage('POSTGAME_NBA_MIN')).toMatchObject({ href: '/settings/post-game' });
+    expect(resolveSettingPage('YOUTUBE_API_KEY')).toMatchObject({ href: '/settings/credentials' });
+    expect(resolveSettingPage('AI_RIGHTS_MODEL')).toMatchObject({ href: '/settings/ai' });
     // página com dois blocos: a seção entra no caminho
     expect(resolveSettingPage('APISPORTS_PLAN_NBA')).toMatchObject({
-      href: '/ajustes/fornecedor',
+      href: '/settings/provider',
       section: 'sports',
     });
     // LINEUP_* ficam na aba Ajustes de Grades e ofertas (a inicial é a Revisão)
     expect(resolveSettingPage('LINEUP_PROMPT_MAX_CHARS')).toMatchObject({
-      href: '/ajustes/grades?aba=ajustes',
+      href: '/settings/lineups?tab=settings',
     });
     expect(resolveSettingPage('NAO_EXISTE')).toBeUndefined();
   });
@@ -70,11 +70,11 @@ describe('índice da busca de ajustes', () => {
     const { index } = setup();
     const daily = index.find((e) => e.key === 'AI_DAILY_USD_BUDGET')!;
     expect(daily.crumbs).toEqual(['Inteligência', 'IA interna']);
-    expect(daily.href).toBe('/ajustes/ia#AI_DAILY_USD_BUDGET');
+    expect(daily.href).toBe('/settings/ai#AI_DAILY_USD_BUDGET');
     for (const e of index) {
-      expect(e.href, e.key).not.toMatch(/\/ajustes\/(operacao|sistema|esportes)/);
+      expect(e.href, e.key).not.toMatch(/\/ajustes(\/|$)|\/settings\/(operacao|sistema|esportes)/);
       // só os LINEUP_* levam aba (e é a de Ajustes)
-      if (!e.key.startsWith('LINEUP_')) expect(e.href, e.key).not.toMatch(/\?aba=/);
+      if (!e.key.startsWith('LINEUP_')) expect(e.href, e.key).not.toMatch(/\?tab=/);
     }
   });
 
@@ -83,7 +83,7 @@ describe('índice da busca de ajustes', () => {
     const lineup = index.filter((e) => e.key.startsWith('LINEUP_'));
     expect(lineup.length).toBeGreaterThan(0);
     for (const e of lineup) {
-      expect(e.href).toBe(`/ajustes/grades?aba=ajustes#${e.key}`);
+      expect(e.href).toBe(`/settings/lineups?tab=settings#${e.key}`);
       expect(e.href).toBe(settingHref(e.key));
     }
   });
@@ -139,19 +139,19 @@ describe('busca de ajustes', () => {
   });
 
   it('Páginas acha itens do menu e abas internas', () => {
-    expect(searchSettingsPages(pages, 'pedidos').map((p) => p.id)).toContain('lineup:pedidos');
+    expect(searchSettingsPages(pages, 'pedidos').map((p) => p.id)).toContain('lineup:requests');
     expect(searchSettingsPages(pages, 'ia')[0]!.id).toBe('ai');
     expect(searchSettingsPages(pages, '')).toEqual([]);
     expect(searchSettingsPages(pages, 'ajustes da grade')[0]).toMatchObject({
-      id: 'lineup:ajustes',
-      href: '/ajustes/grades?aba=ajustes',
+      id: 'lineup:settings',
+      href: '/settings/lineups?tab=settings',
     });
   });
 
   it('Páginas traz os 46 itens do menu, os "Em breve" com o selo', () => {
     expect(pages.filter((p) => !p.parent)).toHaveLength(46);
     const soon = pages.find((p) => p.id === 'tvApps')!;
-    expect(soon).toMatchObject({ href: '/ajustes/apps-de-tv', soon: true });
+    expect(soon).toMatchObject({ href: '/settings/tv-apps', soon: true });
     expect(pages.find((p) => p.id === 'live')!.soon).toBeUndefined();
   });
 });

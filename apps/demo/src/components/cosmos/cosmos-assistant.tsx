@@ -328,7 +328,7 @@ export function CosmosAssistant({
     abortRef.current = controller;
     let text = '';
     try {
-      const res = await fetch('/api/cliente/cosmos/assistente', {
+      const res = await fetch('/api/client/cosmos/assistant', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
@@ -384,7 +384,7 @@ export function CosmosAssistant({
           </SheetTitle>
           <SheetDescription>{T.description}</SheetDescription>
           <Link
-            href="/cliente/cosmos"
+            href="/client/cosmos"
             onClick={() => onOpenChange(false)}
             className={buttonVariants({ variant: 'outline', size: 'xs', className: 'self-start' })}
           >
@@ -663,11 +663,7 @@ function AnswerMessage({
               <p role="alert">{errorText(turn.error ?? 'failed')}</p>
               <div className="mt-3 flex flex-wrap gap-2">
                 {action ? (
-                  <Link
-                    href="/cliente/cosmos"
-                    onClick={onNavigate}
-                    className={buttonVariants({ size: 'sm' })}
-                  >
+                  <Link href="/client/cosmos" onClick={onNavigate} className={buttonVariants({ size: 'sm' })}>
                     {action}
                   </Link>
                 ) : null}

@@ -26,7 +26,7 @@ function providerKey(modelKey: string): string | null {
 
 /**
  * Linha de um ajuste que mora em outra página (#1070): o modelo de IA em uso (A3) ou de onde vem a chave (A4), com o
- * link que abre a página dele já na linha (`/ajustes/ia#AI_RIGHTS_MODEL`). Chave que o painel troca (#1087) tem
+ * link que abre a página dele já na linha (`/settings/ai#AI_RIGHTS_MODEL`). Chave que o painel troca (#1087) tem
  * "Trocar" aqui mesmo, no mesmo diálogo de Credenciais.
  */
 export function SettingLink({ settingKey, snapshot }: { settingKey: string; snapshot: OpsSnapshot }) {
