@@ -10,6 +10,11 @@
  */
 import type { CompetitionSummary, MirrorSport } from '@galaxie/contracts';
 
+import { LOCALES } from '@/lib/i18n/config';
+
+/** Prefixo de idioma no começo do caminho (/pt-BR, /en, /es-AR), como a pessoa digitou. */
+const LOCALE_PREFIX = new RegExp(`^/(${LOCALES.join('|')})(?=/)`, 'i');
+
 export interface SportFamilyDef {
   /** Slug da rota e chave do rótulo no dicionário. */
   id: string;
@@ -68,9 +73,12 @@ export function sportHref(sport: string): string | null {
  * do #630 (`/esportes/nba`), para chegar à família num salto só. Null quando não é rota antiga.
  */
 export function legacySportRedirect(pathname: string): string | null {
-  const match = /^\/(?:sports|esportes)\/([^/]+)\/?$/.exec(pathname);
+  // o prefixo de idioma sai para casar e volta no destino (`/pt-BR/esportes/nba` → `/pt-BR/sports/basquete#nba`)
+  const prefix = LOCALE_PREFIX.exec(pathname)?.[0] ?? '';
+  const match = /^\/(?:sports|esportes)\/([^/]+)\/?$/.exec(pathname.slice(prefix.length));
   if (!match || familyBySlug(match[1]!)) return null;
-  return sportHref(match[1]!);
+  const href = sportHref(match[1]!);
+  return href ? `${prefix}${href}` : null;
 }
 
 /** Competição como a página da família a recebe de cada esporte. */

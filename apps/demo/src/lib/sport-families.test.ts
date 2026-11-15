@@ -72,6 +72,14 @@ describe('rotas antigas', () => {
     expect(legacySportRedirect('/esportes/basquete')).toBeNull();
   });
 
+  it('com o prefixo de idioma: tira para casar e devolve no destino', () => {
+    expect(legacySportRedirect('/pt-BR/esportes/nba')).toBe('/pt-BR/sports/basquete#nba');
+    expect(legacySportRedirect('/en/esportes/formula-1')).toBe('/en/sports/automobilismo');
+    expect(legacySportRedirect('/es-AR/sports/nba')).toBe('/es-AR/sports/basquete#nba');
+    expect(legacySportRedirect('/pt-BR/sports/basquete')).toBeNull();
+    expect(legacySportRedirect('/fr/sports/nba')).toBeNull();
+  });
+
   it('rotas novas, desconhecidas e de fora ficam como estão', () => {
     expect(legacySportRedirect('/sports/basquete')).toBeNull();
     expect(legacySportRedirect('/sports/curling')).toBeNull();

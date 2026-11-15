@@ -147,6 +147,16 @@ describe('rotas em português de antes do #630', () => {
     expect(res.headers.get('location')).toBe('http://demo.test/api/settings/review/batch');
   });
 
+  it.each([
+    ['/pt-BR/esportes/nba', '/pt-BR/sports/basquete#nba'],
+    ['/en/esportes/formula-1', '/en/sports/automobilismo'],
+    ['/es-AR/sports/nba', '/es-AR/sports/basquete#nba'],
+  ])('esporte da API com o idioma (%s) chega à família num salto só', async (from, to) => {
+    const res = await get(from);
+    expect(res.status).toBe(308);
+    expect(res.headers.get('location')).toBe(`http://demo.test${to}`);
+  });
+
   it('esporte antigo chega à família num salto só', async () => {
     const res = await get('/esportes/nba?temporada=2025');
     expect(res.status).toBe(308);
