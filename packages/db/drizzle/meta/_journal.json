@@ -778,6 +778,13 @@
       "when": 1794700210908,
       "tag": "0159_menor_padrao",
       "breakpoints": true
+    },
+    {
+      "idx": 111,
+      "version": "7",
+      "when": 1794781554279,
+      "tag": "0168_indice_sync_cursor",
+      "breakpoints": true
     }
   ]
 }
