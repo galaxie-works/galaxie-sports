@@ -64,7 +64,7 @@ import { useRouter } from 'next/navigation';
 import { useMemo, useState, useTransition } from 'react';
 import { toast } from 'sonner';
 
-import { saveWidgetAction } from '@/app/[locale]/(app)/cliente/actions';
+import { saveWidgetAction } from '@/app/[locale]/(app)/client/actions';
 import { LanguageOption } from '@/components/app-shell/language-select';
 import { Alert, AlertDescription } from '@/components/reui/alert';
 import { Badge } from '@/components/reui/badge';
@@ -580,7 +580,7 @@ export function WidgetEditor({
       setSaved({ id: res.widget.id, version: res.widget.version });
       setSavedSnapshot(snapshot(draft));
       setSavedWidget({ kind: draft.kind, name: draft.name.trim() });
-      if (!saved) router.replace(`/cliente/builder/${res.widget.id}`);
+      if (!saved) router.replace(`/client/builder/${res.widget.id}`);
       else router.refresh();
     });
   }
@@ -590,7 +590,7 @@ export function WidgetEditor({
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <Button variant="ghost" size="sm" nativeButton={false} render={<Link href="/cliente/builder" />}>
+        <Button variant="ghost" size="sm" nativeButton={false} render={<Link href="/client/builder" />}>
           <ArrowLeft />
           {e.back}
         </Button>
@@ -919,7 +919,7 @@ export function WidgetEditor({
                           {rich(e.install.embedKeyHint, {
                             k: (chunk) => (
                               <Link
-                                href="/cliente/chaves"
+                                href="/client/keys"
                                 className="text-foreground underline underline-offset-2"
                               >
                                 {chunk}

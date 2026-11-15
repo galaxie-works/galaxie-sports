@@ -27,8 +27,8 @@ import { useI18n } from '@/lib/i18n/client';
 import { plural } from '@/lib/i18n/text';
 import { COUNTRIES, SPORTS, sportBySlug } from '@/lib/navigation';
 
-type AgendaFilterField = 'esporte' | 'pais' | 'competicao';
-const FIELDS: readonly AgendaFilterField[] = ['esporte', 'pais', 'competicao'];
+type AgendaFilterField = 'sport' | 'country' | 'competition';
+const FIELDS: readonly AgendaFilterField[] = ['sport', 'country', 'competition'];
 
 /** Operador único dos chips: "é" (uma escolha, como a API da agenda aceita). */
 const OPERATOR = 'is';
@@ -45,7 +45,7 @@ function toFilterQuery(params: AgendaParams): FilterQuery {
 
 /** Só os chips completos (com valor) viram filtro; o chip recém-criado, ainda vazio, não. */
 function fromFilterQuery(query: FilterQuery): Pick<AgendaParams, AgendaFilterField> {
-  const out: Pick<AgendaParams, AgendaFilterField> = { esporte: null, pais: null, competicao: null };
+  const out: Pick<AgendaParams, AgendaFilterField> = { sport: null, country: null, competition: null };
   for (const rule of flattenFilterRules(query)) {
     const field = rule.path[0] as AgendaFilterField | undefined;
     if (field && FIELDS.includes(field) && typeof rule.value === 'string' && rule.value)
@@ -113,7 +113,7 @@ export function AgendaFilterBar({
   const countryCount = new Map(facets.countries.map((c) => [c.code, c.count]));
   const fields: FilterField[] = [
     {
-      ...base('esporte', tf.fields.sport),
+      ...base('sport', tf.fields.sport),
       icon: <Shapes aria-hidden />,
       placeholder: tf.search.sport,
       options: withSelected(
@@ -128,11 +128,11 @@ export function AgendaFilterBar({
             keywords: [s.slug],
           };
         }),
-        params.esporte,
+        params.sport,
       ),
     },
     {
-      ...base('pais', tf.fields.country),
+      ...base('country', tf.fields.country),
       icon: <Flag aria-hidden />,
       placeholder: tf.search.country,
       options: sortByLabel(
@@ -146,7 +146,7 @@ export function AgendaFilterBar({
       ),
     },
     {
-      ...base('competicao', tf.fields.competition),
+      ...base('competition', tf.fields.competition),
       icon: <Trophy aria-hidden />,
       placeholder: tf.search.competition,
       options: withSelected(
@@ -156,7 +156,7 @@ export function AgendaFilterBar({
           description: games(c.count),
           keywords: [c.slug],
         })),
-        params.competicao,
+        params.competition,
       ),
     },
   ];
@@ -174,18 +174,21 @@ export function AgendaFilterBar({
     // escolha que a barra mostra, não com a URL, que fica para trás enquanto a navegação corre
     const shown = fromFilterQuery(query);
     if (
-      (chosen.esporte !== shown.esporte || chosen.pais !== shown.pais) &&
-      chosen.competicao === shown.competicao &&
-      chosen.competicao
+      (chosen.sport !== shown.sport || chosen.country !== shown.country) &&
+      chosen.competition === shown.competition &&
+      chosen.competition
     ) {
-      chosen.competicao = null;
-      next = { ...next, rules: next.rules.filter((r) => !(r.type === 'rule' && r.path[0] === 'competicao')) };
+      chosen.competition = null;
+      next = {
+        ...next,
+        rules: next.rules.filter((r) => !(r.type === 'rule' && r.path[0] === 'competition')),
+      };
     }
     const nextKey = filtersKey(chosen);
     setState((s) => ({ ...s, target: nextKey, query: next }));
     // trocar um filtro volta ao primeiro dia com jogos (o dia escolhido pode ficar vazio) e à primeira página
     if (nextKey !== target)
-      startTransition(() => router.push(agendaHref({ ...chosen, dia: null }), { scroll: false }));
+      startTransition(() => router.push(agendaHref({ ...chosen, day: null }), { scroll: false }));
   };
 
   return (

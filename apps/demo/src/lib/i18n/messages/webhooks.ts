@@ -1,6 +1,6 @@
 import { defineMessages } from '../define';
 
-/** Webhooks no painel do cliente (`/cliente/webhooks`): cadastro, segredo, entregas, teste e DLQ. */
+/** Webhooks no painel do cliente (`/client/webhooks`): cadastro, segredo, entregas, teste e DLQ. */
 export default defineMessages(
   {
     meta: { title: 'Webhooks' },

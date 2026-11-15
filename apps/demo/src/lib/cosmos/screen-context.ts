@@ -8,7 +8,7 @@ import type { ScreenContext } from '@galaxie/cosmos';
 export const VISIBLE_MAX = 6000;
 const DESTINATIONS_MAX = 20;
 
-/** Rota sem o prefixo de idioma (`/en/cliente` → `/cliente`), que é o que a documentação e o menu usam. */
+/** Rota sem o prefixo de idioma (`/en/client` → `/client`), que é o que a documentação e o menu usam. */
 export function routeOf(pathname: string): string {
   const stripped = pathname.replace(/^\/(en|es-AR|pt-BR)(?=\/|$)/, '');
   return stripped || '/';
@@ -17,7 +17,7 @@ export function routeOf(pathname: string): string {
 /** Grupo de sugestões pela rota. */
 export type SuggestionGroup = 'cosmos' | 'docs' | 'general';
 export function suggestionGroup(route: string): SuggestionGroup {
-  if (route.startsWith('/cliente/cosmos')) return 'cosmos';
+  if (route.startsWith('/client/cosmos')) return 'cosmos';
   if (route === '/docs' || route.startsWith('/docs/')) return 'docs';
   return 'general';
 }

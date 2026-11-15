@@ -310,7 +310,7 @@ A simulação (`services/ai-agents/test/related-day.integration.test.ts`) roda o
 2. caso de uso: metadados e embed oficial de vídeos de futebol (melhores momentos, coletivas) por evento, para hubs esportivos de clientes; sem upload (`videos.insert` não é usado);
 3. conformidade com os Termos e a política de desenvolvedor (§2): só metadados e o player oficial (`youtube-nocookie`), nada de baixar ou rehospedar, miniatura pela URL da plataforma, dados apagados 30 dias depois de obtidos (§2.1), canais oficiais priorizados;
 4. uso de cota hoje e o pedido: 100 consultas/dia esgotadas diariamente; leitura dos canais oficiais por `playlistItems.list` como caminho principal; busca só como complemento, com parada cedo e teto por jogo; pedido de 300 consultas/dia em `search.list` (a conta acima);
-5. telas: a seção Conteúdo relacionado da página do evento na demo e o painel lateral do player; as páginas `/privacidade` e `/termos` da demo, que já citam os serviços de API do YouTube, os Termos de Serviço do YouTube e a Política de Privacidade do Google (#273).
+5. telas: a seção Conteúdo relacionado da página do evento na demo e o painel lateral do player; as páginas `/privacy` e `/terms` da demo, que já citam os serviços de API do YouTube, os Termos de Serviço do YouTube e a Política de Privacidade do Google (#273).
 
 Se o aumento vier, basta mudar `YOUTUBE_SEARCH_DAILY_QUOTA` no painel de Operação; o pipeline não muda.
 

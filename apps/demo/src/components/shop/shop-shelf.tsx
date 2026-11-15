@@ -37,7 +37,7 @@ export async function ShopShelf({
 }) {
   const [{ locale, t }, f] = await Promise.all([getI18n(), getFormatters()]);
   const T = t.shopping.shelf;
-  // país fora do formato (vem do `?pais=` da página) não vai à API nem à chave do cache
+  // país fora do formato (vem do `?country=` da página) não vai à API nem à chave do cache
   const market = /^[A-Z]{2}$/.test(country) ? country : null;
   if (!market) return null;
   const loaded = await Promise.all(

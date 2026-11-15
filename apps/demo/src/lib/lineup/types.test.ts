@@ -277,10 +277,10 @@ describe('filtros da URL', () => {
   it('revisão abre no que espera decisão; "todos" tira o filtro de situação', () => {
     expect(parseLineupFilters({})).toEqual({ country: null, platform: null, type: null, status: 'pending' });
     expect(
-      parseLineupFilters(new URLSearchParams(`pais=br&plataforma=${ID(1)}&tipo=plan_channel&status=todos`)),
+      parseLineupFilters(new URLSearchParams(`country=br&platform=${ID(1)}&type=plan_channel&status=all`)),
     ).toEqual({ country: 'BR', platform: ID(1), type: 'plan_channel', status: null });
     expect(
-      parseLineupFilters({ pais: 'Brasil', plataforma: 'x', tipo: 'canal', status: 'reviewed' }),
+      parseLineupFilters({ country: 'Brasil', platform: 'x', type: 'canal', status: 'reviewed' }),
     ).toEqual({
       country: null,
       platform: null,
@@ -290,7 +290,7 @@ describe('filtros da URL', () => {
   });
 
   it('ida e volta pela query', () => {
-    const f = parseLineupFilters({ pais: 'AR', status: 'approved' });
+    const f = parseLineupFilters({ country: 'AR', status: 'approved' });
     expect(parseLineupFilters(new URLSearchParams(lineupFiltersQuery(f).slice(1)))).toEqual(f);
     expect(
       parseLineupFilters(new URLSearchParams(lineupFiltersQuery({ ...f, status: null }).slice(1))).status,
@@ -298,10 +298,10 @@ describe('filtros da URL', () => {
   });
 
   it('abas e fila de pedidos', () => {
-    expect(parseAdminTab({ aba: 'pedidos' })).toBe('pedidos');
-    expect(parseAdminTab({ aba: 'qualquer' })).toBe('revisao');
+    expect(parseAdminTab({ tab: 'requests' })).toBe('requests');
+    expect(parseAdminTab({ tab: 'qualquer' })).toBe('review');
     expect(parseRequestFilters({})).toEqual({ status: 'open' });
-    expect(parseRequestFilters({ status: 'todos' })).toEqual({ status: null });
+    expect(parseRequestFilters({ status: 'all' })).toEqual({ status: null });
   });
 
   it('aplica país, plataforma, tipo e situação (pendente inclui mudança encontrada)', () => {

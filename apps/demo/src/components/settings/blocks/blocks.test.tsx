@@ -23,7 +23,7 @@ const resetSetting = vi.fn(async (..._args: unknown[]) => ({ ok: true }));
 const push = vi.fn();
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn(), push }) }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() } }));
-vi.mock('@/app/[locale]/(app)/ajustes/operacao/actions', () => ({
+vi.mock('@/app/[locale]/(app)/settings/operations/actions', () => ({
   resetSetting: (key: string) => resetSetting(key),
   checkAiCreditNow: vi.fn(),
   checkFeedbackProgressNow: vi.fn(),
@@ -35,7 +35,7 @@ vi.mock('@/app/[locale]/(app)/ajustes/operacao/actions', () => ({
 const saveSecret = vi.fn(async (..._args: unknown[]) => ({ ok: true }));
 const resetSecret = vi.fn(async (..._args: unknown[]) => ({ ok: true }));
 const testSecret = vi.fn(async (..._args: unknown[]) => ({ ok: true, test: 'ok' }));
-vi.mock('@/app/[locale]/(app)/ajustes/operacao/secret-actions', () => ({
+vi.mock('@/app/[locale]/(app)/settings/operations/secret-actions', () => ({
   saveSecret: (key: string, value: string) => saveSecret(key, value),
   resetSecret: (key: string) => resetSecret(key),
   testSecret: (key: string, value: string) => testSecret(key, value),
@@ -371,7 +371,7 @@ describe('PostgameTable', () => {
     show(<PostgameTable settings={settings} />);
     fireEvent.click(screen.getByRole('button', { name: fill(B.rowMenu, { name: T.ops.apis[api]! }) }));
     fireEvent.click(await screen.findByText(B.viewHistory));
-    expect(push).toHaveBeenCalledWith(`/ajustes/historico?chave=${postgameModeKey(api)}`);
+    expect(push).toHaveBeenCalledWith(`/settings/history?key=${postgameModeKey(api)}`);
   });
 });
 
@@ -466,7 +466,7 @@ describe('JobsGrid', () => {
   it('o hash abre o editor; fechar tira o hash, e o mesmo link abre de novo', async () => {
     const job = rows[0]!;
     const title = fill(B.jobs.editTitle, { name: job.label });
-    window.history.replaceState(null, '', `/ajustes/agenda#${job.key}`);
+    window.history.replaceState(null, '', `/settings/schedule#${job.key}`);
     grid();
     expect(await screen.findByText(title)).toBeTruthy();
     await act(async () => {
@@ -474,7 +474,7 @@ describe('JobsGrid', () => {
     });
     await vi.waitFor(() => expect(screen.queryByText(title)).toBeNull());
     expect(window.location.hash).toBe('');
-    expect(window.location.pathname).toBe('/ajustes/agenda');
+    expect(window.location.pathname).toBe('/settings/schedule');
     await act(async () => {
       window.location.hash = job.key;
       window.dispatchEvent(new HashChangeEvent('hashchange'));

@@ -60,8 +60,8 @@ describe('compra de créditos da Cosmos', () => {
 
   it('volta do checkout para a área da Cosmos com a intenção', () => {
     expect(checkoutUrls('i1', { BETTER_AUTH_URL: 'https://demo.exemplo/' })).toEqual({
-      success: 'https://demo.exemplo/cliente/cosmos?purchase=i1&status=success',
-      cancel: 'https://demo.exemplo/cliente/cosmos?purchase=i1&status=canceled',
+      success: 'https://demo.exemplo/client/cosmos?purchase=i1&status=success',
+      cancel: 'https://demo.exemplo/client/cosmos?purchase=i1&status=canceled',
     });
   });
 });

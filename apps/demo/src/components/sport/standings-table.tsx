@@ -150,7 +150,7 @@ export async function StandingsTable({
               </TableCell>
               <TableCell>
                 <Link
-                  href={`/times/${r.participant.id}`}
+                  href={`/teams/${r.participant.id}`}
                   className="flex items-center gap-2 font-medium hover:underline"
                 >
                   <Crest src={r.participant.logo} name={r.participant.name} size="xs" />

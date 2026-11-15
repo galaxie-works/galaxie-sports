@@ -42,7 +42,7 @@ export function checkoutUrls(
   env: Record<string, string | undefined> = process.env,
 ): { success: string; cancel: string } {
   const base = (env.BETTER_AUTH_URL?.trim() || 'http://localhost:3000').replace(/\/+$/, '');
-  const page = `${base}/cliente/cosmos`;
+  const page = `${base}/client/cosmos`;
   return {
     success: `${page}?purchase=${purchaseIntentId}&status=success`,
     cancel: `${page}?purchase=${purchaseIntentId}&status=canceled`,

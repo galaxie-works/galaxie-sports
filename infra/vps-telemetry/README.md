@@ -244,15 +244,15 @@ de `app/`:
 
 | Serviço | Atende | Responde 404 a | Na partida | `mem_limit` |
 | --- | --- | --- | --- | --- |
-| `site` | público, demo (explorador), `/docs`, `/exemplo`, `/embed.js`, `/e/*`, `/r/*` (registry), `/api/related`, `/api/interno/revalidar` | `/cliente` (com o Builder), `/ajustes`, `/api/cliente`, `/api/ajustes` | banco do login, seguidor do change feed | 512m (heap 320) |
-| `console` | `/cliente`, `/cliente/builder`, `/ajustes`, `/api/cliente`, `/api/ajustes` | o resto | banco do login (sem o change feed: o cache do explorador é do site) | 384m (heap 224) |
-| os dois | `/login`, `/api/auth`, `/api/version` (com `service: site\|console`), `/api/galaxie` (o proxy da API; a pré-visualização do Builder usa), `/api/atividade`, `/robots.txt` (healthcheck da imagem), ícones, `/_next` | | | |
+| `site` | público, demo (explorador), `/docs`, `/example`, `/embed.js`, `/e/*`, `/r/*` (registry), `/api/related`, `/api/internal/revalidate` | `/client` (com o Builder), `/settings`, `/api/client`, `/api/settings` | banco do login, seguidor do change feed | 512m (heap 320) |
+| `console` | `/client`, `/client/builder`, `/settings`, `/api/client`, `/api/settings` | o resto | banco do login (sem o change feed: o cache do explorador é do site) | 384m (heap 224) |
+| os dois | `/login`, `/api/auth`, `/api/version` (com `service: site\|console`), `/api/galaxie` (o proxy da API; a pré-visualização do Builder usa), `/api/activity`, `/robots.txt` (healthcheck da imagem), ícones, `/_next` | | | |
 
 **Traefik, no mesmo host.** `gsports-console` casa `Host(DEMO_DOMAIN) && PathRegexp(^/(ajustes|api/ajustes|api/cliente|cliente)(/|$))`
 com prioridade 2000; `gsports-site` casa o host inteiro com 1000; `gsports-console-maintenance` (1500, nos rótulos do
 site) manda os prefixos do console para a página de manutenção quando ele sai do ar; `gsports-demo-maintenance` (1)
 cobre o resto. O login e a API do auth ficam no site: sem o console, ninguém perde o login da demo. A sessão do Better
-Auth é um cookie do host, então vale nos dois (entrar pelo `/login`, abrir o `/cliente` e voltar ao explorador sem
+Auth é um cookie do host, então vale nos dois (entrar pelo `/login`, abrir o `/client` e voltar ao explorador sem
 logar de novo). Os arquivos do build (`/_next/static`) também vêm do site: é a mesma imagem, e o deploy troca os dois no
 mesmo grupo (só nos segundos entre a troca de um e a do outro a página do console pede ao site um arquivo de outro build).
 
@@ -387,7 +387,7 @@ O acesso é controlado pelo próprio app (Better Auth, tabelas no schema `demo_a
 - `DEMO_ADMIN_EMAIL` / `DEMO_ADMIN_NAME`: na primeira subida, sem nenhum admin, o app cria esse usuário e
   manda o convite (link para a tela de login).
 - `SMTP_*`: remetente dos convites e dos códigos de acesso. Sem SMTP, o convite fica criado e o painel
-  (`/ajustes/usuarios`) mostra o link para o admin copiar, mas ninguém consegue entrar: em produção o
+  (`/settings/users`) mostra o link para o admin copiar, mas ninguém consegue entrar: em produção o
   código nunca vai para o log (em desenvolvimento, sim).
 - Convidados têm prazo de acesso; depois dele o login é bloqueado. Admin não expira.
 
@@ -623,7 +623,7 @@ Postgres, Grafana e backup têm limite abaixo de pico × 1,5, e o RustFS, que é
 
 | Serviço | Pico | Limite | Observação |
 | --- | --- | --- | --- |
-| `postgres` | 1423 | 1280m | ~400 presos (`anon` + `shmem`); o resto é cache |
+| `postgres` | 1423 | 2560m | ~768 presos (`shared_buffers` 512 + conexões); o resto é cache (subiu de 1280m em 13/11, com o banco em ~18 GB) |
 | `s3` | 973 | 1344m | 924 presos com limite de 1 g; OOM em 29/10 |
 | `valkey` | 39 | 256m | `maxmemory` 160 + fork do AOF |
 | `backup` | 255 | 160m | a leitura de 255 é cache do dump; em uso, ~80 |
