@@ -21,7 +21,7 @@ export const useInExample = () => useContext(ExampleContext);
  * Moldura do exemplo público no navegador:
  * - avisa os componentes que estão no exemplo (`useInExample`);
  * - deixa as bandeiras prontas no cache (o exemplo não chama a API para buscá-las);
- * - guarda os links: destino que faz parte do exemplo vai para `/exemplo/...`; o resto avisa que é da
+ * - guarda os links: destino que faz parte do exemplo vai para `/example/...`; o resto avisa que é da
  *   demo completa, com o atalho para entrar;
  * - dentro da janela da apresentação (iframe), repassa o Esc para fechá-la.
  */

@@ -10,39 +10,39 @@ const COMPOSE = join(__dirname, '..', '..', '..', '..', 'infra', 'vps-telemetry'
 
 describe('dono de cada rota', () => {
   it.each([
-    '/cliente',
-    '/cliente/builder',
-    '/cliente/builder/novo',
-    '/cliente/chaves',
-    '/ajustes',
-    '/ajustes/operacao',
-    '/api/ajustes/operacao',
-    '/api/ajustes/revisao/lote',
-    '/api/cliente/x',
+    '/client',
+    '/client/builder',
+    '/client/builder/new',
+    '/client/keys',
+    '/settings',
+    '/settings/operations',
+    '/api/settings/operations',
+    '/api/settings/review/batch',
+    '/api/client/x',
     // como o proxy enxerga: sem o prefixo de idioma e decodificado
-    '/pt-BR/ajustes',
-    '/en/cliente/builder',
-    '/%61justes',
-    '/times/../ajustes',
+    '/pt-BR/settings',
+    '/en/client/builder',
+    '/%73ettings',
+    '/teams/../settings',
   ])('%s é do console', (path) => expect(routeOwner(path)).toBe('console'));
 
   it.each([
     '/',
-    '/sobre',
-    '/termos',
-    '/privacidade',
+    '/about',
+    '/terms',
+    '/privacy',
     '/sitemap.xml',
-    '/exemplo/jogo',
+    '/example/match',
     '/docs',
-    '/docs/referencia',
+    '/docs/reference',
     '/embed.js',
     '/e/01a16029-9283-77d0-b2e5-1d89336b2dbc.json',
     '/r/01a16029-9283-77d0-b2e5-1d89336b2dbc.json',
-    '/times/1',
-    '/eventos/abc',
-    '/esportes/futebol',
+    '/teams/1',
+    '/events/abc',
+    '/sports/futebol',
     '/api/related/playback-error',
-    '/api/interno/revalidar',
+    '/api/internal/revalidate',
     // sem entrada: o explorador cresce sem mexer na tabela
     '/pagina-nova',
     // prefixo de verdade, não pedaço do nome
@@ -57,7 +57,7 @@ describe('dono de cada rota', () => {
     '/api/auth/sign-in/email-otp',
     '/api/version',
     '/api/galaxie/v1/search',
-    '/api/atividade',
+    '/api/activity',
     '/robots.txt',
     '/icon.png',
     '/_next/data/x.json',
@@ -70,27 +70,27 @@ describe('dono de cada rota', () => {
 describe('o que cada papel atende', () => {
   it('site: público e demo, sem o portal e o painel', () => {
     expect(servesPath('site', '/')).toBe(true);
-    expect(servesPath('site', '/times/1')).toBe(true);
+    expect(servesPath('site', '/teams/1')).toBe(true);
     expect(servesPath('site', '/login')).toBe(true);
-    expect(servesPath('site', '/ajustes')).toBe(false);
-    expect(servesPath('site', '/cliente/builder')).toBe(false);
-    expect(servesPath('site', '/api/ajustes/operacao')).toBe(false);
+    expect(servesPath('site', '/settings')).toBe(false);
+    expect(servesPath('site', '/client/builder')).toBe(false);
+    expect(servesPath('site', '/api/settings/operations')).toBe(false);
   });
 
   it('console: portal e painel, sem o público e a demo', () => {
-    expect(servesPath('console', '/cliente')).toBe(true);
-    expect(servesPath('console', '/ajustes/usuarios/1')).toBe(true);
+    expect(servesPath('console', '/client')).toBe(true);
+    expect(servesPath('console', '/settings/users/1')).toBe(true);
     expect(servesPath('console', '/login')).toBe(true);
     expect(servesPath('console', '/api/galaxie/v1/search')).toBe(true);
     expect(servesPath('console', '/')).toBe(false);
-    expect(servesPath('console', '/sobre')).toBe(false);
-    expect(servesPath('console', '/times/1')).toBe(false);
+    expect(servesPath('console', '/about')).toBe(false);
+    expect(servesPath('console', '/teams/1')).toBe(false);
     expect(servesPath('console', '/r/x.json')).toBe(false);
-    expect(servesPath('console', '/api/interno/revalidar')).toBe(false);
+    expect(servesPath('console', '/api/internal/revalidate')).toBe(false);
   });
 
   it('all atende tudo, inclusive o que não decodifica (fica para a regra geral do proxy)', () => {
-    for (const path of ['/', '/ajustes', '/cliente/builder', '/times/1', '/%E0%A4%A'])
+    for (const path of ['/', '/settings', '/client/builder', '/teams/1', '/%E0%A4%A'])
       expect(servesPath('all', path)).toBe(true);
   });
 
@@ -156,14 +156,28 @@ describe('Traefik', () => {
   it('a expressão do console casa os mesmos prefixos que o proxy', () => {
     const re = new RegExp(CONSOLE_PATH_REGEXP);
     for (const path of [
+      '/client',
+      '/client/builder',
+      '/settings/x',
+      '/api/settings/operations',
+      '/api/client',
+      // os caminhos em português continuam no console enquanto valer o 301 do #630
       '/cliente',
-      '/cliente/builder',
-      '/ajustes/x',
+      '/ajustes/usuarios',
       '/api/ajustes/operacao',
-      '/api/cliente',
+      '/api/cliente/x',
     ])
       expect(re.test(path)).toBe(true);
-    for (const path of ['/', '/clientes', '/ajustes-antigos', '/times/1', '/api/auth/x', '/login'])
+    for (const path of [
+      '/',
+      '/clientes',
+      '/clients',
+      '/settings-old',
+      '/ajustes-antigos',
+      '/teams/1',
+      '/api/auth/x',
+      '/login',
+    ])
       expect(re.test(path)).toBe(false);
   });
 

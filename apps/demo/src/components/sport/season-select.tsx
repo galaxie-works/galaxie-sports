@@ -38,7 +38,7 @@ export function SeasonSelect({
 }: {
   options: SeasonOption[];
   value: number;
-  /** Caminho da página sem query string (`/times/<id>`). */
+  /** Caminho da página sem query string (`/teams/<id>`). */
   basePath: string;
   texts: { label: string; search: string; empty: string; current: string };
 }) {

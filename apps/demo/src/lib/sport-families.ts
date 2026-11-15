@@ -4,7 +4,7 @@
  * `formula-1`) seguem esportes separados, porque vêm de APIs diferentes; só a apresentação junta.
  *
  * Este é o único lugar do mapa família → esportes. Os rótulos ficam nos dicionários
- * (`t.nav.families[id]`), nos três idiomas. O `id` é também o slug da rota (`/esportes/basquete`).
+ * (`t.nav.families[id]`), nos três idiomas. O `id` é também o slug da rota (`/sports/basquete`).
  *
  * Módulo puro: serve ao proxy (redirecionamento das rotas antigas), ao servidor, ao navegador e aos testes.
  */
@@ -43,7 +43,7 @@ export type FamilyId = SportFamily['id'];
 
 const sectionsOf = (family: SportFamily): readonly string[] => ('sections' in family ? family.sections : []);
 
-export const familyHref = (family: Pick<SportFamily, 'id'>) => `/esportes/${family.id}`;
+export const familyHref = (family: Pick<SportFamily, 'id'>) => `/sports/${family.id}`;
 
 export const familyBySlug = (slug: string): SportFamily | undefined =>
   SPORT_FAMILIES.find((f) => f.id === slug);
@@ -54,7 +54,7 @@ export const familyOf = (sport: string): SportFamily | undefined =>
 
 /**
  * Página de um esporte da API dentro da família: a da família e, para esporte com seção própria, a
- * âncora dela (`/esportes/basquete#nba`).
+ * âncora dela (`/sports/basquete#nba`).
  */
 export function sportHref(sport: string): string | null {
   const family = familyOf(sport);
@@ -63,11 +63,12 @@ export function sportHref(sport: string): string | null {
 }
 
 /**
- * Rota antiga, por esporte da API (`/esportes/nba`, `/esportes/formula-1`), para a da família. Links
- * guardados, favoritos e a trilha de outra aba continuam funcionando. Null quando não é rota antiga.
+ * Rota antiga, por esporte da API (`/sports/nba`, `/sports/formula-1`), para a da família. Links
+ * guardados, favoritos e a trilha de outra aba continuam funcionando. Aceita também o caminho em português de antes
+ * do #630 (`/esportes/nba`), para chegar à família num salto só. Null quando não é rota antiga.
  */
 export function legacySportRedirect(pathname: string): string | null {
-  const match = /^\/esportes\/([^/]+)\/?$/.exec(pathname);
+  const match = /^\/(?:sports|esportes)\/([^/]+)\/?$/.exec(pathname);
   if (!match || familyBySlug(match[1]!)) return null;
   return sportHref(match[1]!);
 }

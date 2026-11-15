@@ -72,7 +72,7 @@ export function settingPage(key: string): SettingPage | undefined {
 /** Bloco do ajuste (para filtrar as linhas de um cartão); undefined fora do registro. */
 export const settingBlock = (key: string): PanelBlock | undefined => settingPage(key)?.block;
 
-/** Link para a linha do ajuste na página dele (`/ajustes/ia#AI_RIGHTS_MODEL`, `/ajustes/grades?aba=ajustes#…`). */
+/** Link para a linha do ajuste na página dele (`/settings/ai#AI_RIGHTS_MODEL`, `/settings/lineups?aba=ajustes#…`). */
 export function settingHref(key: string): string | null {
   const page = settingPage(key);
   if (!page) return null;

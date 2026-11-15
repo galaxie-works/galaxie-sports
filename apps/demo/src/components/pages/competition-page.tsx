@@ -130,7 +130,7 @@ export async function CompetitionContent({
   const groups = (
     championship ? championshipOrder(standings?.groups ?? []) : (standings?.groups ?? [])
   ).filter((g) => g.rows.length > 0);
-  const base = mount?.basePath ?? `/competicoes/${competition.slug}`;
+  const base = mount?.basePath ?? `/competitions/${competition.slug}`;
   const seasonQuery = selected ? `temporada=${selected.year}` : '';
   const tab = query[TAB_PARAM] === 'jogos' || !groups.length ? 'jogos' : 'classificacao';
   const sport = sportParent(competition.sport, t);

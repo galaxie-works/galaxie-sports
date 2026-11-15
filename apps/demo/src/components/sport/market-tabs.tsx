@@ -33,7 +33,7 @@ export function MarketTabs({
             <TooltipTrigger
               render={
                 <Link
-                  href={`/eventos/${eventId}?pais=${m.code}`}
+                  href={`/events/${eventId}?pais=${m.code}`}
                   scroll={false}
                   aria-label={m.name}
                   aria-current={selected ? 'page' : undefined}

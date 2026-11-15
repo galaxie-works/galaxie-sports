@@ -25,7 +25,7 @@ describe('famílias de esporte', () => {
     expect(familyOf('basketball')?.id).toBe('basquete');
     expect(familyOf('formula-1')?.id).toBe('automobilismo');
     expect(familyOf('mma')?.id).toBe('lutas');
-    expect(FAMILIES.map((f) => f.href)).not.toContain('/esportes/nba');
+    expect(FAMILIES.map((f) => f.href)).not.toContain('/sports/nba');
     expect(FAMILIES).toHaveLength(SPORT_FAMILIES.length);
   });
 
@@ -43,15 +43,15 @@ describe('famílias de esporte', () => {
   });
 
   it('link de um esporte: a família, com a âncora da seção própria', () => {
-    expect(sportHref('nba')).toBe('/esportes/basquete#nba');
-    expect(sportHref('basketball')).toBe('/esportes/basquete');
-    expect(sportHref('formula-1')).toBe('/esportes/automobilismo');
+    expect(sportHref('nba')).toBe('/sports/basquete#nba');
+    expect(sportHref('basketball')).toBe('/sports/basquete');
+    expect(sportHref('formula-1')).toBe('/sports/automobilismo');
     expect(sportHref('curling')).toBeNull();
   });
 
   it('esporte pai de competição, time e jogo é a família, com o rótulo do menu', () => {
     expect(sportParent('nba', getDictionary('pt-BR'))).toEqual({
-      path: '/esportes/basquete',
+      path: '/sports/basquete',
       label: 'Basquete',
       kind: 'esporte',
     });
@@ -59,18 +59,24 @@ describe('famílias de esporte', () => {
 });
 
 describe('rotas antigas', () => {
-  it('/esportes/<esporte da API> vai para a família', () => {
-    expect(legacySportRedirect('/esportes/nba')).toBe('/esportes/basquete#nba');
-    expect(legacySportRedirect('/esportes/formula-1')).toBe('/esportes/automobilismo');
-    expect(legacySportRedirect('/esportes/football/')).toBe('/esportes/futebol');
-    expect(legacySportRedirect('/esportes/afl')).toBe('/esportes/futebol-australiano');
+  it('/sports/<esporte da API> vai para a família', () => {
+    expect(legacySportRedirect('/sports/nba')).toBe('/sports/basquete#nba');
+    expect(legacySportRedirect('/sports/formula-1')).toBe('/sports/automobilismo');
+    expect(legacySportRedirect('/sports/football/')).toBe('/sports/futebol');
+    expect(legacySportRedirect('/sports/afl')).toBe('/sports/futebol-australiano');
+  });
+
+  it('o caminho em português de antes do #630 chega à família num salto só', () => {
+    expect(legacySportRedirect('/esportes/nba')).toBe('/sports/basquete#nba');
+    expect(legacySportRedirect('/esportes/formula-1/')).toBe('/sports/automobilismo');
+    expect(legacySportRedirect('/esportes/basquete')).toBeNull();
   });
 
   it('rotas novas, desconhecidas e de fora ficam como estão', () => {
-    expect(legacySportRedirect('/esportes/basquete')).toBeNull();
-    expect(legacySportRedirect('/esportes/curling')).toBeNull();
-    expect(legacySportRedirect('/competicoes/nba')).toBeNull();
-    expect(legacySportRedirect('/esportes/nba/extra')).toBeNull();
+    expect(legacySportRedirect('/sports/basquete')).toBeNull();
+    expect(legacySportRedirect('/sports/curling')).toBeNull();
+    expect(legacySportRedirect('/competitions/nba')).toBeNull();
+    expect(legacySportRedirect('/sports/nba/extra')).toBeNull();
   });
 });
 

@@ -257,7 +257,7 @@ function StatsTable({
               <tr key={`${s.competition.id}-${s.team.id}`} className="border-b last:border-0">
                 <td className="py-2 pr-2">
                   <Link
-                    href={`/competicoes/${s.competition.id}`}
+                    href={`/competitions/${s.competition.id}`}
                     className="flex min-w-0 items-center gap-2 hover:underline"
                   >
                     <Crest src={s.competition.logo} name={s.competition.name} size="xs" />
@@ -335,7 +335,7 @@ function MatchRow({ m, t, f, coach }: { m: PersonMatch; t: T; f: Formatters; coa
     );
   return (
     <Link
-      href={`/eventos/${e.id}`}
+      href={`/events/${e.id}`}
       className="hover:bg-accent -mx-2 flex flex-col gap-1.5 rounded-md px-2 py-2.5 transition-colors sm:flex-row sm:items-center sm:gap-4"
     >
       <div className="flex min-w-0 items-center gap-2 sm:w-44 sm:shrink-0 sm:flex-col sm:items-start sm:gap-0.5">
@@ -406,7 +406,7 @@ function CareerCard({ o, t, locale }: { o: PersonOverview; t: T; locale: Locale 
                 )}
                 aria-hidden
               />
-              <Link href={`/times/${c.team.id}`} className="group flex items-center gap-3">
+              <Link href={`/teams/${c.team.id}`} className="group flex items-center gap-3">
                 <Crest src={c.team.logo} name={c.team.name} size="md" />
                 <div className="flex min-w-0 flex-col">
                   <span className="flex items-center gap-2">
@@ -443,7 +443,7 @@ function TransfersCard({ o, t, f }: { o: PersonOverview; t: T; f: Formatters }) 
       </>
     );
     return c.id ? (
-      <Link href={`/times/${c.id}`} className="flex min-w-0 items-center gap-1.5 hover:underline">
+      <Link href={`/teams/${c.id}`} className="flex min-w-0 items-center gap-1.5 hover:underline">
         {body}
       </Link>
     ) : (
@@ -669,7 +669,7 @@ export async function PersonContent({ params, searchParams, source }: PageConten
   const o = year === undefined ? latest : await source.getPersonOverview(id, locale, year);
   const { person } = o;
   const api = personOverviewRequest(id, locale, year);
-  const basePath = `/pessoas/${id}`;
+  const basePath = `/people/${id}`;
   const coach = o.role === 'coach';
   const seasonLabel = o.season !== null ? String(o.season) : '';
   const position = o.position
@@ -704,7 +704,7 @@ export async function PersonContent({ params, searchParams, source }: PageConten
         kind="pessoa"
         parents={
           o.current_team
-            ? [{ path: `/times/${o.current_team.id}`, label: o.current_team.name, kind: 'time' }]
+            ? [{ path: `/teams/${o.current_team.id}`, label: o.current_team.name, kind: 'time' }]
             : undefined
         }
         api={api}
@@ -751,7 +751,7 @@ export async function PersonContent({ params, searchParams, source }: PageConten
               ) : null}
               {o.current_team ? (
                 <Link
-                  href={`/times/${o.current_team.id}`}
+                  href={`/teams/${o.current_team.id}`}
                   className="bg-background/60 hover:bg-accent flex items-center gap-1.5 rounded-full border py-0.5 pr-2.5 pl-1 text-xs font-medium backdrop-blur transition-colors"
                   title={t.currentTeam}
                 >

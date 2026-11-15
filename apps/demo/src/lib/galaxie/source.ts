@@ -1,6 +1,6 @@
 /**
  * Fonte de dados das páginas de jogo, time, campeonato e pessoa (`components/pages`). No app logado, a
- * API (`apiSource`, os fetchers cacheados de `api.ts`); no exemplo público (`/exemplo`), uma cópia gravada
+ * API (`apiSource`, os fetchers cacheados de `api.ts`); no exemplo público (`/example`), uma cópia gravada
  * (`lib/example/snapshot.ts`), que nunca chama a API.
  *
  * `showcase` marca o exemplo: as páginas escondem o que não vai para fora (onde assistir, conteúdo

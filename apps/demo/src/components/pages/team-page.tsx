@@ -364,7 +364,7 @@ function RivalsCard({ s, t }: { s: TeamSemantic; t: Dictionary }) {
           return r.team.participant_id ? (
             <Link
               key={r.team.slug}
-              href={`/times/${r.team.participant_id}`}
+              href={`/teams/${r.team.participant_id}`}
               className="hover:bg-accent -mx-2 flex items-center gap-3 rounded-md px-2 py-2 transition-colors"
             >
               {body}
@@ -386,7 +386,7 @@ export async function TeamContent({
   source,
   redirectIndividuals = false,
 }: PageContentProps & {
-  /** Rota /times: piloto e lutador vão para /pilotos e /lutadores (links antigos e da busca). */
+  /** Rota /teams: piloto e lutador vão para /drivers e /fighters (links antigos e da busca). */
   redirectIndividuals?: boolean;
 }) {
   const [{ id }, query, { locale, t }] = await Promise.all([params, searchParams, getI18n()]);
@@ -542,7 +542,7 @@ export async function TeamContent({
                     <Fact icon={Calendar}>{fill(t.team.founded, { year: team.founded })}</Fact>
                   ) : null}
                   {team.venue ? (
-                    <Link href={`/locais/${team.venue.id}`} className="hover:underline">
+                    <Link href={`/venues/${team.venue.id}`} className="hover:underline">
                       <Fact icon={Users}>{team.venue.name}</Fact>
                     </Link>
                   ) : null}

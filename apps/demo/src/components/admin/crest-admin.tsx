@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useRef, useState, useTransition } from 'react';
 import { toast } from 'sonner';
 
-import { revertCrest, uploadCrest } from '@/app/[locale]/(app)/ajustes/escudos/actions';
+import { revertCrest, uploadCrest } from '@/app/[locale]/(app)/settings/crests/actions';
 import { Alert, AlertDescription } from '@/components/reui/alert';
 import { Badge } from '@/components/reui/badge';
 import { Button } from '@/components/ui/button';

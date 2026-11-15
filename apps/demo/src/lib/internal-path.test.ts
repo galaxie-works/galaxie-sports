@@ -7,7 +7,7 @@ const ORIGIN = 'https://demo.test';
 describe('internalPath', () => {
   it('aceita caminhos da própria origem, com query e hash', () => {
     expect(internalPath('/', ORIGIN)).toBe('/');
-    expect(internalPath('/times/1?temporada=2026#elenco', ORIGIN)).toBe('/times/1?temporada=2026#elenco');
+    expect(internalPath('/teams/1?temporada=2026#elenco', ORIGIN)).toBe('/teams/1?temporada=2026#elenco');
     expect(internalPath('/a/../b', ORIGIN)).toBe('/b');
   });
 
@@ -35,7 +35,7 @@ describe('internalPath', () => {
   it('recusa o que não é texto e funciona sem a origem real', () => {
     expect(internalPath(null)).toBeNull();
     expect(internalPath(42)).toBeNull();
-    expect(internalPath('/eventos/9?x=1')).toBe('/eventos/9?x=1');
+    expect(internalPath('/events/9?x=1')).toBe('/events/9?x=1');
     expect(internalPath('/\\evil.com')).toBeNull();
   });
 });

@@ -30,8 +30,8 @@ const testUrl = (() => {
 const ADMIN = { id: 'u-admin', email: 'teste.admin@galaxie.test', role: 'admin' };
 
 let sql: Client;
-let list: typeof import('../src/app/api/ajustes/revisao/route');
-let item: typeof import('../src/app/api/ajustes/revisao/[id]/route');
+let list: typeof import('../src/app/api/settings/review/route');
+let item: typeof import('../src/app/api/settings/review/[id]/route');
 
 beforeAll(async () => {
   const admin = new Client({ connectionString: adminUrl });
@@ -46,8 +46,8 @@ beforeAll(async () => {
   await sql.connect();
   // o pool da demo lê a URL ao ser importado
   process.env.DEMO_DATABASE_URL = testUrl;
-  list = await import('../src/app/api/ajustes/revisao/route');
-  item = await import('../src/app/api/ajustes/revisao/[id]/route');
+  list = await import('../src/app/api/settings/review/route');
+  item = await import('../src/app/api/settings/review/[id]/route');
 });
 
 afterAll(async () => {
@@ -61,7 +61,7 @@ afterAll(async () => {
 });
 
 const ctx = (id: string) => ({ params: Promise.resolve({ id: encodeURIComponent(id) }) });
-const getList = (query: string) => list.GET(new Request(`http://demo.test/api/ajustes/revisao${query}`));
+const getList = (query: string) => list.GET(new Request(`http://demo.test/api/settings/review${query}`));
 const getItem = (id: string) => item.GET(new Request('http://demo.test/x'), ctx(id));
 const post = (id: string, body: unknown) =>
   item.POST(

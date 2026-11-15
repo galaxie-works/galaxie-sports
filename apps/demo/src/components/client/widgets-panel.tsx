@@ -52,7 +52,7 @@ import { useRouter } from 'next/navigation';
 import { useTransition } from 'react';
 import { toast } from 'sonner';
 
-import { archiveWidgetAction } from '@/app/[locale]/(app)/cliente/actions';
+import { archiveWidgetAction } from '@/app/[locale]/(app)/client/actions';
 import { Badge } from '@/components/reui/badge';
 import { Frame, FrameDescription, FrameHeader, FramePanel, FrameTitle } from '@/components/reui/frame';
 import {
@@ -180,7 +180,7 @@ function KindCard({ kind, family }: { kind: WidgetKind; family: CatalogFamilyId 
         variant="outline"
         size="sm"
         nativeButton={false}
-        render={<Link href={`/cliente/builder/novo?tipo=${kind}&${CATALOG_TAB_PARAM}=${family}`} />}
+        render={<Link href={`/client/builder/new?tipo=${kind}&${CATALOG_TAB_PARAM}=${family}`} />}
       >
         <Plus />
         {t.client.builder.create}
@@ -307,7 +307,7 @@ export function WidgetsPanel({
                   return (
                     <TableRow key={w.id}>
                       <TableCell className="pl-4 font-medium">
-                        <Link href={`/cliente/builder/${w.id}`} className="hover:underline">
+                        <Link href={`/client/builder/${w.id}`} className="hover:underline">
                           {w.name}
                         </Link>
                       </TableCell>
@@ -342,7 +342,7 @@ export function WidgetsPanel({
                             variant="outline"
                             size="sm"
                             nativeButton={false}
-                            render={<Link href={`/cliente/builder/${w.id}`} />}
+                            render={<Link href={`/client/builder/${w.id}`} />}
                           >
                             {b.edit}
                           </Button>

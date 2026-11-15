@@ -47,8 +47,8 @@ describe('checkout', () => {
     productName: 'Cosmos AI · Pacote',
     amountCents: 4900,
     currency: 'brl' as const,
-    successUrl: 'https://app.exemplo/cliente/cosmos?compra=ok',
-    cancelUrl: 'https://app.exemplo/cliente/cosmos?compra=cancelada',
+    successUrl: 'https://app.exemplo/client/cosmos?compra=ok',
+    cancelUrl: 'https://app.exemplo/client/cosmos?compra=cancelada',
     locale: 'pt-BR',
   };
 

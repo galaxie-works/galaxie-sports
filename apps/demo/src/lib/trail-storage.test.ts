@@ -23,8 +23,8 @@ describe('trilha guardada na aba', () => {
 
   it('clearTrail (sair, novo login) apaga o que a próxima pessoa na aba veria', async () => {
     const trail = await import('./trail');
-    trail.visitTrail({ path: '/ajustes/usuarios', label: 'Usuários', kind: 'ajustes' });
-    trail.visitTrail({ path: '/ajustes/usuarios/u-1', label: 'Fulana de Tal', kind: 'ajustes' });
+    trail.visitTrail({ path: '/settings/users', label: 'Usuários', kind: 'ajustes' });
+    trail.visitTrail({ path: '/settings/users/u-1', label: 'Fulana de Tal', kind: 'ajustes' });
     expect(JSON.stringify(storage.dump())).toContain('Fulana de Tal');
 
     trail.clearTrail();

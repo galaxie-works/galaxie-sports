@@ -28,7 +28,7 @@ import {
 } from './index';
 
 // a URL do roteador (caminho e busca), trocada nos testes para simular uma navegação
-const nav = vi.hoisted(() => ({ pathname: '/ajustes/grades', search: '' }));
+const nav = vi.hoisted(() => ({ pathname: '/settings/lineups', search: '' }));
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }),
   usePathname: () => nav.pathname,

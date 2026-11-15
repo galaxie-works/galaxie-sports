@@ -124,7 +124,7 @@ export function RaceScoreboard({ event, t, f }: { event: Event; t: Dictionary; f
             })}
           </span>
           {event.venue ? (
-            <Link href={`/locais/${event.venue.id}`} className="flex items-center gap-1.5 hover:underline">
+            <Link href={`/venues/${event.venue.id}`} className="flex items-center gap-1.5 hover:underline">
               <MapPin className="size-3.5" aria-hidden />
               {event.venue.name}
               {event.venue.city ? `, ${event.venue.city}` : ''}
@@ -217,7 +217,7 @@ export async function RaceClassification({ event }: { event: Event }) {
                 {p.result?.team ? (
                   p.result.team.id ? (
                     <Link
-                      href={`/times/${p.result.team.id}`}
+                      href={`/teams/${p.result.team.id}`}
                       className="text-muted-foreground flex items-center gap-2 hover:underline"
                     >
                       <Crest src={p.result.team.logo} name={p.result.team.name} size="xs" />
@@ -496,7 +496,7 @@ export async function ChampionshipCard({ standings }: { standings: TeamStanding[
         {rows.map((s) => (
           <Link
             key={`${s.competition.id}-${s.group}`}
-            href={`/competicoes/${s.competition.slug}?temporada=${s.season.year}`}
+            href={`/competitions/${s.competition.slug}?temporada=${s.season.year}`}
             className="hover:bg-accent -mx-2 flex items-center gap-3 rounded-md px-2 py-2 transition-colors"
           >
             <span className="text-3xl font-bold tabular-nums">{fill(tx.rank!, { rank: s.rank })}</span>

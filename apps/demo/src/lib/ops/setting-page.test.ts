@@ -79,9 +79,9 @@ describe('cada ajuste em um lugar só (#1070)', () => {
   });
 
   it('o link "ver em…" abre a página já na linha', () => {
-    expect(settingHref('AI_RIGHTS_MODEL')).toBe('/ajustes/ia#AI_RIGHTS_MODEL');
-    expect(settingHref('YOUTUBE_API_KEY')).toBe('/ajustes/credenciais#YOUTUBE_API_KEY');
-    expect(settingHref('POSTGAME_NBA_MIN')).toBe('/ajustes/pos-jogo#POSTGAME_NBA_MIN');
+    expect(settingHref('AI_RIGHTS_MODEL')).toBe('/settings/ai#AI_RIGHTS_MODEL');
+    expect(settingHref('YOUTUBE_API_KEY')).toBe('/settings/credentials#YOUTUBE_API_KEY');
+    expect(settingHref('POSTGAME_NBA_MIN')).toBe('/settings/post-game#POSTGAME_NBA_MIN');
     expect(settingHref('NAO_EXISTE')).toBeNull();
   });
 
@@ -89,7 +89,7 @@ describe('cada ajuste em um lugar só (#1070)', () => {
     const lineup = SETTINGS.filter((d) => d.key.startsWith('LINEUP_'));
     expect(lineup.length).toBeGreaterThan(0);
     for (const def of lineup) {
-      expect(settingHref(def.key), def.key).toBe(`/ajustes/grades?aba=ajustes#${def.key}`);
+      expect(settingHref(def.key), def.key).toBe(`/settings/lineups?aba=ajustes#${def.key}`);
     }
   });
 });

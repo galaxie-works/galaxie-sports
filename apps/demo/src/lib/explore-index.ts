@@ -10,10 +10,10 @@ import { SPORT_FAMILIES, familyHref, type SportFamily } from './sport-families';
 
 /** Para onde cada número da home leva. */
 export const EXPLORE_LINKS = {
-  sports: '/esportes',
-  countries: '/paises',
-  upcoming: '/agenda',
-  live: '/ao-vivo',
+  sports: '/sports',
+  countries: '/countries',
+  upcoming: '/schedule',
+  live: '/live',
 } as const;
 
 export interface ExploreTotals {

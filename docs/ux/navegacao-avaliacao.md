@@ -22,7 +22,7 @@ Outubro de 2026. Avaliação da área logada da demo (`apps/demo`) com a pergunt
 
 - O botão **voltar do navegador** restaura a página como estava, com a aba, a rodada e a rolagem.
 - **Temporada na URL** (`?temporada=`) no time, no jogador e na competição: link compartilhável, e a troca de idioma recarrega a mesma URL e mantém a temporada.
-- **Piloto de F1 em `/times/{id}`**: abre de verdade (o piloto é um participante, como um time). Lutadores de MMA também.
+- **Piloto de F1 em `/teams/{id}`**: abre de verdade (o piloto é um participante, como um time). Lutadores de MMA também.
 - Fora o caso do item 6, nenhum link levou a 404 ou a erro na varredura.
 - O **menu é o mesmo** no desktop e na gaveta do celular.
 - Os links de times, competições e jogadores são consistentes nos cards: escudo e nome levam ao time, o card do jogo leva ao jogo, a tabela leva ao time.
@@ -61,7 +61,7 @@ Nesses casos o cabeçalho mostra só o nome da página, e não há por onde subi
 
 ### 3. O menu não mostra onde se está nas páginas internas ✅
 
-**Onde:** competição, jogo, time, jogador, clássico e local. O item do menu só acende quando a URL é a do próprio item (`/esportes/football`). Na competição, no jogo e no time, nenhum item fica aceso.
+**Onde:** competição, jogo, time, jogador, clássico e local. O item do menu só acende quando a URL é a do próprio item (`/sports/football`). Na competição, no jogo e no time, nenhum item fica aceso.
 
 ![Antes: competição sem item ativo](img/antes-competicao-sem-item-ativo.jpg)
 
@@ -69,7 +69,7 @@ Nesses casos o cabeçalho mostra só o nome da página, e não há por onde subi
 
 ### 4. Voltar do jogo para a competição perde a aba, a rodada e a temporada ✅
 
-**Onde:** na página da competição (`/competicoes/{slug}`) e no link da competição no placar do jogo.
+**Onde:** na página da competição (`/competitions/{slug}`) e no link da competição no placar do jogo.
 
 - A aba Classificação/Jogos não ia para a URL. O link do jogo para a competição, a trilha e um recarregamento sempre caíam em Classificação, na temporada padrão. Para um jogo de 2024, a pessoa via a tabela de 2026.
 - Na fileira de rodadas, a rodada ativa (ex.: 32 de 38) ficava fora da tela, à direita. Não dava para ver qual rodada estava aberta.
@@ -96,11 +96,11 @@ Nesses casos o cabeçalho mostra só o nome da página, e não há por onde subi
 
 **Correção:** a gaveta fecha quando a página muda. A busca já fazia isso.
 
-### 6. Rota quebrada: `/paises/world` ✅
+### 6. Rota quebrada: `/countries/world` ✅
 
 **Onde:** na competição de F1, onde o país "World" virava link. O mesmo valeria para qualquer competição, time ou local cujo "país" da API não seja um país. A API responde 400 ("Parâmetro inválido") para `world`, e a demo mostrava a tela de erro.
 
-![Antes: erro em /paises/world](img/antes-paises-world-erro.jpg)
+![Antes: erro em /countries/world](img/antes-paises-world-erro.jpg)
 
 **Correção:**
 
@@ -129,14 +129,14 @@ Nesses casos o cabeçalho mostra só o nome da página, e não há por onde subi
 
 ### 9. Piloto e lutador usam a página de time ✅ (item 24)
 
-**Onde:** `/times/{id}` de um piloto de F1 ou de um lutador. A página abre, mas mostra o card "Elenco · Sem elenco nem escalações registrados", que é um beco sem saída e não faz sentido para um piloto.
+**Onde:** `/teams/{id}` de um piloto de F1 ou de um lutador. A página abre, mas mostra o card "Elenco · Sem elenco nem escalações registrados", que é um beco sem saída e não faz sentido para um piloto.
 
 ![Piloto com card de elenco vazio](img/antes-piloto-f1.jpg)
 
 **Proposta:**
 
 - Esconder o card de elenco quando o participante não é um time (`team.kind !== 'team'`).
-- A médio prazo, uma rota própria (`/pilotos/{id}`, `/lutadores/{id}`) com campeonato, equipe e corridas ou lutas. Mantém `/times/{id}` redirecionando.
+- A médio prazo, uma rota própria (`/drivers/{id}`, `/fighters/{id}`) com campeonato, equipe e corridas ou lutas. Mantém `/teams/{id}` redirecionando.
 
 ### 10. Temporada divergente na F1 ✅ (item 25)
 
@@ -148,7 +148,7 @@ Nesses casos o cabeçalho mostra só o nome da página, e não há por onde subi
 
 ### 11. Seções vazias sem aviso (hipismo) ✅ (item 23)
 
-**Onde:** `/hipismo` na base de dev, que não tem dados de hipismo. "Destaques", "Provas recentes" e "Campeonatos" aparecem só com o título, sem conteúdo nem explicação. Parece que a página está quebrada ou carregando.
+**Onde:** `/equestrian` na base de dev, que não tem dados de hipismo. "Destaques", "Provas recentes" e "Campeonatos" aparecem só com o título, sem conteúdo nem explicação. Parece que a página está quebrada ou carregando.
 
 ![Hipismo com seções vazias](img/hipismo-secoes-vazias.jpg)
 
@@ -174,7 +174,7 @@ Depois da primeira entrega, o pedido foi olhar o celular e a organização das l
 
 ### 13. País: uma montanha de campeonatos, Libertadores escondida ✅
 
-**Onde:** `/paises/{código}`. O Brasil tinha 142 competições de 7 esportes numa página só. No futebol vinham primeiro as 40 nacionais (Série A, Copa do Brasil, 27 estaduais, divisões de acesso, copas regionais) e só depois as continentais.
+**Onde:** `/countries/{código}`. O Brasil tinha 142 competições de 7 esportes numa página só. No futebol vinham primeiro as 40 nacionais (Série A, Copa do Brasil, 27 estaduais, divisões de acesso, copas regionais) e só depois as continentais.
 
 | Antes (celular) | Depois (celular) |
 | --- | --- |
@@ -192,7 +192,7 @@ Depois da primeira entrega, o pedido foi olhar o celular e a organização das l
 
 ### 14. Esporte: as internacionais ficavam no fim ✅
 
-**Onde:** `/esportes/{esporte}`. Os grupos seguiam a ordem do menu de países, e "World" (Champions, Libertadores, Copa do Mundo) caía no fim, depois de 20 países. Dentro de cada grupo a ordem era alfabética: a Conference League vinha antes da Champions.
+**Onde:** `/sports/{esporte}`. Os grupos seguiam a ordem do menu de países, e "World" (Champions, Libertadores, Copa do Mundo) caía no fim, depois de 20 países. Dentro de cada grupo a ordem era alfabética: a Conference League vinha antes da Champions.
 
 | Antes | Depois |
 | --- | --- |
@@ -319,7 +319,7 @@ Explorar no celular: **6.100 px → 3.070 px** (9.500 px antes do #200).
 | --- | --- |
 | ![Trilha hierárquica com origem](img/depois-trilha-hierarquica-origem.jpg) | ![Celular](img/depois-celular-trilha-pai.jpg) |
 
-**Achado no caminho:** na rota estática `/ao-vivo`, alcançada pela reescrita do proxy (`/ao-vivo` → `/pt-BR/ao-vivo`), o menu tinha erro de hidratação: o HTML pré-renderizado e o navegador viam caminhos diferentes (está na documentação do `usePathname` no Next 16). A sidebar agora lê o caminho só depois de hidratar. No servidor de dev, sair do Ao vivo ainda deixa o menu sem item aceso até recarregar. É uma corrida do streaming de dev: o build de produção (`next start`) foi testado e funciona.
+**Achado no caminho:** na rota estática `/live`, alcançada pela reescrita do proxy (`/live` → `/pt-BR/live`), o menu tinha erro de hidratação: o HTML pré-renderizado e o navegador viam caminhos diferentes (está na documentação do `usePathname` no Next 16). A sidebar agora lê o caminho só depois de hidratar. No servidor de dev, sair do Ao vivo ainda deixa o menu sem item aceso até recarregar. É uma corrida do streaming de dev: o build de produção (`next start`) foi testado e funciona.
 
 ### 23. Polimento: vazios, títulos de aba e relevância no celular (E6) ✅
 
@@ -334,18 +334,18 @@ Explorar no celular: **6.100 px → 3.070 px** (9.500 px antes do #200).
 
 ### 24. Rotas próprias para piloto e lutador (E2) ✅
 
-**Onde:** pilotos de F1 e lutadores de MMA abriam em `/times/{id}`, a página de clube, com um card "Elenco · sem elenco nem escalações" vazio e "Últimos jogos" no lugar de corridas e lutas.
+**Onde:** pilotos de F1 e lutadores de MMA abriam em `/teams/{id}`, a página de clube, com um card "Elenco · sem elenco nem escalações" vazio e "Últimos jogos" no lugar de corridas e lutas.
 
-**Decisão de produto:** rotas `/pilotos/{slug}` e `/lutadores/{slug}`, com redirecionamento a partir de `/times/{id}`.
+**Decisão de produto:** rotas `/drivers/{slug}` e `/fighters/{slug}`, com redirecionamento a partir de `/teams/{id}`.
 
 **Correção:**
 
-- **Rotas novas:** `/pilotos/max-verstappen-<id>` e `/lutadores/fernando-padilla-<id>`. O participante não tem slug no banco, então o slug é o nome mais o id no fim (`participantHref` e `idFromSlug`), sem migração. Um slug sem id dá "não encontrado".
-- **Redirecionamento:** `/times/{id}` de piloto ou lutador redireciona (308) para a rota certa, mantendo a query (`?temporada=`). Assim, links antigos e os da busca na F1 continuam funcionando.
-- **Links diretos onde o contexto diz o tipo:** grid e pódio da corrida, tabela de pilotos do campeonato, companheiros de equipe no perfil do piloto e os lados de uma luta. Equipes de F1 (construtores) seguem em `/times`. Na busca, participante de MMA vai direto para `/lutadores`.
+- **Rotas novas:** `/drivers/max-verstappen-<id>` e `/fighters/fernando-padilla-<id>`. O participante não tem slug no banco, então o slug é o nome mais o id no fim (`participantHref` e `idFromSlug`), sem migração. Um slug sem id dá "não encontrado".
+- **Redirecionamento:** `/teams/{id}` de piloto ou lutador redireciona (308) para a rota certa, mantendo a query (`?temporada=`). Assim, links antigos e os da busca na F1 continuam funcionando.
+- **Links diretos onde o contexto diz o tipo:** grid e pódio da corrida, tabela de pilotos do campeonato, companheiros de equipe no perfil do piloto e os lados de uma luta. Equipes de F1 (construtores) seguem em `/teams`. Na busca, participante de MMA vai direto para `/fighters`.
 - **Página:** o card "Elenco" só aparece para clube e seleção. "Últimos jogos" vira "Últimas corridas" ou "Últimas lutas". O perfil do piloto (carreira, títulos, fotos) é o do #222.
 
-| Piloto (`/pilotos/max-verstappen-…`) | Lutador (`/lutadores/fernando-padilla-…`) |
+| Piloto (`/drivers/max-verstappen-…`) | Lutador (`/fighters/fernando-padilla-…`) |
 | --- | --- |
 | ![Piloto](img/depois-pagina-piloto.jpg) | ![Lutador](img/depois-pagina-lutador.jpg) |
 
@@ -367,7 +367,7 @@ Explorar no celular: **6.100 px → 3.070 px** (9.500 px antes do #200).
 
 ### 26. Heading de destaque na página do piloto ✅
 
-**Onde:** `/pilotos/{slug}`. O topo era o mesmo de um time: escudo pequeno e nome. O retrato ficava num card lateral.
+**Onde:** `/drivers/{slug}`. O topo era o mesmo de um time: escudo pequeno e nome. O retrato ficava num card lateral.
 
 **Correção:**
 

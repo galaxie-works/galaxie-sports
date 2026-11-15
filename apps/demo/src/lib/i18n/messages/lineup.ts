@@ -1,7 +1,7 @@
 import { defineMessages } from '../define';
 
 /**
- * Grades e ofertas das operadoras: o portal do cliente (`/cliente/grade`), Ajustes → Grades e ofertas
+ * Grades e ofertas das operadoras: o portal do cliente (`/client/lineup`), Ajustes → Grades e ofertas
  * (revisão, pedidos das operadoras e operadora de cada tenant) e o aviso de domínio no convite.
  */
 export default defineMessages(

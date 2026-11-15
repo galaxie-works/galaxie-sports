@@ -37,11 +37,11 @@ interface Props {
 /** Link do detalhe levando os filtros da lista (o "voltar" do detalhe volta para a mesma página). */
 export const itemHref = (id: string, filters: ReviewFilters) => {
   const list = filtersQuery(filters);
-  return `/ajustes/revisao/${itemSegment(id)}${list ? `?lista=${encodeURIComponent(list.slice(1))}` : ''}`;
+  return `/settings/review/${itemSegment(id)}${list ? `?lista=${encodeURIComponent(list.slice(1))}` : ''}`;
 };
 
 const pageHref = (filters: ReviewFilters, page: number, per = filters.per) =>
-  `/ajustes/revisao${filtersQuery({ ...filters, page, per })}`;
+  `/settings/revisao${filtersQuery({ ...filters, page, per })}`;
 
 function PageButton({ href, children }: { href: string | null; children: React.ReactNode }) {
   return href ? (

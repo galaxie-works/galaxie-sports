@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
 
-import { resolveLineupRequest } from '@/app/[locale]/(app)/ajustes/grades/actions';
+import { resolveLineupRequest } from '@/app/[locale]/(app)/settings/lineups/actions';
 import { Alert, AlertDescription } from '@/components/reui/alert';
 import { Badge } from '@/components/reui/badge';
 import { Button } from '@/components/ui/button';

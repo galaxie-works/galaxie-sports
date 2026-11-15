@@ -38,7 +38,7 @@ export interface SportNav extends NavItem {
  * único de esporte → ícone do app (menu, filtros do Ao vivo, explorar, agenda, busca): a bola ou o objeto
  * de cada esporte, no traço do lucide; os que o lucide não tem ficam em components/icons. NBA usa o do
  * basquete e AFL o do rúgbi (bola oval, como a animação). O link leva à página da família
- * (`nba` → `/esportes/basquete#nba`).
+ * (`nba` → `/sports/basquete#nba`).
  */
 export const SPORTS: SportNav[] = (
   [
@@ -69,11 +69,11 @@ export const FAMILIES: FamilyNav[] = SPORT_FAMILIES.map((f) => {
   return { id: f.id, slug, icon: SPORTS.find((s) => s.slug === slug)!.icon, href: familyHref(f) };
 });
 
-export const MULTISPORT_NAV: NavItem = { href: '/multiesporte', icon: Medal };
+export const MULTISPORT_NAV: NavItem = { href: '/multisport', icon: Medal };
 
 /** Hipismo: esporte próprio (fora do espelho da api-sports), com ícone animado `equestrian` (docs/13). */
 export const EQUESTRIAN_NAV: NavItem & { slug: string } = {
-  href: '/hipismo',
+  href: '/equestrian',
   icon: Award,
   slug: 'equestrian',
 };
@@ -107,7 +107,7 @@ export const COUNTRIES: CountryNav[] = (
     ['FR', 'UEFA'],
     ['PT', 'UEFA'],
   ] as const
-).map(([code, group]) => ({ code, group, href: `/paises/${code.toLowerCase()}` }));
+).map(([code, group]) => ({ code, group, href: `/countries/${code.toLowerCase()}` }));
 
 export const sportBySlug = (slug: string) => SPORTS.find((s) => s.slug === slug);
 export const countryByCode = (code: string) =>
@@ -115,10 +115,10 @@ export const countryByCode = (code: string) =>
 
 /**
  * Página de país para um código da API, ou null quando o código não é de país (a API devolve "World"
- * para campeonatos mundiais e responde 400 a `/paises/world`): aí o nome aparece sem link.
+ * para campeonatos mundiais e responde 400 a `/countries/world`): aí o nome aparece sem link.
  */
 export function countryHref(code: string | null | undefined): string | null {
-  return code && /^[A-Za-z]{2}(-[A-Za-z]{3})?$/.test(code) ? `/paises/${code.toLowerCase()}` : null;
+  return code && /^[A-Za-z]{2}(-[A-Za-z]{3})?$/.test(code) ? `/countries/${code.toLowerCase()}` : null;
 }
 
 /**
@@ -142,7 +142,7 @@ export function eventCompetitionHref(event: {
   if (!event.competition) return null;
   const query = new URLSearchParams({ aba: 'jogos', data: event.starts_at.slice(0, 10) });
   if (event.stage?.name) query.set('rodada', event.stage.name);
-  return `/competicoes/${event.competition.slug}?${query}`;
+  return `/competitions/${event.competition.slug}?${query}`;
 }
 
 /**
@@ -164,7 +164,7 @@ export function eventParents(
   if (!event.competition) return parents;
   const season = new URLSearchParams({ data: event.starts_at.slice(0, 10) });
   parents.push({
-    path: `/competicoes/${event.competition.slug}?${season}`,
+    path: `/competitions/${event.competition.slug}?${season}`,
     label: event.competition.name,
     kind: 'competição',
   });
@@ -178,8 +178,8 @@ export function equestrianParent(t: Dictionary): TrailVisit {
   return { path: EQUESTRIAN_NAV.href, label: t.equestrian.title, kind: 'esporte' };
 }
 
-/** Piloto e lutador têm rota própria (`/pilotos`, `/lutadores`); os demais participantes ficam em /times. */
-const INDIVIDUAL_ROUTES: Partial<Record<string, string>> = { driver: '/pilotos', fighter: '/lutadores' };
+/** Piloto e lutador têm rota própria (`/drivers`, `/fighters`); os demais participantes ficam em /teams. */
+const INDIVIDUAL_ROUTES: Partial<Record<string, string>> = { driver: '/drivers', fighter: '/fighters' };
 
 const UUID_AT_END = /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
 
@@ -194,13 +194,13 @@ export function slugify(name: string): string {
 }
 
 /**
- * Página de um participante: `/pilotos/max-verstappen-<id>` e `/lutadores/<nome>-<id>` (o id no fim
- * resolve sem depender de slug no banco), `/times/<id>` para os demais. Sem `kind`, /times, que
+ * Página de um participante: `/drivers/max-verstappen-<id>` e `/fighters/<nome>-<id>` (o id no fim
+ * resolve sem depender de slug no banco), `/teams/<id>` para os demais. Sem `kind`, /teams, que
  * redireciona piloto e lutador para a rota certa.
  */
 export function participantHref(p: { id: string; name: string }, kind?: string | null): string {
   const route = kind ? INDIVIDUAL_ROUTES[kind] : undefined;
-  if (!route) return `/times/${p.id}`;
+  if (!route) return `/teams/${p.id}`;
   const slug = slugify(p.name);
   return `${route}/${slug ? `${slug}-` : ''}${p.id}`;
 }

@@ -40,7 +40,7 @@ const familyBySlug = (slug: string): CatalogFamily | undefined => CATALOG_FAMILI
 const familyOf = (sport: string): CatalogFamily | undefined =>
   CATALOG_FAMILIES.find((f) => (f.sports as readonly string[]).includes(sport));
 
-/** Parâmetro da URL com a aba do catálogo (`/cliente/builder?esporte=basquete`), que segue para o "Criar". */
+/** Parâmetro da URL com a aba do catálogo (`/client/builder?esporte=basquete`), que segue para o "Criar". */
 export const CATALOG_TAB_PARAM = 'esporte';
 
 /** Esportes da família que o plano libera (plano sem lista = todos). */

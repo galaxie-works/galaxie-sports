@@ -28,10 +28,10 @@ const summary = {
 describe('números da home e dos índices', () => {
   it('cada número leva à página que conta a mesma coisa', () => {
     expect(EXPLORE_LINKS).toEqual({
-      sports: '/esportes',
-      countries: '/paises',
-      upcoming: '/agenda',
-      live: '/ao-vivo',
+      sports: '/sports',
+      countries: '/countries',
+      upcoming: '/schedule',
+      live: '/live',
     });
     expect(exploreTotals(summary)).toEqual({
       sports: SPORTS.length,
@@ -45,7 +45,7 @@ describe('números da home e dos índices', () => {
   it('a família soma os esportes dela, e a soma das famílias é o total da home', () => {
     const stats = familyStats(summary);
     const basquete = stats.find((s) => s.family.id === 'basquete')!;
-    expect(basquete).toMatchObject({ href: '/esportes/basquete', competitions: 32, upcoming: 52, live: 1 });
+    expect(basquete).toMatchObject({ href: '/sports/basquete', competitions: 32, upcoming: 52, live: 1 });
     expect(basquete.sports.map((s) => s.slug)).toEqual(['basketball', 'nba']);
     expect(stats.reduce((n, s) => n + s.upcoming, 0)).toBe(exploreTotals(summary).upcoming);
   });
@@ -59,7 +59,7 @@ describe('filtros da agenda na URL', () => {
       competicao: 'premier-league',
       dia: '2026-10-25',
     });
-    expect(href).toBe('/agenda?esporte=football&pais=gb-eng&competicao=premier-league&dia=2026-10-25');
+    expect(href).toBe('/schedule?esporte=football&pais=gb-eng&competicao=premier-league&dia=2026-10-25');
     const search = Object.fromEntries(new URL(href, 'http://x').searchParams);
     expect(readAgendaParams(search)).toEqual({
       esporte: 'football',
@@ -67,7 +67,7 @@ describe('filtros da agenda na URL', () => {
       competicao: 'premier-league',
       dia: '2026-10-25',
     });
-    expect(agendaHref({})).toBe('/agenda');
+    expect(agendaHref({})).toBe('/schedule');
   });
 
   it('valor inválido vira ausência', () => {

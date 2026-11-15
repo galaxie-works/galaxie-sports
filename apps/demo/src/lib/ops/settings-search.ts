@@ -20,7 +20,7 @@ type OpsTexts = ClientDictionary['ops'];
 
 /**
  * Onde um ajuste mora: item do menu (id), link da página (com a busca da aba, quando o ajuste não está na aba inicial:
- * `/ajustes/grades?aba=ajustes`), grupo do menu (id) e, se houver, a seção (id).
+ * `/settings/lineups?aba=ajustes`), grupo do menu (id) e, se houver, a seção (id).
  */
 export interface SettingPageRef {
   item: string;
@@ -53,7 +53,7 @@ export interface SettingsSearchEntry {
   key: string;
   label: string;
   description: string;
-  /** `/ajustes/<item>[?aba=…]#<CHAVE>` (a página rola até a linha, ver `useSettingAnchor`). */
+  /** `/settings/<item>[?aba=…]#<CHAVE>` (a página rola até a linha, ver `useSettingAnchor`). */
   href: string;
   /** Caminho: grupo › item › seção. */
   crumbs: string[];

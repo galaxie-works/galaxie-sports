@@ -11,10 +11,10 @@ describe('cópia gravada do exemplo público', () => {
   it('tem as leituras principais das quatro páginas de cada versão', () => {
     for (const locale of ['pt-BR', 'es-AR'] as const) {
       const ids = exampleIds(locale);
-      expect(keys.some((k) => k.startsWith(`getEvent("${ids.jogo}",`))).toBe(true);
-      expect(keys.some((k) => k.startsWith(`getTeamOverview("${ids.time}",`))).toBe(true);
-      expect(keys.some((k) => k.startsWith(`getCompetition("${ids.campeonato}",`))).toBe(true);
-      expect(keys.some((k) => k.startsWith(`getPersonOverview("${ids.jogador}",`))).toBe(true);
+      expect(keys.some((k) => k.startsWith(`getEvent("${ids.match}",`))).toBe(true);
+      expect(keys.some((k) => k.startsWith(`getTeamOverview("${ids.team}",`))).toBe(true);
+      expect(keys.some((k) => k.startsWith(`getCompetition("${ids.competition}",`))).toBe(true);
+      expect(keys.some((k) => k.startsWith(`getPersonOverview("${ids.player}",`))).toBe(true);
     }
   });
 
@@ -26,9 +26,9 @@ describe('cópia gravada do exemplo público', () => {
     expect(text).not.toMatch(/192\.168\.|localhost|api-sports|external_ids/);
   });
 
-  it('as imagens são do próprio site (/exemplo/img)', () => {
+  it('as imagens são do próprio site (/example/img)', () => {
     const images = text.match(/"[^"]+\.(png|jpe?g|svg|webp|gif)"/gi) ?? [];
     expect(images.length).toBeGreaterThan(50);
-    expect(images.filter((i) => !i.startsWith('"/exemplo/img/'))).toEqual([]);
+    expect(images.filter((i) => !i.startsWith('"/example/img/'))).toEqual([]);
   });
 });

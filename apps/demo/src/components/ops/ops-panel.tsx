@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useCallback, type ReactNode } from 'react';
 
-import { checkAiCreditNow, runJobNow } from '@/app/[locale]/(app)/ajustes/operacao/actions';
+import { checkAiCreditNow, runJobNow } from '@/app/[locale]/(app)/settings/operations/actions';
 import { Badge } from '@/components/reui/badge';
 import { SettingsSection } from '@/components/settings';
 import { Frame, FrameDescription, FrameHeader, FramePanel, FrameTitle } from '@/components/reui/frame';
@@ -84,7 +84,7 @@ interface Ctx {
 /**
  * Uma página de Ajustes feita do painel de Operação (#1069): os blocos do item (`SETTINGS_VIEWS`), na ordem. Página
  * com um bloco só mostra o bloco direto; com mais de um, cada um vira uma seção com título. Cada bloco leva a âncora do
- * próprio nome (`/ajustes/fornecedor#sports`), para os links antigos e a busca.
+ * próprio nome (`/settings/provider#sports`), para os links antigos e a busca.
  */
 export function OpsPanel({
   snapshot,
@@ -871,7 +871,7 @@ function HistoryTab({ snapshot, timeZone }: Ctx) {
             {only ? (
               <p className="flex flex-wrap items-center gap-2 text-sm">
                 <span>{fill(T.history.filtered, { name: label(only) })}</span>
-                <Link href="/ajustes/historico" className="text-primary text-sm hover:underline">
+                <Link href="/settings/history" className="text-primary text-sm hover:underline">
                   {T.history.showAll}
                 </Link>
               </p>

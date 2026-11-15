@@ -357,7 +357,7 @@ describe('cada bloco na página do PR 1 (#1070)', () => {
   });
 
   it('os links vão para as rotas novas', () => {
-    expect(historyHref('AI_RIGHTS_MODEL')).toBe('/ajustes/historico?chave=AI_RIGHTS_MODEL');
-    expect(CREDENTIALS_HREF).toBe('/ajustes/credenciais');
+    expect(historyHref('AI_RIGHTS_MODEL')).toBe('/settings/history?chave=AI_RIGHTS_MODEL');
+    expect(CREDENTIALS_HREF).toBe('/settings/credentials');
   });
 });

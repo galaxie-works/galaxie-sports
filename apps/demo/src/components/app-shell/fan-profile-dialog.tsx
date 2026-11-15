@@ -2,7 +2,7 @@
 
 /**
  * Perfil de torcedor da demo (#1020): apelido, faixa etária e país, sem data de nascimento. Com ele, a demo
- * emite o token `gft_` da pessoa para os recursos do torcedor (`/api/torcedor/token`).
+ * emite o token `gft_` da pessoa para os recursos do torcedor (`/api/fan/token`).
  */
 import { useState, useTransition } from 'react';
 

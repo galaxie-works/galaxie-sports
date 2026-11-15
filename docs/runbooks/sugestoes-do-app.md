@@ -18,7 +18,7 @@ A `galaxie-sports` é pública. O envio leva dado de cliente (mensagem livre e p
   mesma pessoa se agrupam;
 - as imagens são recodificadas sem EXIF, GPS ou outros metadados (`image.ts`), gravadas no bucket **privado** das
   tarefas (`S3_TASKS_BUCKET`, em `feedback/<aaaa-mm>/<uuid>.<ext>`) e a issue as mostra por um link assinado da demo
-  (`/api/feedback/anexo/…?e=…&s=…`, vale um ano). Sem assinatura válida, 404;
+  (`/api/feedback/attachment/…?e=…&s=…`, vale um ano). Sem assinatura válida, 404;
 - o token é só dessa repo e só de Issues, separado do `ALERT_GITHUB_TOKEN`.
 
 ## Ligar e configurar

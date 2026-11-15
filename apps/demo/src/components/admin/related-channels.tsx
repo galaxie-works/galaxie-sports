@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
 
-import { clearChannelRefusals, setChannelMode } from '@/app/[locale]/(app)/ajustes/videos/actions';
+import { clearChannelRefusals, setChannelMode } from '@/app/[locale]/(app)/settings/videos/actions';
 import { Badge } from '@/components/reui/badge';
 import {
   AlertDialog,
@@ -167,7 +167,7 @@ export function RelatedChannels({
     if (q) p.set('q', q);
     if (next !== 'all') p.set('filtro', next);
     const query = p.toString();
-    return `/ajustes/videos${query ? `?${query}` : ''}`;
+    return `/settings/videos${query ? `?${query}` : ''}`;
   };
 
   return (
@@ -188,7 +188,7 @@ export function RelatedChannels({
             </Link>
           ))}
         </nav>
-        <form action="/ajustes/videos" className="flex items-center gap-2">
+        <form action="/settings/videos" className="flex items-center gap-2">
           {filter !== 'all' ? <input type="hidden" name="filtro" value={filter} /> : null}
           <Input
             name="q"

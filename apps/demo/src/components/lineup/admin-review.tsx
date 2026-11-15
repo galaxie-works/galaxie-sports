@@ -7,7 +7,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useMemo, useTransition } from 'react';
 import { toast } from 'sonner';
 
-import { decideLineupItem, dismissLineupItemChange } from '@/app/[locale]/(app)/ajustes/grades/actions';
+import { decideLineupItem, dismissLineupItemChange } from '@/app/[locale]/(app)/settings/lineups/actions';
 import { Badge } from '@/components/reui/badge';
 import {
   DataGrid,
@@ -66,7 +66,7 @@ export function LineupAdminTabs({ active, open }: { active: AdminTab; open: numb
       {ADMIN_TABS.map((tab) => (
         <Link
           key={tab}
-          href={`/ajustes/grades?aba=${tab}`}
+          href={`/settings/lineups?aba=${tab}`}
           aria-current={active === tab ? 'page' : undefined}
           className={cn(
             'text-muted-foreground hover:text-foreground -mb-px flex items-center gap-1.5 border-b-2 border-transparent px-3 py-2 text-sm font-medium',

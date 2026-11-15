@@ -12,8 +12,8 @@ import {
 
 describe('links de navegação', () => {
   it('país só ganha link com código de país (ISO2 ou extensão como GB-ENG)', () => {
-    expect(countryHref('BR')).toBe('/paises/br');
-    expect(countryHref('GB-ENG')).toBe('/paises/gb-eng');
+    expect(countryHref('BR')).toBe('/countries/br');
+    expect(countryHref('GB-ENG')).toBe('/countries/gb-eng');
     expect(countryHref('World')).toBeNull();
     expect(countryHref(null)).toBeNull();
   });
@@ -24,13 +24,13 @@ describe('links de navegação', () => {
       stage: { name: 'Rodada 32' },
       starts_at: '2026-10-23T20:00:00-03:00',
     });
-    expect(href).toBe('/competicoes/brasileirao-serie-a?aba=jogos&data=2026-10-23&rodada=Rodada+32');
+    expect(href).toBe('/competitions/brasileirao-serie-a?aba=jogos&data=2026-10-23&rodada=Rodada+32');
     expect(eventCompetitionHref({ competition: null, stage: null, starts_at: '2026-10-23' })).toBeNull();
   });
 
   it('esporte pai é a família do menu, com o rótulo dela', () => {
     expect(sportParent('formula-1', getDictionary('pt-BR'))).toEqual({
-      path: '/esportes/automobilismo',
+      path: '/sports/automobilismo',
       label: 'Automobilismo',
       kind: 'esporte',
     });
@@ -52,15 +52,15 @@ describe('ícones dos esportes', () => {
 describe('rotas de piloto e lutador', () => {
   const max = { id: '01a16675-379b-7b21-bf12-33042e33ebad', name: 'Max Verstappen' };
 
-  it('piloto e lutador ganham slug com o id no fim; os demais ficam em /times', () => {
+  it('piloto e lutador ganham slug com o id no fim; os demais ficam em /teams', () => {
     expect(participantHref(max, 'driver')).toBe(
-      '/pilotos/max-verstappen-01a16675-379b-7b21-bf12-33042e33ebad',
+      '/drivers/max-verstappen-01a16675-379b-7b21-bf12-33042e33ebad',
     );
     expect(participantHref({ id: max.id, name: 'José Aldo' }, 'fighter')).toBe(
-      '/lutadores/jose-aldo-01a16675-379b-7b21-bf12-33042e33ebad',
+      '/fighters/jose-aldo-01a16675-379b-7b21-bf12-33042e33ebad',
     );
-    expect(participantHref(max, 'club')).toBe('/times/01a16675-379b-7b21-bf12-33042e33ebad');
-    expect(participantHref(max)).toBe('/times/01a16675-379b-7b21-bf12-33042e33ebad');
+    expect(participantHref(max, 'club')).toBe('/teams/01a16675-379b-7b21-bf12-33042e33ebad');
+    expect(participantHref(max)).toBe('/teams/01a16675-379b-7b21-bf12-33042e33ebad');
   });
 
   it('o id sai do fim do slug (ou do id puro)', () => {

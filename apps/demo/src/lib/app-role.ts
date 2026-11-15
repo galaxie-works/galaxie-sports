@@ -3,7 +3,7 @@
  * no painel não derrubar o site e o portal de quem paga (issue #546).
  *
  * - `site`: o que é público e a demo (explorador de esportes), `/docs`, o exemplo, o embed e o registry dos widgets.
- * - `console`: o portal do cliente (`/cliente`, com o Builder em `/cliente/builder`) e o painel de operação (`/ajustes`),
+ * - `console`: o portal do cliente (`/client`, com o Builder em `/client/builder`) e o painel de operação (`/settings`),
  *   com as APIs deles.
  * - `all` (padrão, sem a variável): tudo num processo só, como no `next dev` e numa imagem antiga.
  *
@@ -23,7 +23,7 @@ export type AppRole = (typeof APP_ROLES)[number];
 export type RouteOwner = 'site' | 'console' | 'comum';
 
 export interface RoleRoute {
-  /** O próprio caminho e tudo abaixo dele (`/cliente` cobre `/cliente/builder/novo`, não `/clientes`). */
+  /** O próprio caminho e tudo abaixo dele (`/client` cobre `/client/builder/new`, não `/clientes`). */
   path: string;
   owner: RouteOwner;
 }
@@ -34,6 +34,12 @@ export interface RoleRoute {
  */
 export const ROLE_ROUTES: readonly RoleRoute[] = [
   // ── console: portal do cliente (plano, chaves, canais, grade e o Builder) e painel de operação (só admin)
+  { path: '/client', owner: 'console' },
+  { path: '/api/client', owner: 'console' },
+  { path: '/settings', owner: 'console' },
+  { path: '/api/settings', owner: 'console' },
+  // caminhos em português de antes do #630: o Traefik ainda os manda ao console, que responde o 301 para o caminho
+  // novo (`lib/legacy-routes.ts`). Sair junto com a tabela de lá, a partir de 15/11/2027.
   { path: '/cliente', owner: 'console' },
   { path: '/api/cliente', owner: 'console' },
   { path: '/ajustes', owner: 'console' },
@@ -51,9 +57,9 @@ export const ROLE_ROUTES: readonly RoleRoute[] = [
   // proxy autenticado da API: explorador, docs, busca e a pré-visualização do Builder
   { path: '/api/galaxie', owner: 'comum' },
   // trilha de navegação do menu (as telas dos dois papéis)
-  { path: '/api/atividade', owner: 'comum' },
+  { path: '/api/activity', owner: 'comum' },
   // token do torcedor da pessoa logada (#1020): o perfil de torcedor fica no menu dos dois papéis
-  { path: '/api/torcedor', owner: 'comum' },
+  { path: '/api/fan', owner: 'comum' },
   // healthcheck da imagem (/robots.txt) e ícones da aba
   { path: '/robots.txt', owner: 'comum' },
   { path: '/icon.png', owner: 'comum' },
@@ -65,35 +71,35 @@ export const ROLE_ROUTES: readonly RoleRoute[] = [
 
   // ── site: público, demo, docs, exemplo, embed e registry
   { path: '/', owner: 'site' },
-  { path: '/sobre', owner: 'site' },
-  { path: '/termos', owner: 'site' },
-  { path: '/privacidade', owner: 'site' },
+  { path: '/about', owner: 'site' },
+  { path: '/terms', owner: 'site' },
+  { path: '/privacy', owner: 'site' },
   { path: '/sitemap.xml', owner: 'site' },
-  { path: '/exemplo', owner: 'site' },
+  { path: '/example', owner: 'site' },
   { path: '/docs', owner: 'site' },
   { path: '/embed.js', owner: 'site' },
   { path: '/e', owner: 'site' },
   { path: '/r', owner: 'site' },
-  { path: '/agenda', owner: 'site' },
-  { path: '/ao-vivo', owner: 'site' },
-  { path: '/classicos', owner: 'site' },
-  { path: '/competicoes', owner: 'site' },
-  { path: '/esportes', owner: 'site' },
-  { path: '/eventos', owner: 'site' },
-  { path: '/hipismo', owner: 'site' },
-  { path: '/locais', owner: 'site' },
-  { path: '/lutadores', owner: 'site' },
-  { path: '/multiesporte', owner: 'site' },
-  { path: '/paises', owner: 'site' },
-  { path: '/pessoas', owner: 'site' },
-  { path: '/pilotos', owner: 'site' },
-  { path: '/times', owner: 'site' },
+  { path: '/schedule', owner: 'site' },
+  { path: '/live', owner: 'site' },
+  { path: '/derbies', owner: 'site' },
+  { path: '/competitions', owner: 'site' },
+  { path: '/sports', owner: 'site' },
+  { path: '/events', owner: 'site' },
+  { path: '/equestrian', owner: 'site' },
+  { path: '/venues', owner: 'site' },
+  { path: '/fighters', owner: 'site' },
+  { path: '/multisport', owner: 'site' },
+  { path: '/countries', owner: 'site' },
+  { path: '/people', owner: 'site' },
+  { path: '/drivers', owner: 'site' },
+  { path: '/teams', owner: 'site' },
   // vídeo recusado no player do jogo
   { path: '/api/related', owner: 'site' },
   // imagem anexada a uma sugestão do app (link assinado que vai na issue)
   { path: '/api/feedback', owner: 'site' },
   // revalidação do cache pelo seguidor do change feed, que só roda no site (o console não tem o cache do explorador)
-  { path: '/api/interno', owner: 'site' },
+  { path: '/api/internal', owner: 'site' },
 ];
 
 const covers = (route: string, path: string) =>

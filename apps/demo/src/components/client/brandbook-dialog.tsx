@@ -63,7 +63,7 @@ export function BrandbookDialog({ onResult }: { onResult: (r: BrandbookResult) =
       const body = new FormData();
       body.set('arquivo', file);
       if (step === 'criar' && quote) body.set('creditos', String(quote.credits));
-      const res = await fetch(`/api/cliente/cosmos/tema?etapa=${step}`, {
+      const res = await fetch(`/api/client/cosmos/theme?etapa=${step}`, {
         method: 'POST',
         body,
         signal: ctl.signal,

@@ -81,7 +81,7 @@ export default async function GettingStartedPage() {
             [text.baseUrl.interactive, <C key="d">{PUBLIC_API_URL}/docs</C>],
             [
               text.baseUrl.routes,
-              <Link key="r" href="/docs/referencia" className="text-primary hover:underline">
+              <Link key="r" href="/docs/reference" className="text-primary hover:underline">
                 {t.code.docsNav.reference.label}
               </Link>,
             ],
@@ -90,7 +90,7 @@ export default async function GettingStartedPage() {
       </DocSection>
 
       <DocSection id="primeira-chamada" title={text.firstCall.title}>
-        <P>{docText(text.firstCall.body, { auth: docLink('/docs/autenticacao') })}</P>
+        <P>{docText(text.firstCall.body, { auth: docLink('/docs/authentication') })}</P>
         <CodeTabs examples={snippets(requests.overview)} />
         <P>{text.firstCall.response}</P>
         <CodeTabs examples={[{ label: 'JSON', language: 'json', code: OVERVIEW_SAMPLE }]} title="200 OK" />
@@ -122,9 +122,9 @@ export default async function GettingStartedPage() {
       <DocSection id="proximos-passos" title={text.next.title}>
         <Bullets
           items={[
-            docText(text.next.concepts, { a: docLink('/docs/conceitos') }),
-            docText(text.next.modules, { a: docLink('/docs/modulos-e-planos') }),
-            docText(text.next.realtime, { a: docLink('/docs/tempo-real') }),
+            docText(text.next.concepts, { a: docLink('/docs/concepts') }),
+            docText(text.next.modules, { a: docLink('/docs/modules-and-plans') }),
+            docText(text.next.realtime, { a: docLink('/docs/realtime') }),
           ]}
         />
       </DocSection>

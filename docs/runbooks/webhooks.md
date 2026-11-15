@@ -2,7 +2,7 @@
 
 O worker `webhooks` (stack da VPS, `infra/vps-telemetry/compose.yml`) lê o `ops.change_feed`, cria uma entrega por
 mudança × endpoint e faz o POST assinado. Contrato para o cliente: [docs/05 §5.2](../05-api-publica.md) e a página
-pública `/docs/tempo-real`. Segurança e formato do segredo: [SECURITY.md › Webhooks](../../SECURITY.md#webhooks).
+pública `/docs/realtime`. Segurança e formato do segredo: [SECURITY.md › Webhooks](../../SECURITY.md#webhooks).
 
 Todos os comandos abaixo rodam na VPS, na pasta da stack:
 
@@ -36,7 +36,7 @@ do cliente diz que o cadastro está indisponível e Ajustes → Webhooks mostra 
 
 Para testar com um receptor seu (ex.: um endpoint de teste do webhook.site) num tenant de teste:
 `wh create --tenant <slug> --url https://... --topics score,status`, depois **Enviar teste** no portal
-(`/cliente/webhooks`) ou espere um gol. `wh list` mostra pendentes e DLQ.
+(`/client/webhooks`) ou espere um gol. `wh list` mostra pendentes e DLQ.
 
 ## Ajustes → Webhooks (painel de admin)
 
@@ -54,7 +54,7 @@ em `ops.runtime_setting_log`.
 
 ## Cadastrar para um cliente
 
-O cliente cadastra sozinho em `/cliente/webhooks` (URL, tópicos, filtros; o segredo aparece uma vez). Pela CLI:
+O cliente cadastra sozinho em `/client/webhooks` (URL, tópicos, filtros; o segredo aparece uma vez). Pela CLI:
 
 ```bash
 wh create --tenant <slug> --url https://cliente.example/hooks/galaxie --topics score,status,incidents \

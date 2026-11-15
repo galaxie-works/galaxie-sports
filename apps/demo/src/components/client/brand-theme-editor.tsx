@@ -14,7 +14,7 @@ import { useRouter } from 'next/navigation';
 import { useMemo, useState, useTransition } from 'react';
 import { toast } from 'sonner';
 
-import { deleteBrandThemeAction, saveBrandThemeAction } from '@/app/[locale]/(app)/cliente/actions';
+import { deleteBrandThemeAction, saveBrandThemeAction } from '@/app/[locale]/(app)/client/actions';
 import { Alert, AlertDescription, AlertTitle } from '@/components/reui/alert';
 import { Frame, FrameDescription, FrameHeader, FramePanel, FrameTitle } from '@/components/reui/frame';
 import {
@@ -115,7 +115,7 @@ export function BrandThemeEditor({
       setSaved(snapshot(res.theme.name, res.theme.theme));
       if (!initial) {
         toast.success(th.created);
-        return router.replace(`/cliente/temas/${res.theme.id}`);
+        return router.replace(`/client/themes/${res.theme.id}`);
       }
       toast.success(res.widgetsUpdated ? fill(th.savedWidgets, { n: res.widgetsUpdated }) : th.saved);
       router.refresh();
@@ -128,14 +128,14 @@ export function BrandThemeEditor({
       const res = await deleteBrandThemeAction(initial.id);
       if (!res.ok) return void toast.error(res.error ?? t.client.errors.generic);
       toast.success(th.deleted);
-      router.replace('/cliente/temas');
+      router.replace('/client/themes');
     });
   }
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <Button variant="ghost" size="sm" nativeButton={false} render={<Link href="/cliente/temas" />}>
+        <Button variant="ghost" size="sm" nativeButton={false} render={<Link href="/client/themes" />}>
           <ArrowLeft />
           {th.back}
         </Button>
@@ -146,7 +146,7 @@ export function BrandThemeEditor({
                 variant="outline"
                 size="sm"
                 nativeButton={false}
-                render={<Link href={`/cliente/builder/novo?tema=${initial.id}`} />}
+                render={<Link href={`/client/builder/new?tema=${initial.id}`} />}
               >
                 <Plus />
                 {th.useInWidget}
