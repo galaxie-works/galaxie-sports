@@ -896,6 +896,10 @@ export const eventIncident = core.table(
     index('event_incident_assist_person_idx')
       .on(t.assistPersonId)
       .where(sql`${t.assistPersonId} is not null`),
+    // lances de VAR (alguns milhares): a métrica de veredito desconhecido não desce no índice de cada jogo (0156)
+    index('event_incident_var_idx')
+      .on(t.eventId)
+      .where(sql`${t.type} = 'var'`),
   ],
 );
 

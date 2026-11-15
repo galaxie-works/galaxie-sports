@@ -114,6 +114,7 @@ export class PublishableAuthenticator {
       env: key.env,
       widgetId: key.widgetId,
       modules,
+      keyAllows: key.widgetKind ? [...WIDGET_KIND_MODULES[key.widgetKind]] : null,
       markets: key.tenant.markets,
       sports: key.tenant.sports,
       rateLimitPerMinute: key.tenant.rateLimitPerMinute,
@@ -160,7 +161,8 @@ export function requestOrigin(request: FastifyRequest): string | undefined {
 
 /**
  * A chave publicável só alcança leitura da API canônica: GET/HEAD em rota `/v1/*` que exige módulo.
- * Fora disso (escrita, `/v1/account`, SSE, espelho, rotas internas e administrativas) não vale.
+ * Fora disso (escrita, `/v1/account`, o `/v1/stream` de dados, espelho, rotas internas e administrativas) não vale. O SSE
+ * do chat (`/v1/chat/rooms/{jogo}/stream`) é leitura e aceita a publicável, com teto por chave e IP.
  * O OpenAPI declara `galaxiePublishableKey` nas mesmas operações (security.test.ts confere).
  */
 export function isPublishableRoute(

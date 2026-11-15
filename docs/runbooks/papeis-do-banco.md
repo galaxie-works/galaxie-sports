@@ -8,7 +8,7 @@ Leitura larga, escrita estreita. `schema.tabela` limita a escrita àquela tabela
 
 | Papel | Lê | Escreve | Conexões (teto) |
 | --- | --- | --- | --- |
-| `galaxie_api` | todos os schemas da aplicação e `demo_auth.cache_feed_cursor` | `api`, `enrich`, `ops`, `fan`, `engage`; na Cosmos, só o que o webhook do Stripe grava (ver abaixo) | 45 |
+| `galaxie_api` | todos os schemas da aplicação e `demo_auth.cache_feed_cursor` | `api`, `enrich`, `ops`, `fan`, `engage`, `chat`; na Cosmos, só o que o webhook do Stripe grava (ver abaixo) | 45 |
 | `galaxie_demo` | todos, menos `raw` | `ops`, `semantic`, `enrich`, `api`, `engage`, `core.asset`, `core.participant`, `core.competition`; na Cosmos, tabela por tabela (ver abaixo); é dono do `demo_auth` | 60 |
 | `galaxie_ingestor` | todos e `demo_auth.cache_feed_cursor` | `raw`, `core`, `ops`, `semantic`, `enrich`, `multisport`, `equestrian`; na Cosmos, só a manutenção da carteira (ver abaixo); poda (só `SELECT` e `DELETE`) em `api.webhook_delivery` | 55 |
 | `galaxie_agents` | todos | `enrich`, `semantic`, `ops`, `core.asset`, `api.tenant_channel_list` | 25 |
@@ -22,7 +22,7 @@ O schema `cosmos` guarda saldo em dinheiro, então nenhum papel escreve o schema
 | Papel | `modify` (sem `DELETE`) | `update` (só `UPDATE`) | `append` (só `INSERT`) | `write` |
 | --- | --- | --- | --- | --- |
 | `galaxie_api` (webhook do Stripe) | `stripe_event`, `wallet`, `recharge_attempt` | `purchase_intent`, `auto_recharge` | `ledger`, `balance_alert` | — |
-| `galaxie_demo` (painel do cliente, assistente e Ajustes da equipe Galaxie) | `wallet`, `reservation`, `function_def`, `package`, `purchase_intent`, `auto_recharge`, `recharge_attempt`, `credit_request`, `staff_usage`, `brand_voice` | — | `ledger`, `balance_alert`, `staff_action`, `moderation_config_log`, `doc_embedding` | `moderation_config` (remover a exceção de uma sala apaga a linha) |
+| `galaxie_demo` (painel do cliente, assistente e Ajustes da equipe Galaxie) | `wallet`, `reservation`, `function_def`, `package`, `purchase_intent`, `auto_recharge`, `recharge_attempt`, `credit_request`, `staff_usage`, `brand_voice` | — | `ledger`, `balance_alert`, `staff_action`, `moderation_config_log`, `doc_embedding` | `moderation_config` (remover a exceção de uma sala apaga a linha), `wallet_quota` (tirar a cota de uma sala apaga a linha) |
 | `galaxie_ingestor` (`cosmos-upkeep`) | `wallet`, `recharge_attempt` | `reservation`, `auto_recharge` | `ledger`, `balance_alert` | — |
 
 O extrato (`cosmos.ledger`) só recebe lançamentos: nenhum serviço muda nem apaga o que já foi escrito. Só a API grava o registro de eventos do Stripe. A demo grava `package` e `function_def` porque as telas Pacotes e Funções da equipe Galaxie rodam nela. A API e o ingestor ainda podem inserir em `balance_alert` e `recharge_attempt` porque um lançamento negativo passa por `evaluateBalance`, que grava os dois. Tabela nova da Cosmos entra aqui e na matriz: o teste `toda tabela da Cosmos tem quem a escreva` quebra se ela ficar de fora, e `toda tabela citada na matriz existe` quebra com nome errado.

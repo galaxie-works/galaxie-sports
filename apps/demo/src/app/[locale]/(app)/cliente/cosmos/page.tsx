@@ -8,6 +8,7 @@ import { BrandVoiceForm } from '@/components/cosmos/brand-voice-form';
 import { CosmosArea } from '@/components/cosmos/cosmos-area';
 import { CosmosModeration } from '@/components/cosmos/cosmos-moderation';
 import { CosmosOverview } from '@/components/cosmos/cosmos-overview';
+import { CosmosQuotas } from '@/components/cosmos/cosmos-quotas';
 import { CosmosUsage } from '@/components/cosmos/cosmos-usage';
 import { ModerationPreview } from '@/components/cosmos/moderation-preview';
 import { CreditRequests } from '@/components/cosmos/credit-requests';
@@ -19,6 +20,7 @@ import { loadCosmosOverview, loadCosmosStatement } from '@/lib/cosmos/data';
 import { brandVoiceFor, matchTextAccess, matchTextMinimum } from '@/lib/cosmos/match-text-tasks';
 import { COSMOS_TABS, type CosmosTab } from '@/lib/cosmos/data-utils';
 import { loadCosmosModeration } from '@/lib/cosmos/moderation-data';
+import { loadCosmosQuotas } from '@/lib/cosmos/quota-data';
 import { getT, getTimeZone } from '@/lib/i18n/server';
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -75,6 +77,9 @@ async function Cosmos({
           voiceShown ? brandVoiceFor(tenant.id) : null,
           voiceShown ? matchTextMinimum() : null,
         ]);
+        // cotas por sala (#1116): as salas oferecidas incluem as que aparecem no extrato do período
+        const quotas =
+          tab === 'overview' && overview.wallet ? await loadCosmosQuotas(tenant.id, statement.scopes) : null;
         return (
           <CosmosArea
             tab={tab}
@@ -86,8 +91,21 @@ async function Cosmos({
                   // botões de compra, recarga e o interruptor; o servidor confere de novo em cada ação
                   canManage={canManage}
                 />
+                {quotas ? (
+                  // a chave muda com o que está gravado: depois de salvar, o formulário recomeça do banco
+                  <CosmosQuotas
+                    key={quotas.quotas.map((q) => `${q.scope}=${q.percent}`).join('|')}
+                    data={quotas}
+                    canManage={canManage}
+                  />
+                ) : null}
                 {overview.wallet ? (
-                  <CreditRequests requests={requests} canManage={canManage} packages={overview.packages} />
+                  <CreditRequests
+                    requests={requests}
+                    canManage={canManage}
+                    packages={overview.packages}
+                    scopes={quotas?.scopes ?? []}
+                  />
                 ) : null}
                 {voice && voiceMinimum !== null ? (
                   // o servidor confere de novo ao salvar (configurações do cliente: Admin e Dono)

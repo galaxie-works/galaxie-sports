@@ -33,12 +33,15 @@ const SELFHEAL = 'infra/healthcheck/selfheal.mjs';
 
 /**
  * roots = os pacotes que o Dockerfile constrói (--filter "x..."); external = o que ele copia de fora do grafo.
- * A demo leva só os dicionários de emissoras do config/, de propósito: api e ingestor levam o config/ inteiro, e por
- * isso qualquer mudança nele reconstrói as duas.
+ * A demo leva só os dicionários de emissoras e o catálogo comercial do config/, de propósito: api e ingestor levam o
+ * config/ inteiro, e por isso qualquer mudança nele reconstrói as duas.
  */
 export const IMAGES = {
   api: { roots: ['@galaxie/api'], external: ['config', 'data/knowledge', SELFHEAL] },
-  demo: { roots: ['@galaxie/demo'], external: ['config/broadcast-rights', 'config/broadcasters', SELFHEAL] },
+  demo: {
+    roots: ['@galaxie/demo'],
+    external: ['config/broadcast-rights', 'config/broadcasters', 'config/catalog', SELFHEAL],
+  },
   ingestor: {
     roots: ['@galaxie/ingestor', '@galaxie/ai-agents'],
     external: ['config', 'data/knowledge', SELFHEAL],

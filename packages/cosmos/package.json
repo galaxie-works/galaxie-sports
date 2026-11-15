@@ -11,6 +11,10 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
+    "./assistant-attachments": {
+      "types": "./dist/assistant-attachments.d.ts",
+      "default": "./dist/assistant-attachments.js"
+    },
     "./moderation-rules": {
       "types": "./dist/moderation-rules.d.ts",
       "default": "./dist/moderation-rules.js"
