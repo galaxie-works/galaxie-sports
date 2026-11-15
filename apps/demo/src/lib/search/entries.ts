@@ -45,8 +45,8 @@ export interface SearchEntry {
 }
 
 /**
- * Página da demo de um resultado da API. Participante de MMA é lutador (`/lutadores`); na F1 pode ser
- * piloto ou equipe, então vai para /times, que redireciona o piloto.
+ * Página da demo de um resultado da API. Participante de MMA é lutador (`/fighters`); na F1 pode ser
+ * piloto ou equipe, então vai para /teams, que redireciona o piloto.
  */
 export function resultHref(
   r: Pick<SearchResult, 'type' | 'id' | 'slug'> & Partial<Pick<SearchResult, 'sport' | 'name'>>,
@@ -55,15 +55,15 @@ export function resultHref(
     case 'team':
       return participantHref({ id: r.id, name: r.name ?? '' }, r.sport === 'mma' ? 'fighter' : null);
     case 'competition':
-      return `/competicoes/${r.slug ?? r.id}`;
+      return `/competitions/${r.slug ?? r.id}`;
     case 'event':
-      return `/eventos/${r.id}`;
+      return `/events/${r.id}`;
     case 'person':
-      return `/pessoas/${r.id}`;
+      return `/people/${r.id}`;
     case 'venue':
-      return `/locais/${r.id}`;
+      return `/venues/${r.id}`;
     case 'country':
-      return `/paises/${r.id.toLowerCase()}`;
+      return `/countries/${r.id.toLowerCase()}`;
   }
 }
 
@@ -143,7 +143,7 @@ export function docsEntries(guides: DocGuideRef[], operations: ApiOperationSumma
     ...operations.map<SearchEntry>((o) => ({
       key: `endpoint:${o.anchor}`,
       kind: 'endpoint',
-      href: `${reference?.href ?? '/docs/referencia'}#${o.anchor}`,
+      href: `${reference?.href ?? '/docs/reference'}#${o.anchor}`,
       label: o.route,
       detail: `${o.tag} · ${o.summary}`,
       image: null,

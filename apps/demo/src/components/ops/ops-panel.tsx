@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useCallback, type ReactNode } from 'react';
 
-import { checkAiCreditNow, runJobNow } from '@/app/[locale]/(app)/ajustes/operacao/actions';
+import { checkAiCreditNow, runJobNow } from '@/app/[locale]/(app)/settings/operations/actions';
 import { Badge } from '@/components/reui/badge';
 import { SettingsSection } from '@/components/settings';
 import { Frame, FrameDescription, FrameHeader, FramePanel, FrameTitle } from '@/components/reui/frame';
@@ -42,6 +42,7 @@ import type { JobStatus, OpsSetting, OpsSnapshot } from '@/lib/ops/types';
 
 import { AiPolicyCard } from './ai-policy-card';
 import { MirrorTab } from './mirror-tab';
+import { ModulesTab } from './modules-tab';
 import { aiStateText, displayValue, formatDuration, settingText, tokenUsage } from './format';
 import { QualityTab } from './quality-tab';
 import { SettingRow, useOpsAction } from './setting-row';
@@ -83,7 +84,7 @@ interface Ctx {
 /**
  * Uma página de Ajustes feita do painel de Operação (#1069): os blocos do item (`SETTINGS_VIEWS`), na ordem. Página
  * com um bloco só mostra o bloco direto; com mais de um, cada um vira uma seção com título. Cada bloco leva a âncora do
- * próprio nome (`/ajustes/fornecedor#sports`), para os links antigos e a busca.
+ * próprio nome (`/settings/provider#sports`), para os links antigos e a busca.
  */
 export function OpsPanel({
   snapshot,
@@ -149,6 +150,7 @@ export function OpsPanel({
     ),
     credentials: () => <SectionCard block="credentials" snapshot={snapshot} timeZone={timeZone} />,
     mirror: () => <MirrorTab snapshot={snapshot} timeZone={timeZone} />,
+    modules: () => <ModulesTab snapshot={snapshot} />,
     suggestions: () => (
       <>
         {/* cartão de integração (#1077): o liga/desliga aberto quando conectado; repo e token gravados juntos nele */}
@@ -236,7 +238,10 @@ function RowsFrame({
 }
 
 /** Título e descrição de cada bloco de linhas (o das sugestões é o texto da seção `feedback` do registro). */
-type SectionBlock = Exclude<PanelBlock, 'status' | 'quality' | 'schedule' | 'tasks' | 'mirror' | 'history'>;
+type SectionBlock = Exclude<
+  PanelBlock,
+  'status' | 'quality' | 'schedule' | 'tasks' | 'mirror' | 'modules' | 'history'
+>;
 const sectionTextKey = (block: SectionBlock) => (block === 'suggestions' ? 'feedback' : block);
 
 /**
@@ -853,8 +858,8 @@ function HistoryTab({ snapshot, timeZone }: Ctx) {
     const def = settingDef(key);
     return def ? settingText(T, def).label : key;
   };
-  // "Ver histórico" de uma linha chega com `?chave=`: só as mudanças daquela chave
-  const only = useSearchParams().get('chave');
+  // "Ver histórico" de uma linha chega com `?key=`: só as mudanças daquela chave
+  const only = useSearchParams().get('key');
   const history = only ? snapshot.history.filter((h) => h.key === only) : snapshot.history;
   return (
     <div className="flex flex-col gap-4">
@@ -866,7 +871,7 @@ function HistoryTab({ snapshot, timeZone }: Ctx) {
             {only ? (
               <p className="flex flex-wrap items-center gap-2 text-sm">
                 <span>{fill(T.history.filtered, { name: label(only) })}</span>
-                <Link href="/ajustes/historico" className="text-primary text-sm hover:underline">
+                <Link href="/settings/history" className="text-primary text-sm hover:underline">
                   {T.history.showAll}
                 </Link>
               </p>

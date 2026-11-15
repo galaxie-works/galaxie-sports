@@ -145,7 +145,7 @@ Na importação, a primeira foto do primeiro candidato que não foi rejeitada **
   - galeria e retrato na página do piloto ou da equipe;
   - foto do carro na tabela de temporadas da carreira;
   - "o carro do vencedor" na página do GP.
-  - o carrossel "Legendary" na página da F1 (`/esportes/formula-1`), com a lista de créditos logo abaixo.
+  - o carrossel "Legendary" na página da F1 (`/sports/formula-1`), com a lista de créditos logo abaixo.
   - Sempre com a legenda de crédito.
 - **Banco:**
   - `core.asset` (`origin = commons`, `acervo = commons-f1`, `source_url = commons://<arquivo>`);

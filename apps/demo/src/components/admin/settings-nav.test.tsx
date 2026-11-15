@@ -8,9 +8,9 @@ import { SETTINGS_ITEMS, SOON_ITEMS, settingsNavIdOf } from '@/lib/ops/settings-
 import { SETTINGS_NAV_GROUPS, settingsNavGroups, settingsNavPinned } from './settings-nav';
 
 describe('menu de Ajustes (#1068)', () => {
-  it('Início e 9 grupos com 44 itens: 25 que existem e 19 "Em breve", rotas únicas', () => {
+  it('Início e 9 grupos com 46 itens: 27 que existem e 19 "Em breve", rotas únicas', () => {
     expect(SETTINGS_NAV_GROUPS).toHaveLength(9);
-    expect(SETTINGS_ITEMS).toHaveLength(44);
+    expect(SETTINGS_ITEMS).toHaveLength(46);
     expect(SOON_ITEMS).toHaveLength(19);
     const hrefs = SETTINGS_ITEMS.map((i) => i.href);
     expect(new Set(hrefs).size).toBe(hrefs.length);
@@ -57,6 +57,7 @@ describe('menu de Ajustes (#1068)', () => {
     expect(groups.find((g) => g.id === 'produtos')!.items.map((i) => i.label)).toEqual([
       'Ao vivo',
       'Grades e ofertas',
+      'Lance a lance',
       'Onde assistir',
       'Pós-jogo',
       'Vídeos relacionados',
@@ -100,12 +101,12 @@ describe('menu de Ajustes (#1068)', () => {
   });
 
   it('item aceso pelo caminho, com ou sem o prefixo de idioma', () => {
-    expect(settingsNavIdOf('/ajustes')).toBe('home');
-    expect(settingsNavIdOf('/pt-BR/ajustes/ao-vivo')).toBe('live');
-    expect(settingsNavIdOf('/ajustes/revisao/abc')).toBe('review');
-    expect(settingsNavIdOf('/ajustes/apps-de-tv')).toBe('tvApps');
+    expect(settingsNavIdOf('/settings')).toBe('home');
+    expect(settingsNavIdOf('/pt-BR/settings/live')).toBe('live');
+    expect(settingsNavIdOf('/settings/review/abc')).toBe('review');
+    expect(settingsNavIdOf('/settings/tv-apps')).toBe('tvApps');
     expect(settingsNavIdOf('/ajustes-x')).toBeNull();
-    expect(settingsNavIdOf('/times/1')).toBeNull();
+    expect(settingsNavIdOf('/teams/1')).toBeNull();
     expect(settingsNavIdOf(null)).toBeNull();
   });
 });

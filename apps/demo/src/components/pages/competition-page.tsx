@@ -65,8 +65,8 @@ function defaultRound(rounds: Round[]) {
   return rounds.find((r) => r.events.some((e) => !TERMINAL.has(e.status))) ?? rounds.at(-1);
 }
 
-/** Aba na URL (`?aba=jogos`): o link do jogo de volta para a competição abre direto nos jogos. */
-const TAB_PARAM = 'aba';
+/** Aba na URL (`?tab=matches`): o link do jogo de volta para a competição abre direto nos jogos. */
+const TAB_PARAM = 'tab';
 
 /**
  * Competição única de uma família de esporte (a F1 em Automobilismo): o hub dela é a própria página da
@@ -97,10 +97,10 @@ export async function CompetitionContent({
     .filter((s) => s.start_date && s.end_date)
     .sort((a, b) => b.year - a.year)
     .map((s) => ({ year: s.year, start: s.start_date!, end: s.end_date! }));
-  // `?data=` (link vindo de um jogo): a temporada que contém a data do jogo
-  const date = typeof query.data === 'string' ? query.data : null;
+  // `?date=` (link vindo de um jogo): a temporada que contém a data do jogo
+  const date = typeof query.date === 'string' ? query.date : null;
   const dated = date ? allWindows.find((w) => w.start <= date && date <= w.end)?.year : undefined;
-  const requested = Number(query.temporada) || dated;
+  const requested = Number(query.season) || dated;
   // as mais recentes e, se pedida, uma temporada antiga (ex.: F1 de 1988, a partir do card de campeonato)
   const windows = allWindows.filter((w, i) => i < MAX_SEASONS || w.year === requested);
   const available = await source.getSeasonsWithData(competition.id, windows, content);
@@ -121,7 +121,7 @@ export async function CompetitionContent({
       : [null, [] as Event[]];
 
   const rounds = groupByRound(events, tc.matches);
-  const round = rounds.find((r) => r.name === query.rodada) ?? defaultRound(rounds);
+  const round = rounds.find((r) => r.name === query.round) ?? defaultRound(rounds);
   // F1: campeonatos de pilotos e de construtores no lugar da tabela de pontos corridos; GPs com sessões
   const championship = (standings?.groups ?? []).some(
     (g) => g.name === 'drivers' || g.name === 'constructors',
@@ -130,9 +130,9 @@ export async function CompetitionContent({
   const groups = (
     championship ? championshipOrder(standings?.groups ?? []) : (standings?.groups ?? [])
   ).filter((g) => g.rows.length > 0);
-  const base = mount?.basePath ?? `/competicoes/${competition.slug}`;
-  const seasonQuery = selected ? `temporada=${selected.year}` : '';
-  const tab = query[TAB_PARAM] === 'jogos' || !groups.length ? 'jogos' : 'classificacao';
+  const base = mount?.basePath ?? `/competitions/${competition.slug}`;
+  const seasonQuery = selected ? `season=${selected.year}` : '';
+  const tab = query[TAB_PARAM] === 'matches' || !groups.length ? 'matches' : 'standings';
   const sport = sportParent(competition.sport, t);
   const country = competition.country ? countryHref(competition.country.code) : null;
 
@@ -226,7 +226,7 @@ export async function CompetitionContent({
               {available.map((s) => (
                 <FilterChip
                   key={s.year}
-                  href={`${base}?temporada=${s.year}`}
+                  href={`${base}?season=${s.year}`}
                   active={s.year === selected?.year}
                   keep={[TAB_PARAM]}
                 >
@@ -260,7 +260,7 @@ export async function CompetitionContent({
                 sport={competition.sport}
                 events={events}
                 groups={groups}
-                focus={typeof query.rodada === 'string' ? query.rodada : null}
+                focus={typeof query.round === 'string' ? query.round : null}
                 current={selected?.year === competition.current_season?.year}
                 standingsApi={
                   selected ? standingsRequest(competition.id, selected.year, locale, content) : undefined
@@ -277,7 +277,7 @@ export async function CompetitionContent({
                   <TabsTrigger value="classificacao" disabled={!groups.length}>
                     {tc.standings}
                   </TabsTrigger>
-                  {/* F1: a aba das sessões se chama "Corridas" (a URL segue `?aba=jogos`) */}
+                  {/* F1: a aba das sessões se chama "Corridas" (a URL segue `?tab=matches`) */}
                   <TabsTrigger value="jogos">{sessions ? tc.races : tc.matches}</TabsTrigger>
                 </TabsList>
 
@@ -318,7 +318,7 @@ export async function CompetitionContent({
                       {rounds.map((r) => (
                         <FilterChip
                           key={r.name}
-                          href={`${base}?${seasonQuery}&${TAB_PARAM}=jogos&rodada=${encodeURIComponent(r.name)}`}
+                          href={`${base}?${seasonQuery}&${TAB_PARAM}=matches&round=${encodeURIComponent(r.name)}`}
                           active={r.name === round?.name}
                         >
                           {r.name}

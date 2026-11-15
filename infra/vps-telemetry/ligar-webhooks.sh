@@ -97,7 +97,7 @@ if docker compose logs --since 10m webhooks 2>&1 | grep -q 'não definida'; then
   fail "o log ainda avisa que a KEK não está definida. Parei antes de cifrar os segredos."; exit 1
 else ok "sem o aviso de KEK ausente no log"; fi
 docker compose logs --since 10m webhooks 2>&1 | grep -q 'worker iniciado' && ok "worker iniciado" || warn "não vi 'worker iniciado' no log dos últimos 10 min"
-if [ -n "$painel" ]; then ok "demo com a KEK: o cadastro em /cliente/webhooks fica liberado"
+if [ -n "$painel" ]; then ok "demo com a KEK: o cadastro em /client/webhooks fica liberado"
 else warn "a versão no ar ainda não tem o painel de webhooks (chega com o deploy do PR). Rode este script de novo depois."; fi
 
 # ── 3. segredos legados ──────────────────────────────────────────────────────────────────────────────────────

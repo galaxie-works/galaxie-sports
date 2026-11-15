@@ -1,5 +1,5 @@
 /**
- * Sessão de admin nas rotas de API da revisão. O proxy já barra quem não é admin em `/api/ajustes/*`;
+ * Sessão de admin nas rotas de API da revisão. O proxy já barra quem não é admin em `/api/settings/*`;
  * a rota confere de novo, junto do dado (o mesmo cuidado de `lib/auth/admin.ts`).
  */
 import { auth } from '@/lib/auth/server';

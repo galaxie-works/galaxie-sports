@@ -85,7 +85,7 @@ export function revealSetting(row: HTMLElement, { smooth = true } = {}): () => v
  * `settingKeysProps`), espera por ela até 8 s.
  *
  * Quando olhar a âncora: ao montar; no `hashchange` (a paleta, na mesma página, troca `location.hash`); e depois de
- * cada navegação do roteador que mude o caminho ou a busca (`?aba=ajustes#CHAVE` sobre a mesma página não remonta o
+ * cada navegação do roteador que mude o caminho ou a busca (`?tab=settings#CHAVE` sobre a mesma página não remonta o
  * componente). O efeito roda depois de a navegação gravar a URL, então lê o hash novo, sem esperar timer.
  */
 export function useSettingAnchor() {

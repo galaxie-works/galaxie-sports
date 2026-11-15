@@ -97,9 +97,9 @@ function useApiSearch(term: string, locale: Locale) {
 }
 
 const ACTION_ICONS: Record<string, LucideIcon> = {
-  '/ao-vivo': Radio,
-  '/ajustes/usuarios': Users,
-  '/ajustes/status': SlidersHorizontal,
+  '/live': Radio,
+  '/settings/users': Users,
+  '/settings/status': SlidersHorizontal,
   '/docs': BookOpen,
 };
 
@@ -120,12 +120,12 @@ function actionEntries(T: Texts, locale: Locale, isAdmin: boolean, docsDescripti
     topLevel: true,
   });
   return [
-    action('/ao-vivo', T.live, T.liveDescription),
+    action('/live', T.live, T.liveDescription),
     action('/docs', T.docsHome, docsDescription),
     ...(isAdmin
       ? [
-          action('/ajustes/usuarios', T.users, T.usersDescription),
-          action('/ajustes/status', T.operations, T.operationsDescription),
+          action('/settings/users', T.users, T.usersDescription),
+          action('/settings/status', T.operations, T.operationsDescription),
         ]
       : []),
     ...LANGUAGES.filter((l) => l.value !== locale).map((l) => ({

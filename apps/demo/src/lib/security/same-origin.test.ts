@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { rejectCrossSite } from './same-origin';
 
 const post = (headers: Record<string, string>) =>
-  new Request('http://demo:3000/api/ajustes/revisao/x', { method: 'POST', headers, body: '{}' });
+  new Request('http://demo:3000/api/settings/review/x', { method: 'POST', headers, body: '{}' });
 
 describe('rejectCrossSite', () => {
   afterEach(() => {

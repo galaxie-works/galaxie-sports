@@ -28,7 +28,7 @@ import {
 } from './index';
 
 // a URL do roteador (caminho e busca), trocada nos testes para simular uma navegação
-const nav = vi.hoisted(() => ({ pathname: '/ajustes/grades', search: '' }));
+const nav = vi.hoisted(() => ({ pathname: '/settings/lineups', search: '' }));
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }),
   usePathname: () => nav.pathname,
@@ -247,7 +247,7 @@ describe('chegada pela âncora', () => {
     vi.useRealTimers();
   });
 
-  it('depois de uma navegação que muda a busca (?aba=ajustes), lê o hash novo sem remontar', () => {
+  it('depois de uma navegação que muda a busca (?tab=settings), lê o hash novo sem remontar', () => {
     vi.useFakeTimers();
     document.body.innerHTML = '<div id="LINEUP_PROMPT_MAX_CHARS"></div>';
     const row = document.getElementById('LINEUP_PROMPT_MAX_CHARS')!;

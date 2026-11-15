@@ -1,6 +1,6 @@
 /**
  * Leitura no navegador da resposta em fluxo do assistente da Cosmos (#1003): uma linha JSON por evento
- * (ver a rota `api/cliente/cosmos/assistente`). Puro, para testar sem a tela.
+ * (ver a rota `api/client/cosmos/assistant`). Puro, para testar sem a tela.
  */
 export type AssistantErrorCode =
   | 'unauthorized'

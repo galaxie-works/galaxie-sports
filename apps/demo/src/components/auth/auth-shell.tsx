@@ -51,10 +51,10 @@ export function AuthShell({
         <LanguageSelect className="h-9" />
         <p className="text-muted-foreground text-xs whitespace-nowrap">{t.auth.shell.footer}</p>
         <nav className="text-muted-foreground flex gap-4 text-xs">
-          <a href="/termos" className="hover:text-foreground underline-offset-4 hover:underline">
+          <a href="/terms" className="hover:text-foreground underline-offset-4 hover:underline">
             {t.auth.about.terms}
           </a>
-          <a href="/privacidade" className="hover:text-foreground underline-offset-4 hover:underline">
+          <a href="/privacy" className="hover:text-foreground underline-offset-4 hover:underline">
             {t.auth.about.privacy}
           </a>
         </nav>

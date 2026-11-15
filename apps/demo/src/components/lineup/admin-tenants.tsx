@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
 
-import { saveTenantOperator } from '@/app/[locale]/(app)/ajustes/grades/actions';
+import { saveTenantOperator } from '@/app/[locale]/(app)/settings/lineups/actions';
 import { Badge } from '@/components/reui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';

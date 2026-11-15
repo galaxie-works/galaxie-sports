@@ -1,7 +1,7 @@
 /**
  * Anexos do "Sugerir ou reportar algo" no bucket PRIVADO (S3_TASKS_BUCKET, o mesmo das tarefas: sem leitura anônima
  * e fora do Traefik), em `feedback/<aaaa-mm>/<uuid>.<ext>`. Só no servidor. A issue mostra a imagem por um link
- * assinado da demo (`app/api/feedback/anexo/[...key]/route.ts`), que lê daqui.
+ * assinado da demo (`app/api/feedback/attachment/[...key]/route.ts`), que lê daqui.
  */
 import { createHash } from 'node:crypto';
 

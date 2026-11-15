@@ -60,6 +60,9 @@ jobs:
           GH_REPO: ${{ github.repository }}
           LIMITE_MIN: ${{ inputs.limite_min }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          # hosts do produto (Settings › Variables), os mesmos do .env da VPS: trocam juntos no corte de domínio (#627)
+          API_DOMAIN: ${{ vars.API_DOMAIN }}
+          DEMO_DOMAIN: ${{ vars.DEMO_DOMAIN }}
         run: node infra/ops/producao-atrasada.mjs verificar
 
       - name: Abrir, atualizar ou fechar a issue

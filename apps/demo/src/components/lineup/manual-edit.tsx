@@ -10,7 +10,7 @@ import {
   editLineupItem,
   revertLineupLogo,
   uploadLineupLogo,
-} from '@/app/[locale]/(app)/ajustes/grades/actions';
+} from '@/app/[locale]/(app)/settings/lineups/actions';
 import { Alert, AlertDescription } from '@/components/reui/alert';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
