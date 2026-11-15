@@ -286,6 +286,23 @@ export async function chatRoutes(app: FastifyInstance, deps: ChatRoutesDeps): Pr
     return value;
   }
 
+  // Banimento ou suspensão do torcedor no cliente, guardado por 10 s (a reação é o caminho quente; a punição nova vale
+  // em até 10 s). Banco fora: não barra (a reação não é texto)
+  const bans = new Map<string, { at: number; value: Promise<boolean> }>();
+  function reactionBanned(tenantId: string, profileId: string, accountId: string): Promise<boolean> {
+    const key = `${tenantId}:${profileId}`;
+    const hit = bans.get(key);
+    if (hit && Date.now() - hit.at < 10_000) return hit.value;
+    const value = activeSanctions(db(), { tenantId, profileId, accountId, now: now() })
+      .then((list) =>
+        list.some((x) => x.scope === 'tenant' && (x.level === 'ban' || x.level === 'suspension')),
+      )
+      .catch(() => false);
+    if (bans.size > 100_000) bans.clear();
+    bans.set(key, { at: Date.now(), value });
+    return value;
+  }
+
   // Reação (#967): não é texto, então quem tem 13 a 17 também reage (`age: 'react'`; o portão de idade decide pela
   // ficha do país). Passou do limite por segundo: 202 com `accepted: false`, sem erro (o widget só não soma)
   app.post(
@@ -310,6 +327,15 @@ export async function chatRoutes(app: FastifyInstance, deps: ChatRoutesDeps): Pr
               { path: 'refusal', message: window.state === 'closed' ? 'room_closed' : 'room_scheduled' },
             ],
           },
+        );
+      // banimento e suspensão no cliente também barram a reação (decisão de 15/11); sala congelada segue aceitando
+      if (await reactionBanned(fan.tenantId, fan.profileId, fan.accountId))
+        throw new ProblemError(
+          409,
+          'CONFLICT',
+          'Reação bloqueada por punição',
+          'Você não pode reagir agora. Veja suas punições no seu Perfil.',
+          { errors: [{ path: 'refusal', message: 'sanctioned' }] },
         );
       const accepted = await reactions
         .add(`${fan.tenantId}:${fixtureId}`, fan.profileId, body.reaction)

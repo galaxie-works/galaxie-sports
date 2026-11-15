@@ -261,7 +261,8 @@ export const chatPaths: ZodOpenApiPathsObject = {
         'Seis reações fixas. A reação não vira mensagem: soma num contador e sai agregada a cada segundo no SSE ' +
         '(`chat.reactions` com `delta` do segundo e `total` do jogo). Não é texto, então 13 a 17 anos também ' +
         'reagem (portão de idade, `react`). Acima de 5 por segundo por torcedor, a reação é descartada sem erro ' +
-        '(`accepted: false`). Sala ainda fechada ou encerrada: 409.',
+        '(`accepted: false`). Sala ainda fechada ou encerrada, ou torcedor banido ou suspenso no cliente: 409 ' +
+        '(sala congelada continua aceitando).',
       tags: [TAG],
       security: fanAuth,
       requestParams: { path: ChatRoomParams },
@@ -272,7 +273,9 @@ export const chatPaths: ZodOpenApiPathsObject = {
         '401': problem('Token ausente, inválido, vencido ou de Perfil excluído (INVALID_KEY)'),
         '403': problem('Faixa etária (FAN_AGE_RESTRICTED) ou módulo fora do plano (MODULE_NOT_IN_PLAN)'),
         '404': problem('Jogo não encontrado (NOT_FOUND)'),
-        '409': problem('Sala ainda fechada ou encerrada (CONFLICT)'),
+        '409': problem(
+          'Sala ainda fechada ou encerrada, ou torcedor banido ou suspenso no cliente (CONFLICT)',
+        ),
       },
     },
   },

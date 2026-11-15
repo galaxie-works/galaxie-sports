@@ -4,7 +4,7 @@ import type { FastifyInstance } from 'fastify';
 import { Redis } from 'ioredis';
 import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { closeDb, createDb, event, runMigrations, sport, type Database } from '@galaxie/db';
+import { applySanction, closeDb, createDb, event, runMigrations, sport, type Database } from '@galaxie/db';
 import { generateAdminKey, hashAdminKey } from '../src/admin/guard.js';
 import { loadPlans } from '../src/admin/plans.js';
 import { FanTokenSigner } from '../src/engage/fan-token.js';
@@ -337,5 +337,34 @@ describe('Chat ao vivo: reações (#967)', () => {
     const kid = await fan(key, 2, 'under13');
     expect((await react(baseA, kid, fixture, 'fire')).status).toBe(403);
     expect((await react(baseA, adult, fixture, 'heart')).status).toBe(400);
+
+    // banimento no cliente barra a reação (decisão de 15/11); a punição vale em até 10 s (cache da rota)
+    const banned = await fan(key, 3);
+    const bannedId = JSON.parse(Buffer.from(banned.slice(4).split('.')[0]!, 'base64url').toString())
+      .p as string;
+    const day = 24 * 3600_000;
+    await applySanction(db, {
+      tenantId: tenantIds.get(key)!,
+      profileId: bannedId,
+      accountId: null,
+      level: 'ban',
+      hidden: false,
+      scope: 'tenant',
+      scopeId: null,
+      reason: 'harassment',
+      caseId: null,
+      actor: { id: 'user:mod1', kind: 'person' },
+      endsAt: null,
+      now: new Date(Date.now() - 1_000),
+      clocks: {
+        contentPurgeAt: new Date(Date.now() + 30 * day),
+        decisionPurgeAt: new Date(Date.now() + 365 * day),
+      },
+    });
+    const refused = await react(baseA, banned, fixture, 'fire');
+    expect(refused.status).toBe(409);
+    expect(((await refused.json()) as { errors: { message: string }[] }).errors[0]!.message).toBe(
+      'sanctioned',
+    );
   });
 });
