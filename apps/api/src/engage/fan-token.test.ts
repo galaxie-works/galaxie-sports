@@ -1,5 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
-import { fanCan, fanCapabilities } from './fan-rules.js';
+import { AGE_GATE_DENIAL_REASONS, AGE_GATE_NEXT_STEPS } from '@galaxie/contracts';
+import {
+  AGE_GATE_NEXT,
+  AGE_GATE_REASONS,
+  ageGate,
+  INITIAL_COUNTRY_POLICIES,
+  type AgeBand,
+} from '@galaxie/engage';
+import { FAN_CAPABILITIES } from './fan-rules.js';
 import { FAN_TOKEN_PREFIX, FanTokenSigner, type FanTokenClaims } from './fan-token.js';
 
 const SECRET = 'a'.repeat(40);
@@ -71,12 +79,26 @@ describe('FanTokenSigner', () => {
   });
 });
 
-describe('faixas etárias (D1)', () => {
-  it('under13 não usa nada social; 13_17 lê e palpita; 18plus tudo', () => {
-    expect(fanCapabilities('under13')).toEqual([]);
-    expect(fanCapabilities('13_17')).toEqual(['read', 'predict']);
-    expect(fanCapabilities('18plus')).toEqual(['read', 'predict', 'write', 'redeem']);
-    expect(fanCan('13_17', 'write')).toBe(false);
-    expect(fanCan('13_17', 'redeem')).toBe(false);
+describe('faixas etárias (D1), pelo portão de idade (#1106)', () => {
+  it('under13 não usa nada social; 13_17 lê e palpita; 18plus tudo (EUA, sem autorização a partir de 13)', () => {
+    const caps = (band: AgeBand) =>
+      FAN_CAPABILITIES.filter(
+        (capability) =>
+          ageGate({
+            policy: INITIAL_COUNTRY_POLICIES.US!,
+            fan: { band, assurance: 'self', guardianStatus: 'none', guardianLinked: false, frozen: false },
+            capability,
+          }).allowed,
+      );
+    expect(caps('under13')).toEqual([]);
+    expect(caps('13_17')).toEqual(['read', 'predict']);
+    expect(caps('18plus')).toEqual(['read', 'predict', 'write', 'redeem']);
+  });
+});
+
+describe('contrato do portão de idade (#1106)', () => {
+  it('motivos e próximos passos do Problem são os do portão', () => {
+    expect([...AGE_GATE_DENIAL_REASONS]).toEqual(AGE_GATE_REASONS.filter((r) => r !== 'ok'));
+    expect([...AGE_GATE_NEXT_STEPS]).toEqual([...AGE_GATE_NEXT]);
   });
 });

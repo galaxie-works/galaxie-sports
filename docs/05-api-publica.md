@@ -471,6 +471,7 @@ Convenções implementadas (`apps/api/src/routes/v1/events.ts`, montagem em `app
 | `incidents[].clock` | `period` (`first_half`, `second_half`, `extra_time_first`, `extra_time_second`, `penalty_shootout`), `minute`, `extra_minute`, `display`. Na disputa de pênaltis não há minuto |
 | `incidents[].occurred_at`, `occurred_at_source` | Instante UTC (abaixo) |
 | `incidents[].weight`, `key_moment`, `flags` | Peso do momento (0–100): **decisivo 100** > pênalti (convertido ou perdido) 80 > vermelho/segundo amarelo 70 > VAR que muda ou confirma gol, pênalti ou vermelho 65 > gol 60 > VAR em andamento ou de decisão trocada 50 > cobrança na disputa e vermelho confirmado pelo VAR 45 > outro VAR 40 (`var_outcome`, abaixo) > amarelo 30 > substituição 10. `key_moment` = peso ≥ 60 (é o filtro "só os principais"). `flags`: `opener`, `go_ahead`, `equalizer` e `decisive` — o gol da vitória (o do vencedor que o pôs à frente de vez) ou a cobrança que decidiu os pênaltis, **só com o jogo encerrado**. O gol anulado pelo VAR não recebe nenhuma (abaixo) |
+| `incidents[].narration` | Frase pronta do lance no idioma da resposta (`locale`/`Accept-Language`: pt, es ou en; #1167), montada só com o que o lance traz: tipo, autor, assistência, time, bandeiras do placar, `score_after`, `disallowed` e `var_outcome`. Ex.: "Palmeiras marca! Estêvão abre o placar. Assistência de Raphael Veiga. Palmeiras 1 x 0 Fluminense." e "VAR anula o gol de John Arias por impedimento. Segue 1 x 1." Sem IA: não diz nada que o evento não tenha ("de cabeça", "golaço"). A variação entre frases do mesmo tipo é fixa pelo `sequence`, então a mesma leitura dá sempre a mesma frase. As frases são editáveis por idioma em Ajustes → Produtos → Lance a lance (tabela `ops.narration_template`, migration 0158). O painel só aceita os marcadores de cada frase, e a mudança chega à timeline em até 1 minuto: a API lê as frases editadas a cada 60 s, e a versão delas entra na chave do cache. Null quando não há o que dizer com segurança (lance `other`, substituição sem os dois nomes) |
 | `incidents[].var_outcome` | Veredito canônico do VAR (só nos lances `var`; null nos demais), com o texto do fornecedor mantido em `detail`: `goal_cancelled` ("Goal cancelled", "Goal Disallowed", "Goal Disallowed - video review"), `goal_disallowed_offside`, `goal_disallowed_foul`, `goal_disallowed_handball`, `goal_confirmed`, `goal_under_review`, `penalty_awarded`, `penalty_confirmed`, `penalty_cancelled`, `card_upgrade`, `card_upgrade_confirmed`, `card_upgrade_cancelled`, `card_reviewed`, `red_card_confirmed`, `red_card_cancelled`, `decision_changed` ("Original decision changed") e `other` (texto novo ou ausente). A lista cobre todo `detail` de VAR já visto no espelho; texto novo dispara o alerta `VarDetailUnknown`. Peso: 65 para o que muda ou confirma gol, pênalti ou vermelho (inclui `card_upgrade`); 50 para `goal_under_review` e `decision_changed`; 45 para `red_card_confirmed` (o vermelho já está na lista); 40 para `card_reviewed`, `card_upgrade_cancelled` e `other` |
 | `incidents[].disallowed`, `cancelled_by` | Gol anulado pelo VAR que continua na lista do fornecedor: `disallowed: true` e, em `cancelled_by`, o `sequence` do lance de VAR que o anulou (`Goal cancelled`, `Goal Disallowed - offside`...). O gol fica na timeline com `flags` vazio, `score_after` e `scoring_team` nulos e peso de VAR comum (40, fora dos momentos-chave: o momento-chave é o próprio VAR). Cada VAR anula no máximo um gol do mesmo time, a até 5 minutos, de preferência do mesmo jogador; VAR que traz um autor que não marcou nessa janela é de um gol que a fonte já apagou e não derruba o gol de outro. Com o placar conhecido, o gol só cai se o time tiver mais gols na lista que no placar (o VAR também chega quando a fonte já apagou o gol, e aí o gol válido de minutos antes não pode cair); no ao vivo, cai na leitura em que o placar cai. No gol contra, a convenção do lado (acima) é a que fecha o placar sem os gols anulados. Assim o `score_after` do último gol bate com `score`. `false`/null nos demais lances. Os widgets tiram o gol anulado da lista de gols do card e o mostram riscado no minuto a minuto |
 | `incidents[].score_after`, `scoring_team` | Placar depois do gol e o time que somou o gol (`scoring_team`, com `side`). Na disputa, o placar da disputa e quem converteu. `team` é o time do lance como o fornecedor manda: no gol contra pode ser o do jogador ou o beneficiado. Com o jogo em andamento, `team` é tratado como o beneficiado (o placar parcial chega antes dos lances e não serve de prova: o lado não troca entre leituras); com o jogo encerrado, vale a convenção que reproduz o placar final (sem nenhuma exata, a que menos passa dele; empate, o beneficiado), o que pode corrigir o lado uma vez no apito final. As bandeiras (`go_ahead`, `decisive`...) valem para `scoring_team` |
@@ -977,7 +978,7 @@ Formato RFC 9457 (`application/problem+json`):
 | 403 `MODULE_NOT_IN_PLAN` / `MARKET_NOT_IN_PLAN` | Recurso fora do contrato |
 | 403 `ORIGIN_NOT_ALLOWED` | Chave publicável usada de uma origem fora da lista dela (ou sem `Origin`/`Referer`), §1.3 |
 | 403 `PUBLISHABLE_KEY_NOT_ALLOWED` | Chave publicável em rota que ela não alcança (escrita, `/v1/account`, SSE, espelho), §1.3 |
-| 403 `FAN_AGE_RESTRICTED` | A faixa etária do Perfil do torcedor não permite a ação (`under13` em recurso social, `13_17` escrevendo ou resgatando), §9 |
+| 403 `FAN_AGE_RESTRICTED` | O portão de idade recusou a ação (faixa, comprovação ou responsável contra a ficha do país); o motivo vem em `age_gate`, §9 |
 | 404 `NOT_FOUND` | Entidade inexistente |
 | 409 `CONFLICT` | Conflito com o estado atual (ex.: slug de tenant já existente; rotas internas de correção quando a versão corrigida não é mais a vigente) |
 | 413 `INVALID_PARAMS` | Corpo acima do limite (`API_BODY_LIMIT`, padrão 64 KiB) |
@@ -1036,10 +1037,10 @@ A identidade única do torcedor nos módulos de engajamento (#937): Chat ao vivo
 | Faixa | Pode |
 |---|---|
 | `under13` | Recebe token, mas toda rota social responde 403 `FAN_AGE_RESTRICTED` |
-| `13`, `14_15`, `16_17` | Ler, palpitar, votar, trivia, ganhar pontos e conquistas. Não escreve texto livre e não resgata |
+| `13`, `14_15`, `16_17` | Ler, palpitar, votar, trivia, ganhar pontos e conquistas, com a autorização e a comprovação que a ficha do país pedir. Não escreve texto livre e não resgata |
 | `18plus` | Tudo |
 
-As rotas e as `capabilities` usam a faixa larga (`under13`, `13_17`, `18plus`); a fina vale para os limites de 14 e 16 anos da ficha por país. `13_17` ainda é aceito no pedido do token e vale como `13`, a mais restritiva.
+O token leva a faixa larga (`under13`, `13_17`, `18plus`); o portão de idade usa a fina, para os limites de 14 e 16 anos da ficha por país. `13_17` ainda é aceito no pedido do token e vale como `13`, a mais restritiva.
 
 **Comprovação de idade e responsável (#1105).** O pedido do token pode trazer dois blocos opcionais, sempre sem data de nascimento, documento ou foto (campo fora da lista é 400):
 
@@ -1056,7 +1057,24 @@ O `GET /v1/fans/me` devolve `age_band_detail`, `age_assurance`, `guardian` e `ag
 | `read_only` | Participa, mas não escreve |
 | `can_write` | Participa e escreve |
 
-Por enquanto o `age_status` só informa: as rotas ainda liberam pelas `capabilities` da faixa larga, e o portão único de todos os módulos pela ficha do país vem na Idade 3 (#1106). Um adulto do Brasil sem o bloco `ageAssurance` aparece como `needs_verification` e ainda escreve.
+**Portão de idade (#1106).** Toda rota do torcedor passa pelo mesmo portão no servidor, em todos os módulos: com a faixa, a comprovação e o responsável do Perfil, contra a ficha do país do token (o país que o seu servidor informou, nunca o do IP; o torcedor que viaja continua na ficha dele). Recusa é 403 `FAN_AGE_RESTRICTED` com o motivo e o que fazer para liberar:
+
+```json
+{ "code": "FAN_AGE_RESTRICTED", "age_gate": { "reason": "guardian_consent", "next": "guardian_consent" } }
+```
+
+| `age_gate.reason` | Quer dizer | `next` |
+|---|---|---|
+| `under_min_age` | Abaixo da idade para participar (13, ou mais se a ficha pedir) | |
+| `adult_only` | Recurso só para 18+: escrever texto livre, resgatar, marketplace, receber Prêmio, contato direto, conteúdo restrito | |
+| `frozen` | A faixa desceu de `18plus` e vale como menor até comprovar a idade | `verify_age` |
+| `guardian_consent` | Falta a autorização do responsável para a idade no país | `guardian_consent` |
+| `guardian_link` | Falta vincular a conta à do responsável | `guardian_link` |
+| `age_assurance` | A comprovação está abaixo da que o país pede para o recurso (no Brasil, estimativa; conteúdo restrito, verificação) | `verify_age` |
+| `not_in_country` | A ficha do país não libera o recurso (marketplace desligado, publicidade para menores) | |
+| `no_policy` | O país não tem ficha: só o adulto lê | |
+
+O portão relê o Perfil e a ficha a cada ação, com um cache de até 5 segundos: a autorização revogada vale em até 5 segundos, sem esperar o token vencer. Para revogar, peça um token novo para o Perfil com `guardian.status: "revoked"`; o token antigo para de valer em até 5 segundos. Denunciar, bloquear, ver as próprias punições e apelar não dependem da autorização nem da comprovação: só ficam fora os abaixo da idade para participar. O texto livre que vai junto (`note` da denúncia, `statement` da apelação) é escrita: quem não escreve manda sem ele. As `capabilities` do `GET /v1/fans/me` são o que o portão libera hoje, e o próprio `GET /v1/fans/me` fica aberto para o cliente ver o estado. Um adulto do Brasil sem o bloco `ageAssurance` (vale `self`) não participa até mandar a estimativa.
 
 Faixa que desce de `18plus` para menor no mesmo Perfil congela as ações de adulto (escrever e resgatar) e abre um caso na fila de moderação do cliente (`age_band_downgrade`). Subir de faixa é normal; a congelada só volta a adulto com a correção da faixa (#1110).
 
@@ -1140,7 +1158,7 @@ O caminho é sempre o mesmo: o servidor do site pede o token com a chave secreta
 
 **No navegador**, o widget manda o token em `Authorization: Bearer` junto da chave publicável do site (`x-galaxie-publishable-key`). A API confere a origem da página contra a chave e exige que o cliente da chave seja o do token: token de outro cliente recebe 401 (`Token de outro cliente.`). A chave e a origem são conferidas antes do token, então qualquer 401 (token vencido, inválido ou de outro cliente) leva o CORS da origem conferida, e o widget consegue ler a recusa e pedir outro token. Só a chave publicável do site leva o token: chave presa a um widget recebe 403 (`PUBLISHABLE_KEY_NOT_ALLOWED`), e o widget mostra o recurso do torcedor como indisponível, sem pedir outro token. O preflight libera `Authorization` e o método de cada rota do torcedor (inclusive `PATCH`) para as origens de alguma chave ativa. Do servidor ou do app nativo, sem chave publicável, vale só o token.
 
-**O que o widget mostra.** Lê `GET /v1/fans/me` e usa as `capabilities` da faixa: sem token, "Entre para participar" (com o botão "Entrar" quando o site trata o login); `13_17`, só leitura onde o recurso escreve; `under13`, recurso indisponível; `18plus`, tudo. Token recusado ou vencido mostra "Sua sessão terminou". Com uma função que busca token novo, o widget pede outro um minuto antes de vencer e de novo se a API recusar (recusas ao mesmo tempo dividem um pedido). Quando o torcedor entra ou sai sem recarregar a página, o site dispara `galaxie:fan-token-changed` no `document` (ou chama `useFanSession().refresh()` no React, `el.refreshFanToken()` no embed), e os widgets pedem o token de novo.
+**O que o widget mostra.** Lê `GET /v1/fans/me` e usa as `capabilities` que o portão de idade libera: sem token, "Entre para participar" (com o botão "Entrar" quando o site trata o login); `13_17`, só leitura onde o recurso escreve; `under13`, recurso indisponível; `18plus`, tudo. Token recusado ou vencido mostra "Sua sessão terminou". Com uma função que busca token novo, o widget pede outro um minuto antes de vencer e de novo se a API recusar (recusas ao mesmo tempo dividem um pedido). Quando o torcedor entra ou sai sem recarregar a página, o site dispara `galaxie:fan-token-changed` no `document` (ou chama `useFanSession().refresh()` no React, `el.refreshFanToken()` no embed), e os widgets pedem o token de novo.
 
 **Estado de idade no embed (#1105).** O `<galaxie-widget>` mostra o `age_status` do torcedor no atributo `fan-status` e dispara `galaxie:fan-status` (sobe até o documento, `detail.status`) quando ele muda, para o site abrir a autorização do responsável (`needs_guardian`) ou a comprovação de idade (`needs_verification`). Sem torcedor, o atributo some e `detail.status` vem `null`. No React, o mesmo valor está em `useFanSession().me?.age_status`.
 

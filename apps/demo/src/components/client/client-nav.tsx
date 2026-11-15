@@ -10,6 +10,7 @@ import {
   Package,
   Palette,
   ShieldCheck,
+  ShoppingBag,
   Tv,
   Users,
   Webhook,
@@ -57,6 +58,15 @@ export const CLIENT_NAV = [
     icon: Handshake,
     group: 'engagement',
     action: 'settings.manage',
+  },
+  {
+    id: 'shopping',
+    href: '/cliente/shopping',
+    icon: ShoppingBag,
+    group: 'engagement',
+    // relatório de cliques e, com a conciliação (#929), de comissão: dinheiro do tenant
+    action: 'billing.view',
+    module: 'shopping',
   },
   {
     id: 'moderation',

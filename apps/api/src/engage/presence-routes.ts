@@ -37,7 +37,6 @@ import { resolveSetting, settingDef } from '@galaxie/runtime-config';
 import { eq } from 'drizzle-orm';
 import { problems } from '../errors.js';
 import { parseInput } from '../util.js';
-import { fanCan } from './fan-rules.js';
 import { readFan } from './fans.js';
 
 /** Jogo em que a presença conta: começando, rolando ou no intervalo. */
@@ -164,10 +163,8 @@ export async function presenceRoutes(app: FastifyInstance, deps: PresenceRoutesD
       throw problems.conflict('A presença só conta com o jogo ao vivo (começando, rolando ou no intervalo).');
   }
 
-  app.post('/v1/fans/me/presence', { config: { fan: true } }, async (request, reply) => {
+  app.post('/v1/fans/me/presence', { config: { fan: true, age: 'earnPoints' } }, async (request, reply) => {
     const fan = request.fan!;
-    if (!fanCan(fan.ageBand, 'read'))
-      throw problems.fanAgeRestricted('Perfis com menos de 13 anos não usam os recursos sociais.');
     const body = parseInput(FanPresenceBody, request.body);
     const profile = await readFan(db(), fan.tenantId, fan.profileId);
     if (!profile) throw problems.invalidFanToken('Perfil excluído.');
@@ -215,10 +212,8 @@ export async function presenceRoutes(app: FastifyInstance, deps: PresenceRoutesD
     return out;
   });
 
-  app.get('/v1/events/:eventId/presence', { config: { fan: true } }, async (request, reply) => {
+  app.get('/v1/events/:eventId/presence', { config: { fan: true, age: 'read' } }, async (request, reply) => {
     const fan = request.fan!;
-    if (!fanCan(fan.ageBand, 'read'))
-      throw problems.fanAgeRestricted('Perfis com menos de 13 anos não usam os recursos sociais.');
     const { eventId } = parseInput(PresenceEventParams, request.params);
     // a marca de exclusão fica no Valkey e pode faltar: o banco confirma que o Perfil existe
     if (!(await readFan(db(), fan.tenantId, fan.profileId)))

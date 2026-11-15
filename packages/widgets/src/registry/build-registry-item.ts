@@ -179,6 +179,9 @@ function defaultProps(
       return {};
     case 'channel_guide':
       return pick(['sport']);
+    // Shopping: a entidade da página (o jogo, ou o time, o campeonato ou o atleta)
+    case 'shop_the_game':
+      return pick(['eventId', 'teamId', 'competitionId', 'personId']);
   }
 }
 
@@ -236,7 +239,9 @@ export function buildRegistryItem(input: BuildRegistryItemInput): RegistryItem {
   const defaults = {
     ...optionProps(kind, input.options),
     ...defaultProps(kind, input.defaults ?? {}, market, input.standings, input.liveList),
-    ...(kind === 'channel_guide' && input.widgetId ? { widgetId: input.widgetId } : {}),
+    ...((kind === 'channel_guide' || kind === 'shop_the_game') && input.widgetId
+      ? { widgetId: input.widgetId }
+      : {}),
   };
   const cleanTheme: WidgetTheme = {
     primary: theme.primary,
