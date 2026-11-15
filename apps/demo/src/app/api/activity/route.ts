@@ -2,6 +2,7 @@
 import { pool } from '@/lib/auth/db';
 import { auth } from '@/lib/auth/server';
 import { internalPath } from '@/lib/internal-path';
+import { legacyRouteTarget } from '@/lib/legacy-routes';
 import { rejectCrossSite } from '@/lib/security/same-origin';
 
 /**
@@ -31,7 +32,9 @@ export async function POST(request: Request) {
     depth?: unknown;
   } | null;
   const path = pathOf(body?.path);
-  if (!path || path === '/settings' || path.startsWith('/settings/')) {
+  // Ajustes não entra, nem pelo caminho em português de antes do #630 (/ajustes/usuarios)
+  const canonical = path ? (legacyRouteTarget(path) ?? path) : null;
+  if (!canonical || canonical === '/settings' || canonical.startsWith('/settings/')) {
     return new Response(null, { status: 204 });
   }
   const title =

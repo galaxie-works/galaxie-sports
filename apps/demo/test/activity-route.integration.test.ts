@@ -71,6 +71,8 @@ describe('POST /api/activity', () => {
     await post({ path: '/events/9', from: '//evil.com/x' });
     // Ajustes não entra (nem disfarçado)
     await post({ path: '/settings/users' });
+    await post({ path: '/x/../settings/users' });
+    await post({ path: '/ajustes/usuarios' });
     await post({ path: '/x/../ajustes/usuarios' });
     expect(await pages()).toEqual([
       { path: '/teams/1', from_path: '/competitions/71' },
