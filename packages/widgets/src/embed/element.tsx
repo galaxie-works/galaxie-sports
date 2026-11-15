@@ -3,7 +3,7 @@
  * HTML puro), sem React nem build do lado de quem instala.
  *
  * ```html
- * <script src="https://sports.galaxie.works/embed.js" async></script>
+ * <script src="<SITE_URL da plataforma>/embed.js" async></script>
  * <galaxie-widget widget="<id do widget>" key="gs_pk_live_..."></galaxie-widget>
  * ```
  *
