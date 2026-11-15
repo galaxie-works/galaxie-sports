@@ -111,7 +111,7 @@ async function tenantKey(slug: string): Promise<string> {
   return key;
 }
 
-async function fan(key: string, n: number): Promise<string> {
+async function fan(key: string, n: number, ageBand = '18plus'): Promise<string> {
   const res = await appA.inject({
     method: 'POST',
     url: '/v1/fans/tokens',
@@ -120,7 +120,7 @@ async function fan(key: string, n: number): Promise<string> {
       externalAccountId: `acc_${n}`,
       externalProfileId: `prof_${n}`,
       nickname: `Torcedor${n}`,
-      ageBand: '18plus',
+      ageBand,
       country: 'br',
       // adulto do Brasil escreve com a estimativa (ficha do país, portão de idade #1106)
       ageAssurance: { method: 'estimated', at: '2026-11-01' },
@@ -277,5 +277,65 @@ describe('Chat ao vivo: lotes pelo SSE (#964)', () => {
     expect((await send(baseB, veteran, fixture, 'sigo aqui')).status).toBe(201);
     // quem excedeu a faixa continua lendo
     await late.waitFor((m) => m.event === 'chat.batch', 3_000);
+  });
+});
+
+describe('Chat ao vivo: reações (#967)', () => {
+  const react = (base: string, token: string, fixture: string, reaction: string) =>
+    fetch(`${base}/v1/chat/rooms/${fixture}/reactions`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ reaction }),
+    });
+
+  it('contagem agregada chega em até 2 s à outra instância; spam é limitado; menor de 13 não reage', async () => {
+    const key = await tenantKey('reacao-a');
+    const other = await tenantKey('reacao-b');
+    const fixture = await game();
+    const reader = await stream(baseB, key, fixture);
+    const outside = await stream(baseB, other, fixture);
+    await reader.waitFor((m) => m.event === 'ready');
+    await outside.waitFor((m) => m.event === 'ready');
+    const snapshot = reader.messages.find((m) => m.event === 'chat.reactions')!;
+    expect(JSON.parse(snapshot.data)).toMatchObject({ snapshot: true, total: {} });
+
+    const adult = await fan(key, 1);
+    const spam = await Promise.all(Array.from({ length: 8 }, () => react(baseA, adult, fixture, 'fire')));
+    const accepted = await Promise.all(
+      spam.map(async (r) => ((await r.json()) as { data: { accepted: boolean } }).data.accepted),
+    );
+    expect(spam.every((r) => r.status === 202)).toBe(true);
+    expect(accepted.filter(Boolean)).toHaveLength(5);
+
+    // o limite é por pessoa por segundo: o próximo segundo volta a aceitar
+    await new Promise((r) => setTimeout(r, 1_100));
+    const sentAt = Date.now();
+    expect((await react(baseB, adult, fixture, 'clap')).status).toBe(202);
+    const got = await reader.waitFor(
+      (m) => m.event === 'chat.reactions' && !JSON.parse(m.data).snapshot,
+      4_000,
+    );
+    expect(got.receivedAt - sentAt).toBeLessThanOrEqual(2_000);
+    await reader.waitFor(
+      () =>
+        reader.messages
+          .filter((m) => m.event === 'chat.reactions')
+          .some((m) => JSON.parse(m.data).total?.fire === 5 && JSON.parse(m.data).total?.clap === 1),
+      4_000,
+    );
+    // o outro cliente no mesmo jogo não vê a contagem deste
+    expect(
+      outside.messages.filter((m) => m.event === 'chat.reactions' && !JSON.parse(m.data).snapshot),
+    ).toEqual([]);
+    const room = await appA.inject({
+      method: 'GET',
+      url: `/v1/chat/rooms/${fixture}`,
+      headers: { 'x-galaxie-key': key },
+    });
+    expect(room.json().data.reactions).toEqual({ fire: 5, clap: 1 });
+
+    const kid = await fan(key, 2, 'under13');
+    expect((await react(baseA, kid, fixture, 'fire')).status).toBe(403);
+    expect((await react(baseA, adult, fixture, 'heart')).status).toBe(400);
   });
 });

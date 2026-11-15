@@ -14,10 +14,12 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import {
   ChatConfigBody,
   ChatMessageBody,
+  ChatReactionBody,
   ChatRoomParams,
   ChatRoomPatchBody,
   type ChatConfig,
   type ChatMessageResponse,
+  type ChatReactionResponse,
   type ChatRoom,
 } from '@galaxie/contracts';
 import { activeSanctions, CHAT_GAME_KINDS, type ChatStrictness, type Database } from '@galaxie/db';
@@ -53,7 +55,8 @@ import {
   type ChatTenantConfigRow,
 } from './rooms.js';
 import { ChatSettings, type ChatSettingsValues } from './settings.js';
-import { ChatHub } from './hub.js';
+import { ChatHub, reactionRoomKey } from './hub.js';
+import { MemoryReactionCounter, type ReactionCounter } from './reactions.js';
 import { gameMessages } from './game.js';
 import { MemoryChatPeak, type ChatPeak } from './peak.js';
 import { registerChatStream, type ChatStreamOptions } from './stream.js';
@@ -67,6 +70,10 @@ export interface ChatRoutesDeps {
   /** Faixa de conexões e pico (D6); sem ele, em memória. */
   peak?: ChatPeak | undefined;
   stream?: ChatStreamOptions | undefined;
+  /** Contador das reações (#967); sem ele, em memória. */
+  reactions?: ReactionCounter | undefined;
+  /** Fecha o segundo das reações a cada `ms`. Padrão 1 s. */
+  reactionsIntervalMs?: number | undefined;
 }
 
 const MODULE = { module: 'live_chat' as const };
@@ -115,6 +122,23 @@ export async function chatRoutes(app: FastifyInstance, deps: ChatRoutesDeps): Pr
   const moderation = deps.db ? new ModerationLists(deps.db) : null;
   const now = () => deps.now?.() ?? new Date();
   const hub = deps.hub ?? new ChatHub();
+  const reactions = deps.reactions ?? new MemoryReactionCounter();
+  // fecha o segundo das reações: toda instância roda, o script atômico garante que cada reação conta uma vez
+  const reactionTimer = setInterval(() => {
+    reactions
+      .flush()
+      .then((list) =>
+        Promise.all(
+          list.map((f) => {
+            const [tenantId, fixtureId] = f.room.split(':') as [string, string];
+            return hub.broadcast(reactionRoomKey(tenantId, fixtureId), f.tally);
+          }),
+        ),
+      )
+      .catch((err: unknown) => app.log.warn({ err }, 'chat: reações indisponíveis'));
+  }, deps.reactionsIntervalMs ?? 1_000);
+  reactionTimer.unref();
+  app.addHook('onClose', async () => clearInterval(reactionTimer));
   const peak = deps.peak ?? new MemoryChatPeak(() => now().getTime());
   if (!deps.hub) {
     app.addHook('onReady', () => hub.start());
@@ -193,6 +217,7 @@ export async function chatRoutes(app: FastifyInstance, deps: ChatRoutesDeps): Pr
         },
         messages: messages.map(messageView),
         game_messages: game.filter((m) => gameKindEnabled(eff.eventKinds, m.kind)),
+        reactions: await reactions.totals(`${tenantId}:${fixtureId}`).catch(() => ({})),
       },
     };
   }
@@ -227,6 +252,42 @@ export async function chatRoutes(app: FastifyInstance, deps: ChatRoutesDeps): Pr
     reply.header('cache-control', 'no-store');
     return roomBody(tenant.tenantId, fixtureId, after);
   });
+
+  // Reação (#967): não é texto, então quem tem 13 a 17 também reage (`age: 'react'`; o portão de idade decide pela
+  // ficha do país). Passou do limite por segundo: 202 com `accepted: false`, sem erro (o widget só não soma)
+  app.post(
+    '/v1/chat/rooms/:fixtureId/reactions',
+    { config: { fan: true, age: 'react' } },
+    async (request, reply) => {
+      const fan = request.fan!;
+      const { fixtureId } = parseInput(ChatRoomParams, request.params);
+      const body = parseInput(ChatReactionBody, request.body);
+      const database = db();
+      if (!(await tenantHasLiveChat(database, fan.tenantId))) throw problems.moduleNotInPlan('live_chat');
+      const { window } = await loadRoom(fan.tenantId, fixtureId, false);
+      if (window.state === 'scheduled' || window.state === 'closed')
+        throw new ProblemError(
+          409,
+          'CONFLICT',
+          'Sala fechada para reações',
+          sendRefusalNotice(window.state === 'closed' ? 'room_closed' : 'room_scheduled', fan.locale),
+          {
+            errors: [
+              { path: 'refusal', message: window.state === 'closed' ? 'room_closed' : 'room_scheduled' },
+            ],
+          },
+        );
+      const accepted = await reactions
+        .add(`${fan.tenantId}:${fixtureId}`, fan.profileId, body.reaction)
+        .catch((err: unknown) => {
+          request.log.warn({ err }, 'chat: contador de reações indisponível');
+          return false;
+        });
+      reply.header('cache-control', 'no-store');
+      const res: ChatReactionResponse = { data: { accepted } };
+      return reply.code(202).send(res);
+    },
+  );
 
   app.post(
     '/v1/chat/rooms/:fixtureId/messages',
@@ -429,6 +490,7 @@ export async function chatRoutes(app: FastifyInstance, deps: ChatRoutesDeps): Pr
     roomState: async (tenantId, fixtureId) => (await loadRoom(tenantId, fixtureId, false)).window.state,
     gameKinds: (tenantId) => cachedKinds(tenantId),
     gameSnapshot: (fixtureId) => cachedGame(fixtureId),
+    reactionTotals: (tenantId, fixtureId) => reactions.totals(`${tenantId}:${fixtureId}`),
   });
 
   async function configBody(tenantId: string): Promise<ChatConfig> {

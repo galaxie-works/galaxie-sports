@@ -85,6 +85,32 @@ export const ChatRoomSettings = z
   })
   .meta({ id: 'ChatRoomSettings' });
 
+export const CHAT_REACTION_VALUES = ['fire', 'clap', 'shock', 'laugh', 'angry', 'ball'] as const;
+
+/** Contagem das reações por reação (só as que têm contagem). */
+export const ChatReactionCounts = z
+  .partialRecord(z.enum(CHAT_REACTION_VALUES), z.number().int())
+  .meta({
+    id: 'ChatReactionCounts',
+    description: 'fire 🔥, clap 👏, shock 😱, laugh 😂, angry 😡, ball ⚽.',
+  });
+
+export const ChatReactionBody = z
+  .strictObject({ reaction: z.enum(CHAT_REACTION_VALUES) })
+  .meta({ id: 'ChatReactionBody' });
+export type ChatReactionBody = z.infer<typeof ChatReactionBody>;
+
+export const ChatReactionResponse = z
+  .object({
+    data: z.object({
+      accepted: z.boolean().meta({
+        description: '`false`: passou do limite de reações por segundo; a reação foi descartada (sem erro).',
+      }),
+    }),
+  })
+  .meta({ id: 'ChatReactionResponse' });
+export type ChatReactionResponse = z.infer<typeof ChatReactionResponse>;
+
 export const ChatRoom = z
   .object({
     data: z.object({
@@ -104,6 +130,7 @@ export const ChatRoom = z
       messages: z
         .array(ChatMessage)
         .meta({ description: 'Últimas mensagens, da mais antiga para a mais nova.' }),
+      reactions: ChatReactionCounts.meta({ description: 'Total de reações do jogo nesta sala.' }),
       game_messages: z.array(ChatGameMessage).meta({
         description:
           'O jogo dentro do chat, só com os tipos que o cliente ligou, da mais antiga para a mais nova.',
@@ -224,6 +251,28 @@ export const chatPaths: ZodOpenApiPathsObject = {
         '400': problem('Campo inválido (INVALID_PARAMS)'),
         '404': problem('Jogo não encontrado (NOT_FOUND)'),
         ...keyErrors,
+      },
+    },
+  },
+  '/v1/chat/rooms/{fixtureId}/reactions': {
+    post: {
+      summary: 'Reage ao jogo',
+      description:
+        'Seis reações fixas. A reação não vira mensagem: soma num contador e sai agregada a cada segundo no SSE ' +
+        '(`chat.reactions` com `delta` do segundo e `total` do jogo). Não é texto, então 13 a 17 anos também ' +
+        'reagem (portão de idade, `react`). Acima de 5 por segundo por torcedor, a reação é descartada sem erro ' +
+        '(`accepted: false`). Sala ainda fechada ou encerrada: 409.',
+      tags: [TAG],
+      security: fanAuth,
+      requestParams: { path: ChatRoomParams },
+      requestBody: { content: json(ChatReactionBody) },
+      responses: {
+        '202': { description: 'Recebida', content: json(ChatReactionResponse) },
+        '400': problem('Reação desconhecida (INVALID_PARAMS)'),
+        '401': problem('Token ausente, inválido, vencido ou de Perfil excluído (INVALID_KEY)'),
+        '403': problem('Faixa etária (FAN_AGE_RESTRICTED) ou módulo fora do plano (MODULE_NOT_IN_PLAN)'),
+        '404': problem('Jogo não encontrado (NOT_FOUND)'),
+        '409': problem('Sala ainda fechada ou encerrada (CONFLICT)'),
       },
     },
   },
