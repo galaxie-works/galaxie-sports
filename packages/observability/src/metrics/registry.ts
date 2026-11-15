@@ -69,6 +69,8 @@ export interface GalaxieMetrics {
   gapsAbandoned: Counter<'consumer' | 'reason'>;
   /** Respostas das rotas cacheadas: `hit`, `miss`, `stale` (valor anterior durante o recálculo), `coalesced`. */
   cacheResults: Counter<'result'>;
+  /** Recusas do portão de idade (#1106) por motivo, capacidade e país; sem identificar o torcedor. */
+  fanAgeDenied: Counter<'reason' | 'capability' | 'country'>;
   /** Consultas aos conectores do Shopping (#916) por loja e resultado: `ok`, `error`, `cache` (servida do cache). */
   shopConnectorRequests: Counter<'store' | 'outcome'>;
   /** Latência das consultas aos conectores do Shopping por loja (só as que foram à loja). */
@@ -192,6 +194,12 @@ export function createMetrics(options: MetricsOptions = {}): GalaxieMetrics {
     labelNames: ['result'],
     registers: [registry],
   });
+  const fanAgeDenied = new Counter<'reason' | 'capability' | 'country'>({
+    name: 'galaxie_fan_age_denied_total',
+    help: 'Ações do torcedor recusadas pelo portão de idade, por motivo, capacidade e país do token (#1106)',
+    labelNames: ['reason', 'capability', 'country'],
+    registers: [registry],
+  });
   const shopConnectorRequests = new Counter<'store' | 'outcome'>({
     name: 'galaxie_shop_connector_requests_total',
     help: 'Consultas aos conectores de loja do Shopping por loja e resultado: ok, error e cache (servida do cache)',
@@ -217,6 +225,7 @@ export function createMetrics(options: MetricsOptions = {}): GalaxieMetrics {
     cacheResults,
     shopConnectorRequests,
     shopConnectorDuration,
+    fanAgeDenied,
   };
 
   const livePoll = new Gauge({

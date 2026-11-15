@@ -1,3 +1,4 @@
+import type { AgeCapability } from '@galaxie/engage';
 import type { AdminGuard } from './admin/guard.js';
 import type { CustomLogos } from './assets/custom-logos.js';
 import type { MediaDenylist } from '@galaxie/apisports-client';
@@ -23,6 +24,11 @@ declare module 'fastify' {
     public?: boolean;
     /** Rota do torcedor: exige o token `gft_` em Authorization: Bearer (#937). */
     fan?: boolean;
+    /**
+     * Capacidade que a rota do torcedor usa, conferida pelo portão de idade antes do handler (#1106). Obrigatória
+     * com `fan`; `exempt` só para o que o torcedor precisa ver mesmo sem poder participar (o próprio estado).
+     */
+    age?: AgeCapability | 'exempt';
   }
   interface FastifyRequest {
     /** Torcedor do token `gft_`, nas rotas com `config.fan`. */

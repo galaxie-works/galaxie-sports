@@ -19,6 +19,7 @@ import {
   type FanHolderAdult,
   type FanVisibility,
 } from '@galaxie/db';
+import type { FanAgeFacts } from '@galaxie/engage';
 import { and, eq, isNull, sql } from 'drizzle-orm';
 
 export interface FanUpsert {
@@ -65,6 +66,25 @@ export interface FanProfileView {
   favoriteTeamId: string | null;
   visibility: FanVisibility;
   holderAdult: FanHolderAdult;
+}
+
+/**
+ * Fatos de idade do Perfil para o `age_status` e o portão (#1106). Perfil de antes do #1105 só tem a faixa larga
+ * (`13_17` vale como 13); congelado vale a larga gravada, a de menor.
+ */
+export function profileAgeFacts(
+  p: Pick<
+    FanProfileView,
+    'ageBand' | 'ageBandDetail' | 'ageAssurance' | 'guardianStatus' | 'guardianLinked' | 'ageFrozenAt'
+  >,
+): FanAgeFacts {
+  return {
+    band: p.ageFrozenAt !== null ? p.ageBand : (p.ageBandDetail ?? p.ageBand),
+    assurance: p.ageAssurance,
+    guardianStatus: p.guardianStatus,
+    guardianLinked: p.guardianLinked,
+    frozen: p.ageFrozenAt !== null,
+  };
 }
 
 /**
