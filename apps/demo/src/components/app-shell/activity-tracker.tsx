@@ -18,7 +18,7 @@ export function ActivityTracker() {
       // O título da página (nome do time, da competição…) diz mais que o <title>. Vem da trilha; sem
       // ela, do cabeçalho visível (páginas anteriores ficam montadas e escondidas no DOM).
       const heading = [...document.querySelectorAll('header h1')].find((h) => h.getClientRects().length);
-      void fetch('/api/atividade', {
+      void fetch('/api/activity', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({

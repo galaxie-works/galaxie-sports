@@ -155,7 +155,7 @@ function PersonLink({
   children: React.ReactNode;
 }) {
   return id ? (
-    <Link href={`/pessoas/${id}`} className={className} title={title}>
+    <Link href={`/people/${id}`} className={className} title={title}>
       {children}
     </Link>
   ) : (

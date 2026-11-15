@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 /**
  * Junta a gravação do exemplo público (`SHOWCASE_RECORD=<pasta>` no `next dev`, ver lib/galaxie/source.ts)
- * em `src/lib/example/snapshot.json`, a cópia que as páginas de /exemplo leem no lugar da API.
+ * em `src/lib/example/snapshot.json`, a cópia que as páginas de /example leem no lugar da API.
  *
  * - Ficam de fora as leituras que o exemplo não mostra (onde assistir e conteúdo relacionado).
  * - Saem os ids nos fornecedores (`external_ids`).
- * - Toda imagem (escudo, foto, bandeira, logo) é baixada para `public/exemplo/img/` e o endereço é
+ * - Toda imagem (escudo, foto, bandeira, logo) é baixada para `public/example/img/` e o endereço é
  *   reescrito: o exemplo não aponta para o bucket nem para fontes externas.
  *
  * Uso: node apps/demo/scripts/example-snapshot.mjs <pasta da gravação>
@@ -17,8 +17,8 @@ import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const OUT = resolve(here, '../src/lib/example/snapshot.json');
-const IMG_DIR = resolve(here, '../public/exemplo/img');
-const IMG_URL = '/exemplo/img/';
+const IMG_DIR = resolve(here, '../public/example/img');
+const IMG_URL = '/example/img/';
 
 /** Leituras que o exemplo não usa (nomes de emissoras, vídeos de terceiros). */
 const SKIP = new Set(['getWhereToWatch', 'getRelated']);

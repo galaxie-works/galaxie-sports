@@ -10,10 +10,10 @@ import { SPORT_FAMILIES, familyHref, type SportFamily } from './sport-families';
 
 /** Para onde cada número da home leva. */
 export const EXPLORE_LINKS = {
-  sports: '/esportes',
-  countries: '/paises',
-  upcoming: '/agenda',
-  live: '/ao-vivo',
+  sports: '/sports',
+  countries: '/countries',
+  upcoming: '/schedule',
+  live: '/live',
 } as const;
 
 export interface ExploreTotals {
@@ -62,19 +62,19 @@ export function familyStats(summary: ExploreSummary | null): FamilyStats[] {
   });
 }
 
-/** Filtros da agenda na URL (compartilháveis): `?esporte=football&pais=br&competicao=<slug>&dia=2026-10-25`. */
+/** Filtros da agenda na URL (compartilháveis): `?sport=football&country=br&competition=<slug>&day=2026-10-25`. */
 export interface AgendaParams {
-  esporte?: string | null | undefined;
-  pais?: string | null | undefined;
-  competicao?: string | null | undefined;
-  dia?: string | null | undefined;
+  sport?: string | null | undefined;
+  country?: string | null | undefined;
+  competition?: string | null | undefined;
+  day?: string | null | undefined;
 }
 
 export function agendaHref(params: AgendaParams): string {
   const query = new URLSearchParams();
-  for (const key of ['esporte', 'pais', 'competicao', 'dia'] as const) {
+  for (const key of ['sport', 'country', 'competition', 'day'] as const) {
     const value = params[key];
-    if (value) query.set(key, key === 'pais' ? value.toLowerCase() : value);
+    if (value) query.set(key, key === 'country' ? value.toLowerCase() : value);
   }
   return query.size ? `${EXPLORE_LINKS.upcoming}?${query}` : EXPLORE_LINKS.upcoming;
 }
@@ -85,12 +85,12 @@ export function readAgendaParams(search: Record<string, string | string[] | unde
     const v = search[key];
     return typeof v === 'string' && v.trim() ? v.trim() : null;
   };
-  const dia = one('dia');
-  const pais = one('pais');
+  const day = one('day');
+  const country = one('country');
   return {
-    esporte: one('esporte'),
-    pais: pais && /^[a-z]{2}(-[a-z]{3})?$/i.test(pais) ? pais.toUpperCase() : null,
-    competicao: one('competicao'),
-    dia: dia && /^\d{4}-\d{2}-\d{2}$/.test(dia) ? dia : null,
+    sport: one('sport'),
+    country: country && /^[a-z]{2}(-[a-z]{3})?$/i.test(country) ? country.toUpperCase() : null,
+    competition: one('competition'),
+    day: day && /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : null,
   };
 }

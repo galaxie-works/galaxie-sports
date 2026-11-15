@@ -38,7 +38,7 @@ export async function FeaturedProfile({
   positions: Record<string, string>;
   locale: Locale;
 }) {
-  const o = (await snapshotSource.getPersonOverview(exampleIds(locale).jogador, locale)) as PersonOverview;
+  const o = (await snapshotSource.getPersonOverview(exampleIds(locale).player, locale)) as PersonOverview;
   const { timeZone } = showcase(locale);
   const nf = new Intl.NumberFormat(locale);
   const rating = new Intl.NumberFormat(locale, { minimumFractionDigits: 1, maximumFractionDigits: 2 });
@@ -178,7 +178,7 @@ export async function FeaturedProfile({
       </div>
 
       <ExampleDialog
-        src="/exemplo/jogador"
+        src="/example/player"
         title={o.person.name}
         description={app.pages.player.body}
         closeLabel={app.close}

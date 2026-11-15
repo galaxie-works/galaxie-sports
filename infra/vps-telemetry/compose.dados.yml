@@ -15,26 +15,28 @@ services:
   postgres:
     image: postgres:17-alpine
     restart: unless-stopped
-    # ~400 de memória presa (shared_buffers 256 e conexões); o resto é cache de disco, que ajuda a leitura fria (README › Limites medidos)
-    mem_limit: 1280m
+    # Com o banco em ~18 GB (carga completa de 11–12/11), 1,25 GB deixava quase nada de cache de disco: no Docker o
+    # page cache conta no limite do contêiner, e cada dump pré-migrate esfriava a home por 20–30 s (smoke do 13/11).
+    # 2,5 GB: ~768 MB presos (shared_buffers 512 e conexões) e o resto para o cache do SO. A VPS tem 8 GB e usa ~4,2.
+    mem_limit: 2560m
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-galaxie}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB:-galaxie_sports}
     shm_size: 256mb
-    # Ajustado ao contêiner de 1,5 GB: cache próprio de 256 MB, o resto para o cache do SO, as sessões e o work_mem.
+    # Ajustado ao contêiner de 2,5 GB: cache próprio de 512 MB, o resto para o cache do SO, as sessões e o work_mem.
     # max_connections em 130 (eram os 100 do padrão): com live em duas cópias, site, console e worker a soma dos pools
     # no pico chega a 97, as 97 vagas de antes (conta no README › Conexões). Cada conexão ociosa custa ~5 MB: 130 × 5 =
-    # 650 MB + 256 MB de shared_buffers cabem no limite de 1,5 GB mesmo no pior caso (o uso real fica em ~400 MB). Teto
+    # 650 MB + 512 MB de shared_buffers cabem no limite de 2,5 GB mesmo no pior caso (o uso real fica em ~600 MB). Teto
     # para sessão esquecida em transação (psql à mão); os da aplicação vêm por pool (packages/db/src/client.ts).
     command:
       - postgres
       - -c
       - max_connections=130
       - -c
-      - shared_buffers=256MB
+      - shared_buffers=512MB
       - -c
-      - effective_cache_size=640MB
+      - effective_cache_size=1792MB
       - -c
       - work_mem=8MB
       - -c

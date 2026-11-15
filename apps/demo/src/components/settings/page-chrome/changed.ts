@@ -26,6 +26,6 @@ export const effectiveMode = (mode: ChangedMode, count: number): ChangedMode => 
 /** A linha aparece no modo atual. */
 export const showSetting = (s: ChangedSource, mode: ChangedMode) => mode === 'all' || isChangedInPanel(s);
 
-/** Lê `?alterados=1` (o filtro fica na URL para o link levar o mesmo recorte). */
+/** Lê `?changed=1` (o filtro fica na URL para o link levar o mesmo recorte). */
 export const parseChangedMode = (value: string | string[] | undefined | null): ChangedMode =>
   value === '1' ? 'changed' : 'all';

@@ -23,7 +23,7 @@ describe('link assinado do anexo', () => {
   const s = url.searchParams.get('s');
 
   it('vale com a assinatura certa, dentro do prazo', () => {
-    expect(url.pathname).toBe(`/api/feedback/anexo/${KEY}`);
+    expect(url.pathname).toBe(`/api/feedback/attachment/${KEY}`);
     expect(Number(e)).toBe(1000 + FEEDBACK_LINK_TTL_S);
     expect(verifyAttachmentLink(S, KEY, e, s, 2000)).toBe(true);
   });

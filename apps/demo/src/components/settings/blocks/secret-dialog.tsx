@@ -11,7 +11,7 @@ import {
   saveSecret,
   testSecret,
   type SecretActionResult,
-} from '@/app/[locale]/(app)/ajustes/operacao/secret-actions';
+} from '@/app/[locale]/(app)/settings/operations/secret-actions';
 import { settingText } from '@/components/ops/format';
 import { Alert, AlertDescription } from '@/components/reui/alert';
 import { Badge } from '@/components/reui/badge';

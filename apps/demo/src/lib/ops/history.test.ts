@@ -17,7 +17,7 @@ describe('histórico de ajustes', () => {
     expect(params).toEqual([]);
   });
 
-  it('com `?chave=`: o filtro vai no banco, parametrizado (não só nas 100 mais recentes de todas)', async () => {
+  it('com `?key=`: o filtro vai no banco, parametrizado (não só nas 100 mais recentes de todas)', async () => {
     poolQuery.mockResolvedValueOnce({
       rows: [
         {

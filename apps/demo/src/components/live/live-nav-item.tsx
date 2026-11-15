@@ -11,7 +11,7 @@ import { plural } from '@/lib/i18n/text';
 import { topLevelClick } from '@/lib/trail';
 import { cn } from '@/lib/utils';
 
-export const LIVE_HREF = '/ao-vivo';
+export const LIVE_HREF = '/live';
 
 /** Ponto "ao vivo": pulsa quando há jogo em andamento. */
 export function LiveDot({ on, className }: { on: boolean; className?: string }) {

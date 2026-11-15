@@ -402,7 +402,7 @@ export default defineMessages(
       },
       webhooks: {
         title: 'Webhooks',
-        body: 'A Galaxie faz um <c>POST</c> com o <c>RealtimeChange</c> no corpo para a URL HTTPS que você cadastrar no painel do cliente (<c>/cliente/webhooks</c>), com os mesmos filtros do SSE (tópicos, eventos, competições, esportes). O segredo de assinatura (<c>whsec_…</c>) aparece uma única vez, no cadastro ou quando você gera um novo. O botão Enviar teste manda uma entrega assinada com o tópico <c>webhook.test</c>.',
+        body: 'A Galaxie faz um <c>POST</c> com o <c>RealtimeChange</c> no corpo para a URL HTTPS que você cadastrar no painel do cliente (<c>/client/webhooks</c>), com os mesmos filtros do SSE (tópicos, eventos, competições, esportes). O segredo de assinatura (<c>whsec_…</c>) aparece uma única vez, no cadastro ou quando você gera um novo. O botão Enviar teste manda uma entrega assinada com o tópico <c>webhook.test</c>.',
         headHeader: 'Header',
         headValue: 'Valor',
         signature: 't=<unix segundos>,v1=<hex de HMAC-SHA256(segredo, "<t>.<corpo bruto>")>',
@@ -873,7 +873,7 @@ export default defineMessages(
         },
         webhooks: {
           title: 'Webhooks',
-          body: 'Galaxie sends a <c>POST</c> with the <c>RealtimeChange</c> in the body to the HTTPS URL you register in the client panel (<c>/cliente/webhooks</c>), with the same filters as SSE (topics, events, competitions, sports). The signing secret (<c>whsec_…</c>) is shown only once, when you register or generate a new one. The Send test button delivers a signed request with the <c>webhook.test</c> topic.',
+          body: 'Galaxie sends a <c>POST</c> with the <c>RealtimeChange</c> in the body to the HTTPS URL you register in the client panel (<c>/client/webhooks</c>), with the same filters as SSE (topics, events, competitions, sports). The signing secret (<c>whsec_…</c>) is shown only once, when you register or generate a new one. The Send test button delivers a signed request with the <c>webhook.test</c> topic.',
           headHeader: 'Header',
           headValue: 'Value',
           signature: 't=<unix seconds>,v1=<hex of HMAC-SHA256(secret, "<t>.<raw body>")>',
@@ -1353,7 +1353,7 @@ export default defineMessages(
         },
         webhooks: {
           title: 'Webhooks',
-          body: 'Galaxie hace un <c>POST</c> con el <c>RealtimeChange</c> en el cuerpo a la URL HTTPS que registres en el panel del cliente (<c>/cliente/webhooks</c>), con los mismos filtros del SSE (tópicos, eventos, competencias, deportes). El secreto de firma (<c>whsec_…</c>) se muestra una sola vez, al registrar o al generar uno nuevo. El botón Enviar prueba manda una entrega firmada con el tópico <c>webhook.test</c>.',
+          body: 'Galaxie hace un <c>POST</c> con el <c>RealtimeChange</c> en el cuerpo a la URL HTTPS que registres en el panel del cliente (<c>/client/webhooks</c>), con los mismos filtros del SSE (tópicos, eventos, competencias, deportes). El secreto de firma (<c>whsec_…</c>) se muestra una sola vez, al registrar o al generar uno nuevo. El botón Enviar prueba manda una entrega firmada con el tópico <c>webhook.test</c>.',
           headHeader: 'Header',
           headValue: 'Valor',
           signature: 't=<segundos unix>,v1=<hex de HMAC-SHA256(secreto, "<t>.<cuerpo crudo>")>',

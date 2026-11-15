@@ -19,7 +19,7 @@ import {
   saveModerationListAction,
   testScreenAction,
   type ScreenTestResult,
-} from '@/app/[locale]/(app)/ajustes/moderacao/actions';
+} from '@/app/[locale]/(app)/settings/moderation/actions';
 import { Badge } from '@/components/reui/badge';
 import { Frame, FrameDescription, FrameHeader, FramePanel, FrameTitle } from '@/components/reui/frame';
 import { Button } from '@/components/ui/button';

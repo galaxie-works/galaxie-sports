@@ -49,7 +49,7 @@ function FightRow({ e, current, t }: { e: Event; current: boolean; t: Dictionary
   const fight = e.fight;
   return (
     <Link
-      href={`/eventos/${e.id}`}
+      href={`/events/${e.id}`}
       aria-current={current ? 'page' : undefined}
       className={cn(
         'hover:bg-accent flex flex-col gap-1 rounded-md px-2 py-2 text-sm transition-colors',

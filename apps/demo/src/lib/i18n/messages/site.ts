@@ -40,7 +40,7 @@ export default defineMessages(
         title: 'Termos de uso',
         description: 'Condições de uso do site e da demonstração da API Galaxie Sports.',
         intro:
-          'Estes termos valem para o site sports.galaxie.works e para a demonstração da API Galaxie Sports, oferecidos pela Galaxie Works. Ao entrar, você concorda com eles.',
+          'Estes termos valem para o site {site} e para a demonstração da API Galaxie Sports, oferecidos pela Galaxie Works. Ao entrar, você concorda com eles.',
         sections: {
           access: {
             title: 'Acesso por convite',
@@ -72,7 +72,7 @@ export default defineMessages(
         title: 'Política de privacidade',
         description: 'Que dados a Galaxie Sports coleta, para quê e como pedir acesso ou exclusão.',
         intro:
-          'Esta política explica que dados pessoais o site sports.galaxie.works trata e por quê. Coletamos o mínimo necessário para controlar o acesso por convite.',
+          'Esta política explica que dados pessoais o site {site} trata e por quê. Coletamos o mínimo necessário para controlar o acesso por convite.',
         sections: {
           collected: {
             title: 'O que coletamos',
@@ -141,7 +141,7 @@ export default defineMessages(
           title: 'Terms of use',
           description: 'Terms for using the Galaxie Sports website and API demo.',
           intro:
-            'These terms apply to the sports.galaxie.works website and to the Galaxie Sports API demo, provided by Galaxie Works. By signing in, you agree to them.',
+            'These terms apply to the {site} website and to the Galaxie Sports API demo, provided by Galaxie Works. By signing in, you agree to them.',
           sections: {
             access: {
               title: 'Invitation-only access',
@@ -173,7 +173,7 @@ export default defineMessages(
           title: 'Privacy policy',
           description: 'What data Galaxie Sports collects, why, and how to request access or deletion.',
           intro:
-            'This policy explains what personal data the sports.galaxie.works website processes and why. We collect the minimum needed to control invitation-only access.',
+            'This policy explains what personal data the {site} website processes and why. We collect the minimum needed to control invitation-only access.',
           sections: {
             collected: {
               title: 'What we collect',
@@ -241,7 +241,7 @@ export default defineMessages(
           title: 'Términos de uso',
           description: 'Condiciones de uso del sitio y de la demo de la API Galaxie Sports.',
           intro:
-            'Estos términos se aplican al sitio sports.galaxie.works y a la demo de la API Galaxie Sports, ofrecidos por Galaxie Works. Al ingresar, los aceptás.',
+            'Estos términos se aplican al sitio {site} y a la demo de la API Galaxie Sports, ofrecidos por Galaxie Works. Al ingresar, los aceptás.',
           sections: {
             access: {
               title: 'Acceso por invitación',
@@ -273,7 +273,7 @@ export default defineMessages(
           title: 'Política de privacidad',
           description: 'Qué datos recopila Galaxie Sports, para qué y cómo pedir acceso o eliminación.',
           intro:
-            'Esta política explica qué datos personales trata el sitio sports.galaxie.works y por qué. Recopilamos lo mínimo necesario para controlar el acceso por invitación.',
+            'Esta política explica qué datos personales trata el sitio {site} y por qué. Recopilamos lo mínimo necesario para controlar el acceso por invitación.',
           sections: {
             collected: {
               title: 'Qué recopilamos',

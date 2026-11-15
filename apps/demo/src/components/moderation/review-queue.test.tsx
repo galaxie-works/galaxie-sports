@@ -7,7 +7,7 @@ import { clientDictionary } from '@/lib/i18n/dictionary';
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ refresh: vi.fn(), replace: vi.fn() }),
-  usePathname: () => '/cliente/moderacao',
+  usePathname: () => '/client/moderation',
   useSearchParams: () => new URLSearchParams(),
 }));
 const decide = vi.fn();

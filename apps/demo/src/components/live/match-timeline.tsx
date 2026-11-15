@@ -147,7 +147,7 @@ function PersonLine({
     .filter(Boolean)
     .join(' · ');
   const name = person.id ? (
-    <Link href={`/pessoas/${person.id}`} className="font-medium hover:underline">
+    <Link href={`/people/${person.id}`} className="font-medium hover:underline">
       {person.name}
     </Link>
   ) : (
@@ -449,7 +449,7 @@ export function ShootoutBlock({ shootout }: { shootout: PenaltyShootout }) {
                 <Crest src={k.team?.logo ?? null} name={k.team?.name ?? ''} size="xs" />
                 <span className="min-w-0 flex-1 truncate">
                   {k.player?.id ? (
-                    <Link href={`/pessoas/${k.player.id}`} className="hover:underline">
+                    <Link href={`/people/${k.player.id}`} className="hover:underline">
                       {k.player.name}
                     </Link>
                   ) : (
