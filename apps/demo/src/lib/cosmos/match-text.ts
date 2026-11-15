@@ -207,6 +207,7 @@ const NUMBER_WORDS: Record<TextLanguage, Record<string, number>> = {
     catorce: 14,
     quince: 15,
     dieciséis: 16,
+    dieciseis: 16,
     diecisiete: 17,
     dieciocho: 18,
     diecinueve: 19,
@@ -273,6 +274,216 @@ const NUMBER_WORDS: Record<TextLanguage, Record<string, number>> = {
   },
 };
 
+/**
+ * Partes de número composto por extenso ("vinte e três", "ciento veinte", "twenty-three", "three hundred"). Só valem
+ * dentro de uma sequência de duas ou mais: sozinhas, "um", "dois" e "one" seguem fora (ver NUMBER_WORDS).
+ */
+const COMPOUND_WORDS: Record<TextLanguage, Record<string, number>> = {
+  pt: {
+    um: 1,
+    uma: 1,
+    dois: 2,
+    duas: 2,
+    três: 3,
+    tres: 3,
+    quatro: 4,
+    cinco: 5,
+    seis: 6,
+    sete: 7,
+    oito: 8,
+    nove: 9,
+    dez: 10,
+    onze: 11,
+    doze: 12,
+    treze: 13,
+    catorze: 14,
+    quatorze: 14,
+    quinze: 15,
+    dezesseis: 16,
+    dezessete: 17,
+    dezoito: 18,
+    dezenove: 19,
+    vinte: 20,
+    trinta: 30,
+    quarenta: 40,
+    cinquenta: 50,
+    sessenta: 60,
+    setenta: 70,
+    oitenta: 80,
+    noventa: 90,
+    cem: 100,
+    cento: 100,
+    duzentos: 200,
+    duzentas: 200,
+    trezentos: 300,
+    trezentas: 300,
+    quatrocentos: 400,
+    quatrocentas: 400,
+    quinhentos: 500,
+    quinhentas: 500,
+    seiscentos: 600,
+    seiscentas: 600,
+    setecentos: 700,
+    setecentas: 700,
+    oitocentos: 800,
+    oitocentas: 800,
+    novecentos: 900,
+    novecentas: 900,
+  },
+  es: {
+    un: 1,
+    uno: 1,
+    una: 1,
+    dos: 2,
+    tres: 3,
+    cuatro: 4,
+    cinco: 5,
+    seis: 6,
+    siete: 7,
+    ocho: 8,
+    nueve: 9,
+    diez: 10,
+    once: 11,
+    doce: 12,
+    trece: 13,
+    catorce: 14,
+    quince: 15,
+    dieciséis: 16,
+    dieciseis: 16,
+    diecisiete: 17,
+    dieciocho: 18,
+    diecinueve: 19,
+    veinte: 20,
+    veintiuno: 21,
+    veintiuna: 21,
+    veintiún: 21,
+    veintidós: 22,
+    veintidos: 22,
+    veintitrés: 23,
+    veintitres: 23,
+    veinticuatro: 24,
+    veinticinco: 25,
+    veintiséis: 26,
+    veintiseis: 26,
+    veintisiete: 27,
+    veintiocho: 28,
+    veintinueve: 29,
+    treinta: 30,
+    cuarenta: 40,
+    cincuenta: 50,
+    sesenta: 60,
+    setenta: 70,
+    ochenta: 80,
+    noventa: 90,
+    cien: 100,
+    ciento: 100,
+    doscientos: 200,
+    doscientas: 200,
+    trescientos: 300,
+    trescientas: 300,
+    cuatrocientos: 400,
+    cuatrocientas: 400,
+    quinientos: 500,
+    quinientas: 500,
+    seiscientos: 600,
+    seiscientas: 600,
+    setecientos: 700,
+    setecientas: 700,
+    ochocientos: 800,
+    ochocientas: 800,
+    novecientos: 900,
+    novecientas: 900,
+  },
+  en: {
+    one: 1,
+    two: 2,
+    three: 3,
+    four: 4,
+    five: 5,
+    six: 6,
+    seven: 7,
+    eight: 8,
+    nine: 9,
+    ten: 10,
+    eleven: 11,
+    twelve: 12,
+    thirteen: 13,
+    fourteen: 14,
+    fifteen: 15,
+    sixteen: 16,
+    seventeen: 17,
+    eighteen: 18,
+    nineteen: 19,
+    twenty: 20,
+    thirty: 30,
+    forty: 40,
+    fifty: 50,
+    sixty: 60,
+    seventy: 70,
+    eighty: 80,
+    ninety: 90,
+    hundred: 100,
+  },
+};
+
+/** Ligação entre as partes: espaço, hífen ou "e"/"y"/"and". */
+const COMPOUND_JOIN = /^(?:\s*-\s*|\s+(?:e|y|and)\s+|\s+)$/i;
+
+type Part = 'hundreds' | 'tens' | 'final';
+const partOf = (v: number): Part => (v >= 100 ? 'hundreds' : v >= 20 && v % 10 === 0 ? 'tens' : 'final');
+
+/**
+ * Troca cada número composto por extenso pelo valor inteiro ("vinte e três" vira "23"), para que a conferência veja o
+ * 23 e não um 20 e um 3 soltos. A ordem segue a da língua: centenas, dezenas, unidades; o que sai dela fica separado
+ * ("cinco e três" são dois números).
+ */
+function joinCompounds(text: string, lang: TextLanguage): string {
+  const words = COMPOUND_WORDS[lang];
+  const tokens = [...text.matchAll(/[\p{L}]+/gu)].map((m) => ({
+    word: m[0].toLocaleLowerCase(),
+    start: m.index!,
+    end: m.index! + m[0].length,
+  }));
+  let out = '';
+  let cursor = 0;
+  let i = 0;
+  while (i < tokens.length) {
+    const first = tokens[i]!;
+    let value = words[first.word];
+    if (value === undefined) {
+      i++;
+      continue;
+    }
+    let part = partOf(value);
+    let j = i;
+    while (j + 1 < tokens.length) {
+      // "e"/"y"/"and" é um token também: a parte seguinte vem depois dele
+      const step = /^(?:e|y|and)$/.test(tokens[j + 1]!.word) ? 2 : 1;
+      const next = tokens[j + step];
+      const v = next && words[next.word];
+      if (v === undefined || !COMPOUND_JOIN.test(text.slice(tokens[j]!.end, next!.start))) break;
+      if (lang === 'en' && v === 100 && value < 10 && j === i) {
+        value *= 100; // "three hundred"
+        part = 'hundreds';
+      } else if (part === 'hundreds' && v < 100 && value % 100 === 0) {
+        value += v;
+        part = partOf(v);
+      } else if (part === 'tens' && v < 10) {
+        value += v;
+        part = 'final';
+      } else break;
+      j += step;
+    }
+    // sozinha, só a partir de 3 (como em NUMBER_WORDS); "veintitrés" é uma palavra só
+    if (j > i || value >= 3) {
+      out += text.slice(cursor, first.start) + String(value);
+      cursor = tokens[j]!.end;
+    }
+    i = j + 1;
+  }
+  return out + text.slice(cursor);
+}
+
 /** Escala depois de um número ("40 mil", "1,2 milhão"): o valor real não dá para conferir, então nunca passa. */
 const SCALE =
   /^(?:mil|milh(?:ão|ões|ao|oes)|bilh(?:ão|ões)|millón|millones|thousand|thousands|million|millions|billion|billions|k)$/i;
@@ -284,7 +495,7 @@ const NEVER = 'scale';
  * de escala ("40 mil") vira um valor que nunca é permitido.
  */
 export function numbersIn(text: string, lang: TextLanguage = 'pt'): string[] {
-  const plain = text.normalize('NFKC');
+  const plain = joinCompounds(text.normalize('NFKC'), lang);
   const out: string[] = [];
   const words = NUMBER_WORDS[lang];
   const token = /(\d{1,3}(?:[.,\u00a0\u202f]\d{3})+(?![\d.,]\d)|\d+(?:[.,]\d+)?)|([\p{L}]+)/gu;

@@ -102,6 +102,19 @@ describe('fatos do jogo', () => {
     expect(numbersIn('once partidos', 'es')).toEqual(['11']);
     // artigo, "segundo tempo" e dia da semana não são números
     expect(numbersIn('um gol no segundo tempo na quinta-feira')).toEqual([]);
+    // número composto por extenso é um valor só, nunca as partes soltas
+    expect(numbersIn('vinte e três finalizações')).toEqual(['23']);
+    expect(numbersIn('cento e vinte e um passes, cinco e três')).toEqual(['121', '5', '3']);
+    expect(numbersIn('twenty-three shots, three hundred twenty-one passes', 'en')).toEqual(['23', '321']);
+    expect(numbersIn('veintitrés tiros, treinta y dos pases', 'es')).toEqual(['23', '32']);
+  });
+
+  it('número composto inventado não passa pelas partes', () => {
+    const allowed = allowedNumbers(matchFacts(EVENT, STATS), '20 finalizações e 3 cartões', 'pt');
+    expect(allowed.has('20') && allowed.has('3')).toBe(true);
+    expect(numbersIn('vinte e três', 'pt').every((n) => allowed.has(n))).toBe(false);
+    expect(numbersIn('twenty-three', 'en').every((n) => allowed.has(n))).toBe(false);
+    expect(numbersIn('veintitrés', 'es').every((n) => allowed.has(n))).toBe(false);
   });
 
   it('pré-jogo não leva placar nem estatística; data e hora sem segundos nem fuso', () => {
