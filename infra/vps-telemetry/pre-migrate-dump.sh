@@ -107,8 +107,19 @@ if [ "$count" -gt "$2" ]; then
 fi
 echo "PRE_DUMP=pre-migrate/$name"'
 
-# a imagem do backup em uso já está na VPS: nada de pull (o deploy não passa credencial do GHCR aqui)
-if ! PULL_POLICY=missing timeout "${TIMEOUT_MIN}m" "${DADOS[@]}" run --rm --no-deps --pull never -T --entrypoint sh backup -c "$inner" sh "$label" "$KEEP" </dev/null; then
+# a imagem do backup em uso já está na VPS: nada de pull (o deploy não passa credencial do GHCR aqui). O contêiner tem
+# nome: o `timeout` só derruba o cliente do docker compose, e o pg_dump seguia rodando sozinho, com o deploy já desistido
+# (14/11, 46 min a mais de carga no banco). No estouro, o contêiner é parado e removido (o pg_dump morre junto). O trap do
+# inner não chega a rodar: o sh que é o PID 1 adia o TERM enquanto espera o pg_dump, e o stop termina em SIGKILL. Por
+# isso o .partial (alguns GB no volume de backups) é apagado à parte, num contêiner avulso; o clean_plaintext do lib.sh
+# não olha a pasta pre-migrate, e um deploy com skip_dump nem passa pelo rm do começo do inner.
+cname="galaxie-pre-migrate-dump-$$"
+if ! PULL_POLICY=missing timeout "${TIMEOUT_MIN}m" "${DADOS[@]}" run --rm --no-deps --pull never -T --name "$cname" --entrypoint sh backup -c "$inner" sh "$label" "$KEEP" </dev/null; then
+  docker stop -t 30 "$cname" >/dev/null 2>&1 || true
+  docker rm -f "$cname" >/dev/null 2>&1 || true
+  PULL_POLICY=missing "${DADOS[@]}" run --rm --no-deps --pull never -T --entrypoint sh backup -c \
+    '. /usr/local/lib/galaxie-backup/lib.sh; rm -f "$BACKUP_DIR"/pre-migrate/*.partial' </dev/null >/dev/null 2>&1 ||
+    echo "WARN  não deu para apagar o .partial do dump em pre-migrate/"
   echo "FAIL  dump antes do migrate não terminou (falhou ou passou de $TIMEOUT_MIN min)"
   exit 1
 fi

@@ -70,7 +70,7 @@ export async function ShoppingClicks() {
                     {s.topEvents.map((e) => (
                       <TableRow key={e.eventId}>
                         <TableCell className="text-xs">
-                          <Link href={`/eventos/${e.eventId}`} className="hover:underline">
+                          <Link href={`/events/${e.eventId}`} className="hover:underline">
                             {e.title}
                           </Link>
                           {e.startsAt ? (

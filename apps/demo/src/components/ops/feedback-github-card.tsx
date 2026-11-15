@@ -7,7 +7,7 @@ import {
   checkFeedbackProgressNow,
   clearFeedbackToken,
   saveFeedbackGithub,
-} from '@/app/[locale]/(app)/ajustes/operacao/actions';
+} from '@/app/[locale]/(app)/settings/operations/actions';
 import { Badge } from '@/components/reui/badge';
 import { Frame, FrameDescription, FrameHeader, FramePanel, FrameTitle } from '@/components/reui/frame';
 import {

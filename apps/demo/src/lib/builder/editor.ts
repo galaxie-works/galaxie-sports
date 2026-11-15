@@ -17,6 +17,7 @@ import { compareAlpha } from '@/lib/alphabetical';
 import { channelListDb, getConfirmedChannelList } from '@/lib/channel-list/store';
 import type { TenantInfo } from '@/lib/client/tenants';
 import { galaxieGet } from '@/lib/galaxie/server';
+import { listShopConnectors } from '@/lib/shop/connectors';
 import { apiLocale, type Locale } from '@/lib/i18n/config';
 
 import {
@@ -30,7 +31,7 @@ import {
 } from './config';
 import { defaultSport, sportChoices, sportForNewWidget } from './sports';
 import { builderDb, listWidgetThemes } from './store';
-import type { BrandThemeItem, Widget, WidgetEntityType, WidgetKind } from './types';
+import type { BrandThemeItem, ShopStoreChoice, Widget, WidgetEntityType, WidgetKind } from './types';
 
 /** Temas da marca do tenant como vão para o navegador (por nome). */
 export async function brandThemeItems(tenantId: string): Promise<BrandThemeItem[]> {
@@ -97,8 +98,8 @@ async function resolveEntity(
 }
 
 /**
- * Widget novo do catálogo: o tipo (`?tipo=`) e a aba de onde veio (`?esporte=`, que dá o esporte). Com
- * `?tema=<id>` (vindo da aba Temas), já ligado àquele tema da marca; sem ele, ligado ao único tema da
+ * Widget novo do catálogo: o tipo (`?type=`) e a aba de onde veio (`?sport=`, que dá o esporte). Com
+ * `?theme=<id>` (vindo da aba Temas), já ligado àquele tema da marca; sem ele, ligado ao único tema da
  * marca do tenant, quando há um só; senão, o tema escuro pronto.
  */
 export function newDraft(
@@ -196,5 +197,24 @@ export async function draftOf(
     liveList: parseLiveListOptions(widget.config.liveList) ?? {},
     options,
     optionEntities: await optionEntitiesOf(widget.kind, options, locale),
+    ...(widget.kind === 'shop_the_game' && widget.config.shop ? { shop: widget.config.shop } : {}),
   };
+}
+
+/**
+ * Lojas do Shopping que o cliente pode ligar no widget (#925): as ativas, com credenciais da Galaxie e algum caminho
+ * liberado para clientes na matriz (#916). Só id, nome, país, rede e caminhos vão para a tela.
+ */
+export async function shopStoreChoices(): Promise<ShopStoreChoice[]> {
+  const rows = await listShopConnectors().catch(() => []);
+  return rows
+    .filter((s) => s.active && s.hasCredentials && s.clientPaths.length)
+    .map((s) => ({
+      id: s.id,
+      name: s.name,
+      country: s.country,
+      network: s.network,
+      clientPaths: s.clientPaths,
+    }))
+    .sort((a, b) => compareAlpha(a.name, b.name));
 }

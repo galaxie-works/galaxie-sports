@@ -35,6 +35,10 @@ on:
         description: Publicar sem conferir o CI do SHA (emergência; 1 = sim)
         required: false
         default: ''
+      skip_dump:
+        description: Publicar sem o dump antes do migrate (só com o OK do Wagner, quando o dump não cabe no tempo; 1 = sim)
+        required: false
+        default: ''
       ci_wait_min:
         description: Minutos de espera pelo CI e pelas imagens do SHA ainda rodando
         required: false
@@ -154,7 +158,8 @@ jobs:
     # segredos da VPS só neste ambiente (restrito à branch main nas configurações do repositório)
     environment:
       name: producao
-      url: https://sports.galaxie.works
+      # vars.DEMO_DOMAIN (Settings › Variables) troca junto com o DEMO_DOMAIN do .env da VPS no corte de domínio (#627)
+      url: https://${{ vars.DEMO_DOMAIN || 'platform.galaxiesports.com' }}
     permissions:
       contents: write # tag e release das notas de versão
       packages: read # a VPS baixa as imagens com o token deste job (vale só enquanto ele roda)
@@ -204,6 +209,8 @@ jobs:
           # disparo manual com o SHA já no ar e sem force: falha (nunca verde sem publicar); no automático, só pula
           ON_SKIP: ${{ github.event_name == 'workflow_dispatch' && 'fail' || 'pass' }}
           PROJECT: ${{ inputs.project || 'apps' }}
+          # só no disparo manual: o automático (workflow_run) nunca pula o dump
+          SKIP_PRE_MIGRATE_DUMP: ${{ github.event_name == 'workflow_dispatch' && inputs.skip_dump == '1' && '1' || '' }}
           TARGET_DIR: ${{ runner.temp }}/alvo
         run: |
           set -o pipefail

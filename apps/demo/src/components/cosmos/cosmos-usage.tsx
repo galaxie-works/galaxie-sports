@@ -471,7 +471,7 @@ export function CosmosUsage({ data, timeZone }: { data: CosmosStatementData; tim
           variant="outline"
           size="sm"
           nativeButton={false}
-          render={<a href={`/api/cliente/cosmos/extrato?${csv.toString()}`} download />}
+          render={<a href={`/api/client/cosmos/statement?${csv.toString()}`} download />}
         >
           <Download aria-hidden />
           {T.export}

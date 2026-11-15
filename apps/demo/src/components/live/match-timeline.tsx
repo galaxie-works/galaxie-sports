@@ -147,7 +147,7 @@ function PersonLine({
     .filter(Boolean)
     .join(' · ');
   const name = person.id ? (
-    <Link href={`/pessoas/${person.id}`} className="font-medium hover:underline">
+    <Link href={`/people/${person.id}`} className="font-medium hover:underline">
       {person.name}
     </Link>
   ) : (
@@ -333,6 +333,8 @@ function IncidentRow({ i, f }: { i: TimelineIncident; f: Formatters }) {
             {i.assist && i.kind !== 'var' ? <PersonLine person={i.assist} prefix={tl.assist} /> : null}
           </div>
         )}
+        {/* frase pronta do lance (#1167), no idioma pedido à API */}
+        {i.narration ? <p className="text-muted-foreground text-sm leading-snug">{i.narration}</p> : null}
         <OccurredAt at={i.occurred_at} source={i.occurred_at_source} f={f} />
       </div>
     </li>
@@ -447,7 +449,7 @@ export function ShootoutBlock({ shootout }: { shootout: PenaltyShootout }) {
                 <Crest src={k.team?.logo ?? null} name={k.team?.name ?? ''} size="xs" />
                 <span className="min-w-0 flex-1 truncate">
                   {k.player?.id ? (
-                    <Link href={`/pessoas/${k.player.id}`} className="hover:underline">
+                    <Link href={`/people/${k.player.id}`} className="hover:underline">
                       {k.player.name}
                     </Link>
                   ) : (

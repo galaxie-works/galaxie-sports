@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
 
-import { saveBrandThemeAction } from '@/app/[locale]/(app)/cliente/actions';
+import { saveBrandThemeAction } from '@/app/[locale]/(app)/client/actions';
 import { Button } from '@/components/ui/button';
 import { Field, FieldDescription, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
@@ -74,7 +74,7 @@ export function BrandThemePicker({
         <div className="flex items-center justify-between gap-2">
           <FieldLabel htmlFor="widget-brand-theme">{bt.label}</FieldLabel>
           <Link
-            href="/cliente/temas"
+            href="/client/themes"
             className="text-muted-foreground hover:text-foreground text-xs underline underline-offset-2"
           >
             {bt.manage}

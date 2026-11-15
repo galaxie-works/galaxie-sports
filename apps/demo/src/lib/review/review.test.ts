@@ -18,7 +18,7 @@ describe('filtros da URL', () => {
   it('lê só valores conhecidos e normaliza mercado e página', () => {
     expect(
       parseFilters(
-        new URLSearchParams('tipo=team&esporte=football&mercado=br&status=needs_review&q=+Verd%C3%A3o+'),
+        new URLSearchParams('type=team&sport=football&market=br&status=needs_review&q=+Verd%C3%A3o+'),
       ),
     ).toEqual({
       kind: ['team'],
@@ -30,17 +30,17 @@ describe('filtros da URL', () => {
       page: 1,
       per: 50,
     });
-    expect(parseFilters({ tipo: 'qualquer', status: 'publicado', pagina: '-3' })).toMatchObject({
+    expect(parseFilters({ type: 'qualquer', status: 'publicado', page: '-3' })).toMatchObject({
       kind: [],
       state: [],
       page: 1,
     });
-    expect(parseFilters({ pagina: ['4', '9'] }).page).toBe(4);
+    expect(parseFilters({ page: ['4', '9'] }).page).toBe(4);
   });
 
   it('monta a query só com o que está definido (ida e volta)', () => {
-    const filters = parseFilters({ tipo: 'copy', locale: 'es-AR', pagina: '2' });
-    expect(filtersQuery(filters)).toBe('?tipo=copy&locale=es-AR&pagina=2');
+    const filters = parseFilters({ type: 'copy', locale: 'es-AR', page: '2' });
+    expect(filtersQuery(filters)).toBe('?type=copy&locale=es-AR&page=2');
     expect(parseFilters(new URLSearchParams(filtersQuery(filters).slice(1)))).toEqual(filters);
     expect(filtersQuery({ page: 1 })).toBe('');
   });
@@ -63,7 +63,7 @@ describe('itens por página (?per=)', () => {
 
   it('o padrão não vai para a URL; os outros vão', () => {
     expect(filtersQuery({ per: 50 })).toBe('');
-    expect(filtersQuery({ per: 500, page: 2 })).toBe('?pagina=2&per=500');
+    expect(filtersQuery({ per: 500, page: 2 })).toBe('?page=2&per=500');
   });
 
   it('limite e deslocamento da página', () => {

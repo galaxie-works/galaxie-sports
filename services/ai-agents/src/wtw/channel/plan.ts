@@ -7,6 +7,7 @@
  */
 import { and, asc, eq, gte, inArray, lte, or, sql } from 'drizzle-orm';
 import { competition, event, matchChannel, season, stage, type Database } from '@galaxie/db';
+import { DEFAULT_AGENT_TIERS, tierCondition } from '../../common/tiers.js';
 import {
   rightsAnswer,
   type ResearchedRightsIndex,
@@ -57,10 +58,11 @@ const roundMatches = (label: string | null, wanted: string) =>
 /** Jogos candidatos: futuros no horizonte e encerrados há até 72 h (ou os da rodada pedida). */
 export async function loadChannelEvents(
   db: Database,
-  opts: { now: Date; horizonMs: number; filter?: ChannelEventFilter },
+  opts: { now: Date; horizonMs: number; filter?: ChannelEventFilter; tiers?: readonly number[] | undefined },
 ): Promise<ChannelEvent[]> {
   const f = opts.filter;
-  const conds = [lte(competition.tier, 2)];
+  // tiers do módulo `wtw` do painel (padrão: tier ≤ 2)
+  const conds = [tierCondition(opts.tiers ?? DEFAULT_AGENT_TIERS)];
   if (f?.competition) conds.push(eq(competition.slug, f.competition));
   if (f?.season) conds.push(eq(season.year, f.season));
   if (!f?.competition)
@@ -182,6 +184,8 @@ export interface PlanChannelOptions {
   filter?: ChannelEventFilter;
   /** Com o filtro de rodada, devolve os alvos mesmo fora dos momentos (prévia/reexecução). */
   ignoreWindows?: boolean;
+  /** Tiers do módulo `wtw` do painel (padrão: tier ≤ 2). */
+  tiers?: readonly number[] | undefined;
 }
 
 /** Monta os grupos devidos agora (ordem: liga principal primeiro, depois prioridade). */
@@ -191,6 +195,7 @@ export async function planChannelResearch(db: Database, opts: PlanChannelOptions
     now: opts.now,
     horizonMs: channelHorizonMs(moments, opts.now),
     ...(opts.filter ? { filter: opts.filter } : {}),
+    ...(opts.tiers ? { tiers: opts.tiers } : {}),
   });
   const confirmed = await confirmedTargets(
     db,

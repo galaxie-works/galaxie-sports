@@ -31,7 +31,7 @@ export async function FormChips({
           </span>
         );
         return it.eventId ? (
-          <Link key={i} href={`/eventos/${it.eventId}`} className="transition-opacity hover:opacity-80">
+          <Link key={i} href={`/events/${it.eventId}`} className="transition-opacity hover:opacity-80">
             {chip}
           </Link>
         ) : (

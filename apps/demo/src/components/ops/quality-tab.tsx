@@ -40,15 +40,15 @@ export function qualityHref(link: QualityLink | null): string | null {
     case 'participant':
       return participantHref({ id: link.id, name: link.name ?? '' }, link.kind);
     case 'event':
-      return `/eventos/${link.id}`;
+      return `/events/${link.id}`;
     case 'person':
-      return `/pessoas/${link.id}`;
+      return `/people/${link.id}`;
     case 'competition':
-      return `/competicoes/${link.id}`;
+      return `/competitions/${link.id}`;
     case 'country':
-      return `/paises/${link.id}`;
+      return `/countries/${link.id}`;
     case 'platform':
-      return `/ajustes/grades?aba=revisao&plataforma=${link.id}&status=todos`;
+      return `/settings/lineups?tab=review&platform=${link.id}&status=all`;
     default:
       return null;
   }

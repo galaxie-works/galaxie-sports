@@ -29,50 +29,50 @@ describe('páginas de Ajustes divididas (#1069)', () => {
   });
 
   it('as rotas que sumiram vão para a primeira seção que mostravam', () => {
-    expect(go('/ajustes/operacao')).toBe('/ajustes/status');
-    expect(go('/ajustes/sistema')).toBe('/ajustes/escudos#assets');
-    expect(go('/ajustes/esportes')).toBe('/ajustes/fornecedor#sports');
+    expect(go('/ajustes/operacao')).toBe('/settings/status');
+    expect(go('/ajustes/sistema')).toBe('/settings/crests#assets');
+    expect(go('/ajustes/esportes')).toBe('/settings/provider#sports');
     for (const [from, to] of Object.entries(LEGACY_PAGES)) {
       expect(routes.has(pathOf(to)), `${from} → ${to}`).toBe(true);
     }
   });
 
   it.each([
-    ['/ajustes/sistema', 'aba=status', '/ajustes/status'],
-    ['/ajustes/sistema', 'aba=quality', '/ajustes/qualidade'],
-    ['/ajustes/sistema', 'aba=live', '/ajustes/ao-vivo'],
-    ['/ajustes/sistema', 'aba=schedule', '/ajustes/agenda'],
-    ['/ajustes/sistema', 'aba=tasks', '/ajustes/tarefas'],
-    ['/ajustes/sistema', 'aba=ai', '/ajustes/ia'],
-    ['/ajustes/sistema', 'aba=provider', '/ajustes/fornecedor'],
-    ['/ajustes/sistema', 'aba=mirror', '/ajustes/espelho'],
-    ['/ajustes/sistema', 'aba=assets', '/ajustes/escudos#assets'],
-    ['/ajustes/sistema', 'aba=suggestions', '/ajustes/sugestoes'],
-    ['/ajustes/sistema', 'aba=cosmos', '/ajustes/cosmos'],
-    ['/ajustes/sistema', 'aba=history', '/ajustes/historico'],
-    ['/ajustes/sistema', 'tab=history', '/ajustes/historico'],
-    ['/ajustes/operacao', 'aba=schedule', '/ajustes/agenda'],
-    ['/ajustes/esportes', 'aba=sports', '/ajustes/fornecedor#sports'],
-    ['/ajustes/esportes', 'aba=related', '/ajustes/videos'],
-    ['/ajustes/esportes', 'aba=wtw', '/ajustes/onde-assistir'],
-    ['/ajustes/esportes', 'aba=nao-existe', '/ajustes/fornecedor#sports'],
+    ['/ajustes/sistema', 'aba=status', '/settings/status'],
+    ['/ajustes/sistema', 'aba=quality', '/settings/quality'],
+    ['/ajustes/sistema', 'aba=live', '/settings/live'],
+    ['/ajustes/sistema', 'aba=schedule', '/settings/schedule'],
+    ['/ajustes/sistema', 'aba=tasks', '/settings/tasks'],
+    ['/ajustes/sistema', 'aba=ai', '/settings/ai'],
+    ['/ajustes/sistema', 'aba=provider', '/settings/provider'],
+    ['/ajustes/sistema', 'aba=mirror', '/settings/mirror'],
+    ['/ajustes/sistema', 'aba=assets', '/settings/crests#assets'],
+    ['/ajustes/sistema', 'aba=suggestions', '/settings/suggestions'],
+    ['/ajustes/sistema', 'aba=cosmos', '/settings/cosmos'],
+    ['/ajustes/sistema', 'aba=history', '/settings/history'],
+    ['/ajustes/sistema', 'tab=history', '/settings/history'],
+    ['/ajustes/operacao', 'aba=schedule', '/settings/schedule'],
+    ['/ajustes/esportes', 'aba=sports', '/settings/provider#sports'],
+    ['/ajustes/esportes', 'aba=related', '/settings/videos'],
+    ['/ajustes/esportes', 'aba=wtw', '/settings/where-to-watch'],
+    ['/ajustes/esportes', 'aba=nao-existe', '/settings/provider#sports'],
   ])('%s?%s → %s', (path, query, target) => {
     expect(go(path, query)).toBe(target);
   });
 
   it('os outros parâmetros seguem (busca e filtro dos canais) e o prefixo de idioma sai', () => {
     expect(go('/ajustes/esportes', 'aba=related&q=espn&filtro=blocked')).toBe(
-      '/ajustes/videos?q=espn&filtro=blocked',
+      '/settings/videos?q=espn&filtro=blocked',
     );
-    expect(go('/pt-BR/ajustes/operacao', 'aba=tasks')).toBe('/ajustes/tarefas');
-    expect(go('/ajustes/sistema/')).toBe('/ajustes/escudos#assets');
+    expect(go('/pt-BR/ajustes/operacao', 'aba=tasks')).toBe('/settings/tasks');
+    expect(go('/ajustes/sistema/')).toBe('/settings/crests#assets');
   });
 
   it('as rotas novas e as que continuam não redirecionam', () => {
     for (const href of routes) expect(go(href), href).toBeNull();
-    expect(go('/ajustes')).toBeNull();
-    expect(go('/ajustes/fornecedor', 'aba=mirror')).toBeNull();
-    expect(go('/ajustes/revisao/123')).toBeNull();
+    expect(go('/settings')).toBeNull();
+    expect(go('/settings/provider', 'aba=mirror')).toBeNull();
+    expect(go('/settings/review/123')).toBeNull();
     expect(go('/operacao')).toBeNull();
   });
 });

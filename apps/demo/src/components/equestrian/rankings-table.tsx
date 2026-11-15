@@ -36,7 +36,7 @@ export function RankingsTable({ rows, t, f }: { rows: EqOverview['rankings']; t:
                 <div className="flex flex-col gap-0.5">
                   {r.athlete ? (
                     <Link
-                      href={`/hipismo/atletas/${r.athlete.id}`}
+                      href={`/equestrian/athletes/${r.athlete.id}`}
                       className="flex items-center gap-1.5 hover:underline"
                     >
                       <Flag country={r.athlete.country} />
@@ -45,7 +45,7 @@ export function RankingsTable({ rows, t, f }: { rows: EqOverview['rankings']; t:
                   ) : null}
                   {r.horse ? (
                     <Link
-                      href={`/hipismo/cavalos/${r.horse.id}`}
+                      href={`/equestrian/horses/${r.horse.id}`}
                       className="text-muted-foreground text-xs hover:underline"
                     >
                       🐴 {r.horse.name}

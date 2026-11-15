@@ -38,6 +38,7 @@ describe('abas de esporte do catálogo', () => {
       'bracket',
       'channel_guide',
       'match_stats',
+      'shop_the_game',
     ]);
     expect(tabs.find((t) => t.family.id === 'automobilismo')?.kinds).toEqual([
       'live_list',
@@ -49,6 +50,7 @@ describe('abas de esporte do catálogo', () => {
       'season_calendar',
       'athlete_profile',
       'channel_guide',
+      'shop_the_game',
     ]);
     expect(tabs.find((t) => t.family.id === 'lutas')?.kinds).toContain('fight_card');
     // Hipismo e Olimpíadas e Pan: abas do catálogo fora do menu de esportes, no fim
@@ -82,7 +84,9 @@ describe('abas de esporte do catálogo', () => {
 
   it('aba da URL, ou a primeira quando não existe', () => {
     const tabs = catalogTabs(OFFERED_WIDGET_KINDS, []);
-    expect(pickTab(tabs, 'volei')?.family.id).toBe('volei');
+    expect(pickTab(tabs, 'volleyball')?.family.id).toBe('volei');
+    // o id interno em português não vale na URL
+    expect(pickTab(tabs, 'volei')?.family.id).toBe('futebol');
     expect(pickTab(tabs, 'xadrez')?.family.id).toBe('futebol');
     expect(pickTab(tabs, undefined)?.family.id).toBe('futebol');
   });
@@ -90,12 +94,12 @@ describe('abas de esporte do catálogo', () => {
 
 describe('esporte do widget', () => {
   it('widget novo da aba grava o primeiro esporte da família que o tipo aceita', () => {
-    expect(sportForNewWidget('live_list', 'basquete')).toBe('basketball');
-    expect(sportForNewWidget('live_list', 'futebol')).toBe('football');
+    expect(sportForNewWidget('live_list', 'basketball')).toBe('basketball');
+    expect(sportForNewWidget('live_list', 'football')).toBe('football');
     expect(sportForNewWidget('live_list', undefined)).toBeNull();
-    expect(sportForNewWidget('match_card', 'basquete')).toBe('basketball');
+    expect(sportForNewWidget('match_card', 'basketball')).toBe('basketball');
     expect(sportForNewWidget('match_card', undefined)).toBe('football');
-    expect(sportForNewWidget('ai_context', 'futebol')).toBeNull();
+    expect(sportForNewWidget('ai_context', 'football')).toBeNull();
   });
 
   it('trocar o tipo mantém o esporte quando o novo aceita', () => {

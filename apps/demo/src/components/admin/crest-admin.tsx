@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useRef, useState, useTransition } from 'react';
 import { toast } from 'sonner';
 
-import { revertCrest, uploadCrest } from '@/app/[locale]/(app)/ajustes/escudos/actions';
+import { revertCrest, uploadCrest } from '@/app/[locale]/(app)/settings/crests/actions';
 import { Alert, AlertDescription } from '@/components/reui/alert';
 import { Badge } from '@/components/reui/badge';
 import { Button } from '@/components/ui/button';
@@ -196,7 +196,7 @@ export function CrestAdmin({
   const go = (q: string, k: CrestKindFilter) => {
     const params = new URLSearchParams();
     if (q.trim()) params.set('q', q.trim());
-    if (k !== 'all') params.set('tipo', k);
+    if (k !== 'all') params.set('type', k);
     const qs = params.toString();
     startTransition(() => router.replace(qs ? `${pathname}?${qs}` : pathname));
   };

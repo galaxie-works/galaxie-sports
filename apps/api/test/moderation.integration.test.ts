@@ -94,6 +94,8 @@ const fan = async (key: string, n: number, ageBand = '18plus') => {
     ageBand,
     country: 'br',
     locale: 'pt-BR',
+    // o Brasil pede comprovação estimada para os recursos sociais (ficha do #1104, portão do #1106)
+    ageAssurance: { method: 'estimated', at: '2026-11-01' },
   });
   expect(res.statusCode).toBe(201);
   return { token: res.json().data.token as string, profileId: res.json().data.profile_id as string };
@@ -181,6 +183,22 @@ describe('moderação do torcedor (#953)', () => {
         })
       ).statusCode,
     ).toBe(403);
+  });
+
+  it('menor denuncia e bloqueia mesmo sem o responsável, mas sem texto livre (#1106)', async () => {
+    const t = await tenantKey('mod-teen', ['core_data', 'live_chat']);
+    const teen = await fan(t.key, 12, '14_15');
+    const other = await fan(t.key, 13);
+    expect((await call(teen.token, 'PUT', `/v1/fans/me/blocks/${other.profileId}`)).statusCode).toBe(204);
+    const report = { targetType: 'message', targetId: 'm-teen', module: 'chat', reason: 'spam' };
+    expect((await call(teen.token, 'POST', '/v1/moderation/reports', report)).statusCode).toBe(201);
+    const withNote = await call(teen.token, 'POST', '/v1/moderation/reports', {
+      ...report,
+      targetId: 'm-teen-2',
+      note: 'ele me xingou',
+    });
+    expect(withNote.statusCode).toBe(403);
+    expect(withNote.json().age_gate.reason).toBe('adult_only');
   });
 
   it('bloqueia, lista e desbloqueia; não bloqueia a si nem Perfil de outro cliente', async () => {

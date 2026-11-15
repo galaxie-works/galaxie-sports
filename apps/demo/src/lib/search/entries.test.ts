@@ -23,18 +23,18 @@ const result = (over: Partial<SearchResult>): SearchResult => ({
 
 describe('busca global — entradas', () => {
   it('leva cada tipo à página da demo', () => {
-    expect(resultHref(result({}))).toBe('/times/01a15fba-ec17-7d8b-90d7-47b3ccbe967e');
+    expect(resultHref(result({}))).toBe('/teams/01a15fba-ec17-7d8b-90d7-47b3ccbe967e');
     expect(resultHref(result({ type: 'competition', id: 'x', slug: 'brasileirao-serie-a' }))).toBe(
-      '/competicoes/brasileirao-serie-a',
+      '/competitions/brasileirao-serie-a',
     );
-    expect(resultHref(result({ type: 'country', id: 'GB-ENG' }))).toBe('/paises/gb-eng');
-    expect(resultHref(result({ type: 'venue', id: 'v1' }))).toBe('/locais/v1');
-    expect(resultHref(result({ type: 'person', id: 'p1' }))).toBe('/pessoas/p1');
-    expect(resultHref(result({ type: 'event', id: 'e1' }))).toBe('/eventos/e1');
+    expect(resultHref(result({ type: 'country', id: 'GB-ENG' }))).toBe('/countries/gb-eng');
+    expect(resultHref(result({ type: 'venue', id: 'v1' }))).toBe('/venues/v1');
+    expect(resultHref(result({ type: 'person', id: 'p1' }))).toBe('/people/p1');
+    expect(resultHref(result({ type: 'event', id: 'e1' }))).toBe('/events/e1');
     // participante de MMA é lutador: rota própria, com o nome no slug
     expect(
       resultHref(result({ id: 'a1b2c3d4-0000-4000-8000-000000000000', name: 'José Aldo', sport: 'mma' })),
-    ).toBe('/lutadores/jose-aldo-a1b2c3d4-0000-4000-8000-000000000000');
+    ).toBe('/fighters/jose-aldo-a1b2c3d4-0000-4000-8000-000000000000');
   });
 
   it('agrupa por tipo; pessoas e estádios descem um nível no empate', () => {
@@ -45,7 +45,7 @@ describe('busca global — entradas', () => {
       result({ type: 'venue', id: 'v', name: 'Estádio Boca do Lobo', match: 'prefix' }),
     ]);
     expect(groups.map(([type]) => type)).toEqual(['team', 'event', 'person', 'venue']);
-    expect(groups[0]![1][0]).toMatchObject({ key: 'team:t', href: '/times/t', label: 'Boca Juniors' });
+    expect(groups[0]![1][0]).toMatchObject({ key: 'team:t', href: '/teams/t', label: 'Boca Juniors' });
   });
 
   it('no empate, competições antes de times ("liber": Libertadores antes do Libertad)', () => {
@@ -65,13 +65,13 @@ describe('busca global — entradas', () => {
     expect(docs.find((d) => d.kind === 'doc' && d.href === '/docs')?.topLevel).toBe(true);
     // o título da seção vem antes da página que só cita o termo na descrição
     expect(filterEntries(docs, 'etag').map((d) => d.href)).toEqual([
-      '/docs/conceitos#cache',
-      '/docs/conceitos',
+      '/docs/concepts#cache',
+      '/docs/concepts',
     ]);
-    expect(filterEntries(docs, 'autenticacao')[0]?.href).toBe('/docs/autenticacao');
+    expect(filterEntries(docs, 'autenticacao')[0]?.href).toBe('/docs/authentication');
     expect(filterEntries(docs, '/v1/search')[0]).toMatchObject({
       kind: 'endpoint',
-      href: '/docs/referencia#get-v1-search',
+      href: '/docs/reference#get-v1-search',
       method: 'get',
     });
     expect(filterEntries(docs, '', 2)).toHaveLength(2);
@@ -83,7 +83,7 @@ describe('busca global — entradas', () => {
       addRecent({
         key: `team:${i}`,
         kind: 'team',
-        href: `/times/${i}`,
+        href: `/teams/${i}`,
         label: `Time ${i}`,
         detail: null,
         image: null,
@@ -93,7 +93,7 @@ describe('busca global — entradas', () => {
     addRecent({
       key: 'team:5',
       kind: 'team',
-      href: '/times/5',
+      href: '/teams/5',
       label: 'Time 5',
       detail: null,
       image: null,
