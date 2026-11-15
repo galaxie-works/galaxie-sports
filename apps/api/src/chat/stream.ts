@@ -250,7 +250,12 @@ export function registerChatStream(app: FastifyInstance, deps: Deps): void {
       const gameOf = (list: object[]) =>
         (list as { kind: string }[]).filter((m) => !kinds || kinds.includes(m.kind));
       // reações (#967): a contagem do segundo chega por broadcast, uma vez por segundo, já agregada
+      // a contagem que chega antes do total inicial espera e sai depois dele (senão o total inicial, lido antes,
+      // chegaria por último e voltaria o contador do widget para trás)
+      let reactionsReady = false;
+      const reactionBacklog: object[] = [];
       const unsubscribeReactions = deps.hub.subscribe(reactionRoomKey(tenant.tenantId, fixtureId), (b) => {
+        if (!reactionsReady) return void reactionBacklog.push(...b.messages);
         if (!conn.closed) for (const tally of b.messages) conn.write(formatSse('chat.reactions', tally));
       });
       const unsubscribeGame = deps.hub.subscribe(gameRoomKey(fixtureId), (b) => {
@@ -353,6 +358,8 @@ export function registerChatStream(app: FastifyInstance, deps: Deps): void {
       } catch {
         // contador fora: as reações voltam no próximo segundo
       }
+      reactionsReady = true;
+      for (const tally of reactionBacklog.splice(0)) conn.write(formatSse('chat.reactions', tally));
       const late = gameOf(gameBacklog.splice(0));
       if (late.length) conn.write(formatSse('chat.game', { messages: late }));
       replaying = false;
