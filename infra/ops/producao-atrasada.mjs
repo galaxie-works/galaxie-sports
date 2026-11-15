@@ -258,9 +258,15 @@ function fatosReais(agora) {
     headCt: Number(sh('git', ['-C', ROOT, 'log', '-1', '--format=%ct'])),
     noAr: async (imagem) => {
       if (imagem === 'api')
-        return lerVersao(process.env.API_VERSION_URL || `https://${process.env.API_DOMAIN || 'api.sports.galaxie.works'}/version`);
+        return lerVersao(
+          process.env.API_VERSION_URL ||
+            `https://${process.env.API_DOMAIN || 'api.sports.galaxie.works'}/version`,
+        );
       if (imagem === 'demo')
-        return lerVersao(process.env.DEMO_VERSION_URL || `https://${process.env.DEMO_DOMAIN || 'sports.galaxie.works'}/api/version`);
+        return lerVersao(
+          process.env.DEMO_VERSION_URL ||
+            `https://${process.env.DEMO_DOMAIN || 'sports.galaxie.works'}/api/version`,
+        );
       return ingestorPublicado();
     },
     deployAtivo: async () => deployAtivo(agora),

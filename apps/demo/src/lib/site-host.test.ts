@@ -11,7 +11,11 @@ import { describe, expect, it } from 'vitest';
 const ROOT = fileURLToPath(new URL('../../../../', import.meta.url));
 const DIRS = ['apps', 'packages', 'infra'];
 const HOST = /sports\.galaxie\.works/;
-const ALLOWED = new Set(['apps/demo/src/lib/site.ts', 'apps/demo/src/lib/galaxie/request.ts', 'infra/ops/producao-atrasada.mjs']);
+const ALLOWED = new Set([
+  'apps/demo/src/lib/site.ts',
+  'apps/demo/src/lib/galaxie/request.ts',
+  'infra/ops/producao-atrasada.mjs',
+]);
 const SKIP_DIR = new Set(['node_modules', 'dist', '.next', '.turbo', 'coverage', 'drizzle']);
 const CODE = /\.(ts|tsx|js|mjs|cjs|json|ya?ml|sh)$/;
 
