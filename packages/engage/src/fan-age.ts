@@ -65,7 +65,8 @@ export function fanAgeStatus(facts: FanAgeFacts, policy: CountryPolicy | null): 
     return 'needs_guardian';
   if (!assuranceAtLeast(facts.assurance, policy.ageAssuranceMin.social)) return 'needs_verification';
   if (facts.frozen) return 'read_only';
-  return floor >= policy.minAgeWrite ? 'can_write' : 'read_only';
+  // só 18+ escreve, mesmo que a ficha baixe a idade (regra fixa da Galaxie, a mesma do portão, #1106)
+  return floor >= Math.max(18, policy.minAgeWrite) ? 'can_write' : 'read_only';
 }
 
 export const isAgeAssuranceLevel = (v: unknown): v is AgeAssuranceLevel =>

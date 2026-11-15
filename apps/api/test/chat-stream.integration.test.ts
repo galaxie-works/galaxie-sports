@@ -122,6 +122,8 @@ async function fan(key: string, n: number): Promise<string> {
       nickname: `Torcedor${n}`,
       ageBand: '18plus',
       country: 'br',
+      // adulto do Brasil escreve com a estimativa (ficha do país, portão de idade #1106)
+      ageAssurance: { method: 'estimated', at: '2026-11-01' },
       locale: 'pt-BR',
     },
   });
