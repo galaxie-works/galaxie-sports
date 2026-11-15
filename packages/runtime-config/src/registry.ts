@@ -25,7 +25,7 @@ import {
   mirrorPeriodsError,
   mirrorPeriodsKey,
 } from './mirror.js';
-import { MODULE_APIS, modulesError, modulesKey } from './modules.js';
+import { DAILY_CAP_KEYS, DAILY_CAP_MAX, MODULE_APIS, modulesError, modulesKey } from './modules.js';
 import type { ValidationError } from './resolve.js';
 
 /**
@@ -852,6 +852,23 @@ export const SETTINGS: readonly SettingDef[] = [
     applyIn: { live: 'refresh' },
     allowEmpty: true,
     check: (value) => modulesError(api, value),
+    default: null,
+    critical: true,
+  })),
+
+  // tetos diários do sync diário do futebol (modules.ts, DAILY_CAPS): vazio = o padrão do plano (free ou pago),
+  // `unlimited` = sem teto; 0 não vale (para parar, desligue o módulo). A tela corta o slider pela cota do plano
+  ...DAILY_CAP_KEYS.map((key): SettingDef => ({
+    key,
+    section: 'modules',
+    type: 'int',
+    services: ['ingestor'],
+    apply: 'next-run',
+    min: 1,
+    max: DAILY_CAP_MAX,
+    unlimited: true,
+    zeroInvalid: true,
+    allowEmpty: true,
     default: null,
     critical: true,
   })),

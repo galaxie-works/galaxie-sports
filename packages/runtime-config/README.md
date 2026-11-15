@@ -14,8 +14,9 @@ grupos de prioridade e orçamento, com a validação das flags `MIRROR_*`. O job
 
 Os módulos de dados por esporte e tier (escalação, ao vivo, elenco, desfalques, títulos, palpites, odds,
 estatísticas…) ficam em `src/modules.ts`: os do espelho são os itens de `mirror.ts` (o estado é a coluna do tier em
-`MIRROR_PERIODS_<API>`); os do sync diário, do ao vivo e dos agentes ficam em `MODULES_<API>` (`modulo=on,off,off`), com
-o padrão nas constantes `*_MAX_TIER` que os jobs também usam (docs/03 §11.6).
+`MIRROR_PERIODS_<API>`, com colunas que nascem desligadas onde o job não buscava: `defaultOff`); os do sync diário, do
+ao vivo e dos agentes ficam em `MODULES_<API>` (`modulo=on,off,off`), com o padrão nas constantes `*_MAX_TIER` que os
+jobs também usam (docs/03 §11.6).
 
 ## Depende de
 

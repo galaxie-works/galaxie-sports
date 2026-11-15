@@ -8,6 +8,9 @@ import {
 } from './mirror.js';
 import {
   AGENT_MAX_TIER,
+  DAILY_CAPS,
+  dailyCapValue,
+  dailyCapsFromEnv,
   DEFAULT_MODULE_CONFIG,
   MATCH_DETAIL_MAX_TIER,
   MODULE_APIS,
@@ -157,7 +160,7 @@ describe('moduleConfig', () => {
   it('aplica as sobrescritas e lê os módulos do espelho dos períodos', () => {
     const env: Record<string, string> = {
       MODULES_FOOTBALL: 'match-detail=on,on,off; live=on,on,off',
-      MIRROR_PERIODS_FOOTBALL: '/predictions=1,off; /players/squads=off,14',
+      MIRROR_PERIODS_FOOTBALL: '/predictions=1,off,off; /players/squads=off,14',
     };
     const cfg = moduleConfigFromEnv(env, mirrorConfigFromEnv(env)).api('football');
     expect(cfg.tiersOn('match-detail')).toEqual([1, 2]);
@@ -191,12 +194,19 @@ describe('moduleConfig', () => {
 describe('applyModuleToMirrorPeriods', () => {
   it('desligar vira off na coluna do tier; religar volta ao período de antes ou ao padrão', () => {
     const def = moduleDef('football', 'predictions')!;
-    const base = new Map([['/predictions', [1, 1]]]);
-    const off = applyModuleToMirrorPeriods('football', def, [true, false], base);
-    expect(off.get('/predictions')).toEqual([1, null]);
-    expect(formatMirrorPeriods('football', off)).toBe('/predictions=1,off');
-    const on = applyModuleToMirrorPeriods('football', def, [true, true], off);
-    expect(on.get('/predictions')).toEqual([1, 1]);
+    expect(def.tiers).toEqual([1, 2, 3]);
+    expect(def.defaults).toEqual([true, true, false]);
+    const base = new Map([['/predictions', [1, 1, null]]]);
+    const off = applyModuleToMirrorPeriods('football', def, [true, false, false], base);
+    expect(off.get('/predictions')).toEqual([1, null, null]);
+    expect(formatMirrorPeriods('football', off)).toBe('/predictions=1,off,off');
+    const on = applyModuleToMirrorPeriods('football', def, [true, true, false], off);
+    expect(on.get('/predictions')).toEqual([1, 1, null]);
+    expect(formatMirrorPeriods('football', on)).toBe('');
+    // ligar o tier 3 (que nasce desligado) usa o período do catálogo e sai coluna a coluna, nunca como um valor só
+    const tier3 = applyModuleToMirrorPeriods('football', def, [true, true, true], on);
+    expect(tier3.get('/predictions')).toEqual([1, 1, 1]);
+    expect(formatMirrorPeriods('football', tier3)).toBe('/predictions=1,1,1');
   });
 
   it('só as colunas marcadas em `only` mudam; as outras ficam como estão nos itens', () => {
@@ -227,5 +237,42 @@ describe('applyModuleToMirrorPeriods', () => {
     expect(formatMirrorPeriods('football', off)).toBe(
       '/players/squads=14,off; /coachs=30,off; /transfers=30,off',
     );
+  });
+});
+
+describe('tetos diários (DAILY_*)', () => {
+  it('padrões são os de antes do painel, por plano; unlimited = sem teto; inválido = padrão', () => {
+    expect(DAILY_CAPS.map((c) => [c.key, c.defaults.free, c.defaults.paid])).toEqual([
+      ['DAILY_MAX_DETAILS', 35, 2000],
+      ['DAILY_ROTATION_CALLS', 5, 1500],
+      ['DAILY_SEASON_LISTS', 0, 300],
+      ['DAILY_PLAYER_STATS_PAGES', 0, 1000],
+    ]);
+    expect(dailyCapValue('DAILY_MAX_DETAILS', '', true)).toBe(2000);
+    expect(dailyCapValue('DAILY_MAX_DETAILS', undefined, false)).toBe(35);
+    expect(dailyCapValue('DAILY_MAX_DETAILS', 'unlimited', true)).toBe(Number.POSITIVE_INFINITY);
+    expect(dailyCapValue('DAILY_MAX_DETAILS', '120', true)).toBe(120);
+    expect(dailyCapValue('DAILY_MAX_DETAILS', 'x', true)).toBe(2000);
+    expect(dailyCapsFromEnv({ DAILY_SEASON_LISTS: '50' }, true)).toEqual({
+      DAILY_MAX_DETAILS: 2000,
+      DAILY_ROTATION_CALLS: 1500,
+      DAILY_SEASON_LISTS: 50,
+      DAILY_PLAYER_STATS_PAGES: 1000,
+    });
+    for (const c of DAILY_CAPS) for (const m of c.modules) expect(moduleDef('football', m)?.cap).toBe(c.key);
+  });
+
+  it('o registro aceita o número, unlimited e vazio; recusa 0', () => {
+    expect(validateSettingKey('DAILY_MAX_DETAILS', '500')).toEqual({ ok: true, value: '500' });
+    expect(validateSettingKey('DAILY_MAX_DETAILS', 'unlimited')).toEqual({ ok: true, value: 'unlimited' });
+    expect(validateSettingKey('DAILY_MAX_DETAILS', '')).toEqual({ ok: true, value: '' });
+    expect(validateSettingKey('DAILY_MAX_DETAILS', '0')).toMatchObject({
+      ok: false,
+      error: { code: 'zero' },
+    });
+    expect(validateSettingKey('DAILY_ROTATION_CALLS', '200000')).toMatchObject({
+      ok: false,
+      error: { code: 'range' },
+    });
   });
 });

@@ -96,6 +96,7 @@ export {
 } from './resolve.js';
 export {
   DEFAULT_MIRROR_CONFIG,
+  defaultPeriods,
   FOOTBALL_MIRROR_GROUPS,
   MIRROR_APIS,
   MIRROR_BUDGET_DEFAULT_PERCENT,
@@ -134,7 +135,16 @@ export {
 } from './mirror.js';
 export {
   AGENT_MAX_TIER,
+  DAILY_CAPS,
+  DAILY_CAP_KEYS,
+  DAILY_CAP_MAX,
   DEFAULT_MODULE_CONFIG,
+  dailyCap,
+  dailyCapDefault,
+  dailyCapValue,
+  dailyCapsFromEnv,
+  type DailyCapDef,
+  type DailyCapKey,
   MATCH_DETAIL_MAX_TIER,
   MODULE_APIS,
   MODULE_CATALOG,

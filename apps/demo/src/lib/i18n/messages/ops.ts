@@ -940,6 +940,37 @@ export default defineMessages(
         'Vale na próxima execução de cada job; o ao vivo relê em até 1 minuto. Fica no histórico com o seu e-mail. O que será gravado:',
       emptyValue: '(padrão)',
       saved: 'Módulos de {api} salvos.',
+      partial: 'parcial',
+      partialHint:
+        'Parte dos endpoints deste módulo está desligada endpoint a endpoint na página do espelho.',
+      openMirror: 'Abrir no Espelho',
+      liveHint:
+        'Quem entra no ao vivo é a prioridade mínima (LIVE_MIN_PRIORITY); o tier só filtra. Ligar o tier 3 não põe jogos tier 3 no ao vivo se a prioridade deles for baixa.',
+      openLive: 'Abrir Ao vivo',
+      caps: {
+        title: 'Tetos diários',
+        description:
+          'Quantas chamadas por dia cada passo do sync diário pode gastar, abaixo dos módulos que ele governa. Vale na próxima execução.',
+        unlimited: 'Ilimitado',
+        noCap: 'sem teto',
+        planDefault: 'padrão do plano {plan}: {value}',
+        max: 'o slider vai até {max}, a cota diária do plano',
+        valueCalls: '{value} chamadas/dia',
+        valuePages: '{value} páginas/dia',
+        governs: 'Vale para: {modules}',
+        rotationWarning:
+          'Afastamentos ou títulos ligados fora do tier 1 dividem este teto com os elencos: no padrão, o tier 1 passa a atrasar (o /sidelined volta a cada 2 dias). Suba o teto ou deixe ilimitado.',
+        explain: {
+          DAILY_MAX_DETAILS:
+            'Detalhe dos jogos encerrados (escalação, eventos e estatísticas), 20 jogos por chamada, nos tiers ligados em "Escalação, eventos e estatísticas do jogo". Com teto baixo, os jogos de ontem ficam sem escalação e eventos até caber no dia seguinte; o tier 1 e os clássicos passam na frente, o tier 3 fica por último. Com tiers 1 a 3 ligados a demanda normal é cerca de 60 a 100 chamadas por dia (pico de fim de semana maior).',
+          DAILY_ROTATION_CALLS:
+            'Rodízio de pessoas: elencos, técnicos e transferências dos times (tier 1 por padrão) e afastamentos e títulos das pessoas desses elencos. Um teto só, dividido pelo ritmo de cada endpoint. No tier 1 a demanda normal é cerca de 965 chamadas por dia; ligar afastamentos nos tiers 2 e 3 soma cerca de 590 e títulos cerca de 275. Abaixo da demanda, os itens envelhecem e o dado de 30 dias depois precisa de carga manual.',
+          DAILY_SEASON_LISTS:
+            'Relista da temporada em jogo (fixtures?league&season) nos tiers ligados em "Relista da temporada": tier 1 a cada 2 dias, os demais a cada 7. Traz remarcações e chaves de copa antes da véspera. Demanda normal com tiers 1 a 3: cerca de 150 chamadas por dia. Abaixo disso, as temporadas revezam e algumas ficam sem a lista atualizada.',
+          DAILY_PLAYER_STATS_PAGES:
+            'Números dos jogadores da temporada (players?league&season, 20 jogadores por página) nos tiers ligados em "Números dos jogadores na temporada": tier 1 a cada 3 dias, os demais a cada 7. Alimenta artilharia e perfil do jogador. Demanda normal com tiers 1 a 3: cerca de 630 páginas por dia. Abaixo disso, a passada corta e continua no dia seguinte.',
+        } as Record<string, string>,
+      },
       names: {
         agenda: 'Agenda do dia',
         'injuries-day': 'Lesões do dia',
@@ -1462,6 +1493,26 @@ export default defineMessages(
       },
     },
     settings: {
+      DAILY_MAX_DETAILS: {
+        label: 'Teto diário: detalhe dos encerrados',
+        description:
+          'Chamadas de fixtures?ids= por dia no sync diário (20 jogos por chamada). Vazio = padrão do plano (free 35, pagos 2.000); unlimited = sem teto.',
+      },
+      DAILY_ROTATION_CALLS: {
+        label: 'Teto diário: rodízio de elencos, afastamentos e títulos',
+        description:
+          'Chamadas por dia do rodízio de pessoas do sync diário, dividido entre elencos, técnicos, transferências, afastamentos e títulos. Vazio = padrão do plano (free 5, pagos 1.500); unlimited = sem teto.',
+      },
+      DAILY_SEASON_LISTS: {
+        label: 'Teto diário: relista da temporada',
+        description:
+          'Chamadas de fixtures?league&season por dia no sync diário. Vazio = padrão do plano (free 0, pagos 300); unlimited = sem teto.',
+      },
+      DAILY_PLAYER_STATS_PAGES: {
+        label: 'Teto diário: números dos jogadores',
+        description:
+          'Páginas de players?league&season por dia no sync diário (1 página = 1 chamada). Vazio = padrão do plano (free 0, pagos 1.000); unlimited = sem teto.',
+      },
       MIRROR_BUDGET_PERCENT: {
         label: 'Orçamento do espelho',
         description:
@@ -2845,6 +2896,36 @@ export default defineMessages(
           'Applies on the next run of each job; live re-reads within a minute. Goes to the history with your e-mail. What will be written:',
         emptyValue: '(default)',
         saved: '{api} modules saved.',
+        partial: 'partial',
+        partialHint: 'Some endpoints of this module are switched off one by one on the mirror page.',
+        openMirror: 'Open in Mirror',
+        liveHint:
+          'What enters live is the minimum priority (LIVE_MIN_PRIORITY); the tier only filters. Turning tier 3 on does not put tier-3 matches live if their priority is low.',
+        openLive: 'Open Live',
+        caps: {
+          title: 'Daily caps',
+          description:
+            'How many calls per day each daily-sync step may spend, below the modules it governs. Applies on the next run.',
+          unlimited: 'Unlimited',
+          noCap: 'no cap',
+          planDefault: '{plan} plan default: {value}',
+          max: 'the slider goes up to {max}, the plan daily quota',
+          valueCalls: '{value} calls/day',
+          valuePages: '{value} pages/day',
+          governs: 'Applies to: {modules}',
+          rotationWarning:
+            'Sidelined or trophies switched on outside tier 1 share this cap with squads: at the default, tier 1 starts to lag (/sidelined comes back every 2 days). Raise the cap or set it unlimited.',
+          explain: {
+            DAILY_MAX_DETAILS:
+              'Details of finished matches (lineups, events and statistics), 20 matches per call, in the tiers switched on in "Lineups, events and match statistics". With a low cap, yesterday\'s matches stay without lineups and events until they fit the next day; tier 1 and derbies go first, tier 3 last. With tiers 1 to 3 on, normal demand is about 60 to 100 calls per day (higher at weekends).',
+            DAILY_ROTATION_CALLS:
+              'People rotation: squads, coaches and transfers of the teams (tier 1 by default) and sidelined and trophies of the people in those squads. One cap, shared by the pace of each endpoint. In tier 1 normal demand is about 965 calls per day; switching sidelined on in tiers 2 and 3 adds about 590 and trophies about 275. Below demand the items age, and 30 days later the data needs a manual load.',
+            DAILY_SEASON_LISTS:
+              'Relist of the season in play (fixtures?league&season) in the tiers switched on in "Season relist": tier 1 every 2 days, the others every 7. Brings reschedules and cup brackets before the eve. Normal demand with tiers 1 to 3: about 150 calls per day. Below that, seasons take turns and some stay without the updated list.',
+            DAILY_PLAYER_STATS_PAGES:
+              'Season player numbers (players?league&season, 20 players per page) in the tiers switched on in "Season player numbers": tier 1 every 3 days, the others every 7. Feeds top scorers and player profiles. Normal demand with tiers 1 to 3: about 630 pages per day. Below that, the pass is cut and continues the next day.',
+          } as Record<string, string>,
+        },
         names: {
           agenda: 'Daily schedule',
           'injuries-day': 'Injuries of the day',
@@ -3372,6 +3453,26 @@ export default defineMessages(
         },
       },
       settings: {
+        DAILY_MAX_DETAILS: {
+          label: 'Daily cap: finished match details',
+          description:
+            'fixtures?ids= calls per day in the daily sync (20 matches per call). Empty = plan default (free 35, paid 2,000); unlimited = no cap.',
+        },
+        DAILY_ROTATION_CALLS: {
+          label: 'Daily cap: squads, sidelined and trophies rotation',
+          description:
+            'Calls per day of the people rotation in the daily sync, shared by squads, coaches, transfers, sidelined and trophies. Empty = plan default (free 5, paid 1,500); unlimited = no cap.',
+        },
+        DAILY_SEASON_LISTS: {
+          label: 'Daily cap: season relist',
+          description:
+            'fixtures?league&season calls per day in the daily sync. Empty = plan default (free 0, paid 300); unlimited = no cap.',
+        },
+        DAILY_PLAYER_STATS_PAGES: {
+          label: 'Daily cap: player numbers',
+          description:
+            'players?league&season pages per day in the daily sync (1 page = 1 call). Empty = plan default (free 0, paid 1,000); unlimited = no cap.',
+        },
         MIRROR_BUDGET_PERCENT: {
           label: 'Mirror budget',
           description:
@@ -4776,6 +4877,36 @@ export default defineMessages(
           'Vale en la próxima ejecución de cada job; el en vivo relee en hasta 1 minuto. Queda en el historial con tu e-mail. Lo que se escribirá:',
         emptyValue: '(por defecto)',
         saved: 'Módulos de {api} guardados.',
+        partial: 'parcial',
+        partialHint: 'Parte de los endpoints de este módulo está apagada uno a uno en la página del espejo.',
+        openMirror: 'Abrir en el Espejo',
+        liveHint:
+          'Lo que entra al en vivo es la prioridad mínima (LIVE_MIN_PRIORITY); el tier solo filtra. Encender el tier 3 no pone partidos tier 3 en vivo si su prioridad es baja.',
+        openLive: 'Abrir En vivo',
+        caps: {
+          title: 'Topes diarios',
+          description:
+            'Cuántas llamadas por día puede gastar cada paso del sync diario, debajo de los módulos que gobierna. Vale en la próxima ejecución.',
+          unlimited: 'Ilimitado',
+          noCap: 'sin tope',
+          planDefault: 'valor del plan {plan}: {value}',
+          max: 'el slider llega hasta {max}, la cuota diaria del plan',
+          valueCalls: '{value} llamadas/día',
+          valuePages: '{value} páginas/día',
+          governs: 'Vale para: {modules}',
+          rotationWarning:
+            'Ausencias o títulos encendidos fuera del tier 1 comparten este tope con los planteles: en el valor por defecto, el tier 1 empieza a atrasarse (/sidelined vuelve cada 2 días). Suba el tope o déjelo ilimitado.',
+          explain: {
+            DAILY_MAX_DETAILS:
+              'Detalle de los partidos terminados (alineaciones, eventos y estadísticas), 20 partidos por llamada, en los tiers encendidos en "Alineaciones, eventos y estadísticas del partido". Con un tope bajo, los partidos de ayer quedan sin alineación y eventos hasta caber al día siguiente; el tier 1 y los clásicos van primero, el tier 3 último. Con tiers 1 a 3 encendidos la demanda normal es de unas 60 a 100 llamadas por día (más los fines de semana).',
+            DAILY_ROTATION_CALLS:
+              'Rotación de personas: planteles, técnicos y transferencias de los equipos (tier 1 por defecto) y ausencias y títulos de las personas de esos planteles. Un solo tope, repartido por el ritmo de cada endpoint. En el tier 1 la demanda normal es de unas 965 llamadas por día; encender ausencias en los tiers 2 y 3 suma unas 590 y títulos unas 275. Por debajo de la demanda los ítems envejecen y 30 días después el dato necesita carga manual.',
+            DAILY_SEASON_LISTS:
+              'Relistado de la temporada en juego (fixtures?league&season) en los tiers encendidos en "Relistado de la temporada": tier 1 cada 2 días, los demás cada 7. Trae reprogramaciones y llaves de copa antes de la víspera. Demanda normal con tiers 1 a 3: unas 150 llamadas por día. Por debajo, las temporadas se alternan y algunas quedan sin la lista actualizada.',
+            DAILY_PLAYER_STATS_PAGES:
+              'Números de los jugadores de la temporada (players?league&season, 20 jugadores por página) en los tiers encendidos en "Números de los jugadores en la temporada": tier 1 cada 3 días, los demás cada 7. Alimenta goleadores y perfil del jugador. Demanda normal con tiers 1 a 3: unas 630 páginas por día. Por debajo, la pasada se corta y sigue al día siguiente.',
+          } as Record<string, string>,
+        },
         names: {
           agenda: 'Agenda del día',
           'injuries-day': 'Lesiones del día',
@@ -5304,6 +5435,26 @@ export default defineMessages(
         },
       },
       settings: {
+        DAILY_MAX_DETAILS: {
+          label: 'Tope diario: detalle de los partidos terminados',
+          description:
+            'Llamadas de fixtures?ids= por día en el sync diario (20 partidos por llamada). Vacío = valor del plan (free 35, pagos 2.000); unlimited = sin tope.',
+        },
+        DAILY_ROTATION_CALLS: {
+          label: 'Tope diario: rotación de planteles, ausencias y títulos',
+          description:
+            'Llamadas por día de la rotación de personas del sync diario, compartida entre planteles, técnicos, transferencias, ausencias y títulos. Vacío = valor del plan (free 5, pagos 1.500); unlimited = sin tope.',
+        },
+        DAILY_SEASON_LISTS: {
+          label: 'Tope diario: relistado de la temporada',
+          description:
+            'Llamadas de fixtures?league&season por día en el sync diario. Vacío = valor del plan (free 0, pagos 300); unlimited = sin tope.',
+        },
+        DAILY_PLAYER_STATS_PAGES: {
+          label: 'Tope diario: números de los jugadores',
+          description:
+            'Páginas de players?league&season por día en el sync diario (1 página = 1 llamada). Vacío = valor del plan (free 0, pagos 1.000); unlimited = sin tope.',
+        },
         MIRROR_BUDGET_PERCENT: {
           label: 'Presupuesto del espejo',
           description:

@@ -561,11 +561,16 @@ execução do job (08:00 UTC ou um `sync:mirror` manual).
 | `MIRROR_GROUP_ORDER_SPORTS` | A mesma ordem para as outras 11 APIs | `temporada,por-jogo,por-time` | cada grupo uma vez |
 
 Colunas de tier: no futebol, os endpoints por temporada têm tier 1, 2 e 3+ (o 3+ é o grupo `tier3`; o padrão é o
-dobro do tier 2); `/teams/statistics`, `/predictions` e `/odds` têm tier 1 e 2+ (o job só cobre até o tier 2: a
-coluna é o liga/desliga por tier); elencos, técnicos e transferências têm tier 2 e 3+ (o tier 1 é do sync diário). Nas
-outras APIs, a lista da temporada, a classificação e as lesões têm tier 1 e 2+. O resto tem um período só. A coluna de
-uma competição é a última cujo rótulo não passa do tier dela (tier 5 cai no 3+; tier 1 num item de tier 2+ cai na
-primeira, mas o job não o busca).
+dobro do tier 2); `/teams/statistics`, `/predictions` e `/odds` têm tier 1, 2 e 3+, com o **3+ nascendo desligado**
+(a coluna é o liga/desliga por tier; ligado, o job passa a cobrir o tier 3 desses endpoints, com o período do
+catálogo); elencos, técnicos e transferências têm tier 2 e 3+ (o tier 1 é do sync diário). Nas outras APIs, a lista da
+temporada, a classificação e as lesões têm tier 1, 2 e 3+, também com o 3+ nascendo desligado: ligar a temporada do
+tier 3+ põe as temporadas dele no espelho inteiro (jogos, times, odds, elencos e estatísticas junto, que têm um período
+só). O resto tem um período só. A coluna de uma competição é a última cujo rótulo não passa do tier dela (tier 5 cai
+no 3+; tier 1 num item de tier 2+ cai na primeira, mas o job não o busca). Um valor só em `MIRROR_PERIODS_<API>`
+(`/odds=2`) vale para as colunas que nascem ligadas e deixa desligada a que nasce desligada; para ligá-la, o valor vai
+por coluna (`/odds=1,1,2`). O teto de tier do job vem do painel: palpites, odds e estatísticas de time até o maior tier
+ligado neles; nas outras APIs, até o maior tier ligado na temporada, na classificação ou nas lesões (`maxTierOn`).
 
 **Uma fonte só.** O catálogo com os padrões, os grupos e a validação fica em
 [`packages/runtime-config/src/mirror.ts`](../packages/runtime-config/src/mirror.ts). O job lê dele (com as
@@ -606,8 +611,22 @@ sempre e a tela segue o que entrar na `main`.
 
 Padrões (os de antes do painel): relista, detalhe dos encerrados e números dos jogadores nos tiers 1 a 3 (#1160);
 ao vivo em todos os tiers (quem entra continua sendo a `live_priority`); rodízio de elencos, afastamentos e títulos
-só no tier 1; palpites, odds e estatísticas de time até o tier 2 (o tier 3 não tem switch: o job não o
-cobre); agentes de IA até o tier 2; nas outras APIs o espelho para no tier 2 (`SPORT_MIRROR_MAX_TIER`). As opções de
+só no tier 1; palpites, odds e estatísticas de time até o tier 2, com o switch do tier 3 nascendo desligado (ligar
+cria o custo: a estimativa do inventário aparece antes de confirmar); agentes de IA até o tier 2; nas outras APIs o
+espelho para no tier 2 (`SPORT_MIRROR_MAX_TIER`), com o switch do tier 3+ da temporada, da classificação e das lesões
+nascendo desligado. Todo módulo tem switch em todo tier que o dado alcança.
+
+**Tetos diários.** Abaixo dos módulos, a mesma página mostra os tetos do sync diário do futebol, um por passo, com
+"Ilimitado" sim ou não e, com não, um slider até a cota diária do plano da API (não adianta ir a 150 mil com 7.500
+disponíveis): `DAILY_MAX_DETAILS` (detalhe dos encerrados; free 35, pagos 2.000), `DAILY_ROTATION_CALLS` (rodízio de
+elencos, afastamentos e títulos, um teto só dividido pelo ritmo de cada endpoint; free 5, pagos 1.500),
+`DAILY_SEASON_LISTS` (relista da temporada; free 0, pagos 300) e `DAILY_PLAYER_STATS_PAGES` (números dos jogadores;
+free 0, pagos 1.000). Vazio = o padrão do plano (os valores de antes do painel); `unlimited` = sem teto; 0 é recusado
+(para parar, desligue o módulo). A opção da CLI (`--max-detalhes`, `--rodizio`, `--listas-temporada`,
+`--estatisticas-jogadores`) vale por cima. Cada teto tem um tooltip com o que ele segura, os tiers envolvidos e a
+demanda normal; a tela avisa quando afastamentos ou títulos ligados fora do tier 1 dividem o teto do rodízio com os
+elencos (no padrão, o tier 1 passa a atrasar). O catálogo fica em `DAILY_CAPS` (`runtime-config/modules.ts`), que o
+sync diário também usa como padrão. As opções de
 tier da CLI (`--tier`, `--tier-estatisticas`) valem por cima do módulo. Valor inválido no `.env` para o `sync:daily`
 antes da primeira chamada; o ao vivo e os agentes caem no padrão do módulo. Cada gravação fica em
 `ops.runtime_setting_log` com quem mudou e o valor de antes e de depois.

@@ -5,8 +5,11 @@
  * servidor, para os testes.
  */
 import {
+  DAILY_CAP_MAX,
   MODULE_TIERS,
   applyModuleToMirrorPeriods,
+  dailyCapDefault,
+  defaultPeriods,
   formatMirrorPeriods,
   formatModules,
   mirrorConfig,
@@ -18,6 +21,7 @@ import {
   moduleDefs,
   modulesKey,
   tierColumn,
+  type DailyCapKey,
   type MirrorInventory,
   type MirrorPeriod,
   type ModuleDef,
@@ -136,7 +140,7 @@ export function estimatedCallsPerDay(
   for (const item of def.items) {
     const itemDef = mirrorItem(api, item)!;
     const counts = inventory.items[item] ?? [];
-    const p = periods.get(item) ?? itemDef.defaults;
+    const p = periods.get(item) ?? defaultPeriods(itemDef);
     const col = tier === undefined ? null : tierColumn(itemDef, tier);
     counts.forEach((n, i) => {
       if (col !== null && i !== col) return;
@@ -174,3 +178,64 @@ export function rowSummary(
 
 /** As linhas de tier do painel, na ordem: sem tier, 1, 2, 3+. */
 export const MODULE_ROWS: readonly (ModuleTier | null)[] = [null, ...MODULE_TIERS];
+
+// ── Tetos diários (DAILY_*) ─────────────────────────────────────────────────────────────────────────────────────
+
+/** Plano pago da API (o free tem padrões próprios); plano desconhecido conta como pago, o caso da produção. */
+export const isPaidPlan = (plan: string | null | undefined): boolean => plan !== 'free';
+
+/** O switch "ilimitado" e o valor do slider (guardado também com o ilimitado ligado, para voltar a ele). */
+export interface CapDraft {
+  unlimited: boolean;
+  value: number;
+}
+
+/** Rascunho a partir do valor efetivo da flag: vazio = padrão do plano; `unlimited`; ou o número. */
+export function initialCapDraft(key: DailyCapKey, raw: string | null, paid: boolean): CapDraft {
+  const fallback = dailyCapDefault(key, paid);
+  const text = (raw ?? '').trim().toLowerCase();
+  if (text === 'unlimited') return { unlimited: true, value: fallback };
+  const n = Number(text);
+  return { unlimited: false, value: text && Number.isInteger(n) && n >= 1 ? n : fallback };
+}
+
+/** Texto que vai para o servidor: `unlimited`, vazio quando é o padrão do plano, ou o número. */
+export function capText(key: DailyCapKey, draft: CapDraft, paid: boolean): string {
+  if (draft.unlimited) return 'unlimited';
+  return draft.value === dailyCapDefault(key, paid) ? '' : String(Math.max(1, Math.trunc(draft.value)));
+}
+
+/** Teto do slider: a cota diária do plano da API (não adianta deixar ir a 150 mil com 7.500 disponíveis). */
+export const capSliderMax = (dailyLimit: number | null | undefined): number =>
+  Math.max(1, Math.min(DAILY_CAP_MAX, dailyLimit ?? DAILY_CAP_MAX));
+
+/** Passo do slider proporcional ao teto. */
+export const capStep = (max: number): number => (max <= 500 ? 1 : max <= 5000 ? 5 : max <= 20_000 ? 10 : 50);
+
+/**
+ * O rodízio tem um teto só para elencos, afastamentos e títulos: com afastamentos ou títulos ligados nos tiers 2 ou
+ * 3 e o teto no padrão (ou abaixo), a vaga é dividida e o tier 1 passa a atrasar sem aviso.
+ */
+export function rotationOverloaded(draft: ModuleDraft, capValue: number, paid: boolean): boolean {
+  if (!Number.isFinite(capValue) || capValue > dailyCapDefault('DAILY_ROTATION_CALLS', paid)) return false;
+  return ['sidelined', 'trophies'].some((id) => (draft[id] ?? []).slice(1).some(Boolean));
+}
+
+/**
+ * Módulo do espelho "parcial" num tier: parte dos endpoints ligada e parte desligada (alguém mexeu endpoint a endpoint
+ * na página do espelho). O switch mostra ligado; o selo avisa.
+ */
+export function partialInTier(
+  api: string,
+  def: ModuleDef,
+  periods: ReadonlyMap<string, readonly MirrorPeriod[]>,
+  tier: ModuleTier | null,
+): boolean {
+  if (def.kind !== 'mirror' || def.items.length < 2) return false;
+  const states = def.items.map((item) => {
+    const itemDef = mirrorItem(api, item)!;
+    const col = tier === null ? 0 : tierColumn(itemDef, tier);
+    return (periods.get(item) ?? defaultPeriods(itemDef))[col] != null;
+  });
+  return states.some(Boolean) && states.some((v) => !v);
+}
