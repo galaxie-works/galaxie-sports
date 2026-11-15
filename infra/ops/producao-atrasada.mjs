@@ -260,12 +260,12 @@ function fatosReais(agora) {
       if (imagem === 'api')
         return lerVersao(
           process.env.API_VERSION_URL ||
-            `https://${process.env.API_DOMAIN || 'api.sports.galaxie.works'}/version`,
+            `https://${process.env.API_DOMAIN || 'api.galaxiesports.com'}/version`,
         );
       if (imagem === 'demo')
         return lerVersao(
           process.env.DEMO_VERSION_URL ||
-            `https://${process.env.DEMO_DOMAIN || 'sports.galaxie.works'}/api/version`,
+            `https://${process.env.DEMO_DOMAIN || 'platform.galaxiesports.com'}/api/version`,
         );
       return ingestorPublicado();
     },
