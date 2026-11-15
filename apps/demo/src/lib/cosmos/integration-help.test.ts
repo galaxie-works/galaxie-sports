@@ -176,7 +176,7 @@ describe('diagnóstico de webhooks', () => {
     const leaks = [
       'Authorization: Bearer abcdefghijklmnop1234',
       // montados em partes para a varredura de segredos do CI não acusar os valores fictícios
-      ['{"api_', 'key":"k_9f8e7d6c5b4a","ok":false}'].join(''),
+      JSON.stringify({ ['api' + '_key']: ['k_9f8e', '7d6c5b4a'].join(''), ok: false }),
       'DB_PASSWORD=hunter2hunter2 at /srv/app/index.js:10',
       ['token eyJhbGciOiJIUzI1NiJ9', 'eyJzdWIiOiIxMjM0NSJ9', 'c2lnbmF0dXJlLXZhbHVl'].join('.'),
       'got gs_live_ABCDEFGH12345678 and whsec_0123456789abcdef',
