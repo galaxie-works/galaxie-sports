@@ -48,6 +48,7 @@ export const WIDGET_KINDS = [
   'channel_guide',
   'match_stats',
   'upcoming_derbies',
+  'shop_the_game',
 ] as const;
 export type WidgetKind = (typeof WIDGET_KINDS)[number];
 
@@ -1064,6 +1065,31 @@ export interface GsChannelGuide {
   entries: { event: GsEvent; channels: string[] }[];
 }
 
+/** Produtos oficiais de uma entidade nas lojas que o cliente ligou (`/v1/widgets/{id}/shop`, #925). */
+export interface GsShopEntity {
+  entity: { kind: GsShopEntityKind; id: string };
+  stores: {
+    store: { id: string; name: string; country: string };
+    /** `qr` em TV: no máximo o QR code da loja, nunca o botão. */
+    display?: 'link' | 'qr';
+    products: {
+      id: string;
+      product_type: string;
+      title: string;
+      season: string | null;
+      price: number | null;
+      currency: string | null;
+      image_url: string | null;
+      fetched_at: string | null;
+      source: 'curated' | 'live';
+      buy_url: string;
+    }[];
+  }[];
+  disclosure: 'affiliate';
+}
+
+export type GsShopEntityKind = 'competition' | 'participant' | 'person';
+
 /** Clássico marcado para os próximos dias (`/v1/derbies/upcoming`). */
 export interface GsUpcomingDerby {
   event_id: string;
@@ -1942,6 +1968,14 @@ a.gs-tile:hover{border-color:var(--gs-primary)}
 .gs-intensity{flex:none;display:inline-flex;gap:3px}
 .gs-intensity span{width:6px;height:6px;border-radius:999px;background:color-mix(in srgb,var(--gs-foreground) 15%,transparent)}
 .gs-intensity span[data-on]{background:var(--gs-primary)}
+.gs-shop{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:var(--gs-gap)}
+.gs-shop-col{display:flex;flex-direction:column;gap:8px;min-width:0}
+.gs-shop-list{display:flex;flex-direction:column;gap:8px;margin:0;padding:0;list-style:none}
+.gs-shop-item{display:flex;align-items:center;gap:10px;min-width:0}
+.gs-shop-img{flex:none;width:48px;height:48px;border-radius:calc(var(--gs-radius)*.5);object-fit:contain;background:var(--gs-surface)}
+.gs-shop-info{display:flex;flex-direction:column;flex:1;min-width:0}
+.gs-shop-item .gs-button{flex:none;text-decoration:none}
+.gs-shop-note{margin:var(--gs-gap) 0 0;font-size:.72em;color:var(--gs-muted-foreground)}
 `;
 
 // ─── textos ──────────────────────────────────────────────────────────────────────────────────────
@@ -2477,6 +2511,20 @@ export interface WidgetTexts {
     noList: string;
     /** Rótulo da lista de canais de um jogo (leitor de tela). */
     channels: string;
+  };
+  /** Shopping no site do cliente (`/v1/widgets/{id}/shop`, #925). */
+  shop: {
+    title: string;
+    /** "Produtos do {name}". */
+    productsOf: string;
+    buy: string;
+    /** "preço de {when}". */
+    priceAt: string;
+    /** Aviso de parceiro, sempre visível. */
+    disclosure: string;
+    empty: string;
+    /** TV: produto sem botão ("Na loja {store}"). */
+    inStore: string;
   };
   /** Clássicos da semana (`/v1/derbies/upcoming`). */
   derbies: {
@@ -3065,6 +3113,16 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       empty: 'Nenhum jogo nos seus canais neste dia.',
       noList: 'A grade aparece assim que a lista de canais for confirmada.',
       channels: 'Canais',
+    },
+    shop: {
+      title: 'Produtos oficiais',
+      productsOf: 'Produtos do {name}',
+      buy: 'Comprar',
+      priceAt: 'preço de {when}',
+      disclosure:
+        'Links de parceiros: podemos receber comissão pelas compras. O preço e o estoque são da loja.',
+      empty: 'Nenhum produto oficial disponível agora.',
+      inStore: 'Na loja {store}',
     },
     derbies: {
       title: 'Clássicos da semana',
@@ -3658,6 +3716,16 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       noList: 'La grilla aparece cuando se confirme la lista de canales.',
       channels: 'Canales',
     },
+    shop: {
+      title: 'Productos oficiales',
+      productsOf: 'Productos de {name}',
+      buy: 'Comprar',
+      priceAt: 'precio de {when}',
+      disclosure:
+        'Enlaces de socios: podemos recibir una comisión por las compras. El precio y el stock son de la tienda.',
+      empty: 'No hay productos oficiales disponibles ahora.',
+      inStore: 'En la tienda {store}',
+    },
     derbies: {
       title: 'Clásicos de la semana',
       titleDays: 'Clásicos de los próximos {n} días',
@@ -4236,6 +4304,16 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       empty: 'No games on your channels on this day.',
       noList: 'The guide shows up once the channel list is confirmed.',
       channels: 'Channels',
+    },
+    shop: {
+      title: 'Official merchandise',
+      productsOf: '{name} merchandise',
+      buy: 'Buy',
+      priceAt: 'price as of {when}',
+      disclosure:
+        'Partner links: we may earn a commission on purchases. Price and stock are set by the store.',
+      empty: 'No official products available right now.',
+      inStore: 'At {store}',
     },
     derbies: {
       title: 'Derbies of the week',
