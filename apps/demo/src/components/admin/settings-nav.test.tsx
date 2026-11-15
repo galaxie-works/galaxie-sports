@@ -57,6 +57,7 @@ describe('menu de Ajustes (#1068)', () => {
     expect(groups.find((g) => g.id === 'produtos')!.items.map((i) => i.label)).toEqual([
       'Ao vivo',
       'Grades e ofertas',
+      'Lance a lance',
       'Onde assistir',
       'Pós-jogo',
       'Vídeos relacionados',
