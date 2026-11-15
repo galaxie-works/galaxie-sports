@@ -96,8 +96,8 @@ export function LineupReviewComposer({ minCredits }: { minCredits: number | null
             placeholder={T.placeholder}
             onChange={(e) => {
               setText(e.target.value);
-              // o rascunho era do texto anterior
-              if (draft) discard();
+              // o rascunho (pronto ou ainda a caminho) era do texto anterior
+              discard();
             }}
           />
           <FieldDescription>
