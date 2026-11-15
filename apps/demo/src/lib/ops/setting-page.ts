@@ -27,6 +27,7 @@ const SECTION_PAGE: Record<SettingSection, SettingPage> = {
   related: { item: 'related', block: 'related' },
   provider: { item: 'provider', block: 'provider' },
   mirror: { item: 'mirror', block: 'mirror' },
+  modules: { item: 'modules', block: 'modules' },
   assets: { item: 'crests', block: 'assets' },
   credentials: { item: 'credentials', block: 'credentials' },
   feedback: { item: 'suggestions', block: 'suggestions' },
