@@ -7,6 +7,7 @@ import {
   type ProviderStatus,
 } from '@galaxie/apisports-client';
 import { isInPlay, mapFootballStatus } from '@galaxie/providers';
+import { DEFAULT_MODULE_CONFIG, moduleTierOf, type ModuleApiConfig } from '@galaxie/runtime-config';
 import {
   compareCompetitions,
   covers,
@@ -94,18 +95,47 @@ export interface DailyOptions {
   injuriesTomorrow?: boolean | undefined;
   /** Agenda das outras 11 APIs (games/races/fights?date=). */
   otherSports?: boolean | undefined;
-  /** Maior tier com detalhe dos encerrados (padrão 3: todo o catálogo, decisão do dono em 12/11/2026). */
+  /**
+   * Maior tier com detalhe dos encerrados (padrão MATCH_DETAIL_MAX_TIER do runtime-config = 3, todo o catálogo,
+   * decisão do dono em 12/11/2026; o módulo do painel pode desligar um tier).
+   */
   maxTier?: number | undefined;
   /** Relistas da temporada atual por dia (padrão: 0 no free, que não alcança a temporada atual; 300 nos pagos). */
   seasonLists?: number | undefined;
-  /** Maior tier com a temporada atual relistada (padrão 3: todo o catálogo). */
+  /** Maior tier com a temporada atual relistada (padrão SEASON_LIST_MAX_TIER = 3: todo o catálogo). */
   seasonListTier?: number | undefined;
   /** Páginas de `players?league&season` por dia (padrão: 0 no free, 1000 nos pagos); 0 desliga. */
   playerStats?: number | undefined;
-  /** Maior tier com os números dos jogadores renovados (padrão 3: todo o catálogo, decisão do dono em 12/11/2026). */
+  /**
+   * Maior tier com os números dos jogadores renovados (padrão PLAYER_STATS_MAX_TIER do runtime-config = 3, todo o
+   * catálogo, decisão do dono em 12/11/2026; o módulo do painel pode desligar um tier).
+   */
   playerStatsTier?: number | undefined;
   /** `--forcar`: a relista ignora o período do cursor (ex.: remarcação urgente), ainda dentro do limite do dia. */
   force?: boolean | undefined;
+  /**
+   * Módulos por tier do painel (MODULES_FOOTBALL, runtime-config/modules.ts): quais passos rodam e para quais tiers.
+   * Padrão: o do código (tudo como antes do painel). As opções de tier da CLI (`maxTier`, `seasonListTier`,
+   * `playerStatsTier`) valem por cima, e o painel ainda tira o tier desligado.
+   */
+  modules?: ModuleApiConfig | undefined;
+}
+
+/** Módulos efetivos: os do painel ou o padrão do código. */
+const modulesOf = (opts: DailyOptions): ModuleApiConfig =>
+  opts.modules ?? DEFAULT_MODULE_CONFIG.api('football');
+
+/** Competições do catálogo até `maxTier` só dos tiers ligados do módulo. */
+async function competitionsOn(
+  catalog: CatalogSource,
+  modules: ModuleApiConfig,
+  module: string,
+  maxTier: number | undefined,
+): Promise<CompetitionInfo[]> {
+  const on = modules.tiersOn(module);
+  if (!on.length) return [];
+  const comps = await catalog.competitions(maxTier ?? modules.maxTier(module));
+  return comps.filter((c) => on.includes(moduleTierOf(c.tier)));
 }
 
 export function utcDate(d: Date, offsetDays = 0): string {
@@ -129,7 +159,8 @@ export function buildScheduleRequests(now: Date, opts: DailyOptions = {}): Plann
   const out: PlannedRequest[] = [-1, 0, 1].map((o) =>
     plannedRequest('fixtures-data', 'football', '/fixtures', { date: utcDate(now, o) }, { staleBefore }),
   );
-  for (const o of opts.injuriesTomorrow ? [0, 1] : [0]) {
+  // desfalques do dia: módulo `injuries-day` do painel (as lesões por temporada são do espelho)
+  for (const o of modulesOf(opts).enabled('injuries-day') ? (opts.injuriesTomorrow ? [0, 1] : [0]) : []) {
     out.push(
       plannedRequest('injuries-data', 'football', '/injuries', { date: utcDate(now, o) }, { staleBefore }),
     );
@@ -577,6 +608,7 @@ export function dailyJob(
   derbyKeys: () => Promise<Set<string>>,
   opts: DailyOptions = {},
 ): JobSpec {
+  const modules = modulesOf(opts);
   return {
     job: 'sync:daily',
     priority: 'DAILY',
@@ -591,8 +623,12 @@ export function dailyJob(
       {
         name: 'detalhe dos encerrados',
         build: async () => {
+          // tiers do módulo `match-detail` (padrão: até MATCH_DETAIL_MAX_TIER); competição de tier desligado sai do
+          // mapa e `rankFixture` a deixa de fora
           const comps = new Map(
-            (await catalog.competitions(opts.maxTier ?? 3)).map((c) => [c.leagueId, c] as const),
+            (await competitionsOn(catalog, modules, 'match-detail', opts.maxTier)).map(
+              (c) => [c.leagueId, c] as const,
+            ),
           );
           const days = opts.backlogDays ?? 3;
           const lists = Array.from({ length: days }, (_, i) => dateList(utcDate(now(), -(i + 1))));
@@ -612,14 +648,33 @@ export function dailyJob(
       {
         name: 'rodízio de entidades',
         build: async () => {
-          const teams = await teamTargets(catalog, raw, 1);
+          // tiers de cada módulo do rodízio (padrão: times tier 1 em `people-rotation`, pessoas dos elencos tier 1 em
+          // `trophies` e `sidelined`); o tier 2+ dos elencos é do espelho
+          const tiersOf = {
+            squads: modules.tiersOn('people-rotation'),
+            '/trophies': modules.tiersOn('trophies'),
+            '/sidelined': modules.tiersOn('sidelined'),
+          };
+          const maxTier = Math.max(0, ...Object.values(tiersOf).flat());
+          if (!maxTier) return [];
+          const teams = await teamTargets(catalog, raw, maxTier);
+          const inTiers = (tiers: readonly number[]) =>
+            teams.filter((t) => tiers.includes(moduleTierOf(t.tier)));
           const candidates: PlannedRequest[] = [];
           for (const e of TEAM_ENDPOINTS) {
-            for (const t of teams)
+            for (const t of inTiers(tiersOf.squads))
               candidates.push(plannedRequest(e.step, 'football', e.endpoint, { team: t.teamId }));
           }
-          const people = await peopleOfTeams(raw, new Set(teams.map((t) => t.teamId)));
+          const peopleByTiers = new Map<string, Awaited<ReturnType<typeof peopleOfTeams>>>();
           for (const e of PERSON_ENDPOINTS) {
+            const tiers = tiersOf[e.endpoint];
+            const key = tiers.join(',');
+            if (!tiers.length) continue;
+            let people = peopleByTiers.get(key);
+            if (!people) {
+              people = await peopleOfTeams(raw, new Set(inTiers(tiers).map((t) => t.teamId)));
+              peopleByTiers.set(key, people);
+            }
             candidates.push(
               ...buildPersonRequests(
                 e.step,
@@ -629,6 +684,7 @@ export function dailyJob(
               ),
             );
           }
+          if (!candidates.length) return [];
           return buildRotationRequests(
             candidates,
             cursors,
@@ -643,7 +699,7 @@ export function dailyJob(
         name: 'temporada atual',
         build: async () =>
           buildSeasonListRequests(
-            await catalog.competitions(opts.seasonListTier ?? 3),
+            await competitionsOn(catalog, modules, 'season-list', opts.seasonListTier),
             cursors,
             plan.current,
             now(),
@@ -655,7 +711,7 @@ export function dailyJob(
         name: 'estatísticas de jogadores (página 1)',
         build: async () =>
           buildPlayerStatsFirstPages(
-            await catalog.competitions(opts.playerStatsTier ?? 3),
+            await competitionsOn(catalog, modules, 'player-stats', opts.playerStatsTier),
             raw,
             cursors,
             plan.current,
@@ -667,7 +723,7 @@ export function dailyJob(
         name: 'estatísticas de jogadores (demais páginas)',
         build: async () =>
           buildPlayerStatsPageRequests(
-            await catalog.competitions(opts.playerStatsTier ?? 3),
+            await competitionsOn(catalog, modules, 'player-stats', opts.playerStatsTier),
             raw,
             cursors,
             plan.current,

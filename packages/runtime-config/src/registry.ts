@@ -25,6 +25,7 @@ import {
   mirrorPeriodsError,
   mirrorPeriodsKey,
 } from './mirror.js';
+import { MODULE_APIS, modulesError, modulesKey } from './modules.js';
 import type { ValidationError } from './resolve.js';
 
 /**
@@ -834,6 +835,22 @@ export const SETTINGS: readonly SettingDef[] = [
     apply: 'next-run',
     allowEmpty: true,
     check: (value) => mirrorPeriodsError(api, value),
+    default: null,
+    critical: true,
+  })),
+
+  // módulos por esporte e tier fora do espelho (sync diário, ao vivo, agentes): só o que difere do padrão do código
+  // (modules.ts); os do espelho ficam em MIRROR_PERIODS_<API>. O ao vivo relê a cada minuto; os jobs, na próxima
+  // execução
+  ...MODULE_APIS.map((api): SettingDef => ({
+    key: modulesKey(api),
+    section: 'mirror',
+    type: 'text',
+    services: ['ingestor', 'live', 'agents'],
+    apply: 'next-run',
+    applyIn: { live: 'refresh' },
+    allowEmpty: true,
+    check: (value) => modulesError(api, value),
     default: null,
     critical: true,
   })),

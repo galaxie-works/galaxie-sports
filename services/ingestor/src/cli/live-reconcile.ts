@@ -22,6 +22,7 @@ import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { closeDb } from '@galaxie/db';
 import { ApiSportsProvider } from '@galaxie/providers';
+import { moduleConfig } from '@galaxie/runtime-config';
 import { contextFromEnv } from '../context.js';
 import { PgCursorStore } from '../jobs/runtime/cursor-store.js';
 import { PgJobRunStore } from '../jobs/runtime/job-run-store.js';
@@ -96,6 +97,10 @@ await runCli(async () => {
       force: values.forcar,
       staleMinutes: positive(values['parado-min'], '--parado-min'),
       minPriority,
+      // tiers do módulo `live` do painel (o scheduler entrega o env com MODULES_FOOTBALL)
+      tiers: moduleConfig((key) => process.env[key])
+        .api('football')
+        .tiersOn('live'),
       planIntervalMs: intervalS > 0 ? intervalS * 1000 : null,
       liveBudgetExhausted: !!today && today.included > 0 && today.ticksLeft <= 0,
     };
