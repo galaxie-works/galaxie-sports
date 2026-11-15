@@ -488,6 +488,14 @@ describe('chamadas pedidas pelo modelo', () => {
     expect(football.some((p) => p.startsWith('/v1/multisport'))).toBe(false);
     expect(football).not.toContain('/v1/sports/formula-1/legends');
     expect(football).not.toContain('/v1/events/{id}/where-to-watch');
+    // complementos com módulo próprio: odds, contexto ao vivo, conteúdo relacionado e semântica
+    for (const p of [
+      '/v1/events/{id}/odds',
+      '/v1/events/{id}/context',
+      '/v1/events/{id}/related',
+      '/v1/derbies',
+    ])
+      expect(football).not.toContain(p);
     expect(football).toContain('/v1/events');
     const all = paths({ sports: [], markets: [], modules: ['core_data', 'where_to_watch', 'multisport'] });
     expect(all).toContain('/v1/sports/formula-1/legends');
@@ -527,7 +535,25 @@ describe('chamadas pedidas pelo modelo', () => {
       },
       { sports: ['football'], markets: [] },
     );
-    expect(out).toEqual({ data: [{ sport: 'football', id: 1 }], meta: { total: 2 } });
+    // o total contava o item que saiu: a página vai sem os totais
+    expect(out).toEqual({ data: [{ sport: 'football', id: 1 }] });
+    const whole = { data: [{ sport: 'football', id: 1 }], meta: { total: 1 } };
+    expect(scopeResult(whole, { sports: ['football'], markets: [] })).toEqual(whole);
+  });
+
+  it('plano com esporte: sem o esporte na chamada, entra o do plano; com mais de um, a chamada é recusada', () => {
+    expect(checkCall({ path: '/v1/events' }, CATALOG, { sports: ['football'], markets: [] })!.query).toEqual({
+      sport: 'football',
+    });
+    expect(
+      checkCall({ path: '/v1/events' }, CATALOG, { sports: ['football', 'nba'], markets: [] }),
+    ).toBeNull();
+    expect(
+      checkCall({ path: '/v1/events', query: { sport: 'nba' } }, CATALOG, {
+        sports: ['football', 'nba'],
+        markets: [],
+      })!.query,
+    ).toEqual({ sport: 'nba' });
   });
 
   it('no máximo cinco chamadas, sem repetir a mesma, e a última rodada só responde', async () => {
@@ -554,6 +580,29 @@ describe('chamadas pedidas pelo modelo', () => {
     expect(loop.reply).toBeNull();
     expect(ask.prompts[2]!.system).toContain('This is the last step');
     expect(judgeDataAnswer(loop, { question: 'x', today: TODAY }).status).toBe('unreadable');
+  });
+
+  it('número da pergunta não prova a resposta; só as fontes citadas valem como evidência', async () => {
+    const run = async (reply: ReturnType<typeof answer>) =>
+      runDataLoop(
+        scripted([calls({ path: '/v1/sports' }, { path: '/v1/countries' }), reply]),
+        api({ '/v1/sports': { data: [{ goals: 12 }] }, '/v1/countries': { data: [{ total: 34 }] } })
+          .fetchData,
+        {
+          question: 'foram 999 gols?',
+          context: { route: '/', title: '' },
+          catalog: CATALOG,
+          scope: ALL,
+          locale: 'pt-BR',
+          today: TODAY,
+        },
+      );
+    const q = { question: 'foram 999 gols?', today: TODAY };
+    expect(judgeDataAnswer(await run(answer('Sim, 999 gols.', [0])), q).status).toBe('unverified');
+    // o 34 veio da segunda consulta, mas a resposta só cita a primeira
+    expect(judgeDataAnswer(await run(answer('Foram 34.', [0])), q).status).toBe('unverified');
+    expect(judgeDataAnswer(await run(answer('Foram 34.', [1])), q).status).toBe('answered');
+    expect(judgeDataAnswer(await run(answer('Foram 12.', [0])), q).status).toBe('answered');
   });
 
   it('erro da API vira dado de erro (sem número dele contar como evidência)', async () => {

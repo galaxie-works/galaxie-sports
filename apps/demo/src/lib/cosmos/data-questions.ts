@@ -88,6 +88,11 @@ const PATH_PLAN: { re: RegExp; sport?: string; module?: string }[] = [
   { re: /^\/v1\/multisport(\/|$)/, module: 'multisport' },
   { re: /^\/v1\/events\/\{id\}\/where-to-watch$/, module: 'where_to_watch' },
   { re: /^\/v1\/(broadcasters|platforms)(\/|$)/, module: 'where_to_watch' },
+  { re: /^\/v1\/events\/\{id\}\/odds$/, module: 'odds' },
+  { re: /^\/v1\/events\/\{id\}\/context$/, module: 'live_intelligence' },
+  { re: /^\/v1\/events\/\{id\}\/related$/, module: 'related_content' },
+  { re: /^\/v1\/(derbies|glossary|copy)(\/|$)/, module: 'semantic' },
+  { re: /^\/v1\/teams\/\{id\}\/(semantic|rivals|editorial)$/, module: 'semantic' },
 ];
 
 /** Parâmetros que, sem valor, ficam com o primeiro mercado do plano (senão a API usaria o padrão da demonstração). */
@@ -154,6 +159,11 @@ export function checkCall(raw: unknown, catalog: readonly DataRoute[], scope: Da
   }
   if (scope.sports.length && query.sport && !lower(scope.sports).includes(query.sport.toLowerCase()))
     return null;
+  // plano com esporte e rota que aceita esporte: sem ele, a chave da demonstração traria todos (e os totais também)
+  if (scope.sports.length && route.query.includes('sport') && !query.sport) {
+    if (scope.sports.length > 1) return null;
+    query.sport = scope.sports[0]!;
+  }
   for (const k of ['market', 'country'])
     if (scope.markets.length && query[k] && !scope.markets.includes(query[k]!.toUpperCase())) return null;
   // mercado do plano no lugar do padrão da chave da demonstração
@@ -184,14 +194,25 @@ export function scopeResult(data: unknown, scope: DataScope): unknown {
     if (typeof o.sport === 'string' && !sports.includes(o.sport.toLowerCase())) return true;
     return Object.values(o).some(foreign);
   };
+  let removed = false;
   const out = (v: unknown): unknown => {
-    if (Array.isArray(v)) return v.filter((x) => !foreign(x)).map(out);
+    if (Array.isArray(v)) {
+      const kept = v.filter((x) => !foreign(x));
+      if (kept.length < v.length) removed = true;
+      return kept.map(out);
+    }
     if (v && typeof v === 'object')
       return Object.fromEntries(Object.entries(v as Record<string, unknown>).map(([k, x]) => [k, out(x)]));
     return v;
   };
   if (foreign(data)) throw new OutOfPlanError();
-  return out(data);
+  const scoped = out(data);
+  // saiu item de outro esporte: os totais da página (meta) contavam com ele e iriam errados ao modelo
+  if (removed && scoped && typeof scoped === 'object' && !Array.isArray(scoped) && 'meta' in scoped) {
+    const { meta: _meta, ...rest } = scoped as Record<string, unknown>;
+    return rest;
+  }
+  return scoped;
 }
 
 export const clipResult = (data: unknown) => {
@@ -234,7 +255,7 @@ export function dataPrompt(input: {
     `Answer in ${LANGUAGE[input.locale] ?? 'English'}, short, in plain text (no Markdown, no lists).`,
     'Never invent a number. Every number in the answer must be copied from the API results below; do not add, average or',
     'convert numbers. Always write numbers with digits, never in words. If the results do not have it, reply with',
-    '{"noData":true}.',
+    '{"noData":true}. In "sources", list every result whose numbers you used.',
     'To find an id, use GET /v1/search?q=...&types=team|competition|event|person first. The screen route may contain the id.',
     `Today is ${input.today}. Use at most ${CALLS_PER_ROUND} calls per step.`,
     'Available routes:',
@@ -447,8 +468,8 @@ export type DataVerdict =
   | { status: 'unreadable' };
 
 /**
- * A regra do "nunca inventa número": todo número da resposta tem de estar nos dados consultados, na pergunta ou na
- * data de hoje. Só a resposta conferida e com dado é cobrada; "não tenho esse dado" e a inventada não. Resposta sem
+ * A regra do "nunca inventa número": todo número da resposta tem de estar nas consultas que ela cita como fonte (as
+ * que a tela mostra) ou na data de hoje. A pergunta não conta: "foram 999 gols?" não prova o 999. Só a resposta conferida e com dado é cobrada; "não tenho esse dado" e a inventada não. Resposta sem
  * nenhuma consulta bem-sucedida não é resposta sobre os dados: vira "sem dado" (frase fixa, sem o texto do modelo),
  * para o modo não virar conversa livre e de graça.
  */
@@ -458,11 +479,11 @@ export function judgeDataAnswer(loop: DataLoop, evidence: { question: string; to
   const cited = loop.reply.sources.map((i) => loop.steps[i]).filter((s): s is DataStep => !!s && !failed(s));
   const sources = cited.length ? cited : ok;
   if (loop.reply.noData || !ok.length) return { status: 'no_data', steps: sources };
-  // a chamada também é evidência: datas e limites pedidos na query (os ids do caminho saem na leitura)
+  // a chamada também é evidência: datas e limites pedidos na query (os ids do caminho saem na leitura). Só as
+  // fontes mostradas valem, para o "de onde veio cada número" apontar a consulta certa
   const invented = unverifiedNumbers(loop.reply.answer, [
-    evidence.question,
     evidence.today,
-    ...ok.map((s) => `${s.call.path}${qs(s.call.query)} ${s.result}`),
+    ...sources.map((s) => `${s.call.path}${qs(s.call.query)} ${s.result}`),
   ]);
   if (invented.length) return { status: 'unverified', invented };
   return { status: 'answered', answer: loop.reply.answer, steps: sources };
