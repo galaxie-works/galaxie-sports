@@ -8,7 +8,7 @@ import {
   resetSetting,
   saveSetting,
   type OpsActionResult,
-} from '@/app/[locale]/(app)/ajustes/operacao/actions';
+} from '@/app/[locale]/(app)/settings/operations/actions';
 import { useI18n } from '@/lib/i18n/client';
 
 /**

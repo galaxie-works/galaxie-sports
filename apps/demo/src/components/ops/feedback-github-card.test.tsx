@@ -9,7 +9,7 @@ import type { FeedbackPanelState, OpsSetting, OpsSnapshot } from '@/lib/ops/type
 const saveFeedbackGithub = vi.fn();
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() } }));
-vi.mock('@/app/[locale]/(app)/ajustes/operacao/actions', () => ({
+vi.mock('@/app/[locale]/(app)/settings/operations/actions', () => ({
   checkFeedbackProgressNow: vi.fn(),
   clearFeedbackToken: vi.fn(),
   resetSetting: vi.fn(),

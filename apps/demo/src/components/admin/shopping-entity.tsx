@@ -16,7 +16,7 @@ import {
   setProductActiveAction,
   updateProductAction,
   type ShopActionResult,
-} from '@/app/[locale]/(app)/ajustes/shopping/actions';
+} from '@/app/[locale]/(app)/settings/shopping/actions';
 import { Badge } from '@/components/reui/badge';
 import { Frame, FrameDescription, FrameHeader, FramePanel, FrameTitle } from '@/components/reui/frame';
 import { Button } from '@/components/ui/button';
@@ -78,7 +78,7 @@ export function ShoppingEntity({ detail, stores }: { detail: ShopEntityDetail; s
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Link
-          href="/ajustes/shopping"
+          href="/settings/shopping"
           className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-sm"
         >
           <ArrowLeft className="size-4" />

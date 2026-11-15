@@ -20,7 +20,14 @@ import {
 import type { Locale } from '@/lib/i18n/config';
 import { SITE_URL } from '@/lib/site';
 
-import type { WidgetConfig, WidgetDefaults, WidgetEntityType, WidgetKind, WidgetTheme } from './types';
+import type {
+  WidgetConfig,
+  WidgetDefaults,
+  WidgetEntityType,
+  WidgetKind,
+  WidgetShopConfig,
+  WidgetTheme,
+} from './types';
 
 /** Os mesmos de `@galaxie/db` (`WIDGET_KINDS`); o `satisfies` acusa se um tipo sumir de lá. */
 export const WIDGET_KINDS = [
@@ -66,6 +73,7 @@ export const WIDGET_KINDS = [
   'channel_guide',
   'match_stats',
   'upcoming_derbies',
+  'shop_the_game',
 ] as const satisfies readonly WidgetKind[];
 
 /** O que o painel oferece: vídeos fora até decisão do dono (um widget já salvo continua editável). */
@@ -132,6 +140,8 @@ export const ENTITY_TYPES: Record<WidgetKind, readonly WidgetEntityType[]> = {
   channel_guide: [],
   match_stats: ['event'],
   upcoming_derbies: [],
+  // Shopping: a entidade da página (o jogo ou o time, o campeonato ou o atleta); no embed, os atributos dela
+  shop_the_game: ['event', 'team', 'competition', 'person'],
 };
 
 /**
@@ -184,6 +194,7 @@ export const REQUIRED_ENTITY: Record<WidgetKind, WidgetEntityType | null> = {
   channel_guide: null,
   match_stats: 'event',
   upcoming_derbies: null,
+  shop_the_game: null,
 };
 
 /** Tipos que precisam de uma das entidades aceitas, qualquer uma (sem prop obrigatória no componente). */
@@ -419,9 +430,62 @@ export function parseWidgetInput(
         ...(r.kind === 'live_list' ? optional('liveList', parseLiveListOptions(c.liveList)) : {}),
         // opções de conteúdo: só as do tipo, válidas e diferentes do padrão
         ...optional('options', parseWidgetOptions(r.kind, c.options)),
+        // Shopping: lojas, caminho de cada uma e checagem de destino (a API confere a matriz e a versão das regras)
+        ...(r.kind === 'shop_the_game' ? optional('shop', parseShopConfig(c.shop)) : {}),
       },
     },
   };
+}
+
+/** Código de afiliado do cliente numa loja: o mesmo formato que a API aceita no link. */
+export const SHOP_CLIENT_CODE = /^[A-Za-z0-9_.-]{1,64}$/;
+const SHOP_STORE_ID = /^[a-z0-9_]{1,40}$/;
+const SHOP_QUESTIONS = ['ownSite', 'mobileApp', 'smartTv', 'under13', 'rewardsArea'] as const;
+const SHOP_MAX_STORES = 20;
+
+/**
+ * Configuração do Shopping que vai para o banco: só lojas com id e caminho válidos (sem repetir, no máximo 20) e,
+ * no caminho do código próprio, só código válido (inválido = loja fora). A checagem de destino entra só completa.
+ */
+export function parseShopConfig(raw: unknown): WidgetShopConfig | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const r = raw as Record<string, unknown>;
+  const seen = new Set<string>();
+  const stores: WidgetShopConfig['stores'] = [];
+  for (const x of Array.isArray(r.stores) ? r.stores : []) {
+    if (!x || typeof x !== 'object' || stores.length >= SHOP_MAX_STORES) continue;
+    const s = x as Record<string, unknown>;
+    if (typeof s.storeId !== 'string' || !SHOP_STORE_ID.test(s.storeId) || seen.has(s.storeId)) continue;
+    if (s.path === 'subnetwork') stores.push({ storeId: s.storeId, path: 'subnetwork' });
+    else if (
+      s.path === 'client_code' &&
+      typeof s.clientCode === 'string' &&
+      SHOP_CLIENT_CODE.test(s.clientCode.trim())
+    )
+      stores.push({ storeId: s.storeId, path: 'client_code', clientCode: s.clientCode.trim() });
+    else continue;
+    seen.add(s.storeId);
+  }
+  const d = (r.destination ?? null) as Record<string, unknown> | null;
+  const a = (d?.answers ?? null) as Record<string, unknown> | null;
+  const destination =
+    d &&
+    a &&
+    SHOP_QUESTIONS.every((q) => typeof a[q] === 'boolean') &&
+    Number.isInteger(d.rulesVersion) &&
+    (d.rulesVersion as number) > 0 &&
+    typeof d.confirmedAt === 'string' &&
+    !Number.isNaN(Date.parse(d.confirmedAt))
+      ? {
+          answers: Object.fromEntries(SHOP_QUESTIONS.map((q) => [q, a[q] as boolean])) as NonNullable<
+            WidgetShopConfig['destination']
+          >['answers'],
+          rulesVersion: d.rulesVersion as number,
+          confirmedAt: new Date(d.confirmedAt).toISOString(),
+        }
+      : undefined;
+  if (!stores.length && !destination) return undefined;
+  return { stores, ...(destination ? { destination } : {}) };
 }
 
 const optional = <K extends string, V>(key: K, value: V | undefined) =>
@@ -521,6 +585,7 @@ export const REGISTRY_COMPONENTS: Record<WidgetKind, string> = {
   channel_guide: 'GalaxieChannelGuide',
   match_stats: 'GalaxieMatchStats',
   upcoming_derbies: 'GalaxieUpcomingDerbies',
+  shop_the_game: 'GalaxieShopTheGame',
 };
 
 /**

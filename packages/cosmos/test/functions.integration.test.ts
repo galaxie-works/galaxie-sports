@@ -99,7 +99,7 @@ describe('provedor e modelo por função (#1088)', () => {
       name: 'fn.tela',
       minCredits: 1,
       permission: 'cosmos.test',
-      screen: '/cliente/cosmos',
+      screen: '/client/cosmos',
     });
     await staffSaveFunction(db, {
       name: 'fn.tela',
@@ -112,7 +112,7 @@ describe('provedor e modelo por função (#1088)', () => {
       userId: 'adm',
     });
     const [row] = await db.select().from(functionDef).where(eq(functionDef.name, 'fn.tela'));
-    expect(row).toMatchObject({ provider: 'openai', screen: '/cliente/cosmos' });
+    expect(row).toMatchObject({ provider: 'openai', screen: '/client/cosmos' });
     expect(Number(row!.minCredits)).toBe(0.5);
     const [log] = await db.select().from(staffAction).where(eq(staffAction.action, 'function'));
     expect(log).toMatchObject({ tenantId: null, reason: 'modelo mais barato para testar', userId: 'adm' });

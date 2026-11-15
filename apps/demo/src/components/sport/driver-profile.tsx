@@ -161,7 +161,7 @@ export async function DriverStyleCard({
                     <span className="flex min-w-0 flex-col">
                       {c.circuit.venue_id ? (
                         <Link
-                          href={`/locais/${c.circuit.venue_id}`}
+                          href={`/venues/${c.circuit.venue_id}`}
                           className="truncate font-medium hover:underline"
                         >
                           {c.circuit.name}
@@ -292,7 +292,7 @@ export async function DriverMomentsCard({
               <span className="flex flex-wrap items-center gap-2">
                 {m.year != null ? <span className="text-lg font-bold tabular-nums">{m.year}</span> : null}
                 {m.event_id ? (
-                  <Link href={`/eventos/${m.event_id}`} className="font-medium hover:underline">
+                  <Link href={`/events/${m.event_id}`} className="font-medium hover:underline">
                     {m.race}
                   </Link>
                 ) : (

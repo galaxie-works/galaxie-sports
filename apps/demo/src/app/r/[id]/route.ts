@@ -1,5 +1,5 @@
 /**
- * Registry dos widgets para o CLI do shadcn: `npx shadcn@latest add https://sports.galaxie.works/r/<id>.json`.
+ * Registry dos widgets para o CLI do shadcn: `npx shadcn@latest add <SITE_URL>/r/<id>.json`.
  * Público (o CLI baixa sem sessão; ver `lib/public-routes.ts`): devolve o registry-item do widget salvo
  * (`buildRegistryItem` de `@galaxie/widgets/registry`), com o tema, o idioma, o mercado e a entidade padrão
  * dele. Não há segredo no JSON: o id é opaco (UUID v7) e a chave publicável não vai junto (o componente lê

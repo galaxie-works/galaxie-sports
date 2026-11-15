@@ -2,11 +2,11 @@
 
 App Next.js (shadcn/ui + ReUI) que reúne, num só deploy:
 
-- o **site público** e a página de exemplo (`/[locale]/sobre`, `/[locale]/exemplo`, termos e privacidade);
+- o **site público** e a página de exemplo (`/[locale]/about`, `/[locale]/example`, termos e privacidade);
 - a **demonstração** para clientes: Meu dia, agenda, ao vivo, competições, eventos com onde assistir, times, pessoas,
   clássicos, multiesporte, hipismo e a documentação da API (`/docs`);
-- o **portal do cliente** (`/cliente`): grade de canais, chaves e o **Builder** de widgets;
-- os **ajustes da operação** (`/ajustes`): esportes, grades e logos de canais, vídeos relacionados, painel de cota;
+- o **portal do cliente** (`/client`): grade de canais, chaves e o **Builder** de widgets;
+- os **ajustes da operação** (`/settings`): esportes, grades e logos de canais, vídeos relacionados, painel de cota;
 - o **embed** dos widgets (`/embed.js`, `/e/[id]`, `/r/[id]`) a partir de `@galaxie/widgets`.
 
 Telas e decisões: [docs/09-app-demonstracao.md](../../docs/09-app-demonstracao.md).

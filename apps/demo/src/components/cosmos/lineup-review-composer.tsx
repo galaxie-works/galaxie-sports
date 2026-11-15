@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useId, useRef, useState, useTransition } from 'react';
 import { toast } from 'sonner';
 
-import { requestLineupReview } from '@/app/[locale]/(app)/cliente/grade/actions';
+import { requestLineupReview } from '@/app/[locale]/(app)/client/lineup/actions';
 import { Badge } from '@/components/reui/badge';
 import { Frame, FrameDescription, FrameHeader, FramePanel, FrameTitle } from '@/components/reui/frame';
 import { SafetyNote } from '@/components/settings';

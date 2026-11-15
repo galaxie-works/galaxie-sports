@@ -97,21 +97,21 @@ export function UserMenu() {
               </DropdownMenuLabel>
             </DropdownMenuGroup>
             {canAccessClientPanel(user.role) ? (
-              <DropdownMenuItem render={<Link href="/cliente" onClick={topLevelClick('/cliente')} />}>
+              <DropdownMenuItem render={<Link href="/client" onClick={topLevelClick('/client')} />}>
                 <Blocks />
                 {t.shell.userMenu.clientPanel}
               </DropdownMenuItem>
             ) : null}
             {isAdmin ? (
               <DropdownMenuItem
-                render={<Link href="/ajustes/usuarios" onClick={topLevelClick('/ajustes/usuarios')} />}
+                render={<Link href="/settings/users" onClick={topLevelClick('/settings/users')} />}
               >
                 <Users />
                 {t.shell.userMenu.users}
               </DropdownMenuItem>
             ) : null}
             {isAdmin ? (
-              <DropdownMenuItem render={<Link href="/ajustes" onClick={topLevelClick('/ajustes')} />}>
+              <DropdownMenuItem render={<Link href="/settings" onClick={topLevelClick('/settings')} />}>
                 <SlidersHorizontal />
                 {t.shell.userMenu.operations}
               </DropdownMenuItem>

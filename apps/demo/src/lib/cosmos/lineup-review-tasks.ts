@@ -62,7 +62,7 @@ export async function draftLineupReview(
         const draft = parseLineupReviewAnswer(parseModelJson(answer), catalog);
         return { usable: draft !== null, value: draft! };
       },
-      ...(ctx.role === 'admin' ? { staff: { route: '/cliente/grade#cosmos-review' } } : {}),
+      ...(ctx.role === 'admin' ? { staff: { route: '/client/lineup#cosmos-review' } } : {}),
     },
     { settings: await readCosmosSettings(db) },
   );

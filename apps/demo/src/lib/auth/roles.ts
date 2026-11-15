@@ -4,7 +4,7 @@
  * - `admin`: gerencia usuários e a operação (Ajustes) e vê o painel do cliente de qualquer tenant.
  * - `user`: convidado, só navega na demo.
  * - `client`: operadora cliente, ligada a um tenant da API (`api.tenant`). Navega na demo e tem o painel
- *   do cliente (`/cliente`): plano, chaves publicáveis e o Builder de widgets, sempre do próprio tenant.
+ *   do cliente (`/client`): plano, chaves publicáveis e o Builder de widgets, sempre do próprio tenant.
  */
 
 import { LOCALES } from '@/lib/i18n/config';
@@ -19,10 +19,10 @@ export const isRole = (value: unknown): value is Role =>
 export const roleOf = (value: unknown): Role => (isRole(value) ? value : 'user');
 
 /** Área de admin: páginas de ajustes e as rotas de API delas. */
-export const ADMIN_PREFIXES = ['/ajustes', '/api/ajustes'] as const;
+export const ADMIN_PREFIXES = ['/settings', '/api/settings'] as const;
 
 /** Painel do cliente: páginas e rotas de API. */
-export const CLIENT_PREFIXES = ['/cliente', '/api/cliente'] as const;
+export const CLIENT_PREFIXES = ['/client', '/api/client'] as const;
 
 export const matchesPrefix = (pathname: string, prefixes: readonly string[]) =>
   prefixes.some((p) => pathname === p || pathname.startsWith(`${p}/`));
@@ -56,10 +56,10 @@ function decodeFully(value: string): string | null {
 
 /**
  * Caminho como as rotas o enxergam, para decidir o acesso: decodificado segmento a segmento
- * (`/%61justes` → `/ajustes`), com `\`, `.`, `..` e barras repetidas resolvidos e sem o prefixo de idioma
- * (`/pt-BR/ajustes` → `/ajustes`, o segmento que o proxy acrescenta ao reescrever). Na dúvida, fica mais
+ * (`/%73ettings` → `/settings`), com `\`, `.`, `..` e barras repetidas resolvidos e sem o prefixo de idioma
+ * (`/pt-BR/settings` → `/settings`, o segmento que o proxy acrescenta ao reescrever). Na dúvida, fica mais
  * restrito: decodifica até estabilizar e devolve `null` (nega) quando algum segmento não decodifica, para
- * um `%E0` no fim não esconder o `/%61justes` do começo.
+ * um `%E0` no fim não esconder o `/%73ettings` do começo.
  */
 export function accessPathname(pathname: string): string | null {
   const segments: string[] = [];
