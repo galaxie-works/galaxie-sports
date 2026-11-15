@@ -125,6 +125,21 @@ describe('rascunho dos módulos por tier', () => {
     expect(measuredModulesPerDay('football', snapshot)).toBe(60 + 4 + 500 + 1 + 20);
     expect(measuredApiPerDay('football', snapshot)).toBe((700 + 3500 + 7 + 140) / 7);
     expect(measuredModulesPerDay('football', { ...snapshot, windowDays: 0 })).toBeNull();
+    // endpoint compartilhado por dois módulos (NBA: elenco e estatísticas por jogo) entra uma vez só no cabeçalho
+    const nba: ModulesSnapshot = {
+      windowDays: 7,
+      from: '2026-11-05',
+      costs: [
+        { api: 'nba', endpoint: '/players/statistics', job: 'sync:mirror', calls: 70 },
+        { api: 'nba', endpoint: '/players', job: 'sync:mirror', calls: 14 },
+      ],
+      steps: [],
+    };
+    const nbaCost = (id: string) => measuredCallsPerDay('nba', moduleDef('nba', id)!, nba);
+    expect(nbaCost('roster')).toBe(12);
+    expect(nbaCost('game-stats')).toBe(10);
+    expect(measuredModulesPerDay('nba', nba)).toBe(12);
+    expect(measuredApiPerDay('nba', nba)).toBe(12);
     expect(
       measuredCallsPerDay('football', moduleDef('football', 'live')!, { ...snapshot, windowDays: 0 }),
     ).toBeNull();

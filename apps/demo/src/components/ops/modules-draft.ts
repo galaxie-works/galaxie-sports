@@ -175,9 +175,24 @@ export function modulesNotCovering(api: string, tier: ModuleTier): ModuleDef[] {
 /** Chamadas por dia medidas dos módulos de uma API (sem os agentes de IA), na janela do ledger; `null` sem janela. */
 export function measuredModulesPerDay(api: string, snapshot: ModulesSnapshot): number | null {
   if (!snapshot.windowDays) return null;
-  let total = 0;
-  for (const def of moduleDefs(api)) total += measuredCallsPerDay(api, def, snapshot) ?? 0;
-  return total;
+  // cada linha do ledger (job, endpoint) e cada passo (job, passo) entram uma vez só: dois módulos podem compartilhar
+  // um endpoint (no NBA, elenco e estatísticas por jogo usam /players/statistics) e somar módulo a módulo contaria em
+  // dobro
+  const stepKeys = new Set<string>();
+  const ledgerKeys = new Set<string>();
+  for (const def of moduleDefs(api)) {
+    if (def.ai) continue;
+    for (const job of def.jobs.map(jobKey)) {
+      if (def.steps?.length) for (const step of def.steps) stepKeys.add(`${job}|${step}`);
+      else for (const endpoint of def.endpoints) ledgerKeys.add(`${job}|${endpoint}`);
+    }
+  }
+  let calls = 0;
+  for (const row of snapshot.steps)
+    if (row.api === api && stepKeys.has(`${jobKey(row.job)}|${row.step}`)) calls += row.calls;
+  for (const row of snapshot.costs)
+    if (row.api === api && ledgerKeys.has(`${jobKey(row.job)}|${row.endpoint}`)) calls += row.calls;
+  return calls / snapshot.windowDays;
 }
 
 /** Chamadas por dia de toda a API no ledger (módulos, cargas e o resto), na janela; `null` sem janela. */
