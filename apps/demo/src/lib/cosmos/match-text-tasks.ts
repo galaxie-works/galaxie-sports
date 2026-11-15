@@ -117,7 +117,7 @@ export async function draftMatchText(
         const parsed = parseMatchTextAnswer(parseModelJson(text), allowed, voice.avoid, lang);
         return { usable: parsed.ok, value: parsed.ok ? parsed.text : null! };
       },
-      ...(ctx.role === 'admin' ? { staff: { route: '/eventos#cosmos-text' } } : {}),
+      ...(ctx.role === 'admin' ? { staff: { route: '/events#cosmos-text' } } : {}),
     },
     { settings: await readCosmosSettings(db) },
   );
