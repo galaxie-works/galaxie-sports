@@ -6,7 +6,7 @@
  * Regras fixas da Galaxie, que nenhuma ficha afrouxa:
  * - menor de 13 fica fora de tudo que é social (e a ficha pode subir esse piso com `minAgeParticipate`);
  * - só 18+ escreve texto livre (`minAgeWrite`, nunca abaixo de 18), resgata, usa marketplace, recebe Prêmio (D1 do
- *   #1017), recebe contato direto e vê conteúdo restrito;
+ *   #1017), recebe contato direto, recebe marketing (mesmo com opt-in, #1107) e vê conteúdo restrito;
  * - faixa congelada depois de descer de `18plus` (#1105) vale como menor até a correção.
  *
  * Regras da ficha do país: abaixo de `parentalConsentUnder`, só com a autorização do responsável; abaixo de
@@ -47,6 +47,8 @@ export const ADULT_ONLY_CAPABILITIES: readonly AgeCapability[] = [
   'receivePrize',
   'viewRestrictedContent',
   'directContact',
+  // sem marketing até os 18, mesmo com opt-in e mesmo que a ficha libere publicidade a menores (#1107)
+  'receiveMarketing',
 ];
 
 /**
@@ -57,7 +59,7 @@ export const ADULT_ONLY_CAPABILITIES: readonly AgeCapability[] = [
  * - `guardian_consent`: falta a autorização do responsável;
  * - `guardian_link`: falta vincular a conta à do responsável;
  * - `age_assurance`: a comprovação de idade está abaixo da que a ficha pede para o recurso;
- * - `not_in_country`: a ficha do país não libera o recurso (marketplace desligado, publicidade para menores).
+ * - `not_in_country`: a ficha do país não libera o recurso (marketplace desligado).
  */
 export const AGE_GATE_REASONS = [
   'ok',
@@ -136,7 +138,5 @@ export function ageGate({ policy, fan, capability }: AgeGateInput): AgeGateResul
     return deny('age_assurance', 'verify_age');
 
   if (capability === 'marketplace' && !policy.gamification.marketplace) return deny('not_in_country');
-  if (capability === 'receiveMarketing' && (floor < ADULT || fan.frozen) && !policy.adsToMinors)
-    return deny('not_in_country');
   return { allowed: true, reason: 'ok' };
 }

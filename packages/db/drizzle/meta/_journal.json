@@ -771,6 +771,13 @@
       "when": 1794529667111,
       "tag": "0158_narracao_frases",
       "breakpoints": true
+    },
+    {
+      "idx": 110,
+      "version": "7",
+      "when": 1794700210908,
+      "tag": "0159_menor_padrao",
+      "breakpoints": true
     }
   ]
 }
