@@ -85,6 +85,32 @@ export const ChatRoomSettings = z
   })
   .meta({ id: 'ChatRoomSettings' });
 
+export const CHAT_REACTION_VALUES = ['fire', 'clap', 'shock', 'laugh', 'angry', 'ball'] as const;
+
+/** Contagem das reações por reação (só as que têm contagem). */
+export const ChatReactionCounts = z.partialRecord(z.enum(CHAT_REACTION_VALUES), z.number().int()).meta({
+  id: 'ChatReactionCounts',
+  description: 'fire 🔥, clap 👏, shock 😱, laugh 😂, angry 😡, ball ⚽.',
+});
+
+export const ChatReactionBody = z
+  .strictObject({ reaction: z.enum(CHAT_REACTION_VALUES) })
+  .meta({ id: 'ChatReactionBody' });
+export type ChatReactionBody = z.infer<typeof ChatReactionBody>;
+
+export const ChatReactionResponse = z
+  .object({
+    data: z.object({
+      accepted: z.boolean().meta({
+        description:
+          '`false`: a reação foi descartada sem erro (passou do limite por segundo, ou o contador está ' +
+          'indisponível no momento).',
+      }),
+    }),
+  })
+  .meta({ id: 'ChatReactionResponse' });
+export type ChatReactionResponse = z.infer<typeof ChatReactionResponse>;
+
 export const ChatRoom = z
   .object({
     data: z.object({
@@ -104,6 +130,7 @@ export const ChatRoom = z
       messages: z
         .array(ChatMessage)
         .meta({ description: 'Últimas mensagens, da mais antiga para a mais nova.' }),
+      reactions: ChatReactionCounts.meta({ description: 'Total de reações do jogo nesta sala.' }),
       game_messages: z.array(ChatGameMessage).meta({
         description:
           'O jogo dentro do chat, só com os tipos que o cliente ligou, da mais antiga para a mais nova.',
@@ -227,6 +254,31 @@ export const chatPaths: ZodOpenApiPathsObject = {
       },
     },
   },
+  '/v1/chat/rooms/{fixtureId}/reactions': {
+    post: {
+      summary: 'Reage ao jogo',
+      description:
+        'Seis reações fixas. A reação não vira mensagem: soma num contador e sai agregada a cada segundo no SSE ' +
+        '(`chat.reactions` com `delta` do segundo e `total` do jogo). Não é texto, então 13 a 17 anos também ' +
+        'reagem (portão de idade, `react`). Acima de 5 por segundo por torcedor, a reação é descartada sem erro ' +
+        '(`accepted: false`). Sala ainda fechada ou encerrada, ou torcedor banido ou suspenso no cliente: 409 ' +
+        '(sala congelada continua aceitando).',
+      tags: [TAG],
+      security: fanAuth,
+      requestParams: { path: ChatRoomParams },
+      requestBody: { content: json(ChatReactionBody) },
+      responses: {
+        '202': { description: 'Recebida', content: json(ChatReactionResponse) },
+        '400': problem('Reação desconhecida (INVALID_PARAMS)'),
+        '401': problem('Token ausente, inválido, vencido ou de Perfil excluído (INVALID_KEY)'),
+        '403': problem('Faixa etária (FAN_AGE_RESTRICTED) ou módulo fora do plano (MODULE_NOT_IN_PLAN)'),
+        '404': problem('Jogo não encontrado (NOT_FOUND)'),
+        '409': problem(
+          'Sala ainda fechada ou encerrada, ou torcedor banido ou suspenso no cliente (CONFLICT)',
+        ),
+      },
+    },
+  },
   '/v1/chat/rooms/{fixtureId}/messages': {
     post: {
       summary: 'Envia uma mensagem',
@@ -259,7 +311,8 @@ export const chatPaths: ZodOpenApiPathsObject = {
         '(`{state, reason?}`; `read_only_peak` com `reason: peak` quando a faixa de conexões do cliente estourou) e ' +
         '`ready` com `last_event_id`. Reconexão: header `Last-Event-ID` (ou `?last_event_id=`) reenvia os lotes ' +
         'perdidos do histórico curto; se não dá para emendar (buraco fora do histórico, numeração recomeçada), vem ' +
-        '`chat.reset` e o cliente relê a sala pelo GET. `access_revoked` antes de fechar quando a chave ou o módulo ' +
+        '`chat.reset` e o cliente relê a sala pelo GET. Reações (#967): `chat.reactions` uma vez por segundo, ' +
+        '`{delta, total}` (na abertura, o total com `snapshot: true`); use o maior `total` visto por reação. `access_revoked` antes de fechar quando a chave ou o módulo ' +
         'deixam de valer. No navegador use um cliente SSE sobre `fetch` com a chave publicável no header (a chave ' +
         'nunca vai na URL); máximo de 20 streams por chave publicável e IP (429). Exige o módulo `live_chat`.',
       tags: [TAG],
