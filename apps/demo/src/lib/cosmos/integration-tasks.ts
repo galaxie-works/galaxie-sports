@@ -54,8 +54,8 @@ const LANGUAGE: Record<Locale, string> = {
 };
 
 const SCREEN: Record<HelpKind, string> = {
-  keys: '/cliente/chaves',
-  webhooks: '/cliente/webhooks',
+  keys: '/client/keys',
+  webhooks: '/client/webhooks',
   usage: '/cliente',
 };
 
