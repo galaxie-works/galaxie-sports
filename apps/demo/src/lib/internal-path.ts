@@ -1,5 +1,5 @@
 /**
- * Caminhos internos vindos de fora (`?voltar=` do login, trilha mandada pelo navegador): só valem se
+ * Caminhos internos vindos de fora (`?next=` do login, trilha mandada pelo navegador): só valem se
  * continuarem na própria origem depois de resolvidos como o navegador resolveria. Checar só o prefixo
  * não basta: `/\evil.com`, `/<tab>/evil.com` e `/.//evil.com` começam com uma barra só, mas o navegador
  * troca `\` por `/`, descarta tab e quebra de linha e resolve `.` e `..`, e o resultado aponta para outro

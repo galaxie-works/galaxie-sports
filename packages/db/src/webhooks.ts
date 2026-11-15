@@ -1,5 +1,5 @@
 /**
- * Webhooks no portal do cliente (`/cliente/webhooks` da demo): cadastro, rotação do segredo, entregas, teste e
+ * Webhooks no portal do cliente (`/client/webhooks` da demo): cadastro, rotação do segredo, entregas, teste e
  * reenvio da DLQ. Toda função recebe o tenant da sessão e só toca nos endpoints dele, mesmo com um id conhecido.
  *
  * O worker (`apps/api/src/webhooks/worker.ts`) é quem entrega: o teste e o reenvio só põem entregas na fila, e a

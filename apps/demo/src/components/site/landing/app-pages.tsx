@@ -7,9 +7,9 @@ import { ExampleDialog } from './example-dialog';
 type AppText = Dictionary['landing']['app'];
 
 const PAGES = [
-  { key: 'team', path: '/exemplo/time', icon: Users, hue: 279 },
-  { key: 'competition', path: '/exemplo/campeonato', icon: Trophy, hue: 300 },
-  { key: 'player', path: '/exemplo/jogador', icon: UserRound, hue: 248 },
+  { key: 'team', path: '/example/team', icon: Users, hue: 279 },
+  { key: 'competition', path: '/example/competition', icon: Trophy, hue: 300 },
+  { key: 'player', path: '/example/player', icon: UserRound, hue: 248 },
 ] as const satisfies readonly { key: keyof AppText['pages']; path: string; icon: LucideIcon; hue: number }[];
 
 /**

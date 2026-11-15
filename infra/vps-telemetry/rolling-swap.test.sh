@@ -106,7 +106,7 @@ services:
       - traefik.http.routers.site.priority=1000
       - traefik.http.routers.site.service=site
       - traefik.http.services.site.loadbalancer.server.port=80
-      - traefik.http.routers.console-maintenance.rule=Host(`web.test`) && PathRegexp(`^/(ajustes|api/ajustes|api/cliente|cliente)(/|$$)`)
+      - traefik.http.routers.console-maintenance.rule=Host(`web.test`) && PathRegexp(`^/((pt-BR|en|es-AR)/)?(ajustes|api/ajustes|api/client|api/cliente|api/settings|client|cliente|settings)(/|$$)`)
       - traefik.http.routers.console-maintenance.entrypoints=websecure
       - traefik.http.routers.console-maintenance.priority=1500
       - traefik.http.routers.console-maintenance.service=maintenance
@@ -115,7 +115,7 @@ services:
     command: ['caddy', 'respond', '--listen', ':80', '--body', 'console']
     labels:
       - traefik.enable=true
-      - traefik.http.routers.console.rule=Host(`web.test`) && PathRegexp(`^/(ajustes|api/ajustes|api/cliente|cliente)(/|$$)`)
+      - traefik.http.routers.console.rule=Host(`web.test`) && PathRegexp(`^/((pt-BR|en|es-AR)/)?(ajustes|api/ajustes|api/client|api/cliente|api/settings|client|cliente|settings)(/|$$)`)
       - traefik.http.routers.console.entrypoints=websecure
       - traefik.http.routers.console.priority=2000
       - traefik.http.routers.console.service=console
@@ -315,14 +315,17 @@ expect_web() {
   exit 1
 }
 APP_VERSION=4 docker compose up -d --quiet-pull site console maintenance
-expect_web /=site /times/1=site /clientes=site /ajustes-antigos=site /login=site /api/auth/x=site \
-  /cliente=console /cliente/builder/novo=console /ajustes=console /api/ajustes/operacao=console /api/cliente/x=console
+expect_web /=site /teams/1=site /clientes=site /clients=site /settings-old=site /ajustes-antigos=site /login=site \
+  /api/auth/x=site /client=console /client/builder/new=console /settings=console /api/settings/operations=console \
+  /api/client/x=console /cliente=console /ajustes/usuarios=console /api/ajustes/operacao=console /api/cliente/x=console \
+  /pt-BR/settings/users=console /en/client=console /es-AR/cliente=console /pt-BR/ajustes/usuarios=console \
+  /pt-BR/teams/1=site /en/clients=site
 echo "ok  console pelos prefixos dele (PathRegexp e prioridade), o resto no site"
 
 APP_VERSION=4 docker compose stop console >/dev/null
-expect_web /cliente/builder=manutencao /ajustes=manutencao /=site /times/1=site
-[ "$(web_status /cliente)" = 503 ] || {
-  echo "FAIL  /cliente com o console fora respondeu $(web_status /cliente), não 503"
+expect_web /client/builder=manutencao /settings=manutencao /ajustes=manutencao /=site /teams/1=site
+[ "$(web_status /client)" = 503 ] || {
+  echo "FAIL  /client com o console fora respondeu $(web_status /client), não 503"
   exit 1
 }
 echo "ok  console fora: os prefixos dele na manutenção (503), o site segue"
@@ -338,7 +341,7 @@ APP_VERSION=4 bash "$HERE/rolling-swap.sh" console
   echo "FAIL  a troca de um serviço sem contêiner no ar terminou antes do healthy"
   exit 1
 }
-expect_web /cliente=console /=site
+expect_web /client=console /=site
 echo "ok  --retire tira o serviço, e a troca de um serviço sem contêiner no ar sobe e espera o healthy"
 echo "── live com duas cópias e líder: troca cópia a cópia, a líder primeiro, sem ficar sem cópia healthy"
 copies() { docker ps -q --filter label=com.docker.compose.project=rolling-swap-test --filter label=com.docker.compose.service=live "$@"; }

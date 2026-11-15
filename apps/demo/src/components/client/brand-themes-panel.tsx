@@ -38,7 +38,7 @@ export function BrandThemesPanel({ themes }: { themes: BrandThemeItem[] }) {
             <FrameTitle>{th.title}</FrameTitle>
             <FrameDescription>{th.description}</FrameDescription>
           </FrameHeader>
-          <Button size="sm" nativeButton={false} render={<Link href="/cliente/temas/novo" />}>
+          <Button size="sm" nativeButton={false} render={<Link href="/client/themes/new" />}>
             <Plus />
             {th.new}
           </Button>
@@ -48,7 +48,7 @@ export function BrandThemesPanel({ themes }: { themes: BrandThemeItem[] }) {
             {themes.map((x) => (
               <Link
                 key={x.id}
-                href={`/cliente/temas/${x.id}`}
+                href={`/client/themes/${x.id}`}
                 className="hover:border-primary/60 flex flex-col gap-3 rounded-lg border p-4 transition-colors"
               >
                 <ThemeSwatch theme={x.theme} />

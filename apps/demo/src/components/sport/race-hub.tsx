@@ -120,7 +120,7 @@ function FeaturedGrandPrix({
                 {weekendDates(weekend, f)}
               </span>
               {venue ? (
-                <Link href={`/locais/${venue.id}`} className="flex items-center gap-1.5 hover:underline">
+                <Link href={`/venues/${venue.id}`} className="flex items-center gap-1.5 hover:underline">
                   <MapPin className="size-3.5" aria-hidden />
                   {venue.name}
                   {venue.city ? `, ${venue.city}` : ''}
@@ -140,7 +140,7 @@ function FeaturedGrandPrix({
             {weekend.sessions.map((s) => (
               <li key={s.id}>
                 <Link
-                  href={`/eventos/${s.id}`}
+                  href={`/events/${s.id}`}
                   className="hover:bg-accent flex items-center justify-between gap-3 px-3 py-2 text-sm transition-colors"
                 >
                   <span className={cn('truncate', s.session?.type === 'race' && 'font-semibold')}>
@@ -179,7 +179,7 @@ function Calendar({ weekends, t, f }: { weekends: RaceWeekend[]; t: Dictionary; 
               {w.round}
             </span>
             <div className="flex min-w-0 flex-col">
-              <Link href={`/eventos/${w.main.id}`} className="truncate text-sm font-medium hover:underline">
+              <Link href={`/events/${w.main.id}`} className="truncate text-sm font-medium hover:underline">
                 {w.name}
               </Link>
               <span className="text-muted-foreground truncate text-xs">
@@ -241,7 +241,7 @@ export async function RaceHub({
 }: {
   sport: string;
   events: Event[];
-  /** GP pedido na URL (`?rodada=`), em destaque no lugar do próximo. */
+  /** GP pedido na URL (`?round=`), em destaque no lugar do próximo. */
   focus?: string | null;
   /** A temporada mostrada é a atual. */
   current: boolean;

@@ -15,7 +15,7 @@ import { useRouter } from 'next/navigation';
 import { useMemo, useState, useTransition } from 'react';
 import { toast } from 'sonner';
 
-import { saveNarrationAction } from '@/app/[locale]/(app)/ajustes/lance-a-lance/actions';
+import { saveNarrationAction } from '@/app/[locale]/(app)/settings/play-by-play/actions';
 import { Badge } from '@/components/reui/badge';
 import { Frame, FrameDescription, FrameHeader, FramePanel, FrameTitle } from '@/components/reui/frame';
 import { Button } from '@/components/ui/button';

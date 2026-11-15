@@ -158,7 +158,8 @@ jobs:
     # segredos da VPS só neste ambiente (restrito à branch main nas configurações do repositório)
     environment:
       name: producao
-      url: https://sports.galaxie.works
+      # vars.DEMO_DOMAIN (Settings › Variables) troca junto com o DEMO_DOMAIN do .env da VPS no corte de domínio (#627)
+      url: https://${{ vars.DEMO_DOMAIN || 'sports.galaxie.works' }}
     permissions:
       contents: write # tag e release das notas de versão
       packages: read # a VPS baixa as imagens com o token deste job (vale só enquanto ele roda)

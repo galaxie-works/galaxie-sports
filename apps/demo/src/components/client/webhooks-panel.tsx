@@ -16,7 +16,7 @@ import {
   setWebhookActive,
   type DeliveryRow,
   type WebhookActionResult,
-} from '@/app/[locale]/(app)/cliente/webhooks/actions';
+} from '@/app/[locale]/(app)/client/webhooks/actions';
 import { Alert, AlertDescription } from '@/components/reui/alert';
 import { Badge } from '@/components/reui/badge';
 import { Frame, FramePanel } from '@/components/reui/frame';
@@ -105,7 +105,7 @@ function SecretView({ secret, onDone }: { secret: string; onDone: () => void }) 
       <p className="text-muted-foreground text-sm">{w.secretEnv}</p>
       <CodeSnippet code={`${SECRET_ENV}=${secret}`} />
       <Link
-        href="/docs/tempo-real#webhooks"
+        href="/docs/realtime#webhooks"
         className="text-primary text-sm underline-offset-4 hover:underline"
       >
         {w.docsLink}
@@ -596,7 +596,7 @@ export function WebhooksPanel({
       description={
         <>
           {w.description}{' '}
-          <Link href="/docs/tempo-real#webhooks" className="text-primary underline-offset-4 hover:underline">
+          <Link href="/docs/realtime#webhooks" className="text-primary underline-offset-4 hover:underline">
             {w.docsLink}
           </Link>
         </>
