@@ -107,8 +107,14 @@ if [ "$count" -gt "$2" ]; then
 fi
 echo "PRE_DUMP=pre-migrate/$name"'
 
-# a imagem do backup em uso já está na VPS: nada de pull (o deploy não passa credencial do GHCR aqui)
-if ! PULL_POLICY=missing timeout "${TIMEOUT_MIN}m" "${DADOS[@]}" run --rm --no-deps --pull never -T --entrypoint sh backup -c "$inner" sh "$label" "$KEEP" </dev/null; then
+# a imagem do backup em uso já está na VPS: nada de pull (o deploy não passa credencial do GHCR aqui). O contêiner tem
+# nome: o `timeout` só derruba o cliente do docker compose, e o pg_dump seguia rodando sozinho, com o deploy já desistido
+# (14/11, 46 min a mais de carga no banco). No estouro, o stop manda TERM (o trap do inner apaga o .partial) e o --rm o
+# remove.
+cname="galaxie-pre-migrate-dump-$$"
+if ! PULL_POLICY=missing timeout "${TIMEOUT_MIN}m" "${DADOS[@]}" run --rm --no-deps --pull never -T --name "$cname" --entrypoint sh backup -c "$inner" sh "$label" "$KEEP" </dev/null; then
+  docker stop -t 30 "$cname" >/dev/null 2>&1 || true
+  docker rm -f "$cname" >/dev/null 2>&1 || true
   echo "FAIL  dump antes do migrate não terminou (falhou ou passou de $TIMEOUT_MIN min)"
   exit 1
 fi
