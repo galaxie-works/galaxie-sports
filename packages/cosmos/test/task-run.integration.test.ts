@@ -192,7 +192,7 @@ describe('tarefa de uma chamada da Cosmos (#1005)', () => {
     const t = await newTenant(0);
     const r = await runCosmosTask(
       db,
-      input(t, { userId: 'staff-1', staff: { route: '/cliente/builder#x' } }),
+      input(t, { userId: 'staff-1', staff: { route: '/client/builder#x' } }),
       {
         client: fakeClient('{"widgets":["standings"]}'),
         env,
@@ -202,7 +202,7 @@ describe('tarefa de uma chamada da Cosmos (#1005)', () => {
     expect(r).toMatchObject({ ok: true, charged: 0, staff: true });
     expect(await db.select().from(reservation).where(eq(reservation.tenantId, t))).toHaveLength(0);
     const [row] = await db.select().from(staffUsage).where(eq(staffUsage.tenantId, t));
-    expect(row).toMatchObject({ outcome: 'ok', route: '/cliente/builder#x', inputTokens: 1200 });
+    expect(row).toMatchObject({ outcome: 'ok', route: '/client/builder#x', inputTokens: 1200 });
   });
 
   it('tarefa de várias chamadas: o uso de todas entra num só acerto, e a reserva cobre as rodadas', async () => {

@@ -110,7 +110,7 @@ export async function DriverHero({
             {team ? (
               <>
                 <Divider />
-                <MetaLink href={`/times/${team.id}`}>{team.name}</MetaLink>
+                <MetaLink href={`/teams/${team.id}`}>{team.name}</MetaLink>
               </>
             ) : null}
             {number != null ? (

@@ -84,9 +84,9 @@ const EXPLORE_HREF = '/';
 
 /** Atalhos para as seções da página Explorar (Ao vivo entra à parte, com o contador). */
 const EXPLORE_SECTIONS = [
-  { id: 'sports', href: '/esportes', icon: Trophy },
-  { id: 'countries', href: '/paises', icon: Globe2 },
-  { id: 'agenda', href: '/agenda', icon: CalendarDays },
+  { id: 'sports', href: '/sports', icon: Trophy },
+  { id: 'countries', href: '/countries', icon: Globe2 },
+  { id: 'agenda', href: '/schedule', icon: CalendarDays },
 ] as const;
 
 /**
@@ -102,7 +102,7 @@ function ExploreNavItem({ pathname, section }: { pathname: string | null; sectio
     agenda: t.nav.explore.index.agendaTitle,
   };
   const liveActive = isActive(pathname, LIVE_HREF);
-  // só na página da seção: numa filha (`/esportes/futebol`, `/paises/br`) acende o item específico dela
+  // só na página da seção: numa filha (`/sports/football`, `/countries/br`) acende o item específico dela
   const activeSection = EXPLORE_SECTIONS.find((s) => pathname === s.href || section === s.href);
   return (
     <Collapsible defaultOpen render={<SidebarMenuItem />}>
@@ -144,8 +144,8 @@ function ExploreNavItem({ pathname, section }: { pathname: string | null; sectio
 
 /**
  * O caminho atual é dado de URL (runtime): fica atrás de Suspense para não bloquear o prerender. E só é
- * lido depois de hidratar: numa rota estática alcançada pela reescrita do proxy (`/ao-vivo` →
- * `/pt-BR/ao-vivo`), o HTML prerenderizado e o navegador veem caminhos diferentes, e o erro de
+ * lido depois de hidratar: numa rota estática alcançada pela reescrita do proxy (`/live` →
+ * `/pt-BR/live`), o HTML prerenderizado e o navegador veem caminhos diferentes, e o erro de
  * hidratação deixava o menu travado no fallback (nenhum item aceso até recarregar).
  */
 function CurrentSidebarNav() {
@@ -178,8 +178,8 @@ function ClientNavGroup({ pathname }: { pathname: string | null }) {
           {CLIENT_NAV.map(({ id, href, icon: Icon }) => (
             <SidebarMenuItem key={id}>
               <SidebarMenuButton
-                // a visão geral só acende nela mesma (as outras áreas são filhas de /cliente)
-                isActive={href === '/cliente' ? pathname === href : isActive(pathname, href)}
+                // a visão geral só acende nela mesma (as outras áreas são filhas de /client)
+                isActive={href === '/client' ? pathname === href : isActive(pathname, href)}
                 tooltip={t.client.nav[id]}
                 render={<Link href={href} onClick={topLevelClick(href)} />}
               >
@@ -281,10 +281,10 @@ function LegalLinks() {
   const { t } = useI18n();
   return (
     <nav className="text-muted-foreground flex gap-4 px-2 pb-1 text-xs group-data-[collapsible=icon]:hidden">
-      <a href="/termos" className="hover:text-foreground underline-offset-4 hover:underline">
+      <a href="/terms" className="hover:text-foreground underline-offset-4 hover:underline">
         {t.auth.about.terms}
       </a>
-      <a href="/privacidade" className="hover:text-foreground underline-offset-4 hover:underline">
+      <a href="/privacy" className="hover:text-foreground underline-offset-4 hover:underline">
         {t.auth.about.privacy}
       </a>
     </nav>

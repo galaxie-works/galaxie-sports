@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
 
-import { saveStoreAction } from '@/app/[locale]/(app)/ajustes/shopping/actions';
+import { saveStoreAction } from '@/app/[locale]/(app)/settings/shopping/actions';
 import { Badge } from '@/components/reui/badge';
 import { Frame, FrameDescription, FrameHeader, FramePanel, FrameTitle } from '@/components/reui/frame';
 import { Button } from '@/components/ui/button';
@@ -66,7 +66,7 @@ export function ShoppingCatalog({
                 size="sm"
                 variant="outline"
                 nativeButton={false}
-                render={<Link href="/ajustes/shopping/conectores" />}
+                render={<Link href="/settings/shopping/connectors" />}
               >
                 <PlugZap />
                 {T.connectors.link}
@@ -139,7 +139,7 @@ export function ShoppingCatalog({
               onSubmit={(e) => {
                 e.preventDefault();
                 const v = q.trim();
-                router.push(v ? `/ajustes/shopping?q=${encodeURIComponent(v)}` : '/ajustes/shopping');
+                router.push(v ? `/settings/shopping?q=${encodeURIComponent(v)}` : '/settings/shopping');
               }}
             >
               <Input
@@ -174,7 +174,7 @@ export function ShoppingCatalog({
                     <TableCell>
                       <Link
                         className="font-medium hover:underline"
-                        href={`/ajustes/shopping/${e.kind}/${e.id}`}
+                        href={`/settings/shopping/${e.kind}/${e.id}`}
                       >
                         {e.name}
                       </Link>

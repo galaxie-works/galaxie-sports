@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Fragment, useTransition } from 'react';
 import { toast } from 'sonner';
 
-import { changeRolePermission, resetPermissions } from '@/app/[locale]/(app)/cliente/usuarios/actions';
+import { changeRolePermission, resetPermissions } from '@/app/[locale]/(app)/client/users/actions';
 import { Badge } from '@/components/reui/badge';
 import { Frame, FramePanel } from '@/components/reui/frame';
 import { SafetyNote, SettingsSection } from '@/components/settings';

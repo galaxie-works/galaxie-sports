@@ -6,6 +6,7 @@ import {
   MIRROR_GROUP_ORDER_SPORTS_KEY,
   MIRROR_PERIOD_MAX_DAYS,
   MIRROR_PERIOD_MIN_DAYS,
+  defaultPeriods,
   estimateMirrorCalls,
   mirrorBudgetCalls,
   mirrorItems,
@@ -15,7 +16,7 @@ import {
 import { RotateCcw, Save } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
-import { resetSetting, saveSetting } from '@/app/[locale]/(app)/ajustes/operacao/actions';
+import { resetSetting, saveSetting } from '@/app/[locale]/(app)/settings/operations/actions';
 import { Badge } from '@/components/reui/badge';
 import { Frame, FrameDescription, FrameHeader, FramePanel, FrameTitle } from '@/components/reui/frame';
 import { isChanged, sportsByLabel } from '@/components/settings/blocks/logic';
@@ -245,7 +246,7 @@ function PeriodsEditor({
         <TableBody>
           {mirrorItems(api).map((def) => {
             const est = perId.get(def.id);
-            const changed = def.defaults.some((d, i) => state.periods.get(def.id)?.[i] !== d);
+            const changed = defaultPeriods(def).some((d, i) => state.periods.get(def.id)?.[i] !== d);
             return (
               <TableRow key={def.id}>
                 <TableCell className="pl-4 align-top">

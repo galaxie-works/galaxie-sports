@@ -1,6 +1,7 @@
 // Dados de exemplo para o preview do Builder e para os testes. Os objetos seguem os contratos completos
 // da API (@galaxie/contracts): se um contrato mudar, o typecheck daqui acusa.
 import { channelGuidePreviewBody } from './fixtures-channel-guide.js';
+import { shopPreviewBody } from './fixtures-shop.js';
 import { localizeSample } from './fixtures-locale.js';
 import type {
   Event,
@@ -63,6 +64,7 @@ export const PREVIEW_IDS = {
   cupCompetition: BRACKET_IDS.competition,
   /** Grade nos canais: o id de um widget de exemplo (a prévia responde a qualquer id). */
   channelGuideWidget: '0199a5c0-0000-7000-8000-0000000000e1',
+  shopWidget: '0199a5c0-0000-7000-8000-0000000000e2',
 } as const;
 
 const COMPETITION_ID = '0199a5c0-0000-7000-8000-0000000000c1';
@@ -782,6 +784,8 @@ function samplePreviewFetch(options: { now?: Date; sport?: string }): typeof fet
     const f = createPreviewFixtures(now, options.sport);
     const guide = channelGuidePreviewBody(url, f.events);
     if (guide) return json(guide);
+    const shop = shopPreviewBody(url, now);
+    if (shop) return json(shop);
     const racing = createRacingFixtures(now);
     const fights = createFightFixtures(now);
     const id = (re: RegExp) => {

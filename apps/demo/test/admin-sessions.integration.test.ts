@@ -23,14 +23,14 @@ vi.mock('next/navigation', () => ({
 
 let db: AuthTestDb;
 let admin: typeof import('../src/lib/auth/admin');
-let actions: typeof import('../src/app/[locale]/(app)/ajustes/actions');
+let actions: typeof import('../src/app/[locale]/(app)/settings/actions');
 const idOf = async (email: string) =>
   (await db.sql.query<{ id: string }>('select id from "user" where email = $1', [email])).rows[0]!.id;
 
 beforeAll(async () => {
   db = await createAuthTestDb();
   admin = await import('../src/lib/auth/admin');
-  actions = await import('../src/app/[locale]/(app)/ajustes/actions');
+  actions = await import('../src/app/[locale]/(app)/settings/actions');
   await signInAs('convidado@galaxie.test');
   await signInAs('outra@galaxie.test');
   request.cookie = await signInAs('admin@galaxie.test', 'admin');

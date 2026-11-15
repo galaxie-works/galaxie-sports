@@ -1,7 +1,7 @@
 import { defineMessages } from '../define';
 
 /**
- * Portal do cliente, aba "Minha lista de canais" (`/cliente/canais`): envio da lista (M3U ou nomes),
+ * Portal do cliente, aba "Minha lista de canais" (`/client/channels`): envio da lista (M3U ou nomes),
  * revisão do casamento com os direitos de transmissão, correção e confirmação.
  */
 export default defineMessages(

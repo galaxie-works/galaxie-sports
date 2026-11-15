@@ -185,15 +185,15 @@ const texts = (raw: string | null, max: number) =>
 const known = <T extends string>(list: readonly T[], raw: string | null): T[] =>
   splitList(raw).filter((v): v is T => (list as readonly string[]).includes(v));
 
-/** Nome de cada filtro na URL (`?tipo=team,copy&esporte=football`). */
+/** Nome de cada filtro na URL (`?type=team,copy&sport=football`). */
 export const REVIEW_FILTER_PARAMS = {
-  kind: 'tipo',
-  sport: 'esporte',
-  market: 'mercado',
+  kind: 'type',
+  sport: 'sport',
+  market: 'market',
   locale: 'locale',
   state: 'status',
   q: 'q',
-  page: 'pagina',
+  page: 'page',
   per: 'per',
 } as const satisfies Record<keyof ReviewFilters, string>;
 

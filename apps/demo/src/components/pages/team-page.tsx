@@ -62,7 +62,7 @@ export async function teamMetadata(id: string, source: DataSource): Promise<Meta
   }
 }
 
-/** `?temporada=2025` da URL (o primeiro valor, se repetido); fora de um ano inteiro, nada. */
+/** `?season=2025` da URL (o primeiro valor, se repetido); fora de um ano inteiro, nada. */
 function seasonParam(raw: string | string[] | undefined): number | undefined {
   const n = Number(Array.isArray(raw) ? raw[0] : raw);
   return raw !== undefined && Number.isInteger(n) ? n : undefined;
@@ -364,7 +364,7 @@ function RivalsCard({ s, t }: { s: TeamSemantic; t: Dictionary }) {
           return r.team.participant_id ? (
             <Link
               key={r.team.slug}
-              href={`/times/${r.team.participant_id}`}
+              href={`/teams/${r.team.participant_id}`}
               className="hover:bg-accent -mx-2 flex items-center gap-3 rounded-md px-2 py-2 transition-colors"
             >
               {body}
@@ -386,7 +386,7 @@ export async function TeamContent({
   source,
   redirectIndividuals = false,
 }: PageContentProps & {
-  /** Rota /times: piloto e lutador vão para /pilotos e /lutadores (links antigos e da busca). */
+  /** Rota /teams: piloto e lutador vão para /drivers e /fighters (links antigos e da busca). */
   redirectIndividuals?: boolean;
 }) {
   const [{ id }, query, { locale, t }] = await Promise.all([params, searchParams, getI18n()]);
@@ -400,7 +400,7 @@ export async function TeamContent({
   // API anterior ao seletor (sem `seasons`): só a temporada atual, sem combobox
   const seasons = latest.seasons ?? [];
   // só anos com jogos do time; a temporada corrente é a visão padrão (sem `?temporada`)
-  const past = seasons.find((s) => s.year === seasonParam(query.temporada) && !s.current);
+  const past = seasons.find((s) => s.year === seasonParam(query.season) && !s.current);
   const year = past?.year;
   // o elenco sempre de um ano (o escolhido ou o corrente), para vir com jogos e gols
   const squadYear = year ?? seasons.find((s) => s.current)?.year;
@@ -542,7 +542,7 @@ export async function TeamContent({
                     <Fact icon={Calendar}>{fill(t.team.founded, { year: team.founded })}</Fact>
                   ) : null}
                   {team.venue ? (
-                    <Link href={`/locais/${team.venue.id}`} className="hover:underline">
+                    <Link href={`/venues/${team.venue.id}`} className="hover:underline">
                       <Fact icon={Users}>{team.venue.name}</Fact>
                     </Link>
                   ) : null}
@@ -587,7 +587,7 @@ export async function TeamContent({
                 // cada ano leva às corridas daquela temporada (só os anos que a página sabe mostrar)
                 seasonHref={(y) => {
                   const o = options.find((x) => x.year === y);
-                  return o ? (o.current ? basePath : `${basePath}?temporada=${y}`) : undefined;
+                  return o ? (o.current ? basePath : `${basePath}?season=${y}`) : undefined;
                 }}
               />
             ) : null}

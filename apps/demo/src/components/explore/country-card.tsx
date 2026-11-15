@@ -59,7 +59,7 @@ function HighlightLine({
   const score = event.relevance?.score ?? event.importance;
   return (
     <Link
-      href={`/eventos/${event.id}`}
+      href={`/events/${event.id}`}
       className="hover:bg-accent focus-visible:ring-ring pointer-events-auto flex items-center gap-2.5 rounded-lg border px-2.5 py-2 transition-colors outline-none focus-visible:ring-2"
     >
       <span className="flex shrink-0 -space-x-1.5">
@@ -116,7 +116,7 @@ function HighlightPanel({
   );
   return (
     <Link
-      href={`/eventos/${event.id}`}
+      href={`/events/${event.id}`}
       data-anim-trigger
       className="hover:bg-accent focus-visible:ring-ring pointer-events-auto flex h-full flex-col gap-4 rounded-lg border p-4 transition-colors outline-none focus-visible:ring-2"
     >

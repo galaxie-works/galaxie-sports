@@ -8,7 +8,7 @@
 import { EXAMPLE_PAGES } from './example/pages';
 
 /** Páginas públicas com conteúdo (entram no sitemap). A primeira é a apresentação. */
-export const PUBLIC_PAGES = ['/sobre', '/termos', '/privacidade'] as const;
+export const PUBLIC_PAGES = ['/about', '/terms', '/privacy'] as const;
 
 /** Página que a raiz mostra para quem não tem sessão. */
 export const LANDING_PAGE = PUBLIC_PAGES[0];
@@ -27,10 +27,10 @@ const PUBLIC_PREFIXES = ['/login', '/api/auth'];
 
 /**
  * Exemplo público (cópia gravada das páginas do app, sem a API): só as quatro páginas e as imagens
- * dele. Outro endereço em /exemplo cai na regra geral (login).
+ * dele. Outro endereço em /example cai na regra geral (login).
  */
-const EXAMPLE_PATHS = EXAMPLE_PAGES.map((p) => `/exemplo/${p}`);
-const EXAMPLE_IMAGES = '/exemplo/img/';
+const EXAMPLE_PATHS = EXAMPLE_PAGES.map((p) => `/example/${p}`);
+const EXAMPLE_IMAGES = '/example/img/';
 
 /**
  * Registry dos widgets do Builder (`/r/<id>.json`): o CLI do shadcn baixa sem sessão. Só o formato exato
@@ -46,14 +46,14 @@ const EMBED_SCRIPT = '/embed.js';
 const EMBED_CONFIG = /^\/e\/[^/]+\.json$/;
 
 /**
- * Imagem anexada a uma sugestão do app (`app/api/feedback/anexo/[...key]/route.ts`): o GitHub a busca sem sessão para
+ * Imagem anexada a uma sugestão do app (`app/api/feedback/attachment/[...key]/route.ts`): o GitHub a busca sem sessão para
  * mostrar na issue; a rota só entrega com o link assinado (lib/feedback/signing.ts).
  */
-const FEEDBACK_ATTACHMENT = /^\/api\/feedback\/anexo\/\d{4}-\d{2}\/[0-9a-f-]{36}\.(png|jpg)$/;
+const FEEDBACK_ATTACHMENT = /^\/api\/feedback\/attachment\/\d{4}-\d{2}\/[0-9a-f-]{36}\.(png|jpg)$/;
 
 const includes = (list: readonly string[], pathname: string) => list.includes(pathname);
 
-/** O caminho abre sem sessão? (as páginas públicas só no endereço exato: `/sobre/x` exige login) */
+/** O caminho abre sem sessão? (as páginas públicas só no endereço exato: `/about/x` exige login) */
 export function isPublicPath(pathname: string): boolean {
   return (
     pathname === VERSION_ROUTE ||

@@ -20,7 +20,7 @@ const f = (over: Partial<ReviewFilters>): ReviewFilters => ({ ...NO_REVIEW_FILTE
 describe('filtros da revisão na URL', () => {
   it('lê listas separadas por vírgula, sem repetição, e ignora tipo e status desconhecidos', () => {
     const p = new URLSearchParams(
-      'tipo=team,xyz,team,copy&esporte=football,,mma&mercado=br,int,BR&locale=es,pt-BR&status=draft,publicado&q=+Verd%C3%A3o+',
+      'type=team,xyz,team,copy&sport=football,,mma&market=br,int,BR&locale=es,pt-BR&status=draft,publicado&q=+Verd%C3%A3o+',
     );
     expect(parseFilters(p)).toEqual({
       kind: ['team', 'copy'],
@@ -35,7 +35,7 @@ describe('filtros da revisão na URL', () => {
   });
 
   it('o link antigo, de um valor só, continua valendo', () => {
-    expect(parseFilters({ tipo: 'derby', status: 'needs_review' })).toMatchObject({
+    expect(parseFilters({ type: 'derby', status: 'needs_review' })).toMatchObject({
       kind: ['derby'],
       state: ['needs_review'],
     });
@@ -50,7 +50,7 @@ describe('filtros da revisão na URL', () => {
   it('escreve só o que está definido e volta igual (ida e volta)', () => {
     const filters = f({ kind: ['team', 'copy'], market: ['BR'], q: 'São Paulo', page: 3, per: 100 });
     const search = filtersQuery(filters);
-    expect(search).toBe('?tipo=team%2Ccopy&mercado=BR&q=S%C3%A3o+Paulo&pagina=3&per=100');
+    expect(search).toBe('?type=team%2Ccopy&market=BR&q=S%C3%A3o+Paulo&page=3&per=100');
     expect(parseFilters(new URLSearchParams(search))).toEqual(filters);
     expect(filtersQuery(NO_REVIEW_FILTERS)).toBe('');
   });
