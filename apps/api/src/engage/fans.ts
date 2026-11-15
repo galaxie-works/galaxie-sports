@@ -47,6 +47,30 @@ export interface FanUpsertResult {
   downgradedFrom: FanAgeBand | null;
   /** A autorização passou a valer agora, declarada pelo cliente (sem `consentId`). */
   guardianDeclared: boolean;
+  /** A faixa congelada voltou a adulto agora, com uma comprovação nova (#1110). */
+  unfrozen: boolean;
+  /** A faixa fina mudou (aniversário, correção): de qual para qual. Null no primeiro token e quando não mudou. */
+  bandChange: { from: FanAgeBandDetail; to: FanAgeBandDetail } | null;
+}
+
+/** Comprovação que destrava a faixa congelada: estimativa ou verificação feita depois do congelamento (#1110). */
+const UNFREEZE_METHODS: readonly FanAgeAssurance[] = ['estimated', 'verified'];
+
+export function unfreezesWith(
+  frozenAt: Date | null,
+  requested: FanAgeBandDetail,
+  assurance: FanUpsert['ageAssurance'],
+  now: Date = new Date(),
+): boolean {
+  return (
+    frozenAt !== null &&
+    requested === '18plus' &&
+    UNFREEZE_METHODS.includes(assurance.method) &&
+    assurance.at !== null &&
+    assurance.at.getTime() > frozenAt.getTime() &&
+    // uma data no futuro não é comprovação feita depois do congelamento (folga de relógio de 5 minutos)
+    assurance.at.getTime() <= now.getTime() + 5 * 60_000
+  );
 }
 
 export interface FanProfileView {
@@ -121,10 +145,12 @@ export async function upsertFan(
     await tx.execute(
       sql`select pg_advisory_xact_lock(hashtextextended(${`fan.profile:${input.tenantId}:${accountId}:${input.externalProfileId}`}, 0))`,
     );
-    // o Perfil de antes (trava a linha): descer de `18plus` congela; a congelada não volta a adulto pelo token
+    // o Perfil de antes (trava a linha): descer de `18plus` congela; a congelada só volta a adulto com uma comprovação
+    // de idade feita depois do congelamento (#1110), nunca só porque o token voltou a dizer `18plus`
     const [before] = await tx
       .select({
         ageBand: fanProfile.ageBand,
+        ageBandDetail: fanProfile.ageBandDetail,
         ageFrozenAt: fanProfile.ageFrozenAt,
         guardianStatus: fanProfile.guardianStatus,
         guardianConsentId: fanProfile.guardianConsentId,
@@ -143,7 +169,9 @@ export async function upsertFan(
       .for('update');
     const requested = coarseAgeBand(input.ageBand);
     const downgradedFrom = before?.ageBand === '18plus' && requested !== '18plus' ? before.ageBand : null;
-    const frozen = downgradedFrom !== null || before?.ageFrozenAt != null;
+    const unfrozen =
+      !downgradedFrom && unfreezesWith(before?.ageFrozenAt ?? null, input.ageBand, input.ageAssurance);
+    const frozen = downgradedFrom !== null || (before?.ageFrozenAt != null && !unfrozen);
     const ageBand: FanAgeBand = frozen && requested === '18plus' ? '13_17' : requested;
     // a faixa fina fica como o cliente mandou; a larga (a que libera escrever e resgatar) é que fica presa
     const ageBandDetail: FanAgeBandDetail = input.ageBand;
@@ -170,6 +198,8 @@ export async function upsertFan(
           ageAssuranceAt: input.ageAssurance.at,
           ageAssuranceProvider: input.ageAssurance.provider,
         };
+    // menor (ou faixa congelada) não tem foto própria: o widget mostra um avatar do catálogo (#1107)
+    const avatarUrl = ageBand === '18plus' ? (input.avatarUrl ?? null) : null;
     const ageFields = {
       ageBand,
       ageBandDetail,
@@ -177,7 +207,7 @@ export async function upsertFan(
       guardianStatus: input.guardian.status,
       guardianConsentId: input.guardian.consentId,
       guardianLinked: input.guardian.linked,
-      ...(downgradedFrom ? { ageFrozenAt: sql`now()` as never } : {}),
+      ...(downgradedFrom ? { ageFrozenAt: sql`now()` as never } : unfrozen ? { ageFrozenAt: null } : {}),
     };
     const [profile] = await tx
       .insert(fanProfile)
@@ -186,7 +216,7 @@ export async function upsertFan(
         accountId,
         externalProfileId: input.externalProfileId,
         nickname: input.nickname,
-        avatarUrl: input.avatarUrl ?? null,
+        avatarUrl,
         ...ageFields,
         country: input.country,
         locale: input.locale,
@@ -197,7 +227,9 @@ export async function upsertFan(
         targetWhere: sql`${fanProfile.externalProfileId} is not null`,
         set: {
           nickname: input.nickname,
-          avatarUrl: input.avatarUrl ?? null,
+          avatarUrl,
+          // menor volta ao padrão protetivo: aos 18 nada abre sozinho, o torcedor escolhe (#1107)
+          ...(ageBand === '18plus' ? {} : { visibility: {} }),
           ...ageFields,
           country: input.country,
           locale: input.locale,
@@ -206,7 +238,19 @@ export async function upsertFan(
         },
       })
       .returning({ id: fanProfile.id });
-    const result = { accountId, profileId: profile!.id, ageBand, downgradedFrom, guardianDeclared };
+    // Perfil gravado antes da faixa fina (#1105) não tem de onde comparar: nada de troca inventada
+    const fromDetail = before?.ageBandDetail ?? null;
+    const bandChange =
+      fromDetail !== null && fromDetail !== input.ageBand ? { from: fromDetail, to: input.ageBand } : null;
+    const result = {
+      accountId,
+      profileId: profile!.id,
+      ageBand,
+      downgradedFrom,
+      guardianDeclared,
+      unfrozen,
+      bandChange,
+    };
     if (effects) await effects(tx, result);
     return result;
   });
@@ -284,6 +328,8 @@ export async function patchFan(
     favoriteTeamId?: string | null | undefined;
     visibility?: { [K in keyof FanVisibility]?: FanVisibility[K] | undefined } | undefined;
   },
+  /** Só grava se o Perfil ainda for adulto e não congelado (abrir a visibilidade, #1107), na mesma instrução. */
+  opts: { adultOnly?: boolean } = {},
 ): Promise<boolean> {
   const set: Partial<typeof fanProfile.$inferInsert> = {};
   if (patch.favoriteTeamId !== undefined) set.favoriteTeamId = patch.favoriteTeamId;
@@ -297,7 +343,14 @@ export async function patchFan(
   const rows = await db
     .update(fanProfile)
     .set({ ...set, updatedAt: sql`now()` as never })
-    .where(and(eq(fanProfile.tenantId, tenantId), eq(fanProfile.id, profileId), isNull(fanProfile.deletedAt)))
+    .where(
+      and(
+        eq(fanProfile.tenantId, tenantId),
+        eq(fanProfile.id, profileId),
+        isNull(fanProfile.deletedAt),
+        ...(opts.adultOnly ? [eq(fanProfile.ageBand, '18plus'), isNull(fanProfile.ageFrozenAt)] : []),
+      ),
+    )
     .returning({ id: fanProfile.id });
   return rows.length > 0;
 }
