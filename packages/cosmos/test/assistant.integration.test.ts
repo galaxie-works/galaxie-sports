@@ -430,7 +430,7 @@ describe('equipe Galaxie no assistente', () => {
       {
         tenantId: t,
         userId: 'staff-1',
-        route: '/sports/futebol',
+        route: '/sports/football',
         prompt,
         provider: 'anthropic',
         model: ASSISTANT_MODEL,

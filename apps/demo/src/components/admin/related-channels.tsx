@@ -165,7 +165,7 @@ export function RelatedChannels({
   const href = (next: ChannelFilter) => {
     const p = new URLSearchParams();
     if (q) p.set('q', q);
-    if (next !== 'all') p.set('filtro', next);
+    if (next !== 'all') p.set('filter', next);
     const query = p.toString();
     return `/settings/videos${query ? `?${query}` : ''}`;
   };
@@ -189,7 +189,7 @@ export function RelatedChannels({
           ))}
         </nav>
         <form action="/settings/videos" className="flex items-center gap-2">
-          {filter !== 'all' ? <input type="hidden" name="filtro" value={filter} /> : null}
+          {filter !== 'all' ? <input type="hidden" name="filter" value={filter} /> : null}
           <Input
             name="q"
             defaultValue={q}

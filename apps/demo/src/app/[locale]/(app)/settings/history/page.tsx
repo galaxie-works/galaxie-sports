@@ -9,10 +9,10 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /**
- * Ajustes → Plataforma → Histórico e auditoria (saía de Sistema). (#1069) O `?chave=` do "Ver no histórico" filtra a
+ * Ajustes → Plataforma → Histórico e auditoria (saía de Sistema). (#1069) O `?key=` do "Ver no histórico" filtra a
  * leitura no banco; a promessa só é aberta dentro do Suspense do painel.
  */
 export default function Page({ searchParams }: PageProps<'/[locale]/settings/history'>) {
-  const historyKey = searchParams.then((p) => (typeof p.chave === 'string' ? p.chave.slice(0, 120) : null));
+  const historyKey = searchParams.then((p) => (typeof p.key === 'string' ? p.key.slice(0, 120) : null));
   return <OpsViewPage view="history" historyKey={historyKey} />;
 }

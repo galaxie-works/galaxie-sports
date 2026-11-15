@@ -247,7 +247,7 @@ describe('chegada pela âncora', () => {
     vi.useRealTimers();
   });
 
-  it('depois de uma navegação que muda a busca (?aba=ajustes), lê o hash novo sem remontar', () => {
+  it('depois de uma navegação que muda a busca (?tab=settings), lê o hash novo sem remontar', () => {
     vi.useFakeTimers();
     document.body.innerHTML = '<div id="LINEUP_PROMPT_MAX_CHARS"></div>';
     const row = document.getElementById('LINEUP_PROMPT_MAX_CHARS')!;

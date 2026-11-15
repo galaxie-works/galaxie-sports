@@ -68,7 +68,7 @@ describe('cada ajuste em um lugar só (#1070)', () => {
       expect(settingPage(def.key), def.key).toEqual({
         item: 'lineup',
         block: 'lineup',
-        query: 'aba=ajustes',
+        query: 'tab=settings',
       });
     }
     const live = SETTINGS.filter((d) => d.section === 'live');
@@ -89,7 +89,7 @@ describe('cada ajuste em um lugar só (#1070)', () => {
     const lineup = SETTINGS.filter((d) => d.key.startsWith('LINEUP_'));
     expect(lineup.length).toBeGreaterThan(0);
     for (const def of lineup) {
-      expect(settingHref(def.key), def.key).toBe(`/settings/lineups?aba=ajustes#${def.key}`);
+      expect(settingHref(def.key), def.key).toBe(`/settings/lineups?tab=settings#${def.key}`);
     }
   });
 });

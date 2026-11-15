@@ -143,7 +143,7 @@ describe('cartões do Início', () => {
     expect(cards.map((c) => c.id)).toEqual([...HOME_CARDS]);
     const by = Object.fromEntries(cards.map((c) => [c.id, c]));
     expect(by.review).toMatchObject({ state: 'pending', count: 12, href: HOME_LINKS.review });
-    expect(by.requests).toMatchObject({ state: 'pending', count: 3, href: '/settings/lineups?aba=pedidos' });
+    expect(by.requests).toMatchObject({ state: 'pending', count: 3, href: '/settings/lineups?tab=requests' });
     expect(by.failedJobs).toMatchObject({ state: 'pending', count: 2, tone: 'destructive' });
     expect(by.alerts).toMatchObject({ state: 'pending', count: 2 });
     expect(by.credentials).toMatchObject({ state: 'pending', count: 2, tone: 'warning' });
@@ -180,7 +180,7 @@ describe('cartões do Início', () => {
   it('cada cartão leva ao item do menu novo (#1068)', () => {
     expect(HOME_LINKS).toEqual({
       review: '/settings/review',
-      requests: '/settings/lineups?aba=pedidos',
+      requests: '/settings/lineups?tab=requests',
       failedJobs: '/settings/tasks',
       alerts: '/settings/status',
       credentials: '/settings/credentials',

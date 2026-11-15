@@ -3,7 +3,17 @@ import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { LEGACY_ROUTES, legacyRedirectStatus, legacyRouteTarget } from './legacy-routes';
+import { CATALOG_FAMILIES } from './builder/sports';
+import {
+  LEGACY_FAMILY_SLUGS,
+  LEGACY_QUERY_PARAMS,
+  LEGACY_QUERY_VALUES,
+  LEGACY_ROUTES,
+  legacyQueryTarget,
+  legacyRedirectStatus,
+  legacyRouteTarget,
+  legacyTarget,
+} from './legacy-routes';
 
 const APP = join(__dirname, '..', 'app');
 
@@ -204,5 +214,70 @@ describe('guarda das pastas de app/', () => {
     expect(TODAY.has('builder')).toBe(false);
     expect(TODAY.has('videos')).toBe(false);
     expect(/[^\x20-\x7e]/.test('notícias')).toBe(true);
+  });
+});
+
+describe('slugs de família e query em português (#630)', () => {
+  const q = (s: string) => legacyQueryTarget(new URLSearchParams(s))?.toString() ?? null;
+
+  it.each([
+    ['aba=jogos&temporada=2025', 'tab=matches&season=2025'],
+    ['aba=classificacao', 'tab=standings'],
+    ['detalhes=escalacao&escalacao=campo', 'details=lineups&lineup=pitch'],
+    ['detalhes=minuto', 'details=timeline'],
+    ['status=ao-vivo%2Cproximos&janela=24', 'status=live%2Cupcoming&window=24'],
+    [
+      'status=todos&pais=br&plataforma=x&tipo=plan_channel',
+      'status=all&country=br&platform=x&type=plan_channel',
+    ],
+    ['esporte=futebol-americano', 'sport=american-football'],
+    ['esporte=hipismo', 'sport=equestrian'],
+    ['data=2026-10-23&rodada=Rodada+32', 'date=2026-10-23&round=Rodada+32'],
+    ['chave=AI_RIGHTS_MODEL', 'key=AI_RIGHTS_MODEL'],
+    ['motivo=expirado&voltar=%2Fteams%2F1', 'reason=expired&next=%2Fteams%2F1'],
+    // o nome novo, quando já veio, vale mais que o antigo
+    ['aba=jogos&tab=standings', 'tab=standings'],
+    // parâmetro sem tradução segue como está, na mesma ordem
+    ['q=verd%C3%A3o&tipo=team', 'q=verd%C3%A3o&type=team'],
+  ])('?%s → ?%s', (from, to) => expect(q(from)).toBe(to));
+
+  it.each(['tab=matches&season=2025', 'status=live', 'sport=football', 'q=jogos', ''])(
+    '?%s já está em inglês',
+    (search) => expect(q(search)).toBeNull(),
+  );
+
+  it.each([
+    ['/esportes/futebol', '', '/sports/football'],
+    ['/pt-BR/esportes/basquete', 'aba=jogos', '/pt-BR/sports/basketball?tab=matches'],
+    ['/sports/futebol-australiano', '', '/sports/australian-football'],
+    ['/competitions/x', 'temporada=2025', '/competitions/x?season=2025'],
+    ['/times/1', 'temporada=2025&q=a', '/teams/1?season=2025&q=a'],
+  ])('%s?%s → %s', (path, search, to) =>
+    expect(legacyTarget(path, new URLSearchParams(search), true)).toBe(to),
+  );
+
+  it('nada antigo: null; rota de API não traduz a query', () => {
+    expect(legacyTarget('/sports/football', new URLSearchParams('tab=matches'), true)).toBeNull();
+    expect(legacyTarget('/sports/futebol/extra', new URLSearchParams(), true)).toBeNull();
+    expect(legacyTarget('/api/galaxie/v1/teams', new URLSearchParams('tipo=x'), false)).toBeNull();
+    expect(legacyTarget('/api/atividade', new URLSearchParams('tipo=x'), false)).toBe('/api/activity?tipo=x');
+  });
+
+  it('nomes e valores novos em inglês, sem acento, e nenhum nome antigo é também um nome novo', () => {
+    const fresh = new Set(Object.values(LEGACY_QUERY_PARAMS));
+    for (const [from, to] of Object.entries(LEGACY_QUERY_PARAMS)) {
+      expect(to, from).toMatch(/^[a-z]+$/);
+      expect(fresh.has(from), from).toBe(false);
+    }
+    for (const values of Object.values(LEGACY_QUERY_VALUES))
+      for (const to of Object.values(values)) expect(to).toMatch(/^[a-z0-9-]+$/);
+  });
+
+  it('guarda: toda família do menu e do catálogo do Builder tem slug em inglês, e o antigo leva a ele', () => {
+    for (const f of CATALOG_FAMILIES) {
+      expect(Object.hasOwn(LEGACY_FAMILY_SLUGS, f.slug), f.slug).toBe(false);
+      expect(f.slug, f.id).toMatch(/^[a-z0-9-]+$/);
+      expect(LEGACY_FAMILY_SLUGS[f.id], f.id).toBe(f.slug);
+    }
   });
 });

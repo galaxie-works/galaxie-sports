@@ -509,7 +509,7 @@ export async function EventContent({ params, searchParams, source }: PageContent
   ]);
   // Onde assistir começa no mercado do idioma (Argentina em espanhol; Brasil nos demais). O país dele
   // não mexe na relevância: o card "Sobre o jogo" mostra todos os países (`relevance_by_market`).
-  const country = typeof query.pais === 'string' ? query.pais.toUpperCase() : defaultMarket(locale);
+  const country = typeof query.country === 'string' ? query.country.toUpperCase() : defaultMarket(locale);
 
   const first = await source.getEvent(id, locale);
   // tags do torcedor, gritos e contexto na voz do país do mandante (um jogo no Chile sai em es-CL), com a

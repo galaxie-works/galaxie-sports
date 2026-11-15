@@ -204,7 +204,7 @@ async function Content({
           const nav = sportBySlug(sport);
           const Icon = nav?.icon;
           return (
-            // âncora da rota antiga (`/sports/nba` → `/sports/basquete#nba`)
+            // âncora da rota antiga (`/sports/nba` → `/sports/basketball#nba`)
             <div key={sport} id={sport} className="scroll-mt-20">
               <Section
                 title={nav ? t.nav.sports[nav.slug] : sport}
@@ -228,7 +228,7 @@ async function Content({
             action={
               g.code && countrySlug(g.code) ? (
                 <Link
-                  href={`/countries/${countrySlug(g.code)}?esporte=${family.sports[0]}`}
+                  href={`/countries/${countrySlug(g.code)}?sport=${family.sports[0]}`}
                   className="text-primary text-xs hover:underline"
                 >
                   {ts.seeCountry}

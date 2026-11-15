@@ -8,7 +8,7 @@
  *
  * Também escolhe o idioma: cookie `galaxie-idioma` ou, no primeiro acesso, o `Accept-Language`. As
  * páginas vivem em `app/[locale]/...`; o proxy reescreve `/teams/1` para `/<idioma>/teams/1` sem mudar a
- * URL visível (links, trilha e "voltar" do login continuam sem prefixo).
+ * URL visível (links, trilha e o `next` do login continuam sem prefixo).
  *
  * Antes de tudo, os links antigos (rotas em português de antes do #630 e as páginas que mudaram) recebem o
  * redirecionamento permanente; depois, o papel do processo (`APP_ROLE`, `lib/app-role.ts`): o `site` responde 404 ao
@@ -22,7 +22,7 @@ import { REVALIDATE_HEADER, REVALIDATE_ROUTE } from '@/lib/cache/signature';
 import { auth, isAccessExpired } from '@/lib/auth/server';
 import { COOKIE_MAX_AGE, LOCALE_COOKIE, isLocale, resolveLocale } from '@/lib/i18n/config';
 import { getDictionary } from '@/lib/i18n/dictionary';
-import { legacyRedirectStatus, legacyRouteTarget } from '@/lib/legacy-routes';
+import { legacyQueryTarget, legacyRedirectStatus, legacyTarget } from '@/lib/legacy-routes';
 import { SMOKE_HEADER } from '@/lib/ops/smoke';
 import { legacySettingsRedirect } from '@/lib/ops/system-routes';
 import { LANDING_PAGE, isPublicPath } from '@/lib/public-routes';
@@ -79,31 +79,31 @@ function notServedHere(request: NextRequest) {
 
 /**
  * Links antigos, antes do papel do processo: o caminho antigo pode ser de um papel e o novo, do outro, e o Traefik ainda
- * manda os prefixos antigos do console para ele. Null quando o caminho não é antigo.
+ * manda os prefixos antigos do console para ele. Tudo num salto só: caminho, slug da família e query em português
+ * (`/pt-BR/esportes/futebol?aba=jogos` → `/pt-BR/sports/football?tab=matches`). 301 para GET/HEAD e 308 para o resto,
+ * por 12 meses, até 15/11/2027 (lib/legacy-routes.ts). Null quando não há nada antigo no endereço.
  */
 function legacyRedirect(request: NextRequest): NextResponse | null {
-  const { pathname, search } = request.nextUrl;
-  // esporte por API do fornecedor (`/sports/nba`, `/esportes/formula-1`) → página da família
-  const family = legacySportRedirect(pathname);
-  if (family) {
-    const url = new URL(family, request.url);
-    url.search = search;
-    return NextResponse.redirect(url, 308);
-  }
+  const { pathname, searchParams } = request.nextUrl;
+  const page = isPage(pathname);
+  // esporte por API do fornecedor (`/sports/nba`, `/pt-BR/esportes/formula-1`) → página da família
+  const sport = legacySportRedirect(pathname);
   // páginas de Ajustes que se dividiram (#1069): `/ajustes/operacao`, `/ajustes/sistema?aba=…` → item novo
-  const settings = isPage(pathname) ? legacySettingsRedirect(pathname, request.nextUrl.searchParams) : null;
-  if (settings) return NextResponse.redirect(new URL(settings, request.url), 308);
-  // rotas em português de antes do #630 (`/times/1` → `/teams/1`), com o idioma, o resto do caminho e a query.
-  // 301 por 12 meses, até 15/11/2027 (lib/legacy-routes.ts).
-  const target = legacyRouteTarget(pathname);
-  if (target) {
-    const url = new URL(target, request.url);
-    url.search = search;
-    return NextResponse.redirect(url, legacyRedirectStatus(request.method));
+  const settings = !sport && page ? legacySettingsRedirect(pathname, searchParams) : null;
+  let url: URL;
+  if (sport || settings) {
+    url = new URL((sport ?? settings)!, request.url);
+    if (sport) url.search = searchParams.toString();
+    const query = legacyQueryTarget(url.searchParams);
+    if (query) url.search = query.toString();
+  } else {
+    // rotas, slugs de família e parâmetros em português de antes do #630 (`/times/1?temporada=2025` → `/teams/1?season=2025`)
+    const target = legacyTarget(pathname, searchParams, page);
+    if (!target) return null;
+    url = new URL(target, request.url);
   }
-  return null;
+  return NextResponse.redirect(url, legacyRedirectStatus(request.method));
 }
-
 export async function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
   const legacy = legacyRedirect(request);
@@ -123,16 +123,16 @@ export async function proxy(request: NextRequest) {
   const session = await auth.api.getSession({ headers: request.headers });
   const isApi = pathname.startsWith('/api/');
   const t = isApi ? getDictionary(localeOf(request)).common : null;
-  const deny = (motivo?: string) => {
+  const deny = (reason?: string) => {
     if (isApi) return NextResponse.json({ title: t!.unauthorized }, { status: 401 });
     const url = new URL('/login', request.url);
-    if (motivo) url.searchParams.set('motivo', motivo);
-    else if (pathname !== '/') url.searchParams.set('voltar', `${pathname}${search}`);
+    if (reason) url.searchParams.set('reason', reason);
+    else if (pathname !== '/') url.searchParams.set('next', `${pathname}${search}`);
     return NextResponse.redirect(url);
   };
 
   if (!session) return pathname === '/' ? render(request, LANDING_PAGE) : deny();
-  if (isAccessExpired(session.user)) return deny('expirado');
+  if (isAccessExpired(session.user)) return deny('expired');
   if (routeAccess(pathname, session.user.role) === 'deny') {
     return isApi
       ? NextResponse.json({ title: t!.forbidden }, { status: 403 })

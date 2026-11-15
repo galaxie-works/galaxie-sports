@@ -52,7 +52,7 @@ export function exampleHref(locale: Locale, href: string): string | null {
   }
   if (url.origin !== 'https://exemplo.local') return null;
   // outra temporada ou outra data não estão na cópia gravada
-  if (url.searchParams.has('temporada') || url.searchParams.has('data')) return null;
+  if (url.searchParams.has('season') || url.searchParams.has('date')) return null;
   if (url.pathname.startsWith('/example/')) return href;
   const ids = exampleIds(locale);
   for (const page of EXAMPLE_PAGES) {

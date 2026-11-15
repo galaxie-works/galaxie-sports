@@ -28,7 +28,7 @@ export interface SeasonOption {
 
 /**
  * Combobox de temporada da página do time (Popover + Command, com busca pelo ano). A escolha vai para a
- * URL (`?temporada=2025`, compartilhável); a temporada corrente é a visão padrão, sem o parâmetro.
+ * URL (`?season=2025`, compartilhável); a temporada corrente é a visão padrão, sem o parâmetro.
  */
 export function SeasonSelect({
   options,
@@ -51,7 +51,7 @@ export function SeasonSelect({
   function choose(option: SeasonOption) {
     setOpen(false);
     if (option.year === value) return;
-    const href = option.current ? basePath : `${basePath}?temporada=${option.year}`;
+    const href = option.current ? basePath : `${basePath}?season=${option.year}`;
     startTransition(() => router.push(href, { scroll: false }));
   }
 

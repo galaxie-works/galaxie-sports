@@ -196,7 +196,7 @@ export function CrestAdmin({
   const go = (q: string, k: CrestKindFilter) => {
     const params = new URLSearchParams();
     if (q.trim()) params.set('q', q.trim());
-    if (k !== 'all') params.set('tipo', k);
+    if (k !== 'all') params.set('type', k);
     const qs = params.toString();
     startTransition(() => router.replace(qs ? `${pathname}?${qs}` : pathname));
   };

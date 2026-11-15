@@ -105,7 +105,7 @@ export async function CampaignCard({ entry }: { entry: TeamCompetition }) {
         ? localized(campaign.label, locale)
         : localized(campaign.detail, locale);
   return (
-    <Link href={`/competitions/${competition.slug}?temporada=${season.year}`} className="group/entry">
+    <Link href={`/competitions/${competition.slug}?season=${season.year}`} className="group/entry">
       <Card
         size="sm"
         className={cn(

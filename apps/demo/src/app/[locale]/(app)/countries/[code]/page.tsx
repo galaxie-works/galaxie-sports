@@ -25,8 +25,8 @@ import { countryHref } from '@/lib/navigation';
 
 type CompetitionItem = CountryCompetitions['sports'][number]['groups'][number]['competitions'][number];
 
-/** Esporte na URL (`?esporte=basketball`): um esporte por vez, em vez de 140 competições numa página só. */
-const SPORT_PARAM = 'esporte';
+/** Esporte na URL (`?sport=basketball`): um esporte por vez, em vez de 140 competições numa página só. */
+const SPORT_PARAM = 'sport';
 
 /**
  * Ordem dos grupos: as competições de clubes juntas (nacionais, continentais, mundiais), a seleção e, no
@@ -96,7 +96,7 @@ async function Content({ params, searchParams }: PageProps<'/[locale]/countries/
   );
   const countOf = (s: (typeof data.sports)[number]) =>
     s.groups.reduce((n, g) => n + g.competitions.length, 0);
-  // futebol primeiro quando houver (o esporte que a pessoa mais procura); `?esporte=` escolhe outro
+  // futebol primeiro quando houver (o esporte que a pessoa mais procura); `?sport=` escolhe outro
   const requested = data.sports.find((s) => s.sport.slug === query[SPORT_PARAM]);
   const selected = (requested ?? data.sports.find((s) => s.sport.slug === 'football') ?? data.sports[0])
     ?.sport.slug;

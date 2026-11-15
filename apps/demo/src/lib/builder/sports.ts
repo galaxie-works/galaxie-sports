@@ -20,8 +20,8 @@ import type { WidgetDefaults, WidgetKind } from './types';
  */
 export const CATALOG_FAMILIES = [
   ...SPORT_FAMILIES,
-  { id: 'hipismo', sports: ['equestrian'] },
-  { id: 'multiesporte', sports: ['multisport'] },
+  { id: 'hipismo', slug: 'equestrian', sports: ['equestrian'] },
+  { id: 'multiesporte', slug: 'multisport', sports: ['multisport'] },
 ] as const;
 export type CatalogFamily = (typeof CATALOG_FAMILIES)[number];
 export type CatalogFamilyId = CatalogFamily['id'];
@@ -36,12 +36,16 @@ const supports = (kind: WidgetKind, sport: string) =>
     ? WIDGET_CATALOG[kind].sports.includes(sport)
     : widgetKindSupportsSport(kind, sport);
 
-const familyBySlug = (slug: string): CatalogFamily | undefined => CATALOG_FAMILIES.find((f) => f.id === slug);
+const familyBySlug = (slug: string): CatalogFamily | undefined =>
+  CATALOG_FAMILIES.find((f) => f.slug === slug);
 const familyOf = (sport: string): CatalogFamily | undefined =>
   CATALOG_FAMILIES.find((f) => (f.sports as readonly string[]).includes(sport));
 
-/** Parâmetro da URL com a aba do catálogo (`/client/builder?esporte=basquete`), que segue para o "Criar". */
-export const CATALOG_TAB_PARAM = 'esporte';
+/**
+ * Parâmetro da URL com a aba do catálogo (`/client/builder?sport=basketball`, o `slug` da família, em inglês), que segue
+ * para o "Criar".
+ */
+export const CATALOG_TAB_PARAM = 'sport';
 
 /** Esportes da família que o plano libera (plano sem lista = todos). */
 const allowedSports = (family: CatalogFamily, tenantSports: readonly string[]): readonly string[] =>
@@ -62,9 +66,9 @@ export function catalogTabs(
   });
 }
 
-/** Aba pedida na URL (`?esporte=basquete`) entre as que existem; senão a primeira. */
+/** Aba pedida na URL (`?sport=basketball`) entre as que existem; senão a primeira. */
 export function pickTab<T extends { family: CatalogFamily }>(tabs: T[], param: unknown): T | undefined {
-  return tabs.find((t) => t.family.id === param) ?? tabs[0];
+  return tabs.find((t) => t.family.slug === param) ?? tabs[0];
 }
 
 /**

@@ -28,8 +28,8 @@ async function Detail({ params, searchParams }: Pick<Props, 'params' | 'searchPa
   await requireAdmin();
   const [{ id }, query, t, timeZone] = await Promise.all([params, searchParams, getT(), getTimeZone()]);
   // a lista manda os filtros dela em `lista`; o "voltar" e a trilha voltam para a mesma página filtrada
-  const lista = typeof query.lista === 'string' ? query.lista : '';
-  const listHref = `/settings/revisao${filtersQuery(parseFilters(new URLSearchParams(lista)))}`;
+  const list = typeof query.list === 'string' ? query.list : '';
+  const listHref = `/settings/revisao${filtersQuery(parseFilters(new URLSearchParams(list)))}`;
   const parents = [{ path: listHref, label: t.review.page.title, kind: 'ajustes' as const }];
   try {
     const [item, serving] = await Promise.all([getReviewItem(decodeURIComponent(id)), readServingFloor()]);

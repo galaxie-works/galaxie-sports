@@ -58,7 +58,7 @@ export async function personMetadata(id: string, source: DataSource): Promise<Me
   }
 }
 
-/** `?temporada=2025` da URL (o primeiro valor, se repetido); fora de um ano inteiro, nada. */
+/** `?season=2025` da URL (o primeiro valor, se repetido); fora de um ano inteiro, nada. */
 function seasonParam(raw: string | string[] | undefined): number | undefined {
   const n = Number(Array.isArray(raw) ? raw[0] : raw);
   return raw !== undefined && Number.isInteger(n) ? n : undefined;
@@ -504,7 +504,7 @@ function SeasonsCard({
         {rows.map((s) => (
           <Link
             key={s.year}
-            href={s.year === latest ? basePath : `${basePath}?temporada=${s.year}`}
+            href={s.year === latest ? basePath : `${basePath}?season=${s.year}`}
             scroll={false}
             className={cn(
               'hover:bg-accent -mx-2 flex items-center gap-3 rounded-md px-2 py-1.5 text-sm transition-colors',
@@ -661,7 +661,7 @@ export async function PersonContent({ params, searchParams, source }: PageConten
   const t = dict.pages.person;
   const latest = await source.getPersonOverview(id, locale);
   // a temporada padrão é a mais recente com jogos (sem `?temporada`); outro ano só se tiver dado
-  const wanted = seasonParam(query.temporada);
+  const wanted = seasonParam(query.season);
   const year =
     wanted !== undefined && wanted !== latest.season && latest.seasons.some((s) => s.year === wanted)
       ? wanted

@@ -100,7 +100,7 @@ export function SquadCard({
     ...(squad.coaches.length ? [{ key: 'coaches', label: tx.coaches, members: squad.coaches }] : []),
     ...(squad.staff.length ? [{ key: 'staff', label: tx.staff, members: squad.staff }] : []),
   ];
-  const href = (id: string) => `/people/${id}${seasonYear ? `?temporada=${seasonYear}` : ''}`;
+  const href = (id: string) => `/people/${id}${seasonYear ? `?season=${seasonYear}` : ''}`;
   const hasStats = [...squad.players, ...squad.coaches].some((m) => m.stats !== null);
 
   return (

@@ -40,7 +40,7 @@ describe('dono de cada rota', () => {
     '/r/01a16029-9283-77d0-b2e5-1d89336b2dbc.json',
     '/teams/1',
     '/events/abc',
-    '/sports/futebol',
+    '/sports/football',
     '/api/related/playback-error',
     '/api/internal/revalidate',
     // sem entrada: o explorador cresce sem mexer na tabela

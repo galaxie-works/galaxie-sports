@@ -38,7 +38,7 @@ export interface SportNav extends NavItem {
  * único de esporte → ícone do app (menu, filtros do Ao vivo, explorar, agenda, busca): a bola ou o objeto
  * de cada esporte, no traço do lucide; os que o lucide não tem ficam em components/icons. NBA usa o do
  * basquete e AFL o do rúgbi (bola oval, como a animação). O link leva à página da família
- * (`nba` → `/sports/basquete#nba`).
+ * (`nba` → `/sports/basketball#nba`).
  */
 export const SPORTS: SportNav[] = (
   [
@@ -140,8 +140,8 @@ export function eventCompetitionHref(event: {
   starts_at: string;
 }): string | null {
   if (!event.competition) return null;
-  const query = new URLSearchParams({ aba: 'jogos', data: event.starts_at.slice(0, 10) });
-  if (event.stage?.name) query.set('rodada', event.stage.name);
+  const query = new URLSearchParams({ tab: 'matches', date: event.starts_at.slice(0, 10) });
+  if (event.stage?.name) query.set('round', event.stage.name);
   return `/competitions/${event.competition.slug}?${query}`;
 }
 

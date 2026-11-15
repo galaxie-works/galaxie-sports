@@ -30,10 +30,10 @@ export async function generateMetadata(): Promise<Metadata> {
 const PAGE = 60;
 const MAX_PAGE = 200;
 
-/** Link da agenda com mais jogos do dia na página (`?limite=`). */
+/** Link da agenda com mais jogos do dia na página (`?limit=`). */
 function withLimit(href: string, limit: number) {
   const url = new URL(href, 'http://agenda.local');
-  url.searchParams.set('limite', String(limit));
+  url.searchParams.set('limit', String(limit));
   return `${url.pathname}${url.search}`;
 }
 
@@ -52,14 +52,14 @@ function dayLabel(date: string, index: number, locale: Locale, t: Dictionary) {
 async function Content({ searchParams }: { searchParams: PageProps<'/[locale]/schedule'>['searchParams'] }) {
   const search = await searchParams;
   const params = readAgendaParams(search);
-  const limit = Math.min(MAX_PAGE, Math.max(PAGE, Number(search.limite) || PAGE));
+  const limit = Math.min(MAX_PAGE, Math.max(PAGE, Number(search.limit) || PAGE));
   const { locale, t } = await getI18n();
   const ti = t.nav.explore.index;
   const query = {
-    sport: params.esporte ?? undefined,
-    country: params.pais ?? undefined,
-    competition: params.competicao ?? undefined,
-    day: params.dia ?? undefined,
+    sport: params.sport ?? undefined,
+    country: params.country ?? undefined,
+    competition: params.competition ?? undefined,
+    day: params.day ?? undefined,
     limit,
   };
   const agenda = await getExploreAgenda(locale, query);
@@ -108,7 +108,7 @@ async function Content({ searchParams }: { searchParams: PageProps<'/[locale]/sc
               {agenda.days.map((d, i) => (
                 <FilterChip
                   key={d.date}
-                  href={agendaHref({ ...params, dia: d.date })}
+                  href={agendaHref({ ...params, day: d.date })}
                   active={d.date === agenda.day}
                 >
                   {dayLabel(d.date, i, locale, t)} <span className="tabular-nums opacity-70">{d.count}</span>
@@ -133,7 +133,7 @@ async function Content({ searchParams }: { searchParams: PageProps<'/[locale]/sc
               {agenda.next_cursor && limit < MAX_PAGE ? (
                 <Link
                   href={withLimit(
-                    agendaHref({ ...params, dia: agenda.day }),
+                    agendaHref({ ...params, day: agenda.day }),
                     Math.min(MAX_PAGE, limit + PAGE),
                   )}
                   scroll={false}

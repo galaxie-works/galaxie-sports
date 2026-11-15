@@ -96,7 +96,7 @@ describe('revisão de um perfil', () => {
     expect(res.status).toBe(200);
     expect((await teamStatus('palmeiras')).review_status).toBe('draft');
 
-    const body = await (await getList('?tipo=team&mercado=BR&status=draft&esporte=football')).json();
+    const body = await (await getList('?type=team&market=BR&status=draft&sport=football')).json();
     const items = body.data.items as { id: string; kind: string; market: string }[];
     expect(items.map((i) => i.id)).toContain('team:palmeiras');
     expect(items.every((i) => i.kind === 'team' && i.market === 'BR')).toBe(true);
@@ -240,7 +240,7 @@ describe('veredito e edição da IA (job review-suggestions)', () => {
        values ('glossary:pt-BR.torcedor', $1, $2, $3, 'gemini', 'Exemplo mais natural.')`,
       [{ example: content.example }, { example: 'A torcida encheu o estádio.' }, hash],
     );
-    const list = await (await getList('?tipo=glossary&q=torcedor')).json();
+    const list = await (await getList('?type=glossary&q=torcedor')).json();
     expect(list.data.items.find((i: { id: string }) => i.id === 'glossary:pt-BR.torcedor').edited).toBe(true);
     const detail = (await (await getItem('glossary:pt-BR.torcedor')).json()).data;
     expect(detail.override).toMatchObject({

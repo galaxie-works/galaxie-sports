@@ -14,20 +14,20 @@ describe('links dentro do exemplo', () => {
   });
 
   it('mantém as abas da query string', () => {
-    expect(exampleHref('pt-BR', `/events/${BR.match}?detalhes=escalacao&escalacao=campo`)).toBe(
-      '/example/match?detalhes=escalacao&escalacao=campo',
+    expect(exampleHref('pt-BR', `/events/${BR.match}?details=lineups&lineup=pitch`)).toBe(
+      '/example/match?details=lineups&lineup=pitch',
     );
-    expect(exampleHref('pt-BR', '/example/team?aba=elenco')).toBe('/example/team?aba=elenco');
+    expect(exampleHref('pt-BR', '/example/team?tab=elenco')).toBe('/example/team?tab=elenco');
   });
 
   it('o que não está na cópia fica de fora (demo completa)', () => {
     // outra entidade, a entidade da outra versão, outra temporada, outra data e outro site
     expect(exampleHref('pt-BR', '/teams/00000000-0000-0000-0000-000000000000')).toBeNull();
     expect(exampleHref('pt-BR', `/teams/${AR.team}`)).toBeNull();
-    expect(exampleHref('pt-BR', `/teams/${BR.team}?temporada=2025`)).toBeNull();
-    expect(exampleHref('pt-BR', `/competitions/${BR.competition}?data=2025-05-01`)).toBeNull();
+    expect(exampleHref('pt-BR', `/teams/${BR.team}?season=2025`)).toBeNull();
+    expect(exampleHref('pt-BR', `/competitions/${BR.competition}?date=2025-05-01`)).toBeNull();
     expect(exampleHref('pt-BR', 'https://exemplo.com/eventos/1')).toBeNull();
-    expect(exampleHref('pt-BR', '/sports/futebol')).toBeNull();
+    expect(exampleHref('pt-BR', '/sports/football')).toBeNull();
   });
 
   it('cada versão tem as quatro páginas', () => {

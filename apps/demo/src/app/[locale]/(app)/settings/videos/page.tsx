@@ -20,7 +20,7 @@ const FILTERS: readonly ChannelFilter[] = ['all', 'blocked', 'refused'];
 async function Channels({ searchParams }: { searchParams: SearchParams }) {
   const [t, timeZone, params] = await Promise.all([getT(), getTimeZone(), searchParams]);
   const q = typeof params.q === 'string' ? params.q.slice(0, 80) : '';
-  const filter = FILTERS.find((f) => f === params.filtro) ?? 'all';
+  const filter = FILTERS.find((f) => f === params.filter) ?? 'all';
   const channels = await listRelatedChannels(builderDb(), {
     q,
     ...(filter === 'all' ? {} : { only: filter }),

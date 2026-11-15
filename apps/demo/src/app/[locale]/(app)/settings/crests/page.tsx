@@ -25,7 +25,7 @@ async function Content({ searchParams }: { searchParams: SearchParams }) {
   await requireAdmin();
   const params = await searchParams;
   const query = typeof params.q === 'string' ? params.q.slice(0, 80) : '';
-  const kind = parseCrestKind(params.tipo);
+  const kind = parseCrestKind(params.type);
   const searching = query.trim().length >= 2;
   const [rows, timeZone] = await Promise.all([
     searching ? searchCrests(query, kind) : recentCrestUploads(),

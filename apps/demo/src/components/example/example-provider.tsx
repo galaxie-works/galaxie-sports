@@ -60,7 +60,7 @@ export function ExampleProvider({
     if (!href || href.startsWith('#') || href.startsWith('mailto:')) return;
     // saídas explícitas do exemplo (apresentação, login): seguem normal
     if (a.target === '_top' || a.target === '_blank') return;
-    // relativo à página atual (`?aba=jogos` continua na mesma página do exemplo)
+    // relativo à página atual (`?tab=matches` continua na mesma página do exemplo)
     const url = new URL(href, window.location.href);
     // fora do site (fontes, vídeos): segue normal
     if (url.origin !== window.location.origin) return;

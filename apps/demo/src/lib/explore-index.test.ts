@@ -45,7 +45,7 @@ describe('números da home e dos índices', () => {
   it('a família soma os esportes dela, e a soma das famílias é o total da home', () => {
     const stats = familyStats(summary);
     const basquete = stats.find((s) => s.family.id === 'basquete')!;
-    expect(basquete).toMatchObject({ href: '/sports/basquete', competitions: 32, upcoming: 52, live: 1 });
+    expect(basquete).toMatchObject({ href: '/sports/basketball', competitions: 32, upcoming: 52, live: 1 });
     expect(basquete.sports.map((s) => s.slug)).toEqual(['basketball', 'nba']);
     expect(stats.reduce((n, s) => n + s.upcoming, 0)).toBe(exploreTotals(summary).upcoming);
   });
@@ -54,28 +54,28 @@ describe('números da home e dos índices', () => {
 describe('filtros da agenda na URL', () => {
   it('monta e lê os mesmos filtros (país em minúsculas na URL)', () => {
     const href = agendaHref({
-      esporte: 'football',
-      pais: 'GB-ENG',
-      competicao: 'premier-league',
-      dia: '2026-10-25',
+      sport: 'football',
+      country: 'GB-ENG',
+      competition: 'premier-league',
+      day: '2026-10-25',
     });
-    expect(href).toBe('/schedule?esporte=football&pais=gb-eng&competicao=premier-league&dia=2026-10-25');
+    expect(href).toBe('/schedule?sport=football&country=gb-eng&competition=premier-league&day=2026-10-25');
     const search = Object.fromEntries(new URL(href, 'http://x').searchParams);
     expect(readAgendaParams(search)).toEqual({
-      esporte: 'football',
-      pais: 'GB-ENG',
-      competicao: 'premier-league',
-      dia: '2026-10-25',
+      sport: 'football',
+      country: 'GB-ENG',
+      competition: 'premier-league',
+      day: '2026-10-25',
     });
     expect(agendaHref({})).toBe('/schedule');
   });
 
   it('valor inválido vira ausência', () => {
-    expect(readAgendaParams({ pais: 'brasil', dia: 'amanhã', esporte: ['a', 'b'] })).toEqual({
-      esporte: null,
-      pais: null,
-      competicao: null,
-      dia: null,
+    expect(readAgendaParams({ country: 'brasil', day: 'amanhã', sport: ['a', 'b'] })).toEqual({
+      sport: null,
+      country: null,
+      competition: null,
+      day: null,
     });
   });
 });

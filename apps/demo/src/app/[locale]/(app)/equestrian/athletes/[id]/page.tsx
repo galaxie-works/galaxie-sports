@@ -256,7 +256,7 @@ async function Content({ params, searchParams }: Props) {
                   key={c.key}
                   variant="outline"
                   nativeButton={false}
-                  render={<Link href={`/equestrian/championships/${c.key}?atleta=${a.id}`} />}
+                  render={<Link href={`/equestrian/championships/${c.key}?athlete=${a.id}`} />}
                 >
                   {c.name} · {fill(te.championships.rounds, { n: c.rounds })}
                 </Button>

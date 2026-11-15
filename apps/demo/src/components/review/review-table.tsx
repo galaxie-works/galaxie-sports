@@ -37,7 +37,7 @@ interface Props {
 /** Link do detalhe levando os filtros da lista (o "voltar" do detalhe volta para a mesma página). */
 export const itemHref = (id: string, filters: ReviewFilters) => {
   const list = filtersQuery(filters);
-  return `/settings/review/${itemSegment(id)}${list ? `?lista=${encodeURIComponent(list.slice(1))}` : ''}`;
+  return `/settings/review/${itemSegment(id)}${list ? `?list=${encodeURIComponent(list.slice(1))}` : ''}`;
 };
 
 const pageHref = (filters: ReviewFilters, page: number, per = filters.per) =>

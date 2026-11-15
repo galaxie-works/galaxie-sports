@@ -7,7 +7,7 @@ const ORIGIN = 'https://demo.test';
 describe('internalPath', () => {
   it('aceita caminhos da própria origem, com query e hash', () => {
     expect(internalPath('/', ORIGIN)).toBe('/');
-    expect(internalPath('/teams/1?temporada=2026#elenco', ORIGIN)).toBe('/teams/1?temporada=2026#elenco');
+    expect(internalPath('/teams/1?season=2026#elenco', ORIGIN)).toBe('/teams/1?season=2026#elenco');
     expect(internalPath('/a/../b', ORIGIN)).toBe('/b');
   });
 

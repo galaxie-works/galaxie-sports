@@ -496,7 +496,7 @@ export async function ChampionshipCard({ standings }: { standings: TeamStanding[
         {rows.map((s) => (
           <Link
             key={`${s.competition.id}-${s.group}`}
-            href={`/competitions/${s.competition.slug}?temporada=${s.season.year}`}
+            href={`/competitions/${s.competition.slug}?season=${s.season.year}`}
             className="hover:bg-accent -mx-2 flex items-center gap-3 rounded-md px-2 py-2 transition-colors"
           >
             <span className="text-3xl font-bold tabular-nums">{fill(tx.rank!, { rank: s.rank })}</span>

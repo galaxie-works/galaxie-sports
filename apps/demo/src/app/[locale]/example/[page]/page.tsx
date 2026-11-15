@@ -23,7 +23,7 @@ export function generateStaticParams() {
 }
 
 /** Só a temporada e a data gravadas: o exemplo ignora a troca delas (e o país do onde assistir). */
-const IGNORED_QUERY = new Set(['temporada', 'data', 'pais']);
+const IGNORED_QUERY = new Set(['season', 'date', 'country']);
 
 export async function generateMetadata({ params }: PageProps<'/[locale]/example/[page]'>): Promise<Metadata> {
   const { page } = await params;

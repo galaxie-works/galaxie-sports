@@ -48,7 +48,7 @@ export function qualityHref(link: QualityLink | null): string | null {
     case 'country':
       return `/countries/${link.id}`;
     case 'platform':
-      return `/settings/lineups?aba=revisao&plataforma=${link.id}&status=todos`;
+      return `/settings/lineups?tab=review&platform=${link.id}&status=all`;
     default:
       return null;
   }

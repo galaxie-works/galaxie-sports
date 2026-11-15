@@ -88,7 +88,7 @@ export async function POST(request: Request) {
   // gasta créditos (Cosmos) e o resultado só serve para quem pode salvar temas (Ajustes)
   if (!can(ctx, 'cosmos.assistant.ask') || !can(ctx, 'settings.manage')) return fail('role');
 
-  const step = new URL(request.url).searchParams.get('etapa');
+  const step = new URL(request.url).searchParams.get('step');
   if (step !== 'estimar' && step !== 'criar') return fail('bad_request');
   // sem content-length (envio em partes), o teto do proxy (`proxyClientMaxBodySize`) e o tamanho do arquivo valem
   const declared = Number(request.headers.get('content-length') ?? 0);

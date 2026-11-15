@@ -42,8 +42,8 @@ async function Content({ searchParams }: { searchParams: SearchParams }) {
   const timeZone = await getTimeZone();
 
   // os LINEUP_* (#1070): o bloco do painel de Operação, com o mesmo carregamento das outras páginas
-  if (tab === 'ajustes') return <OpsViewPanel view="lineup" />;
-  if (tab === 'revisao') {
+  if (tab === 'settings') return <OpsViewPanel view="lineup" />;
+  if (tab === 'review') {
     const filters = parseLineupFilters(params);
     const [lineups, library] = await Promise.all([readAllLineups(), readPlanLibrary()]);
     const rows: ReviewRow[] = lineups.flatMap((l) => {
@@ -81,7 +81,7 @@ async function Content({ searchParams }: { searchParams: SearchParams }) {
       />
     );
   }
-  if (tab === 'pedidos') {
+  if (tab === 'requests') {
     const status = parseRequestFilters(params).status;
     const queue = await readRequestQueue(status);
     return (

@@ -21,7 +21,7 @@ Outubro de 2026. Avaliação da área logada da demo (`apps/demo`) com a pergunt
 ## O que já funciona bem
 
 - O botão **voltar do navegador** restaura a página como estava, com a aba, a rodada e a rolagem.
-- **Temporada na URL** (`?temporada=`) no time, no jogador e na competição: link compartilhável, e a troca de idioma recarrega a mesma URL e mantém a temporada.
+- **Temporada na URL** (`?season=`) no time, no jogador e na competição: link compartilhável, e a troca de idioma recarrega a mesma URL e mantém a temporada.
 - **Piloto de F1 em `/teams/{id}`**: abre de verdade (o piloto é um participante, como um time). Lutadores de MMA também.
 - Fora o caso do item 6, nenhum link levou a 404 ou a erro na varredura.
 - O **menu é o mesmo** no desktop e na gaveta do celular.
@@ -79,8 +79,8 @@ Nesses casos o cabeçalho mostra só o nome da página, e não há por onde subi
 
 **Correção:**
 
-- A aba vai para a URL (`?aba=jogos`) com o `UrlTabs` que a página do jogo já usa.
-- O link da competição no jogo, e o pai "competição" da trilha, abrem na aba Jogos, na rodada do jogo e na temporada que contém a data do jogo (`?aba=jogos&rodada=…&data=AAAA-MM-DD`).
+- A aba vai para a URL (`?tab=matches`) com o `UrlTabs` que a página do jogo já usa.
+- O link da competição no jogo, e o pai "competição" da trilha, abrem na aba Jogos, na rodada do jogo e na temporada que contém a data do jogo (`?tab=matches&round=…&date=AAAA-MM-DD`).
 - O chip ativo fica centralizado na fileira, que rola só na horizontal: a página não pula.
 - Os chips de temporada mantêm a aba.
 
@@ -182,7 +182,7 @@ Depois da primeira entrega, o pedido foi olhar o celular e a organização das l
 
 **Correção:**
 
-- **Um esporte por vez**, em abas com a contagem (Futebol 58, Basquete 16…), na URL (`?esporte=basketball`). O futebol abre por padrão. O "Ver país" da página do esporte já abre na aba daquele esporte.
+- **Um esporte por vez**, em abas com a contagem (Futebol 58, Basquete 16…), na URL (`?sport=basketball`). O futebol abre por padrão. O "Ver país" da página do esporte já abre na aba daquele esporte.
 - **Clubes juntos, seleção no fim:** nacionais → copas continentais → mundiais de clubes → seleção.
 - **Cada grupo mostra as 6 primeiras** competições (na ordem de importância da API) e esconde o resto atrás de "Ver mais 34", que abre na própria página.
 
@@ -341,7 +341,7 @@ Explorar no celular: **6.100 px → 3.070 px** (9.500 px antes do #200).
 **Correção:**
 
 - **Rotas novas:** `/drivers/max-verstappen-<id>` e `/fighters/fernando-padilla-<id>`. O participante não tem slug no banco, então o slug é o nome mais o id no fim (`participantHref` e `idFromSlug`), sem migração. Um slug sem id dá "não encontrado".
-- **Redirecionamento:** `/teams/{id}` de piloto ou lutador redireciona (308) para a rota certa, mantendo a query (`?temporada=`). Assim, links antigos e os da busca na F1 continuam funcionando.
+- **Redirecionamento:** `/teams/{id}` de piloto ou lutador redireciona (308) para a rota certa, mantendo a query (`?season=`). Assim, links antigos e os da busca na F1 continuam funcionando.
 - **Links diretos onde o contexto diz o tipo:** grid e pódio da corrida, tabela de pilotos do campeonato, companheiros de equipe no perfil do piloto e os lados de uma luta. Equipes de F1 (construtores) seguem em `/teams`. Na busca, participante de MMA vai direto para `/fighters`.
 - **Página:** o card "Elenco" só aparece para clube e seleção. "Últimos jogos" vira "Últimas corridas" ou "Últimas lutas". O perfil do piloto (carreira, títulos, fotos) é o do #222.
 
@@ -424,7 +424,7 @@ Explorar no celular: **6.100 px → 3.070 px** (9.500 px antes do #200).
   - `eventCompetitionHref` (aba, rodada e data do jogo).
 - Competição:
   - aba na URL com `UrlTabs`;
-  - `?data=` escolhe a temporada;
+  - `?date=` escolhe a temporada;
   - chips por `FilterChip`, que mantém a aba e centraliza o chip ativo.
 - Jogo, time, jogador, local, clássico, país e hipismo: `parents` e links de país seguros.
 - Títulos de aba (`generateMetadata`) em esporte, competição, jogo, time, jogador e país.
@@ -434,7 +434,7 @@ Segunda rodada:
 
 - `ShowMore` (`components/sport/show-more.tsx`): grade com os N primeiros e "Ver mais N".
 - País:
-  - abas por esporte com `UrlTabs` (`?esporte=`);
+  - abas por esporte com `UrlTabs` (`?sport=`);
   - grupos na ordem `SCOPE_ORDER`.
 - Esporte:
   - Internacionais primeiro, com "World" incluído;

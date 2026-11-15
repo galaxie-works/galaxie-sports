@@ -371,7 +371,7 @@ describe('PostgameTable', () => {
     show(<PostgameTable settings={settings} />);
     fireEvent.click(screen.getByRole('button', { name: fill(B.rowMenu, { name: T.ops.apis[api]! }) }));
     fireEvent.click(await screen.findByText(B.viewHistory));
-    expect(push).toHaveBeenCalledWith(`/settings/history?chave=${postgameModeKey(api)}`);
+    expect(push).toHaveBeenCalledWith(`/settings/history?key=${postgameModeKey(api)}`);
   });
 });
 

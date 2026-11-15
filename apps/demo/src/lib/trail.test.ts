@@ -30,10 +30,10 @@ describe('trilha de navegação', () => {
   it('mudança só de query string substitui o último item', () => {
     const entries = applyVisit(
       { entries: walk(portugal, liga), pendingRoot: null },
-      { ...liga, path: '/competitions/94?temporada=2024' },
+      { ...liga, path: '/competitions/94?season=2024' },
     );
     expect(entries).toHaveLength(2);
-    expect(entries.at(-1)?.path).toBe('/competitions/94?temporada=2024');
+    expect(entries.at(-1)?.path).toBe('/competitions/94?season=2024');
   });
 
   it('destino de topo da sidebar começa trilha nova', () => {
@@ -96,7 +96,7 @@ describe('trilha de navegação', () => {
 
   it('origem: vindo de um pai (a competição), não há botão — a trilha já leva a ele', () => {
     const trail: TrailState = {
-      entries: walk(portugal, { ...liga, path: '/competitions/94?aba=jogos' }),
+      entries: walk(portugal, { ...liga, path: '/competitions/94?tab=matches' }),
       pendingRoot: null,
     };
     expect(originOf(trail, evento, [portugal, liga])).toBeNull();

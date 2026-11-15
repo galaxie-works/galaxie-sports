@@ -77,7 +77,7 @@ export async function SeasonStatsCard({ career, api }: { career: RaceCareer; api
   const tx = t.race.season;
   const team = s.teams[0];
   const color = heroColor(s);
-  const results = career.competition ? `/competitions/${career.competition.slug}?temporada=${s.year}` : null;
+  const results = career.competition ? `/competitions/${career.competition.slug}?season=${s.year}` : null;
   return (
     <Card className="overflow-hidden pt-0">
       {/* faixa na cor da equipe do ano */}

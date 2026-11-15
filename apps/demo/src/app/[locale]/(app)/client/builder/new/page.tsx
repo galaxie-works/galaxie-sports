@@ -27,7 +27,7 @@ async function NewWidget({
 }: {
   searchParams: PageProps<'/[locale]/client/builder/new'>['searchParams'];
 }) {
-  const [{ tipo, tema, esporte, cosmos }, { locale }] = await Promise.all([searchParams, getI18n()]);
+  const [{ type, theme, sport, cosmos }, { locale }] = await Promise.all([searchParams, getI18n()]);
   return (
     <ClientArea section="builder">
       {async ({ tenant }) => {
@@ -53,12 +53,12 @@ async function NewWidget({
               cosmosDraft
                 ? await draftOf(cosmosDraft, locale)
                 : newDraft(
-                    typeof tipo === 'string' ? tipo : undefined,
+                    typeof type === 'string' ? type : undefined,
                     tenant,
                     locale,
                     brandThemes,
-                    typeof tema === 'string' ? tema : undefined,
-                    typeof esporte === 'string' ? esporte : undefined,
+                    typeof theme === 'string' ? theme : undefined,
+                    typeof sport === 'string' ? sport : undefined,
                   )
             }
             saved={null}

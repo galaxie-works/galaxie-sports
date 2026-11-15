@@ -61,7 +61,7 @@ describe('índice da busca de ajustes', () => {
     });
     // LINEUP_* ficam na aba Ajustes de Grades e ofertas (a inicial é a Revisão)
     expect(resolveSettingPage('LINEUP_PROMPT_MAX_CHARS')).toMatchObject({
-      href: '/settings/lineups?aba=ajustes',
+      href: '/settings/lineups?tab=settings',
     });
     expect(resolveSettingPage('NAO_EXISTE')).toBeUndefined();
   });
@@ -74,7 +74,7 @@ describe('índice da busca de ajustes', () => {
     for (const e of index) {
       expect(e.href, e.key).not.toMatch(/\/ajustes(\/|$)|\/settings\/(operacao|sistema|esportes)/);
       // só os LINEUP_* levam aba (e é a de Ajustes)
-      if (!e.key.startsWith('LINEUP_')) expect(e.href, e.key).not.toMatch(/\?aba=/);
+      if (!e.key.startsWith('LINEUP_')) expect(e.href, e.key).not.toMatch(/\?tab=/);
     }
   });
 
@@ -83,7 +83,7 @@ describe('índice da busca de ajustes', () => {
     const lineup = index.filter((e) => e.key.startsWith('LINEUP_'));
     expect(lineup.length).toBeGreaterThan(0);
     for (const e of lineup) {
-      expect(e.href).toBe(`/settings/lineups?aba=ajustes#${e.key}`);
+      expect(e.href).toBe(`/settings/lineups?tab=settings#${e.key}`);
       expect(e.href).toBe(settingHref(e.key));
     }
   });
@@ -139,12 +139,12 @@ describe('busca de ajustes', () => {
   });
 
   it('Páginas acha itens do menu e abas internas', () => {
-    expect(searchSettingsPages(pages, 'pedidos').map((p) => p.id)).toContain('lineup:pedidos');
+    expect(searchSettingsPages(pages, 'pedidos').map((p) => p.id)).toContain('lineup:requests');
     expect(searchSettingsPages(pages, 'ia')[0]!.id).toBe('ai');
     expect(searchSettingsPages(pages, '')).toEqual([]);
     expect(searchSettingsPages(pages, 'ajustes da grade')[0]).toMatchObject({
-      id: 'lineup:ajustes',
-      href: '/settings/lineups?aba=ajustes',
+      id: 'lineup:settings',
+      href: '/settings/lineups?tab=settings',
     });
   });
 

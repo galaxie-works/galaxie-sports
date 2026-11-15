@@ -146,7 +146,7 @@ export function BrandThemeEditor({
                 variant="outline"
                 size="sm"
                 nativeButton={false}
-                render={<Link href={`/client/builder/new?tema=${initial.id}`} />}
+                render={<Link href={`/client/builder/new?theme=${initial.id}`} />}
               >
                 <Plus />
                 {th.useInWidget}

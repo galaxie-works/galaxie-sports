@@ -119,7 +119,7 @@ function RoundsTable({ rows, t, f }: { rows: EqChampionship['rounds']; t: T; f: 
 
 async function Content({ params, searchParams }: Props) {
   const { key } = await params;
-  const athlete = one((await searchParams).atleta);
+  const athlete = one((await searchParams).athlete);
   const { locale, t } = await getI18n();
   const te = t.equestrian;
   const [c, f] = await Promise.all([getEquestrianChampionship(key, locale), getFormatters()]);

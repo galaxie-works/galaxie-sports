@@ -481,27 +481,29 @@ await check('Demo: páginas públicas sem termos internos', async () => {
 
 await check('Demo: links antigos de esporte levam à família', async () => {
   // o menu agrupa por família (Basquete com a NBA, Automobilismo com a F1): /sports/<esporte da API>
-  // guardado em favoritos e links continua chegando, com redirecionamento permanente e a query; a rota em português
-  // de antes do #630 (/esportes/nba) chega à família num salto só
+  // guardado em favoritos e links continua chegando, com 301 e a query; a rota em português de antes do #630
+  // (/pt-BR/esportes/nba, ?temporada=) chega à família num salto só
   for (const [from, to] of [
-    ['/sports/nba', '/sports/basquete#nba'],
-    ['/esportes/nba', '/sports/basquete#nba'],
-    ['/sports/formula-1?temporada=2024', '/sports/automobilismo?temporada=2024'],
-    ['/sports/football', '/sports/futebol'],
+    ['/sports/nba', '/sports/basketball#nba'],
+    ['/pt-BR/esportes/nba', '/pt-BR/sports/basketball#nba'],
+    ['/sports/formula-1?temporada=2024', '/sports/motorsport?season=2024'],
+    ['/sports/mma', '/sports/combat-sports'],
   ]) {
     const res = await fetch(`${DEMO}${from}`, { redirect: 'manual' });
     const location = res.headers.get('location') ?? '';
-    if (res.status !== 308 || !location.endsWith(to))
-      return fail(`${from}: status ${res.status} → ${location || '(sem location)'} (esperado 308 → ${to})`);
+    if (res.status !== 301 || !location.endsWith(to))
+      return fail(`${from}: status ${res.status} → ${location || '(sem location)'} (esperado 301 → ${to})`);
   }
   return true;
 });
 
 await check('Demo: rotas em português levam às em inglês (#630)', async () => {
-  // 301 por 12 meses (até 15/11/2027), com ou sem o idioma no caminho, mantendo o resto do caminho e a query
+  // 301 por 12 meses (até 15/11/2027), com ou sem o idioma no caminho, mantendo o resto do caminho; slug da família e
+  // query em português mudam no mesmo salto
   for (const [from, to] of [
     ['/sobre', '/about'],
-    ['/times/1?aba=elenco', '/teams/1?aba=elenco'],
+    ['/times/1?temporada=2025', '/teams/1?season=2025'],
+    ['/pt-BR/esportes/futebol?aba=jogos', '/pt-BR/sports/football?tab=matches'],
     ['/pt-BR/eventos/1', '/pt-BR/events/1'],
     ['/exemplo/jogo', '/example/match'],
   ]) {

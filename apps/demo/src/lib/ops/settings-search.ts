@@ -20,7 +20,7 @@ type OpsTexts = ClientDictionary['ops'];
 
 /**
  * Onde um ajuste mora: item do menu (id), link da página (com a busca da aba, quando o ajuste não está na aba inicial:
- * `/settings/lineups?aba=ajustes`), grupo do menu (id) e, se houver, a seção (id).
+ * `/settings/lineups?tab=settings`), grupo do menu (id) e, se houver, a seção (id).
  */
 export interface SettingPageRef {
   item: string;
@@ -53,7 +53,7 @@ export interface SettingsSearchEntry {
   key: string;
   label: string;
   description: string;
-  /** `/settings/<item>[?aba=…]#<CHAVE>` (a página rola até a linha, ver `useSettingAnchor`). */
+  /** `/settings/<item>[?tab=…]#<CHAVE>` (a página rola até a linha, ver `useSettingAnchor`). */
   href: string;
   /** Caminho: grupo › item › seção. */
   crumbs: string[];
@@ -103,7 +103,7 @@ function aliasesOf(t: OpsTexts, key: string): string[] {
   }
 }
 
-/** Junta link e âncora (o link pode já ter `?aba=`). */
+/** Junta link e âncora (o link pode já ter `?tab=`). */
 export const withSettingAnchor = (href: string, key: string) => `${href.split('#')[0]}#${key}`;
 
 /**
@@ -293,10 +293,10 @@ export function currentSettingsTabs(
   const lineup = t.lineup.admin.tabs;
   const href = settingsItem('lineup').href;
   return {
-    lineup: (['revisao', 'pedidos', 'tenants', 'ajustes'] as const).map((id) => ({
+    lineup: (['review', 'requests', 'tenants', 'settings'] as const).map((id) => ({
       id,
       label: lineup[id],
-      href: `${href}?aba=${id}`,
+      href: `${href}?tab=${id}`,
     })),
   };
 }

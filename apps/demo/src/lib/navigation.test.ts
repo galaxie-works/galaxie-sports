@@ -24,13 +24,13 @@ describe('links de navegação', () => {
       stage: { name: 'Rodada 32' },
       starts_at: '2026-10-23T20:00:00-03:00',
     });
-    expect(href).toBe('/competitions/brasileirao-serie-a?aba=jogos&data=2026-10-23&rodada=Rodada+32');
+    expect(href).toBe('/competitions/brasileirao-serie-a?tab=matches&date=2026-10-23&round=Rodada+32');
     expect(eventCompetitionHref({ competition: null, stage: null, starts_at: '2026-10-23' })).toBeNull();
   });
 
   it('esporte pai é a família do menu, com o rótulo dela', () => {
     expect(sportParent('formula-1', getDictionary('pt-BR'))).toEqual({
-      path: '/sports/automobilismo',
+      path: '/sports/motorsport',
       label: 'Automobilismo',
       kind: 'esporte',
     });

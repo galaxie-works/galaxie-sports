@@ -63,7 +63,7 @@ describe('proxy por papel (APP_ROLE)', () => {
     getSession.mockResolvedValue(null);
     const res = await get('/client');
     expect(res.status).toBe(307);
-    expect(res.headers.get('location')).toBe('http://demo.test/login?voltar=%2Fclient');
+    expect(res.headers.get('location')).toBe('http://demo.test/login?next=%2Fclient');
   });
 
   it('sem APP_ROLE atende tudo, como antes', async () => {
@@ -90,10 +90,11 @@ describe('links antigos de Ajustes (#1069)', () => {
     ['/ajustes/sistema?aba=history', '/settings/history'],
     ['/ajustes/sistema?tab=ai', '/settings/ai'],
     ['/ajustes/esportes?aba=related&q=espn', '/settings/videos?q=espn'],
+    ['/ajustes/esportes?aba=related&filtro=blocked', '/settings/videos?filter=blocked'],
     ['/ajustes/esportes?aba=sports', '/settings/provider#sports'],
-  ])('%s responde 308 para %s', async (from, to) => {
+  ])('%s responde 301 para %s', async (from, to) => {
     const res = await get(from);
-    expect(res.status).toBe(308);
+    expect(res.status).toBe(301);
     expect(res.headers.get('location')).toBe(`http://demo.test${to}`);
   });
 
@@ -102,7 +103,7 @@ describe('links antigos de Ajustes (#1069)', () => {
       '/settings',
       '/settings/status',
       '/settings/videos',
-      '/settings/provider?aba=mirror',
+      '/settings/lineups?tab=requests',
     ]) {
       expect((await get(path)).status, path).toBe(200);
     }
@@ -117,14 +118,30 @@ describe('rotas em português de antes do #630', () => {
   });
 
   it.each([
-    ['/times/1?aba=elenco', '/teams/1?aba=elenco'],
+    ['/times/1?temporada=2025', '/teams/1?season=2025'],
     ['/pt-BR/eventos/abc', '/pt-BR/events/abc'],
     ['/en/hipismo/atletas/9', '/en/equestrian/athletes/9'],
     ['/es-AR/ajustes/usuarios/1', '/es-AR/settings/users/1'],
     ['/sobre', '/about'],
-    ['/exemplo/jogo?detalhes=x', '/example/match?detalhes=x'],
-    ['/cliente/builder/novo?tipo=standings', '/client/builder/new?tipo=standings'],
+    ['/exemplo/jogo?detalhes=escalacao&escalacao=campo', '/example/match?details=lineups&lineup=pitch'],
+    [
+      '/cliente/builder/novo?tipo=standings&esporte=basquete',
+      '/client/builder/new?type=standings&sport=basketball',
+    ],
     ['/api/feedback/anexo/2026-11/x.png?e=1&s=a', '/api/feedback/attachment/2026-11/x.png?e=1&s=a'],
+    // slug da família e query num salto só
+    ['/pt-BR/esportes/futebol?aba=jogos', '/pt-BR/sports/football?tab=matches'],
+    ['/esportes/futebol-americano', '/sports/american-football'],
+    ['/sports/basquete', '/sports/basketball'],
+    ['/en/sports/automobilismo?temporada=2024', '/en/sports/motorsport?season=2024'],
+    // só a query em português, no caminho novo
+    [
+      '/competitions/brasileirao?aba=jogos&temporada=2025&rodada=Rodada+3',
+      '/competitions/brasileirao?tab=matches&season=2025&round=Rodada+3',
+    ],
+    ['/live?status=ao-vivo%2Cproximos&esporte=football', '/live?status=live%2Cupcoming&sport=football'],
+    ['/schedule?pais=br&dia=2026-11-20', '/schedule?country=br&day=2026-11-20'],
+    ['/login?voltar=%2Fteams%2F1&motivo=expirado', '/login?next=%2Fteams%2F1&reason=expired'],
   ])('%s responde 301 para %s, sem olhar a sessão', async (from, to) => {
     const res = await get(from);
     expect(res.status).toBe(301);
@@ -147,19 +164,19 @@ describe('rotas em português de antes do #630', () => {
     expect(res.headers.get('location')).toBe('http://demo.test/api/settings/review/batch');
   });
 
-  it.each([
-    ['/pt-BR/esportes/nba', '/pt-BR/sports/basquete#nba'],
-    ['/en/esportes/formula-1', '/en/sports/automobilismo'],
-    ['/es-AR/sports/nba', '/es-AR/sports/basquete#nba'],
-  ])('esporte da API com o idioma (%s) chega à família num salto só', async (from, to) => {
-    const res = await get(from);
-    expect(res.status).toBe(308);
-    expect(res.headers.get('location')).toBe(`http://demo.test${to}`);
+  it('a query das rotas de API não se traduz (o proxy da API repassa os parâmetros como vieram)', async () => {
+    getSession.mockResolvedValue(admin);
+    expect((await get('/api/galaxie/v1/teams?tipo=x&data=1')).status).toBe(200);
   });
 
-  it('esporte antigo chega à família num salto só', async () => {
-    const res = await get('/esportes/nba?temporada=2025');
-    expect(res.status).toBe(308);
-    expect(res.headers.get('location')).toBe('http://demo.test/sports/basquete?temporada=2025#nba');
+  it.each([
+    ['/pt-BR/esportes/nba', '/pt-BR/sports/basketball#nba'],
+    ['/en/esportes/formula-1', '/en/sports/motorsport'],
+    ['/es-AR/sports/nba', '/es-AR/sports/basketball#nba'],
+    ['/esportes/nba?temporada=2025&aba=jogos', '/sports/basketball?season=2025&tab=matches#nba'],
+  ])('esporte da API (%s) chega à família num salto só', async (from, to) => {
+    const res = await get(from);
+    expect(res.status).toBe(301);
+    expect(res.headers.get('location')).toBe(`http://demo.test${to}`);
   });
 });

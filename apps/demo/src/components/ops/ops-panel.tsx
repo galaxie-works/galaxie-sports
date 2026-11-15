@@ -858,8 +858,8 @@ function HistoryTab({ snapshot, timeZone }: Ctx) {
     const def = settingDef(key);
     return def ? settingText(T, def).label : key;
   };
-  // "Ver histórico" de uma linha chega com `?chave=`: só as mudanças daquela chave
-  const only = useSearchParams().get('chave');
+  // "Ver histórico" de uma linha chega com `?key=`: só as mudanças daquela chave
+  const only = useSearchParams().get('key');
   const history = only ? snapshot.history.filter((h) => h.key === only) : snapshot.history;
   return (
     <div className="flex flex-col gap-4">

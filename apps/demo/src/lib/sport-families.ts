@@ -4,7 +4,8 @@
  * `formula-1`) seguem esportes separados, porque vêm de APIs diferentes; só a apresentação junta.
  *
  * Este é o único lugar do mapa família → esportes. Os rótulos ficam nos dicionários
- * (`t.nav.families[id]`), nos três idiomas. O `id` é também o slug da rota (`/sports/basquete`).
+ * (`t.nav.families[id]`), nos três idiomas. A URL usa o `slug` em inglês (`/sports/basketball`, #630); o `id` é só a
+ * chave interna.
  *
  * Módulo puro: serve ao proxy (redirecionamento das rotas antigas), ao servidor, ao navegador e aos testes.
  */
@@ -16,8 +17,10 @@ import { LOCALES } from '@/lib/i18n/config';
 const LOCALE_PREFIX = new RegExp(`^/(${LOCALES.join('|')})(?=/)`, 'i');
 
 export interface SportFamilyDef {
-  /** Slug da rota e chave do rótulo no dicionário. */
+  /** Chave interna: rótulo no dicionário (`t.nav.families[id]`) e ícone. Não aparece na URL. */
   id: string;
+  /** Segmento da URL, em inglês em todos os idiomas (#630): `/sports/basketball`. */
+  slug: string;
   /** Esportes da API que a família reúne; o primeiro dá o ícone. */
   sports: readonly MirrorSport[];
   /**
@@ -29,18 +32,18 @@ export interface SportFamilyDef {
 
 /** Ordem do menu: a mesma dos esportes (o que tem mais cobertura primeiro). */
 export const SPORT_FAMILIES = [
-  { id: 'futebol', sports: ['football'] },
-  { id: 'basquete', sports: ['basketball', 'nba'], sections: ['nba'] },
-  { id: 'volei', sports: ['volleyball'] },
+  { id: 'futebol', slug: 'football', sports: ['football'] },
+  { id: 'basquete', slug: 'basketball', sports: ['basketball', 'nba'], sections: ['nba'] },
+  { id: 'volei', slug: 'volleyball', sports: ['volleyball'] },
   // Fórmula 1 hoje; outras categorias (Fórmula E, Indy, Stock Car) entram nesta mesma família
-  { id: 'automobilismo', sports: ['formula-1'] },
-  { id: 'lutas', sports: ['mma'] },
-  { id: 'futebol-americano', sports: ['american-football'] },
-  { id: 'beisebol', sports: ['baseball'] },
-  { id: 'hoquei', sports: ['hockey'] },
-  { id: 'handebol', sports: ['handball'] },
-  { id: 'rugbi', sports: ['rugby'] },
-  { id: 'futebol-australiano', sports: ['afl'] },
+  { id: 'automobilismo', slug: 'motorsport', sports: ['formula-1'] },
+  { id: 'lutas', slug: 'combat-sports', sports: ['mma'] },
+  { id: 'futebol-americano', slug: 'american-football', sports: ['american-football'] },
+  { id: 'beisebol', slug: 'baseball', sports: ['baseball'] },
+  { id: 'hoquei', slug: 'hockey', sports: ['hockey'] },
+  { id: 'handebol', slug: 'handball', sports: ['handball'] },
+  { id: 'rugbi', slug: 'rugby', sports: ['rugby'] },
+  { id: 'futebol-australiano', slug: 'australian-football', sports: ['afl'] },
 ] as const satisfies readonly SportFamilyDef[];
 
 export type SportFamily = (typeof SPORT_FAMILIES)[number];
@@ -48,10 +51,10 @@ export type FamilyId = SportFamily['id'];
 
 const sectionsOf = (family: SportFamily): readonly string[] => ('sections' in family ? family.sections : []);
 
-export const familyHref = (family: Pick<SportFamily, 'id'>) => `/sports/${family.id}`;
+export const familyHref = (family: Pick<SportFamily, 'slug'>) => `/sports/${family.slug}`;
 
 export const familyBySlug = (slug: string): SportFamily | undefined =>
-  SPORT_FAMILIES.find((f) => f.id === slug);
+  SPORT_FAMILIES.find((f) => f.slug === slug);
 
 /** Família de um esporte da API (`nba` → Basquete); undefined para esporte fora do menu. */
 export const familyOf = (sport: string): SportFamily | undefined =>
@@ -59,7 +62,7 @@ export const familyOf = (sport: string): SportFamily | undefined =>
 
 /**
  * Página de um esporte da API dentro da família: a da família e, para esporte com seção própria, a
- * âncora dela (`/sports/basquete#nba`).
+ * âncora dela (`/sports/basketball#nba`).
  */
 export function sportHref(sport: string): string | null {
   const family = familyOf(sport);
@@ -73,7 +76,7 @@ export function sportHref(sport: string): string | null {
  * do #630 (`/esportes/nba`), para chegar à família num salto só. Null quando não é rota antiga.
  */
 export function legacySportRedirect(pathname: string): string | null {
-  // o prefixo de idioma sai para casar e volta no destino (`/pt-BR/esportes/nba` → `/pt-BR/sports/basquete#nba`)
+  // o prefixo de idioma sai para casar e volta no destino (`/pt-BR/esportes/nba` → `/pt-BR/sports/basketball#nba`)
   const prefix = LOCALE_PREFIX.exec(pathname)?.[0] ?? '';
   const match = /^\/(?:sports|esportes)\/([^/]+)\/?$/.exec(pathname.slice(prefix.length));
   if (!match || familyBySlug(match[1]!)) return null;

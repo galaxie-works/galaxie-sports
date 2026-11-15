@@ -241,7 +241,7 @@ export async function RaceHub({
 }: {
   sport: string;
   events: Event[];
-  /** GP pedido na URL (`?rodada=`), em destaque no lugar do próximo. */
+  /** GP pedido na URL (`?round=`), em destaque no lugar do próximo. */
   focus?: string | null;
   /** A temporada mostrada é a atual. */
   current: boolean;

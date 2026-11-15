@@ -2,7 +2,7 @@
  * Rotas em português de antes do #630 e para onde foram. Desde 15/11/2026 toda rota da plataforma e do console é em
  * inglês em todos os idiomas (`/pt-BR/events/123`, `/en/events/123`): só o texto muda com o idioma. O proxy responde
  * com redirecionamento permanente de cada caminho antigo para o novo, com ou sem o prefixo de idioma, mantendo o resto
- * do caminho e a query (`/pt-BR/times/1?aba=elenco` → `/pt-BR/teams/1?aba=elenco`).
+ * do caminho e a query (`/pt-BR/times/1?temporada=2025` → `/pt-BR/teams/1?season=2025`). Os slugs de família e os parâmetros de query em português também mudam, no mesmo salto.
  *
  * Vale por 12 meses, de 15/11/2026 a 15/11/2027 (issue #630): depois, retirar esta tabela, os caminhos antigos do
  * console em `ROLE_ROUTES` (`lib/app-role.ts`) e os prefixos `ajustes` e `cliente` do `PathRegexp` do Traefik
@@ -141,6 +141,121 @@ export function legacyRouteTarget(pathname: string): string | null {
     if (path === from || path.startsWith(`${from}/`)) return `${prefix}${to}${path.slice(from.length)}`;
   }
   return null;
+}
+
+/**
+ * Slugs de família de esporte na URL antes do #630 (`/sports/futebol`) → em inglês (`/sports/football`). Hipismo e
+ * Olimpíadas e Pan aparecem como aba do catálogo do Builder (`?sport=equestrian`). Os slugs novos ficam em
+ * `lib/sport-families.ts` e `lib/builder/sports.ts`; o teste confere que batem.
+ */
+export const LEGACY_FAMILY_SLUGS: Readonly<Record<string, string>> = {
+  futebol: 'football',
+  basquete: 'basketball',
+  volei: 'volleyball',
+  automobilismo: 'motorsport',
+  lutas: 'combat-sports',
+  'futebol-americano': 'american-football',
+  beisebol: 'baseball',
+  hoquei: 'hockey',
+  handebol: 'handball',
+  rugbi: 'rugby',
+  'futebol-australiano': 'australian-football',
+  hipismo: 'equestrian',
+  multiesporte: 'multisport',
+};
+
+/** Parâmetros de query em português → em inglês (`?aba=jogos&temporada=2025` → `?tab=matches&season=2025`). */
+export const LEGACY_QUERY_PARAMS: Readonly<Record<string, string>> = {
+  aba: 'tab',
+  alterados: 'changed',
+  atleta: 'athlete',
+  chave: 'key',
+  competicao: 'competition',
+  data: 'date',
+  detalhes: 'details',
+  dia: 'day',
+  escalacao: 'lineup',
+  esporte: 'sport',
+  etapa: 'step',
+  filtro: 'filter',
+  janela: 'window',
+  limite: 'limit',
+  lista: 'list',
+  mercado: 'market',
+  motivo: 'reason',
+  pagina: 'page',
+  pais: 'country',
+  plataforma: 'platform',
+  rodada: 'round',
+  tema: 'theme',
+  temporada: 'season',
+  tipo: 'type',
+  voltar: 'next',
+};
+
+/**
+ * Valores fixos em português, pelo nome novo do parâmetro (`?aba=jogos` → `?tab=matches`). Lista separada por vírgula
+ * (`?status=ao-vivo,proximos`) troca item a item; valor fora da tabela (id, data, nome) fica como está.
+ */
+export const LEGACY_QUERY_VALUES: Readonly<Record<string, Readonly<Record<string, string>>>> = {
+  tab: {
+    jogos: 'matches',
+    classificacao: 'standings',
+    revisao: 'review',
+    pedidos: 'requests',
+    ajustes: 'settings',
+  },
+  details: { minuto: 'timeline', estatisticas: 'statistics', escalacao: 'lineups' },
+  lineup: { titulares: 'starters', reservas: 'substitutes', campo: 'pitch' },
+  status: { 'ao-vivo': 'live', proximos: 'upcoming', encerrados: 'finished', todos: 'all' },
+  sport: LEGACY_FAMILY_SLUGS,
+  reason: { expirado: 'expired' },
+};
+
+/**
+ * Query com os nomes e valores em inglês; null quando não há nada em português. Um parâmetro que já veio com o nome
+ * novo vale mais que o antigo (`?aba=jogos&tab=standings` fica `?tab=standings`).
+ */
+export function legacyQueryTarget(search: URLSearchParams): URLSearchParams | null {
+  let changed = false;
+  const out = new URLSearchParams();
+  for (const [name, value] of search) {
+    const renamed = Object.hasOwn(LEGACY_QUERY_PARAMS, name) ? LEGACY_QUERY_PARAMS[name]! : name;
+    if (renamed !== name) {
+      changed = true;
+      if (search.has(renamed)) continue;
+    }
+    const values = Object.hasOwn(LEGACY_QUERY_VALUES, renamed) ? LEGACY_QUERY_VALUES[renamed]! : null;
+    const mapped = values
+      ? value
+          .split(',')
+          .map((v) => (Object.hasOwn(values, v) ? values[v]! : v))
+          .join(',')
+      : value;
+    if (mapped !== value) changed = true;
+    out.append(renamed, mapped);
+  }
+  return changed ? out : null;
+}
+
+/** Slug de família em português no fim do caminho (`/sports/futebol`, depois da troca do prefixo) → em inglês. */
+function translateFamily(path: string): string {
+  const match = /^(\/(?:[a-z]{2}(?:-[a-z]{2})?\/)?sports\/)([^/]+)(\/?)$/i.exec(path);
+  if (!match || !Object.hasOwn(LEGACY_FAMILY_SLUGS, match[2]!)) return path;
+  return `${match[1]}${LEGACY_FAMILY_SLUGS[match[2]!]}${match[3]}`;
+}
+
+/**
+ * URL nova (caminho e query) de um endereço com algo em português: o caminho antigo, o slug da família ou a query.
+ * Null quando não há nada a trocar. A query só se traduz nas páginas (as rotas de API não leem nomes em português).
+ */
+export function legacyTarget(pathname: string, search: URLSearchParams, page: boolean): string | null {
+  const routed = legacyRouteTarget(pathname) ?? pathname;
+  const path = translateFamily(routed);
+  const query = page ? legacyQueryTarget(search) : null;
+  if (path === pathname && !query) return null;
+  const qs = (query ?? search).toString();
+  return `${path}${qs ? `?${qs}` : ''}`;
 }
 
 /**
