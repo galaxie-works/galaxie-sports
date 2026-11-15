@@ -333,6 +333,8 @@ function IncidentRow({ i, f }: { i: TimelineIncident; f: Formatters }) {
             {i.assist && i.kind !== 'var' ? <PersonLine person={i.assist} prefix={tl.assist} /> : null}
           </div>
         )}
+        {/* frase pronta do lance (#1167), no idioma pedido à API */}
+        {i.narration ? <p className="text-muted-foreground text-sm leading-snug">{i.narration}</p> : null}
         <OccurredAt at={i.occurred_at} source={i.occurred_at_source} f={f} />
       </div>
     </li>
