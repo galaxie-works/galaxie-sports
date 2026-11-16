@@ -70,6 +70,10 @@
     "./runtime-settings": {
       "types": "./dist/runtime-settings.d.ts",
       "default": "./dist/runtime-settings.js"
+    },
+    "./access-errors": {
+      "types": "./dist/access-errors.d.ts",
+      "default": "./dist/access-errors.js"
     }
   },
   "files": [
