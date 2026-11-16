@@ -8,7 +8,9 @@ import {
   type ApiPlan,
   type Database,
 } from '@galaxie/db';
-import { generateApiKey, hashSecret, type KeyEnv } from './keys.js';
+import { createApiKey, type CreatedKey } from '@galaxie/db/api-keys';
+
+export { createApiKey, type CreatedKey };
 
 /** Banco ou transação (as funções abaixo podem rodar dentro de `db.transaction`). */
 export type DbOrTx = Database | Parameters<Parameters<Database['transaction']>[0]>[0];
@@ -53,40 +55,6 @@ export async function upsertTenant(
     .onConflictDoUpdate({ target: tenant.slug, set: { ...values, updatedAt: sql`now()` } })
     .returning({ id: tenant.id, created: sql<boolean>`(xmax = 0)` });
   return row!;
-}
-
-export interface CreatedKey {
-  id: string;
-  prefix: string;
-  /** Chave completa — exibida uma única vez. */
-  key: string;
-}
-
-export async function createApiKey(
-  db: DbOrTx,
-  tenantId: string,
-  options: {
-    label?: string | undefined;
-    scopes?: ApiModule[] | undefined;
-    env?: KeyEnv | undefined;
-    expiresAt?: Date | undefined;
-  } = {},
-): Promise<CreatedKey> {
-  const generated = generateApiKey(options.env ?? 'live');
-  const [row] = await db
-    .insert(apiKey)
-    .values({
-      tenantId,
-      prefix: generated.prefix,
-      env: generated.env,
-      keyFormat: generated.format,
-      secretHash: await hashSecret(generated.secret),
-      label: options.label ?? null,
-      scopes: options.scopes ?? null,
-      expiresAt: options.expiresAt ?? null,
-    })
-    .returning({ id: apiKey.id });
-  return { id: row!.id, prefix: generated.prefix, key: generated.key };
 }
 
 export async function revokeApiKey(db: Database, keyId: string, at = new Date()): Promise<void> {

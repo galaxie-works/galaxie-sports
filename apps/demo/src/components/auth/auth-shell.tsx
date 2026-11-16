@@ -4,6 +4,7 @@ import { LanguageSelect } from '@/components/app-shell/language-select';
 import SoftBlurIn from '@/components/smoothui/soft-blur-in';
 import { StarfieldBackground } from '@/components/ui/starfield';
 import { useI18n } from '@/lib/i18n/client';
+import { cn } from '@/lib/utils';
 
 /**
  * Moldura das telas de acesso (login, definir e redefinir senha), igual ao login do app desktop da
@@ -16,10 +17,13 @@ export function AuthShell({
   title,
   subtitle,
   children,
+  wide = false,
 }: {
   title: string;
   subtitle: string;
   children: React.ReactNode;
+  /** Coluna larga (o assistente de cadastro); o padrão é a do login. */
+  wide?: boolean;
 }) {
   const { t } = useI18n();
   return (
@@ -28,7 +32,12 @@ export function AuthShell({
       {/* brilho de fundo sutil, por cima das estrelas */}
       <div className="bg-foreground/[0.04] pointer-events-none absolute -top-40 left-1/2 h-[520px] w-[720px] -translate-x-1/2 rounded-full blur-[120px]" />
 
-      <div className="relative my-auto w-full max-w-[400px] animate-[fade-in_0.4s_ease] pt-12 pb-8">
+      <div
+        className={cn(
+          'relative my-auto w-full animate-[fade-in_0.4s_ease] pt-12 pb-8',
+          wide ? 'max-w-[720px]' : 'max-w-[400px]',
+        )}
+      >
         <div className="flex flex-col items-center text-center">
           {/* Logo da marca, servido de /public (não passa pelo otimizador). */}
           <img

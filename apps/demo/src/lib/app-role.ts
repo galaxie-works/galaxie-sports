@@ -49,6 +49,8 @@ export const ROLE_ROUTES: readonly RoleRoute[] = [
   // ── nos dois
   // login por código e a API do Better Auth: mesmo host, o cookie de sessão vale nos dois serviços
   { path: '/login', owner: 'comum' },
+  // cadastro em autoatendimento (F2): mesmo host do login; o assistente só fala com o banco por ações do servidor
+  { path: '/signup', owner: 'comum' },
   { path: '/api/auth', owner: 'comum' },
   // telas do login antigo: redirecionam para o login
   { path: '/definir-senha', owner: 'comum' },
