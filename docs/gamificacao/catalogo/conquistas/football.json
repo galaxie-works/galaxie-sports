@@ -1,0 +1,1760 @@
+[
+  {
+    "id": "football.explorer.competitions",
+    "sport": "football",
+    "category": "participation",
+    "family": "explorer",
+    "collection": "football.world_tour",
+    "rule": {
+      "input": "prediction",
+      "where": {
+        "sport": [
+          "football"
+        ]
+      },
+      "count": {
+        "mode": "distinct",
+        "key": "competition"
+      }
+    },
+    "requires_data": [
+      "fan.prediction",
+      "event.sport",
+      "event.competition.id"
+    ],
+    "stepped": true,
+    "seasonal": false,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "a plataforma cobre 145 competições de futebol; um torcedor assíduo palpita em 15 a 25 delas por temporada (ligas, copas, estaduais, continentais, seleções) e 40 é alcance de 2 ou 3 temporadas (fonte: cobertura da plataforma, seção 6 da missão)",
+    "name": {
+      "pt": "Mapa das competições",
+      "es": "Mapa de torneos",
+      "en": "Competition Map"
+    },
+    "description": {
+      "pt": "Dê Palpites em competições de futebol diferentes.",
+      "es": "Haz pronósticos en torneos de fútbol distintos.",
+      "en": "Make predictions across different football competitions."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 2,
+        "bonus_points": 0,
+        "card_key": "football.explorer.competitions.1"
+      },
+      {
+        "step": 2,
+        "threshold": 5,
+        "bonus_points": 0,
+        "card_key": "football.explorer.competitions.2"
+      },
+      {
+        "step": 3,
+        "threshold": 10,
+        "bonus_points": 0,
+        "card_key": "football.explorer.competitions.3"
+      },
+      {
+        "step": 4,
+        "threshold": 20,
+        "bonus_points": 0,
+        "card_key": "football.explorer.competitions.4"
+      },
+      {
+        "step": 5,
+        "threshold": 40,
+        "bonus_points": 0,
+        "card_key": "football.explorer.competitions.5"
+      }
+    ]
+  },
+  {
+    "id": "football.explorer.countries",
+    "sport": "football",
+    "category": "participation",
+    "family": "explorer",
+    "collection": "football.world_tour",
+    "rule": {
+      "input": "participation",
+      "action": "watched",
+      "where": {
+        "sport": [
+          "football"
+        ]
+      },
+      "count": {
+        "mode": "distinct",
+        "key": "country"
+      }
+    },
+    "requires_data": [
+      "fan.participation",
+      "fan.presence",
+      "event.sport",
+      "event.competition.country"
+    ],
+    "stepped": true,
+    "seasonal": false,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "a plataforma cobre competições nacionais de cerca de 25 países (América do Sul e Central, México, Estados Unidos, Europa); 12 países é alcance de uma temporada curiosa e 25 só em 2 ou 3 temporadas (fonte: cobertura da plataforma, seção 6 da missão)",
+    "name": {
+      "pt": "Volta ao mundo",
+      "es": "Vuelta al mundo",
+      "en": "Around the World"
+    },
+    "description": {
+      "pt": "Assista a futebol de competições de países diferentes.",
+      "es": "Mira fútbol de torneos de países distintos.",
+      "en": "Watch football from competitions in different countries."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 0,
+        "card_key": "football.explorer.countries.1"
+      },
+      {
+        "step": 2,
+        "threshold": 3,
+        "bonus_points": 0,
+        "card_key": "football.explorer.countries.2"
+      },
+      {
+        "step": 3,
+        "threshold": 6,
+        "bonus_points": 0,
+        "card_key": "football.explorer.countries.3"
+      },
+      {
+        "step": 4,
+        "threshold": 12,
+        "bonus_points": 0,
+        "card_key": "football.explorer.countries.4"
+      },
+      {
+        "step": 5,
+        "threshold": 25,
+        "bonus_points": 0,
+        "card_key": "football.explorer.countries.5"
+      }
+    ]
+  },
+  {
+    "id": "football.explorer.months",
+    "sport": "football",
+    "category": "participation",
+    "family": "explorer",
+    "collection": "football.world_tour",
+    "rule": {
+      "input": "participation",
+      "action": "watched",
+      "where": {
+        "sport": [
+          "football"
+        ]
+      },
+      "count": {
+        "mode": "distinct",
+        "key": "month"
+      }
+    },
+    "requires_data": [
+      "fan.participation",
+      "fan.presence",
+      "event.sport",
+      "event.starts_at",
+      "program.time_zone"
+    ],
+    "stepped": true,
+    "seasonal": false,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "o futebol tem jogo em todos os meses do ano quando se somam os hemisférios (ligas europeias de agosto a maio, americanas de fevereiro a dezembro, estaduais em janeiro); Platina = 12 meses, Lendário = 2 anos (fontes do calendário em pesquisa/football.md)",
+    "name": {
+      "pt": "Ano inteiro",
+      "es": "Todo el año",
+      "en": "All Year Round"
+    },
+    "description": {
+      "pt": "Assista a futebol em meses diferentes, sem deixar o calendário esfriar.",
+      "es": "Mira fútbol en meses distintos, sin dejar que el calendario se enfríe.",
+      "en": "Watch football in different months, never letting the calendar go cold."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 0,
+        "card_key": "football.explorer.months.1"
+      },
+      {
+        "step": 2,
+        "threshold": 3,
+        "bonus_points": 0,
+        "card_key": "football.explorer.months.2"
+      },
+      {
+        "step": 3,
+        "threshold": 6,
+        "bonus_points": 0,
+        "card_key": "football.explorer.months.3"
+      },
+      {
+        "step": 4,
+        "threshold": 12,
+        "bonus_points": 0,
+        "card_key": "football.explorer.months.4"
+      },
+      {
+        "step": 5,
+        "threshold": 24,
+        "bonus_points": 0,
+        "card_key": "football.explorer.months.5"
+      }
+    ]
+  },
+  {
+    "id": "football.loyalty.derby_watched",
+    "sport": "football",
+    "category": "participation",
+    "family": "loyalty",
+    "collection": "football.derby_days",
+    "rule": {
+      "input": "participation",
+      "action": "watched",
+      "where": {
+        "sport": [
+          "football"
+        ],
+        "derby": true
+      }
+    },
+    "requires_data": [
+      "fan.participation",
+      "fan.presence",
+      "event.sport",
+      "event.derby_id"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria sobre o calendário: o time de um torcedor joga 2 a 10 clássicos por temporada conforme o mercado; somando clássicos de outros times, um torcedor assíduo assiste a cerca de 10 por temporada (fontes do calendário em pesquisa/football.md)",
+    "name": {
+      "pt": "Dia de clássico",
+      "es": "Día de clásico",
+      "en": "Derby Day"
+    },
+    "description": {
+      "pt": "Assista a clássicos de futebol, do seu time ou de qualquer outro.",
+      "es": "Mira clásicos de fútbol, de tu equipo o de cualquier otro.",
+      "en": "Watch football derbies, your team’s or anyone else’s."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 0,
+        "card_key": "football.loyalty.derby_watched.1"
+      },
+      {
+        "step": 2,
+        "threshold": 2,
+        "bonus_points": 0,
+        "card_key": "football.loyalty.derby_watched.2"
+      },
+      {
+        "step": 3,
+        "threshold": 5,
+        "bonus_points": 0,
+        "card_key": "football.loyalty.derby_watched.3"
+      },
+      {
+        "step": 4,
+        "threshold": 10,
+        "bonus_points": 0,
+        "card_key": "football.loyalty.derby_watched.4"
+      },
+      {
+        "step": 5,
+        "threshold": 25,
+        "bonus_points": 0,
+        "card_key": "football.loyalty.derby_watched.5"
+      }
+    ]
+  },
+  {
+    "id": "football.loyalty.favorite_games",
+    "sport": "football",
+    "category": "participation",
+    "family": "loyalty",
+    "collection": "football.faithful",
+    "rule": {
+      "input": "participation",
+      "action": "watched",
+      "where": {
+        "sport": [
+          "football"
+        ],
+        "favorite_playing": true
+      }
+    },
+    "requires_data": [
+      "fan.participation",
+      "fan.presence",
+      "fan.favorite_team_id",
+      "event.participants",
+      "event.sport"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "uma liga de 38 rodadas tem 38 jogos por time (liga inglesa e Brasileirão); com copas, um clube brasileiro passa de 60 jogos por ano; Platina = os 38 da liga (fontes do calendário em pesquisa/football.md)",
+    "name": {
+      "pt": "Fiel ao time",
+      "es": "Fiel al equipo",
+      "en": "True to the Team"
+    },
+    "description": {
+      "pt": "Assista aos jogos do seu time do coração.",
+      "es": "Mira los partidos de tu equipo del corazón.",
+      "en": "Watch your favorite team’s matches."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 0,
+        "card_key": "football.loyalty.favorite_games.1"
+      },
+      {
+        "step": 2,
+        "threshold": 5,
+        "bonus_points": 0,
+        "card_key": "football.loyalty.favorite_games.2"
+      },
+      {
+        "step": 3,
+        "threshold": 15,
+        "bonus_points": 0,
+        "card_key": "football.loyalty.favorite_games.3"
+      },
+      {
+        "step": 4,
+        "threshold": 38,
+        "bonus_points": 0,
+        "card_key": "football.loyalty.favorite_games.4"
+      },
+      {
+        "step": 5,
+        "threshold": 100,
+        "bonus_points": 0,
+        "card_key": "football.loyalty.favorite_games.5"
+      }
+    ]
+  },
+  {
+    "id": "football.loyalty.favorite_streak",
+    "sport": "football",
+    "category": "participation",
+    "family": "loyalty",
+    "collection": "football.faithful",
+    "rule": {
+      "input": "participation",
+      "action": "watched",
+      "where": {
+        "sport": [
+          "football"
+        ],
+        "favorite_playing": true
+      },
+      "count": {
+        "mode": "streak",
+        "unit": "game"
+      }
+    },
+    "requires_data": [
+      "fan.participation",
+      "fan.presence",
+      "fan.favorite_team_id",
+      "event.participants",
+      "event.sport"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria: um torcedor assíduo assiste a 70 a 80% dos jogos do time; 20 seguidos é meia temporada sem falhar e 40 é uma temporada inteira (base: 38 jogos por time, fontes do calendário em pesquisa/football.md)",
+    "name": {
+      "pt": "Sem perder um jogo",
+      "es": "Sin perderse un partido",
+      "en": "Never Miss a Match"
+    },
+    "description": {
+      "pt": "Assista a jogos seguidos do seu time, sem pular nenhum.",
+      "es": "Mira partidos seguidos de tu equipo, sin saltarte ninguno.",
+      "en": "Watch your team’s matches back to back, without skipping one."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 2,
+        "bonus_points": 0,
+        "card_key": "football.loyalty.favorite_streak.1"
+      },
+      {
+        "step": 2,
+        "threshold": 5,
+        "bonus_points": 0,
+        "card_key": "football.loyalty.favorite_streak.2"
+      },
+      {
+        "step": 3,
+        "threshold": 10,
+        "bonus_points": 0,
+        "card_key": "football.loyalty.favorite_streak.3"
+      },
+      {
+        "step": 4,
+        "threshold": 20,
+        "bonus_points": 0,
+        "card_key": "football.loyalty.favorite_streak.4"
+      },
+      {
+        "step": 5,
+        "threshold": 40,
+        "bonus_points": 0,
+        "card_key": "football.loyalty.favorite_streak.5"
+      }
+    ]
+  },
+  {
+    "id": "football.loyalty.finals_watched",
+    "sport": "football",
+    "category": "participation",
+    "family": "loyalty",
+    "collection": "football.big_nights",
+    "rule": {
+      "input": "participation",
+      "action": "watched",
+      "where": {
+        "sport": [
+          "football"
+        ],
+        "stage": [
+          "final"
+        ]
+      }
+    },
+    "requires_data": [
+      "fan.participation",
+      "fan.presence",
+      "event.sport",
+      "event.stage.kind"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria sobre o calendário: 8 a 12 jogos de final por temporada entre estaduais, copas nacionais, continentais e seleções (fontes do calendário em pesquisa/football.md)",
+    "name": {
+      "pt": "Noite de decisão",
+      "es": "Noche de definición",
+      "en": "Final Night"
+    },
+    "description": {
+      "pt": "Assista a jogos de final de qualquer competição de futebol.",
+      "es": "Mira partidos de final de cualquier torneo de fútbol.",
+      "en": "Watch finals from any football competition."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 0,
+        "card_key": "football.loyalty.finals_watched.1"
+      },
+      {
+        "step": 2,
+        "threshold": 2,
+        "bonus_points": 0,
+        "card_key": "football.loyalty.finals_watched.2"
+      },
+      {
+        "step": 3,
+        "threshold": 5,
+        "bonus_points": 0,
+        "card_key": "football.loyalty.finals_watched.3"
+      },
+      {
+        "step": 4,
+        "threshold": 10,
+        "bonus_points": 0,
+        "card_key": "football.loyalty.finals_watched.4"
+      },
+      {
+        "step": 5,
+        "threshold": 25,
+        "bonus_points": 0,
+        "card_key": "football.loyalty.finals_watched.5"
+      }
+    ]
+  },
+  {
+    "id": "football.moments.bicycle_kick",
+    "sport": "football",
+    "category": "moment",
+    "family": "moments",
+    "collection": "football.artistry",
+    "rule": {
+      "input": "moment",
+      "fact": "football.goal",
+      "params": {
+        "team": "favorite",
+        "detail": "normal"
+      },
+      "presence": "at_moment"
+    },
+    "requires_data": [
+      "event.incidents.type=goal",
+      "event.incidents.minute",
+      "event.incidents.participant_id",
+      "proposed.event.incidents.shot_type",
+      "event.state_log",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": false,
+    "active": false,
+    "inactive_reason": "o fornecedor não informa o tipo de finalização do gol (bicicleta, voleio, cabeça); falta proposed.event.incidents.shot_type e um parâmetro shot_type no fato football.goal. A regra acima é só a aproximação (gol normal do seu time) e não pode ser ligada assim.",
+    "real_world_frequency": "estimativa própria: poucos gols de bicicleta por temporada em todo o futebol de elite, nenhum por temporada para a maioria dos times (sem fonte estatística pública)",
+    "name": {
+      "pt": "Gol de bicicleta",
+      "es": "Gol de chilena",
+      "en": "Bicycle-Kick Goal"
+    },
+    "description": {
+      "pt": "Esteja assistindo quando seu time marcar um gol de bicicleta.",
+      "es": "Mira en vivo cuando tu equipo marque un gol de chilena.",
+      "en": "Be watching when your team scores with a bicycle kick."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 200,
+        "card_key": "football.moments.bicycle_kick.1"
+      }
+    ]
+  },
+  {
+    "id": "football.moments.comeback_three",
+    "sport": "football",
+    "category": "moment",
+    "family": "moments",
+    "collection": "football.comebacks",
+    "rule": {
+      "input": "moment",
+      "fact": "football.comeback",
+      "params": {
+        "team": "favorite",
+        "from_behind_by": 3
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.incidents.type=goal",
+      "event.incidents.sequence",
+      "event.incidents.participant_id",
+      "event.score",
+      "event.status=finished",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria a partir das viradas de dois gols (3 ou 4 por temporada numa liga): só uma fração pequena começa de três atrás; poucos casos por década numa liga principal (fonte-base: theanalyst.com/articles/why-are-two-goal-leads-still-feared-an-investigation)",
+    "name": {
+      "pt": "Virada impossível",
+      "es": "Remontada imposible",
+      "en": "Impossible Comeback"
+    },
+    "description": {
+      "pt": "Assista ao jogo em que seu time vence depois de estar três gols atrás.",
+      "es": "Mira el partido en que tu equipo gana tras estar tres goles abajo.",
+      "en": "Watch the match where your team wins after trailing by three goals."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 200,
+        "card_key": "football.moments.comeback_three.1"
+      }
+    ]
+  },
+  {
+    "id": "football.moments.comeback_two",
+    "sport": "football",
+    "category": "moment",
+    "family": "moments",
+    "collection": "football.comebacks",
+    "rule": {
+      "input": "moment",
+      "fact": "football.comeback",
+      "params": {
+        "team": "favorite",
+        "from_behind_by": 2
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.incidents.type=goal",
+      "event.incidents.sequence",
+      "event.incidents.participant_id",
+      "event.score",
+      "event.status=finished",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "menos de 1% dos jogos da liga inglesa: 94 vantagens de 2 gols viradas em derrota em cerca de 12 mil jogos, 3 ou 4 por temporada; para o time do torcedor, uma a cada 5 ou 6 temporadas (fonte: theanalyst.com/articles/why-are-two-goal-leads-still-feared-an-investigation)",
+    "name": {
+      "pt": "Virada de dois gols",
+      "es": "Remontada de dos goles",
+      "en": "Two-Goal Comeback"
+    },
+    "description": {
+      "pt": "Assista ao jogo em que seu time vence depois de estar dois gols atrás.",
+      "es": "Mira el partido en que tu equipo gana tras estar dos goles abajo.",
+      "en": "Watch the match where your team wins after trailing by two goals."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 120,
+        "card_key": "football.moments.comeback_two.1"
+      }
+    ]
+  },
+  {
+    "id": "football.moments.halfway_line_goal",
+    "sport": "football",
+    "category": "moment",
+    "family": "moments",
+    "collection": "football.artistry",
+    "rule": {
+      "input": "moment",
+      "fact": "football.goal",
+      "params": {
+        "team": "favorite",
+        "detail": "normal"
+      },
+      "presence": "at_moment"
+    },
+    "requires_data": [
+      "event.incidents.type=goal",
+      "event.incidents.minute",
+      "event.incidents.participant_id",
+      "proposed.event.incidents.shot_distance",
+      "event.state_log",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": false,
+    "active": false,
+    "inactive_reason": "o lance a lance não traz a distância nem a posição da finalização; falta proposed.event.incidents.shot_distance e um parâmetro shot_distance_min no fato football.goal. A regra acima é só a aproximação (gol normal do seu time).",
+    "real_world_frequency": "estimativa própria: gol do meio de campo acontece um punhado de vezes por temporada em todo o futebol profissional (sem fonte estatística pública)",
+    "name": {
+      "pt": "Gol do meio de campo",
+      "es": "Gol desde mitad de cancha",
+      "en": "Halfway-Line Goal"
+    },
+    "description": {
+      "pt": "Esteja assistindo quando seu time marcar um gol chutando do meio de campo.",
+      "es": "Mira en vivo cuando tu equipo marque un gol desde mitad de cancha.",
+      "en": "Be watching when your team scores from the halfway line."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 200,
+        "card_key": "football.moments.halfway_line_goal.1"
+      }
+    ]
+  },
+  {
+    "id": "football.moments.hat_trick",
+    "sport": "football",
+    "category": "moment",
+    "family": "moments",
+    "collection": "football.artistry",
+    "rule": {
+      "input": "moment",
+      "fact": "football.hat_trick",
+      "params": {
+        "team": "favorite",
+        "min_goals": 3
+      },
+      "presence": "at_moment"
+    },
+    "requires_data": [
+      "event.incidents.type=goal",
+      "event.incidents.person_id",
+      "event.incidents.detail",
+      "event.incidents.participant_id",
+      "event.state_log",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "12 a 19 hat-tricks por temporada na liga inglesa (3 a 5% dos jogos, menos de 1 por time); 1 no Brasileirão de 2024 e 7 em 2025 (fonte: global.espn.com/football/story/_/id/40023627; topscorersfootball.com/brasileirao/season-2024; 90min.com/pt-br/7-jogadores-marcaram-hat-trick-brasileirao-2025)",
+    "name": {
+      "pt": "Três de um só",
+      "es": "Tres del mismo",
+      "en": "Hat-Trick"
+    },
+    "description": {
+      "pt": "Esteja assistindo quando um jogador do seu time marcar três gols no mesmo jogo.",
+      "es": "Mira en vivo cuando un jugador de tu equipo marque tres goles en el mismo partido.",
+      "en": "Be watching when one of your team’s players scores three goals in one match."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 120,
+        "card_key": "football.moments.hat_trick.1"
+      }
+    ]
+  },
+  {
+    "id": "football.moments.keeper_wall",
+    "sport": "football",
+    "category": "moment",
+    "family": "moments",
+    "collection": "football.fortress",
+    "rule": {
+      "input": "moment",
+      "fact": "football.result",
+      "params": {
+        "team": "favorite",
+        "clean_sheet": true
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "football.detail.statistics.Goalkeeper Saves",
+      "football.detail.players.goals.saves",
+      "proposed.rule.fact.football.team_stat",
+      "event.status=finished",
+      "event.score",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": false,
+    "inactive_reason": "sem fato na linguagem para football.detail: o dado Goalkeeper Saves existe, mas nenhum fato lê estatística de time ou de jogador. Precisa de um fato football.team_stat (ou player_stat) com stat e min. A regra acima é só a aproximação (jogo sem sofrer gol) e não pode ser ligada assim.",
+    "real_world_frequency": "estimativa própria: goleiro com 5 ou mais defesas e gol zerado em cerca de 3 a 5% dos jogos de um time (sem fonte estatística pública consolidada)",
+    "name": {
+      "pt": "Muralha no gol",
+      "es": "Muralla en el arco",
+      "en": "Wall in Goal"
+    },
+    "description": {
+      "pt": "Assista ao jogo em que o goleiro do seu time faz cinco defesas ou mais e não sofre gol.",
+      "es": "Mira el partido en que el arquero de tu equipo hace cinco o más atajadas y no recibe gol.",
+      "en": "Watch the match where your team’s keeper makes five or more saves and keeps a clean sheet."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 60,
+        "card_key": "football.moments.keeper_wall.1"
+      }
+    ]
+  },
+  {
+    "id": "football.moments.late_winner",
+    "sport": "football",
+    "category": "moment",
+    "family": "moments",
+    "collection": "football.last_minute",
+    "rule": {
+      "input": "moment",
+      "fact": "football.goal",
+      "params": {
+        "team": "favorite",
+        "in_extra": true,
+        "period": "2H",
+        "winner": true
+      },
+      "presence": "at_moment"
+    },
+    "requires_data": [
+      "event.incidents.type=goal",
+      "event.incidents.minute",
+      "event.incidents.extra",
+      "event.incidents.detail",
+      "event.incidents.participant_id",
+      "event.score",
+      "event.state_log",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "gol da vitória aos 90+ decidiu 7,1% dos jogos da liga inglesa em 2023-24 (recorde até então) e 14,3% em 2025-26; para o time do torcedor, 1 a 3 por temporada (fonte: theanalyst.com/articles/premier-league-90th-minute-winners-late-goals-stats)",
+    "name": {
+      "pt": "Vitória no último minuto",
+      "es": "Triunfo sobre la hora",
+      "en": "Last-Minute Winner"
+    },
+    "description": {
+      "pt": "Esteja assistindo quando seu time marcar o gol da vitória nos acréscimos.",
+      "es": "Mira en vivo cuando tu equipo marque el gol del triunfo en el descuento.",
+      "en": "Be watching when your team scores the winning goal in stoppage time."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 60,
+        "card_key": "football.moments.late_winner.1"
+      }
+    ]
+  },
+  {
+    "id": "football.moments.penalty_missed",
+    "sport": "football",
+    "category": "moment",
+    "family": "moments",
+    "collection": "football.whistle",
+    "rule": {
+      "input": "moment",
+      "fact": "football.penalty_missed",
+      "params": {
+        "team": "opponent"
+      },
+      "presence": "at_moment"
+    },
+    "requires_data": [
+      "event.incidents.type=penalty_missed",
+      "event.incidents.minute",
+      "event.incidents.participant_id",
+      "event.state_log",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "107 pênaltis e 11 perdidos (89,7% convertidos) na liga inglesa em 2023-24; 23 perdidos de 93 em 2022-23; para o adversário do time do torcedor, 0,5 a 1 por temporada (fonte: premierleague.com/news/4029218; premierleague.com/news/3342212)",
+    "name": {
+      "pt": "Alívio no pênalti",
+      "es": "Alivio en el penal",
+      "en": "Penalty Relief"
+    },
+    "description": {
+      "pt": "Esteja assistindo quando o adversário do seu time perder um pênalti.",
+      "es": "Mira en vivo cuando el rival de tu equipo falle un penal.",
+      "en": "Be watching when your team’s opponent misses a penalty."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 60,
+        "card_key": "football.moments.penalty_missed.1"
+      }
+    ]
+  },
+  {
+    "id": "football.moments.player_rating",
+    "sport": "football",
+    "category": "moment",
+    "family": "moments",
+    "collection": "football.artistry",
+    "rule": {
+      "input": "moment",
+      "fact": "football.hat_trick",
+      "params": {
+        "team": "favorite",
+        "min_goals": 3
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "football.detail.players.games.rating",
+      "football.detail.players.games.minutes",
+      "proposed.rule.fact.football.player_stat",
+      "event.status=finished",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": false,
+    "inactive_reason": "sem fato na linguagem para football.detail: a nota do jogador (games.rating) existe no espelho, mas nenhum fato a lê. Precisa de um fato football.player_stat com stat rating e min 9. A regra acima é só a aproximação (hat-trick) e não pode ser ligada assim.",
+    "real_world_frequency": "estimativa própria: nota 9 ou mais do fornecedor em cerca de 2% dos jogos de um time (sem fonte estatística pública consolidada)",
+    "name": {
+      "pt": "Atuação de gala",
+      "es": "Actuación de gala",
+      "en": "Gala Performance"
+    },
+    "description": {
+      "pt": "Assista ao jogo em que um jogador do seu time recebe nota nove ou mais.",
+      "es": "Mira el partido en que un jugador de tu equipo recibe una nota de nueve o más.",
+      "en": "Watch the match where one of your team’s players earns a rating of nine or higher."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 60,
+        "card_key": "football.moments.player_rating.1"
+      }
+    ]
+  },
+  {
+    "id": "football.moments.red_card_opponent",
+    "sport": "football",
+    "category": "moment",
+    "family": "moments",
+    "collection": "football.whistle",
+    "rule": {
+      "input": "moment",
+      "fact": "football.red_card",
+      "params": {
+        "team": "opponent"
+      },
+      "presence": "at_moment"
+    },
+    "requires_data": [
+      "event.incidents.type=card",
+      "event.incidents.detail",
+      "event.incidents.minute",
+      "event.incidents.participant_id",
+      "event.state_log",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "56 a 60 expulsões por temporada na liga inglesa (0,15 por jogo), 58 na alemã (0,19) e 137 na espanhola em 2022-23; o Brasileirão de 2024 bateu recorde; para o adversário do time do torcedor, 3 a 5 por temporada (fonte: tournamentfootball.co.uk/en-gb/fantasy-football-premier-league/2024-2025/statistics; datencenter.dfb.de/en/rankings/bundesliga/2024-25; theanalyst.com/articles/the-rise-of-red-cards-in-la-liga-stats; oantagonista.com.br/ladooa/esportes/brasileirao-2024-bate-recorde-de-cartoes-vermelhos)",
+    "name": {
+      "pt": "Um a mais em campo",
+      "es": "Uno más en la cancha",
+      "en": "One Player Up"
+    },
+    "description": {
+      "pt": "Esteja assistindo quando um jogador do adversário do seu time for expulso.",
+      "es": "Mira en vivo cuando expulsen a un jugador del rival de tu equipo.",
+      "en": "Be watching when your team’s opponent is shown a red card."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 25,
+        "card_key": "football.moments.red_card_opponent.1"
+      }
+    ]
+  },
+  {
+    "id": "football.moments.stoppage_time_goal",
+    "sport": "football",
+    "category": "moment",
+    "family": "moments",
+    "collection": "football.last_minute",
+    "rule": {
+      "input": "moment",
+      "fact": "football.goal",
+      "params": {
+        "team": "favorite",
+        "in_extra": true,
+        "period": "2H"
+      },
+      "presence": "at_moment"
+    },
+    "requires_data": [
+      "event.incidents.type=goal",
+      "event.incidents.minute",
+      "event.incidents.extra",
+      "event.incidents.detail",
+      "event.incidents.participant_id",
+      "event.score",
+      "event.state_log",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "gols depois dos 90 min são 8,5% dos gols da liga inglesa em 2024-25 e 13% em 2025-26 (0,25 a 0,4 por jogo); para o time do torcedor, 5 a 8 por temporada de 38 rodadas (fonte: premierleague.com/en/news/4437338; theanalyst.com/articles/premier-league-90th-minute-winners-late-goals-stats)",
+    "name": {
+      "pt": "Gol nos acréscimos",
+      "es": "Gol en el descuento",
+      "en": "Stoppage-Time Goal"
+    },
+    "description": {
+      "pt": "Esteja assistindo quando seu time marcar nos acréscimos do segundo tempo.",
+      "es": "Mira en vivo cuando tu equipo marque en el descuento del segundo tiempo.",
+      "en": "Be watching when your team scores in second-half stoppage time."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 10,
+        "card_key": "football.moments.stoppage_time_goal.1"
+      },
+      {
+        "step": 2,
+        "threshold": 2,
+        "bonus_points": 20,
+        "card_key": "football.moments.stoppage_time_goal.2"
+      },
+      {
+        "step": 3,
+        "threshold": 4,
+        "bonus_points": 40,
+        "card_key": "football.moments.stoppage_time_goal.3"
+      },
+      {
+        "step": 4,
+        "threshold": 8,
+        "bonus_points": 75,
+        "card_key": "football.moments.stoppage_time_goal.4"
+      },
+      {
+        "step": 5,
+        "threshold": 20,
+        "bonus_points": 150,
+        "card_key": "football.moments.stoppage_time_goal.5"
+      }
+    ]
+  },
+  {
+    "id": "football.moments.var_goal_disallowed",
+    "sport": "football",
+    "category": "moment",
+    "family": "moments",
+    "collection": "football.whistle",
+    "rule": {
+      "input": "moment",
+      "fact": "football.var_goal_disallowed",
+      "params": {
+        "team": "opponent"
+      },
+      "presence": "at_moment"
+    },
+    "requires_data": [
+      "event.incidents.type=var",
+      "event.incidents.detail",
+      "event.incidents.minute",
+      "event.incidents.participant_id",
+      "event.state_log",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "cerca de 108 reversões de VAR por temporada na liga inglesa (0,28 por jogo), boa parte gols anulados; para o adversário do time do torcedor, cerca de 2 por temporada (fonte: global.espn.com/football/story/_/id/45340176)",
+    "name": {
+      "pt": "Salvo pelo vídeo",
+      "es": "Salvado por el video",
+      "en": "Saved by the Review"
+    },
+    "description": {
+      "pt": "Esteja assistindo quando o árbitro de vídeo anular um gol do adversário do seu time.",
+      "es": "Mira en vivo cuando el videoarbitraje anule un gol del rival de tu equipo.",
+      "en": "Be watching when video review disallows a goal against your team."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 25,
+        "card_key": "football.moments.var_goal_disallowed.1"
+      }
+    ]
+  },
+  {
+    "id": "football.predictions.derby_exact",
+    "sport": "football",
+    "category": "hit",
+    "family": "predictions",
+    "collection": "football.derby_days",
+    "rule": {
+      "input": "prediction",
+      "kind": "exact_score",
+      "correct": true,
+      "where": {
+        "sport": [
+          "football"
+        ],
+        "derby": true
+      }
+    },
+    "requires_data": [
+      "fan.prediction",
+      "event.sport",
+      "event.derby_id"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria: o placar exato sai em cerca de 10% dos Palpites (1 x 0 e 1 x 1 são os placares mais comuns, perto de 10% cada); um torcedor que palpita em 30 a 60 clássicos por temporada acerta 3 a 6 (fonte-base: sportsbrief.com/football/62153-which-ten-common-soccer-scores-history-game)",
+    "name": {
+      "pt": "Na mosca no clássico",
+      "es": "Exacto en el clásico",
+      "en": "Derby on the Nose"
+    },
+    "description": {
+      "pt": "Acerte o placar exato de clássicos.",
+      "es": "Acierta el marcador exacto de los clásicos.",
+      "en": "Predict the exact score of derbies."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 20,
+        "card_key": "football.predictions.derby_exact.1"
+      },
+      {
+        "step": 2,
+        "threshold": 2,
+        "bonus_points": 40,
+        "card_key": "football.predictions.derby_exact.2"
+      },
+      {
+        "step": 3,
+        "threshold": 5,
+        "bonus_points": 80,
+        "card_key": "football.predictions.derby_exact.3"
+      },
+      {
+        "step": 4,
+        "threshold": 10,
+        "bonus_points": 150,
+        "card_key": "football.predictions.derby_exact.4"
+      },
+      {
+        "step": 5,
+        "threshold": 25,
+        "bonus_points": 300,
+        "card_key": "football.predictions.derby_exact.5"
+      }
+    ]
+  },
+  {
+    "id": "football.predictions.final_winner",
+    "sport": "football",
+    "category": "hit",
+    "family": "predictions",
+    "collection": "football.big_nights",
+    "rule": {
+      "input": "prediction",
+      "kind": "winner",
+      "correct": true,
+      "where": {
+        "sport": [
+          "football"
+        ],
+        "stage": [
+          "final"
+        ]
+      }
+    },
+    "requires_data": [
+      "fan.prediction",
+      "event.sport",
+      "event.stage.kind"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria sobre o calendário: um torcedor assíduo encontra 8 a 12 jogos de final por temporada (estaduais, copas nacionais, continentais, seleções) e acerta o vencedor em cerca de metade (fontes do calendário em pesquisa/football.md)",
+    "name": {
+      "pt": "Dia de final",
+      "es": "Día de final",
+      "en": "Final Call"
+    },
+    "description": {
+      "pt": "Acerte o vencedor em jogos de final.",
+      "es": "Acierta el ganador en partidos de final.",
+      "en": "Predict the winner of finals."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 20,
+        "card_key": "football.predictions.final_winner.1"
+      },
+      {
+        "step": 2,
+        "threshold": 2,
+        "bonus_points": 40,
+        "card_key": "football.predictions.final_winner.2"
+      },
+      {
+        "step": 3,
+        "threshold": 4,
+        "bonus_points": 80,
+        "card_key": "football.predictions.final_winner.3"
+      },
+      {
+        "step": 4,
+        "threshold": 8,
+        "bonus_points": 150,
+        "card_key": "football.predictions.final_winner.4"
+      },
+      {
+        "step": 5,
+        "threshold": 20,
+        "bonus_points": 300,
+        "card_key": "football.predictions.final_winner.5"
+      }
+    ]
+  },
+  {
+    "id": "football.predictions.hit_streak",
+    "sport": "football",
+    "category": "hit",
+    "family": "predictions",
+    "collection": "football.sharp_eye",
+    "rule": {
+      "input": "prediction",
+      "correct": true,
+      "where": {
+        "sport": [
+          "football"
+        ]
+      },
+      "count": {
+        "mode": "streak",
+        "unit": "prediction"
+      }
+    },
+    "requires_data": [
+      "fan.prediction",
+      "event.sport"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria: palpite de vencedor acerta cerca de 50% das vezes, então uma sequência de 5 acertos seguidos sai para 1 em 32 tentativas e uma de 10 para 1 em mil; um torcedor assíduo chega a 10 em uma temporada e a 25 em poucas",
+    "name": {
+      "pt": "Sequência certeira",
+      "es": "Racha certera",
+      "en": "Hot Streak"
+    },
+    "description": {
+      "pt": "Acerte Palpites de futebol seguidos, sem errar nenhum no meio.",
+      "es": "Acierta pronósticos de fútbol seguidos, sin fallar ninguno en el medio.",
+      "en": "Get football predictions right back to back, without a miss in between."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 2,
+        "bonus_points": 20,
+        "card_key": "football.predictions.hit_streak.1"
+      },
+      {
+        "step": 2,
+        "threshold": 5,
+        "bonus_points": 40,
+        "card_key": "football.predictions.hit_streak.2"
+      },
+      {
+        "step": 3,
+        "threshold": 10,
+        "bonus_points": 80,
+        "card_key": "football.predictions.hit_streak.3"
+      },
+      {
+        "step": 4,
+        "threshold": 25,
+        "bonus_points": 150,
+        "card_key": "football.predictions.hit_streak.4"
+      },
+      {
+        "step": 5,
+        "threshold": 50,
+        "bonus_points": 300,
+        "card_key": "football.predictions.hit_streak.5"
+      }
+    ]
+  },
+  {
+    "id": "football.predictions.knockout_winner",
+    "sport": "football",
+    "category": "hit",
+    "family": "predictions",
+    "collection": "football.big_nights",
+    "rule": {
+      "input": "prediction",
+      "kind": "winner",
+      "correct": true,
+      "where": {
+        "sport": [
+          "football"
+        ],
+        "stage": [
+          "knockout"
+        ]
+      }
+    },
+    "requires_data": [
+      "fan.prediction",
+      "event.sport",
+      "event.stage.kind"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria sobre o calendário: um torcedor assíduo encontra 30 a 50 jogos de mata-mata por temporada (copas nacionais, continentais, estaduais, liguilla, playoffs) e acerta o vencedor em cerca de metade (fontes do calendário em pesquisa/football.md)",
+    "name": {
+      "pt": "Quem passa",
+      "es": "Quién avanza",
+      "en": "Who Goes Through"
+    },
+    "description": {
+      "pt": "Acerte o vencedor de jogos de mata-mata.",
+      "es": "Acierta el ganador en partidos de eliminación directa.",
+      "en": "Predict the winner of knockout matches."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 20,
+        "card_key": "football.predictions.knockout_winner.1"
+      },
+      {
+        "step": 2,
+        "threshold": 3,
+        "bonus_points": 40,
+        "card_key": "football.predictions.knockout_winner.2"
+      },
+      {
+        "step": 3,
+        "threshold": 8,
+        "bonus_points": 80,
+        "card_key": "football.predictions.knockout_winner.3"
+      },
+      {
+        "step": 4,
+        "threshold": 20,
+        "bonus_points": 150,
+        "card_key": "football.predictions.knockout_winner.4"
+      },
+      {
+        "step": 5,
+        "threshold": 50,
+        "bonus_points": 300,
+        "card_key": "football.predictions.knockout_winner.5"
+      }
+    ]
+  },
+  {
+    "id": "football.predictions.scoreless_exact",
+    "sport": "football",
+    "category": "hit",
+    "family": "predictions",
+    "collection": "football.sharp_eye",
+    "rule": {
+      "input": "prediction",
+      "kind": "exact_score",
+      "correct": true,
+      "where": {
+        "sport": [
+          "football"
+        ]
+      }
+    },
+    "requires_data": [
+      "fan.prediction",
+      "event.sport",
+      "proposed.fan.prediction.predicted_score"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": false,
+    "inactive_reason": "a linguagem não filtra o Palpite pelo placar previsto: precisa do caminho proposed.fan.prediction.predicted_score e de um filtro de placar na entrada prediction (ex.: predicted_score: \"0-0\"). A regra acima é só a aproximação (qualquer placar exato de futebol) e não pode ser ligada assim.",
+    "real_world_frequency": "3 a 9% dos jogos terminam 0 x 0: 2,9% em 2023-24 e 7,7% em 2025-26 na liga inglesa, média histórica de 8 a 9% (fonte: theanalyst.com/articles/goalless-draws-premier-league-2025-26-stats; theanalyst.com/articles/premier-league-changes-killing-off-0-0-draws)",
+    "name": {
+      "pt": "Zero a zero na mosca",
+      "es": "Cero a cero exacto",
+      "en": "Nil-Nil on the Nose"
+    },
+    "description": {
+      "pt": "Acerte o placar exato de jogos que terminam em zero a zero.",
+      "es": "Acierta el marcador exacto de partidos que terminan cero a cero.",
+      "en": "Predict the exact score of matches that finish nil-nil."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 20,
+        "card_key": "football.predictions.scoreless_exact.1"
+      },
+      {
+        "step": 2,
+        "threshold": 2,
+        "bonus_points": 40,
+        "card_key": "football.predictions.scoreless_exact.2"
+      },
+      {
+        "step": 3,
+        "threshold": 4,
+        "bonus_points": 80,
+        "card_key": "football.predictions.scoreless_exact.3"
+      },
+      {
+        "step": 4,
+        "threshold": 8,
+        "bonus_points": 150,
+        "card_key": "football.predictions.scoreless_exact.4"
+      },
+      {
+        "step": 5,
+        "threshold": 20,
+        "bonus_points": 300,
+        "card_key": "football.predictions.scoreless_exact.5"
+      }
+    ]
+  },
+  {
+    "id": "football.results.big_win",
+    "sport": "football",
+    "category": "moment",
+    "family": "results",
+    "collection": "football.big_nights",
+    "rule": {
+      "input": "moment",
+      "fact": "football.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win",
+        "margin_min": 4
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "diferença de 3 ou mais gols em 11% (liga alemã) a 22% (liga inglesa) dos jogos, 12,9% na espanhola em 2023-24; 4 ou mais é cerca de um terço disso: 1 a 2 goleadas por time por temporada (fonte: football-observatory.com/IMG/sites/b5wp/2020/wp332/en/)",
+    "name": {
+      "pt": "Goleada",
+      "es": "Goleada",
+      "en": "Rout"
+    },
+    "description": {
+      "pt": "Assista a uma vitória do seu time por quatro ou mais gols de diferença.",
+      "es": "Mira una victoria de tu equipo por cuatro o más goles de diferencia.",
+      "en": "Watch your team win by four goals or more."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 60,
+        "card_key": "football.results.big_win.1"
+      }
+    ]
+  },
+  {
+    "id": "football.results.clean_sheet",
+    "sport": "football",
+    "category": "moment",
+    "family": "results",
+    "collection": "football.fortress",
+    "rule": {
+      "input": "moment",
+      "fact": "football.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win",
+        "clean_sheet": true
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "times mantêm o gol zerado em 25 a 29% dos jogos na liga inglesa (histórico); vitória sem sofrer gol em cerca de 22% dos jogos, 8 a 9 por temporada de 38 rodadas (fonte: sportingintelligence.com/?p=9001)",
+    "name": {
+      "pt": "Sem sofrer gol",
+      "es": "Arco en cero",
+      "en": "Clean Sheet"
+    },
+    "description": {
+      "pt": "Assista às vitórias do seu time sem sofrer gol.",
+      "es": "Mira las victorias de tu equipo con el arco en cero.",
+      "en": "Watch your team win without conceding a goal."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 10,
+        "card_key": "football.results.clean_sheet.1"
+      },
+      {
+        "step": 2,
+        "threshold": 2,
+        "bonus_points": 20,
+        "card_key": "football.results.clean_sheet.2"
+      },
+      {
+        "step": 3,
+        "threshold": 4,
+        "bonus_points": 40,
+        "card_key": "football.results.clean_sheet.3"
+      },
+      {
+        "step": 4,
+        "threshold": 9,
+        "bonus_points": 75,
+        "card_key": "football.results.clean_sheet.4"
+      },
+      {
+        "step": 5,
+        "threshold": 25,
+        "bonus_points": 150,
+        "card_key": "football.results.clean_sheet.5"
+      }
+    ]
+  },
+  {
+    "id": "football.results.derby_win",
+    "sport": "football",
+    "category": "moment",
+    "family": "results",
+    "collection": "football.derby_days",
+    "rule": {
+      "input": "moment",
+      "fact": "football.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win"
+      },
+      "presence": "game",
+      "where": {
+        "derby": true
+      }
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id",
+      "event.derby_id"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria sobre o calendário: um clube grande do Brasil joga 6 a 10 clássicos por ano (estadual, liga e copas) e vence cerca de 40%, ou seja, 3 a 4 por temporada; na Europa e na Argentina, 2 a 4 clássicos por temporada (fontes do calendário em pesquisa/football.md)",
+    "name": {
+      "pt": "Vitória no clássico",
+      "es": "Victoria en el clásico",
+      "en": "Derby Win"
+    },
+    "description": {
+      "pt": "Assista aos clássicos em que seu time vence.",
+      "es": "Mira los clásicos que tu equipo gana.",
+      "en": "Watch the derbies your team wins."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 10,
+        "card_key": "football.results.derby_win.1"
+      },
+      {
+        "step": 2,
+        "threshold": 2,
+        "bonus_points": 20,
+        "card_key": "football.results.derby_win.2"
+      },
+      {
+        "step": 3,
+        "threshold": 4,
+        "bonus_points": 40,
+        "card_key": "football.results.derby_win.3"
+      },
+      {
+        "step": 4,
+        "threshold": 8,
+        "bonus_points": 75,
+        "card_key": "football.results.derby_win.4"
+      },
+      {
+        "step": 5,
+        "threshold": 20,
+        "bonus_points": 150,
+        "card_key": "football.results.derby_win.5"
+      }
+    ]
+  },
+  {
+    "id": "football.results.final_win",
+    "sport": "football",
+    "category": "moment",
+    "family": "results",
+    "collection": "football.big_nights",
+    "rule": {
+      "input": "moment",
+      "fact": "football.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win"
+      },
+      "presence": "game",
+      "where": {
+        "stage": [
+          "final"
+        ]
+      }
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id",
+      "event.stage.kind"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria sobre o calendário: um clube disputa de 0 a 2 finais por ano (estadual, copa nacional, continental); para a maioria dos clubes passam anos entre finais vencidas (fontes do calendário em pesquisa/football.md)",
+    "name": {
+      "pt": "Vitória em final",
+      "es": "Victoria en una final",
+      "en": "Final Won"
+    },
+    "description": {
+      "pt": "Assista a uma vitória do seu time em jogo de final.",
+      "es": "Mira una victoria de tu equipo en un partido de final.",
+      "en": "Watch your team win a final."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 120,
+        "card_key": "football.results.final_win.1"
+      }
+    ]
+  },
+  {
+    "id": "football.results.penalties_win",
+    "sport": "football",
+    "category": "moment",
+    "family": "results",
+    "collection": "football.comebacks",
+    "rule": {
+      "input": "moment",
+      "fact": "football.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win",
+        "penalties": true
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "19 a 21% dos mata-matas de copas de seleções vão aos pênaltis (27% nos torneios europeus de seleções); um clube joga 4 a 10 mata-matas por temporada: 0,5 a 1 vitória nos pênaltis por temporada (fonte: racingpost.com/sport/temperatures-about-to-rise-as-euro-ties-take-on-more-meaning/497406; examiner.co.uk/sport/football/news/world-cup-2018-how-likely-14848031)",
+    "name": {
+      "pt": "Vitória nos pênaltis",
+      "es": "Victoria en los penales",
+      "en": "Shootout Win"
+    },
+    "description": {
+      "pt": "Assista ao jogo em que seu time vence na disputa de pênaltis.",
+      "es": "Mira el partido en que tu equipo gana en la tanda de penales.",
+      "en": "Watch the match your team wins in a penalty shootout."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 60,
+        "card_key": "football.results.penalties_win.1"
+      }
+    ]
+  }
+]

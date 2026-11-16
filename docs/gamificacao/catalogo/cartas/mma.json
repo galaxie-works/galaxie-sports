@@ -1,0 +1,1787 @@
+[
+  {
+    "card_key": "mma.explorer.countries.1",
+    "collection": "mma.world_tour",
+    "rarity": "common",
+    "name": {
+      "pt": "Primeira fronteira",
+      "es": "Primera frontera",
+      "en": "First Border"
+    },
+    "flavor": {
+      "pt": "A gaiola é a mesma em qualquer país.",
+      "es": "La jaula es la misma en cualquier país.",
+      "en": "The cage is the same in any country."
+    },
+    "art_prompt": "A stylized fan watching a fight on a tablet at an airport-like window with a plain plane silhouette outside, two silhouetted fighters on the screen inside a generic octagonal cage with plain padded posts and a plain canvas, daylight. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.explorer.countries.2",
+    "collection": "mma.world_tour",
+    "rarity": "special",
+    "name": {
+      "pt": "Dois países",
+      "es": "Dos países",
+      "en": "Two Countries"
+    },
+    "flavor": {
+      "pt": "Dois sotaques de locutor, o mesmo sino.",
+      "es": "Dos acentos de relator, la misma campana.",
+      "en": "Two commentators’ accents, one same bell."
+    },
+    "art_prompt": "A stylized fan with headphones in front of two floating screens each showing an arena of different architecture with a cage at the center inside a generic octagonal cage with plain padded posts and a plain canvas, no flags or symbols, steel-blue tones, cozy interior. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.explorer.countries.3",
+    "collection": "mma.world_tour",
+    "rarity": "special",
+    "name": {
+      "pt": "Quatro países",
+      "es": "Cuatro países",
+      "en": "Four Countries"
+    },
+    "flavor": {
+      "pt": "Seu passaporte de fã já tem carimbos.",
+      "es": "Tu pasaporte de fan ya tiene sellos.",
+      "en": "Your fan passport already has stamps."
+    },
+    "art_prompt": "A stylized plain passport-like booklet without text open on a table showing four abstract glowing stamp shapes of gloves and cages, a stylized fan’s hand holding a generic phone beside it, warm lamp light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.explorer.countries.4",
+    "collection": "mma.world_tour",
+    "rarity": "rare",
+    "name": {
+      "pt": "Cidadão da gaiola",
+      "es": "Ciudadano de la jaula",
+      "en": "Citizen of the Cage"
+    },
+    "flavor": {
+      "pt": "Oito países, oito arenas, uma só torcida.",
+      "es": "Ocho países, ocho arenas, una sola afición.",
+      "en": "Eight countries, eight arenas, one fan."
+    },
+    "art_prompt": "A stylized fan silhouette standing at the center of a ring of eight arena silhouettes of varied architecture glowing violet inside a generic octagonal cage with plain padded posts and a plain canvas, night, faceted glow, no flags. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.explorer.countries.5",
+    "collection": "mma.world_tour",
+    "rarity": "historic",
+    "name": {
+      "pt": "Fã do mundo",
+      "es": "Fan del mundo",
+      "en": "Fan of the World"
+    },
+    "flavor": {
+      "pt": "Dezesseis países e nenhuma luta estrangeira.",
+      "es": "Dieciséis países y ninguna pelea extranjera.",
+      "en": "Sixteen countries, no fight ever foreign."
+    },
+    "art_prompt": "A stylized fan silhouette standing on a stylized globe wrapped in amber light with sixteen glowing cage markers across continents without borders or flags, engraved laurel-like glow and soft outer glow. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.explorer.months_predicted.1",
+    "collection": "mma.world_tour",
+    "rarity": "common",
+    "name": {
+      "pt": "Mês de estreia",
+      "es": "Mes de estreno",
+      "en": "Opening Month"
+    },
+    "flavor": {
+      "pt": "O primeiro mês com a sua opinião registrada.",
+      "es": "El primer mes con tu opinión registrada.",
+      "en": "The first month with your take on record."
+    },
+    "art_prompt": "A stylized fan tapping a generic phone with a blank screen beside a plain wall calendar with one glowing page and no digits, a small cage shape drawn on the page inside a generic octagonal cage with plain padded posts and a plain canvas, morning light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.explorer.months_predicted.2",
+    "collection": "mma.world_tour",
+    "rarity": "special",
+    "name": {
+      "pt": "Três meses de palpite",
+      "es": "Tres meses de pronóstico",
+      "en": "Three Months of Picks"
+    },
+    "flavor": {
+      "pt": "Uma estação de cantos escolhidos.",
+      "es": "Una estación de esquinas elegidas.",
+      "en": "A season of corners chosen."
+    },
+    "art_prompt": "Three stylized calendar pages floating in a row each with a glowing glove shape, a stylized fan silhouette beneath holding a generic phone, steel-blue tones, cozy interior. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.explorer.months_predicted.3",
+    "collection": "mma.world_tour",
+    "rarity": "special",
+    "name": {
+      "pt": "Seis meses de palpite",
+      "es": "Seis meses de pronóstico",
+      "en": "Six Months of Picks"
+    },
+    "flavor": {
+      "pt": "Meio ano sem deixar uma luta passar em branco.",
+      "es": "Medio año sin dejar pasar una pelea en blanco.",
+      "en": "Half a year without letting a fight go uncalled."
+    },
+    "art_prompt": "A stylized fan seated at a desk with six glowing calendar pages pinned to the wall each holding a tiny cage shape inside a generic octagonal cage with plain padded posts and a plain canvas, warm lamp light, a generic phone on the desk. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.explorer.months_predicted.4",
+    "collection": "mma.world_tour",
+    "rarity": "rare",
+    "name": {
+      "pt": "Doze meses de palpite",
+      "es": "Doce meses de pronóstico",
+      "en": "Twelve Months of Picks"
+    },
+    "flavor": {
+      "pt": "Doze meses, doze cantos escolhidos com cuidado.",
+      "es": "Doce meses, doce esquinas elegidas con cuidado.",
+      "en": "Twelve months, twelve corners chosen with care."
+    },
+    "art_prompt": "A ring of twelve violet faceted calendar pages orbiting a glowing cage inside a generic octagonal cage with plain padded posts and a plain canvas, a stylized fan silhouette at the center looking up, night arena. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.explorer.months_predicted.5",
+    "collection": "mma.world_tour",
+    "rarity": "historic",
+    "name": {
+      "pt": "Dois anos de palpite",
+      "es": "Dos años de pronóstico",
+      "en": "Two Years of Picks"
+    },
+    "flavor": {
+      "pt": "Vinte e quatro meses opinando. A gaiola já conhece sua voz.",
+      "es": "Veinticuatro meses opinando. La jaula ya conoce tu voz.",
+      "en": "Twenty-four months of calls. The cage knows your voice."
+    },
+    "art_prompt": "A stylized fan silhouette standing on a cage canvas while two rings of amber calendar pages orbit overhead inside a generic octagonal cage with plain padded posts and a plain canvas, engraved laurel-like glow, soft outer glow, silhouetted crowd. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.explorer.months.1",
+    "collection": "mma.world_tour",
+    "rarity": "common",
+    "name": {
+      "pt": "Primeiro mês",
+      "es": "Primer mes",
+      "en": "First Month"
+    },
+    "flavor": {
+      "pt": "O calendário de lutas começou a contar.",
+      "es": "El calendario de peleas empezó a contar.",
+      "en": "The fight calendar started counting."
+    },
+    "art_prompt": "A stylized wall calendar without numbers with one page glowing softly, a stylized fan beside it holding a pair of unbranded gloves, morning light, flat vector interior. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.explorer.months.2",
+    "collection": "mma.world_tour",
+    "rarity": "special",
+    "name": {
+      "pt": "Três meses",
+      "es": "Tres meses",
+      "en": "Three Months"
+    },
+    "flavor": {
+      "pt": "Uma estação inteira de sinos.",
+      "es": "Una estación entera de campanas.",
+      "en": "A whole season of the year with bells ringing."
+    },
+    "art_prompt": "Three stylized windows in a row showing the same cage in sun, rain and snow inside a generic octagonal cage with plain padded posts and a plain canvas, a stylized fan silhouette walking past them, steel-blue tones. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.explorer.months.3",
+    "collection": "mma.world_tour",
+    "rarity": "special",
+    "name": {
+      "pt": "Meio ano",
+      "es": "Medio año",
+      "en": "Half a Year"
+    },
+    "flavor": {
+      "pt": "Seis meses, seis motivos para ficar acordado.",
+      "es": "Seis meses, seis motivos para quedarse despierto.",
+      "en": "Six months, six reasons to stay up."
+    },
+    "art_prompt": "A stylized tree beside an arena shown half in bloom and half in autumn leaves, a stylized fan seated beneath watching a tiny cage on a phone inside a generic octagonal cage with plain padded posts and a plain canvas, soft light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.explorer.months.4",
+    "collection": "mma.world_tour",
+    "rarity": "rare",
+    "name": {
+      "pt": "Doze meses",
+      "es": "Doce meses",
+      "en": "Twelve Months"
+    },
+    "flavor": {
+      "pt": "Janeiro a dezembro, sem férias da gaiola.",
+      "es": "De enero a diciembre, sin vacaciones de la jaula.",
+      "en": "January to December, no holiday from the cage."
+    },
+    "art_prompt": "A ring of twelve stylized moon phases glowing violet above a cage inside a generic octagonal cage with plain padded posts and a plain canvas, a stylized fan silhouette standing at the canvas center looking up, night. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.explorer.months.5",
+    "collection": "mma.world_tour",
+    "rarity": "historic",
+    "name": {
+      "pt": "Dois anos de gaiola",
+      "es": "Dos años de jaula",
+      "en": "Two Years of the Cage"
+    },
+    "flavor": {
+      "pt": "Vinte e quatro meses, nenhum sem sino.",
+      "es": "Veinticuatro meses, ninguno sin campana.",
+      "en": "Twenty-four months, not one without a bell."
+    },
+    "art_prompt": "A stylized fan silhouette standing on a sundial-like cage canvas where two full rings of amber light orbit overhead with twenty-four glowing marks inside a generic octagonal cage with plain padded posts and a plain canvas, engraved laurel-like glow, soft outer glow. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.loyalty.fights_watched.1",
+    "collection": "mma.cageside",
+    "rarity": "common",
+    "name": {
+      "pt": "Primeira luta",
+      "es": "Primera pelea",
+      "en": "First Fight"
+    },
+    "flavor": {
+      "pt": "Todo fã lembra da primeira vez que o sino tocou.",
+      "es": "Todo fan recuerda la primera vez que sonó la campana.",
+      "en": "Every fan remembers the first time the bell rang."
+    },
+    "art_prompt": "A young stylized fan with a plain cap sitting alone in a wide empty arena stand watching two tiny silhouetted fighters inside a generic octagonal cage with plain padded posts and a plain canvas, afternoon light through high windows, soft shadows. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.loyalty.fights_watched.2",
+    "collection": "mma.cageside",
+    "rarity": "special",
+    "name": {
+      "pt": "Dez lutas",
+      "es": "Diez peleas",
+      "en": "Ten Fights"
+    },
+    "flavor": {
+      "pt": "Já sabe quando o sino vai tocar.",
+      "es": "Ya sabe cuándo va a sonar la campana.",
+      "en": "Already knows when the bell is coming."
+    },
+    "art_prompt": "A stylized fan standing in a half-full arena stand with a few silhouetted friends, a stylized female fighter in plain white shorts and unbranded gloves walking to the cage below inside a generic octagonal cage with plain padded posts and a plain canvas, steel-blue evening spotlights. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.loyalty.fights_watched.3",
+    "collection": "mma.cageside",
+    "rarity": "special",
+    "name": {
+      "pt": "Quarenta lutas",
+      "es": "Cuarenta peleas",
+      "en": "Forty Fights"
+    },
+    "flavor": {
+      "pt": "Preliminar ou principal, você está sentado.",
+      "es": "Preliminar o estelar, ya estás sentado.",
+      "en": "Prelims or main card, you are in your seat."
+    },
+    "art_prompt": "A stylized fan in the middle of a packed arena stand with arms wide, silhouetted fans of every age around, floodlights on against the dark ceiling, a fighter in plain white shorts and unbranded gloves celebrating in the cage below inside a generic octagonal cage with plain padded posts and a plain canvas. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.loyalty.fights_watched.4",
+    "collection": "mma.cageside",
+    "rarity": "rare",
+    "name": {
+      "pt": "Temporada de lutas",
+      "es": "Temporada de peleas",
+      "en": "Season of Fights"
+    },
+    "flavor": {
+      "pt": "Cento e cinquenta lutas, um ano inteiro de sinos.",
+      "es": "Ciento cincuenta peleas, un año entero de campanas.",
+      "en": "One hundred and fifty fights, a whole year of bells."
+    },
+    "art_prompt": "A stylized fan standing at the very front of the stand gripping the cage fence inside a generic octagonal cage with plain padded posts and a plain canvas, a sea of silhouetted fans behind in violet light, a faint calendar-like grid of faceted light without numbers above the arena. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.loyalty.fights_watched.5",
+    "collection": "mma.cageside",
+    "rarity": "historic",
+    "name": {
+      "pt": "Quatrocentas lutas",
+      "es": "Cuatrocientas peleas",
+      "en": "Four Hundred Fights"
+    },
+    "flavor": {
+      "pt": "Quatrocentas lutas depois, o sino ainda arrepia.",
+      "es": "Cuatrocientas peleas después, la campana todavía eriza la piel.",
+      "en": "Four hundred fights later, the bell still gives chills."
+    },
+    "art_prompt": "A stylized fan silhouette seen from behind at the top of an arena with amber light rays and an engraved laurel-like glow surrounding, a trail of hundreds of faint seat shapes lighting up behind, the cage glowing far below inside a generic octagonal cage with plain padded posts and a plain canvas. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.loyalty.saturday_nights.1",
+    "collection": "mma.cageside",
+    "rarity": "common",
+    "name": {
+      "pt": "Primeiro sábado",
+      "es": "Primer sábado",
+      "en": "First Saturday"
+    },
+    "flavor": {
+      "pt": "Sábado à noite tem um endereço: a gaiola.",
+      "es": "El sábado por la noche tiene una dirección: la jaula.",
+      "en": "Saturday night has an address: the cage."
+    },
+    "art_prompt": "A stylized fan opening the door of a cozy apartment where a television glows with a silhouetted cage inside a generic octagonal cage with plain padded posts and a plain canvas, a plain wall calendar with one glowing square and no digits, evening light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.loyalty.saturday_nights.2",
+    "collection": "mma.cageside",
+    "rarity": "special",
+    "name": {
+      "pt": "Oito sábados",
+      "es": "Ocho sábados",
+      "en": "Eight Saturdays"
+    },
+    "flavor": {
+      "pt": "Os amigos já sabem onde te encontrar no sábado.",
+      "es": "Los amigos ya saben dónde encontrarte el sábado.",
+      "en": "Your friends know where to find you on Saturdays."
+    },
+    "art_prompt": "A stylized fan on a sofa surrounded by silhouetted friends of varied builds, a television glowing with two silhouetted fighters inside a generic octagonal cage with plain padded posts and a plain canvas, eight small glowing squares floating like a calendar strip above, steel-blue night. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.loyalty.saturday_nights.3",
+    "collection": "mma.cageside",
+    "rarity": "special",
+    "name": {
+      "pt": "Vinte e cinco sábados",
+      "es": "Veinticinco sábados",
+      "en": "Twenty-Five Saturdays"
+    },
+    "flavor": {
+      "pt": "Meio ano de sábados com sino.",
+      "es": "Medio año de sábados con campana.",
+      "en": "Half a year of Saturdays with a bell."
+    },
+    "art_prompt": "A stylized fan standing at a watch-party bar table with silhouetted friends, a wall of twenty-five small floating calendar squares glowing behind the television that shows a silhouetted cage inside a generic octagonal cage with plain padded posts and a plain canvas, night. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.loyalty.saturday_nights.4",
+    "collection": "mma.cageside",
+    "rarity": "rare",
+    "name": {
+      "pt": "Dono do sábado",
+      "es": "Dueño del sábado",
+      "en": "Owner of Saturday"
+    },
+    "flavor": {
+      "pt": "Oitenta lutas de sábado: a semana existe para chegar aqui.",
+      "es": "Ochenta peleas de sábado: la semana existe para llegar aquí.",
+      "en": "Eighty Saturday fights: the week exists to get here."
+    },
+    "art_prompt": "A stylized fan silhouette seated at the cage fence under violet faceted light inside a generic octagonal cage with plain padded posts and a plain canvas, a giant glowing calendar square without digits floating above the arena, a packed crowd of silhouettes. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.loyalty.saturday_nights.5",
+    "collection": "mma.cageside",
+    "rarity": "historic",
+    "name": {
+      "pt": "Lenda do sábado",
+      "es": "Leyenda del sábado",
+      "en": "Saturday Legend"
+    },
+    "flavor": {
+      "pt": "Duzentas lutas de sábado. O sino já é parte da semana.",
+      "es": "Doscientas peleas de sábado. La campana ya es parte de la semana.",
+      "en": "Two hundred Saturday fights. The bell is part of the week now."
+    },
+    "art_prompt": "A stylized fan silhouette standing at the top of an amber-lit arena inside a generic octagonal cage with plain padded posts and a plain canvas, a spiral of two hundred faint calendar squares winding down the stands, engraved laurel-like glow and soft outer glow. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.loyalty.title_fights.1",
+    "collection": "mma.cageside",
+    "rarity": "common",
+    "name": {
+      "pt": "Primeiro cinturão",
+      "es": "Primer cinturón",
+      "en": "First Title"
+    },
+    "flavor": {
+      "pt": "Quando o cinturão entra na gaiola, a noite muda.",
+      "es": "Cuando el cinturón entra a la jaula, la noche cambia.",
+      "en": "When the belt enters the cage, the night changes."
+    },
+    "art_prompt": "A plain generic championship belt without plates or lettering resting on the canvas at the cage center inside a generic octagonal cage with plain padded posts and a plain canvas, a stylized fan watching from the front row, daylight arena, silhouetted officials at the fence. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.loyalty.title_fights.2",
+    "collection": "mma.cageside",
+    "rarity": "special",
+    "name": {
+      "pt": "Três cinturões",
+      "es": "Tres cinturones",
+      "en": "Three Titles"
+    },
+    "flavor": {
+      "pt": "Três noites em que tudo estava em jogo.",
+      "es": "Tres noches en que todo estaba en juego.",
+      "en": "Three nights when everything was on the line."
+    },
+    "art_prompt": "Three plain generic belts without lettering floating softly above a cage inside a generic octagonal cage with plain padded posts and a plain canvas, a stylized fan in the foreground with a raised fist, steel-blue evening spotlights, silhouetted crowd. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.loyalty.title_fights.3",
+    "collection": "mma.cageside",
+    "rarity": "special",
+    "name": {
+      "pt": "Oito cinturões",
+      "es": "Ocho cinturones",
+      "en": "Eight Titles"
+    },
+    "flavor": {
+      "pt": "Oito disputas de título vistas de ponta a ponta.",
+      "es": "Ocho disputas de título vistas de punta a punta.",
+      "en": "Eight title fights watched end to end."
+    },
+    "art_prompt": "A stylized female fighter in plain white shorts and unbranded gloves holding a plain generic belt without lettering over her head inside a generic octagonal cage with plain padded posts and a plain canvas, a stylized fan silhouette in the stands with both arms raised, confetti and night floodlights. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.loyalty.title_fights.4",
+    "collection": "mma.cageside",
+    "rarity": "rare",
+    "name": {
+      "pt": "Temporada de cinturões",
+      "es": "Temporada de cinturones",
+      "en": "Season of Titles"
+    },
+    "flavor": {
+      "pt": "Vinte disputas de cinturão, um ano inteiro de noites grandes.",
+      "es": "Veinte disputas de cinturón, un año entero de noches grandes.",
+      "en": "Twenty title fights, a whole year of big nights."
+    },
+    "art_prompt": "A stylized fan silhouette standing before a wall of twenty glowing plain belt outlines like a gallery inside a generic octagonal cage with plain padded posts and a plain canvas, violet faceted light, confetti frozen in the air. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.loyalty.title_fights.5",
+    "collection": "mma.cageside",
+    "rarity": "historic",
+    "name": {
+      "pt": "Guardião dos cinturões",
+      "es": "Guardián de los cinturones",
+      "en": "Keeper of Titles"
+    },
+    "flavor": {
+      "pt": "Cinquenta noites em que um cinturão trocou ou ficou de mãos.",
+      "es": "Cincuenta noches en que un cinturón cambió o se quedó de manos.",
+      "en": "Fifty nights when a belt changed hands or stayed put."
+    },
+    "art_prompt": "A stylized fan silhouette at the center of a circular hall of amber light where fifty plain belt shapes float in a ring inside a generic octagonal cage with plain padded posts and a plain canvas, engraved laurel-like glow, soft outer glow. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.moments.card_night.1",
+    "collection": "mma.first_bell",
+    "rarity": "common",
+    "name": {
+      "pt": "Três sinos",
+      "es": "Tres campanas",
+      "en": "Three Bells"
+    },
+    "flavor": {
+      "pt": "Três lutas, três primeiros rounds, uma noite curta.",
+      "es": "Tres peleas, tres primeros asaltos, una noche corta.",
+      "en": "Three fights, three first rounds, one short night."
+    },
+    "art_prompt": "Three stylized fighters of varied builds in plain white shorts and unbranded gloves standing in a row at the cage center with raised fists inside a generic octagonal cage with plain padded posts and a plain canvas, three small glowing bells above them, daylight arena, scattered silhouetted fans. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.moments.card_night.2",
+    "collection": "mma.first_bell",
+    "rarity": "special",
+    "name": {
+      "pt": "Noite sem jurados",
+      "es": "Noche sin jueces",
+      "en": "Night Without Judges"
+    },
+    "flavor": {
+      "pt": "Os jurados quase não tocaram na caneta.",
+      "es": "Los jueces casi no tocaron la pluma.",
+      "en": "The judges barely touched their pens."
+    },
+    "art_prompt": "Three silhouetted judges at a cageside table resting with folded arms inside a generic octagonal cage with plain padded posts and a plain canvas, a stylized fighter in plain white shorts and unbranded gloves celebrating at the center, steel-blue evening spotlights, blank scorecards untouched on the table. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.moments.card_night.3",
+    "collection": "mma.first_bell",
+    "rarity": "special",
+    "name": {
+      "pt": "Card relâmpago",
+      "es": "Cartelera relámpago",
+      "en": "Lightning Card"
+    },
+    "flavor": {
+      "pt": "Oito noites em que o card terminou antes da hora.",
+      "es": "Ocho noches en que la cartelera terminó antes de hora.",
+      "en": "Eight nights when the card wrapped up early."
+    },
+    "art_prompt": "A stylized arena seen from above with a glowing cage at the center inside a generic octagonal cage with plain padded posts and a plain canvas, eight small lightning-bolt shapes orbiting the cage, floodlights and haze, a crowd of silhouettes streaming toward the exits early. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.moments.card_night.4",
+    "collection": "mma.first_bell",
+    "rarity": "rare",
+    "name": {
+      "pt": "Colecionador de noites curtas",
+      "es": "Coleccionista de noches cortas",
+      "en": "Short-Night Collector"
+    },
+    "flavor": {
+      "pt": "Dezoito noites em que o relógio sobrou.",
+      "es": "Dieciocho noches en que sobró reloj.",
+      "en": "Eighteen nights with time to spare."
+    },
+    "art_prompt": "A stylized fan silhouette standing beside a violet-lit cage inside a generic octagonal cage with plain padded posts and a plain canvas, eighteen faceted bell shapes arranged in a crescent above the arena, dark purple haze, silhouetted fans on their feet. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.moments.card_night.5",
+    "collection": "mma.first_bell",
+    "rarity": "legendary",
+    "name": {
+      "pt": "Lenda das noites curtas",
+      "es": "Leyenda de las noches cortas",
+      "en": "Short-Night Legend"
+    },
+    "flavor": {
+      "pt": "Quarenta e cinco noites em que o primeiro round bastou.",
+      "es": "Cuarenta y cinco noches en que bastó el primer asalto.",
+      "en": "Forty-five nights when the first round was enough."
+    },
+    "art_prompt": "An epic view of a cage glowing with prismatic light at the center of a dark arena inside a generic octagonal cage with plain padded posts and a plain canvas, dozens of bell shapes rising like lanterns into light rays and floating particles, a sea of silhouetted fans. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: iridescent prismatic border with light rays and floating particles.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.moments.decision.1",
+    "collection": "mma.cageside",
+    "rarity": "common",
+    "name": {
+      "pt": "Três rounds",
+      "es": "Tres asaltos",
+      "en": "Three Rounds"
+    },
+    "flavor": {
+      "pt": "Nenhum round sobrou. Você viu todos.",
+      "es": "No sobró ningún asalto. Los viste todos.",
+      "en": "Not a round was wasted. You watched them all."
+    },
+    "art_prompt": "Two stylized fighters in plain white shorts and unbranded gloves and plain charcoal shorts and unbranded gloves standing side by side at the cage center while a generic referee holds both wrists before the announcement inside a generic octagonal cage with plain padded posts and a plain canvas, daylight arena, a blank scorecard shape held by a silhouetted official, sparse crowd. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.moments.decision.2",
+    "collection": "mma.cageside",
+    "rarity": "special",
+    "name": {
+      "pt": "Oito cartões",
+      "es": "Ocho tarjetas",
+      "en": "Eight Scorecards"
+    },
+    "flavor": {
+      "pt": "Oito lutas que só os jurados resolveram.",
+      "es": "Ocho peleas que solo los jueces resolvieron.",
+      "en": "Eight fights only the judges could settle."
+    },
+    "art_prompt": "A stylized fan in the front row leaning over the cage fence with a blank notepad inside a generic octagonal cage with plain padded posts and a plain canvas, two silhouetted fighters in plain white and plain charcoal shorts raising hands at the center, steel-blue evening spotlights, three silhouetted judges at a table. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.moments.decision.3",
+    "collection": "mma.cageside",
+    "rarity": "special",
+    "name": {
+      "pt": "Jurado de sofá",
+      "es": "Juez de sillón",
+      "en": "Couch Judge"
+    },
+    "flavor": {
+      "pt": "Você já pontua cada round antes do anúncio.",
+      "es": "Ya puntúas cada asalto antes del anuncio.",
+      "en": "You score every round before the announcer does."
+    },
+    "art_prompt": "A stylized fan seated on a sofa holding up a blank scorecard toward a television that shows two silhouetted fighters inside a generic octagonal cage with plain padded posts and a plain canvas, three glowing blank card shapes floating above, warm night interior, friends of varied builds beside. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.moments.decision.4",
+    "collection": "mma.cageside",
+    "rarity": "rare",
+    "name": {
+      "pt": "Noventa decisões",
+      "es": "Noventa decisiones",
+      "en": "Ninety Decisions"
+    },
+    "flavor": {
+      "pt": "Uma temporada inteira sem perder um round.",
+      "es": "Una temporada entera sin perderse un asalto.",
+      "en": "A whole season without missing a round."
+    },
+    "art_prompt": "A stylized fan silhouette standing beside a cage lit in violet inside a generic octagonal cage with plain padded posts and a plain canvas, a tall stack of blank glowing scorecards rising like a tower beside the fence, faceted violet glow, a packed arena of silhouettes. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.moments.decision.5",
+    "collection": "mma.cageside",
+    "rarity": "legendary",
+    "name": {
+      "pt": "Lenda dos quinze minutos",
+      "es": "Leyenda de los quince minutos",
+      "en": "Fifteen-Minute Legend"
+    },
+    "flavor": {
+      "pt": "Duzentas e vinte lutas até o fim. Paciência de campeão.",
+      "es": "Doscientas veinte peleas hasta el final. Paciencia de campeón.",
+      "en": "Two hundred and twenty fights to the end. A champion’s patience."
+    },
+    "art_prompt": "An epic view of a stylized fan silhouette seated calmly at cageside while a colossal prismatic clock face without digits floats above the arena inside a generic octagonal cage with plain padded posts and a plain canvas, light rays and floating particles, silhouetted fighters bowing at the center. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: iridescent prismatic border with light rays and floating particles.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.moments.favorite_fighter_win.1",
+    "collection": "mma.cageside",
+    "rarity": "rare",
+    "name": {
+      "pt": "Mão erguida",
+      "es": "Mano en alto",
+      "en": "Hand Raised"
+    },
+    "flavor": {
+      "pt": "A mão que você torceu para ver no alto, no alto.",
+      "es": "La mano que querías ver en alto, en alto.",
+      "en": "The hand you wanted raised, raised."
+    },
+    "art_prompt": "A stylized fighter in plain white shorts and unbranded gloves with one arm raised by a generic referee inside a generic octagonal cage with plain padded posts and a plain canvas, a stylized fan in the front row leaning over the fence with both arms up mirroring the gesture, violet faceted glow around the fan, night arena of silhouettes. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.moments.fifth_round_finish.1",
+    "collection": "mma.finishers",
+    "rarity": "rare",
+    "name": {
+      "pt": "Vinte e cinco minutos",
+      "es": "Veinticinco minutos",
+      "en": "Twenty-Five Minutes"
+    },
+    "flavor": {
+      "pt": "Quase meia hora de luta e o fim veio no último suspiro.",
+      "es": "Casi media hora de pelea y el final llegó en el último suspiro.",
+      "en": "Nearly half an hour of fighting and the end came on the last breath."
+    },
+    "art_prompt": "A stylized fighter in plain white shorts and unbranded gloves collapsing to the knees in joy as a generic referee waves off inside a generic octagonal cage with plain padded posts and a plain canvas, five glowing bell shapes in a row above the fence with the fifth shining brightest, violet faceted light, a roaring arena of silhouettes. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.moments.final_round_finish.1",
+    "collection": "mma.finishers",
+    "rarity": "common",
+    "name": {
+      "pt": "Último fôlego",
+      "es": "Último aliento",
+      "en": "Last Breath"
+    },
+    "flavor": {
+      "pt": "Faltava pouco para os jurados. Não precisou deles.",
+      "es": "Faltaba poco para los jueces. No hicieron falta.",
+      "en": "The judges were almost up. They were not needed."
+    },
+    "art_prompt": "A stylized fighter in plain white shorts and unbranded gloves dropping to both knees with arms up inside a generic octagonal cage with plain padded posts and a plain canvas, a generic referee waving off, a blank round card showing a faint third mark held by a silhouetted assistant, daylight arena, scattered silhouetted fans. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.moments.final_round_finish.2",
+    "collection": "mma.finishers",
+    "rarity": "special",
+    "name": {
+      "pt": "Dois finais tardios",
+      "es": "Dos finales tardíos",
+      "en": "Two Late Endings"
+    },
+    "flavor": {
+      "pt": "Duas lutas decididas quando ninguém esperava.",
+      "es": "Dos peleas decididas cuando nadie lo esperaba.",
+      "en": "Two fights decided when nobody expected it."
+    },
+    "art_prompt": "A stylized female fighter in plain white shorts and unbranded gloves leaning on the fence exhausted but smiling with a raised fist inside a generic octagonal cage with plain padded posts and a plain canvas, two glowing hourglass shapes nearly empty floating above, steel-blue evening spotlights, silhouetted corner team cheering. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.moments.final_round_finish.3",
+    "collection": "mma.finishers",
+    "rarity": "special",
+    "name": {
+      "pt": "Cinco viradas de relógio",
+      "es": "Cinco vueltas de reloj",
+      "en": "Five Clock Turns"
+    },
+    "flavor": {
+      "pt": "Nos minutos finais, você aprendeu a não desgrudar.",
+      "es": "En los minutos finales, aprendiste a no despegarte.",
+      "en": "In the final minutes, you learned never to look away."
+    },
+    "art_prompt": "A stylized fighter in plain white shorts and unbranded gloves walking slowly across the canvas with both arms raised inside a generic octagonal cage with plain padded posts and a plain canvas, five glowing hourglass shapes in a row above the fence, night floodlights and haze, a packed arena of silhouettes. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.moments.final_round_finish.4",
+    "collection": "mma.finishers",
+    "rarity": "rare",
+    "name": {
+      "pt": "Mestre da virada tardia",
+      "es": "Maestro del final tardío",
+      "en": "Late-Finish Master"
+    },
+    "flavor": {
+      "pt": "Catorze noites decididas no apagar das luzes.",
+      "es": "Catorce noches decididas al apagarse las luces.",
+      "en": "Fourteen nights decided as the lights went down."
+    },
+    "art_prompt": "A stylized fighter in plain white shorts and unbranded gloves standing at the cage center under a violet spotlight inside a generic octagonal cage with plain padded posts and a plain canvas, a faceted violet hourglass of light with its last grains falling above, silhouetted fans on their feet, dark arena. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.moments.final_round_finish.5",
+    "collection": "mma.finishers",
+    "rarity": "legendary",
+    "name": {
+      "pt": "Lenda do último round",
+      "es": "Leyenda del último asalto",
+      "en": "Last-Round Legend"
+    },
+    "flavor": {
+      "pt": "Trinta e cinco vezes o fim chegou quando o tempo acabava.",
+      "es": "Treinta y cinco veces el final llegó cuando el tiempo se acababa.",
+      "en": "Thirty-five times the ending came as time ran out."
+    },
+    "art_prompt": "An epic view of a stylized fighter in plain white shorts and unbranded gloves with one fist to the sky as a colossal prismatic hourglass shatters into light rays and particles above the cage inside a generic octagonal cage with plain padded posts and a plain canvas, a sea of silhouetted fans below. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: iridescent prismatic border with light rays and floating particles.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.moments.first_round_ko.1",
+    "collection": "mma.first_bell",
+    "rarity": "common",
+    "name": {
+      "pt": "Primeiro sino",
+      "es": "Primera campana",
+      "en": "First Bell"
+    },
+    "flavor": {
+      "pt": "O round nem esquentou e a luta já tinha dono.",
+      "es": "El asalto ni se calentó y la pelea ya tenía dueño.",
+      "en": "The round barely warmed up and the fight already had an owner."
+    },
+    "art_prompt": "A stylized fighter in plain white shorts and unbranded gloves standing with one arm raised by a generic referee inside a generic octagonal cage with plain padded posts and a plain canvas, the opponent in plain charcoal shorts and unbranded gloves seated on the canvas in silhouette, bright afternoon arena light, a sparse crowd of silhouettes behind the fence. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.moments.first_round_ko.2",
+    "collection": "mma.first_bell",
+    "rarity": "special",
+    "name": {
+      "pt": "Mão pesada",
+      "es": "Mano pesada",
+      "en": "Heavy Hands"
+    },
+    "flavor": {
+      "pt": "Três lutas, três noites curtas.",
+      "es": "Tres peleas, tres noches cortas.",
+      "en": "Three fights, three short nights."
+    },
+    "art_prompt": "A stylized female fighter in plain white shorts and unbranded gloves walking toward the cage door with both fists raised inside a generic octagonal cage with plain padded posts and a plain canvas, three glowing bell shapes floating above her, a generic referee kneeling beside the opponent in plain charcoal shorts and unbranded gloves in silhouette, warm evening arena light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.moments.first_round_ko.3",
+    "collection": "mma.first_bell",
+    "rarity": "special",
+    "name": {
+      "pt": "Noite relâmpago",
+      "es": "Noche relámpago",
+      "en": "Lightning Night"
+    },
+    "flavor": {
+      "pt": "Quem foi buscar pipoca perdeu o fim.",
+      "es": "Quien fue por palomitas se perdió el final.",
+      "en": "Whoever went for popcorn missed the ending."
+    },
+    "art_prompt": "A stylized fighter of stocky build in plain white shorts and unbranded gloves climbing the cage fence to celebrate inside a generic octagonal cage with plain padded posts and a plain canvas, a packed arena of silhouettes with raised arms, cool blue spotlights cutting through haze, a blank round card held up by a silhouetted ring assistant. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.moments.first_round_ko.4",
+    "collection": "mma.first_bell",
+    "rarity": "rare",
+    "name": {
+      "pt": "Rei do primeiro round",
+      "es": "Rey del primer asalto",
+      "en": "First-Round King"
+    },
+    "flavor": {
+      "pt": "Vinte e cinco noites que acabaram antes do segundo sino.",
+      "es": "Veinticinco noches que terminaron antes de la segunda campana.",
+      "en": "Twenty-five nights that ended before the second bell."
+    },
+    "art_prompt": "A stylized fighter in plain white shorts and unbranded gloves kneeling at the center of the canvas with arms spread wide inside a generic octagonal cage with plain padded posts and a plain canvas, violet light rays rising from the cage floor, a crown-shaped halo of faceted light above, a roaring arena of silhouettes. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.moments.first_round_ko.5",
+    "collection": "mma.first_bell",
+    "rarity": "legendary",
+    "name": {
+      "pt": "Lenda do primeiro round",
+      "es": "Leyenda del primer asalto",
+      "en": "First-Round Legend"
+    },
+    "flavor": {
+      "pt": "Sessenta vezes o sino tocou cedo demais para o adversário.",
+      "es": "Sesenta veces la campana sonó demasiado pronto para el rival.",
+      "en": "Sixty times the bell rang too early for the other side."
+    },
+    "art_prompt": "An epic low-angle view of a stylized fighter in plain white shorts and unbranded gloves standing on the cage canvas with one fist to the sky, a colossal glowing bell dissolving into prismatic particles above the arena, light rays bursting through a sea of silhouetted fans. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: iridescent prismatic border with light rays and floating particles.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.moments.first_round_submission.1",
+    "collection": "mma.first_bell",
+    "rarity": "common",
+    "name": {
+      "pt": "Tapinha no chão",
+      "es": "Toque en la lona",
+      "en": "Tap on the Canvas"
+    },
+    "flavor": {
+      "pt": "Um minuto no chão vale mais que quinze em pé.",
+      "es": "Un minuto en el suelo vale más que quince de pie.",
+      "en": "One minute on the ground beats fifteen on the feet."
+    },
+    "art_prompt": "A stylized grappler in plain white shorts and unbranded gloves rising from the canvas with a calm bow toward the opponent in plain charcoal shorts and unbranded gloves who sits in silhouette inside a generic octagonal cage with plain padded posts and a plain canvas, soft morning arena light, a generic referee stepping in with an open hand, a quiet crowd of silhouettes. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.moments.first_round_submission.2",
+    "collection": "mma.first_bell",
+    "rarity": "special",
+    "name": {
+      "pt": "Arte suave",
+      "es": "Arte suave",
+      "en": "Gentle Art"
+    },
+    "flavor": {
+      "pt": "Sem pressa, sem força: só técnica.",
+      "es": "Sin prisa, sin fuerza: solo técnica.",
+      "en": "No rush, no brute force: pure technique."
+    },
+    "art_prompt": "A stylized female grappler in plain white shorts and unbranded gloves walking across the canvas with a quiet smile and one hand raised inside a generic octagonal cage with plain padded posts and a plain canvas, two faint glowing knot shapes floating behind her, steel-blue evening light, silhouetted coaches applauding at the fence. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.moments.first_round_submission.3",
+    "collection": "mma.first_bell",
+    "rarity": "special",
+    "name": {
+      "pt": "Cinco nós",
+      "es": "Cinco nudos",
+      "en": "Five Knots"
+    },
+    "flavor": {
+      "pt": "Cinco lutas resolvidas no abraço.",
+      "es": "Cinco peleas resueltas en el abrazo.",
+      "en": "Five fights settled in a clinch."
+    },
+    "art_prompt": "A stylized grappler of lean build in plain white shorts and unbranded gloves standing tall at the center of the cage with both arms raised inside a generic octagonal cage with plain padded posts and a plain canvas, five glowing rope-knot shapes orbiting above, floodlights on against a dark arena, a crowd of silhouettes on their feet. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.moments.first_round_submission.4",
+    "collection": "mma.first_bell",
+    "rarity": "rare",
+    "name": {
+      "pt": "Mestre do tatame",
+      "es": "Maestro del tatami",
+      "en": "Mat Master"
+    },
+    "flavor": {
+      "pt": "Quinze noites em que o chão falou mais alto.",
+      "es": "Quince noches en que el suelo habló más fuerte.",
+      "en": "Fifteen nights when the ground spoke loudest."
+    },
+    "art_prompt": "A stylized grappler in plain white shorts and unbranded gloves seated cross-legged at the center of the canvas with eyes closed inside a generic octagonal cage with plain padded posts and a plain canvas, a violet faceted glow around a floating generic black belt shape above, silhouetted fans leaning on the fence, night spotlights. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.moments.first_round_submission.5",
+    "collection": "mma.first_bell",
+    "rarity": "legendary",
+    "name": {
+      "pt": "Lenda do tatame",
+      "es": "Leyenda del tatami",
+      "en": "Mat Legend"
+    },
+    "flavor": {
+      "pt": "Quarenta finalizações no primeiro. O chão tem memória.",
+      "es": "Cuarenta sumisiones en el primero. El suelo tiene memoria.",
+      "en": "Forty first-round taps. The canvas remembers."
+    },
+    "art_prompt": "An epic view of a stylized grappler in plain white shorts and unbranded gloves standing on a canvas that glows with prismatic light inside a generic octagonal cage with plain padded posts and a plain canvas, dozens of faint glowing knot shapes rising like lanterns into a dark arena ceiling, light rays and floating particles everywhere. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: iridescent prismatic border with light rays and floating particles.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.moments.flash_finish.1",
+    "collection": "mma.first_bell",
+    "rarity": "rare",
+    "name": {
+      "pt": "Num piscar",
+      "es": "En un parpadeo",
+      "en": "In a Blink"
+    },
+    "flavor": {
+      "pt": "O locutor ainda estava se sentando.",
+      "es": "El relator todavía se estaba sentando.",
+      "en": "The announcer was still sitting down."
+    },
+    "art_prompt": "A stylized fighter in plain white shorts and unbranded gloves frozen mid-stride toward the cage door with a fist raised inside a generic octagonal cage with plain padded posts and a plain canvas, a generic referee waving off behind, a blank stopwatch shape glowing violet with faceted light above the cage, silhouetted fans still finding their seats. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.moments.knockout.1",
+    "collection": "mma.finishers",
+    "rarity": "common",
+    "name": {
+      "pt": "Luz apagada",
+      "es": "Luz apagada",
+      "en": "Lights Out"
+    },
+    "flavor": {
+      "pt": "O árbitro entrou e o ginásio explodiu.",
+      "es": "El árbitro entró y el estadio explotó.",
+      "en": "The referee stepped in and the arena erupted."
+    },
+    "art_prompt": "A generic referee in a plain black shirt spreading both arms wide to wave off the fight inside a generic octagonal cage with plain padded posts and a plain canvas, a stylized fighter in plain white shorts and unbranded gloves turning away with a raised fist, the opponent in plain charcoal shorts and unbranded gloves seated against the fence in silhouette, bright daylight arena, scattered silhouetted fans. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.moments.knockout.2",
+    "collection": "mma.finishers",
+    "rarity": "special",
+    "name": {
+      "pt": "Cinco apagões",
+      "es": "Cinco apagones",
+      "en": "Five Blackouts"
+    },
+    "flavor": {
+      "pt": "Cinco noites, cinco gritos no mesmo segundo.",
+      "es": "Cinco noches, cinco gritos en el mismo segundo.",
+      "en": "Five nights, five roars in the same second."
+    },
+    "art_prompt": "A stylized fighter in plain white shorts and unbranded gloves standing on the fence top with arms open inside a generic octagonal cage with plain padded posts and a plain canvas, five glowing light-bulb shapes switching off one by one above the cage, steel-blue evening spotlights, a crowd of silhouettes with raised phones. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.moments.knockout.3",
+    "collection": "mma.finishers",
+    "rarity": "special",
+    "name": {
+      "pt": "Quinze quedas",
+      "es": "Quince caídas",
+      "en": "Fifteen Falls"
+    },
+    "flavor": {
+      "pt": "Você já reconhece o golpe antes de o árbitro reconhecer.",
+      "es": "Ya reconoces el golpe antes que el árbitro.",
+      "en": "You spot the finish before the referee does."
+    },
+    "art_prompt": "A stylized female fighter in plain white shorts and unbranded gloves walking back to her corner with a towel over her shoulders inside a generic octagonal cage with plain padded posts and a plain canvas, a wall of fifteen faint silhouettes of past opponents fading into the dark behind her, floodlights and haze, a packed arena of silhouettes. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.moments.knockout.4",
+    "collection": "mma.finishers",
+    "rarity": "rare",
+    "name": {
+      "pt": "Punho de aço",
+      "es": "Puño de acero",
+      "en": "Iron Fist"
+    },
+    "flavor": {
+      "pt": "Cinquenta noites em que a luta não chegou aos jurados.",
+      "es": "Cincuenta noches en que la pelea no llegó a los jueces.",
+      "en": "Fifty nights the judges never had to score."
+    },
+    "art_prompt": "A stylized fighter of heavy build in plain white shorts and unbranded gloves holding one glove up to a violet spotlight inside a generic octagonal cage with plain padded posts and a plain canvas, the glove glowing with faceted light, silhouetted corner team behind with raised arms, dark arena with purple haze. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.moments.knockout.5",
+    "collection": "mma.finishers",
+    "rarity": "legendary",
+    "name": {
+      "pt": "Lenda do nocaute",
+      "es": "Leyenda del nocaut",
+      "en": "Knockout Legend"
+    },
+    "flavor": {
+      "pt": "Cento e vinte vezes o ginásio se levantou de uma vez.",
+      "es": "Ciento veinte veces el estadio se levantó de golpe.",
+      "en": "One hundred and twenty times the whole arena rose at once."
+    },
+    "art_prompt": "An epic wide shot of a stylized fighter in plain white shorts and unbranded gloves at the center of the cage with both arms up as prismatic shockwave rings expand from the canvas inside a generic octagonal cage with plain padded posts and a plain canvas, light rays bursting through the fence, floating particles over a sea of silhouetted fans. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: iridescent prismatic border with light rays and floating particles.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.moments.lightning_finish.1",
+    "collection": "mma.first_bell",
+    "rarity": "special",
+    "name": {
+      "pt": "Relâmpago",
+      "es": "Relámpago",
+      "en": "Lightning"
+    },
+    "flavor": {
+      "pt": "Piscou, perdeu. Você não piscou.",
+      "es": "Parpadeaste, te lo perdiste. Tú no parpadeaste.",
+      "en": "Blink and it was gone. You did not blink."
+    },
+    "art_prompt": "A stylized fighter in plain white shorts and unbranded gloves standing with one arm raised by a generic referee inside a generic octagonal cage with plain padded posts and a plain canvas, a giant stylized lightning bolt of steel-blue light crossing the dark arena behind, the opponent in plain charcoal shorts and unbranded gloves seated in silhouette against the fence, a blank clock shape glowing near the top. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.moments.lightning_submission.1",
+    "collection": "mma.first_bell",
+    "rarity": "historic",
+    "name": {
+      "pt": "Armadilha",
+      "es": "Trampa",
+      "en": "The Trap"
+    },
+    "flavor": {
+      "pt": "Entrou no chão e saiu com a vitória, tudo num minuto.",
+      "es": "Entró al suelo y salió con la victoria, todo en un minuto.",
+      "en": "Went to the ground and came up with the win, all inside a minute."
+    },
+    "art_prompt": "A stylized grappler in plain white shorts and unbranded gloves rising from the canvas with both arms raised inside a generic octagonal cage with plain padded posts and a plain canvas, the opponent in plain charcoal shorts and unbranded gloves lying in silhouette with an open hand up, a glowing amber knot shape and a blank clock face above the cage, warm amber arena light and a soft laurel-like glow. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.moments.submission.1",
+    "collection": "mma.finishers",
+    "rarity": "common",
+    "name": {
+      "pt": "Bateu três",
+      "es": "Tocó tres veces",
+      "en": "Three Taps"
+    },
+    "flavor": {
+      "pt": "Três toques na lona e acabou a conversa.",
+      "es": "Tres toques en la lona y se acabó la charla.",
+      "en": "Three taps on the canvas and the talking was over."
+    },
+    "art_prompt": "A stylized grappler in plain white shorts and unbranded gloves releasing a hold and sitting back on the canvas with a relieved smile inside a generic octagonal cage with plain padded posts and a plain canvas, the opponent in plain charcoal shorts and unbranded gloves lying in silhouette with one open hand raised, soft daylight, a generic referee crouched nearby. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.moments.submission.2",
+    "collection": "mma.finishers",
+    "rarity": "special",
+    "name": {
+      "pt": "Três abraços",
+      "es": "Tres abrazos",
+      "en": "Three Holds"
+    },
+    "flavor": {
+      "pt": "Toda luta tem um ponto fraco. Você viu três.",
+      "es": "Toda pelea tiene un punto débil. Viste tres.",
+      "en": "Every fight has a weak point. You saw three."
+    },
+    "art_prompt": "A stylized female grappler in plain white shorts and unbranded gloves standing with a plain towel around her neck and one arm raised by a generic referee inside a generic octagonal cage with plain padded posts and a plain canvas, three glowing chain-link shapes floating above, steel-blue evening light, silhouetted fans behind the fence. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.moments.submission.3",
+    "collection": "mma.finishers",
+    "rarity": "special",
+    "name": {
+      "pt": "Dez cadeados",
+      "es": "Diez candados",
+      "en": "Ten Locks"
+    },
+    "flavor": {
+      "pt": "Dez lutas fechadas com chave.",
+      "es": "Diez peleas cerradas con llave.",
+      "en": "Ten fights locked up tight."
+    },
+    "art_prompt": "A stylized grappler of slim build in plain white shorts and unbranded gloves kneeling at the cage center with hands pressed together inside a generic octagonal cage with plain padded posts and a plain canvas, ten glowing padlock shapes forming an arc above, night floodlights, a roaring arena of silhouettes. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.moments.submission.4",
+    "collection": "mma.finishers",
+    "rarity": "rare",
+    "name": {
+      "pt": "Faixa-preta de sofá",
+      "es": "Cinturón negro de sillón",
+      "en": "Couch Black Belt"
+    },
+    "flavor": {
+      "pt": "Trinta finalizações vistas: você já sabe onde dói.",
+      "es": "Treinta sumisiones vistas: ya sabes dónde duele.",
+      "en": "Thirty submissions watched: you know where the hold goes."
+    },
+    "art_prompt": "A stylized fan on a sofa leaning toward a television that shows two silhouetted grapplers in plain white and plain charcoal shorts inside a generic octagonal cage with plain padded posts and a plain canvas, a floating violet faceted belt shape above the fan, night interior with a warm lamp. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.moments.submission.5",
+    "collection": "mma.finishers",
+    "rarity": "legendary",
+    "name": {
+      "pt": "Lenda da finalização",
+      "es": "Leyenda de la sumisión",
+      "en": "Submission Legend"
+    },
+    "flavor": {
+      "pt": "Setenta e cinco vezes a luta acabou num abraço.",
+      "es": "Setenta y cinco veces la pelea terminó en un abrazo.",
+      "en": "Seventy-five times the fight ended in a hold."
+    },
+    "art_prompt": "An epic view of a stylized grappler in plain white shorts and unbranded gloves standing at the cage center while a giant prismatic knot of light floats above the arena inside a generic octagonal cage with plain padded posts and a plain canvas, light rays and floating particles, a sea of silhouetted fans with raised arms. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: iridescent prismatic border with light rays and floating particles.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.predictions.finish_pick.1",
+    "collection": "mma.oracle",
+    "rarity": "common",
+    "name": {
+      "pt": "Acerto rápido",
+      "es": "Acierto rápido",
+      "en": "Quick Call"
+    },
+    "flavor": {
+      "pt": "Você escolheu o canto e a luta nem foi aos jurados.",
+      "es": "Elegiste la esquina y la pelea ni llegó a los jueces.",
+      "en": "You picked the corner and the judges never got a say."
+    },
+    "art_prompt": "A stylized fan with a generic phone raised in one hand and a fist in the other, a television showing a silhouetted fighter with an arm raised by a generic referee inside a generic octagonal cage with plain padded posts and a plain canvas, a glowing checkmark and a small bell shape above, daylight interior. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.predictions.finish_pick.2",
+    "collection": "mma.oracle",
+    "rarity": "special",
+    "name": {
+      "pt": "Três fins previstos",
+      "es": "Tres finales previstos",
+      "en": "Three Finishes Called"
+    },
+    "flavor": {
+      "pt": "Três vezes o seu canto fechou a luta cedo.",
+      "es": "Tres veces tu esquina cerró la pelea temprano.",
+      "en": "Three times your corner closed the fight early."
+    },
+    "art_prompt": "Two stylized fans fist-bumping in a living room, a television glowing with a silhouetted grappler rising from the canvas inside a generic octagonal cage with plain padded posts and a plain canvas, three glowing bell shapes above, steel-blue evening light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.predictions.finish_pick.3",
+    "collection": "mma.oracle",
+    "rarity": "special",
+    "name": {
+      "pt": "Oito fins previstos",
+      "es": "Ocho finales previstos",
+      "en": "Eight Finishes Called"
+    },
+    "flavor": {
+      "pt": "Você não só sabe quem vence: sabe que não vai durar.",
+      "es": "No solo sabes quién gana: sabes que no va a durar.",
+      "en": "You do not just know who wins: you know it will not last."
+    },
+    "art_prompt": "A stylized fan silhouette at a watch party pointing at a television that shows a silhouetted fighter celebrating on the fence inside a generic octagonal cage with plain padded posts and a plain canvas, eight small glowing glove shapes forming an arc above, night lighting. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.predictions.finish_pick.4",
+    "collection": "mma.oracle",
+    "rarity": "rare",
+    "name": {
+      "pt": "Profeta do fim",
+      "es": "Profeta del final",
+      "en": "Finish Prophet"
+    },
+    "flavor": {
+      "pt": "Vinte lutas lidas até o último golpe.",
+      "es": "Veinte peleas leídas hasta el último golpe.",
+      "en": "Twenty fights read down to the last move."
+    },
+    "art_prompt": "A stylized fan silhouette seated at the cage fence under a violet spotlight inside a generic octagonal cage with plain padded posts and a plain canvas, a faceted violet crystal ball floating above showing a tiny silhouetted referee waving off, dark arena of silhouettes. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.predictions.finish_pick.5",
+    "collection": "mma.oracle",
+    "rarity": "legendary",
+    "name": {
+      "pt": "Lenda dos fins previstos",
+      "es": "Leyenda de los finales previstos",
+      "en": "Legend of Called Finishes"
+    },
+    "flavor": {
+      "pt": "Cinquenta vezes você viu o fim antes de ele chegar.",
+      "es": "Cincuenta veces viste el final antes de que llegara.",
+      "en": "Fifty times you saw the ending before it arrived."
+    },
+    "art_prompt": "An epic view of a stylized fan silhouette standing atop a glowing cage inside a generic octagonal cage with plain padded posts and a plain canvas, a colossal prismatic bell shape bursting into light rays and floating particles above a sea of silhouetted fans. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: iridescent prismatic border with light rays and floating particles.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.predictions.hit_streak.1",
+    "collection": "mma.oracle",
+    "rarity": "common",
+    "name": {
+      "pt": "Dois seguidos",
+      "es": "Dos seguidos",
+      "en": "Two in a Row"
+    },
+    "flavor": {
+      "pt": "Um acerto é palpite. Dois seguidos é leitura.",
+      "es": "Un acierto es pronóstico. Dos seguidos es lectura.",
+      "en": "One hit is a call. Two in a row is reading the fight."
+    },
+    "art_prompt": "Two unbranded gloves resting side by side on a cage canvas each with a small glowing ring inside a generic octagonal cage with plain padded posts and a plain canvas, a stylized fan silhouette kneeling at the fence to look at them, morning arena light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.predictions.hit_streak.2",
+    "collection": "mma.oracle",
+    "rarity": "special",
+    "name": {
+      "pt": "Cinco seguidos",
+      "es": "Cinco seguidos",
+      "en": "Five in a Row"
+    },
+    "flavor": {
+      "pt": "Cinco lutas, cinco acertos, zero dúvida.",
+      "es": "Cinco peleas, cinco aciertos, cero dudas.",
+      "en": "Five fights, five hits, zero doubt."
+    },
+    "art_prompt": "Five unbranded gloves in a diagonal line on the canvas each glowing a little brighter than the last inside a generic octagonal cage with plain padded posts and a plain canvas, a stylized fan walking along the fence with a confident stride, steel-blue afternoon light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.predictions.hit_streak.3",
+    "collection": "mma.oracle",
+    "rarity": "special",
+    "name": {
+      "pt": "Dez seguidos",
+      "es": "Diez seguidos",
+      "en": "Ten in a Row"
+    },
+    "flavor": {
+      "pt": "A sequência virou assunto de arquibancada.",
+      "es": "La racha se volvió tema de tribuna.",
+      "en": "The streak became arena talk."
+    },
+    "art_prompt": "A chain of ten glowing unbranded gloves forming an arc over a cage like a bridge inside a generic octagonal cage with plain padded posts and a plain canvas, a stylized fan silhouette standing beneath with arms crossed, silhouetted fans pointing from the stands, dusk arena. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.predictions.hit_streak.4",
+    "collection": "mma.oracle",
+    "rarity": "rare",
+    "name": {
+      "pt": "Mão quente",
+      "es": "Mano caliente",
+      "en": "On Fire"
+    },
+    "flavor": {
+      "pt": "Vinte acertos seguidos. Nem o sino esfria essa mão.",
+      "es": "Veinte aciertos seguidos. Ni la campana enfría esa mano.",
+      "en": "Twenty straight. Not even the bell cools that hand."
+    },
+    "art_prompt": "A stylized fan silhouette with a raised hand wrapped in violet flame-like light, a long trail of glowing unbranded gloves spiraling into the dark arena ceiling above a cage inside a generic octagonal cage with plain padded posts and a plain canvas, faceted violet glow. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.predictions.hit_streak.5",
+    "collection": "mma.oracle",
+    "rarity": "legendary",
+    "name": {
+      "pt": "Sequência lendária",
+      "es": "Racha legendaria",
+      "en": "Legendary Streak"
+    },
+    "flavor": {
+      "pt": "Quarenta lutas sem errar. Ninguém acredita, e é verdade.",
+      "es": "Cuarenta peleas sin fallar. Nadie lo cree, y es verdad.",
+      "en": "Forty straight without a miss. Nobody believes it, and it is true."
+    },
+    "art_prompt": "A comet made of countless glowing unbranded gloves streaking across a prismatic arena ceiling over a cage inside a generic octagonal cage with plain padded posts and a plain canvas, a stylized fan silhouette standing on the fence top watching, light rays and floating particles everywhere. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: iridescent prismatic border with light rays and floating particles.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.predictions.night_winner.1",
+    "collection": "mma.night_shift",
+    "rarity": "common",
+    "name": {
+      "pt": "Palpite com sono",
+      "es": "Pronóstico con sueño",
+      "en": "Sleepy Call"
+    },
+    "flavor": {
+      "pt": "Olhos pesados, palpite leve e certo.",
+      "es": "Ojos pesados, pronóstico ligero y certero.",
+      "en": "Heavy eyes, light and accurate call."
+    },
+    "art_prompt": "A stylized fan wrapped in a plain blanket on a sofa holding a generic phone with a blank screen, a television showing two silhouetted fighters inside a generic octagonal cage with plain padded posts and a plain canvas, a crescent moon through the window, a small glowing checkmark above the phone. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.predictions.night_winner.2",
+    "collection": "mma.night_shift",
+    "rarity": "special",
+    "name": {
+      "pt": "Dois acertos noturnos",
+      "es": "Dos aciertos nocturnos",
+      "en": "Two Night Calls"
+    },
+    "flavor": {
+      "pt": "A madrugada confirmou o que você disse.",
+      "es": "La madrugada confirmó lo que dijiste.",
+      "en": "The small hours confirmed what you said."
+    },
+    "art_prompt": "A stylized fan in a dim living room with a mug beside, two glowing owl-shaped lights perched on the television frame that shows a silhouetted fighter raising an arm inside a generic octagonal cage with plain padded posts and a plain canvas, steel-blue night tones. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.predictions.night_winner.3",
+    "collection": "mma.night_shift",
+    "rarity": "special",
+    "name": {
+      "pt": "Coruja certeira",
+      "es": "Búho certero",
+      "en": "Sharp Owl"
+    },
+    "flavor": {
+      "pt": "Cinco madrugadas, cinco vencedores apontados.",
+      "es": "Cinco madrugadas, cinco ganadores señalados.",
+      "en": "Five late nights, five winners named."
+    },
+    "art_prompt": "A stylized owl silhouette perched on the top of a cage fence under a starry arena ceiling inside a generic octagonal cage with plain padded posts and a plain canvas, five glowing checkmark shapes in its wake, a stylized fan silhouette watching from the front row, night. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.predictions.night_winner.4",
+    "collection": "mma.night_shift",
+    "rarity": "rare",
+    "name": {
+      "pt": "Oráculo noturno",
+      "es": "Oráculo nocturno",
+      "en": "Night Oracle"
+    },
+    "flavor": {
+      "pt": "Doze madrugadas lidas antes do sino.",
+      "es": "Doce madrugadas leídas antes de la campana.",
+      "en": "Twelve late nights read before the bell."
+    },
+    "art_prompt": "A stylized fan silhouette seated at the fence with a violet faceted glow, a large crescent moon shape above the cage inside a generic octagonal cage with plain padded posts and a plain canvas, twelve small stars arranged in a ring around the moon, dark arena of silhouettes. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.predictions.night_winner.5",
+    "collection": "mma.night_shift",
+    "rarity": "legendary",
+    "name": {
+      "pt": "Lenda da madrugada",
+      "es": "Leyenda de la madrugada",
+      "en": "Legend of the Small Hours"
+    },
+    "flavor": {
+      "pt": "Trinta acertos quando a cidade dormia.",
+      "es": "Treinta aciertos mientras la ciudad dormía.",
+      "en": "Thirty calls while the city slept."
+    },
+    "art_prompt": "An epic view of a stylized fan silhouette standing on the roof of a sleeping city skyline watching a glowing cage floating in a prismatic night sky inside a generic octagonal cage with plain padded posts and a plain canvas, light rays and floating particles like stars. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: iridescent prismatic border with light rays and floating particles.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.predictions.placed.1",
+    "collection": "mma.oracle",
+    "rarity": "common",
+    "name": {
+      "pt": "Primeiro palpite",
+      "es": "Primer pronóstico",
+      "en": "First Pick"
+    },
+    "flavor": {
+      "pt": "Todo palpite começa escolhendo um canto.",
+      "es": "Todo pronóstico empieza eligiendo una esquina.",
+      "en": "Every pick starts by choosing a corner."
+    },
+    "art_prompt": "A stylized fan holding a generic phone with a blank screen in front of a sunlit arena entrance, a plain cage silhouette on a banner without text above the gate, morning light, a few silhouetted fans walking in. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.predictions.placed.2",
+    "collection": "mma.oracle",
+    "rarity": "special",
+    "name": {
+      "pt": "Dez palpites",
+      "es": "Diez pronósticos",
+      "en": "Ten Picks"
+    },
+    "flavor": {
+      "pt": "Dez lutas, dez opiniões assumidas.",
+      "es": "Diez peleas, diez opiniones asumidas.",
+      "en": "Ten fights, ten opinions on the record."
+    },
+    "art_prompt": "A stylized fan seated at the cage fence tapping a generic phone inside a generic octagonal cage with plain padded posts and a plain canvas, ten faint glowing glove shapes floating in a row above, steel-blue evening light, silhouetted fighters warming up at the center. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.predictions.placed.3",
+    "collection": "mma.oracle",
+    "rarity": "special",
+    "name": {
+      "pt": "Quarenta palpites",
+      "es": "Cuarenta pronósticos",
+      "en": "Forty Picks"
+    },
+    "flavor": {
+      "pt": "Card preliminar ou principal, você sempre tem um canto.",
+      "es": "Preliminares o estelar, siempre tienes una esquina.",
+      "en": "Prelims or main card, you always have a corner."
+    },
+    "art_prompt": "A stylized fan standing among silhouetted friends at a watch party, a wall of forty small floating glove shapes behind the television that shows a silhouetted cage inside a generic octagonal cage with plain padded posts and a plain canvas, night, warm lamp light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.predictions.placed.4",
+    "collection": "mma.oracle",
+    "rarity": "rare",
+    "name": {
+      "pt": "Temporada de palpites",
+      "es": "Temporada de pronósticos",
+      "en": "Season of Picks"
+    },
+    "flavor": {
+      "pt": "Cento e cinquenta lutas e nenhuma sem a sua opinião.",
+      "es": "Ciento cincuenta peleas y ninguna sin tu opinión.",
+      "en": "One hundred and fifty fights, not one without your take."
+    },
+    "art_prompt": "A stylized fan silhouette standing before a violet-lit cage inside a generic octagonal cage with plain padded posts and a plain canvas, a faint calendar-like grid of faceted light without numbers above the arena, each cell holding a tiny glove shape, dark arena of silhouettes. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.predictions.placed.5",
+    "collection": "mma.oracle",
+    "rarity": "historic",
+    "name": {
+      "pt": "Voz dos cantos",
+      "es": "Voz de las esquinas",
+      "en": "Voice of the Corners"
+    },
+    "flavor": {
+      "pt": "Quatrocentos palpites: os cantos já esperam o seu.",
+      "es": "Cuatrocientos pronósticos: las esquinas ya esperan el tuyo.",
+      "en": "Four hundred picks: the corners now wait for yours."
+    },
+    "art_prompt": "A stylized fan silhouette at the center of an amber-lit arena surrounded by a ring of hundreds of faint glove shapes inside a generic octagonal cage with plain padded posts and a plain canvas, an engraved laurel-like glow and soft outer glow, silhouetted fighters bowing toward the fan. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.predictions.winner.1",
+    "collection": "mma.oracle",
+    "rarity": "common",
+    "name": {
+      "pt": "Primeiro acerto",
+      "es": "Primer acierto",
+      "en": "First Call"
+    },
+    "flavor": {
+      "pt": "Você apontou o canto certo.",
+      "es": "Señalaste la esquina correcta.",
+      "en": "You pointed at the right corner."
+    },
+    "art_prompt": "A stylized fan seated on a sofa holding a generic phone with a blank screen, a television showing two silhouetted fighters in plain white and plain charcoal shorts inside a generic octagonal cage with plain padded posts and a plain canvas, a small glowing checkmark shape above the phone, morning light, cozy interior. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.predictions.winner.2",
+    "collection": "mma.oracle",
+    "rarity": "special",
+    "name": {
+      "pt": "Cinco cantos certos",
+      "es": "Cinco esquinas correctas",
+      "en": "Five Right Corners"
+    },
+    "flavor": {
+      "pt": "Cinco lutas, cinco mãos erguidas do lado certo.",
+      "es": "Cinco peleas, cinco manos en alto del lado correcto.",
+      "en": "Five fights, five hands raised on the side you picked."
+    },
+    "art_prompt": "Two stylized fans of different ages high-fiving in a living room, a television glowing with a silhouetted fighter raising an arm inside a generic octagonal cage with plain padded posts and a plain canvas, five faint target rings floating above them, steel-blue evening light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.predictions.winner.3",
+    "collection": "mma.oracle",
+    "rarity": "special",
+    "name": {
+      "pt": "Leitura de luta",
+      "es": "Lectura de pelea",
+      "en": "Fight Reader"
+    },
+    "flavor": {
+      "pt": "Você vê o estilo e já sabe o final.",
+      "es": "Ves el estilo y ya sabes el final.",
+      "en": "You see the style and already know the ending."
+    },
+    "art_prompt": "A stylized fan standing at a crowded watch party with friends of diverse builds cheering, a glowing stylized cage shape floating above the television inside a generic octagonal cage with plain padded posts and a plain canvas, a dart-board-like target behind the fan, night lighting. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.predictions.winner.4",
+    "collection": "mma.oracle",
+    "rarity": "rare",
+    "name": {
+      "pt": "Oráculo da gaiola",
+      "es": "Oráculo de la jaula",
+      "en": "Cage Oracle"
+    },
+    "flavor": {
+      "pt": "Quarenta vezes o seu canto venceu.",
+      "es": "Cuarenta veces ganó tu esquina.",
+      "en": "Forty times your corner came out on top."
+    },
+    "art_prompt": "A stylized figure in a plain hooded cloak seated on a stadium step gazing into a glowing crystal ball that shows two tiny silhouetted fighters inside a generic octagonal cage with plain padded posts and a plain canvas, violet faceted light, silhouetted fans leaning in to listen, night. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.predictions.winner.5",
+    "collection": "mma.oracle",
+    "rarity": "legendary",
+    "name": {
+      "pt": "Vidente do octógono",
+      "es": "Vidente del octágono",
+      "en": "Cage Seer"
+    },
+    "flavor": {
+      "pt": "Cem acertos. Os cantos já perguntam a sua opinião.",
+      "es": "Cien aciertos. Las esquinas ya piden tu opinión.",
+      "en": "One hundred calls. The corners now ask for your read."
+    },
+    "art_prompt": "A stylized figure with eyes closed floating above a glowing cage inside a generic octagonal cage with plain padded posts and a plain canvas, hands open as prismatic light rays and floating particles form a giant abstract target over the canvas, two silhouetted fighters below. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: iridescent prismatic border with light rays and floating particles.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.rhythm.early_bird.1",
+    "collection": "mma.night_shift",
+    "rarity": "common",
+    "name": {
+      "pt": "Primeira manhã",
+      "es": "Primera mañana",
+      "en": "First Morning"
+    },
+    "flavor": {
+      "pt": "Do outro lado do mundo, o sino tocou cedo.",
+      "es": "Del otro lado del mundo, la campana sonó temprano.",
+      "en": "On the far side of the world, the bell rang early."
+    },
+    "art_prompt": "A stylized fan in pajamas holding a mug in front of a television that shows two silhouetted fighters inside a generic octagonal cage with plain padded posts and a plain canvas, bright morning sunlight through the window, a plain breakfast table. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.rhythm.early_bird.2",
+    "collection": "mma.night_shift",
+    "rarity": "special",
+    "name": {
+      "pt": "Duas manhãs",
+      "es": "Dos mañanas",
+      "en": "Two Mornings"
+    },
+    "flavor": {
+      "pt": "O despertador tocou para uma luta, não para o trabalho.",
+      "es": "El despertador sonó para una pelea, no para el trabajo.",
+      "en": "The alarm went off for a fight, not for work."
+    },
+    "art_prompt": "A stylized plain alarm clock without digits glowing beside a tablet showing a silhouetted cage inside a generic octagonal cage with plain padded posts and a plain canvas, a stylized fan rubbing one eye, steel-blue early morning light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.rhythm.early_bird.3",
+    "collection": "mma.night_shift",
+    "rarity": "special",
+    "name": {
+      "pt": "Cinco manhãs",
+      "es": "Cinco mañanas",
+      "en": "Five Mornings"
+    },
+    "flavor": {
+      "pt": "Cinco amanheceres com um canto escolhido.",
+      "es": "Cinco amaneceres con una esquina elegida.",
+      "en": "Five sunrises with a corner picked."
+    },
+    "art_prompt": "A stylized fan standing on a balcony at sunrise with a tablet showing a silhouetted fighter raising an arm inside a generic octagonal cage with plain padded posts and a plain canvas, five small sun shapes rising along the horizon, warm orange light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.rhythm.early_bird.4",
+    "collection": "mma.night_shift",
+    "rarity": "rare",
+    "name": {
+      "pt": "Madrugador da gaiola",
+      "es": "Madrugador de la jaula",
+      "en": "Cage Early Bird"
+    },
+    "flavor": {
+      "pt": "Doze manhãs em que o sino veio antes do café.",
+      "es": "Doce mañanas en que la campana llegó antes del café.",
+      "en": "Twelve mornings when the bell came before the coffee."
+    },
+    "art_prompt": "A stylized rooster-like bird silhouette perched on a cage fence against a violet dawn sky inside a generic octagonal cage with plain padded posts and a plain canvas, twelve small sun shapes in an arc above, a stylized fan silhouette in the front row with a mug. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.rhythm.early_bird.5",
+    "collection": "mma.night_shift",
+    "rarity": "historic",
+    "name": {
+      "pt": "Lenda do amanhecer",
+      "es": "Leyenda del amanecer",
+      "en": "Legend of the Dawn"
+    },
+    "flavor": {
+      "pt": "Trinta manhãs de luta. O mundo inteiro cabe no seu horário.",
+      "es": "Treinta mañanas de pelea. El mundo entero cabe en tu horario.",
+      "en": "Thirty fight mornings. The whole world fits your clock."
+    },
+    "art_prompt": "A stylized fan silhouette standing on a hilltop at dawn watching a glowing cage rise like a sun over the horizon inside a generic octagonal cage with plain padded posts and a plain canvas, amber light rays, engraved laurel-like glow and soft outer glow. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.rhythm.night_owl.1",
+    "collection": "mma.night_shift",
+    "rarity": "common",
+    "name": {
+      "pt": "Primeira madrugada",
+      "es": "Primera madrugada",
+      "en": "First Late Night"
+    },
+    "flavor": {
+      "pt": "A cidade dormia. O sino tocou.",
+      "es": "La ciudad dormía. La campana sonó.",
+      "en": "The city slept. The bell rang."
+    },
+    "art_prompt": "A stylized fan wrapped in a plain blanket on a sofa in a dark room, a television glowing with two silhouetted fighters inside a generic octagonal cage with plain padded posts and a plain canvas, a crescent moon through the window, a mug on the table. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.rhythm.night_owl.2",
+    "collection": "mma.night_shift",
+    "rarity": "special",
+    "name": {
+      "pt": "Três madrugadas",
+      "es": "Tres madrugadas",
+      "en": "Three Late Nights"
+    },
+    "flavor": {
+      "pt": "Café na mão, luta na tela.",
+      "es": "Café en la mano, pelea en la pantalla.",
+      "en": "Coffee in hand, fight on screen."
+    },
+    "art_prompt": "A stylized fan at a kitchen counter with a steaming mug watching a tablet that shows a silhouetted cage inside a generic octagonal cage with plain padded posts and a plain canvas, three glowing owl shapes on the windowsill, steel-blue night tones. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.rhythm.night_owl.3",
+    "collection": "mma.night_shift",
+    "rarity": "special",
+    "name": {
+      "pt": "Oito madrugadas",
+      "es": "Ocho madrugadas",
+      "en": "Eight Late Nights"
+    },
+    "flavor": {
+      "pt": "O vizinho ouviu o grito e já sabe o resultado.",
+      "es": "El vecino oyó el grito y ya sabe el resultado.",
+      "en": "The neighbor heard the shout and already knows the result."
+    },
+    "art_prompt": "A stylized apartment building at night with one window glowing where a silhouetted fan jumps with raised arms, a tiny cage visible on the television inside inside a generic octagonal cage with plain padded posts and a plain canvas, eight stars above the rooftop. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.rhythm.night_owl.4",
+    "collection": "mma.night_shift",
+    "rarity": "rare",
+    "name": {
+      "pt": "Dona da madrugada",
+      "es": "Dueña de la madrugada",
+      "en": "Queen of the Small Hours"
+    },
+    "flavor": {
+      "pt": "Vinte madrugadas e nenhum sino perdido.",
+      "es": "Veinte madrugadas y ninguna campana perdida.",
+      "en": "Twenty late nights and not a bell missed."
+    },
+    "art_prompt": "A stylized female fan silhouette seated at the cage fence under a violet faceted moon shape inside a generic octagonal cage with plain padded posts and a plain canvas, twenty small stars arranged in an arc above, dark arena, silhouetted crowd. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  },
+  {
+    "card_key": "mma.rhythm.night_owl.5",
+    "collection": "mma.night_shift",
+    "rarity": "historic",
+    "name": {
+      "pt": "Lenda da madrugada",
+      "es": "Leyenda de la madrugada",
+      "en": "Legend of the Small Hours"
+    },
+    "flavor": {
+      "pt": "Cinquenta madrugadas na gaiola. O sol nasce depois do sino.",
+      "es": "Cincuenta madrugadas en la jaula. El sol sale después de la campana.",
+      "en": "Fifty late nights at the cage. The sun rises after the bell."
+    },
+    "art_prompt": "An epic view of a stylized fan silhouette standing on a rooftop above a sleeping city as a glowing cage floats in a prismatic night sky inside a generic octagonal cage with plain padded posts and a plain canvas, light rays and floating particles like stars, the first hint of dawn on the horizon. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, blood, wounds, bruises, close-up strikes to the face, gore"
+  }
+]

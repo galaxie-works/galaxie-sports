@@ -1,0 +1,1362 @@
+[
+  {
+    "card_key": "rugby.explorer.competitions.1",
+    "collection": "rugby.world_tour",
+    "rarity": "common",
+    "name": {
+      "pt": "Duas competições",
+      "es": "Dos torneos",
+      "en": "Two Competitions"
+    },
+    "flavor": {
+      "pt": "Um palpite aqui, outro ali, e o mapa oval começa.",
+      "es": "Un pronóstico aquí, otro allá, y empieza el mapa ovalado.",
+      "en": "One call here, another there, and the oval map begins."
+    },
+    "art_prompt": "A stylized paper map on a table with two glowing pin shapes and two tiny generic oval balls, a stylized fan’s hands placing the second pin, warm morning light, flat vector. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.explorer.competitions.2",
+    "collection": "rugby.world_tour",
+    "rarity": "special",
+    "name": {
+      "pt": "Quatro competições",
+      "es": "Cuatro torneos",
+      "en": "Four Competitions"
+    },
+    "flavor": {
+      "pt": "Liga, seleções, sevens: tudo cabe no seu palpite.",
+      "es": "Liga, selecciones, sevens: todo cabe en tu pronóstico.",
+      "en": "League, nations, sevens: your calls cover it all."
+    },
+    "art_prompt": "A stylized map spread wide with four glowing pins connected by thin lines, a stylized fan leaning over it with a generic phone with blank screen, steel-blue afternoon light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.explorer.competitions.3",
+    "collection": "rugby.world_tour",
+    "rarity": "special",
+    "name": {
+      "pt": "Oito competições",
+      "es": "Ocho torneos",
+      "en": "Eight Competitions"
+    },
+    "flavor": {
+      "pt": "Oito torneios e nenhum calendário te assusta.",
+      "es": "Ocho torneos y ningún calendario te asusta.",
+      "en": "Eight tournaments and no calendar scares you."
+    },
+    "art_prompt": "A stylized globe on a desk with eight glowing pins forming a constellation across both hemispheres, a stylized fan silhouette spinning it with one finger, night lamp light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.explorer.competitions.4",
+    "collection": "rugby.world_tour",
+    "rarity": "rare",
+    "name": {
+      "pt": "Atlas oval",
+      "es": "Atlas ovalado",
+      "en": "Oval Atlas"
+    },
+    "flavor": {
+      "pt": "Dezesseis competições na ponta da língua.",
+      "es": "Dieciséis torneos en la punta de la lengua.",
+      "en": "Sixteen competitions at the tip of the tongue."
+    },
+    "art_prompt": "A stylized fan silhouette standing inside a planetarium-like dome where sixteen glowing pin-lights form a violet map across the ceiling, a generic oval ball shape at the center, faceted glow. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.explorer.competitions.5",
+    "collection": "rugby.world_tour",
+    "rarity": "historic",
+    "name": {
+      "pt": "Cartógrafo oval",
+      "es": "Cartógrafo ovalado",
+      "en": "Oval Cartographer"
+    },
+    "flavor": {
+      "pt": "Não existe torneio de rugby que você não tenha palpitado.",
+      "es": "No hay torneo de rugby que no hayas pronosticado.",
+      "en": "There is no rugby tournament you have not called."
+    },
+    "art_prompt": "A stylized fan silhouette standing on a floating generic oval-ball-shaped planet covered in a network of prismatic light lines and thirty-five glowing nodes, light rays and floating particles, deep space backdrop. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.explorer.months.1",
+    "collection": "rugby.dawn",
+    "rarity": "common",
+    "name": {
+      "pt": "Primeiro mês",
+      "es": "Primer mes",
+      "en": "First Month"
+    },
+    "flavor": {
+      "pt": "O calendário oval começou a contar.",
+      "es": "El calendario ovalado empezó a contar.",
+      "en": "The oval calendar started counting."
+    },
+    "art_prompt": "A stylized wall calendar without numbers with one page glowing softly, a stylized fan beside it holding a generic oval ball, morning light, flat vector interior. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.explorer.months.2",
+    "collection": "rugby.dawn",
+    "rarity": "special",
+    "name": {
+      "pt": "Três meses",
+      "es": "Tres meses",
+      "en": "Three Months"
+    },
+    "flavor": {
+      "pt": "Uma estação inteira de bola oval rolando.",
+      "es": "Una estación entera de pelota ovalada rodando.",
+      "en": "A whole season of the year with the oval ball bouncing."
+    },
+    "art_prompt": "Three stylized windows in a row showing the same generic rugby pitch in sun, rain and wind, a stylized fan silhouette walking past them with a plain white scarf, steel-blue tones. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.explorer.months.3",
+    "collection": "rugby.dawn",
+    "rarity": "special",
+    "name": {
+      "pt": "Meio ano",
+      "es": "Medio año",
+      "en": "Half a Year"
+    },
+    "flavor": {
+      "pt": "Seis meses, dois hemisférios, uma só bola oval.",
+      "es": "Seis meses, dos hemisferios, una sola pelota ovalada.",
+      "en": "Six months, two hemispheres, one oval ball."
+    },
+    "art_prompt": "A stylized tree beside a generic rugby pitch shown half in bloom and half in autumn leaves, a stylized fan seated beneath watching a tiny match with H-shaped goalposts without branding, soft light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.explorer.months.4",
+    "collection": "rugby.dawn",
+    "rarity": "rare",
+    "name": {
+      "pt": "Doze meses",
+      "es": "Doce meses",
+      "en": "Twelve Months"
+    },
+    "flavor": {
+      "pt": "Janeiro a dezembro, de um hemisfério ao outro.",
+      "es": "De enero a diciembre, de un hemisferio al otro.",
+      "en": "January to December, one hemisphere to the other."
+    },
+    "art_prompt": "A ring of twelve stylized moon phases glowing violet above a generic rugby stadium, a stylized fan silhouette standing at the center circle looking up, H-shaped goalposts without branding, night, faceted glow. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.explorer.months.5",
+    "collection": "rugby.dawn",
+    "rarity": "historic",
+    "name": {
+      "pt": "Dois anos de bola oval",
+      "es": "Dos años de pelota ovalada",
+      "en": "Two Years of Oval Ball"
+    },
+    "flavor": {
+      "pt": "Vinte e quatro meses de rugby, nenhum sem bola.",
+      "es": "Veinticuatro meses de rugby, ninguno sin pelota.",
+      "en": "Twenty-four months of rugby, not one without a ball."
+    },
+    "art_prompt": "A stylized fan silhouette standing on a sundial-like generic rugby pitch where two full rings of prismatic light orbit overhead with twenty-four glowing marks, light rays and floating particles, deep night sky. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.explorer.teams.1",
+    "collection": "rugby.world_tour",
+    "rarity": "common",
+    "name": {
+      "pt": "Dois times",
+      "es": "Dos equipos",
+      "en": "Two Teams"
+    },
+    "flavor": {
+      "pt": "Dois lados, uma bola oval, o começo de tudo.",
+      "es": "Dos lados, una pelota ovalada, el comienzo de todo.",
+      "en": "Two sides, one oval ball, the start of it all."
+    },
+    "art_prompt": "Two stylized rugby players, one in a plain white kit and one in a plain charcoal kit, standing back to back at the center of a sunlit pitch each holding a generic oval ball, a small generic stand behind, flat vector. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.explorer.teams.2",
+    "collection": "rugby.world_tour",
+    "rarity": "special",
+    "name": {
+      "pt": "Cinco times",
+      "es": "Cinco equipos",
+      "en": "Five Teams"
+    },
+    "flavor": {
+      "pt": "Cinco estilos de jogar, cinco jeitos de torcer.",
+      "es": "Cinco estilos de juego, cinco maneras de alentar.",
+      "en": "Five ways to play, five ways to cheer."
+    },
+    "art_prompt": "Five stylized rugby players of varied builds and genders in alternating plain white and plain charcoal kits standing in a row holding generic oval balls, five plain flags without symbols behind them, steel-blue sky with a thin inner line. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.explorer.teams.3",
+    "collection": "rugby.world_tour",
+    "rarity": "special",
+    "name": {
+      "pt": "Doze times",
+      "es": "Doce equipos",
+      "en": "Twelve Teams"
+    },
+    "flavor": {
+      "pt": "Doze times vistos e cada um ensinou um jeito de jogar.",
+      "es": "Doce equipos vistos y cada uno enseñó una manera de jugar.",
+      "en": "Twelve teams watched and each taught a way to play."
+    },
+    "art_prompt": "A ring of twelve stylized rugby players in plain white and plain charcoal kits around a center circle at dusk, a stylized fan silhouette at the middle holding a generic oval ball, orange and violet sky, H-shaped goalposts without branding. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.explorer.teams.4",
+    "collection": "rugby.world_tour",
+    "rarity": "rare",
+    "name": {
+      "pt": "Trinta times",
+      "es": "Treinta equipos",
+      "en": "Thirty Teams"
+    },
+    "flavor": {
+      "pt": "Uma temporada inteira de times diferentes na tela.",
+      "es": "Una temporada entera de equipos distintos en la pantalla.",
+      "en": "A whole season of different teams on the screen."
+    },
+    "art_prompt": "A stylized fan silhouette standing on a generic rugby pitch at night with thirty violet silhouettes of rugby players arranged in a wide fan shape around like a chorus, faceted glow, floodlights. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.explorer.teams.5",
+    "collection": "rugby.world_tour",
+    "rarity": "historic",
+    "name": {
+      "pt": "Conhece o mundo oval",
+      "es": "Conoce el mundo ovalado",
+      "en": "Knows the Oval World"
+    },
+    "flavor": {
+      "pt": "Setenta e cinco times. Não há camisa que você não reconheça.",
+      "es": "Setenta y cinco equipos. No hay camiseta que no reconozcas.",
+      "en": "Seventy-five teams. There is no jersey you do not recognize."
+    },
+    "art_prompt": "A stylized fan silhouette standing on a floating generic oval ball with seventy-five tiny prismatic player silhouettes orbiting in rings around it, light rays and floating particles, deep night sky. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.loyalty.dawn_games.1",
+    "collection": "rugby.dawn",
+    "rarity": "common",
+    "name": {
+      "pt": "Primeira madrugada",
+      "es": "Primera madrugada",
+      "en": "First Dawn"
+    },
+    "flavor": {
+      "pt": "O despertador tocou às três. A bola oval valeu.",
+      "es": "El despertador sonó a las tres. La pelota ovalada lo valió.",
+      "en": "The alarm went off at three. The oval ball was worth it."
+    },
+    "art_prompt": "A stylized fan wrapped in a plain blanket on a sofa in a dark living room lit only by a generic television showing a tiny rugby match with players in plain white kit and no readable text, a window behind with a deep blue pre-dawn sky and one star, flat vector. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.loyalty.dawn_games.2",
+    "collection": "rugby.dawn",
+    "rarity": "special",
+    "name": {
+      "pt": "Três madrugadas",
+      "es": "Tres madrugadas",
+      "en": "Three Dawns"
+    },
+    "flavor": {
+      "pt": "Café quente, casa em silêncio e o jogo do outro lado do mundo.",
+      "es": "Café caliente, casa en silencio y el partido del otro lado del mundo.",
+      "en": "Hot coffee, a silent house and a match on the other side of the world."
+    },
+    "art_prompt": "A stylized fan holding a plain mug at a kitchen table with a generic phone propped up showing a blurred rugby pitch with no readable text, three small steel-blue moon shapes in the window, the first grey light of dawn, flat vector. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.loyalty.dawn_games.3",
+    "collection": "rugby.dawn",
+    "rarity": "special",
+    "name": {
+      "pt": "Sete madrugadas",
+      "es": "Siete madrugadas",
+      "en": "Seven Dawns"
+    },
+    "flavor": {
+      "pt": "Sete noites curtas por um time que joga enquanto a cidade dorme.",
+      "es": "Siete noches cortas por un equipo que juega mientras la ciudad duerme.",
+      "en": "Seven short nights for a team that plays while the city sleeps."
+    },
+    "art_prompt": "A stylized fan standing on a balcony with a plain white scarf at dawn, a city skyline silhouette asleep below, a translucent rugby pitch with women players in plain white kit floating in the orange sky above like a projection, seven glowing oval shapes arcing over it. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.loyalty.dawn_games.4",
+    "collection": "rugby.dawn",
+    "rarity": "rare",
+    "name": {
+      "pt": "Coruja oval",
+      "es": "Búho ovalado",
+      "en": "Oval Night Owl"
+    },
+    "flavor": {
+      "pt": "Quinze madrugadas numa temporada. O fuso virou rotina.",
+      "es": "Quince madrugadas en una temporada. El huso horario se volvió rutina.",
+      "en": "Fifteen dawns in one season. The time zone became routine."
+    },
+    "art_prompt": "A stylized owl-shaped silhouette perched on H-shaped goalposts without branding against a violet pre-dawn sky, fifteen faint moon phases forming an arc above, a stylized fan silhouette standing on the empty pitch below with a plain white scarf, faceted glow. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.loyalty.dawn_games.5",
+    "collection": "rugby.dawn",
+    "rarity": "historic",
+    "name": {
+      "pt": "Lenda da madrugada",
+      "es": "Leyenda de la madrugada",
+      "en": "Legend of the Small Hours"
+    },
+    "flavor": {
+      "pt": "Quarenta madrugadas. Metade do mundo dormiu; você viu tudo.",
+      "es": "Cuarenta madrugadas. Medio mundo durmió; tú lo viste todo.",
+      "en": "Forty dawns. Half the world slept; you saw it all."
+    },
+    "art_prompt": "A stylized fan silhouette standing on a rooftop at the exact moment of sunrise with a prismatic sun rising behind a distant rugby pitch, forty glowing star shapes fading in the sky, light rays and floating particles, a plain white scarf blowing in the wind. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.loyalty.favorite_games.1",
+    "collection": "rugby.faithful",
+    "rarity": "common",
+    "name": {
+      "pt": "Primeiro jogo",
+      "es": "Primer partido",
+      "en": "First Match"
+    },
+    "flavor": {
+      "pt": "Todo torcedor lembra do primeiro.",
+      "es": "Todo hincha recuerda el primero.",
+      "en": "Every fan remembers the first one."
+    },
+    "art_prompt": "A young stylized fan with a plain white scarf sitting alone in a wide generic stand at a sunny afternoon rugby match, players in plain white kit small on the pitch below passing a generic oval ball, H-shaped goalposts without branding, soft shadows. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.loyalty.favorite_games.2",
+    "collection": "rugby.faithful",
+    "rarity": "special",
+    "name": {
+      "pt": "Três jogos",
+      "es": "Tres partidos",
+      "en": "Three Matches"
+    },
+    "flavor": {
+      "pt": "Já conhece os quinze de cor.",
+      "es": "Ya se sabe a los quince de memoria.",
+      "en": "Already knows all fifteen by heart."
+    },
+    "art_prompt": "A stylized fan standing in a half-full generic stand with a few silhouetted friends, holding a plain white scarf overhead, a team in plain white kit lining up for kick-off on the pitch, late afternoon light, a generic oval ball on a kicking tee. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.loyalty.favorite_games.3",
+    "collection": "rugby.faithful",
+    "rarity": "special",
+    "name": {
+      "pt": "Oito jogos",
+      "es": "Ocho partidos",
+      "en": "Eight Matches"
+    },
+    "flavor": {
+      "pt": "Meio caminho da temporada, nenhum jogo perdido.",
+      "es": "Mitad de temporada, ningún partido perdido.",
+      "en": "Halfway through the season, not a match missed."
+    },
+    "art_prompt": "A stylized fan in the middle of a packed generic stand with arms wide, silhouetted fans of every age around, floodlights coming on at dusk, a women’s team in plain white kit celebrating a try under H-shaped goalposts without branding below. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.loyalty.favorite_games.4",
+    "collection": "rugby.faithful",
+    "rarity": "rare",
+    "name": {
+      "pt": "Temporada inteira",
+      "es": "Temporada completa",
+      "en": "Whole Season"
+    },
+    "flavor": {
+      "pt": "Vinte jogos, uma só torcida, nenhum fim de semana sem bola oval.",
+      "es": "Veinte partidos, una sola hinchada, ningún fin de semana sin pelota ovalada.",
+      "en": "Twenty matches, one unwavering fan, no weekend without the oval ball."
+    },
+    "art_prompt": "A stylized fan standing at the very front of a stand with a plain white flag without symbols, a sea of silhouetted fans behind in violet light, the rugby pitch glowing under night floodlights, a faint calendar-like grid of light without numbers above, faceted glow. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.loyalty.favorite_games.5",
+    "collection": "rugby.faithful",
+    "rarity": "historic",
+    "name": {
+      "pt": "Cinquenta jogos",
+      "es": "Cincuenta partidos",
+      "en": "Fifty Matches"
+    },
+    "flavor": {
+      "pt": "Cinquenta jogos depois, ainda é o mesmo frio na barriga.",
+      "es": "Cincuenta partidos después, siguen los mismos nervios.",
+      "en": "Fifty matches later, same butterflies."
+    },
+    "art_prompt": "A stylized fan silhouette seen from behind at the top of a stadium with amber light rays and an engraved laurel-like glow surrounding, a trail of fifty faint seat shapes lighting up behind, H-shaped goalposts without branding glowing far below, night sky. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.loyalty.favorite_streak.1",
+    "collection": "rugby.faithful",
+    "rarity": "common",
+    "name": {
+      "pt": "Dois seguidos",
+      "es": "Dos seguidos",
+      "en": "Two Straight"
+    },
+    "flavor": {
+      "pt": "Dois jogos, o mesmo lugar, o mesmo grito.",
+      "es": "Dos partidos, el mismo lugar, el mismo grito.",
+      "en": "Two matches, same seat, same roar."
+    },
+    "art_prompt": "Two stylized seats glowing softly in an otherwise empty generic stand at morning light, a plain white scarf draped over one of them, a generic oval ball resting on the other, the rugby pitch empty below, flat vector. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.loyalty.favorite_streak.2",
+    "collection": "rugby.faithful",
+    "rarity": "special",
+    "name": {
+      "pt": "Cinco seguidos",
+      "es": "Cinco seguidos",
+      "en": "Five Straight"
+    },
+    "flavor": {
+      "pt": "Cinco semanas, cinco jogos, nenhuma desculpa.",
+      "es": "Cinco semanas, cinco partidos, ninguna excusa.",
+      "en": "Five weeks, five matches, no excuses."
+    },
+    "art_prompt": "A stylized fan walking up the steps of a generic stand with a plain white scarf, five faint steel-blue footprints glowing on the steps behind, players in plain white kit warming up on the pitch with a generic oval ball, afternoon light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.loyalty.favorite_streak.3",
+    "collection": "rugby.faithful",
+    "rarity": "special",
+    "name": {
+      "pt": "Dez seguidos",
+      "es": "Diez seguidos",
+      "en": "Ten Straight"
+    },
+    "flavor": {
+      "pt": "Dez jogos seguidos. Chuva, frio ou madrugada, você estava lá.",
+      "es": "Diez partidos seguidos. Lluvia, frío o madrugada, ahí estabas.",
+      "en": "Ten straight. Rain, cold or dawn, you were there."
+    },
+    "art_prompt": "A stylized fan standing in a generic stand under light rain holding a plain umbrella without logos, a chain of ten glowing oval shapes arcing above, players in plain white kit lifting a teammate in a lineout on the wet pitch below, dusk light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.loyalty.favorite_streak.4",
+    "collection": "rugby.faithful",
+    "rarity": "rare",
+    "name": {
+      "pt": "Presença perfeita",
+      "es": "Asistencia perfecta",
+      "en": "Perfect Attendance"
+    },
+    "flavor": {
+      "pt": "Vinte seguidos: uma temporada inteira sem pular um jogo.",
+      "es": "Veinte seguidos: una temporada entera sin saltarse un partido.",
+      "en": "Twenty straight: a whole season without skipping a match."
+    },
+    "art_prompt": "A stylized fan silhouette standing alone at the front of a floodlit generic stand at night with a long violet ribbon of twenty linked oval shapes wrapping around the stadium bowl, faceted glow, H-shaped goalposts without branding below. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.loyalty.favorite_streak.5",
+    "collection": "rugby.faithful",
+    "rarity": "historic",
+    "name": {
+      "pt": "Lenda da arquibancada",
+      "es": "Leyenda de la tribuna",
+      "en": "Legend of the Stands"
+    },
+    "flavor": {
+      "pt": "Quarenta jogos seguidos. O time muda, você não.",
+      "es": "Cuarenta partidos seguidos. El equipo cambia, tú no.",
+      "en": "Forty straight. The team changes, you never do."
+    },
+    "art_prompt": "A monumental stylized statue of a seated fan holding a plain white scarf at the top of a generic stand, forty prismatic oval shapes orbiting the statue, light rays and floating particles, a floodlit rugby pitch far below at night. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.loyalty.knockout_watched.1",
+    "collection": "rugby.big_nights",
+    "rarity": "common",
+    "name": {
+      "pt": "Primeira decisão",
+      "es": "Primera definición",
+      "en": "First Decider"
+    },
+    "flavor": {
+      "pt": "Sem volta, sem empate, sem amanhã. Você estava lá.",
+      "es": "Sin vuelta, sin empate, sin mañana. Ahí estabas.",
+      "en": "No way back, no draw, no tomorrow. You were there."
+    },
+    "art_prompt": "A stylized fan with a plain white scarf standing in a generic stand at golden hour watching two rugby teams in plain white and plain charcoal kits line up facing each other on the pitch, a single blank banner without symbols hanging from the stand, H-shaped goalposts without branding. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.loyalty.knockout_watched.2",
+    "collection": "rugby.big_nights",
+    "rarity": "special",
+    "name": {
+      "pt": "Duas decisões",
+      "es": "Dos definiciones",
+      "en": "Two Deciders"
+    },
+    "flavor": {
+      "pt": "Quem perde volta para casa. Você ficou para ver quem.",
+      "es": "El que pierde se va a casa. Te quedaste para ver quién.",
+      "en": "Whoever loses goes home. You stayed to see who."
+    },
+    "art_prompt": "A stylized fan seated in a generic stand at dusk with two glowing bracket-shaped lines of light crossing above the pitch, players in plain white kit chasing a generic oval ball, steel-blue tones with a thin inner line. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.loyalty.knockout_watched.3",
+    "collection": "rugby.big_nights",
+    "rarity": "special",
+    "name": {
+      "pt": "Cinco decisões",
+      "es": "Cinco definiciones",
+      "en": "Five Deciders"
+    },
+    "flavor": {
+      "pt": "Cinco noites sem amanhã e você em todas.",
+      "es": "Cinco noches sin mañana y tú en todas.",
+      "en": "Five nights with no tomorrow and you at every one."
+    },
+    "art_prompt": "A packed generic stand at night seen from the pitch, a stylized fan standing out at the front with a plain white flag without symbols, five glowing bracket nodes floating above the crowd, floodlights, a generic oval ball in the air. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.loyalty.knockout_watched.4",
+    "collection": "rugby.big_nights",
+    "rarity": "rare",
+    "name": {
+      "pt": "Dez decisões",
+      "es": "Diez definiciones",
+      "en": "Ten Deciders"
+    },
+    "flavor": {
+      "pt": "Dez mata-matas numa temporada: você vive para as noites grandes.",
+      "es": "Diez eliminatorias en una temporada: vives para las noches grandes.",
+      "en": "Ten knockouts in a season: you live for the big nights."
+    },
+    "art_prompt": "A stylized fan silhouette standing at the center of an empty floodlit rugby pitch at night with ten violet bracket nodes forming an arch overhead, faceted glow, H-shaped goalposts without branding at both ends. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.loyalty.knockout_watched.5",
+    "collection": "rugby.big_nights",
+    "rarity": "historic",
+    "name": {
+      "pt": "Lenda das noites grandes",
+      "es": "Leyenda de las noches grandes",
+      "en": "Big-Night Legend"
+    },
+    "flavor": {
+      "pt": "Vinte e cinco decisões vistas. As noites grandes já te conhecem.",
+      "es": "Veinticinco definiciones vistas. Las noches grandes ya te conocen.",
+      "en": "Twenty-five deciders watched. The big nights know you by now."
+    },
+    "art_prompt": "A stylized fan silhouette standing on top of a generic stadium roof at night, a prismatic bracket of twenty-five glowing nodes spreading across the sky, light rays and floating particles, the floodlit rugby pitch far below. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.loyalty.sevens_weekend.1",
+    "collection": "rugby.dawn",
+    "rarity": "common",
+    "name": {
+      "pt": "Catorze minutos",
+      "es": "Catorce minutos",
+      "en": "Fourteen Minutes"
+    },
+    "flavor": {
+      "pt": "Sete contra sete, catorze minutos, zero tempo para respirar.",
+      "es": "Siete contra siete, catorce minutos, cero tiempo para respirar.",
+      "en": "Seven on seven, fourteen minutes, zero time to breathe."
+    },
+    "art_prompt": "Seven stylized rugby players in plain white kit of varied builds and genders spread wide across a sunlit pitch, one of them passing a generic oval ball, lots of empty green space around, a small generic stand, a blank scoreboard with no digits, bright morning light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.loyalty.sevens_weekend.2",
+    "collection": "rugby.dawn",
+    "rarity": "special",
+    "name": {
+      "pt": "Dia de etapa",
+      "es": "Día de etapa",
+      "en": "Tournament Day"
+    },
+    "flavor": {
+      "pt": "Cinco jogos num dia e a voz já foi embora.",
+      "es": "Cinco partidos en un día y la voz ya se fue.",
+      "en": "Five matches in one day and the voice is already gone."
+    },
+    "art_prompt": "A stylized fan in a plain costume hat without symbols cheering in a colorful generic stand under midday sun, five tiny rugby pitches drawn in a row along the bottom like a filmstrip, players in plain white and plain charcoal kits, steel-blue sky. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.loyalty.sevens_weekend.3",
+    "collection": "rugby.dawn",
+    "rarity": "special",
+    "name": {
+      "pt": "Fim de semana inteiro",
+      "es": "Fin de semana entero",
+      "en": "Whole Weekend"
+    },
+    "flavor": {
+      "pt": "Sábado e domingo de bola oval, do primeiro apito à final.",
+      "es": "Sábado y domingo de pelota ovalada, del primer silbato a la final.",
+      "en": "Saturday and Sunday of oval ball, first whistle to the final."
+    },
+    "art_prompt": "A split scene of the same generic stand by day and by night, a stylized fan in the same seat in both halves with a plain white scarf, women in plain white kit sprinting with a generic oval ball on the pitch, orange and violet sky. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.loyalty.sevens_weekend.4",
+    "collection": "rugby.dawn",
+    "rarity": "rare",
+    "name": {
+      "pt": "Série completa",
+      "es": "Serie completa",
+      "en": "Full Series"
+    },
+    "flavor": {
+      "pt": "Trinta jogos curtos, seis cidades, uma temporada inteira de sevens.",
+      "es": "Treinta partidos cortos, seis ciudades, una temporada entera de sevens.",
+      "en": "Thirty short matches, six cities, one whole season of sevens."
+    },
+    "art_prompt": "A stylized fan silhouette standing on a generic globe-shaped stage with six glowing violet pin shapes around it, a tiny rugby pitch at each pin, a generic oval ball orbiting overhead, faceted glow, night sky. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.loyalty.sevens_weekend.5",
+    "collection": "rugby.dawn",
+    "rarity": "historic",
+    "name": {
+      "pt": "Lenda dos sete",
+      "es": "Leyenda de los siete",
+      "en": "Legend of the Seven"
+    },
+    "flavor": {
+      "pt": "Sessenta jogos de sevens. Ninguém corre tanto quanto a sua torcida.",
+      "es": "Sesenta partidos de sevens. Nadie corre tanto como tu hinchada.",
+      "en": "Sixty sevens matches. Nobody runs as much as your support."
+    },
+    "art_prompt": "Seven stylized rugby players in plain white kit running in a diagonal line across a prismatic pitch of light, a stylized fan silhouette at the head of the line, light rays and floating particles, deep night sky over a generic stadium. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.moments.after_the_siren.1",
+    "collection": "rugby.last_kick",
+    "rarity": "rare",
+    "name": {
+      "pt": "Última fase",
+      "es": "Última fase",
+      "en": "Last Phase"
+    },
+    "flavor": {
+      "pt": "O relógio em vermelho, a bola ainda viva, a linha cada vez mais perto.",
+      "es": "El reloj en rojo, la pelota todavía viva, la línea cada vez más cerca.",
+      "en": "Clock in the red, ball still alive, the line getting closer."
+    },
+    "art_prompt": "A stylized rugby player in a plain white kit stretching full length to ground a generic oval ball just over the try line, a blank siren-shaped lamp glowing red above a blank scoreboard, players in plain charcoal kit sliding in too late, night floodlights, a generic stand erupting with raised arms. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.moments.big_comeback.1",
+    "collection": "rugby.comebacks",
+    "rarity": "historic",
+    "name": {
+      "pt": "Do fundo do poço",
+      "es": "Desde el fondo",
+      "en": "From the Bottom"
+    },
+    "flavor": {
+      "pt": "Catorze pontos atrás e ninguém no vestiário acreditou que acabou.",
+      "es": "Catorce puntos abajo y nadie en el vestuario creyó que había terminado.",
+      "en": "Fourteen down and nobody in the dressing room believed it was over."
+    },
+    "art_prompt": "A stylized rugby player in a plain white kit raising a generic oval ball high with both hands under H-shaped goalposts without branding at golden hour, teammates of diverse builds running toward her with arms wide, players in plain charcoal kit kneeling on the grass, amber light rays and an engraved laurel-like glow behind the posts. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.moments.halftime_comeback.1",
+    "collection": "rugby.comebacks",
+    "rarity": "rare",
+    "name": {
+      "pt": "Conversa no vestiário",
+      "es": "Charla de vestuario",
+      "en": "Dressing-Room Talk"
+    },
+    "flavor": {
+      "pt": "Entrou perdendo, voltou outro time.",
+      "es": "Se fue perdiendo y volvió otro equipo.",
+      "en": "Went in behind, came out a different team."
+    },
+    "art_prompt": "A stylized rugby team in plain white kit walking back out of a tunnel into warm afternoon light with heads up and fists clenched, a diverse group of women and men of varied builds, a blank scoreboard silhouette with no digits above the tunnel mouth, a generic stand waking up behind. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.moments.knockout_overtime.1",
+    "collection": "rugby.big_nights",
+    "rarity": "legendary",
+    "name": {
+      "pt": "Oitenta não bastaram",
+      "es": "Ochenta no alcanzaron",
+      "en": "Eighty Was Not Enough"
+    },
+    "flavor": {
+      "pt": "O relógio zerou, o placar empatou, e a história pediu mais dez.",
+      "es": "El reloj llegó a cero, el marcador empató y la historia pidió diez más.",
+      "en": "The clock hit zero, the score was level, and history asked for ten more."
+    },
+    "art_prompt": "Two stylized rugby teams in plain white and plain charcoal kits huddled in separate circles on a floodlit pitch at night, a stylized referee standing between them pointing at a wristwatch, a colossal blank clock face hanging in the sky with iridescent light rays and floating particles, H-shaped goalposts without branding on both ends. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: iridescent prismatic border with light rays and floating particles.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.moments.one_score_game.1",
+    "collection": "rugby.last_kick",
+    "rarity": "common",
+    "name": {
+      "pt": "Até o apito",
+      "es": "Hasta el silbato",
+      "en": "Down to the Whistle"
+    },
+    "flavor": {
+      "pt": "Um try de diferença e oitenta minutos de coração na mão.",
+      "es": "Un try de diferencia y ochenta minutos con el corazón en la mano.",
+      "en": "One try in it and eighty minutes with your heart in your throat."
+    },
+    "art_prompt": "Two stylized rugby players, one in a plain white kit and one in a plain charcoal kit, sprinting side by side toward H-shaped goalposts without branding, a generic oval ball tucked under the arm of the player in white, bright afternoon light, a tall blank scoreboard silhouette with no digits behind a half-empty generic stand. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.moments.one_score_game.2",
+    "collection": "rugby.last_kick",
+    "rarity": "special",
+    "name": {
+      "pt": "Fôlego curto",
+      "es": "Sin aliento",
+      "en": "Short of Breath"
+    },
+    "flavor": {
+      "pt": "Ninguém sentou nos últimos dez minutos.",
+      "es": "Nadie se sentó en los últimos diez minutos.",
+      "en": "Nobody sat down for the last ten minutes."
+    },
+    "art_prompt": "A stylized rugby fan gripping a plain white scarf with both hands in a generic stand, silhouetted fans of every age leaning forward around, a blurred pitch below with players in plain white and plain charcoal kits spread wide, dusk sky in orange and violet. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.moments.one_score_game.3",
+    "collection": "rugby.last_kick",
+    "rarity": "special",
+    "name": {
+      "pt": "Noite tensa",
+      "es": "Noche tensa",
+      "en": "Tense Night"
+    },
+    "flavor": {
+      "pt": "Cinco jogos assim e o coração já conhece o roteiro.",
+      "es": "Cinco partidos así y el corazón ya se sabe el guion.",
+      "en": "Five matches like this and the heart knows the script."
+    },
+    "art_prompt": "A night rugby match seen from behind the H-shaped goalposts without branding, a stylized woman kicker in a plain white kit lining up a generic oval ball on a kicking tee, players in plain charcoal kit standing under the posts with hands on hips, floodlights and a packed generic stand in silhouette. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.moments.one_score_game.4",
+    "collection": "rugby.last_kick",
+    "rarity": "rare",
+    "name": {
+      "pt": "Nervos de ferro",
+      "es": "Nervios de hierro",
+      "en": "Iron Nerves"
+    },
+    "flavor": {
+      "pt": "Dez jogos de um placar. Nenhum olhar desviado da tela.",
+      "es": "Diez partidos de un marcador. Ninguna mirada lejos de la pantalla.",
+      "en": "Ten one-score games. Not one glance away from the screen."
+    },
+    "art_prompt": "A stylized rugby captain in a plain white kit standing with arms spread at the center of the pitch as the final whistle blows, teammates of varied builds and genders collapsing in relief around, confetti-like paper strips drifting through violet floodlight beams, a wall of silhouetted fans behind. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.moments.one_score_game.5",
+    "collection": "rugby.last_kick",
+    "rarity": "legendary",
+    "name": {
+      "pt": "Lenda dos finais apertados",
+      "es": "Leyenda del final cerrado",
+      "en": "Legend of the Close Finish"
+    },
+    "flavor": {
+      "pt": "Quando o placar aperta, você já sabe: fica até o fim.",
+      "es": "Cuando el marcador se aprieta, ya lo sabes: te quedas hasta el final.",
+      "en": "When the score tightens, you already know: you stay to the end."
+    },
+    "art_prompt": "An epic low-angle view of a stylized rugby player in a plain white kit diving to ground a generic oval ball over the try line, a colossal blank clock face dissolving into particles above, light rays bursting from the H-shaped goalposts without branding, a sea of silhouetted fans. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: iridescent prismatic border with light rays and floating particles.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.moments.red_card_opponent.1",
+    "collection": "rugby.fortress",
+    "rarity": "rare",
+    "name": {
+      "pt": "Vermelho no bolso",
+      "es": "Roja en el bolsillo",
+      "en": "Red in the Pocket"
+    },
+    "flavor": {
+      "pt": "Catorze contra quinze, e o campo de repente ficou maior.",
+      "es": "Catorce contra quince, y la cancha de pronto se hizo más grande.",
+      "en": "Fourteen against fifteen, and the field suddenly grew."
+    },
+    "art_prompt": "A stylized referee holding up a plain red card at arm’s length at the center of a rugby pitch, a player in a plain charcoal kit walking toward the touchline with head down, players in plain white kit regrouping behind with calm faces, cool blue floodlight mood, H-shaped goalposts without branding in the distance. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.moments.second_half_surge.1",
+    "collection": "rugby.scoreboard",
+    "rarity": "rare",
+    "name": {
+      "pt": "Avalanche",
+      "es": "Avalancha",
+      "en": "Avalanche"
+    },
+    "flavor": {
+      "pt": "Depois do intervalo, só um time apareceu em campo.",
+      "es": "Después del entretiempo, solo un equipo apareció en la cancha.",
+      "en": "After the break, only one team showed up."
+    },
+    "art_prompt": "A stylized woman rugby winger in a plain white kit sprinting down the touchline with a generic oval ball, a trail of faint glowing oval shapes behind marking try after try, players in plain charcoal kit far behind, late-afternoon light, a generic stand with fans rising. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.moments.try_hat_trick.1",
+    "collection": "rugby.scoreboard",
+    "rarity": "rare",
+    "name": {
+      "pt": "Três vezes na linha",
+      "es": "Tres veces en la línea",
+      "en": "Three Times Over the Line"
+    },
+    "flavor": {
+      "pt": "Três tries, uma bola oval e um nome na história.",
+      "es": "Tres tries, una pelota ovalada y un nombre en la historia.",
+      "en": "Three tries, one oval ball, one name for the books."
+    },
+    "art_prompt": "A stylized woman rugby player in a plain white kit walking off the pitch hugging a generic oval ball under one arm, three faint violet oval-shaped glows trailing behind, teammates of varied builds applauding, warm evening light over a generic stadium with H-shaped goalposts without branding. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.moments.winning_drop_goal.1",
+    "collection": "rugby.last_kick",
+    "rarity": "legendary",
+    "name": {
+      "pt": "Chute entre as traves",
+      "es": "Patada entre los palos",
+      "en": "Between the Posts"
+    },
+    "flavor": {
+      "pt": "Caiu da mão, bateu no chão, voou. O estádio parou de respirar.",
+      "es": "Cayó de la mano, picó en el suelo, voló. El estadio dejó de respirar.",
+      "en": "Dropped from the hand, bounced, flew. The stadium stopped breathing."
+    },
+    "art_prompt": "A stylized rugby fly-half in a plain white kit frozen in the follow-through of a drop kick, a generic oval ball sailing high between H-shaped goalposts without branding, players in plain charcoal kit stretching their arms too late, night floodlights, iridescent light rays and floating particles around the ball. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: iridescent prismatic border with light rays and floating particles.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.predictions.favorite_winner.1",
+    "collection": "rugby.faithful",
+    "rarity": "common",
+    "name": {
+      "pt": "Primeiro acerto",
+      "es": "Primer acierto",
+      "en": "First Call"
+    },
+    "flavor": {
+      "pt": "Sabia que ia dar. Deu.",
+      "es": "Sabías que se iba a dar. Se dio.",
+      "en": "You knew it would happen. It did."
+    },
+    "art_prompt": "A young stylized fan with a plain white scarf smiling at a generic phone with a blank screen while a tiny match plays on a generic television behind, players in plain white kit celebrating on the screen without any readable text, warm living-room light, flat vector. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.predictions.favorite_winner.2",
+    "collection": "rugby.faithful",
+    "rarity": "special",
+    "name": {
+      "pt": "Três acertos",
+      "es": "Tres aciertos",
+      "en": "Three Calls"
+    },
+    "flavor": {
+      "pt": "Três jogos, três leituras certas do seu time.",
+      "es": "Tres partidos, tres lecturas correctas de tu equipo.",
+      "en": "Three matches, three right reads of your team."
+    },
+    "art_prompt": "A stylized fan standing in a half-full generic stand holding a plain white scarf overhead with three faint steel-blue oval glows floating above, a team in plain white kit lining up below, late afternoon light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.predictions.favorite_winner.3",
+    "collection": "rugby.faithful",
+    "rarity": "special",
+    "name": {
+      "pt": "Seis acertos",
+      "es": "Seis aciertos",
+      "en": "Six Calls"
+    },
+    "flavor": {
+      "pt": "Você conhece o elenco, o técnico e o humor do time.",
+      "es": "Conoces el plantel, al entrenador y el humor del equipo.",
+      "en": "You know the squad, the coach and the team’s mood."
+    },
+    "art_prompt": "A stylized fan seated among silhouetted friends in a generic stand at dusk pointing at the pitch with confidence, six glowing oval shapes in a gentle arc above, players in plain white kit lifting a teammate in a lineout below, orange and violet sky. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.predictions.favorite_winner.4",
+    "collection": "rugby.faithful",
+    "rarity": "rare",
+    "name": {
+      "pt": "Temporada lida",
+      "es": "Temporada leída",
+      "en": "Season Read"
+    },
+    "flavor": {
+      "pt": "Quinze acertos: uma temporada inteira sem errar o seu time.",
+      "es": "Quince aciertos: una temporada entera sin fallar con tu equipo.",
+      "en": "Fifteen calls: a whole season without misreading your team."
+    },
+    "art_prompt": "A stylized fan silhouette standing at the front of a packed generic stand at night with a violet calendar-like grid of light without numbers floating above, fifteen cells glowing, a team in plain white kit celebrating under H-shaped goalposts without branding below, faceted glow. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.predictions.favorite_winner.5",
+    "collection": "rugby.faithful",
+    "rarity": "legendary",
+    "name": {
+      "pt": "Alma do time",
+      "es": "Alma del equipo",
+      "en": "Soul of the Team"
+    },
+    "flavor": {
+      "pt": "Quarenta acertos. Você sente o resultado antes de o jogo começar.",
+      "es": "Cuarenta aciertos. Sientes el resultado antes de que empiece el partido.",
+      "en": "Forty calls. You feel the result before the match begins."
+    },
+    "art_prompt": "A stylized fan silhouette standing at the center of a generic rugby pitch at night surrounded by a ring of forty prismatic oval shapes rising like a crown, a team in plain white kit kneeling in a circle around, light rays and floating particles, floodlit stands. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: iridescent prismatic border with light rays and floating particles.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.predictions.hit_streak.1",
+    "collection": "rugby.sharp_eye",
+    "rarity": "common",
+    "name": {
+      "pt": "Dois seguidos",
+      "es": "Dos seguidas",
+      "en": "Two in a Row"
+    },
+    "flavor": {
+      "pt": "Dois acertos. A sequência começou.",
+      "es": "Dos aciertos. La racha empezó.",
+      "en": "Two calls. The streak begins."
+    },
+    "art_prompt": "Two generic oval balls glowing softly side by side on a wooden table beside a generic phone with a blank screen, a stylized fan’s hand reaching for a third, morning light, flat vector interior. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.predictions.hit_streak.2",
+    "collection": "rugby.sharp_eye",
+    "rarity": "special",
+    "name": {
+      "pt": "Cinco seguidos",
+      "es": "Cinco seguidas",
+      "en": "Five in a Row"
+    },
+    "flavor": {
+      "pt": "Cinco palpites certos e nenhum chute no escuro.",
+      "es": "Cinco pronósticos acertados y ninguno a ciegas.",
+      "en": "Five calls right and none of them a guess."
+    },
+    "art_prompt": "A row of five generic oval balls lined up on the grass of a generic rugby pitch each with a thin steel-blue glow, a stylized fan silhouette walking along the row, afternoon light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.predictions.hit_streak.3",
+    "collection": "rugby.sharp_eye",
+    "rarity": "special",
+    "name": {
+      "pt": "Dez seguidos",
+      "es": "Diez seguidas",
+      "en": "Ten in a Row"
+    },
+    "flavor": {
+      "pt": "Dez de dez. O jogo oval não tem mais mistério.",
+      "es": "Diez de diez. El juego ovalado ya no tiene misterio.",
+      "en": "Ten for ten. The oval game holds no mystery."
+    },
+    "art_prompt": "A stylized fan silhouette standing on the halfway line of a floodlit rugby pitch at dusk with ten glowing oval shapes orbiting at shoulder height, H-shaped goalposts without branding at both ends, steel-blue sky. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.predictions.hit_streak.4",
+    "collection": "rugby.sharp_eye",
+    "rarity": "rare",
+    "name": {
+      "pt": "Leitor do jogo",
+      "es": "Lector del juego",
+      "en": "Game Reader"
+    },
+    "flavor": {
+      "pt": "Vinte e cinco seguidos. Você vê o resultado antes do pontapé inicial.",
+      "es": "Veinticinco seguidas. Ves el resultado antes del puntapié inicial.",
+      "en": "Twenty-five straight. You see the result before kick-off."
+    },
+    "art_prompt": "A stylized fan silhouette seated at the top of a generic stand at night with a long violet chain of twenty-five linked oval shapes arcing over the pitch like a comet trail, faceted glow, floodlights below. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.predictions.hit_streak.5",
+    "collection": "rugby.sharp_eye",
+    "rarity": "legendary",
+    "name": {
+      "pt": "Lenda certeira",
+      "es": "Leyenda certera",
+      "en": "Unerring Legend"
+    },
+    "flavor": {
+      "pt": "Cinquenta sem errar. Isso é conhecimento puro do jogo.",
+      "es": "Cincuenta sin fallar. Eso es puro conocimiento del juego.",
+      "en": "Fifty without a miss. That is pure knowledge of the game."
+    },
+    "art_prompt": "A stylized fan silhouette standing inside a ring of fifty prismatic oval shapes spinning around like a halo above a floodlit rugby pitch, light rays and floating particles, deep night sky. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: iridescent prismatic border with light rays and floating particles.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.predictions.knockout_winner.1",
+    "collection": "rugby.sharp_eye",
+    "rarity": "common",
+    "name": {
+      "pt": "Primeira chave",
+      "es": "Primera llave",
+      "en": "First Bracket"
+    },
+    "flavor": {
+      "pt": "Na hora de não ter volta, você escolheu o lado certo.",
+      "es": "Cuando no había vuelta atrás, elegiste el lado correcto.",
+      "en": "When there was no way back, you picked the right side."
+    },
+    "art_prompt": "A stylized fan holding a generic phone with a blank screen in front of a single glowing bracket line drawn in light, a tiny generic oval ball resting at the end of the line, morning light, flat vector interior with a generic rugby pitch visible through a window. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.predictions.knockout_winner.2",
+    "collection": "rugby.sharp_eye",
+    "rarity": "special",
+    "name": {
+      "pt": "Duas chaves",
+      "es": "Dos llaves",
+      "en": "Two Brackets"
+    },
+    "flavor": {
+      "pt": "Mata-mata é outro jogo. Você leu os dois.",
+      "es": "La eliminación directa es otro juego. Leíste los dos.",
+      "en": "Knockout rugby is a different game. You read both."
+    },
+    "art_prompt": "Two glowing bracket lines converging toward a generic oval ball on a dark steel-blue background, a stylized fan silhouette pointing at the ball with a confident posture, thin inner light lines, flat vector. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.predictions.knockout_winner.3",
+    "collection": "rugby.sharp_eye",
+    "rarity": "special",
+    "name": {
+      "pt": "Chave completa",
+      "es": "Llave completa",
+      "en": "Full Bracket"
+    },
+    "flavor": {
+      "pt": "Quartas, semi, final: você viu o caminho antes de todo mundo.",
+      "es": "Cuartos, semi, final: viste el camino antes que todos.",
+      "en": "Quarters, semi, final: you saw the path before everyone."
+    },
+    "art_prompt": "A full tournament bracket drawn in soft light lines without text floating above a generic rugby pitch at dusk, four glowing nodes lit up along one path, a stylized fan silhouette standing at the center circle looking up, steel-blue and orange sky. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.predictions.knockout_winner.4",
+    "collection": "rugby.sharp_eye",
+    "rarity": "rare",
+    "name": {
+      "pt": "Oráculo do mata-mata",
+      "es": "Oráculo de la eliminatoria",
+      "en": "Knockout Oracle"
+    },
+    "flavor": {
+      "pt": "Oito decisões, oito acertos. O mata-mata não tem segredo para você.",
+      "es": "Ocho definiciones, ocho aciertos. La eliminatoria no tiene secretos para ti.",
+      "en": "Eight knockouts, eight calls. The bracket holds no secret for you."
+    },
+    "art_prompt": "A stylized fan silhouette seated on a high generic stand at night with a bracket of violet light lines spreading across the sky above a floodlit rugby pitch, eight nodes glowing bright with faceted edges, H-shaped goalposts without branding below. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.predictions.knockout_winner.5",
+    "collection": "rugby.sharp_eye",
+    "rarity": "legendary",
+    "name": {
+      "pt": "Lenda das decisões",
+      "es": "Leyenda de las definiciones",
+      "en": "Legend of the Deciders"
+    },
+    "flavor": {
+      "pt": "Vinte mata-matas lidos certo. Quem decide, você já sabia.",
+      "es": "Veinte eliminatorias leídas bien. Quién define, ya lo sabías.",
+      "en": "Twenty knockouts called right. Who decides, you already knew."
+    },
+    "art_prompt": "A stylized fan silhouette standing on a floating generic oval ball above a prismatic bracket of light with twenty glowing nodes, light rays and floating particles, a tiny floodlit rugby pitch far below, deep night sky. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: iridescent prismatic border with light rays and floating particles.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.predictions.round_streak.1",
+    "collection": "rugby.faithful",
+    "rarity": "common",
+    "name": {
+      "pt": "Duas rodadas",
+      "es": "Dos fechas",
+      "en": "Two Rounds"
+    },
+    "flavor": {
+      "pt": "Fim de semana sim, fim de semana também.",
+      "es": "Un fin de semana sí, el otro también.",
+      "en": "This weekend, and the next one too."
+    },
+    "art_prompt": "A stylized wall calendar without numbers with two consecutive pages marked by small glowing oval ball shapes, a stylized fan beside it holding a generic phone with a blank screen, morning light, flat vector interior. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.predictions.round_streak.2",
+    "collection": "rugby.faithful",
+    "rarity": "special",
+    "name": {
+      "pt": "Cinco rodadas",
+      "es": "Cinco fechas",
+      "en": "Five Rounds"
+    },
+    "flavor": {
+      "pt": "Cinco semanas seguidas com o palpite no lugar.",
+      "es": "Cinco semanas seguidas con el pronóstico en su sitio.",
+      "en": "Five straight weeks with the call in place."
+    },
+    "art_prompt": "Five stylized calendar pages drifting in a row across a steel-blue background each carrying a glowing oval ball shape, a stylized fan silhouette walking beneath them, thin inner light lines, flat vector. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.predictions.round_streak.3",
+    "collection": "rugby.faithful",
+    "rarity": "special",
+    "name": {
+      "pt": "Dez rodadas",
+      "es": "Diez fechas",
+      "en": "Ten Rounds"
+    },
+    "flavor": {
+      "pt": "Metade da liga e nenhum fim de semana esquecido.",
+      "es": "Media liga y ningún fin de semana olvidado.",
+      "en": "Half the league and not one weekend forgotten."
+    },
+    "art_prompt": "A stylized fan silhouette standing on a generic rugby pitch at dusk with a chain of ten glowing calendar pages arcing overhead like a bridge, H-shaped goalposts without branding at both ends, orange and violet sky. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.predictions.round_streak.4",
+    "collection": "rugby.faithful",
+    "rarity": "rare",
+    "name": {
+      "pt": "Liga inteira",
+      "es": "Liga completa",
+      "en": "Whole League"
+    },
+    "flavor": {
+      "pt": "Vinte rodadas seguidas. A liga passou e você não piscou.",
+      "es": "Veinte fechas seguidas. La liga pasó y no parpadeaste.",
+      "en": "Twenty straight rounds. The league went by and you never blinked."
+    },
+    "art_prompt": "A ring of twenty violet calendar pages glowing above a floodlit generic rugby pitch at night, a stylized fan silhouette standing at the center circle looking up, faceted glow, silhouetted fans in the stands. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.predictions.round_streak.5",
+    "collection": "rugby.faithful",
+    "rarity": "historic",
+    "name": {
+      "pt": "Duas ligas sem falhar",
+      "es": "Dos ligas sin fallar",
+      "en": "Two Leagues Unbroken"
+    },
+    "flavor": {
+      "pt": "Quarenta rodadas, uma só rotina: palpitar antes do apito.",
+      "es": "Cuarenta fechas, una sola rutina: pronosticar antes del silbato.",
+      "en": "Forty rounds, one routine: call it before the whistle."
+    },
+    "art_prompt": "A stylized fan silhouette standing on a sundial-like generic rugby pitch where two full rings of prismatic calendar pages orbit overhead with forty glowing marks, light rays and floating particles, deep night sky. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.results.away_win.1",
+    "collection": "rugby.fortress",
+    "rarity": "special",
+    "name": {
+      "pt": "Silêncio na casa alheia",
+      "es": "Silencio en casa ajena",
+      "en": "Silence in Their House"
+    },
+    "flavor": {
+      "pt": "A arquibancada deles ficou muda. A nossa, longe, gritou por todos.",
+      "es": "Su tribuna quedó muda. La nuestra, lejos, gritó por todos.",
+      "en": "Their stand went quiet. Ours, far away, roared for everyone."
+    },
+    "art_prompt": "A small block of stylized fans with plain white scarves celebrating in one corner of a wide generic stand full of silent silhouetted home fans, players in plain white kit waving toward them from the pitch, players in plain charcoal kit walking off, steel-blue late-afternoon light, H-shaped goalposts without branding. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.results.big_win.1",
+    "collection": "rugby.scoreboard",
+    "rarity": "rare",
+    "name": {
+      "pt": "Chuva de tries",
+      "es": "Lluvia de tries",
+      "en": "Try Shower"
+    },
+    "flavor": {
+      "pt": "Perdeu a conta dos tries, não do sorriso.",
+      "es": "Perdió la cuenta de los tries, no de la sonrisa.",
+      "en": "Lost count of the tries, never of the smile."
+    },
+    "art_prompt": "A stylized rugby team in plain white kit celebrating in a loose circle under H-shaped goalposts without branding, five generic oval balls resting in the in-goal area behind them, players in plain charcoal kit sitting on the grass, bright festive daylight, a cheering generic stand. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.results.draw.1",
+    "collection": "rugby.last_kick",
+    "rarity": "historic",
+    "name": {
+      "pt": "Nem um ponto a mais",
+      "es": "Ni un punto de más",
+      "en": "Not One Point More"
+    },
+    "flavor": {
+      "pt": "Oitenta minutos e nenhum dos dois cedeu. Raro assim.",
+      "es": "Ochenta minutos y ninguno de los dos cedió. Así de raro.",
+      "en": "Eighty minutes and neither side gave an inch. That rare."
+    },
+    "art_prompt": "Two stylized rugby captains, one in a plain white kit and one in a plain charcoal kit, shaking hands at the center of the pitch under warm evening light, both teams of diverse builds standing in two calm lines behind them, a blank scoreboard silhouette showing two identical empty panels, amber light with an engraved laurel-like glow around the center circle. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.results.final_win.1",
+    "collection": "rugby.big_nights",
+    "rarity": "historic",
+    "name": {
+      "pt": "Mãos no troféu",
+      "es": "Manos en el trofeo",
+      "en": "Hands on the Trophy"
+    },
+    "flavor": {
+      "pt": "O peso do troféu é o peso de uma temporada inteira de contato.",
+      "es": "El peso del trofeo es el peso de toda una temporada de contacto.",
+      "en": "The weight of the trophy is the weight of a whole bruising season."
+    },
+    "art_prompt": "A stylized woman rugby captain in a plain white kit lifting a plain generic trophy without engravings on a podium, teammates of diverse builds and genders with arms raised around, a generic oval ball at their feet, golden confetti and amber light with an engraved laurel-like glow, a packed generic stand in silhouette. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.results.narrow_win.1",
+    "collection": "rugby.last_kick",
+    "rarity": "rare",
+    "name": {
+      "pt": "Três pontos de respiro",
+      "es": "Tres puntos de aire",
+      "en": "Three Points of Air"
+    },
+    "flavor": {
+      "pt": "Um penal de diferença e uma eternidade de minutos finais.",
+      "es": "Un penal de diferencia y una eternidad de minutos finales.",
+      "en": "One penalty in it and an eternity of final minutes."
+    },
+    "art_prompt": "A stylized rugby kicker in a plain white kit watching a generic oval ball curl between H-shaped goalposts without branding, teammates of varied builds, women and men, frozen mid-cheer, players in plain charcoal kit with hands on heads, deep violet dusk sky with a faint glow, a blank scoreboard silhouette with no digits. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.results.points_festival.1",
+    "collection": "rugby.scoreboard",
+    "rarity": "rare",
+    "name": {
+      "pt": "Placar lotado",
+      "es": "Marcador lleno",
+      "en": "Crowded Scoreboard"
+    },
+    "flavor": {
+      "pt": "Defesa? Hoje ninguém lembrou dela.",
+      "es": "¿Defensa? Hoy nadie se acordó de ella.",
+      "en": "Defense? Nobody remembered it today."
+    },
+    "art_prompt": "A tall blank scoreboard silhouette with two overflowing empty panels glowing violet above a rugby pitch, stylized players in plain white and plain charcoal kits running in every direction with a generic oval ball in the air, a packed generic stand in the background, bright evening floodlights. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "rugby.results.shutout.1",
+    "collection": "rugby.fortress",
+    "rarity": "historic",
+    "name": {
+      "pt": "Muralha oval",
+      "es": "Muralla ovalada",
+      "en": "Oval Wall"
+    },
+    "flavor": {
+      "pt": "Zero no placar deles. Oitenta minutos de parede.",
+      "es": "Cero en su marcador. Ochenta minutos de pared.",
+      "en": "Zero on their side. Eighty minutes of wall."
+    },
+    "art_prompt": "A line of stylized women rugby defenders in plain white kit of varied builds standing shoulder to shoulder across their own try line like a wall, a generic oval ball resting untouched on the grass in front, players in plain charcoal kit walking away, warm amber evening light with an engraved laurel-like glow along the line. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  }
+]

@@ -1,0 +1,1681 @@
+[
+  {
+    "id": "rugby.explorer.competitions",
+    "sport": "rugby",
+    "category": "participation",
+    "family": "explorer",
+    "collection": "rugby.world_tour",
+    "rule": {
+      "input": "prediction",
+      "where": {
+        "sport": [
+          "rugby"
+        ]
+      },
+      "count": {
+        "mode": "distinct",
+        "key": "competition"
+      }
+    },
+    "requires_data": [
+      "fan.prediction",
+      "event.sport",
+      "event.competition.id"
+    ],
+    "stepped": true,
+    "seasonal": false,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "a plataforma cobre 41 competições de rugby; um torcedor assíduo palpita em 8 a 15 delas por temporada (ligas regionais, torneios de seleções, sevens, Copa do Mundo) e 35 é alcance de 2 ou 3 temporadas (fonte: cobertura da plataforma, seção 6 da missão)",
+    "name": {
+      "pt": "Mapa das competições",
+      "es": "Mapa de torneos",
+      "en": "Competition Map"
+    },
+    "description": {
+      "pt": "Dê Palpites em competições de rugby diferentes.",
+      "es": "Haz pronósticos en torneos de rugby distintos.",
+      "en": "Make predictions across different rugby competitions."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 2,
+        "bonus_points": 0,
+        "card_key": "rugby.explorer.competitions.1"
+      },
+      {
+        "step": 2,
+        "threshold": 4,
+        "bonus_points": 0,
+        "card_key": "rugby.explorer.competitions.2"
+      },
+      {
+        "step": 3,
+        "threshold": 8,
+        "bonus_points": 0,
+        "card_key": "rugby.explorer.competitions.3"
+      },
+      {
+        "step": 4,
+        "threshold": 16,
+        "bonus_points": 0,
+        "card_key": "rugby.explorer.competitions.4"
+      },
+      {
+        "step": 5,
+        "threshold": 35,
+        "bonus_points": 0,
+        "card_key": "rugby.explorer.competitions.5"
+      }
+    ]
+  },
+  {
+    "id": "rugby.explorer.months",
+    "sport": "rugby",
+    "category": "participation",
+    "family": "explorer",
+    "collection": "rugby.dawn",
+    "rule": {
+      "input": "participation",
+      "action": "watched",
+      "where": {
+        "sport": [
+          "rugby"
+        ]
+      },
+      "count": {
+        "mode": "distinct",
+        "key": "month"
+      }
+    },
+    "requires_data": [
+      "fan.participation",
+      "fan.presence",
+      "event.sport",
+      "event.starts_at",
+      "program.time_zone"
+    ],
+    "stepped": true,
+    "seasonal": false,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "o rugby tem jogo em todos os meses do ano quando se somam os hemisférios e o sevens: ligas da Oceania de fevereiro a junho, torneios de seleções em fevereiro e março, julho, agosto a outubro e novembro, ligas europeias de setembro a junho, sevens de dezembro a junho; Platina = 12 meses, Lendário = 2 anos (fontes do calendário em pesquisa/rugby.md)",
+    "name": {
+      "pt": "Ano inteiro oval",
+      "es": "Todo el año ovalado",
+      "en": "Oval All Year"
+    },
+    "description": {
+      "pt": "Assista a rugby em meses diferentes, sem deixar o calendário esfriar.",
+      "es": "Mira rugby en meses distintos, sin dejar que el calendario se enfríe.",
+      "en": "Watch rugby in different months, never letting the calendar go cold."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 0,
+        "card_key": "rugby.explorer.months.1"
+      },
+      {
+        "step": 2,
+        "threshold": 3,
+        "bonus_points": 0,
+        "card_key": "rugby.explorer.months.2"
+      },
+      {
+        "step": 3,
+        "threshold": 6,
+        "bonus_points": 0,
+        "card_key": "rugby.explorer.months.3"
+      },
+      {
+        "step": 4,
+        "threshold": 12,
+        "bonus_points": 0,
+        "card_key": "rugby.explorer.months.4"
+      },
+      {
+        "step": 5,
+        "threshold": 24,
+        "bonus_points": 0,
+        "card_key": "rugby.explorer.months.5"
+      }
+    ]
+  },
+  {
+    "id": "rugby.explorer.teams",
+    "sport": "rugby",
+    "category": "participation",
+    "family": "explorer",
+    "collection": "rugby.world_tour",
+    "rule": {
+      "input": "participation",
+      "action": "watched",
+      "where": {
+        "sport": [
+          "rugby"
+        ]
+      },
+      "count": {
+        "mode": "distinct",
+        "key": "team"
+      }
+    },
+    "requires_data": [
+      "fan.participation",
+      "fan.presence",
+      "event.sport",
+      "event.participants"
+    ],
+    "stepped": true,
+    "seasonal": false,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria sobre o calendário: os 20 jogos do time do torcedor já mostram 10 a 14 adversários diferentes; somando torneios de seleções e sevens, um torcedor assíduo vê cerca de 30 times por temporada e 75 em 2 ou 3 (fontes do calendário em pesquisa/rugby.md)",
+    "name": {
+      "pt": "Todos os escudos",
+      "es": "Todos los equipos",
+      "en": "Every Team"
+    },
+    "description": {
+      "pt": "Assista a times e seleções de rugby diferentes.",
+      "es": "Mira equipos y selecciones de rugby distintos.",
+      "en": "Watch different rugby teams and national sides."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 2,
+        "bonus_points": 0,
+        "card_key": "rugby.explorer.teams.1"
+      },
+      {
+        "step": 2,
+        "threshold": 5,
+        "bonus_points": 0,
+        "card_key": "rugby.explorer.teams.2"
+      },
+      {
+        "step": 3,
+        "threshold": 12,
+        "bonus_points": 0,
+        "card_key": "rugby.explorer.teams.3"
+      },
+      {
+        "step": 4,
+        "threshold": 30,
+        "bonus_points": 0,
+        "card_key": "rugby.explorer.teams.4"
+      },
+      {
+        "step": 5,
+        "threshold": 75,
+        "bonus_points": 0,
+        "card_key": "rugby.explorer.teams.5"
+      }
+    ]
+  },
+  {
+    "id": "rugby.loyalty.dawn_games",
+    "sport": "rugby",
+    "category": "participation",
+    "family": "loyalty",
+    "collection": "rugby.dawn",
+    "rule": {
+      "input": "participation",
+      "action": "watched",
+      "where": {
+        "sport": [
+          "rugby"
+        ],
+        "local_hour": {
+          "from": "02:00",
+          "to": "08:00"
+        }
+      }
+    },
+    "requires_data": [
+      "fan.participation",
+      "fan.presence",
+      "event.sport",
+      "event.starts_at",
+      "program.time_zone"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "as ligas da Oceania jogam às 19h05 e 21h05 locais, das 3h às 7h na Argentina e no Brasil; uma temporada do Super Rugby Pacific tem 14 jogos por time em 16 rodadas, e o torcedor sul-americano que acompanha um time vê 10 a 15 jogos de madrugada por ano (fonte: africa.espn.com/rugby/story/_/id/43525368/super-rugby-pacific-2025-everything-need-know-format-teams-law-variations)",
+    "name": {
+      "pt": "Madrugada oval",
+      "es": "Madrugada ovalada",
+      "en": "Oval Dawn"
+    },
+    "description": {
+      "pt": "Assista a jogos de rugby que começam de madrugada no seu horário.",
+      "es": "Mira partidos de rugby que empiezan de madrugada en tu horario.",
+      "en": "Watch rugby matches that kick off in the small hours of your local time."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 0,
+        "card_key": "rugby.loyalty.dawn_games.1"
+      },
+      {
+        "step": 2,
+        "threshold": 3,
+        "bonus_points": 0,
+        "card_key": "rugby.loyalty.dawn_games.2"
+      },
+      {
+        "step": 3,
+        "threshold": 7,
+        "bonus_points": 0,
+        "card_key": "rugby.loyalty.dawn_games.3"
+      },
+      {
+        "step": 4,
+        "threshold": 15,
+        "bonus_points": 0,
+        "card_key": "rugby.loyalty.dawn_games.4"
+      },
+      {
+        "step": 5,
+        "threshold": 40,
+        "bonus_points": 0,
+        "card_key": "rugby.loyalty.dawn_games.5"
+      }
+    ]
+  },
+  {
+    "id": "rugby.loyalty.favorite_games",
+    "sport": "rugby",
+    "category": "participation",
+    "family": "loyalty",
+    "collection": "rugby.faithful",
+    "rule": {
+      "input": "participation",
+      "action": "watched",
+      "where": {
+        "sport": [
+          "rugby"
+        ],
+        "favorite_playing": true
+      }
+    },
+    "requires_data": [
+      "fan.participation",
+      "fan.presence",
+      "fan.favorite_team_id",
+      "event.participants",
+      "event.sport"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "uma liga regional dá 14 a 18 jogos por time mais o mata-mata (16 a 21), o Top 14 chega a 29, e uma seleção de primeiro escalão joga 10 a 14 testes por ano; Platina = 20, a temporada de um torcedor de clube ou de seleção (fontes do calendário em pesquisa/rugby.md)",
+    "name": {
+      "pt": "Fiel ao time",
+      "es": "Fiel al equipo",
+      "en": "True to the Team"
+    },
+    "description": {
+      "pt": "Assista aos jogos do seu time do coração.",
+      "es": "Mira los partidos de tu equipo del corazón.",
+      "en": "Watch your favorite team’s matches."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 0,
+        "card_key": "rugby.loyalty.favorite_games.1"
+      },
+      {
+        "step": 2,
+        "threshold": 3,
+        "bonus_points": 0,
+        "card_key": "rugby.loyalty.favorite_games.2"
+      },
+      {
+        "step": 3,
+        "threshold": 8,
+        "bonus_points": 0,
+        "card_key": "rugby.loyalty.favorite_games.3"
+      },
+      {
+        "step": 4,
+        "threshold": 20,
+        "bonus_points": 0,
+        "card_key": "rugby.loyalty.favorite_games.4"
+      },
+      {
+        "step": 5,
+        "threshold": 50,
+        "bonus_points": 0,
+        "card_key": "rugby.loyalty.favorite_games.5"
+      }
+    ]
+  },
+  {
+    "id": "rugby.loyalty.favorite_streak",
+    "sport": "rugby",
+    "category": "participation",
+    "family": "loyalty",
+    "collection": "rugby.faithful",
+    "rule": {
+      "input": "participation",
+      "action": "watched",
+      "where": {
+        "sport": [
+          "rugby"
+        ],
+        "favorite_playing": true
+      },
+      "count": {
+        "mode": "streak",
+        "unit": "game"
+      }
+    },
+    "requires_data": [
+      "fan.participation",
+      "fan.presence",
+      "fan.favorite_team_id",
+      "event.participants",
+      "event.sport"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria: um torcedor assíduo assiste a 70 a 80% dos jogos do time; 10 seguidos é meia temporada sem falhar e 20 é uma temporada inteira (base: 20 jogos por time, fontes do calendário em pesquisa/rugby.md)",
+    "name": {
+      "pt": "Sem perder um jogo",
+      "es": "Sin perderse un partido",
+      "en": "Never Miss a Match"
+    },
+    "description": {
+      "pt": "Assista a jogos seguidos do seu time, sem pular nenhum.",
+      "es": "Mira partidos seguidos de tu equipo, sin saltarte ninguno.",
+      "en": "Watch your team’s matches back to back, without skipping one."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 2,
+        "bonus_points": 0,
+        "card_key": "rugby.loyalty.favorite_streak.1"
+      },
+      {
+        "step": 2,
+        "threshold": 5,
+        "bonus_points": 0,
+        "card_key": "rugby.loyalty.favorite_streak.2"
+      },
+      {
+        "step": 3,
+        "threshold": 10,
+        "bonus_points": 0,
+        "card_key": "rugby.loyalty.favorite_streak.3"
+      },
+      {
+        "step": 4,
+        "threshold": 20,
+        "bonus_points": 0,
+        "card_key": "rugby.loyalty.favorite_streak.4"
+      },
+      {
+        "step": 5,
+        "threshold": 40,
+        "bonus_points": 0,
+        "card_key": "rugby.loyalty.favorite_streak.5"
+      }
+    ]
+  },
+  {
+    "id": "rugby.loyalty.knockout_watched",
+    "sport": "rugby",
+    "category": "participation",
+    "family": "loyalty",
+    "collection": "rugby.big_nights",
+    "rule": {
+      "input": "participation",
+      "action": "watched",
+      "where": {
+        "sport": [
+          "rugby"
+        ],
+        "stage": [
+          "knockout"
+        ]
+      }
+    },
+    "requires_data": [
+      "fan.participation",
+      "fan.presence",
+      "event.sport",
+      "event.stage.kind"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria sobre o calendário: 10 a 15 jogos de mata-mata por temporada entre playoffs de liga (2 a 3 por liga), semifinais e finais de etapa de sevens (2 por etapa) e, em ano de Copa do Mundo, oitavas a final (8) (fontes do calendário em pesquisa/rugby.md)",
+    "name": {
+      "pt": "Noite de mata-mata",
+      "es": "Noche de eliminatoria",
+      "en": "Knockout Night"
+    },
+    "description": {
+      "pt": "Assista a jogos de mata-mata de qualquer competição de rugby.",
+      "es": "Mira partidos de eliminación directa de cualquier torneo de rugby.",
+      "en": "Watch knockout matches from any rugby competition."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 0,
+        "card_key": "rugby.loyalty.knockout_watched.1"
+      },
+      {
+        "step": 2,
+        "threshold": 2,
+        "bonus_points": 0,
+        "card_key": "rugby.loyalty.knockout_watched.2"
+      },
+      {
+        "step": 3,
+        "threshold": 5,
+        "bonus_points": 0,
+        "card_key": "rugby.loyalty.knockout_watched.3"
+      },
+      {
+        "step": 4,
+        "threshold": 10,
+        "bonus_points": 0,
+        "card_key": "rugby.loyalty.knockout_watched.4"
+      },
+      {
+        "step": 5,
+        "threshold": 25,
+        "bonus_points": 0,
+        "card_key": "rugby.loyalty.knockout_watched.5"
+      }
+    ]
+  },
+  {
+    "id": "rugby.loyalty.sevens_weekend",
+    "sport": "rugby",
+    "category": "participation",
+    "family": "loyalty",
+    "collection": "rugby.dawn",
+    "rule": {
+      "input": "participation",
+      "action": "watched",
+      "where": {
+        "sport": [
+          "rugby"
+        ],
+        "weekday": [
+          "sat",
+          "sun"
+        ]
+      }
+    },
+    "requires_data": [
+      "fan.participation",
+      "fan.presence",
+      "event.sport",
+      "event.starts_at",
+      "program.time_zone",
+      "proposed.event.competition.format"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": false,
+    "inactive_reason": "nada no contrato diz que um jogo é de sevens: falta a marca de formato da competição (proposed.event.competition.format = sevens) e um filtro where.format na linguagem. A regra acima é só a aproximação (jogos de rugby de fim de semana) e não pode ser ligada assim.",
+    "real_world_frequency": "série mundial de sevens 2025-26: 8 seleções, 6 etapas de 2 dias, dois grupos de 4, 5 jogos por seleção por etapa, 30 por série; Olimpíadas: 12 seleções, 3 dias, 5 a 6 jogos por seleção; jogos de 14 minutos (fonte: rugby.com.au/news/svns-world-series-everything-you-need-to-know-about-the-newlook-format-20251126; world.rugby/news/946163)",
+    "name": {
+      "pt": "Fim de semana de sevens",
+      "es": "Fin de semana de sevens",
+      "en": "Sevens Weekend"
+    },
+    "description": {
+      "pt": "Assista a jogos de rugby sevens, os de catorze minutos que lotam um fim de semana.",
+      "es": "Mira partidos de rugby sevens, los de catorce minutos que llenan un fin de semana.",
+      "en": "Watch rugby sevens matches, the fourteen-minute games that fill a whole weekend."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 0,
+        "card_key": "rugby.loyalty.sevens_weekend.1"
+      },
+      {
+        "step": 2,
+        "threshold": 5,
+        "bonus_points": 0,
+        "card_key": "rugby.loyalty.sevens_weekend.2"
+      },
+      {
+        "step": 3,
+        "threshold": 12,
+        "bonus_points": 0,
+        "card_key": "rugby.loyalty.sevens_weekend.3"
+      },
+      {
+        "step": 4,
+        "threshold": 30,
+        "bonus_points": 0,
+        "card_key": "rugby.loyalty.sevens_weekend.4"
+      },
+      {
+        "step": 5,
+        "threshold": 60,
+        "bonus_points": 0,
+        "card_key": "rugby.loyalty.sevens_weekend.5"
+      }
+    ]
+  },
+  {
+    "id": "rugby.moments.after_the_siren",
+    "sport": "rugby",
+    "category": "moment",
+    "family": "moments",
+    "collection": "rugby.last_kick",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win",
+        "margin_max": 7
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "proposed.event.play_by_play",
+      "event.status=finished",
+      "event.score",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": false,
+    "inactive_reason": "sem minuto de cada pontuação não dá para saber que o try saiu depois dos 80 (proposed.event.play_by_play com type=try e minute). A regra acima é só a aproximação (vitória do seu time por um placar) e não pode ser ligada assim.",
+    "real_world_frequency": "26,4% dos jogos do Super Rugby Pacific 2025 tiveram troca de liderança nos 10 minutos finais; em 2025 a seleção australiana venceu duas vezes com try depois da sirene (26 x 24 e 21 x 18); estimativa própria: 3 a 5% dos jogos, 0,5 a 1 por temporada para o time do torcedor (fonte: rugby.com.au/news/1001-the-numbers-that-mattered-in-rugby-in-2025-20251210)",
+    "name": {
+      "pt": "Try depois da sirene",
+      "es": "Try después de la sirena",
+      "en": "Try After the Siren"
+    },
+    "description": {
+      "pt": "Esteja assistindo quando seu time vencer com um try marcado depois do tempo regulamentar.",
+      "es": "Mira en vivo cuando tu equipo gane con un try marcado después del tiempo reglamentario.",
+      "en": "Be watching when your team wins with a try scored after the clock has run out."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 60,
+        "card_key": "rugby.moments.after_the_siren.1"
+      }
+    ]
+  },
+  {
+    "id": "rugby.moments.big_comeback",
+    "sport": "rugby",
+    "category": "moment",
+    "family": "moments",
+    "collection": "rugby.comebacks",
+    "rule": {
+      "input": "moment",
+      "fact": "score.comeback",
+      "params": {
+        "team": "favorite",
+        "trailing_by_min": 14,
+        "at": "any"
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": false,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "time que perde o intervalo por 15 ou mais vence 1 em 50 jogos; a maior virada da história da Copa do Mundo foi de 0 x 15 no intervalo para 17 x 15 (2015); para o time do torcedor, 0,1 a 0,25 por temporada (fonte: framesports.ai/blog/trailing-at-half-time-comebacks/; world.rugby/news/583702)",
+    "name": {
+      "pt": "Virada de duas conversões",
+      "es": "Remontada de dos conversiones",
+      "en": "Two-Converted-Tries Comeback"
+    },
+    "description": {
+      "pt": "Assista ao jogo em que seu time perde o primeiro tempo por catorze ou mais e termina vencendo.",
+      "es": "Mira el partido en que tu equipo pierde el primer tiempo por catorce o más y termina ganando.",
+      "en": "Watch the match your team trails by fourteen or more at half time and goes on to win."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 120,
+        "card_key": "rugby.moments.big_comeback.1"
+      }
+    ]
+  },
+  {
+    "id": "rugby.moments.halftime_comeback",
+    "sport": "rugby",
+    "category": "moment",
+    "family": "moments",
+    "collection": "rugby.comebacks",
+    "rule": {
+      "input": "moment",
+      "fact": "score.comeback",
+      "params": {
+        "team": "favorite",
+        "trailing_by_min": 7,
+        "at": "any"
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "o time que perde o intervalo vence 1 em 6 jogos; entre 8 e 14 pontos de desvantagem, menos de 1 em 5; o time do torcedor perde o intervalo por 7 ou mais em cerca de 30% dos jogos e vira 15 a 18% dessas vezes: cerca de 1 por temporada (fonte: framesports.ai/blog/trailing-at-half-time-comebacks/)",
+    "name": {
+      "pt": "Virada no intervalo",
+      "es": "Remontada del entretiempo",
+      "en": "Half-Time Turnaround"
+    },
+    "description": {
+      "pt": "Assista ao jogo em que seu time perde o primeiro tempo por sete ou mais e termina vencendo.",
+      "es": "Mira el partido en que tu equipo pierde el primer tiempo por siete o más y termina ganando.",
+      "en": "Watch the match your team trails by seven or more at half time and goes on to win."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 60,
+        "card_key": "rugby.moments.halftime_comeback.1"
+      }
+    ]
+  },
+  {
+    "id": "rugby.moments.knockout_overtime",
+    "sport": "rugby",
+    "category": "moment",
+    "family": "moments",
+    "collection": "rugby.big_nights",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "any",
+        "overtime": true
+      },
+      "presence": "game",
+      "where": {
+        "stage": [
+          "knockout"
+        ]
+      }
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.score.periods",
+      "event.stage.kind",
+      "fan.presence"
+    ],
+    "stepped": false,
+    "seasonal": false,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "em 38 anos de Copa do Mundo masculina só duas partidas de mata-mata foram à prorrogação (as finais de 1995 e 2003); nos playoffs das ligas, cerca de uma por década; para quem assiste a 5 a 10 mata-matas por temporada, menos de 0,1 (fonte: rugbyworld.com/tournaments/rugby-world-cup/happens-theres-draw-rugby-world-cup-102954)",
+    "name": {
+      "pt": "Prorrogação na decisão",
+      "es": "Suplementario en la definición",
+      "en": "Knockout Extra Time"
+    },
+    "description": {
+      "pt": "Assista a um jogo de mata-mata que só se decide na prorrogação.",
+      "es": "Mira un partido de eliminación directa que solo se define en el tiempo suplementario.",
+      "en": "Watch a knockout match that is only settled in extra time."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 200,
+        "card_key": "rugby.moments.knockout_overtime.1"
+      }
+    ]
+  },
+  {
+    "id": "rugby.moments.one_score_game",
+    "sport": "rugby",
+    "category": "moment",
+    "family": "moments",
+    "collection": "rugby.last_kick",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "margin_max": 7
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "43,1% dos jogos do Super Rugby Pacific 2025 foram decididos por 7 pontos ou menos, com troca de liderança nos 10 minutos finais em 26,4%; para o time do torcedor, 8 a 9 por temporada de 20 jogos (fonte: rugby.com.au/news/super-rugby-pacific-reaches-new-heights-in-2025-202563)",
+    "name": {
+      "pt": "Jogo de um placar",
+      "es": "Partido de un marcador",
+      "en": "One-Score Game"
+    },
+    "description": {
+      "pt": "Assista aos jogos do seu time decididos por sete pontos ou menos, com tudo em aberto até o fim.",
+      "es": "Mira los partidos de tu equipo decididos por siete puntos o menos, con todo abierto hasta el final.",
+      "en": "Watch your team’s matches decided by seven points or fewer, wide open until the end."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 10,
+        "card_key": "rugby.moments.one_score_game.1"
+      },
+      {
+        "step": 2,
+        "threshold": 2,
+        "bonus_points": 20,
+        "card_key": "rugby.moments.one_score_game.2"
+      },
+      {
+        "step": 3,
+        "threshold": 5,
+        "bonus_points": 40,
+        "card_key": "rugby.moments.one_score_game.3"
+      },
+      {
+        "step": 4,
+        "threshold": 10,
+        "bonus_points": 75,
+        "card_key": "rugby.moments.one_score_game.4"
+      },
+      {
+        "step": 5,
+        "threshold": 25,
+        "bonus_points": 150,
+        "card_key": "rugby.moments.one_score_game.5"
+      }
+    ]
+  },
+  {
+    "id": "rugby.moments.red_card_opponent",
+    "sport": "rugby",
+    "category": "moment",
+    "family": "moments",
+    "collection": "rugby.fortress",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win"
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "proposed.event.incidents.type=card",
+      "event.status=finished",
+      "event.score",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": false,
+    "inactive_reason": "o motor só recebe cartões no futebol: no rugby não há lance de cartão (proposed.event.incidents.type=card com detail Red Card ou 20-minute Red Card). A regra acima é só a aproximação (vitória do seu time) e não pode ser ligada assim.",
+    "real_world_frequency": "Top 14: 17 vermelhos em 154 jogos (0,11 por jogo); URC: 50 vermelhos em 450 jogos (0,11); Premiership: 5,5 por temporada; para o adversário do time do torcedor, cerca de 1 por temporada (fonte: exepose.com/?p=97246; rugby365.com/tournaments/video-the-stunning-red-card-stats-that-influenced-world-rugby-call)",
+    "name": {
+      "pt": "Um a mais em campo",
+      "es": "Uno más en la cancha",
+      "en": "One Extra on the Field"
+    },
+    "description": {
+      "pt": "Esteja assistindo quando o adversário do seu time receber cartão vermelho.",
+      "es": "Mira en vivo cuando el rival de tu equipo reciba tarjeta roja.",
+      "en": "Be watching when your team’s opponent is shown a red card."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 60,
+        "card_key": "rugby.moments.red_card_opponent.1"
+      }
+    ]
+  },
+  {
+    "id": "rugby.moments.second_half_surge",
+    "sport": "rugby",
+    "category": "moment",
+    "family": "moments",
+    "collection": "rugby.scoreboard",
+    "rule": {
+      "input": "moment",
+      "fact": "score.period",
+      "params": {
+        "team": "favorite",
+        "period": "h2",
+        "points_min": 30
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "média de 57,8 pontos por jogo no Super Rugby Pacific 2025 e 51,1 no Top 14 2024-25, cerca de 25 a 29 por time no jogo inteiro; 30 num só tempo é estimativa própria de 4 a 6% dos jogos de um time, cerca de 1 por temporada (fonte: rugby.com.au/news/super-rugby-pacific-reaches-new-heights-in-2025-202563; itsrugby.co.uk/stats-top14.html)",
+    "name": {
+      "pt": "Segundo tempo avassalador",
+      "es": "Segundo tiempo arrollador",
+      "en": "Second-Half Avalanche"
+    },
+    "description": {
+      "pt": "Assista ao jogo em que seu time marca trinta pontos ou mais só no segundo tempo.",
+      "es": "Mira el partido en que tu equipo anota treinta puntos o más solo en el segundo tiempo.",
+      "en": "Watch the match your team scores thirty or more points in the second half alone."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 60,
+        "card_key": "rugby.moments.second_half_surge.1"
+      }
+    ]
+  },
+  {
+    "id": "rugby.moments.try_hat_trick",
+    "sport": "rugby",
+    "category": "moment",
+    "family": "moments",
+    "collection": "rugby.scoreboard",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win",
+        "margin_min": 20
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "proposed.player_game_stats.tries",
+      "event.status=finished",
+      "event.score",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": false,
+    "inactive_reason": "falta estatística de jogador por partida no rugby: o motor recebe só o placar por tempo, e nenhum caminho diz quantos tries cada jogador marcou (proposed.player_game_stats.tries). A regra acima é só a aproximação (vitória folgada do seu time) e não pode ser ligada assim.",
+    "real_world_frequency": "pelo menos 7 hat-tricks no Super Rugby Pacific 2025 em 83 jogos, com 8,2 tries por jogo; para o time do torcedor, 0,5 a 1 por temporada (fonte: rnz.co.nz/news/pacific/544208; rugbyisthegame.com/2025/02/14/hat-trick-for-preston-on-debut-as-crusaders-edge-hurricanes/)",
+    "name": {
+      "pt": "Três tries de um só",
+      "es": "Tres tries del mismo",
+      "en": "Try Hat-Trick"
+    },
+    "description": {
+      "pt": "Assista ao jogo em que um jogador do seu time marca três tries.",
+      "es": "Mira el partido en que un jugador de tu equipo marca tres tries.",
+      "en": "Watch the match one of your team’s players scores three tries."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 60,
+        "card_key": "rugby.moments.try_hat_trick.1"
+      }
+    ]
+  },
+  {
+    "id": "rugby.moments.winning_drop_goal",
+    "sport": "rugby",
+    "category": "moment",
+    "family": "moments",
+    "collection": "rugby.last_kick",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win",
+        "margin_max": 3
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "proposed.event.play_by_play",
+      "event.status=finished",
+      "event.score",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": false,
+    "active": false,
+    "inactive_reason": "o motor não recebe lance a lance no rugby: não há tipo nem minuto de cada pontuação (proposed.event.play_by_play com type=drop_goal e minute). A regra acima é só a aproximação (vitória do seu time por até 3 pontos) e não pode ser ligada assim.",
+    "real_world_frequency": "estimativa própria: um punhado de drops decisivos por temporada em todo o rugby de elite, nenhum na maior parte das temporadas de um time; as duas finais de Copa do Mundo com prorrogação foram decididas por drop (1995 e 2003) (fonte: irishtimes.com/sport/rugby/2024/07/17/view-from-south-africa-ireland-show-how-a-drop-can-go-a-long-way)",
+    "name": {
+      "pt": "Drop da vitória",
+      "es": "Drop del triunfo",
+      "en": "Winning Drop Goal"
+    },
+    "description": {
+      "pt": "Esteja assistindo quando um drop goal nos minutos finais der a vitória ao seu time.",
+      "es": "Mira en vivo cuando un drop en los minutos finales le dé el triunfo a tu equipo.",
+      "en": "Be watching when a late drop goal wins the match for your team."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 200,
+        "card_key": "rugby.moments.winning_drop_goal.1"
+      }
+    ]
+  },
+  {
+    "id": "rugby.predictions.favorite_winner",
+    "sport": "rugby",
+    "category": "hit",
+    "family": "predictions",
+    "collection": "rugby.faithful",
+    "rule": {
+      "input": "prediction",
+      "kind": "winner",
+      "correct": true,
+      "where": {
+        "sport": [
+          "rugby"
+        ],
+        "favorite_playing": true
+      }
+    },
+    "requires_data": [
+      "fan.prediction",
+      "event.sport",
+      "fan.favorite_team_id",
+      "event.participants"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria: o time do torcedor joga cerca de 20 vezes por temporada e quem acompanha de perto acerta o vencedor em 3 de 4 jogos, 15 por temporada; 40 é alcance de 2 a 3 temporadas (fontes do calendário em pesquisa/rugby.md)",
+    "name": {
+      "pt": "Conhece o seu time",
+      "es": "Conoce a tu equipo",
+      "en": "Knows the Team"
+    },
+    "description": {
+      "pt": "Acerte o vencedor nos jogos do seu time do coração.",
+      "es": "Acierta el ganador en los partidos de tu equipo del corazón.",
+      "en": "Predict the winner of your favorite team’s matches."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 20,
+        "card_key": "rugby.predictions.favorite_winner.1"
+      },
+      {
+        "step": 2,
+        "threshold": 3,
+        "bonus_points": 40,
+        "card_key": "rugby.predictions.favorite_winner.2"
+      },
+      {
+        "step": 3,
+        "threshold": 6,
+        "bonus_points": 80,
+        "card_key": "rugby.predictions.favorite_winner.3"
+      },
+      {
+        "step": 4,
+        "threshold": 15,
+        "bonus_points": 150,
+        "card_key": "rugby.predictions.favorite_winner.4"
+      },
+      {
+        "step": 5,
+        "threshold": 40,
+        "bonus_points": 300,
+        "card_key": "rugby.predictions.favorite_winner.5"
+      }
+    ]
+  },
+  {
+    "id": "rugby.predictions.hit_streak",
+    "sport": "rugby",
+    "category": "hit",
+    "family": "predictions",
+    "collection": "rugby.sharp_eye",
+    "rule": {
+      "input": "prediction",
+      "correct": true,
+      "where": {
+        "sport": [
+          "rugby"
+        ]
+      },
+      "count": {
+        "mode": "streak",
+        "unit": "prediction"
+      }
+    },
+    "requires_data": [
+      "fan.prediction",
+      "event.sport"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria: no rugby o favorito vence mais vezes que no futebol (vantagem de mando e abismo entre escalões), então o palpite de vencedor acerta 60 a 65%; uma sequência de 5 sai 1 vez em 10 tentativas e uma de 10 em 1 a cada 100; um torcedor assíduo chega a 10 numa temporada e a 25 em poucas",
+    "name": {
+      "pt": "Sequência certeira",
+      "es": "Racha certera",
+      "en": "Hot Streak"
+    },
+    "description": {
+      "pt": "Acerte Palpites de rugby seguidos, sem errar nenhum no meio.",
+      "es": "Acierta pronósticos de rugby seguidos, sin fallar ninguno en el medio.",
+      "en": "Get rugby predictions right back to back, without a miss in between."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 2,
+        "bonus_points": 20,
+        "card_key": "rugby.predictions.hit_streak.1"
+      },
+      {
+        "step": 2,
+        "threshold": 5,
+        "bonus_points": 40,
+        "card_key": "rugby.predictions.hit_streak.2"
+      },
+      {
+        "step": 3,
+        "threshold": 10,
+        "bonus_points": 80,
+        "card_key": "rugby.predictions.hit_streak.3"
+      },
+      {
+        "step": 4,
+        "threshold": 25,
+        "bonus_points": 150,
+        "card_key": "rugby.predictions.hit_streak.4"
+      },
+      {
+        "step": 5,
+        "threshold": 50,
+        "bonus_points": 300,
+        "card_key": "rugby.predictions.hit_streak.5"
+      }
+    ]
+  },
+  {
+    "id": "rugby.predictions.knockout_winner",
+    "sport": "rugby",
+    "category": "hit",
+    "family": "predictions",
+    "collection": "rugby.sharp_eye",
+    "rule": {
+      "input": "prediction",
+      "kind": "winner",
+      "correct": true,
+      "where": {
+        "sport": [
+          "rugby"
+        ],
+        "stage": [
+          "knockout"
+        ]
+      }
+    },
+    "requires_data": [
+      "fan.prediction",
+      "event.sport",
+      "event.stage.kind"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria sobre o calendário: um torcedor assíduo encontra 10 a 15 jogos de mata-mata por temporada (playoffs de liga, finais de etapa de sevens, oitavas a final de Copa do Mundo em ano de Copa) e acerta o vencedor em cerca de metade (fontes do calendário em pesquisa/rugby.md)",
+    "name": {
+      "pt": "Quem avança",
+      "es": "Quién avanza",
+      "en": "Who Goes Through"
+    },
+    "description": {
+      "pt": "Acerte o vencedor de jogos de mata-mata.",
+      "es": "Acierta el ganador en partidos de eliminación directa.",
+      "en": "Predict the winner of knockout matches."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 20,
+        "card_key": "rugby.predictions.knockout_winner.1"
+      },
+      {
+        "step": 2,
+        "threshold": 2,
+        "bonus_points": 40,
+        "card_key": "rugby.predictions.knockout_winner.2"
+      },
+      {
+        "step": 3,
+        "threshold": 4,
+        "bonus_points": 80,
+        "card_key": "rugby.predictions.knockout_winner.3"
+      },
+      {
+        "step": 4,
+        "threshold": 8,
+        "bonus_points": 150,
+        "card_key": "rugby.predictions.knockout_winner.4"
+      },
+      {
+        "step": 5,
+        "threshold": 20,
+        "bonus_points": 300,
+        "card_key": "rugby.predictions.knockout_winner.5"
+      }
+    ]
+  },
+  {
+    "id": "rugby.predictions.round_streak",
+    "sport": "rugby",
+    "category": "participation",
+    "family": "predictions",
+    "collection": "rugby.faithful",
+    "rule": {
+      "input": "prediction",
+      "where": {
+        "sport": [
+          "rugby"
+        ],
+        "competition_type": [
+          "league"
+        ]
+      },
+      "count": {
+        "mode": "streak",
+        "unit": "round"
+      }
+    },
+    "requires_data": [
+      "fan.prediction",
+      "event.sport",
+      "event.competition.type",
+      "event.stage.round"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "as ligas regionais têm 14 (Super Rugby Pacific e Americas), 18 (Premiership, URC) e 26 rodadas (Top 14); 20 rodadas seguidas é uma temporada inteira sem pular rodada numa liga de 18, e 40 são duas (fontes do calendário em pesquisa/rugby.md)",
+    "name": {
+      "pt": "Rodada após rodada",
+      "es": "Fecha tras fecha",
+      "en": "Round After Round"
+    },
+    "description": {
+      "pt": "Dê Palpites em rodadas seguidas de uma liga de rugby, sem pular nenhuma.",
+      "es": "Haz pronósticos en fechas seguidas de una liga de rugby, sin saltarte ninguna.",
+      "en": "Make predictions in consecutive rounds of a rugby league, without skipping one."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 2,
+        "bonus_points": 0,
+        "card_key": "rugby.predictions.round_streak.1"
+      },
+      {
+        "step": 2,
+        "threshold": 5,
+        "bonus_points": 0,
+        "card_key": "rugby.predictions.round_streak.2"
+      },
+      {
+        "step": 3,
+        "threshold": 10,
+        "bonus_points": 0,
+        "card_key": "rugby.predictions.round_streak.3"
+      },
+      {
+        "step": 4,
+        "threshold": 20,
+        "bonus_points": 0,
+        "card_key": "rugby.predictions.round_streak.4"
+      },
+      {
+        "step": 5,
+        "threshold": 40,
+        "bonus_points": 0,
+        "card_key": "rugby.predictions.round_streak.5"
+      }
+    ]
+  },
+  {
+    "id": "rugby.results.away_win",
+    "sport": "rugby",
+    "category": "moment",
+    "family": "results",
+    "collection": "rugby.fortress",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "side": "away",
+        "outcome": "win"
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "no Top 14 2024-25 o mandante marca 29,5 a 29,9 pontos e o visitante 21 em média; a vantagem de mando é forte em todo o rugby e o visitante vence cerca de 30 a 40% dos jogos (estimativa própria): 2 a 4 vitórias fora por temporada para o time do torcedor (fonte: itsrugby.co.uk/stats-top14.html)",
+    "name": {
+      "pt": "Vitória fora de casa",
+      "es": "Victoria de visitante",
+      "en": "Away Win"
+    },
+    "description": {
+      "pt": "Assista a uma vitória do seu time jogando fora de casa.",
+      "es": "Mira una victoria de tu equipo jugando de visitante.",
+      "en": "Watch your team win on the road."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 25,
+        "card_key": "rugby.results.away_win.1"
+      }
+    ]
+  },
+  {
+    "id": "rugby.results.big_win",
+    "sport": "rugby",
+    "category": "moment",
+    "family": "results",
+    "collection": "rugby.scoreboard",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win",
+        "margin_min": 30
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "cerca de um quarto dos jogos de rugby em geral é decidido por 30 ou mais (amadores incluídos); nas ligas profissionais, estimativa própria de 8 a 12%; para o time do torcedor, 1 a 1,5 vitórias por temporada (fonte: framesports.ai/blog/average-rugby-score/)",
+    "name": {
+      "pt": "Goleada oval",
+      "es": "Goleada ovalada",
+      "en": "Oval Rout"
+    },
+    "description": {
+      "pt": "Assista a uma vitória do seu time por trinta pontos ou mais de diferença.",
+      "es": "Mira una victoria de tu equipo por treinta puntos o más de diferencia.",
+      "en": "Watch your team win by thirty points or more."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 60,
+        "card_key": "rugby.results.big_win.1"
+      }
+    ]
+  },
+  {
+    "id": "rugby.results.draw",
+    "sport": "rugby",
+    "category": "moment",
+    "family": "results",
+    "collection": "rugby.last_kick",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "draw"
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": false,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "1,3% dos jogos de clube no mundo em 2020-21 (7 em 527); 7 empates em 26 edições do Six Nations desde 2000 (1,8% dos jogos); 1 em 83 no Super Rugby Pacific 2025; para o time do torcedor, 0,2 a 0,4 por temporada (fonte: rugbydome.com/?p=828; rugbydump.com/news/5-classic-six-nations-championship-ties)",
+    "name": {
+      "pt": "Empate oval",
+      "es": "Empate ovalado",
+      "en": "Oval Stalemate"
+    },
+    "description": {
+      "pt": "Assista a um jogo do seu time que termina empatado.",
+      "es": "Mira un partido de tu equipo que termina empatado.",
+      "en": "Watch your team’s match end in a draw."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 120,
+        "card_key": "rugby.results.draw.1"
+      }
+    ]
+  },
+  {
+    "id": "rugby.results.final_win",
+    "sport": "rugby",
+    "category": "moment",
+    "family": "results",
+    "collection": "rugby.big_nights",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win"
+      },
+      "presence": "game",
+      "where": {
+        "stage": [
+          "final"
+        ]
+      }
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id",
+      "event.stage.kind"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria sobre o calendário: um clube de liga regional disputa 0 a 1 final por temporada (só o top 4 a 8 vai ao mata-mata) e uma seleção de XV só em ano de Copa do Mundo; 0 a 0,5 vitórias em final por temporada (fontes do calendário em pesquisa/rugby.md)",
+    "name": {
+      "pt": "Vitória em final",
+      "es": "Victoria en una final",
+      "en": "Final Won"
+    },
+    "description": {
+      "pt": "Assista a uma vitória do seu time em jogo de final.",
+      "es": "Mira una victoria de tu equipo en un partido de final.",
+      "en": "Watch your team win a final."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 120,
+        "card_key": "rugby.results.final_win.1"
+      }
+    ]
+  },
+  {
+    "id": "rugby.results.narrow_win",
+    "sport": "rugby",
+    "category": "moment",
+    "family": "results",
+    "collection": "rugby.last_kick",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win",
+        "margin_max": 3
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "12 de 83 jogos do Super Rugby Pacific 2025 foram decididos por 3 pontos ou menos (14,5%, contagem própria); 15 a 20% é a faixa típica das ligas; para o time do torcedor, 1 a 2 vitórias por temporada (fonte: en.wikipedia.org/wiki/2025_Super_Rugby_Pacific_season; unitedrugby.com/latest/news/urc-close-contests)",
+    "name": {
+      "pt": "Por um chute",
+      "es": "Por una patada",
+      "en": "By a Kick"
+    },
+    "description": {
+      "pt": "Assista a uma vitória do seu time por três pontos ou menos.",
+      "es": "Mira una victoria de tu equipo por tres puntos o menos.",
+      "en": "Watch your team win by three points or fewer."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 60,
+        "card_key": "rugby.results.narrow_win.1"
+      }
+    ]
+  },
+  {
+    "id": "rugby.results.points_festival",
+    "sport": "rugby",
+    "category": "moment",
+    "family": "results",
+    "collection": "rugby.scoreboard",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "total_min": 80
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "média de 57,8 pontos por jogo no Super Rugby Pacific 2025, 58,7 na Copa do Mundo feminina 2025 e 51,1 no Top 14 2024-25; 80 ou mais no total é estimativa própria de 6 a 10% dos jogos no Super Rugby e 2 a 3% no Top 14: 0,5 a 2 por temporada para o time do torcedor (fonte: rugby.com.au/news/1001-the-numbers-that-mattered-in-rugby-in-2025-20251210; itsrugby.co.uk/stats-top14.html)",
+    "name": {
+      "pt": "Festival de pontos",
+      "es": "Festival de puntos",
+      "en": "Points Festival"
+    },
+    "description": {
+      "pt": "Assista a um jogo do seu time com oitenta pontos ou mais somando os dois lados.",
+      "es": "Mira un partido de tu equipo con ochenta puntos o más sumando a los dos lados.",
+      "en": "Watch a match of your team with eighty or more points scored in total."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 60,
+        "card_key": "rugby.results.points_festival.1"
+      }
+    ]
+  },
+  {
+    "id": "rugby.results.shutout",
+    "sport": "rugby",
+    "category": "moment",
+    "family": "results",
+    "collection": "rugby.fortress",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win",
+        "shutout": true
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria: 1 a 3% dos jogos de liga (a imprensa chama de \"rara\" cada vitória sem sofrer pontos no Super Rugby e no URC), até 10% dos jogos de grupo de Copa do Mundo; para o time do torcedor, 0,2 a 0,4 por temporada (fonte: rugby.com.au/news/alaalatoa-hails-hustling-hard-brumbies-for-rare-super-rugby-clean-sheet-2025420; news24.com/sport/rugby/urc/zero-zilch-nada-sharks-suffer-a-rare-embarrassment-on-sa-soil-with-cardiff-shutout-20221128)",
+    "name": {
+      "pt": "Linha intacta",
+      "es": "Línea intacta",
+      "en": "Line Untouched"
+    },
+    "description": {
+      "pt": "Assista a uma vitória do seu time em que o adversário não marca nenhum ponto.",
+      "es": "Mira una victoria de tu equipo en la que el rival no anota ni un punto.",
+      "en": "Watch your team win without the opponent scoring a single point."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 120,
+        "card_key": "rugby.results.shutout.1"
+      }
+    ]
+  }
+]

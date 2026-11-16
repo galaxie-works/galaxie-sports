@@ -1,0 +1,2688 @@
+[
+  {
+    "card_key": "common.collector.collections.1",
+    "collection": "common.collector",
+    "rarity": "common",
+    "name": {
+      "pt": "Primeira Coleção",
+      "es": "Primera colección",
+      "en": "First collection"
+    },
+    "flavor": {
+      "pt": "Todas as Cartas no lugar. A primeira página fechou.",
+      "es": "Todas las cartas en su lugar. La primera página se cerró.",
+      "en": "Every card in place. The first page is complete."
+    },
+    "art_prompt": "A stylized open album with one page of plain blank card slots all filled with glowing cards, resting on a stadium seat at dawn. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.collector.collections.2",
+    "collection": "common.collector",
+    "rarity": "special",
+    "name": {
+      "pt": "Três Coleções",
+      "es": "Tres colecciones",
+      "en": "Three collections"
+    },
+    "flavor": {
+      "pt": "Três Coleções completas. O álbum ganha peso.",
+      "es": "Tres colecciones completas. El álbum gana peso.",
+      "en": "Three collections complete. The album is gaining weight."
+    },
+    "art_prompt": "A fan silhouette in a plain kit holding an open album with three filled pages of glowing blank cards, sunlit stand behind. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.collector.collections.3",
+    "collection": "common.collector",
+    "rarity": "special",
+    "name": {
+      "pt": "Oito Coleções",
+      "es": "Ocho colecciones",
+      "en": "Eight collections"
+    },
+    "flavor": {
+      "pt": "Oito Coleções. Sua estante conta histórias.",
+      "es": "Ocho colecciones. Tu estante cuenta historias.",
+      "en": "Eight collections. Your shelf tells stories."
+    },
+    "art_prompt": "A shelf of glowing albums in a stadium hall under afternoon light, a fan silhouette reaching for one, blank cards fanned out on a table. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.collector.collections.4",
+    "collection": "common.collector",
+    "rarity": "rare",
+    "name": {
+      "pt": "Vinte Coleções",
+      "es": "Veinte colecciones",
+      "en": "Twenty collections"
+    },
+    "flavor": {
+      "pt": "Vinte Coleções completas. Um museu particular.",
+      "es": "Veinte colecciones completas. Un museo particular.",
+      "en": "Twenty collections complete. A private museum."
+    },
+    "art_prompt": "A golden gallery of framed blank cards lining a stadium concourse at sunset, fan silhouettes admiring them, violet sky through the arches. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.collector.collections.5",
+    "collection": "common.collector",
+    "rarity": "historic",
+    "name": {
+      "pt": "Cinquenta Coleções",
+      "es": "Cincuenta colecciones",
+      "en": "Fifty collections"
+    },
+    "flavor": {
+      "pt": "Cinquenta Coleções. O álbum mais completo da arquibancada.",
+      "es": "Cincuenta colecciones. El álbum más completo de la grada.",
+      "en": "Fifty collections. The most complete album in the stands."
+    },
+    "art_prompt": "A night stadium where glowing blank cards rise from an open album into a spiral of warm amber light, laurel patterns, fan silhouettes watching. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.collector.sports.1",
+    "collection": "common.collector",
+    "rarity": "common",
+    "name": {
+      "pt": "Dois esportes completos",
+      "es": "Dos deportes completos",
+      "en": "Two sports complete"
+    },
+    "flavor": {
+      "pt": "Duas Coleções, dois esportes. O álbum cruzou a fronteira.",
+      "es": "Dos colecciones, dos deportes. El álbum cruzó la frontera.",
+      "en": "Two collections, two sports. The album crossed a border."
+    },
+    "art_prompt": "Two glowing albums of different colors stacked on a stadium seat at dawn, a round and an oval generic ball resting on them. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.collector.sports.2",
+    "collection": "common.collector",
+    "rarity": "special",
+    "name": {
+      "pt": "Três esportes completos",
+      "es": "Tres deportes completos",
+      "en": "Three sports complete"
+    },
+    "flavor": {
+      "pt": "Três esportes com Coleção fechada. A estante diversifica.",
+      "es": "Tres deportes con colección cerrada. El estante se diversifica.",
+      "en": "Three sports with a finished collection. The shelf diversifies."
+    },
+    "art_prompt": "A fan silhouette in a plain kit arranging three glowing albums beside three different generic sports objects in a sunlit stand. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.collector.sports.3",
+    "collection": "common.collector",
+    "rarity": "special",
+    "name": {
+      "pt": "Cinco esportes completos",
+      "es": "Cinco deportes completos",
+      "en": "Five sports complete"
+    },
+    "flavor": {
+      "pt": "Cinco esportes completos. Colecionador de todas as bolas.",
+      "es": "Cinco deportes completos. Coleccionista de todas las pelotas.",
+      "en": "Five sports complete. Collector of every ball."
+    },
+    "art_prompt": "Five glowing albums arranged in a ring with five generic sports objects on a stadium floor under afternoon light, fan silhouettes around. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.collector.sports.4",
+    "collection": "common.collector",
+    "rarity": "rare",
+    "name": {
+      "pt": "Oito esportes completos",
+      "es": "Ocho deportes completos",
+      "en": "Eight sports complete"
+    },
+    "flavor": {
+      "pt": "Oito esportes completos. Poucos álbuns chegam aqui.",
+      "es": "Ocho deportes completos. Pocos álbumes llegan hasta aquí.",
+      "en": "Eight sports complete. Few albums get this far."
+    },
+    "art_prompt": "Eight golden albums orbiting a glowing center on a stadium pitch at sunset, generic sports objects between them, violet sky. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.collector.sports.5",
+    "collection": "common.collector",
+    "rarity": "historic",
+    "name": {
+      "pt": "Doze esportes completos",
+      "es": "Doce deportes completos",
+      "en": "Twelve sports complete"
+    },
+    "flavor": {
+      "pt": "Doze esportes, doze Coleções fechadas. O álbum total.",
+      "es": "Doce deportes, doce colecciones cerradas. El álbum total.",
+      "en": "Twelve sports, twelve finished collections. The total album."
+    },
+    "art_prompt": "A night stadium with twelve albums of warm amber light forming a constellation above the pitch, laurel light patterns, fan silhouettes below. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.community.invite.1",
+    "collection": "common.community",
+    "rarity": "common",
+    "name": {
+      "pt": "Primeiro amigo",
+      "es": "Primer amigo",
+      "en": "First friend"
+    },
+    "flavor": {
+      "pt": "Um amigo a mais na arquibancada. Começou a galera.",
+      "es": "Un amigo más en la grada. Empezó el grupo.",
+      "en": "One more friend in the stands. The crew begins."
+    },
+    "art_prompt": "Two fan silhouettes of different builds in plain kits sitting together in an empty stand at dawn, one with an arm around the other, generic pitch below. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.community.invite.2",
+    "collection": "common.community",
+    "rarity": "special",
+    "name": {
+      "pt": "Três amigos",
+      "es": "Tres amigos",
+      "en": "Three friends"
+    },
+    "flavor": {
+      "pt": "Três amigos trazidos. A fileira está ficando cheia.",
+      "es": "Tres amigos traídos. La fila se está llenando.",
+      "en": "Three friends brought along. The row is filling up."
+    },
+    "art_prompt": "A small row of fan silhouettes of varied builds in plain kits sharing a sunlit stand, plain scarves, laughing postures. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.community.invite.3",
+    "collection": "common.community",
+    "rarity": "special",
+    "name": {
+      "pt": "Oito amigos",
+      "es": "Ocho amigos",
+      "en": "Eight friends"
+    },
+    "flavor": {
+      "pt": "Oito amigos. Sua turma tem setor próprio.",
+      "es": "Ocho amigos. Tu grupo tiene su propio sector.",
+      "en": "Eight friends. Your crew has its own section."
+    },
+    "art_prompt": "A block of fan silhouettes in plain kits filling a section of a stand under afternoon light, a plain banner without text held between them. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.community.invite.4",
+    "collection": "common.community",
+    "rarity": "rare",
+    "name": {
+      "pt": "Vinte amigos",
+      "es": "Veinte amigos",
+      "en": "Twenty friends"
+    },
+    "flavor": {
+      "pt": "Vinte amigos trazidos. Isso já é torcida organizada do bem.",
+      "es": "Veinte amigos traídos. Eso ya es hinchada organizada de las buenas.",
+      "en": "Twenty friends brought in. That is a proper supporters group."
+    },
+    "art_prompt": "A golden-lit section of a stadium at sunset packed with fan silhouettes in plain kits, scarves raised together, violet sky. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.community.invite.5",
+    "collection": "common.community",
+    "rarity": "historic",
+    "name": {
+      "pt": "Cinquenta amigos",
+      "es": "Cincuenta amigos",
+      "en": "Fifty friends"
+    },
+    "flavor": {
+      "pt": "Cinquenta amigos. A arquibancada cresceu por sua causa.",
+      "es": "Cincuenta amigos. La grada creció gracias a ti.",
+      "en": "Fifty friends. The stands grew because of you."
+    },
+    "art_prompt": "A night stadium with a whole stand of fan silhouettes lit in warm amber light radiating from one central figure, laurel light patterns overhead. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.consumption.lineup.1",
+    "collection": "common.community",
+    "rarity": "common",
+    "name": {
+      "pt": "Dez escalações",
+      "es": "Diez alineaciones",
+      "en": "Ten lineups"
+    },
+    "flavor": {
+      "pt": "Dez escalações conferidas. Você sabe quem entra.",
+      "es": "Diez alineaciones revisadas. Sabes quién entra.",
+      "en": "Ten lineups checked. You know who starts."
+    },
+    "art_prompt": "A stylized tactics board with eleven plain magnets and no text resting on a bench at dawn, empty dugout behind. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.consumption.lineup.2",
+    "collection": "common.community",
+    "rarity": "special",
+    "name": {
+      "pt": "Vinte e cinco escalações",
+      "es": "Veinticinco alineaciones",
+      "en": "Twenty-five lineups"
+    },
+    "flavor": {
+      "pt": "Vinte e cinco escalações. O banco não tem segredo.",
+      "es": "Veinticinco alineaciones. El banco no tiene secretos.",
+      "en": "Twenty-five lineups. The bench holds no secrets."
+    },
+    "art_prompt": "A fan silhouette in a plain kit studying a glowing tactics board with plain magnets in a sunlit stand. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.consumption.lineup.3",
+    "collection": "common.community",
+    "rarity": "special",
+    "name": {
+      "pt": "Cinquenta escalações",
+      "es": "Cincuenta alineaciones",
+      "en": "Fifty lineups"
+    },
+    "flavor": {
+      "pt": "Cinquenta escalações. Você monta o time junto.",
+      "es": "Cincuenta alineaciones. Armas el equipo junto con ellos.",
+      "en": "Fifty lineups. You build the team alongside them."
+    },
+    "art_prompt": "A large tactics board with glowing plain magnets floating above a stand of fan silhouettes, afternoon light, generic pitch below. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.consumption.lineup.4",
+    "collection": "common.community",
+    "rarity": "rare",
+    "name": {
+      "pt": "Cem escalações",
+      "es": "Cien alineaciones",
+      "en": "Hundred lineups"
+    },
+    "flavor": {
+      "pt": "Cem escalações. Uma temporada inteira de pré-jogo.",
+      "es": "Cien alineaciones. Una temporada entera de previa.",
+      "en": "A hundred lineups. A whole season of pre-game."
+    },
+    "art_prompt": "A golden tactics board the size of a scoreboard over a full stadium at sunset, plain magnets glowing, fan silhouettes below, violet sky. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.consumption.lineup.5",
+    "collection": "common.community",
+    "rarity": "historic",
+    "name": {
+      "pt": "Duzentas e cinquenta escalações",
+      "es": "Ritual de la previa",
+      "en": "Pre-game ritual"
+    },
+    "flavor": {
+      "pt": "Duzentas e cinquenta escalações. O pré-jogo é o seu ritual.",
+      "es": "Doscientas cincuenta alineaciones. La previa es tu ritual.",
+      "en": "Two hundred fifty lineups. Pre-game is your ritual."
+    },
+    "art_prompt": "A night stadium where plain magnets of warm amber light drift into formation above the pitch, laurel light patterns, fan silhouettes watching. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.explorer.competitions.1",
+    "collection": "common.explorer",
+    "rarity": "common",
+    "name": {
+      "pt": "Duas competições",
+      "es": "Dos competiciones",
+      "en": "Two competitions"
+    },
+    "flavor": {
+      "pt": "Além do seu campeonato, há outro. E outro.",
+      "es": "Más allá de tu torneo, hay otro. Y otro.",
+      "en": "Beyond your league there is another. And another."
+    },
+    "art_prompt": "A stylized backpack and a rolled map without names resting on a stadium seat at dawn, two small pennants without emblems beside them. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.explorer.competitions.2",
+    "collection": "common.explorer",
+    "rarity": "special",
+    "name": {
+      "pt": "Cinco competições",
+      "es": "Cinco competiciones",
+      "en": "Five competitions"
+    },
+    "flavor": {
+      "pt": "Cinco torneios diferentes. A viagem começou.",
+      "es": "Cinco torneos diferentes. Empezó el viaje.",
+      "en": "Five different tournaments. The journey has begun."
+    },
+    "art_prompt": "A stylized fan silhouette in a plain kit with a backpack walking a sunlit stadium concourse lined with five plain pennants. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.explorer.competitions.3",
+    "collection": "common.explorer",
+    "rarity": "special",
+    "name": {
+      "pt": "Doze competições",
+      "es": "Doce competiciones",
+      "en": "Twelve competitions"
+    },
+    "flavor": {
+      "pt": "Doze competições. Nenhuma tabela é estranha para você.",
+      "es": "Doce competiciones. Ninguna tabla te es ajena.",
+      "en": "Twelve competitions. No standings table is foreign to you."
+    },
+    "art_prompt": "A long concourse of plain pennants in many colors under afternoon light, a fan silhouette with a backpack at the center, stadiums visible beyond. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.explorer.competitions.4",
+    "collection": "common.explorer",
+    "rarity": "rare",
+    "name": {
+      "pt": "Trinta competições",
+      "es": "Treinta competiciones",
+      "en": "Thirty competitions"
+    },
+    "flavor": {
+      "pt": "Trinta competições. Seu mapa de torcida é enorme.",
+      "es": "Treinta competiciones. Tu mapa de hinchada es enorme.",
+      "en": "Thirty competitions. Your fan map is enormous."
+    },
+    "art_prompt": "A golden map without names spread across a stadium pitch at sunset, dozens of plain pennants planted on it, fan silhouettes in the stands, violet sky. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.explorer.competitions.5",
+    "collection": "common.explorer",
+    "rarity": "historic",
+    "name": {
+      "pt": "Setenta e cinco competições",
+      "es": "Setenta y cinco competiciones",
+      "en": "Seventy-five competitions"
+    },
+    "flavor": {
+      "pt": "Setenta e cinco competições. Um explorador de verdade.",
+      "es": "Setenta y cinco competiciones. Un explorador de verdad.",
+      "en": "Seventy-five competitions. A true explorer."
+    },
+    "art_prompt": "A night stadium with a glowing map without names rising like a tapestry, countless plain pennants lit in warm amber, laurel light patterns. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.explorer.countries.1",
+    "collection": "common.explorer",
+    "rarity": "common",
+    "name": {
+      "pt": "Dois países",
+      "es": "Dos países",
+      "en": "Two countries"
+    },
+    "flavor": {
+      "pt": "Dois países, dois jeitos de torcer.",
+      "es": "Dos países, dos formas de alentar.",
+      "en": "Two countries, two ways of cheering."
+    },
+    "art_prompt": "A stylized globe without borders or names resting on a stadium seat at dawn, two small glowing dots on its surface. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.explorer.countries.2",
+    "collection": "common.explorer",
+    "rarity": "special",
+    "name": {
+      "pt": "Quatro países",
+      "es": "Cuatro países",
+      "en": "Four countries"
+    },
+    "flavor": {
+      "pt": "Quatro países. O sotaque muda, a emoção não.",
+      "es": "Cuatro países. Cambia el acento, no la emoción.",
+      "en": "Four countries. The accent changes, the thrill does not."
+    },
+    "art_prompt": "A stylized globe without names held by a fan silhouette in a plain kit, four glowing dots, sunlit stand behind. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.explorer.countries.3",
+    "collection": "common.explorer",
+    "rarity": "special",
+    "name": {
+      "pt": "Oito países",
+      "es": "Ocho países",
+      "en": "Eight countries"
+    },
+    "flavor": {
+      "pt": "Oito países. Você segue a bola pelo mapa.",
+      "es": "Ocho países. Sigues la pelota por el mapa.",
+      "en": "Eight countries. You follow the ball across the map."
+    },
+    "art_prompt": "A large glowing globe without names at the center of a stadium pitch under afternoon light, eight glowing dots connected by thin arcs, fan silhouettes around. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.explorer.countries.4",
+    "collection": "common.explorer",
+    "rarity": "rare",
+    "name": {
+      "pt": "Quinze países",
+      "es": "Quince países",
+      "en": "Fifteen countries"
+    },
+    "flavor": {
+      "pt": "Quinze países. Um torcedor sem fronteiras.",
+      "es": "Quince países. Un hincha sin fronteras.",
+      "en": "Fifteen countries. A fan without borders."
+    },
+    "art_prompt": "A golden globe without names glowing at sunset over a stadium, fifteen dots linked by arcs of light, fan silhouettes in the stands, violet sky. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.explorer.countries.5",
+    "collection": "common.explorer",
+    "rarity": "historic",
+    "name": {
+      "pt": "Trinta países",
+      "es": "Treinta países",
+      "en": "Thirty countries"
+    },
+    "flavor": {
+      "pt": "Trinta países. O planeta inteiro é a sua arquibancada.",
+      "es": "Treinta países. El planeta entero es tu grada.",
+      "en": "Thirty countries. The whole planet is your stand."
+    },
+    "art_prompt": "A night stadium with a vast glowing globe without names, dozens of warm amber dots and arcs covering it, laurel light patterns, fan silhouettes below. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.explorer.sports.1",
+    "collection": "common.explorer",
+    "rarity": "common",
+    "name": {
+      "pt": "Dois esportes",
+      "es": "Dos deportes",
+      "en": "Two sports"
+    },
+    "flavor": {
+      "pt": "Uma bola redonda, uma oval. Dois mundos.",
+      "es": "Una pelota redonda, una ovalada. Dos mundos.",
+      "en": "One round ball, one oval. Two worlds."
+    },
+    "art_prompt": "Two generic sports balls of different shapes resting side by side on a plain bench at dawn, soft light, empty stand behind. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.explorer.sports.2",
+    "collection": "common.explorer",
+    "rarity": "special",
+    "name": {
+      "pt": "Três esportes",
+      "es": "Tres deportes",
+      "en": "Three sports"
+    },
+    "flavor": {
+      "pt": "Três esportes. O seu fim de semana ficou cheio.",
+      "es": "Tres deportes. Tu fin de semana se llenó.",
+      "en": "Three sports. Your weekend just got full."
+    },
+    "art_prompt": "Three different generic pieces of sports equipment arranged on a sunlit bench, a stylized fan silhouette in a plain kit choosing among them. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.explorer.sports.3",
+    "collection": "common.explorer",
+    "rarity": "special",
+    "name": {
+      "pt": "Cinco esportes",
+      "es": "Cinco deportes",
+      "en": "Five sports"
+    },
+    "flavor": {
+      "pt": "Cinco esportes. Você fala várias línguas de torcida.",
+      "es": "Cinco deportes. Hablas varios idiomas de hinchada.",
+      "en": "Five sports. You speak several fan languages."
+    },
+    "art_prompt": "Five generic sports balls and gear arranged in a ring on a stadium floor under afternoon light, fan silhouettes around the ring. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.explorer.sports.4",
+    "collection": "common.explorer",
+    "rarity": "rare",
+    "name": {
+      "pt": "Oito esportes",
+      "es": "Ocho deportes",
+      "en": "Eight sports"
+    },
+    "flavor": {
+      "pt": "Oito esportes acompanhados. O radar não tem limite.",
+      "es": "Ocho deportes seguidos de cerca. El radar no tiene límite.",
+      "en": "Eight sports followed. The radar has no limit."
+    },
+    "art_prompt": "Eight generic sports objects orbiting a glowing golden center on a stadium pitch at sunset, fan silhouettes in the stands, violet sky. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.explorer.sports.5",
+    "collection": "common.explorer",
+    "rarity": "historic",
+    "name": {
+      "pt": "Todos os esportes",
+      "es": "Todos los deportes",
+      "en": "Every sport"
+    },
+    "flavor": {
+      "pt": "Doze esportes. Se tem placar, você assiste.",
+      "es": "Doce deportes. Si hay marcador, lo ves.",
+      "en": "Twelve sports. If it has a score, you watch it."
+    },
+    "art_prompt": "A night stadium with twelve generic sports objects forming a glowing constellation above the pitch, warm amber light, laurel patterns, fan silhouettes below. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.knowledge.trivia_streak.1",
+    "collection": "common.community",
+    "rarity": "common",
+    "name": {
+      "pt": "Três dias certos",
+      "es": "Tres días acertados",
+      "en": "Three days right"
+    },
+    "flavor": {
+      "pt": "Três dias, três respostas certas.",
+      "es": "Tres días, tres respuestas correctas.",
+      "en": "Three days, three right answers."
+    },
+    "art_prompt": "A stylized elephant silhouette made of soft light standing beside three glowing calendar squares on a stadium concourse at dawn. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.knowledge.trivia_streak.2",
+    "collection": "common.community",
+    "rarity": "special",
+    "name": {
+      "pt": "Sete dias certos",
+      "es": "Siete días acertados",
+      "en": "Seven days right"
+    },
+    "flavor": {
+      "pt": "Uma semana sem errar. A memória está em forma.",
+      "es": "Una semana sin fallar. La memoria está en forma.",
+      "en": "A week without a miss. Memory in top shape."
+    },
+    "art_prompt": "A light elephant silhouette walking along a row of seven glowing calendar squares, sunlit stadium corridor, a fan silhouette following. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.knowledge.trivia_streak.3",
+    "collection": "common.community",
+    "rarity": "special",
+    "name": {
+      "pt": "Quinze dias certos",
+      "es": "Quince días acertados",
+      "en": "Fifteen days right"
+    },
+    "flavor": {
+      "pt": "Quinze dias seguidos. Você não esquece nada.",
+      "es": "Quince días seguidos. No olvidas nada.",
+      "en": "Fifteen days straight. You forget nothing."
+    },
+    "art_prompt": "An elephant silhouette of light at the center of a stand of fan silhouettes, a long trail of glowing calendar squares behind it, afternoon light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.knowledge.trivia_streak.4",
+    "collection": "common.community",
+    "rarity": "rare",
+    "name": {
+      "pt": "Trinta dias certos",
+      "es": "Treinta días acertados",
+      "en": "Thirty days right"
+    },
+    "flavor": {
+      "pt": "Trinta dias certos em sequência. Memória de ouro.",
+      "es": "Treinta días acertados seguidos. Memoria de oro.",
+      "en": "Thirty days right in a row. Golden memory."
+    },
+    "art_prompt": "A golden elephant silhouette of light standing on a stadium pitch at sunset, a ring of thirty glowing calendar squares around it, violet sky. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.knowledge.trivia_streak.5",
+    "collection": "common.community",
+    "rarity": "historic",
+    "name": {
+      "pt": "Setenta e cinco dias certos",
+      "es": "Setenta y cinco días acertados",
+      "en": "Seventy-five days right"
+    },
+    "flavor": {
+      "pt": "Setenta e cinco dias seguidos. A memória que não falha.",
+      "es": "Setenta y cinco días seguidos. La memoria que no falla.",
+      "en": "Seventy-five days straight. The memory that never fails."
+    },
+    "art_prompt": "A night stadium with a vast elephant silhouette of warm amber light over the stands, a spiral of glowing calendar squares, laurel light patterns. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.loyalty.day_streak.1",
+    "collection": "common.loyalty",
+    "rarity": "common",
+    "name": {
+      "pt": "Dois dias",
+      "es": "Dos días",
+      "en": "Two days"
+    },
+    "flavor": {
+      "pt": "Ontem e hoje. Amanhã também tem.",
+      "es": "Ayer y hoy. Mañana también hay.",
+      "en": "Yesterday and today. Tomorrow there is more."
+    },
+    "art_prompt": "A stylized sun and a stylized moon side by side above an empty stand at dawn, two seats glowing softly, generic pitch below. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.loyalty.day_streak.2",
+    "collection": "common.loyalty",
+    "rarity": "special",
+    "name": {
+      "pt": "Cinco dias",
+      "es": "Cinco días",
+      "en": "Five days"
+    },
+    "flavor": {
+      "pt": "Cinco dias seguidos. A semana inteira com bola rolando.",
+      "es": "Cinco días seguidos. Toda la semana con pelota rodando.",
+      "en": "Five days straight. A whole week with the ball rolling."
+    },
+    "art_prompt": "A row of five small suns and moons arcing over a sunlit stand, a stylized fan silhouette in a plain kit seated beneath them. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.loyalty.day_streak.3",
+    "collection": "common.loyalty",
+    "rarity": "special",
+    "name": {
+      "pt": "Doze dias",
+      "es": "Doce días",
+      "en": "Twelve days"
+    },
+    "flavor": {
+      "pt": "Doze dias seguidos. O calendário virou tabela.",
+      "es": "Doce días seguidos. El calendario se volvió fixture.",
+      "en": "Twelve days straight. The calendar became a fixture list."
+    },
+    "art_prompt": "A long arc of alternating suns and moons spanning a stadium under afternoon light, fan silhouettes in the stands, generic pitch below. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.loyalty.day_streak.4",
+    "collection": "common.loyalty",
+    "rarity": "rare",
+    "name": {
+      "pt": "Trinta dias",
+      "es": "Treinta días",
+      "en": "Thirty days"
+    },
+    "flavor": {
+      "pt": "Trinta dias seguidos. Um mês inteiro, um jogo por dia.",
+      "es": "Treinta días seguidos. Un mes completo, un partido por día.",
+      "en": "Thirty days straight. A full month, one match a day."
+    },
+    "art_prompt": "A golden ring of thirty suns and moons circling a full stadium at sunset, fan silhouettes below, violet sky. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.loyalty.day_streak.5",
+    "collection": "common.loyalty",
+    "rarity": "historic",
+    "name": {
+      "pt": "Setenta e cinco dias",
+      "es": "Setenta y cinco días",
+      "en": "Seventy-five days"
+    },
+    "flavor": {
+      "pt": "Setenta e cinco dias seguidos. O esporte não dorme, nem você.",
+      "es": "Setenta y cinco días seguidos. El deporte no duerme, tú tampoco.",
+      "en": "Seventy-five days straight. Sport never sleeps, and neither do you."
+    },
+    "art_prompt": "A night stadium with a spiral of warm amber suns and moons rising into the sky, laurel light patterns, fan silhouettes watching from below. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.loyalty.derby.1",
+    "collection": "common.loyalty",
+    "rarity": "common",
+    "name": {
+      "pt": "Primeiro clássico",
+      "es": "Primer clásico",
+      "en": "First derby"
+    },
+    "flavor": {
+      "pt": "Duas torcidas, um jogo. Você viu inteiro.",
+      "es": "Dos hinchadas, un partido. Lo viste completo.",
+      "en": "Two crowds, one match. You watched it all."
+    },
+    "art_prompt": "Two halves of a stand at dawn, one side of stylized fans in plain white, the other in plain charcoal, a thin aisle of light between them, generic pitch below. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.loyalty.derby.2",
+    "collection": "common.loyalty",
+    "rarity": "special",
+    "name": {
+      "pt": "Três clássicos",
+      "es": "Tres clásicos",
+      "en": "Three derbies"
+    },
+    "flavor": {
+      "pt": "Três clássicos. A tensão você já conhece.",
+      "es": "Tres clásicos. La tensión ya la conoces.",
+      "en": "Three derbies. You know the tension by now."
+    },
+    "art_prompt": "A sunlit stadium split in two by color, plain white fans on one side and plain charcoal on the other, both sides standing, plain banners. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.loyalty.derby.3",
+    "collection": "common.loyalty",
+    "rarity": "special",
+    "name": {
+      "pt": "Oito clássicos",
+      "es": "Ocho clásicos",
+      "en": "Eight derbies"
+    },
+    "flavor": {
+      "pt": "Oito clássicos ao vivo. Você respira rivalidade saudável.",
+      "es": "Ocho clásicos en vivo. Respiras rivalidad sana.",
+      "en": "Eight derbies live. Healthy rivalry is in your lungs."
+    },
+    "art_prompt": "A packed split stadium in afternoon light, waves of plain white and plain charcoal scarves rising on each side, generic ball at the center circle. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.loyalty.derby.4",
+    "collection": "common.loyalty",
+    "rarity": "rare",
+    "name": {
+      "pt": "Vinte clássicos",
+      "es": "Veinte clásicos",
+      "en": "Twenty derbies"
+    },
+    "flavor": {
+      "pt": "Vinte clássicos. Temporadas de duelo acompanhadas.",
+      "es": "Veinte clásicos. Temporadas de duelo seguidas de cerca.",
+      "en": "Twenty derbies. Seasons of duels followed closely."
+    },
+    "art_prompt": "A split stadium at sunset, golden light down the dividing aisle, both halves of fan silhouettes with arms raised, violet sky. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.loyalty.derby.5",
+    "collection": "common.loyalty",
+    "rarity": "historic",
+    "name": {
+      "pt": "Cinquenta clássicos",
+      "es": "Cincuenta clásicos",
+      "en": "Fifty derbies"
+    },
+    "flavor": {
+      "pt": "Cinquenta clássicos. Nenhum grande duelo passou sem você.",
+      "es": "Cincuenta clásicos. Ningún gran duelo pasó sin ti.",
+      "en": "Fifty derbies. No great duel went by without you."
+    },
+    "art_prompt": "A night stadium split by a blazing aisle of warm amber light, both halves of fan silhouettes glowing, laurel patterns of light arching overhead. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.loyalty.favorite_streak.1",
+    "collection": "common.loyalty",
+    "rarity": "common",
+    "name": {
+      "pt": "Dois seguidos",
+      "es": "Dos seguidos",
+      "en": "Two straight"
+    },
+    "flavor": {
+      "pt": "Dois jogos do seu time em sequência. Começou a corrente.",
+      "es": "Dos partidos de tu equipo seguidos. Empezó la cadena.",
+      "en": "Two matches of your team in a row. The chain begins."
+    },
+    "art_prompt": "Two linked rings of light resting on a stadium seat at dawn, a plain scarf draped beside them, empty stand. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.loyalty.favorite_streak.2",
+    "collection": "common.loyalty",
+    "rarity": "special",
+    "name": {
+      "pt": "Cinco seguidos",
+      "es": "Cinco seguidos",
+      "en": "Five straight"
+    },
+    "flavor": {
+      "pt": "Cinco jogos seguidos. Nenhum compromisso ganhou do jogo.",
+      "es": "Cinco partidos seguidos. Ningún compromiso le ganó al partido.",
+      "en": "Five straight. No appointment beat the match."
+    },
+    "art_prompt": "A short chain of glowing linked rings held up by a stylized fan silhouette in a plain white kit, sunlit stand behind. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.loyalty.favorite_streak.3",
+    "collection": "common.loyalty",
+    "rarity": "special",
+    "name": {
+      "pt": "Doze seguidos",
+      "es": "Doce seguidos",
+      "en": "Twelve straight"
+    },
+    "flavor": {
+      "pt": "Doze seguidos. Sua agenda é a tabela do time.",
+      "es": "Doce seguidos. Tu agenda es el calendario del equipo.",
+      "en": "Twelve straight. Your calendar is the team fixture list."
+    },
+    "art_prompt": "A long chain of glowing rings stretched across a stand full of fan silhouettes, afternoon light, generic pitch below. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.loyalty.favorite_streak.4",
+    "collection": "common.loyalty",
+    "rarity": "rare",
+    "name": {
+      "pt": "Trinta seguidos",
+      "es": "Treinta seguidos",
+      "en": "Thirty straight"
+    },
+    "flavor": {
+      "pt": "Trinta jogos seguidos. Meia temporada sem piscar.",
+      "es": "Treinta partidos seguidos. Media temporada sin pestañear.",
+      "en": "Thirty straight. Half a season without blinking."
+    },
+    "art_prompt": "A golden chain of rings circling an entire stadium bowl at sunset, fan silhouettes beneath it, violet sky. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.loyalty.favorite_streak.5",
+    "collection": "common.loyalty",
+    "rarity": "historic",
+    "name": {
+      "pt": "Setenta seguidos",
+      "es": "Setenta seguidos",
+      "en": "Seventy straight"
+    },
+    "flavor": {
+      "pt": "Setenta jogos seguidos do seu time. A corrente não quebrou.",
+      "es": "Setenta partidos seguidos de tu equipo. La cadena no se rompió.",
+      "en": "Seventy straight matches of your team. The chain never broke."
+    },
+    "art_prompt": "A night stadium with an unbroken chain of warm amber rings spiraling into the sky, laurel light patterns, fan silhouettes looking up. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.loyalty.favorite_watched.1",
+    "collection": "common.loyalty",
+    "rarity": "common",
+    "name": {
+      "pt": "Primeiro do meu time",
+      "es": "Primero de mi equipo",
+      "en": "First of my team"
+    },
+    "flavor": {
+      "pt": "Um jogo do seu time, inteiro. O resto vem.",
+      "es": "Un partido de tu equipo, completo. Lo demás llega.",
+      "en": "One full match of your team. The rest will follow."
+    },
+    "art_prompt": "A stylized fan silhouette in a plain white kit holding a plain scarf at the edge of an empty stand at dawn, a generic pitch glowing softly below. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.loyalty.favorite_watched.2",
+    "collection": "common.loyalty",
+    "rarity": "special",
+    "name": {
+      "pt": "Quatro do meu time",
+      "es": "Cuatro de mi equipo",
+      "en": "Four of my team"
+    },
+    "flavor": {
+      "pt": "Quatro jogos do seu time. Um mês de torcida.",
+      "es": "Cuatro partidos de tu equipo. Un mes de hinchada.",
+      "en": "Four matches of your team. A month of cheering."
+    },
+    "art_prompt": "A small group of stylized fans in plain white kits raising plain scarves in a sunlit stand, a generic pitch below. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.loyalty.favorite_watched.3",
+    "collection": "common.loyalty",
+    "rarity": "special",
+    "name": {
+      "pt": "Doze do meu time",
+      "es": "Doce de mi equipo",
+      "en": "Twelve of my team"
+    },
+    "flavor": {
+      "pt": "Doze jogos do seu time. Você conhece cada escalação.",
+      "es": "Doce partidos de tu equipo. Conoces cada alineación.",
+      "en": "Twelve matches of your team. You know every lineup."
+    },
+    "art_prompt": "A stand filled with stylized fans in plain white kits, scarves stretched overhead in a wave, afternoon light, generic pitch below. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.loyalty.favorite_watched.4",
+    "collection": "common.loyalty",
+    "rarity": "rare",
+    "name": {
+      "pt": "Temporada do meu time",
+      "es": "Temporada de mi equipo",
+      "en": "My team season"
+    },
+    "flavor": {
+      "pt": "Quarenta jogos do seu time. Uma temporada lado a lado.",
+      "es": "Cuarenta partidos de tu equipo. Una temporada codo a codo.",
+      "en": "Forty matches of your team. A season side by side."
+    },
+    "art_prompt": "A full stadium of stylized fans in plain white kits holding scarves aloft at sunset, golden light across a generic pitch, violet sky. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.loyalty.favorite_watched.5",
+    "collection": "common.loyalty",
+    "rarity": "historic",
+    "name": {
+      "pt": "Cem do meu time",
+      "es": "Cien de mi equipo",
+      "en": "Hundred of my team"
+    },
+    "flavor": {
+      "pt": "Cem jogos do seu time ao vivo. Isso é amor de verdade.",
+      "es": "Cien partidos de tu equipo en vivo. Eso es amor de verdad.",
+      "en": "A hundred matches of your team live. That is true love."
+    },
+    "art_prompt": "A night stadium of stylized fans in plain white kits with scarves raised, warm amber light, laurel patterns of light framing a lone fan at the center of the stand. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.loyalty.finals.1",
+    "collection": "common.loyalty",
+    "rarity": "common",
+    "name": {
+      "pt": "Primeira final",
+      "es": "Primera final",
+      "en": "First final"
+    },
+    "flavor": {
+      "pt": "Uma final inteira. Tudo em jogo, você presente.",
+      "es": "Una final completa. Todo en juego, tú presente.",
+      "en": "A full final. Everything at stake, and you were there."
+    },
+    "art_prompt": "A generic trophy silhouette on a plinth at the center of an empty pitch at dawn, confetti frozen in the air, a single fan silhouette in the stand. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.loyalty.finals.2",
+    "collection": "common.loyalty",
+    "rarity": "special",
+    "name": {
+      "pt": "Três finais",
+      "es": "Tres finales",
+      "en": "Three finals"
+    },
+    "flavor": {
+      "pt": "Três finais. O gosto de decisão você conhece.",
+      "es": "Tres finales. El sabor de la definición ya lo conoces.",
+      "en": "Three finals. You know the taste of a decider."
+    },
+    "art_prompt": "A generic trophy raised by silhouetted players in plain white kits, confetti falling in sunlight, fan silhouettes cheering in the stand. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.loyalty.finals.3",
+    "collection": "common.loyalty",
+    "rarity": "special",
+    "name": {
+      "pt": "Oito finais",
+      "es": "Ocho finales",
+      "en": "Eight finals"
+    },
+    "flavor": {
+      "pt": "Oito finais ao vivo. Decisão é o seu habitat.",
+      "es": "Ocho finales en vivo. La definición es tu hábitat.",
+      "en": "Eight finals live. Deciders are your habitat."
+    },
+    "art_prompt": "A podium stage on a stadium pitch under afternoon light, generic trophy glowing, streams of plain confetti, packed stands of fan silhouettes. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.loyalty.finals.4",
+    "collection": "common.loyalty",
+    "rarity": "rare",
+    "name": {
+      "pt": "Vinte finais",
+      "es": "Veinte finales",
+      "en": "Twenty finals"
+    },
+    "flavor": {
+      "pt": "Vinte finais. Você já viu muitos títulos nascerem.",
+      "es": "Veinte finales. Ya viste nacer muchos títulos.",
+      "en": "Twenty finals. You have watched many titles be born."
+    },
+    "art_prompt": "A golden generic trophy lifted at sunset amid a blizzard of confetti, a full stadium of fan silhouettes, violet sky. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.loyalty.finals.5",
+    "collection": "common.loyalty",
+    "rarity": "historic",
+    "name": {
+      "pt": "Cinquenta finais",
+      "es": "Cincuenta finales",
+      "en": "Fifty finals"
+    },
+    "flavor": {
+      "pt": "Cinquenta finais. Quando é decisão, você está lá.",
+      "es": "Cincuenta finales. Cuando hay definición, estás ahí.",
+      "en": "Fifty finals. When it is a decider, you are there."
+    },
+    "art_prompt": "A night stadium with a generic trophy radiating warm amber light, confetti like embers, laurel patterns of light, thousands of fan silhouettes. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.moments.derby_win.1",
+    "collection": "common.moments",
+    "rarity": "special",
+    "name": {
+      "pt": "Clássico é nosso",
+      "es": "El clásico es nuestro",
+      "en": "Derby is ours"
+    },
+    "flavor": {
+      "pt": "Dia de clássico, vitória do seu lado. Você estava lá.",
+      "es": "Día de clásico, victoria de tu lado. Estuviste ahí.",
+      "en": "Derby day, win on your side. You were there."
+    },
+    "art_prompt": "A stadium split in two, the plain white half of fan silhouettes exploding upward with scarves while the plain charcoal half sits quietly, players in plain white kits celebrating on a generic pitch, afternoon light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.moments.favorite_comeback.1",
+    "collection": "common.moments",
+    "rarity": "rare",
+    "name": {
+      "pt": "Virada do coração",
+      "es": "Remontada del corazón",
+      "en": "Comeback of the heart"
+    },
+    "flavor": {
+      "pt": "Dois atrás. Depois, só alegria. Você não saiu.",
+      "es": "Dos abajo. Después, solo alegría. No te fuiste.",
+      "en": "Two down. Then pure joy. You never left."
+    },
+    "art_prompt": "A stylized scoreboard without numbers tilting from one side to the other like a scale, players in plain white kits piling in celebration below, fan silhouettes with hands on heads turning into raised arms, dusk light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.moments.favorite_win.1",
+    "collection": "common.moments",
+    "rarity": "common",
+    "name": {
+      "pt": "Primeira vitória",
+      "es": "Primera victoria",
+      "en": "First win"
+    },
+    "flavor": {
+      "pt": "Apito final, placar a favor. Você viu tudo.",
+      "es": "Silbato final, marcador a favor. Lo viste todo.",
+      "en": "Final whistle, score in your favor. You saw it all."
+    },
+    "art_prompt": "A single fan silhouette in a plain white kit jumping with arms raised in an otherwise empty stand at dusk, a generic pitch below with players in plain white kits embracing. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.moments.favorite_win.2",
+    "collection": "common.moments",
+    "rarity": "special",
+    "name": {
+      "pt": "Três vitórias",
+      "es": "Tres victorias",
+      "en": "Three wins"
+    },
+    "flavor": {
+      "pt": "Três vitórias ao vivo. O gosto você já conhece.",
+      "es": "Tres victorias en vivo. El sabor ya lo conoces.",
+      "en": "Three wins live. You know the taste by now."
+    },
+    "art_prompt": "A small cluster of fan silhouettes in plain white kits hugging in a sunlit stand, plain scarves in the air, players celebrating on a generic pitch. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.moments.favorite_win.3",
+    "collection": "common.moments",
+    "rarity": "special",
+    "name": {
+      "pt": "Oito vitórias",
+      "es": "Ocho victorias",
+      "en": "Eight wins"
+    },
+    "flavor": {
+      "pt": "Oito vitórias com você na arquibancada. Não é acaso; é presença.",
+      "es": "Ocho victorias contigo en la grada. No es azar; es presencia.",
+      "en": "Eight wins with you in the stands. Not chance; presence."
+    },
+    "art_prompt": "A stand packed with fan silhouettes in plain white kits leaping together under afternoon light, confetti without text, players in plain white kits with arms raised. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.moments.favorite_win.4",
+    "collection": "common.moments",
+    "rarity": "rare",
+    "name": {
+      "pt": "Vinte vitórias",
+      "es": "Veinte victorias",
+      "en": "Twenty wins"
+    },
+    "flavor": {
+      "pt": "Vinte vitórias ao vivo. Uma temporada de festa.",
+      "es": "Veinte victorias en vivo. Una temporada de fiesta.",
+      "en": "Twenty wins live. A season of celebration."
+    },
+    "art_prompt": "A full stadium at sunset, fan silhouettes in plain white kits with scarves raised in a golden wave, players lifting one another on the pitch, violet sky. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.moments.favorite_win.5",
+    "collection": "common.moments",
+    "rarity": "legendary",
+    "name": {
+      "pt": "Cinquenta vitórias",
+      "es": "Cincuenta victorias",
+      "en": "Fifty wins"
+    },
+    "flavor": {
+      "pt": "Cinquenta vitórias com você presente. Testemunha de todas.",
+      "es": "Cincuenta victorias contigo presente. Testigo de todas.",
+      "en": "Fifty wins with you present. Witness to every one."
+    },
+    "art_prompt": "A night stadium erupting in prismatic light, fan silhouettes in plain white kits raising scarves, light rays and floating particles over a celebrating team on the pitch. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: iridescent prismatic border with light rays and floating particles.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.moments.final_win.1",
+    "collection": "common.moments",
+    "rarity": "rare",
+    "name": {
+      "pt": "Campeão ao vivo",
+      "es": "Campeón en vivo",
+      "en": "Champion live"
+    },
+    "flavor": {
+      "pt": "Final vencida com você na arquibancada. Guarde esta.",
+      "es": "Final ganada contigo en la grada. Guarda esta.",
+      "en": "A final won with you in the stands. Keep this one."
+    },
+    "art_prompt": "Players in plain white kits lifting a generic trophy on a podium at the center of a stadium pitch, confetti without text falling, fan silhouettes in plain white kits filling the stands, golden hour light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.moments.overtime_win.1",
+    "collection": "common.moments",
+    "rarity": "common",
+    "name": {
+      "pt": "Primeira prorrogação",
+      "es": "Primera prórroga",
+      "en": "First overtime"
+    },
+    "flavor": {
+      "pt": "O relógio zerou e o jogo seguiu. Vitória.",
+      "es": "El reloj llegó a cero y el partido siguió. Victoria.",
+      "en": "The clock hit zero and the game went on. Victory."
+    },
+    "art_prompt": "A stylized clock face without numerals with its hands pushed past the top, a single fan silhouette in a plain white kit standing in a dusky stand, players in plain white kits embracing on a generic rink-like surface. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.moments.overtime_win.2",
+    "collection": "common.moments",
+    "rarity": "special",
+    "name": {
+      "pt": "Duas prorrogações",
+      "es": "Dos prórrogas",
+      "en": "Two overtimes"
+    },
+    "flavor": {
+      "pt": "Duas vitórias além do tempo. Nervos de aço.",
+      "es": "Dos victorias más allá del tiempo. Nervios de acero.",
+      "en": "Two wins beyond the clock. Nerves of steel."
+    },
+    "art_prompt": "Two stylized clock faces without numerals glowing above a sunlit stand of fan silhouettes in plain white kits, players celebrating below. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.moments.overtime_win.3",
+    "collection": "common.moments",
+    "rarity": "special",
+    "name": {
+      "pt": "Cinco prorrogações",
+      "es": "Cinco prórrogas",
+      "en": "Five overtimes"
+    },
+    "flavor": {
+      "pt": "Cinco vitórias na prorrogação. O tempo extra é seu amigo.",
+      "es": "Cinco victorias en la prórroga. El tiempo extra es tu amigo.",
+      "en": "Five overtime wins. Extra time is your friend."
+    },
+    "art_prompt": "A stadium under afternoon light with a large glowing clock face without numerals above the scoreboard, fan silhouettes in plain white kits leaping, players piling on in celebration. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.moments.overtime_win.4",
+    "collection": "common.moments",
+    "rarity": "rare",
+    "name": {
+      "pt": "Dez prorrogações",
+      "es": "Diez prórrogas",
+      "en": "Ten overtimes"
+    },
+    "flavor": {
+      "pt": "Dez vitórias além do tempo. Uma temporada de coração forte.",
+      "es": "Diez victorias más allá del tiempo. Una temporada de corazón fuerte.",
+      "en": "Ten wins beyond the clock. A season of strong hearts."
+    },
+    "art_prompt": "A golden clock face without numerals glowing over a full stadium at sunset, fan silhouettes in plain white kits with scarves raised, violet sky. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.moments.overtime_win.5",
+    "collection": "common.moments",
+    "rarity": "legendary",
+    "name": {
+      "pt": "Vinte e cinco prorrogações",
+      "es": "Veinticinco prórrogas",
+      "en": "Twenty-five overtimes"
+    },
+    "flavor": {
+      "pt": "Vinte e cinco vitórias na prorrogação. Você vive no tempo extra.",
+      "es": "Veinticinco victorias en la prórroga. Vives en el tiempo extra.",
+      "en": "Twenty-five overtime wins. You live in extra time."
+    },
+    "art_prompt": "A night stadium with a prismatic clock face without numerals spinning above the pitch, light rays and floating particles, fan silhouettes in plain white kits celebrating. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: iridescent prismatic border with light rays and floating particles.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.predictions.competitions.1",
+    "collection": "common.prediction_habit",
+    "rarity": "common",
+    "name": {
+      "pt": "Duas competições",
+      "es": "Dos competiciones",
+      "en": "Two competitions"
+    },
+    "flavor": {
+      "pt": "Um torneio não bastava.",
+      "es": "Un torneo no era suficiente.",
+      "en": "One tournament was never going to be enough."
+    },
+    "art_prompt": "Two stylized trophy silhouettes of different generic shapes side by side on a plain plinth at dawn, soft light, empty stand behind. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.predictions.competitions.2",
+    "collection": "common.prediction_habit",
+    "rarity": "special",
+    "name": {
+      "pt": "Cinco competições",
+      "es": "Cinco competiciones",
+      "en": "Five competitions"
+    },
+    "flavor": {
+      "pt": "Cinco torneios diferentes. Seu radar está ligado.",
+      "es": "Cinco torneos diferentes. Tu radar está encendido.",
+      "en": "Five different tournaments. Your radar is on."
+    },
+    "art_prompt": "A row of five distinct generic trophy silhouettes on a sunlit plinth, a stylized fan silhouette in a plain kit looking up at them. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.predictions.competitions.3",
+    "collection": "common.prediction_habit",
+    "rarity": "special",
+    "name": {
+      "pt": "Doze competições",
+      "es": "Doce competiciones",
+      "en": "Twelve competitions"
+    },
+    "flavor": {
+      "pt": "Doze torneios. Você palpita onde a bola rola.",
+      "es": "Doce torneos. Pronosticas donde rueda la pelota.",
+      "en": "Twelve tournaments. You predict wherever the ball rolls."
+    },
+    "art_prompt": "A curved display of many generic trophy silhouettes glowing in a stadium hall, afternoon light through tall windows, fan silhouettes browsing. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.predictions.competitions.4",
+    "collection": "common.prediction_habit",
+    "rarity": "rare",
+    "name": {
+      "pt": "Vinte e cinco competições",
+      "es": "Veinticinco competiciones",
+      "en": "Twenty-five competitions"
+    },
+    "flavor": {
+      "pt": "Vinte e cinco torneios diferentes. Um mapa de palpites.",
+      "es": "Veinticinco torneos diferentes. Un mapa de pronósticos.",
+      "en": "Twenty-five different tournaments. A map of predictions."
+    },
+    "art_prompt": "A grand hall of golden generic trophy silhouettes arranged in rising tiers, sunset light, a stylized map outline without names glowing on the floor. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.predictions.competitions.5",
+    "collection": "common.prediction_habit",
+    "rarity": "historic",
+    "name": {
+      "pt": "Sessenta competições",
+      "es": "Sesenta competiciones",
+      "en": "Sixty competitions"
+    },
+    "flavor": {
+      "pt": "Sessenta torneios. Nenhuma competição está fora do seu alcance.",
+      "es": "Sesenta torneos. Ninguna competición queda fuera de tu alcance.",
+      "en": "Sixty tournaments. No competition is out of your reach."
+    },
+    "art_prompt": "A night hall where countless generic trophy silhouettes float in warm amber light like constellations, laurel patterns of light, a lone fan silhouette below. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.predictions.full_hit.1",
+    "collection": "common.predictions",
+    "rarity": "common",
+    "name": {
+      "pt": "Primeiro cheio",
+      "es": "Primer pleno",
+      "en": "First full hit"
+    },
+    "flavor": {
+      "pt": "Nem um número a mais, nem a menos.",
+      "es": "Ni un número de más, ni de menos.",
+      "en": "Not one digit over, not one under."
+    },
+    "art_prompt": "A stylized generic ball resting dead center in a chalk circle on an empty pitch at dawn, a single soft spotlight on it, empty stands. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.predictions.full_hit.2",
+    "collection": "common.predictions",
+    "rarity": "special",
+    "name": {
+      "pt": "Cheio de novo",
+      "es": "Pleno otra vez",
+      "en": "Full hit again"
+    },
+    "flavor": {
+      "pt": "Cinco acertos em cheio. Já é hábito.",
+      "es": "Cinco plenos. Ya es costumbre.",
+      "en": "Five full hits. It is becoming a habit."
+    },
+    "art_prompt": "Five generic balls lined dead center along the halfway line of a sunlit pitch, each in its own chalk circle, a few fan silhouettes watching from a low stand. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.predictions.full_hit.3",
+    "collection": "common.predictions",
+    "rarity": "special",
+    "name": {
+      "pt": "Pontaria fina",
+      "es": "Puntería fina",
+      "en": "Fine aim"
+    },
+    "flavor": {
+      "pt": "Quinze acertos em cheio. O jogo cabe na sua palma.",
+      "es": "Quince plenos. El partido cabe en tu mano.",
+      "en": "Fifteen full hits. The game fits in your palm."
+    },
+    "art_prompt": "A stylized open hand silhouette holding a glowing generic ball above a stadium pitch, concentric light rings around it, afternoon light, crowd silhouettes. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.predictions.full_hit.4",
+    "collection": "common.predictions",
+    "rarity": "rare",
+    "name": {
+      "pt": "Cheio de ouro",
+      "es": "Pleno dorado",
+      "en": "Golden full hit"
+    },
+    "flavor": {
+      "pt": "Quarenta acertos em cheio. Uma temporada sem errar a conta.",
+      "es": "Cuarenta plenos. Una temporada sin fallar la cuenta.",
+      "en": "Forty full hits. A season without missing the count."
+    },
+    "art_prompt": "A golden glowing generic ball at the exact center of a full stadium at sunset, light rings expanding to the stands filled with fan silhouettes, violet sky. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.predictions.full_hit.5",
+    "collection": "common.predictions",
+    "rarity": "legendary",
+    "name": {
+      "pt": "Perfeição absoluta",
+      "es": "Perfección absoluta",
+      "en": "Absolute perfection"
+    },
+    "flavor": {
+      "pt": "Cem acertos em cheio. Nada escapa ao seu cálculo.",
+      "es": "Cien plenos. Nada escapa a tu cálculo.",
+      "en": "A hundred full hits. Nothing escapes your reckoning."
+    },
+    "art_prompt": "A night stadium with a prismatic generic ball hovering at the center of the pitch, rays and floating particles radiating outward, thousands of fan silhouettes lit by the glow. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: iridescent prismatic border with light rays and floating particles.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.predictions.round_streak.1",
+    "collection": "common.prediction_habit",
+    "rarity": "common",
+    "name": {
+      "pt": "Três rodadas",
+      "es": "Tres jornadas",
+      "en": "Three rounds"
+    },
+    "flavor": {
+      "pt": "Três rodadas seguidas. Deu o primeiro passo.",
+      "es": "Tres jornadas seguidas. Diste el primer paso.",
+      "en": "Three rounds straight. The first steps are in."
+    },
+    "art_prompt": "A stylized wall calendar with three consecutive squares glowing, pinned beside a blank fixture board in an empty stadium corridor at dawn. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.predictions.round_streak.2",
+    "collection": "common.prediction_habit",
+    "rarity": "special",
+    "name": {
+      "pt": "Oito rodadas",
+      "es": "Ocho jornadas",
+      "en": "Eight rounds"
+    },
+    "flavor": {
+      "pt": "Oito rodadas sem faltar. A liga é parte da sua semana.",
+      "es": "Ocho jornadas sin faltar. El torneo es parte de tu semana.",
+      "en": "Eight rounds without a miss. The league is part of your week."
+    },
+    "art_prompt": "A wall calendar with a glowing row of consecutive squares, a stylized fan silhouette in a plain kit marking the next square, sunlit stadium corridor. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.predictions.round_streak.3",
+    "collection": "common.prediction_habit",
+    "rarity": "special",
+    "name": {
+      "pt": "Meio campeonato",
+      "es": "Medio campeonato",
+      "en": "Half the season"
+    },
+    "flavor": {
+      "pt": "Dezenove rodadas seguidas. Metade do caminho, nenhum buraco.",
+      "es": "Diecinueve jornadas seguidas. Mitad del camino, sin huecos.",
+      "en": "Nineteen straight rounds. Halfway there, not one gap."
+    },
+    "art_prompt": "A long stylized calendar strip wrapping around a stadium concourse, half of its squares glowing, fan silhouettes walking alongside it in afternoon light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.predictions.round_streak.4",
+    "collection": "common.prediction_habit",
+    "rarity": "rare",
+    "name": {
+      "pt": "Campeonato inteiro",
+      "es": "Campeonato completo",
+      "en": "Whole season"
+    },
+    "flavor": {
+      "pt": "Trinta e oito rodadas seguidas. Do primeiro ao último apito.",
+      "es": "Treinta y ocho jornadas seguidas. Del primer al último silbato.",
+      "en": "Thirty-eight straight rounds. From first whistle to last."
+    },
+    "art_prompt": "A calendar strip of glowing golden squares circling an entire stadium bowl at sunset, every square lit, fan silhouettes filling the stands, violet sky. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.predictions.round_streak.5",
+    "collection": "common.prediction_habit",
+    "rarity": "historic",
+    "name": {
+      "pt": "Cem rodadas",
+      "es": "Cien jornadas",
+      "en": "Hundred rounds"
+    },
+    "flavor": {
+      "pt": "Cem rodadas sem pular uma. Isso atravessa temporadas.",
+      "es": "Cien jornadas sin saltarte una. Eso atraviesa temporadas.",
+      "en": "A hundred rounds without skipping one. That spans seasons."
+    },
+    "art_prompt": "A night stadium with ribbons of glowing calendar squares spiraling upward into the sky, warm amber light, laurel-like patterns of light along the ribbons. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.predictions.streak.1",
+    "collection": "common.prediction_habit",
+    "rarity": "common",
+    "name": {
+      "pt": "Dois seguidos",
+      "es": "Dos seguidos",
+      "en": "Two in a row"
+    },
+    "flavor": {
+      "pt": "Um acerto chama o outro.",
+      "es": "Un acierto llama al otro.",
+      "en": "One right call invites the next."
+    },
+    "art_prompt": "Two glowing footprints on the grass of an empty pitch at dawn, leading away from the camera, soft morning haze, empty stands. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.predictions.streak.2",
+    "collection": "common.prediction_habit",
+    "rarity": "special",
+    "name": {
+      "pt": "Quatro seguidos",
+      "es": "Cuatro seguidos",
+      "en": "Four in a row"
+    },
+    "flavor": {
+      "pt": "Quatro acertos em fila. O ritmo apareceu.",
+      "es": "Cuatro aciertos en fila. Apareció el ritmo.",
+      "en": "Four right in a row. The rhythm is here."
+    },
+    "art_prompt": "A short trail of glowing footprints crossing a sunlit pitch toward a blank scoreboard, a stylized fan silhouette walking the trail in a plain white kit. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.predictions.streak.3",
+    "collection": "common.prediction_habit",
+    "rarity": "special",
+    "name": {
+      "pt": "Sete seguidos",
+      "es": "Siete seguidos",
+      "en": "Seven in a row"
+    },
+    "flavor": {
+      "pt": "Sete em fila. A torcida já conta junto.",
+      "es": "Siete en fila. La hinchada ya cuenta contigo.",
+      "en": "Seven in a row. The crowd is counting along."
+    },
+    "art_prompt": "A long trail of glowing footprints winding across a stadium pitch under afternoon light, fan silhouettes in the stands leaning in, a blank scoreboard above. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.predictions.streak.4",
+    "collection": "common.prediction_habit",
+    "rarity": "rare",
+    "name": {
+      "pt": "Dez seguidos",
+      "es": "Diez seguidos",
+      "en": "Ten in a row"
+    },
+    "flavor": {
+      "pt": "Dez acertos sem tropeço. A melhor fase da temporada.",
+      "es": "Diez aciertos sin tropiezo. La mejor racha de la temporada.",
+      "en": "Ten right with no stumble. The hottest run of the season."
+    },
+    "art_prompt": "A trail of golden footprints spiraling across a full stadium at sunset, each print brighter than the last, fan silhouettes rising to their feet, violet sky. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.predictions.streak.5",
+    "collection": "common.prediction_habit",
+    "rarity": "legendary",
+    "name": {
+      "pt": "Quinze seguidos",
+      "es": "Quince seguidos",
+      "en": "Fifteen in a row"
+    },
+    "flavor": {
+      "pt": "Quinze acertos em sequência. Isso quase não acontece.",
+      "es": "Quince aciertos seguidos. Eso casi nunca pasa.",
+      "en": "Fifteen straight. This almost never happens."
+    },
+    "art_prompt": "A night stadium where a trail of prismatic footprints lifts off the pitch and arcs into the sky like a comet, floating particles, thousands of fan silhouettes watching. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: iridescent prismatic border with light rays and floating particles.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.rhythm.early_bird.1",
+    "collection": "common.rhythm",
+    "rarity": "common",
+    "name": {
+      "pt": "Primeira madrugada",
+      "es": "Primera madrugada",
+      "en": "First small hours"
+    },
+    "flavor": {
+      "pt": "O despertador tocou pelo jogo. Valeu.",
+      "es": "El despertador sonó por el partido. Valió la pena.",
+      "en": "The alarm rang for the game. Worth it."
+    },
+    "art_prompt": "A stylized fan silhouette wrapped in a plain blanket on a sofa, a glowing screen showing a blank scoreboard, dark window with a thin pale horizon. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.rhythm.early_bird.2",
+    "collection": "common.rhythm",
+    "rarity": "special",
+    "name": {
+      "pt": "Três madrugadas",
+      "es": "Tres madrugadas",
+      "en": "Three small hours"
+    },
+    "flavor": {
+      "pt": "Três madrugadas. Café na mão, jogo na tela.",
+      "es": "Tres madrugadas. Café en mano, partido en pantalla.",
+      "en": "Three early mornings. Coffee in hand, game on screen."
+    },
+    "art_prompt": "A fan silhouette holding a steaming mug before a glowing screen, a clock with hands near four, first blue light at the window. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.rhythm.early_bird.3",
+    "collection": "common.rhythm",
+    "rarity": "special",
+    "name": {
+      "pt": "Oito madrugadas",
+      "es": "Ocho madrugadas",
+      "en": "Eight small hours"
+    },
+    "flavor": {
+      "pt": "Oito madrugadas. O fuso horário não manda em você.",
+      "es": "Ocho madrugadas. El huso horario no te manda.",
+      "en": "Eight early mornings. Time zones do not boss you around."
+    },
+    "art_prompt": "A dim living room with a glowing screen, a stylized world clock showing several dials without text, a fan silhouette leaning forward, dawn glow outside. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.rhythm.early_bird.4",
+    "collection": "common.rhythm",
+    "rarity": "rare",
+    "name": {
+      "pt": "Vinte madrugadas",
+      "es": "Veinte madrugadas",
+      "en": "Twenty small hours"
+    },
+    "flavor": {
+      "pt": "Vinte madrugadas. Uma temporada de olhos abertos.",
+      "es": "Veinte madrugadas. Una temporada con los ojos abiertos.",
+      "en": "Twenty early mornings. A season with eyes wide open."
+    },
+    "art_prompt": "A rooftop at the blue hour with a fan silhouette watching a glowing screen, a stylized sunrise breaking golden over a distant generic stadium, violet sky. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.rhythm.early_bird.5",
+    "collection": "common.rhythm",
+    "rarity": "historic",
+    "name": {
+      "pt": "Cinquenta madrugadas",
+      "es": "Cincuenta madrugadas",
+      "en": "Fifty small hours"
+    },
+    "flavor": {
+      "pt": "Cinquenta madrugadas. O sol nasce e você já viu o jogo.",
+      "es": "Cincuenta madrugadas. Sale el sol y ya viste el partido.",
+      "en": "Fifty early mornings. The sun rises and you have already seen the game."
+    },
+    "art_prompt": "A fan silhouette on a rooftop as a warm amber sunrise floods a city skyline without signs, a glowing screen in hand, laurel-like rays of light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.rhythm.night_owl.1",
+    "collection": "common.rhythm",
+    "rarity": "common",
+    "name": {
+      "pt": "Primeira noite",
+      "es": "Primera noche",
+      "en": "First late night"
+    },
+    "flavor": {
+      "pt": "Todo mundo dormiu. O jogo continuou com você.",
+      "es": "Todos se durmieron. El partido siguió contigo.",
+      "en": "Everyone went to sleep. The game kept going with you."
+    },
+    "art_prompt": "A stylized owl silhouette perched on the back of a sofa beside a fan silhouette, a glowing screen in a dark room, crescent moon in the window. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.rhythm.night_owl.2",
+    "collection": "common.rhythm",
+    "rarity": "special",
+    "name": {
+      "pt": "Quatro noites",
+      "es": "Cuatro noches",
+      "en": "Four late nights"
+    },
+    "flavor": {
+      "pt": "Quatro noites. A luz da tela é sua companhia.",
+      "es": "Cuatro noches. La luz de la pantalla te acompaña.",
+      "en": "Four late nights. The screen glow keeps you company."
+    },
+    "art_prompt": "A fan silhouette under a plain blanket with an owl silhouette on the armrest, glowing screen, a clock near midnight, dark blue window. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.rhythm.night_owl.3",
+    "collection": "common.rhythm",
+    "rarity": "special",
+    "name": {
+      "pt": "Doze noites",
+      "es": "Doce noches",
+      "en": "Twelve late nights"
+    },
+    "flavor": {
+      "pt": "Doze noites. A madrugada é hora de jogo.",
+      "es": "Doce noches. La madrugada es hora de partido.",
+      "en": "Twelve late nights. After midnight is game time."
+    },
+    "art_prompt": "A dark balcony with a fan silhouette and an owl silhouette watching a glowing screen, a city skyline without signs under a starry sky. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.rhythm.night_owl.4",
+    "collection": "common.rhythm",
+    "rarity": "rare",
+    "name": {
+      "pt": "Trinta noites",
+      "es": "Treinta noches",
+      "en": "Thirty late nights"
+    },
+    "flavor": {
+      "pt": "Trinta noites. Uma temporada inteira virando a noite.",
+      "es": "Treinta noches. Una temporada entera trasnochando.",
+      "en": "Thirty late nights. A whole season burning the midnight oil."
+    },
+    "art_prompt": "A rooftop at night with a fan silhouette and a glowing owl silhouette, a golden moon over a distant generic stadium lit up, violet sky. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.rhythm.night_owl.5",
+    "collection": "common.rhythm",
+    "rarity": "historic",
+    "name": {
+      "pt": "Oitenta noites",
+      "es": "Ochenta noches",
+      "en": "Eighty late nights"
+    },
+    "flavor": {
+      "pt": "Oitenta noites. A coruja da arquibancada é você.",
+      "es": "Ochenta noches. El búho de la grada eres tú.",
+      "en": "Eighty late nights. The owl of the stands is you."
+    },
+    "art_prompt": "A night sky full of stars over a stadium, a great owl silhouette of warm amber light spreading its wings above the stands, laurel light patterns, fan silhouettes below. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.rhythm.weekend.1",
+    "collection": "common.rhythm",
+    "rarity": "common",
+    "name": {
+      "pt": "Primeiro fim de semana",
+      "es": "Primer fin de semana",
+      "en": "First weekend"
+    },
+    "flavor": {
+      "pt": "Sábado ou domingo, o sofá vira arquibancada.",
+      "es": "Sábado o domingo, el sofá se vuelve grada.",
+      "en": "Saturday or Sunday, the sofa becomes a stand."
+    },
+    "art_prompt": "A sunlit living room with a fan silhouette in a plain kit on a sofa, a glowing screen showing a generic pitch, a window with a bright afternoon sky. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.rhythm.weekend.2",
+    "collection": "common.rhythm",
+    "rarity": "special",
+    "name": {
+      "pt": "Cinco fins de semana",
+      "es": "Cinco fines de semana",
+      "en": "Five weekends"
+    },
+    "flavor": {
+      "pt": "Cinco fins de semana. A rotina mais feliz da semana.",
+      "es": "Cinco fines de semana. La rutina más feliz de la semana.",
+      "en": "Five weekends. The happiest routine of the week."
+    },
+    "art_prompt": "A family of varied fan silhouettes in plain kits gathered around a glowing screen, snacks on a table, bright weekend light through the window. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.rhythm.weekend.3",
+    "collection": "common.rhythm",
+    "rarity": "special",
+    "name": {
+      "pt": "Quinze fins de semana",
+      "es": "Quince fines de semana",
+      "en": "Fifteen weekends"
+    },
+    "flavor": {
+      "pt": "Quinze fins de semana. O sábado já sabe o que fazer.",
+      "es": "Quince fines de semana. El sábado ya sabe qué hacer.",
+      "en": "Fifteen weekends. Saturday already knows what to do."
+    },
+    "art_prompt": "A sunlit stadium stand filled with fan silhouettes in plain kits, a stylized calendar page with the weekend squares glowing floating above. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.rhythm.weekend.4",
+    "collection": "common.rhythm",
+    "rarity": "rare",
+    "name": {
+      "pt": "Quarenta fins de semana",
+      "es": "Cuarenta fines de semana",
+      "en": "Forty weekends"
+    },
+    "flavor": {
+      "pt": "Quarenta fins de semana. Uma temporada inteira de sábados e domingos.",
+      "es": "Cuarenta fines de semana. Una temporada entera de sábados y domingos.",
+      "en": "Forty weekends. A whole season of Saturdays and Sundays."
+    },
+    "art_prompt": "A full stadium at golden hour, fan silhouettes with plain scarves, a ring of glowing weekend calendar squares circling the bowl, violet sky. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "common.rhythm.weekend.5",
+    "collection": "common.rhythm",
+    "rarity": "historic",
+    "name": {
+      "pt": "Cem fins de semana",
+      "es": "Cien fines de semana",
+      "en": "Hundred weekends"
+    },
+    "flavor": {
+      "pt": "Cem fins de semana de jogo. Dois anos de rotina sagrada.",
+      "es": "Cien fines de semana de partido. Dos años de rutina sagrada.",
+      "en": "A hundred weekends of games. Two years of sacred routine."
+    },
+    "art_prompt": "A night stadium with warm amber light, a spiral of glowing calendar squares rising from the pitch into the sky, laurel light patterns, fan silhouettes watching. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "community.poll.1",
+    "collection": "common.community",
+    "rarity": "common",
+    "name": {
+      "pt": "Primeiros votos",
+      "es": "Primeros votos",
+      "en": "First votes"
+    },
+    "flavor": {
+      "pt": "Três votos. Sua opinião entrou na conta.",
+      "es": "Tres votos. Tu opinión entró en la cuenta.",
+      "en": "Three votes. Your opinion is on the record."
+    },
+    "art_prompt": "A stylized raised hand silhouette in a plain sleeve above a stadium seat at dawn, a small glowing bar chart without text beside it. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "community.poll.2",
+    "collection": "common.community",
+    "rarity": "special",
+    "name": {
+      "pt": "Dez votos",
+      "es": "Diez votos",
+      "en": "Ten votes"
+    },
+    "flavor": {
+      "pt": "Dez votos. A torcida tem a sua voz.",
+      "es": "Diez votos. La hinchada tiene tu voz.",
+      "en": "Ten votes. The crowd has your voice."
+    },
+    "art_prompt": "A few raised hand silhouettes in a sunlit stand, a glowing bar chart without text floating above them, generic pitch below. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "community.poll.3",
+    "collection": "common.community",
+    "rarity": "special",
+    "name": {
+      "pt": "Trinta votos",
+      "es": "Treinta votos",
+      "en": "Thirty votes"
+    },
+    "flavor": {
+      "pt": "Trinta votos. Nenhuma enquete passa em branco.",
+      "es": "Treinta votos. Ninguna encuesta queda en blanco.",
+      "en": "Thirty votes. No poll goes unanswered."
+    },
+    "art_prompt": "A stand full of raised hand silhouettes under afternoon light, a large glowing bar chart without text above the scoreboard. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "community.poll.4",
+    "collection": "common.community",
+    "rarity": "rare",
+    "name": {
+      "pt": "Setenta e cinco votos",
+      "es": "Setenta y cinco votos",
+      "en": "Seventy-five votes"
+    },
+    "flavor": {
+      "pt": "Setenta e cinco votos. Uma temporada de opinião firme.",
+      "es": "Setenta y cinco votos. Una temporada de opinión firme.",
+      "en": "Seventy-five votes. A season of firm opinions."
+    },
+    "art_prompt": "A full stadium at sunset with every fan silhouette raising a hand, a golden bar chart without text glowing above, violet sky. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "community.poll.5",
+    "collection": "common.community",
+    "rarity": "historic",
+    "name": {
+      "pt": "Duzentos votos",
+      "es": "Doscientos votos",
+      "en": "Two hundred votes"
+    },
+    "flavor": {
+      "pt": "Duzentos votos. A voz da torcida tem o seu timbre.",
+      "es": "Doscientos votos. La voz de la hinchada tiene tu timbre.",
+      "en": "Two hundred votes. The voice of the fans sounds like you."
+    },
+    "art_prompt": "A night stadium with thousands of raised hand silhouettes lit in warm amber, laurel patterns of light, a glowing bar chart without text over the pitch. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "consumption.recap.1",
+    "collection": "common.community",
+    "rarity": "common",
+    "name": {
+      "pt": "Dez resumos",
+      "es": "Diez resúmenes",
+      "en": "Ten recaps"
+    },
+    "flavor": {
+      "pt": "Dez resumos lidos. Nada passou batido.",
+      "es": "Diez resúmenes leídos. Nada pasó desapercibido.",
+      "en": "Ten recaps read. Nothing slipped by."
+    },
+    "art_prompt": "A stylized folded newspaper without text resting on a stadium seat at dawn, a steaming mug beside it, empty stand. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "consumption.recap.2",
+    "collection": "common.community",
+    "rarity": "special",
+    "name": {
+      "pt": "Vinte e cinco resumos",
+      "es": "Veinticinco resúmenes",
+      "en": "Twenty-five recaps"
+    },
+    "flavor": {
+      "pt": "Vinte e cinco resumos. A rodada inteira na cabeça.",
+      "es": "Veinticinco resúmenes. Toda la jornada en la cabeza.",
+      "en": "Twenty-five recaps. The whole round in your head."
+    },
+    "art_prompt": "A fan silhouette in a plain kit reading a glowing tablet in a sunlit stand, stacks of plain papers beside, generic pitch below. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "consumption.recap.3",
+    "collection": "common.community",
+    "rarity": "special",
+    "name": {
+      "pt": "Cinquenta resumos",
+      "es": "Cincuenta resúmenes",
+      "en": "Fifty recaps"
+    },
+    "flavor": {
+      "pt": "Cinquenta resumos. Você sabe o que aconteceu em cada jogo.",
+      "es": "Cincuenta resúmenes. Sabes qué pasó en cada partido.",
+      "en": "Fifty recaps. You know what happened in every game."
+    },
+    "art_prompt": "A stand of fan silhouettes each holding a glowing tablet, afternoon light, a blank scoreboard above the generic pitch. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "consumption.recap.4",
+    "collection": "common.community",
+    "rarity": "rare",
+    "name": {
+      "pt": "Cem resumos",
+      "es": "Cien resúmenes",
+      "en": "Hundred recaps"
+    },
+    "flavor": {
+      "pt": "Cem resumos. Uma temporada inteira documentada.",
+      "es": "Cien resúmenes. Una temporada entera documentada.",
+      "en": "A hundred recaps. A whole season documented."
+    },
+    "art_prompt": "A golden archive of floating plain pages without text drifting above a full stadium at sunset, fan silhouettes below, violet sky. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "consumption.recap.5",
+    "collection": "common.community",
+    "rarity": "historic",
+    "name": {
+      "pt": "Duzentos e cinquenta resumos",
+      "es": "Doscientos cincuenta resúmenes",
+      "en": "Recap archivist"
+    },
+    "flavor": {
+      "pt": "Duzentos e cinquenta resumos. Memória viva de temporadas.",
+      "es": "Doscientos cincuenta resúmenes. Memoria viva de temporadas.",
+      "en": "Two hundred fifty recaps. A living memory of seasons."
+    },
+    "art_prompt": "A night stadium where countless plain pages without text swirl upward in warm amber light, laurel patterns, fan silhouettes watching. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "knowledge.trivia.1",
+    "collection": "common.community",
+    "rarity": "common",
+    "name": {
+      "pt": "Primeiras respostas",
+      "es": "Primeras respuestas",
+      "en": "First answers"
+    },
+    "flavor": {
+      "pt": "Três certas. A memória do torcedor funciona.",
+      "es": "Tres correctas. La memoria del hincha funciona.",
+      "en": "Three right. The fan memory works."
+    },
+    "art_prompt": "A stylized lightbulb silhouette glowing softly above an open book on a stadium seat at dawn, empty stand behind. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "knowledge.trivia.2",
+    "collection": "common.community",
+    "rarity": "special",
+    "name": {
+      "pt": "Dez respostas",
+      "es": "Diez respuestas",
+      "en": "Ten answers"
+    },
+    "flavor": {
+      "pt": "Dez certas. Você sabe das coisas.",
+      "es": "Diez correctas. Sabes de qué va.",
+      "en": "Ten right. You know your stuff."
+    },
+    "art_prompt": "A fan silhouette in a plain kit with a glowing lightbulb above the head, seated in a sunlit stand with an open book, generic pitch below. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "knowledge.trivia.3",
+    "collection": "common.community",
+    "rarity": "special",
+    "name": {
+      "pt": "Trinta respostas",
+      "es": "Treinta respuestas",
+      "en": "Thirty answers"
+    },
+    "flavor": {
+      "pt": "Trinta certas. Enciclopédia de arquibancada.",
+      "es": "Treinta correctas. Enciclopedia de grada.",
+      "en": "Thirty right. A walking stadium encyclopedia."
+    },
+    "art_prompt": "A stand of fan silhouettes with several glowing lightbulbs floating above, a stack of plain books on a seat, afternoon light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "knowledge.trivia.4",
+    "collection": "common.community",
+    "rarity": "rare",
+    "name": {
+      "pt": "Setenta e cinco respostas",
+      "es": "Setenta y cinco respuestas",
+      "en": "Seventy-five answers"
+    },
+    "flavor": {
+      "pt": "Setenta e cinco certas. Uma temporada de memória afiada.",
+      "es": "Setenta y cinco correctas. Una temporada de memoria afilada.",
+      "en": "Seventy-five right. A season of sharp memory."
+    },
+    "art_prompt": "A golden lightbulb the size of a scoreboard glowing above a full stadium at sunset, fan silhouettes below, violet sky. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "knowledge.trivia.5",
+    "collection": "common.community",
+    "rarity": "historic",
+    "name": {
+      "pt": "Duzentas respostas",
+      "es": "Doscientas respuestas",
+      "en": "Two hundred answers"
+    },
+    "flavor": {
+      "pt": "Duzentas certas. Quem tem dúvida pergunta a você.",
+      "es": "Doscientas correctas. Quien duda te pregunta a ti.",
+      "en": "Two hundred right. Whoever has a question asks you."
+    },
+    "art_prompt": "A night stadium with a vast lightbulb of warm amber light hanging over the pitch, laurel patterns of light, fan silhouettes looking up. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "loyalty.watched.1",
+    "collection": "common.loyalty",
+    "rarity": "common",
+    "name": {
+      "pt": "Primeiro jogo",
+      "es": "Primer partido",
+      "en": "First match"
+    },
+    "flavor": {
+      "pt": "Do primeiro ao último minuto. Você estava lá.",
+      "es": "Del primer al último minuto. Estuviste ahí.",
+      "en": "First minute to last. You were there."
+    },
+    "art_prompt": "A single stylized fan silhouette in a plain charcoal kit seated alone in a wide empty stand at dawn, a generic pitch below, soft haze. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "loyalty.watched.2",
+    "collection": "common.loyalty",
+    "rarity": "special",
+    "name": {
+      "pt": "Cinco jogos",
+      "es": "Cinco partidos",
+      "en": "Five matches"
+    },
+    "flavor": {
+      "pt": "Cinco jogos inteiros. A cadeira já tem seu nome.",
+      "es": "Cinco partidos completos. La butaca ya tiene tu nombre.",
+      "en": "Five full matches. The seat already knows you."
+    },
+    "art_prompt": "A handful of stylized fan silhouettes of varied builds in plain kits scattered in a sunlit stand, one standing, generic pitch below. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "loyalty.watched.3",
+    "collection": "common.loyalty",
+    "rarity": "special",
+    "name": {
+      "pt": "Quinze jogos",
+      "es": "Quince partidos",
+      "en": "Fifteen matches"
+    },
+    "flavor": {
+      "pt": "Quinze jogos ao vivo. Isso é hábito de torcedor.",
+      "es": "Quince partidos en vivo. Eso es costumbre de hincha.",
+      "en": "Fifteen matches live. That is a fan habit."
+    },
+    "art_prompt": "A lower stand half-filled with stylized fan silhouettes under afternoon light, flags without emblems waving, generic pitch below. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "loyalty.watched.4",
+    "collection": "common.loyalty",
+    "rarity": "rare",
+    "name": {
+      "pt": "Temporada fiel",
+      "es": "Temporada fiel",
+      "en": "Loyal season"
+    },
+    "flavor": {
+      "pt": "Trinta e oito jogos. Uma temporada inteira de presença.",
+      "es": "Treinta y ocho partidos. Una temporada entera de presencia.",
+      "en": "Thirty-eight matches. A whole season of showing up."
+    },
+    "art_prompt": "A full stadium bowl of stylized fan silhouettes at golden hour, plain banners rippling, long shadows across a generic pitch, violet sky. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "loyalty.watched.5",
+    "collection": "common.loyalty",
+    "rarity": "historic",
+    "name": {
+      "pt": "Cem jogos",
+      "es": "Cien partidos",
+      "en": "Hundred matches"
+    },
+    "flavor": {
+      "pt": "Cem jogos ao vivo. Fiel não é apelido, é fato.",
+      "es": "Cien partidos en vivo. Fiel no es apodo, es un hecho.",
+      "en": "A hundred matches live. Loyal is not a nickname, it is a fact."
+    },
+    "art_prompt": "A night stadium packed with stylized fan silhouettes, warm amber light flooding the stands, laurel-like light patterns around a lone standing fan at the center. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "predictions.correct.1",
+    "collection": "common.predictions",
+    "rarity": "common",
+    "name": {
+      "pt": "Primeiro acerto",
+      "es": "Primer acierto",
+      "en": "First call"
+    },
+    "flavor": {
+      "pt": "Palpite dado, resultado conferido. Começou.",
+      "es": "Pronóstico hecho, resultado confirmado. Empezó.",
+      "en": "Called it, checked it. The run begins."
+    },
+    "art_prompt": "A single stylized fan silhouette in a plain charcoal kit sits in an empty stand at dawn, holding up one finger while a blank scoreboard glows softly behind. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "predictions.correct.2",
+    "collection": "common.predictions",
+    "rarity": "special",
+    "name": {
+      "pt": "Olho treinado",
+      "es": "Ojo entrenado",
+      "en": "Trained eye"
+    },
+    "flavor": {
+      "pt": "Dez vezes certo. Já dá para confiar no instinto.",
+      "es": "Diez aciertos. Ya se puede confiar en el instinto.",
+      "en": "Ten right. The instinct is earning trust."
+    },
+    "art_prompt": "A small group of stylized fans of varied builds in plain white and charcoal kits lean forward in a half-lit stand, one pointing at a blank glowing scoreboard, morning light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "predictions.correct.3",
+    "collection": "common.predictions",
+    "rarity": "special",
+    "name": {
+      "pt": "Leitor de jogo",
+      "es": "Lector del partido",
+      "en": "Game reader"
+    },
+    "flavor": {
+      "pt": "Trinta acertos. Você lê o jogo antes do apito.",
+      "es": "Treinta aciertos. Lees el partido antes del silbato.",
+      "en": "Thirty right. You read the game before kickoff."
+    },
+    "art_prompt": "A packed lower stand of stylized fan silhouettes under afternoon sun, a wide blank scoreboard lit above them, faint lines of play drawn in light across a generic pitch below. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "predictions.correct.4",
+    "collection": "common.predictions",
+    "rarity": "rare",
+    "name": {
+      "pt": "Visão de temporada",
+      "es": "Visión de temporada",
+      "en": "Season vision"
+    },
+    "flavor": {
+      "pt": "Uma temporada inteira acertando. Isso não é acaso.",
+      "es": "Toda una temporada acertando. Eso no es casualidad.",
+      "en": "A whole season of right calls. That is no accident."
+    },
+    "art_prompt": "A full stadium bowl of stylized fan silhouettes at golden hour, a giant blank scoreboard glowing, a single fan standing at the center with arms raised, long shadows. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "predictions.correct.5",
+    "collection": "common.predictions",
+    "rarity": "legendary",
+    "name": {
+      "pt": "Oráculo das arquibancadas",
+      "es": "Oráculo de la grada",
+      "en": "Oracle of the stands"
+    },
+    "flavor": {
+      "pt": "Duzentos acertos. A torcida pergunta a você.",
+      "es": "Doscientos aciertos. La hinchada te pregunta a ti.",
+      "en": "Two hundred right. The crowd asks you first."
+    },
+    "art_prompt": "A night stadium filled with stylized fan silhouettes, light rays bursting from a blank central scoreboard, a lone fan on a podium-like step silhouetted against the glow, prismatic reflections. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: iridescent prismatic border with light rays and floating particles.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "predictions.exact_score.1",
+    "collection": "common.predictions",
+    "rarity": "common",
+    "name": {
+      "pt": "Primeiro placar",
+      "es": "Primer marcador",
+      "en": "First score"
+    },
+    "flavor": {
+      "pt": "Número por número. Igualzinho ao que você disse.",
+      "es": "Número por número. Igual a lo que dijiste.",
+      "en": "Digit for digit. Exactly as you said."
+    },
+    "art_prompt": "A stylized dartboard target made of stadium seats seen from above, a single dart stuck in the center, soft morning light, generic ball resting beside it. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "predictions.exact_score.2",
+    "collection": "common.predictions",
+    "rarity": "special",
+    "name": {
+      "pt": "Mira ajustada",
+      "es": "Mira ajustada",
+      "en": "Steady aim"
+    },
+    "flavor": {
+      "pt": "Três placares exatos. A mira está calibrada.",
+      "es": "Tres marcadores exactos. La mira está calibrada.",
+      "en": "Three exact scores. The aim is dialed in."
+    },
+    "art_prompt": "Three darts clustered in the center of a stylized target built from stadium seats, viewed at a slight angle, daylight, faint concentric lines of light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "predictions.exact_score.3",
+    "collection": "common.predictions",
+    "rarity": "special",
+    "name": {
+      "pt": "Precisão cirúrgica",
+      "es": "Precisión quirúrgica",
+      "en": "Surgical precision"
+    },
+    "flavor": {
+      "pt": "Dez placares exatos. Até o cronômetro aplaude.",
+      "es": "Diez marcadores exactos. Hasta el cronómetro aplaude.",
+      "en": "Ten exact scores. Even the clock applauds."
+    },
+    "art_prompt": "A target of stadium seats glowing from within, a tight cluster of darts at its center, a blank scoreboard reflected in the polished floor, late afternoon. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "predictions.exact_score.4",
+    "collection": "common.predictions",
+    "rarity": "rare",
+    "name": {
+      "pt": "Placar de ouro",
+      "es": "Marcador dorado",
+      "en": "Golden scoreline"
+    },
+    "flavor": {
+      "pt": "Vinte e cinco na mosca. Uma temporada de olho clínico.",
+      "es": "Veinticinco en el blanco. Una temporada de ojo clínico.",
+      "en": "Twenty-five spot on. A season of a clinical eye."
+    },
+    "art_prompt": "A large glowing target of stadium seats at golden hour, darts forming a perfect ring at the center, a stylized crowd silhouette around it, warm violet sky. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "predictions.exact_score.5",
+    "collection": "common.predictions",
+    "rarity": "legendary",
+    "name": {
+      "pt": "Lenda do placar",
+      "es": "Leyenda del marcador",
+      "en": "Scoreline legend"
+    },
+    "flavor": {
+      "pt": "Sessenta placares exatos. Isso é lenda de arquibancada.",
+      "es": "Sesenta marcadores exactos. Eso es leyenda de grada.",
+      "en": "Sixty exact scores. That is stadium legend."
+    },
+    "art_prompt": "A night stadium seen from above as a vast target of lit seats, a single beam of prismatic light striking the exact center, floating particles, generic ball at the focal point. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: iridescent prismatic border with light rays and floating particles.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "predictions.placed.1",
+    "collection": "common.prediction_habit",
+    "rarity": "common",
+    "name": {
+      "pt": "Primeiros palpites",
+      "es": "Primeros pronósticos",
+      "en": "First predictions"
+    },
+    "flavor": {
+      "pt": "Cinco palpites. Você entrou no jogo.",
+      "es": "Cinco pronósticos. Entraste en el juego.",
+      "en": "Five predictions. You are in the game."
+    },
+    "art_prompt": "A stylized fan silhouette in a plain white kit drops a folded card into a glowing slot at a stadium gate at dawn, empty concourse around. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "predictions.placed.2",
+    "collection": "common.prediction_habit",
+    "rarity": "special",
+    "name": {
+      "pt": "Presença constante",
+      "es": "Presencia constante",
+      "en": "Steady presence"
+    },
+    "flavor": {
+      "pt": "Quinze palpites. Jogo que tem, você opina.",
+      "es": "Quince pronósticos. Partido que hay, opinas.",
+      "en": "Fifteen predictions. If there is a game, you have a say."
+    },
+    "art_prompt": "A short line of stylized fans of varied builds in plain kits each holding a folded card near a glowing slot, sunlit stadium concourse. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "predictions.placed.3",
+    "collection": "common.prediction_habit",
+    "rarity": "special",
+    "name": {
+      "pt": "Voz ativa",
+      "es": "Voz activa",
+      "en": "Active voice"
+    },
+    "flavor": {
+      "pt": "Quarenta palpites. Sua opinião faz parte da rodada.",
+      "es": "Cuarenta pronósticos. Tu opinión es parte de la jornada.",
+      "en": "Forty predictions. Your take is part of the round."
+    },
+    "art_prompt": "A busy stadium concourse with many fan silhouettes holding glowing folded cards, a blank fixture board above, afternoon light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "predictions.placed.4",
+    "collection": "common.prediction_habit",
+    "rarity": "rare",
+    "name": {
+      "pt": "Temporada completa",
+      "es": "Temporada completa",
+      "en": "Full season"
+    },
+    "flavor": {
+      "pt": "Cem palpites. Uma temporada inteira sem ficar de fora.",
+      "es": "Cien pronósticos. Toda una temporada sin quedarte afuera.",
+      "en": "A hundred predictions. A full season never on the sidelines."
+    },
+    "art_prompt": "A stadium bowl at sunset where every fan silhouette holds a small glowing card aloft, forming a sea of light, violet sky. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "predictions.placed.5",
+    "collection": "common.prediction_habit",
+    "rarity": "historic",
+    "name": {
+      "pt": "Incansável",
+      "es": "Incansable",
+      "en": "Tireless"
+    },
+    "flavor": {
+      "pt": "Duzentos e cinquenta palpites. Nenhuma rodada passou sem você.",
+      "es": "Doscientos cincuenta pronósticos. Ninguna jornada pasó sin ti.",
+      "en": "Two hundred fifty predictions. No round went by without you."
+    },
+    "art_prompt": "A night stadium filled with fan silhouettes raising glowing cards, warm amber light rising like a tide, laurel-shaped light patterns above the stands. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "predictions.quantity.1",
+    "collection": "common.predictions",
+    "rarity": "common",
+    "name": {
+      "pt": "Primeira conta",
+      "es": "Primera cuenta",
+      "en": "First count"
+    },
+    "flavor": {
+      "pt": "Você pediu pelo menos tanto. Veio.",
+      "es": "Pediste al menos tanto. Llegó.",
+      "en": "You asked for at least that many. It came."
+    },
+    "art_prompt": "A stylized abacus made of generic balls on rails stands on a sideline at dawn, one bead slid to the right, an empty stand softly lit behind. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "predictions.quantity.2",
+    "collection": "common.predictions",
+    "rarity": "special",
+    "name": {
+      "pt": "Calculista",
+      "es": "Calculista",
+      "en": "Calculator"
+    },
+    "flavor": {
+      "pt": "Dez contas certas. Os números respondem a você.",
+      "es": "Diez cuentas justas. Los números te responden.",
+      "en": "Ten right counts. The numbers answer to you."
+    },
+    "art_prompt": "An abacus of generic balls with a row of beads slid over, two silhouetted fans in plain kits counting on their fingers in a sunlit stand. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "predictions.quantity.3",
+    "collection": "common.predictions",
+    "rarity": "special",
+    "name": {
+      "pt": "Matemático da torcida",
+      "es": "Matemático de la hinchada",
+      "en": "Fan mathematician"
+    },
+    "flavor": {
+      "pt": "Trinta contas. Você enxerga o volume do jogo.",
+      "es": "Treinta cuentas. Ves el volumen del partido.",
+      "en": "Thirty counts. You see the volume of the game."
+    },
+    "art_prompt": "A large glowing abacus spanning a stadium tunnel, beads of generic balls lit from within, a crowd of silhouettes beyond, late afternoon. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "predictions.quantity.4",
+    "collection": "common.predictions",
+    "rarity": "rare",
+    "name": {
+      "pt": "Conta de ouro",
+      "es": "Cuenta de oro",
+      "en": "Golden count"
+    },
+    "flavor": {
+      "pt": "Setenta e cinco acertos de quantidade. Uma temporada de olho no total.",
+      "es": "Setenta y cinco aciertos de cantidad. Una temporada de ojo en el total.",
+      "en": "Seventy-five quantity calls. A season with an eye on the total."
+    },
+    "art_prompt": "A monumental abacus of glowing generic balls across the goal line of a stadium at sunset, fan silhouettes filling the bowl, golden and violet sky. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "predictions.quantity.5",
+    "collection": "common.predictions",
+    "rarity": "legendary",
+    "name": {
+      "pt": "Mestre dos números",
+      "es": "Maestro de los números",
+      "en": "Master of numbers"
+    },
+    "flavor": {
+      "pt": "Duzentas contas certas. Os totais não têm segredo para você.",
+      "es": "Doscientas cuentas justas. Los totales no tienen secretos para ti.",
+      "en": "Two hundred right counts. Totals hold no secrets from you."
+    },
+    "art_prompt": "A night stadium where streams of glowing generic balls arc through the air like beads on invisible rails, prismatic light, thousands of fan silhouettes below. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: iridescent prismatic border with light rays and floating particles.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "predictions.winner.1",
+    "collection": "common.predictions",
+    "rarity": "common",
+    "name": {
+      "pt": "Primeiro vencedor",
+      "es": "Primer ganador",
+      "en": "First winner"
+    },
+    "flavor": {
+      "pt": "Você disse quem levava. Levou.",
+      "es": "Dijiste quién ganaba. Ganó.",
+      "en": "You named the winner. They won."
+    },
+    "art_prompt": "A stylized compass rose laid over a generic playing field at dawn, its needle pointing to one side where a single silhouetted player raises an arm, plain white kit. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "predictions.winner.2",
+    "collection": "common.predictions",
+    "rarity": "special",
+    "name": {
+      "pt": "Bússola afinada",
+      "es": "Brújula afinada",
+      "en": "Tuned compass"
+    },
+    "flavor": {
+      "pt": "Dez vencedores certos. O faro não falha.",
+      "es": "Diez ganadores acertados. El olfato no falla.",
+      "en": "Ten winners called. The nose does not miss."
+    },
+    "art_prompt": "A large compass rose over a field with two groups of silhouetted players in plain white and charcoal kits, needle locked on the celebrating group, daylight. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "predictions.winner.3",
+    "collection": "common.predictions",
+    "rarity": "special",
+    "name": {
+      "pt": "Instinto certeiro",
+      "es": "Instinto certero",
+      "en": "Sure instinct"
+    },
+    "flavor": {
+      "pt": "Trinta vezes. Você sente o jogo virar antes de virar.",
+      "es": "Treinta veces. Sientes el partido antes de que cambie.",
+      "en": "Thirty times. You feel the game turn before it turns."
+    },
+    "art_prompt": "A glowing compass rose etched into a stadium floor, celebrating silhouettes on the pointed side, a blank scoreboard overhead, late afternoon light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "predictions.winner.4",
+    "collection": "common.predictions",
+    "rarity": "rare",
+    "name": {
+      "pt": "Faro de temporada",
+      "es": "Olfato de temporada",
+      "en": "Season nose"
+    },
+    "flavor": {
+      "pt": "Setenta e cinco vencedores. Uma temporada de leitura perfeita.",
+      "es": "Setenta y cinco ganadores. Una temporada de lectura perfecta.",
+      "en": "Seventy-five winners. A season read to perfection."
+    },
+    "art_prompt": "A grand compass rose glowing gold across a full stadium bowl of fan silhouettes at sunset, needle pointing to a raised generic trophy silhouette, violet sky. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "predictions.winner.5",
+    "collection": "common.predictions",
+    "rarity": "legendary",
+    "name": {
+      "pt": "Lenda do faro",
+      "es": "Leyenda del olfato",
+      "en": "Legend of instinct"
+    },
+    "flavor": {
+      "pt": "Duzentos vencedores. A arquibancada já sabe: se você disse, é.",
+      "es": "Doscientos ganadores. La grada ya sabe: si lo dices, es.",
+      "en": "Two hundred winners. The crowd knows: if you say it, it is."
+    },
+    "art_prompt": "A night stadium with a vast prismatic compass rose of light on the field, rays rising from its needle, thousands of fan silhouettes, floating particles. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: iridescent prismatic border with light rays and floating particles.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  }
+]

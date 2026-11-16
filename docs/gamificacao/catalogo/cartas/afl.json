@@ -1,0 +1,1090 @@
+[
+  {
+    "card_key": "afl.explorer.all_teams.1",
+    "collection": "afl.explorer",
+    "rarity": "common",
+    "name": {
+      "pt": "Dois clubes",
+      "es": "Dos clubes",
+      "en": "Two Clubs"
+    },
+    "flavor": {
+      "pt": "Um jogo, dois clubes, o mapa começa.",
+      "es": "Un partido, dos clubes, el mapa empieza.",
+      "en": "One match, two clubs, the map begins."
+    },
+    "art_prompt": "A stylized paper map of a generic continent on a table with two glowing pin shapes, a stylized fan’s hands placing the second pin, an oval ball resting beside, warm morning light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "afl.explorer.all_teams.2",
+    "collection": "afl.explorer",
+    "rarity": "special",
+    "name": {
+      "pt": "Cinco clubes",
+      "es": "Cinco clubes",
+      "en": "Five Clubs"
+    },
+    "flavor": {
+      "pt": "Cinco jeitos diferentes de chutar a bola oval.",
+      "es": "Cinco maneras distintas de patear la pelota ovalada.",
+      "en": "Five different ways to kick the oval ball."
+    },
+    "art_prompt": "A stylized map spread wide with five glowing pins connected by thin lines, a stylized fan leaning over it with a generic phone with blank screen, steel-blue afternoon light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "afl.explorer.all_teams.3",
+    "collection": "afl.explorer",
+    "rarity": "special",
+    "name": {
+      "pt": "Metade da liga",
+      "es": "Mitad de la liga",
+      "en": "Half the League"
+    },
+    "flavor": {
+      "pt": "Nove clubes vistos, e você já tem opinião sobre cada um.",
+      "es": "Nueve clubes vistos, y ya tienes opinión de cada uno.",
+      "en": "Nine clubs watched, and an opinion on every one."
+    },
+    "art_prompt": "A stylized globe on a desk with nine glowing pins forming a constellation on one continent, a stylized fan silhouette spinning it with one finger, night lamp light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "afl.explorer.all_teams.4",
+    "collection": "afl.explorer",
+    "rarity": "rare",
+    "name": {
+      "pt": "Quase todos",
+      "es": "Casi todos",
+      "en": "Nearly All"
+    },
+    "flavor": {
+      "pt": "Catorze clubes e nenhum estádio desconhecido.",
+      "es": "Catorce clubes y ningún estadio desconocido.",
+      "en": "Fourteen clubs and no ground unknown."
+    },
+    "art_prompt": "A stylized fan silhouette standing inside a planetarium-like dome where fourteen glowing pin-lights form a violet map across the ceiling, faceted glow. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "afl.explorer.all_teams.5",
+    "collection": "afl.explorer",
+    "rarity": "historic",
+    "name": {
+      "pt": "Liga inteira",
+      "es": "Liga entera",
+      "en": "Whole League"
+    },
+    "flavor": {
+      "pt": "Dezoito clubes. Nenhum jogo é estrangeiro.",
+      "es": "Dieciocho clubes. Ningún partido es ajeno.",
+      "en": "Eighteen clubs. No match is foreign anymore."
+    },
+    "art_prompt": "A stylized fan silhouette standing on a floating oval-ball-shaped planet covered in a network of amber light lines and eighteen glowing nodes, engraved laurel-like glow, soft outer glow, deep space backdrop. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "afl.explorer.months.1",
+    "collection": "afl.explorer",
+    "rarity": "common",
+    "name": {
+      "pt": "Primeiro mês",
+      "es": "Primer mes",
+      "en": "First Month"
+    },
+    "flavor": {
+      "pt": "O calendário começou a contar.",
+      "es": "El calendario empezó a contar.",
+      "en": "The calendar started counting."
+    },
+    "art_prompt": "A stylized wall calendar without numbers with one page glowing softly, a stylized fan beside it holding an oval ball, morning light, flat vector interior. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "afl.explorer.months.2",
+    "collection": "afl.explorer",
+    "rarity": "special",
+    "name": {
+      "pt": "Dois meses",
+      "es": "Dos meses",
+      "en": "Two Months"
+    },
+    "flavor": {
+      "pt": "Dois meses de bola oval rolando.",
+      "es": "Dos meses de pelota ovalada rodando.",
+      "en": "Two months of the oval ball rolling."
+    },
+    "art_prompt": "Two stylized windows side by side showing the same oval field in sun and in rain, a stylized fan silhouette walking past them, steel-blue tones. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "afl.explorer.months.3",
+    "collection": "afl.explorer",
+    "rarity": "special",
+    "name": {
+      "pt": "Quatro meses",
+      "es": "Cuatro meses",
+      "en": "Four Months"
+    },
+    "flavor": {
+      "pt": "Do outono ao inverno, sem soltar a bola.",
+      "es": "Del otoño al invierno, sin soltar la pelota.",
+      "en": "Autumn to winter, never letting go of the ball."
+    },
+    "art_prompt": "A stylized tree beside an oval field shown half in autumn leaves and half bare in winter, a stylized fan seated beneath watching a tiny match, soft light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "afl.explorer.months.4",
+    "collection": "afl.explorer",
+    "rarity": "rare",
+    "name": {
+      "pt": "Temporada dupla",
+      "es": "Temporada doble",
+      "en": "Double Season"
+    },
+    "flavor": {
+      "pt": "Oito meses: a temporada masculina e a feminina na conta.",
+      "es": "Ocho meses: la temporada masculina y la femenina en la cuenta.",
+      "en": "Eight months: the men’s and the women’s seasons both counted."
+    },
+    "art_prompt": "A ring of eight stylized moon phases glowing violet above an oval stadium, a stylized female player in a plain white kit and a male player in a plain charcoal kit facing each other at the center, night. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "afl.explorer.months.5",
+    "collection": "afl.explorer",
+    "rarity": "historic",
+    "name": {
+      "pt": "Dois anos de oval",
+      "es": "Dos años de óvalo",
+      "en": "Two Years of the Oval"
+    },
+    "flavor": {
+      "pt": "Dezesseis meses de jogo, nenhum sem bola oval.",
+      "es": "Dieciséis meses de partidos, ninguno sin pelota ovalada.",
+      "en": "Sixteen months of matches, not one without the oval ball."
+    },
+    "art_prompt": "A stylized fan silhouette standing on a sundial-like oval field where two rings of amber light orbit overhead with sixteen glowing marks, engraved laurel-like glow, soft outer glow. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "afl.loyalty.dawn_games.1",
+    "collection": "afl.dawn_patrol",
+    "rarity": "common",
+    "name": {
+      "pt": "Despertador",
+      "es": "Despertador",
+      "en": "Alarm Clock"
+    },
+    "flavor": {
+      "pt": "O alarme tocou antes do sol, e valeu.",
+      "es": "La alarma sonó antes que el sol, y valió la pena.",
+      "en": "The alarm went off before the sun, and it was worth it."
+    },
+    "art_prompt": "A stylized fan wrapped in a blanket on a sofa in a dark room lit only by a television showing players in plain white and plain charcoal kits on an oval field, a plain alarm clock without digits on the table, first blue light at the window. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "afl.loyalty.dawn_games.2",
+    "collection": "afl.dawn_patrol",
+    "rarity": "special",
+    "name": {
+      "pt": "Café e sirene",
+      "es": "Café y sirena",
+      "en": "Coffee and Siren"
+    },
+    "flavor": {
+      "pt": "Três madrugadas, três xícaras, três jogos.",
+      "es": "Tres madrugadas, tres tazas, tres partidos.",
+      "en": "Three dawns, three cups, three matches."
+    },
+    "art_prompt": "A stylized fan holding a steaming plain mug at a kitchen table with a tablet showing an oval field, three small moon shapes fading in the window, steel-blue pre-dawn tones. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "afl.loyalty.dawn_games.3",
+    "collection": "afl.dawn_patrol",
+    "rarity": "special",
+    "name": {
+      "pt": "Turno da madrugada",
+      "es": "Turno de madrugada",
+      "en": "Night Shift"
+    },
+    "flavor": {
+      "pt": "Oito jogos antes do amanhecer, oito amanheceres com placar.",
+      "es": "Ocho partidos antes del amanecer, ocho amaneceres con marcador.",
+      "en": "Eight matches before dawn, eight dawns with a score."
+    },
+    "art_prompt": "A stylized fan at a window watching the sunrise over a city skyline with a television glow behind, eight faint oval-ball shapes drifting like stars in the lightening sky, warm and cool light meeting. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "afl.loyalty.dawn_games.4",
+    "collection": "afl.dawn_patrol",
+    "rarity": "rare",
+    "name": {
+      "pt": "Coruja do oval",
+      "es": "Búho del óvalo",
+      "en": "Oval Owl"
+    },
+    "flavor": {
+      "pt": "Vinte madrugadas e o fuso virou rotina.",
+      "es": "Veinte madrugadas y el huso horario se hizo rutina.",
+      "en": "Twenty dawns and the time zone became routine."
+    },
+    "art_prompt": "A stylized owl silhouette perched on top of four generic goal posts against a violet pre-dawn sky, a stylized fan silhouette below on an oval field looking up, twenty faint stars, faceted glow. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "afl.loyalty.dawn_games.5",
+    "collection": "afl.dawn_patrol",
+    "rarity": "historic",
+    "name": {
+      "pt": "Guardião do amanhecer",
+      "es": "Guardián del amanecer",
+      "en": "Keeper of the Dawn"
+    },
+    "flavor": {
+      "pt": "Cinquenta madrugadas: o sol nasce depois do jogo.",
+      "es": "Cincuenta madrugadas: el sol sale después del partido.",
+      "en": "Fifty dawns: the sun rises after the match."
+    },
+    "art_prompt": "A stylized fan silhouette standing on a rooftop at sunrise holding an oval ball, amber light rays and an engraved laurel-like glow spreading from the horizon over a city, fifty tiny glowing windows below, soft outer glow. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "afl.loyalty.favorite_games.1",
+    "collection": "afl.faithful",
+    "rarity": "common",
+    "name": {
+      "pt": "Primeiro jogo",
+      "es": "Primer partido",
+      "en": "First Match"
+    },
+    "flavor": {
+      "pt": "Todo torcedor lembra do primeiro.",
+      "es": "Todo hincha recuerda el primero.",
+      "en": "Every fan remembers the first one."
+    },
+    "art_prompt": "A young stylized fan with a plain white scarf sitting alone in a wide generic stand at a sunny afternoon match, players in plain white kit small on an oval field below, four generic goal posts, soft shadows. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "afl.loyalty.favorite_games.2",
+    "collection": "afl.faithful",
+    "rarity": "special",
+    "name": {
+      "pt": "Três jogos",
+      "es": "Tres partidos",
+      "en": "Three Matches"
+    },
+    "flavor": {
+      "pt": "Já sabe de cor onde ficam os postes.",
+      "es": "Ya sabe de memoria dónde están los postes.",
+      "en": "Already knows where the posts are by heart."
+    },
+    "art_prompt": "A stylized fan standing in a half-full generic stand with a few silhouetted friends, holding a plain white scarf overhead, a team in plain white kit lining up on an oval field, late afternoon light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "afl.loyalty.favorite_games.3",
+    "collection": "afl.faithful",
+    "rarity": "special",
+    "name": {
+      "pt": "Nove jogos",
+      "es": "Nueve partidos",
+      "en": "Nine Matches"
+    },
+    "flavor": {
+      "pt": "Nove rodadas, nenhuma sirene perdida.",
+      "es": "Nueve fechas, ninguna sirena perdida.",
+      "en": "Nine rounds, not a single siren missed."
+    },
+    "art_prompt": "A stylized fan in the middle of a packed generic stand with arms wide, silhouetted fans of every age around, floodlights coming on at dusk over an oval field, a team in plain white kit celebrating below. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "afl.loyalty.favorite_games.4",
+    "collection": "afl.faithful",
+    "rarity": "rare",
+    "name": {
+      "pt": "Temporada inteira",
+      "es": "Temporada completa",
+      "en": "Whole Season"
+    },
+    "flavor": {
+      "pt": "Vinte e três rodadas, uma só torcida.",
+      "es": "Veintitrés fechas, una sola hinchada.",
+      "en": "Twenty-three rounds, one unwavering fan."
+    },
+    "art_prompt": "A stylized fan standing at the very front of a stand with a plain white flag without symbols, a sea of silhouetted fans behind in violet light, an oval field glowing under night floodlights, a faint calendar-like grid of light without numbers above. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "afl.loyalty.favorite_games.5",
+    "collection": "afl.faithful",
+    "rarity": "historic",
+    "name": {
+      "pt": "Sessenta jogos",
+      "es": "Sesenta partidos",
+      "en": "Sixty Matches"
+    },
+    "flavor": {
+      "pt": "Sessenta jogos depois, ainda é o mesmo frio na barriga.",
+      "es": "Sesenta partidos después, siguen los mismos nervios.",
+      "en": "Sixty matches later, same butterflies."
+    },
+    "art_prompt": "A stylized fan silhouette seen from behind at the top of an oval stadium with amber light rays and an engraved laurel-like glow surrounding, a trail of sixty faint seat shapes lighting up behind, night sky. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "afl.loyalty.favorite_streak.1",
+    "collection": "afl.faithful",
+    "rarity": "common",
+    "name": {
+      "pt": "Dois seguidos",
+      "es": "Dos seguidos",
+      "en": "Two Straight"
+    },
+    "flavor": {
+      "pt": "Jogo sim, jogo sim.",
+      "es": "Partido sí, partido sí.",
+      "en": "Match in, match in."
+    },
+    "art_prompt": "Two stylized stadium seats side by side with a stylized fan seated in the second one, the first seat glowing faintly as if just vacated, an oval field beyond, morning light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "afl.loyalty.favorite_streak.2",
+    "collection": "afl.faithful",
+    "rarity": "special",
+    "name": {
+      "pt": "Cinco seguidos",
+      "es": "Cinco seguidos",
+      "en": "Five Straight"
+    },
+    "flavor": {
+      "pt": "Cinco jogos, cinco presenças.",
+      "es": "Cinco partidos, cinco presencias.",
+      "en": "Five matches, five appearances."
+    },
+    "art_prompt": "A row of five stylized stadium seats each with a glowing outline facing an oval field, a stylized fan standing on the fifth with a plain white scarf raised, afternoon light, scattered silhouetted fans. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "afl.loyalty.favorite_streak.3",
+    "collection": "afl.faithful",
+    "rarity": "special",
+    "name": {
+      "pt": "Dez seguidos",
+      "es": "Diez seguidos",
+      "en": "Ten Straight"
+    },
+    "flavor": {
+      "pt": "Nem frio, nem chuva, nem madrugada.",
+      "es": "Ni frío, ni lluvia, ni madrugada.",
+      "en": "Not cold, not rain, not the small hours."
+    },
+    "art_prompt": "A stylized fan walking through winter rain under a plain umbrella toward a glowing oval stadium entrance, a trail of ten glowing footprints behind, night, steel-blue tones. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "afl.loyalty.favorite_streak.4",
+    "collection": "afl.faithful",
+    "rarity": "rare",
+    "name": {
+      "pt": "Temporada sem falhar",
+      "es": "Temporada sin faltar",
+      "en": "Season Without a Miss"
+    },
+    "flavor": {
+      "pt": "Vinte e três seguidos: a temporada inteira sem piscar.",
+      "es": "Veintitrés seguidos: la temporada entera sin pestañear.",
+      "en": "Twenty-three straight: a whole season without blinking."
+    },
+    "art_prompt": "A stylized fan standing alone at the center of an empty generic stand lit by a single violet spotlight, twenty-three glowing seat outlines arranged in a crescent behind, an oval field below, night sky. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "afl.loyalty.favorite_streak.5",
+    "collection": "afl.faithful",
+    "rarity": "historic",
+    "name": {
+      "pt": "Dois anos seguidos",
+      "es": "Dos años seguidos",
+      "en": "Two Straight Seasons"
+    },
+    "flavor": {
+      "pt": "Quarenta e seis jogos sem faltar nem uma vez.",
+      "es": "Cuarenta y seis partidos sin faltar ni una vez.",
+      "en": "Forty-six matches, not a single absence."
+    },
+    "art_prompt": "A stylized fan silhouette standing at the summit of an oval stadium with amber light rays and an engraved laurel-like glow, a long spiral of forty-six glowing seats winding down the stands below, night. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "afl.loyalty.finals_watched.1",
+    "collection": "afl.september",
+    "rarity": "common",
+    "name": {
+      "pt": "Primeira noite",
+      "es": "Primera noche",
+      "en": "First Night"
+    },
+    "flavor": {
+      "pt": "Tem jogo que vale uma temporada.",
+      "es": "Hay partidos que valen una temporada.",
+      "en": "Some matches are worth a whole season."
+    },
+    "art_prompt": "A stylized fan watching a plain generic cup being carried onto an oval field by silhouetted officials, players in plain white and plain charcoal kits lined up, cold evening light, generic stand. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "afl.loyalty.finals_watched.2",
+    "collection": "afl.september",
+    "rarity": "special",
+    "name": {
+      "pt": "Duas noites",
+      "es": "Dos noches",
+      "en": "Two Nights"
+    },
+    "flavor": {
+      "pt": "Duas finais, dois nós na garganta.",
+      "es": "Dos finales, dos nudos en la garganta.",
+      "en": "Two finals, two lumps in the throat."
+    },
+    "art_prompt": "Two stylized fans of different ages gripping each other’s arms in a stand, a plain generic cup glowing on a podium far below on an oval field, dusk, steel-blue tones. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "afl.loyalty.finals_watched.3",
+    "collection": "afl.september",
+    "rarity": "special",
+    "name": {
+      "pt": "Quatro noites",
+      "es": "Cuatro noches",
+      "en": "Four Nights"
+    },
+    "flavor": {
+      "pt": "Quatro semanas em que tudo está em jogo.",
+      "es": "Cuatro semanas en que todo está en juego.",
+      "en": "Four weeks when everything is on the line."
+    },
+    "art_prompt": "A stylized fan at a crowded living-room watch party, four tiny floating cup shapes above the television showing an oval field, friends of diverse ages cheering, night. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "afl.loyalty.finals_watched.4",
+    "collection": "afl.september",
+    "rarity": "rare",
+    "name": {
+      "pt": "Setembro inteiro",
+      "es": "Septiembre entero",
+      "en": "All of September"
+    },
+    "flavor": {
+      "pt": "Nove finais vistas, nenhuma esquecida.",
+      "es": "Nueve finales vistas, ninguna olvidada.",
+      "en": "Nine finals watched, none forgotten."
+    },
+    "art_prompt": "A stylized fan silhouette standing before a wall of nine glowing cup outlines like a gallery, violet light, confetti frozen in the air, an oval field reflected faintly in the floor. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "afl.loyalty.finals_watched.5",
+    "collection": "afl.september",
+    "rarity": "historic",
+    "name": {
+      "pt": "Guardião das finais",
+      "es": "Guardián de las finales",
+      "en": "Keeper of Finals"
+    },
+    "flavor": {
+      "pt": "Vinte e cinco noites geladas em que tudo estava em jogo.",
+      "es": "Veinticinco noches heladas en que todo estaba en juego.",
+      "en": "Twenty-five cold nights when everything was on the line."
+    },
+    "art_prompt": "A stylized fan silhouette at the center of a circular hall of amber light where twenty-five plain cup shapes float in a ring above a miniature oval field, engraved laurel-like glow, soft outer glow. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "afl.moments.bag_of_five.1",
+    "collection": "afl.highlights",
+    "rarity": "rare",
+    "name": {
+      "pt": "Dia de artilheiro",
+      "es": "Día de goleador",
+      "en": "Forward’s Day"
+    },
+    "flavor": {
+      "pt": "Cinco vezes o mesmo nome, cinco vezes o mesmo grito.",
+      "es": "Cinco veces el mismo nombre, cinco veces el mismo grito.",
+      "en": "Five times the same name, five times the same roar."
+    },
+    "art_prompt": "A stylized forward of athletic build in a plain white kit holding an oval ball aloft at the goal square, five faint golden oval-ball glows orbiting, teammates of diverse builds applauding, warm evening light over an oval field. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "afl.moments.comeback_five_goals.1",
+    "collection": "afl.comebacks",
+    "rarity": "historic",
+    "name": {
+      "pt": "Trinta pontos atrás",
+      "es": "Treinta puntos abajo",
+      "en": "Thirty Down"
+    },
+    "flavor": {
+      "pt": "Trinta pontos atrás. Ninguém foi embora.",
+      "es": "Treinta puntos abajo. Nadie se fue.",
+      "en": "Thirty points down. Nobody went home."
+    },
+    "art_prompt": "A stylized team in plain white kit of varied builds and genders walking shoulder to shoulder from the center of an oval field toward the far goal posts, a tall blank scoreboard tilted heavily toward one side behind them, storm clouds breaking into amber light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "afl.moments.comeback_last_quarter.1",
+    "collection": "afl.comebacks",
+    "rarity": "rare",
+    "name": {
+      "pt": "Quarto decisivo",
+      "es": "Cuarto decisivo",
+      "en": "Deciding Quarter"
+    },
+    "flavor": {
+      "pt": "Faltava um quarto e sobrava coragem.",
+      "es": "Faltaba un cuarto y sobraba coraje.",
+      "en": "One quarter left and courage to spare."
+    },
+    "art_prompt": "A stylized team in plain white kit huddled in a tight circle on an oval field at the three-quarter-time break, a coach silhouette pointing toward distant generic goal posts, dusk sky in orange and violet, silhouetted fans leaning forward. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "afl.moments.comeback_seven_goals.1",
+    "collection": "afl.comebacks",
+    "rarity": "legendary",
+    "name": {
+      "pt": "Milagre no oval",
+      "es": "Milagro en el óvalo",
+      "en": "Miracle on the Oval"
+    },
+    "flavor": {
+      "pt": "Sete gols atrás e a arquibancada ainda cantava.",
+      "es": "Siete goles abajo y la tribuna seguía cantando.",
+      "en": "Seven goals down and the stands were still singing."
+    },
+    "art_prompt": "An epic low-angle view of a stylized player in a plain white kit leaping high over a defender in a plain charcoal kit to catch an oval ball, prismatic light rays bursting from behind four generic goal posts, a sea of silhouetted fans rising, floating particles. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: iridescent prismatic border with light rays and floating particles.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "afl.moments.draw.1",
+    "collection": "afl.final_siren",
+    "rarity": "historic",
+    "name": {
+      "pt": "Sirene sem resposta",
+      "es": "Sirena sin respuesta",
+      "en": "Siren, No Answer"
+    },
+    "flavor": {
+      "pt": "A sirene tocou e o placar não escolheu lado.",
+      "es": "Sonó la sirena y el marcador no eligió lado.",
+      "en": "The siren sounded and the scoreboard picked no side."
+    },
+    "art_prompt": "Two stylized players, one in a plain white kit and one in a plain charcoal kit, standing side by side on an oval field staring up at a tall blank scoreboard with no digits, four generic goal posts behind them, overcast late-afternoon light, silhouetted fans frozen in the stands. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "afl.moments.extra_time_final.1",
+    "collection": "afl.final_siren",
+    "rarity": "legendary",
+    "name": {
+      "pt": "Além da sirene",
+      "es": "Más allá de la sirena",
+      "en": "Beyond the Siren"
+    },
+    "flavor": {
+      "pt": "A sirene tocou e ninguém saiu do campo.",
+      "es": "Sonó la sirena y nadie salió de la cancha.",
+      "en": "The siren went and nobody left the field."
+    },
+    "art_prompt": "Two stylized teams in plain white and plain charcoal kits standing exhausted with hands on knees at the center of an oval field under night floodlights, a tall blank scoreboard with an extra glowing panel, prismatic light rays over a silent silhouetted crowd, floating particles. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: iridescent prismatic border with light rays and floating particles.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "afl.moments.fifty_point_quarter.1",
+    "collection": "afl.quarters",
+    "rarity": "rare",
+    "name": {
+      "pt": "Avalanche",
+      "es": "Avalancha",
+      "en": "Avalanche"
+    },
+    "flavor": {
+      "pt": "Vinte minutos e o placar não parou de girar.",
+      "es": "Veinte minutos y el marcador no dejó de girar.",
+      "en": "Twenty minutes and the scoreboard never stopped turning."
+    },
+    "art_prompt": "A stylized player in a plain white kit kicking an oval ball between four generic goal posts while a goal umpire silhouette in a plain white coat raises both index fingers, a trail of eight faint glowing oval balls arcing through the posts behind, bright midday light, a blank scoreboard. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "afl.moments.high_scoring.1",
+    "collection": "afl.scoreboard",
+    "rarity": "special",
+    "name": {
+      "pt": "Placar cheio",
+      "es": "Marcador lleno",
+      "en": "Scoreboard Overflow"
+    },
+    "flavor": {
+      "pt": "Tanto gol que o placar quase não coube.",
+      "es": "Tantos goles que el marcador casi no alcanzó.",
+      "en": "So many goals the scoreboard barely fit them."
+    },
+    "art_prompt": "A giant stylized blank scoreboard glowing warm over an oval field where players in plain white and plain charcoal kits sprint in both directions, oval balls flying toward both sets of generic goal posts, festive daylight, a cheering generic stand. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "afl.moments.one_goal_win.1",
+    "collection": "afl.final_siren",
+    "rarity": "rare",
+    "name": {
+      "pt": "Último chute",
+      "es": "Último tiro",
+      "en": "Final Kick"
+    },
+    "flavor": {
+      "pt": "Seis pontos. Um chute. Todo mundo de pé.",
+      "es": "Seis puntos. Un tiro. Todos de pie.",
+      "en": "Six points. One kick. Everyone on their feet."
+    },
+    "art_prompt": "A stylized player in a plain white kit kicking an oval ball toward four generic goal posts under floodlights, a defender in a plain charcoal kit lunging too late, a blank scoreboard glowing above a packed generic stand of silhouetted fans on their feet. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "afl.moments.quarter_sweep.1",
+    "collection": "afl.quarters",
+    "rarity": "special",
+    "name": {
+      "pt": "Do primeiro ao último",
+      "es": "Del primero al último",
+      "en": "First to Last"
+    },
+    "flavor": {
+      "pt": "Quatro quartos, quatro vezes na frente.",
+      "es": "Cuatro cuartos, cuatro veces adelante.",
+      "en": "Four quarters, four times in front."
+    },
+    "art_prompt": "Four stylized players in plain white kit standing in a row across the center of an oval field each holding an oval ball, four small blank scoreboard shapes glowing above them in sequence, afternoon light, generic stand. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "afl.moments.shutout_quarter.1",
+    "collection": "afl.quarters",
+    "rarity": "historic",
+    "name": {
+      "pt": "Muralha de vinte minutos",
+      "es": "Muralla de veinte minutos",
+      "en": "Twenty-Minute Wall"
+    },
+    "flavor": {
+      "pt": "Um quarto inteiro e o placar deles não mexeu.",
+      "es": "Un cuarto entero y su marcador no se movió.",
+      "en": "A whole quarter and their score never moved."
+    },
+    "art_prompt": "A stylized defender in a plain white kit punching an oval ball away with a raised fist in front of four generic goal posts, attackers in plain charcoal kit stopped around, an abstract wall of soft light across the goal square, grey winter afternoon, generic stand. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "afl.moments.spectacular_mark.1",
+    "collection": "afl.highlights",
+    "rarity": "special",
+    "name": {
+      "pt": "Voo",
+      "es": "Vuelo",
+      "en": "The Flight"
+    },
+    "flavor": {
+      "pt": "Subiu nas costas do adversário e ficou lá.",
+      "es": "Se subió a la espalda del rival y se quedó ahí.",
+      "en": "Climbed onto the opponent’s back and stayed up there."
+    },
+    "art_prompt": "A stylized female player in a plain white kit soaring high with knees on the shoulders of a defender in a plain charcoal kit, arms stretched to catch an oval ball against a sunset sky, four generic goal posts far below, silhouetted fans with raised arms. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "afl.moments.straight_kicking.1",
+    "collection": "afl.scoreboard",
+    "rarity": "special",
+    "name": {
+      "pt": "Entre os postes grandes",
+      "es": "Entre los postes grandes",
+      "en": "Between the Big Posts"
+    },
+    "flavor": {
+      "pt": "Cada chute procurou os postes do meio.",
+      "es": "Cada tiro buscó los postes del medio.",
+      "en": "Every kick found the middle posts."
+    },
+    "art_prompt": "A close view of four generic goal posts on an oval field with an oval ball sailing dead center between the two tall posts, a stylized kicker in a plain white kit in follow-through at the foreground, thin glowing guide lines converging on the center, clear afternoon sky. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "afl.moments.twenty_goals.1",
+    "collection": "afl.scoreboard",
+    "rarity": "historic",
+    "name": {
+      "pt": "Vinte bandeiras",
+      "es": "Veinte banderas",
+      "en": "Twenty Flags"
+    },
+    "flavor": {
+      "pt": "O juiz de gol cansou de levantar as duas bandeiras.",
+      "es": "El juez de gol se cansó de levantar las dos banderas.",
+      "en": "The goal umpire got tired of waving both flags."
+    },
+    "art_prompt": "A stylized goal umpire silhouette in a plain white coat waving two plain white flags behind four generic goal posts, a stylized forward in a plain white kit raising both arms, twenty faint glowing oval balls scattered in the sky, bright day, blank scoreboard. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "afl.predictions.finals_winner.1",
+    "collection": "afl.september",
+    "rarity": "common",
+    "name": {
+      "pt": "Primeira final",
+      "es": "Primera final",
+      "en": "First Final"
+    },
+    "flavor": {
+      "pt": "Setembro chegou e você escolheu o lado certo.",
+      "es": "Llegó septiembre y elegiste el lado correcto.",
+      "en": "September came and you picked the right side."
+    },
+    "art_prompt": "A stylized fan holding a generic phone with a blank screen in front of a sunlit oval stadium entrance, a plain banner without text above the gate, silhouetted fans walking in, morning light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "afl.predictions.finals_winner.2",
+    "collection": "afl.september",
+    "rarity": "special",
+    "name": {
+      "pt": "Duas finais",
+      "es": "Dos finales",
+      "en": "Two Finals"
+    },
+    "flavor": {
+      "pt": "Duas decisões, dois acertos, nenhum palpite no escuro.",
+      "es": "Dos definiciones, dos aciertos, ningún pronóstico a ciegas.",
+      "en": "Two deciders, two hits, nothing called blind."
+    },
+    "art_prompt": "Two stylized fans of different ages high-fiving in a living room, a television showing silhouetted players in plain white and plain charcoal kits on an oval field, two faint target rings floating above, evening light, steel-blue tones. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "afl.predictions.finals_winner.3",
+    "collection": "afl.september",
+    "rarity": "special",
+    "name": {
+      "pt": "Quatro finais",
+      "es": "Cuatro finales",
+      "en": "Four Finals"
+    },
+    "flavor": {
+      "pt": "Uma série inteira de finais lida de ponta a ponta.",
+      "es": "Una serie entera de finales leída de punta a punta.",
+      "en": "A whole finals series read from end to end."
+    },
+    "art_prompt": "A stylized fan standing at a crowded watch party, a glowing bracket of lines without labels floating above a television, four paths lit, friends of diverse ages cheering, night. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "afl.predictions.finals_winner.4",
+    "collection": "afl.september",
+    "rarity": "rare",
+    "name": {
+      "pt": "Oráculo de setembro",
+      "es": "Oráculo de septiembre",
+      "en": "September Oracle"
+    },
+    "flavor": {
+      "pt": "Nove finais numa temporada, todas previstas.",
+      "es": "Nueve finales en una temporada, todas previstas.",
+      "en": "Nine finals in one season, every one called."
+    },
+    "art_prompt": "A stylized figure in a plain hooded cloak seated on a stadium step gazing into a glowing crystal ball showing a tiny oval field with four goal posts, violet night sky, silhouetted fans leaning in. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "afl.predictions.finals_winner.5",
+    "collection": "afl.september",
+    "rarity": "legendary",
+    "name": {
+      "pt": "Lenda das finais",
+      "es": "Leyenda de las finales",
+      "en": "Finals Legend"
+    },
+    "flavor": {
+      "pt": "Vinte e cinco finais lidas antes da primeira sirene.",
+      "es": "Veinticinco finales leídas antes de la primera sirena.",
+      "en": "Twenty-five finals read before the first siren."
+    },
+    "art_prompt": "A colossal prismatic bracket of light rays rising from an oval stadium into the night sky with every path lit, a stylized fan silhouette at its base, floating particles, epic wide composition. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: iridescent prismatic border with light rays and floating particles.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "afl.predictions.hit_streak.1",
+    "collection": "afl.reader",
+    "rarity": "common",
+    "name": {
+      "pt": "Dois seguidos",
+      "es": "Dos seguidos",
+      "en": "Two in a Row"
+    },
+    "flavor": {
+      "pt": "Um acerto é palpite. Dois seguidos é leitura.",
+      "es": "Un acierto es pronóstico. Dos seguidos es lectura.",
+      "en": "One hit is a call. Two straight is reading the game."
+    },
+    "art_prompt": "Two oval balls resting in a row on the grass of an oval field each with a small glowing ring, a stylized fan silhouette kneeling to look at them, morning light, four generic goal posts far away. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "afl.predictions.hit_streak.2",
+    "collection": "afl.reader",
+    "rarity": "special",
+    "name": {
+      "pt": "Cinco seguidos",
+      "es": "Cinco seguidos",
+      "en": "Five in a Row"
+    },
+    "flavor": {
+      "pt": "Cinco rodadas, cinco acertos, zero dúvida.",
+      "es": "Cinco fechas, cinco aciertos, cero dudas.",
+      "en": "Five rounds, five hits, zero doubt."
+    },
+    "art_prompt": "Five oval balls in a diagonal line each glowing a little brighter than the last on an oval field, a stylized fan walking along them with confident stride, steel-blue afternoon light, empty generic stand. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "afl.predictions.hit_streak.3",
+    "collection": "afl.reader",
+    "rarity": "special",
+    "name": {
+      "pt": "Dez seguidos",
+      "es": "Diez seguidos",
+      "en": "Ten in a Row"
+    },
+    "flavor": {
+      "pt": "A sequência virou assunto de arquibancada.",
+      "es": "La racha se volvió tema de tribuna.",
+      "en": "The streak became stadium talk."
+    },
+    "art_prompt": "A chain of ten glowing oval balls forming an arc over an oval field like a bridge between the two sets of generic goal posts, a stylized fan silhouette standing beneath with arms crossed, dusk. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "afl.predictions.hit_streak.4",
+    "collection": "afl.reader",
+    "rarity": "rare",
+    "name": {
+      "pt": "Mão quente",
+      "es": "Mano caliente",
+      "en": "On Fire"
+    },
+    "flavor": {
+      "pt": "Vinte acertos seguidos: quase uma temporada sem errar.",
+      "es": "Veinte aciertos seguidos: casi una temporada sin fallar.",
+      "en": "Twenty straight: almost a whole season without a miss."
+    },
+    "art_prompt": "A stylized fan silhouette with a raised hand wrapped in violet flame-like light, a long trail of glowing oval balls spiraling into the night sky above an oval stadium, faceted violet glow. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "afl.predictions.hit_streak.5",
+    "collection": "afl.reader",
+    "rarity": "legendary",
+    "name": {
+      "pt": "Sequência lendária",
+      "es": "Racha legendaria",
+      "en": "Legendary Streak"
+    },
+    "flavor": {
+      "pt": "Quarenta sem errar. Ninguém acredita, e é verdade.",
+      "es": "Cuarenta sin fallar. Nadie lo cree, y es verdad.",
+      "en": "Forty straight. Nobody believes it, and it is true."
+    },
+    "art_prompt": "A comet made of countless glowing oval balls streaking across a prismatic sky over an oval stadium, a stylized fan silhouette standing on the roof edge watching, light rays and floating particles everywhere. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: iridescent prismatic border with light rays and floating particles.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "afl.results.away_win.1",
+    "collection": "afl.faithful",
+    "rarity": "common",
+    "name": {
+      "pt": "Primeira viagem",
+      "es": "Primer viaje",
+      "en": "First Trip"
+    },
+    "flavor": {
+      "pt": "Casa deles, festa nossa.",
+      "es": "Casa de ellos, fiesta nuestra.",
+      "en": "Their ground, our celebration."
+    },
+    "art_prompt": "A small stylized group of fans with plain white scarves without symbols in a corner of a mostly charcoal-lit generic stand, players in plain white kit celebrating on an oval field below, four generic goal posts, morning light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "afl.results.away_win.2",
+    "collection": "afl.faithful",
+    "rarity": "special",
+    "name": {
+      "pt": "Estrada",
+      "es": "Carretera",
+      "en": "On the Road"
+    },
+    "flavor": {
+      "pt": "Duas vitórias longe de casa, dois voos de volta cantando.",
+      "es": "Dos victorias lejos de casa, dos vuelos de regreso cantando.",
+      "en": "Two wins far from home, two flights back singing."
+    },
+    "art_prompt": "A stylized team bus silhouette on a long road at dusk with an oval field and four generic goal posts small on the horizon, two glowing oval-ball shapes in the sky, steel-blue tones. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "afl.results.away_win.3",
+    "collection": "afl.faithful",
+    "rarity": "special",
+    "name": {
+      "pt": "Visitante incômodo",
+      "es": "Visitante incómodo",
+      "en": "Unwelcome Guest"
+    },
+    "flavor": {
+      "pt": "Quatro estádios diferentes, o mesmo grito no fim.",
+      "es": "Cuatro estadios distintos, el mismo grito al final.",
+      "en": "Four different grounds, the same roar at the end."
+    },
+    "art_prompt": "A stylized player in a plain white kit raising a fist on an oval field surrounded by a generic stand lit in cool charcoal tones, four small stadium silhouettes floating above like stamps, night floodlights. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "afl.results.away_win.4",
+    "collection": "afl.faithful",
+    "rarity": "rare",
+    "name": {
+      "pt": "Dono da estrada",
+      "es": "Dueño de la carretera",
+      "en": "Road Warrior"
+    },
+    "flavor": {
+      "pt": "Oito vitórias fora: nenhum campo é longe demais.",
+      "es": "Ocho victorias de visitante: ninguna cancha queda lejos.",
+      "en": "Eight away wins: no ground is too far."
+    },
+    "art_prompt": "A stylized player in a plain white kit standing atop a suitcase-shaped pedestal of violet light at the center of an oval field, a map-like network of glowing lines connecting eight distant stadium silhouettes, night, faceted glow. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "afl.results.away_win.5",
+    "collection": "afl.faithful",
+    "rarity": "legendary",
+    "name": {
+      "pt": "Lenda viajante",
+      "es": "Leyenda viajera",
+      "en": "Travelling Legend"
+    },
+    "flavor": {
+      "pt": "Vinte vitórias fora. O país inteiro virou casa.",
+      "es": "Veinte victorias de visitante. El país entero se hizo casa.",
+      "en": "Twenty away wins. The whole country became home."
+    },
+    "art_prompt": "An epic wide shot of a stylized player in a plain white kit holding an oval ball aloft on a glowing continent-shaped platform of prismatic light with twenty stadium markers, light rays and floating particles, deep night sky. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: iridescent prismatic border with light rays and floating particles.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "afl.results.big_win.1",
+    "collection": "afl.scoreboard",
+    "rarity": "rare",
+    "name": {
+      "pt": "Tarde tranquila",
+      "es": "Tarde tranquila",
+      "en": "Easy Afternoon"
+    },
+    "flavor": {
+      "pt": "No último quarto, a torcida já cantava relaxada.",
+      "es": "En el último cuarto, la hinchada ya cantaba relajada.",
+      "en": "By the last quarter the crowd was singing at ease."
+    },
+    "art_prompt": "A stylized team in plain white kit strolling off an oval field with arms around each other, a lopsided blank scoreboard behind, opponents in plain charcoal kit sitting on the grass, golden late-afternoon light, a relaxed generic stand. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "afl.results.finals_win.1",
+    "collection": "afl.september",
+    "rarity": "rare",
+    "name": {
+      "pt": "Setembro",
+      "es": "Septiembre",
+      "en": "September"
+    },
+    "flavor": {
+      "pt": "Quando o ar esfria, o jogo esquenta.",
+      "es": "Cuando el aire se enfría, el partido se calienta.",
+      "en": "When the air turns cold, the game turns hot."
+    },
+    "art_prompt": "A stylized team in plain white kit running through a plain paper banner without text onto an oval field under cold clear evening light, four generic goal posts ahead, a packed generic stand with silhouetted fans waving plain flags without symbols. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "afl.results.grand_final_win.1",
+    "collection": "afl.september",
+    "rarity": "legendary",
+    "name": {
+      "pt": "Última sirene do ano",
+      "es": "Última sirena del año",
+      "en": "Last Siren of the Year"
+    },
+    "flavor": {
+      "pt": "A última sirene do ano tocou para nós.",
+      "es": "La última sirena del año sonó para nosotros.",
+      "en": "The last siren of the year sounded for us."
+    },
+    "art_prompt": "A stylized captain in a plain white kit lifting a plain generic cup without engravings on a podium at the center of an oval field, teammates of diverse builds and genders with arms raised, prismatic confetti and light rays over a colossal silhouetted crowd, floating particles. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: iridescent prismatic border with light rays and floating particles.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "afl.results.hundred_point_win.1",
+    "collection": "afl.scoreboard",
+    "rarity": "historic",
+    "name": {
+      "pt": "Centena",
+      "es": "Centena",
+      "en": "The Century"
+    },
+    "flavor": {
+      "pt": "Cem pontos de vantagem e a sirene ainda nem tocou.",
+      "es": "Cien puntos de ventaja y la sirena todavía no sonó.",
+      "en": "A hundred up and the siren had not even sounded."
+    },
+    "art_prompt": "A towering stylized blank scoreboard with one side glowing amber and the other dark, a stylized player in a plain white kit standing small beneath it with arms spread on an oval field, engraved laurel-like glow, soft outer glow, dusk. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "afl.results.low_score_grind.1",
+    "collection": "afl.scoreboard",
+    "rarity": "rare",
+    "name": {
+      "pt": "Lama e coragem",
+      "es": "Barro y coraje",
+      "en": "Mud and Grit"
+    },
+    "flavor": {
+      "pt": "Choveu, travou, e a gente venceu no detalhe.",
+      "es": "Llovió, se trabó, y ganamos por un detalle.",
+      "en": "Rain, grind, and we won on the smallest detail."
+    },
+    "art_prompt": "Two stylized players in plain white and plain charcoal kits wrestling for a muddy oval ball on a rain-soaked oval field, a low blank scoreboard in the mist, grey sky, generic stand with silhouetted fans under plain umbrellas. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  }
+]

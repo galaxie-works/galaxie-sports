@@ -1,0 +1,1459 @@
+[
+  {
+    "id": "formula_1.explorer.countries",
+    "sport": "formula-1",
+    "category": "participation",
+    "family": "explorer",
+    "collection": "formula_1.world_tour",
+    "rule": {
+      "input": "participation",
+      "action": "watched",
+      "where": {
+        "sport": [
+          "formula-1"
+        ]
+      },
+      "count": {
+        "mode": "distinct",
+        "key": "country"
+      }
+    },
+    "requires_data": [
+      "fan.participation",
+      "fan.presence",
+      "event.sport",
+      "event.competition.country",
+      "proposed.event.venue.country"
+    ],
+    "stepped": true,
+    "seasonal": false,
+    "active": false,
+    "inactive_reason": "o campeonato é de alcance global: event.competition.country é nulo, e o contrato não tem o país da sede de cada corrida. Falta proposed.event.venue.country e uma chave venue_country em count.distinct. A regra acima é só a aproximação (país da competição, sempre nulo) e não pode ser ligada assim.",
+    "real_world_frequency": "o calendário de 2026 passa por 21 países em 24 corridas (dois países com mais de uma etapa); Platina = 10, Lendário = 21, todos os países de um calendário (fonte: motorsportmagazine.com/articles/single-seaters/f1/2026-f1-calendar-full-24-race-schedule-revealed)",
+    "name": {
+      "pt": "Passaporte de pista",
+      "es": "Pasaporte de pista",
+      "en": "Track Passport"
+    },
+    "description": {
+      "pt": "Assista a corridas em países diferentes.",
+      "es": "Mira carreras en países distintos.",
+      "en": "Watch races held in different countries."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 0,
+        "card_key": "formula_1.explorer.countries.1"
+      },
+      {
+        "step": 2,
+        "threshold": 2,
+        "bonus_points": 0,
+        "card_key": "formula_1.explorer.countries.2"
+      },
+      {
+        "step": 3,
+        "threshold": 5,
+        "bonus_points": 0,
+        "card_key": "formula_1.explorer.countries.3"
+      },
+      {
+        "step": 4,
+        "threshold": 10,
+        "bonus_points": 0,
+        "card_key": "formula_1.explorer.countries.4"
+      },
+      {
+        "step": 5,
+        "threshold": 21,
+        "bonus_points": 0,
+        "card_key": "formula_1.explorer.countries.5"
+      }
+    ]
+  },
+  {
+    "id": "formula_1.explorer.months",
+    "sport": "formula-1",
+    "category": "participation",
+    "family": "explorer",
+    "collection": "formula_1.world_tour",
+    "rule": {
+      "input": "participation",
+      "action": "watched",
+      "where": {
+        "sport": [
+          "formula-1"
+        ]
+      },
+      "count": {
+        "mode": "distinct",
+        "key": "month"
+      }
+    },
+    "requires_data": [
+      "fan.participation",
+      "fan.presence",
+      "event.sport",
+      "event.starts_at",
+      "program.time_zone"
+    ],
+    "stepped": true,
+    "seasonal": false,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "a temporada vai de março a dezembro, 10 meses com corrida (2025: 16 de março a 7 de dezembro; 2026: 8 de março a 6 de dezembro); Platina = 10, Lendário = 20 (fonte: skysports.com/f1/news/12433/13252978; motorsportmagazine.com/articles/single-seaters/f1/2026-f1-calendar-full-24-race-schedule-revealed)",
+    "name": {
+      "pt": "De março a dezembro",
+      "es": "De marzo a diciembre",
+      "en": "March to December"
+    },
+    "description": {
+      "pt": "Assista a corridas em meses diferentes do ano.",
+      "es": "Mira carreras en meses distintos del año.",
+      "en": "Watch races in different months of the year."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 0,
+        "card_key": "formula_1.explorer.months.1"
+      },
+      {
+        "step": 2,
+        "threshold": 2,
+        "bonus_points": 0,
+        "card_key": "formula_1.explorer.months.2"
+      },
+      {
+        "step": 3,
+        "threshold": 5,
+        "bonus_points": 0,
+        "card_key": "formula_1.explorer.months.3"
+      },
+      {
+        "step": 4,
+        "threshold": 10,
+        "bonus_points": 0,
+        "card_key": "formula_1.explorer.months.4"
+      },
+      {
+        "step": 5,
+        "threshold": 20,
+        "bonus_points": 0,
+        "card_key": "formula_1.explorer.months.5"
+      }
+    ]
+  },
+  {
+    "id": "formula_1.loyalty.races_watched",
+    "sport": "formula-1",
+    "category": "participation",
+    "family": "loyalty",
+    "collection": "formula_1.paddock",
+    "rule": {
+      "input": "participation",
+      "action": "watched",
+      "where": {
+        "sport": [
+          "formula-1"
+        ]
+      }
+    },
+    "requires_data": [
+      "fan.participation",
+      "fan.presence",
+      "event.sport"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "24 corridas por temporada (2024 a 2026); Platina = 24, Lendário = 60, duas temporadas e meia (fonte: motorsportmagazine.com/articles/single-seaters/f1/2026-f1-calendar-full-24-race-schedule-revealed; skysports.com/f1/news/12433/13252978)",
+    "name": {
+      "pt": "Domingo de corrida",
+      "es": "Domingo de carrera",
+      "en": "Race Day Regular"
+    },
+    "description": {
+      "pt": "Assista às corridas da temporada, da largada à bandeirada.",
+      "es": "Mira las carreras de la temporada, de la largada a la bandera.",
+      "en": "Watch the season’s races, from lights out to the flag."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 0,
+        "card_key": "formula_1.loyalty.races_watched.1"
+      },
+      {
+        "step": 2,
+        "threshold": 3,
+        "bonus_points": 0,
+        "card_key": "formula_1.loyalty.races_watched.2"
+      },
+      {
+        "step": 3,
+        "threshold": 8,
+        "bonus_points": 0,
+        "card_key": "formula_1.loyalty.races_watched.3"
+      },
+      {
+        "step": 4,
+        "threshold": 24,
+        "bonus_points": 0,
+        "card_key": "formula_1.loyalty.races_watched.4"
+      },
+      {
+        "step": 5,
+        "threshold": 60,
+        "bonus_points": 0,
+        "card_key": "formula_1.loyalty.races_watched.5"
+      }
+    ]
+  },
+  {
+    "id": "formula_1.moments.big_climb",
+    "sport": "formula-1",
+    "category": "moment",
+    "family": "moments",
+    "collection": "formula_1.charge",
+    "rule": {
+      "input": "moment",
+      "fact": "race.result",
+      "params": {
+        "places_gained_min": 10
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "race.detail.results.position",
+      "race.detail.results.grid",
+      "race.detail.startinggrid.grid",
+      "event.status=finished",
+      "event.sport",
+      "fan.presence"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "em 2025, 8 pilotos ganharam 10 posições ou mais em pelo menos uma corrida (dois ganharam 16); estimativa própria de 8 a 12 corridas por temporada com um ganho desse tamanho (fonte: lightsoutblog.com/2025-f1-grand-prix-statistics)",
+    "name": {
+      "pt": "Dez posições",
+      "es": "Diez posiciones",
+      "en": "Ten Places Up"
+    },
+    "description": {
+      "pt": "Assista a corridas em que um piloto termina dez posições ou mais à frente de onde largou.",
+      "es": "Mira carreras en que un piloto termina diez o más posiciones por delante de donde largó.",
+      "en": "Watch races where a driver finishes ten or more places ahead of where they started."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 10,
+        "card_key": "formula_1.moments.big_climb.1"
+      },
+      {
+        "step": 2,
+        "threshold": 2,
+        "bonus_points": 20,
+        "card_key": "formula_1.moments.big_climb.2"
+      },
+      {
+        "step": 3,
+        "threshold": 4,
+        "bonus_points": 40,
+        "card_key": "formula_1.moments.big_climb.3"
+      },
+      {
+        "step": 4,
+        "threshold": 10,
+        "bonus_points": 75,
+        "card_key": "formula_1.moments.big_climb.4"
+      },
+      {
+        "step": 5,
+        "threshold": 25,
+        "bonus_points": 150,
+        "card_key": "formula_1.moments.big_climb.5"
+      }
+    ]
+  },
+  {
+    "id": "formula_1.moments.favorite_driver_podium",
+    "sport": "formula-1",
+    "category": "moment",
+    "family": "moments",
+    "collection": "formula_1.paddock",
+    "rule": {
+      "input": "moment",
+      "fact": "race.result",
+      "params": {
+        "position_max": 3
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "race.detail.results.position",
+      "race.detail.results.grid",
+      "race.detail.startinggrid.grid",
+      "event.status=finished",
+      "event.sport",
+      "fan.presence",
+      "proposed.fan.favorite_person_id"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": false,
+    "inactive_reason": "não há piloto do coração no Perfil (fan.favorite_person_id não existe) e o fato race.result não tem parâmetro de piloto. Falta proposed.fan.favorite_person_id e um parâmetro driver: favorite. A regra acima é só a aproximação (qualquer pódio) e não pode ser ligada assim.",
+    "real_world_frequency": "depende do piloto: um piloto de ponta sobe ao pódio em 10 a 20 corridas por temporada (o campeão de 2025 teve 18), um de meio de pelotão em 0 a 2; Platina = 10 (fonte: formula1.com/en/latest/article/in-numbers-all-the-key-statistics-from-norris-world-championship-winning.3pWBTiAtjp9y05LkqwngQN)",
+    "name": {
+      "pt": "Pódio do seu piloto",
+      "es": "Podio de tu piloto",
+      "en": "Your Driver on the Podium"
+    },
+    "description": {
+      "pt": "Assista às corridas em que o seu piloto do coração termina no pódio.",
+      "es": "Mira las carreras en que tu piloto favorito termina en el podio.",
+      "en": "Watch the races where your favorite driver finishes on the podium."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 10,
+        "card_key": "formula_1.moments.favorite_driver_podium.1"
+      },
+      {
+        "step": 2,
+        "threshold": 2,
+        "bonus_points": 20,
+        "card_key": "formula_1.moments.favorite_driver_podium.2"
+      },
+      {
+        "step": 3,
+        "threshold": 5,
+        "bonus_points": 40,
+        "card_key": "formula_1.moments.favorite_driver_podium.3"
+      },
+      {
+        "step": 4,
+        "threshold": 10,
+        "bonus_points": 75,
+        "card_key": "formula_1.moments.favorite_driver_podium.4"
+      },
+      {
+        "step": 5,
+        "threshold": 25,
+        "bonus_points": 150,
+        "card_key": "formula_1.moments.favorite_driver_podium.5"
+      }
+    ]
+  },
+  {
+    "id": "formula_1.moments.full_field",
+    "sport": "formula-1",
+    "category": "moment",
+    "family": "moments",
+    "collection": "formula_1.pit_wall",
+    "rule": {
+      "input": "moment",
+      "fact": "race.result",
+      "params": {
+        "finishers_min": 18
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "race.detail.results.position",
+      "race.detail.results.grid",
+      "race.detail.startinggrid.grid",
+      "event.status=finished",
+      "event.sport",
+      "fan.presence"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "em 2025, 13 das 24 corridas tiveram no máximo 2 carros fora de 20, ou seja, 18 ou mais classificados; em 2024 a abertura teve os 20 carros na bandeirada, a 17ª vez na história em que todos terminaram (fonte: lightsoutblog.com/2025-f1-grand-prix-statistics; formula1.com/en/latest/article/in-numbers-12-stats-that-highlight-just-how-competitive-f1-is-after-an.4lwtRQA7yu5AjnMxEfNS1v; racefans.net/?p=527845)",
+    "name": {
+      "pt": "Corrida limpa",
+      "es": "Carrera limpia",
+      "en": "Clean Race"
+    },
+    "description": {
+      "pt": "Assista a corridas com dezoito pilotos ou mais classificados na bandeirada.",
+      "es": "Mira carreras con dieciocho o más pilotos clasificados en la bandera.",
+      "en": "Watch races with eighteen or more drivers classified at the flag."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 10,
+        "card_key": "formula_1.moments.full_field.1"
+      },
+      {
+        "step": 2,
+        "threshold": 3,
+        "bonus_points": 20,
+        "card_key": "formula_1.moments.full_field.2"
+      },
+      {
+        "step": 3,
+        "threshold": 6,
+        "bonus_points": 40,
+        "card_key": "formula_1.moments.full_field.3"
+      },
+      {
+        "step": 4,
+        "threshold": 12,
+        "bonus_points": 75,
+        "card_key": "formula_1.moments.full_field.4"
+      },
+      {
+        "step": 5,
+        "threshold": 30,
+        "bonus_points": 150,
+        "card_key": "formula_1.moments.full_field.5"
+      }
+    ]
+  },
+  {
+    "id": "formula_1.moments.maiden_win",
+    "sport": "formula-1",
+    "category": "moment",
+    "family": "moments",
+    "collection": "formula_1.paddock",
+    "rule": {
+      "input": "moment",
+      "fact": "race.result",
+      "params": {
+        "position_max": 1
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "race.detail.results.position",
+      "race.detail.results.grid",
+      "race.detail.startinggrid.grid",
+      "event.status=finished",
+      "event.sport",
+      "fan.presence",
+      "proposed.race.detail.results.career_wins"
+    ],
+    "stepped": false,
+    "seasonal": false,
+    "active": false,
+    "inactive_reason": "precisa do histórico de vitórias do piloto antes da corrida; o espelho race.detail só traz o resultado da prova. Falta proposed.race.detail.results.career_wins e um parâmetro winner_career_wins_max no fato race.result. A regra acima é só a aproximação (qualquer vitória) e não pode ser ligada assim.",
+    "real_world_frequency": "primeiras vitórias por temporada: 1 em 2019, 2 em 2020, 1 em 2021, 2 em 2022, 0 em 2023, 2 em 2024: cerca de 1 por temporada (fonte: the-race.com/formula-1/current-f1-drivers-first-wins-ranked; formula1.com/en/video/the-10-most-recent-first-time-f1-winners.1687525426147029057)",
+    "name": {
+      "pt": "Primeira vitória",
+      "es": "Primera victoria",
+      "en": "Maiden Win"
+    },
+    "description": {
+      "pt": "Assista à corrida em que um piloto vence pela primeira vez na carreira.",
+      "es": "Mira la carrera en que un piloto gana por primera vez en su carrera.",
+      "en": "Watch the race where a driver wins for the first time in their career."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 60,
+        "card_key": "formula_1.moments.maiden_win.1"
+      }
+    ]
+  },
+  {
+    "id": "formula_1.moments.mixed_podium",
+    "sport": "formula-1",
+    "category": "moment",
+    "family": "moments",
+    "collection": "formula_1.pit_wall",
+    "rule": {
+      "input": "moment",
+      "fact": "race.result",
+      "params": {
+        "position_max": 3
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "race.detail.results.position",
+      "race.detail.results.grid",
+      "race.detail.startinggrid.grid",
+      "event.status=finished",
+      "event.sport",
+      "fan.presence",
+      "proposed.race.detail.results.team"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": false,
+    "inactive_reason": "o campo race.detail.results.team existe no espelho, mas o fato race.result não tem parâmetro que conte equipes diferentes no pódio; falta proposed.race.detail.results.team no contrato e um parâmetro podium_teams_min. A regra acima é só a aproximação (qualquer corrida com pódio) e não pode ser ligada assim.",
+    "real_world_frequency": "estimativa própria: 2024 teve quatro equipes vencedoras e sete vencedores diferentes, com pódio de três equipes em boa parte das corridas; em temporadas dominadas por uma equipe cai para 3 a 5 (fonte: formula1.com/en/latest/article/in-numbers-how-2024-came-to-be-one-of-the-most-thrilling-f1-seasons-yet.6nlrEsGGuIRTqA5TeFQHJ6; f1technical.net/news/25283)",
+    "name": {
+      "pt": "Pódio de três equipes",
+      "es": "Podio de tres escuderías",
+      "en": "Three-Team Podium"
+    },
+    "description": {
+      "pt": "Assista a uma corrida com três equipes diferentes no pódio.",
+      "es": "Mira una carrera con tres escuderías distintas en el podio.",
+      "en": "Watch a race with three different teams on the podium."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 25,
+        "card_key": "formula_1.moments.mixed_podium.1"
+      }
+    ]
+  },
+  {
+    "id": "formula_1.moments.off_front_row",
+    "sport": "formula-1",
+    "category": "moment",
+    "family": "moments",
+    "collection": "formula_1.grid_to_glory",
+    "rule": {
+      "input": "moment",
+      "fact": "race.result",
+      "params": {
+        "winner_from_grid_min": 3
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "race.detail.results.position",
+      "race.detail.results.grid",
+      "race.detail.startinggrid.grid",
+      "event.status=finished",
+      "event.sport",
+      "fan.presence"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "um terço das vitórias desde 1950 saiu da terceira posição do grid ou pior (370 de 1.101 na tabela por posição de largada); em 2025 só 6 das 20 primeiras corridas não foram vencidas da pole: 5 a 8 por temporada de 24 (fonte: racingnews365.com/f1-wins-by-starting-position-who-has-set-the-grid-alight; autosport.com/f1/news/f1-2025-title-impact-of-pole-position/10772750)",
+    "name": {
+      "pt": "Vitória da segunda fila",
+      "es": "Victoria sin primera fila",
+      "en": "Beyond the Front Row"
+    },
+    "description": {
+      "pt": "Assista a vitórias de quem largou da segunda fila para trás.",
+      "es": "Mira victorias de quien largó desde la segunda fila o más atrás.",
+      "en": "Watch wins by a driver who started from the second row or further back."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 10,
+        "card_key": "formula_1.moments.off_front_row.1"
+      },
+      {
+        "step": 2,
+        "threshold": 2,
+        "bonus_points": 20,
+        "card_key": "formula_1.moments.off_front_row.2"
+      },
+      {
+        "step": 3,
+        "threshold": 4,
+        "bonus_points": 40,
+        "card_key": "formula_1.moments.off_front_row.3"
+      },
+      {
+        "step": 4,
+        "threshold": 8,
+        "bonus_points": 75,
+        "card_key": "formula_1.moments.off_front_row.4"
+      },
+      {
+        "step": 5,
+        "threshold": 20,
+        "bonus_points": 150,
+        "card_key": "formula_1.moments.off_front_row.5"
+      }
+    ]
+  },
+  {
+    "id": "formula_1.moments.one_stop_win",
+    "sport": "formula-1",
+    "category": "moment",
+    "family": "moments",
+    "collection": "formula_1.pit_wall",
+    "rule": {
+      "input": "moment",
+      "fact": "race.result",
+      "params": {
+        "pits_max": 1
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "race.detail.results.position",
+      "race.detail.results.grid",
+      "race.detail.startinggrid.grid",
+      "event.status=finished",
+      "event.sport",
+      "fan.presence",
+      "race.detail.results.pits"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "12 das 22 corridas secas de 2024 e 12 das 21 de 2025 foram vencidas com uma parada só: cerca de metade da temporada (fonte: mclaren.com/racing/formula-1/2025/2025-strategy-trends)",
+    "name": {
+      "pt": "Vitória de uma parada",
+      "es": "Victoria a una parada",
+      "en": "One-Stop Win"
+    },
+    "description": {
+      "pt": "Assista a corridas vencidas com uma única parada nos boxes.",
+      "es": "Mira carreras ganadas con una sola parada en boxes.",
+      "en": "Watch races won with a single pit stop."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 10,
+        "card_key": "formula_1.moments.one_stop_win.1"
+      },
+      {
+        "step": 2,
+        "threshold": 3,
+        "bonus_points": 20,
+        "card_key": "formula_1.moments.one_stop_win.2"
+      },
+      {
+        "step": 3,
+        "threshold": 6,
+        "bonus_points": 40,
+        "card_key": "formula_1.moments.one_stop_win.3"
+      },
+      {
+        "step": 4,
+        "threshold": 12,
+        "bonus_points": 75,
+        "card_key": "formula_1.moments.one_stop_win.4"
+      },
+      {
+        "step": 5,
+        "threshold": 30,
+        "bonus_points": 150,
+        "card_key": "formula_1.moments.one_stop_win.5"
+      }
+    ]
+  },
+  {
+    "id": "formula_1.moments.perfect_weekend",
+    "sport": "formula-1",
+    "category": "moment",
+    "family": "moments",
+    "collection": "formula_1.grid_to_glory",
+    "rule": {
+      "input": "moment",
+      "fact": "race.result",
+      "params": {
+        "pole_to_win": true
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "race.detail.results.position",
+      "race.detail.results.grid",
+      "race.detail.startinggrid.grid",
+      "event.status=finished",
+      "event.sport",
+      "fan.presence",
+      "proposed.race.detail.fastest_lap"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": false,
+    "inactive_reason": "a volta mais rápida não chega ao motor: falta proposed.race.detail.fastest_lap e um parâmetro fastest_lap_winner no fato race.result. A regra acima é só a aproximação (vitória saindo da pole) e não pode ser ligada assim.",
+    "real_world_frequency": "estimativa própria: pole, vitória e volta mais rápida do mesmo piloto acontecem 2 a 5 vezes por temporada, mais em anos de domínio de um carro (base: 14 vitórias da pole nas 20 primeiras corridas de 2025, autosport.com/f1/news/f1-2025-title-impact-of-pole-position/10772750)",
+    "name": {
+      "pt": "Fim de semana perfeito",
+      "es": "Fin de semana perfecto",
+      "en": "Perfect Weekend"
+    },
+    "description": {
+      "pt": "Assista a uma corrida em que o mesmo piloto faz a pole, a volta mais rápida e vence.",
+      "es": "Mira una carrera en que el mismo piloto logra la pole, la vuelta rápida y la victoria.",
+      "en": "Watch a race where one driver takes pole, fastest lap and the win."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 25,
+        "card_key": "formula_1.moments.perfect_weekend.1"
+      }
+    ]
+  },
+  {
+    "id": "formula_1.moments.podium_charge",
+    "sport": "formula-1",
+    "category": "moment",
+    "family": "moments",
+    "collection": "formula_1.charge",
+    "rule": {
+      "input": "moment",
+      "fact": "race.result",
+      "params": {
+        "position_max": 3,
+        "places_gained_min": 10
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "race.detail.results.position",
+      "race.detail.results.grid",
+      "race.detail.startinggrid.grid",
+      "event.status=finished",
+      "event.sport",
+      "fan.presence"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria sobre as tabelas de posições ganhas: 1 a 2 por temporada (em 2025, um pódio saindo de 19º e uma vitória saindo de 17º) (fonte: lightsoutblog.com/2025-f1-grand-prix-statistics; formula1.com/en/latest/article/from-shock-wins-to-dramatic-comebacks-10-of-the-most-remarkable-rises-to-the.2EYo6UpsN0K9wLYBykTUGS)",
+    "name": {
+      "pt": "Pódio vindo de longe",
+      "es": "Podio desde lejos",
+      "en": "Podium from Afar"
+    },
+    "description": {
+      "pt": "Assista a uma corrida em que alguém ganha dez posições ou mais e termina no pódio.",
+      "es": "Mira una carrera en que alguien gana diez o más posiciones y termina en el podio.",
+      "en": "Watch a race where a driver gains ten or more places and finishes on the podium."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 60,
+        "card_key": "formula_1.moments.podium_charge.1"
+      }
+    ]
+  },
+  {
+    "id": "formula_1.moments.podium_climb",
+    "sport": "formula-1",
+    "category": "moment",
+    "family": "moments",
+    "collection": "formula_1.charge",
+    "rule": {
+      "input": "moment",
+      "fact": "race.result",
+      "params": {
+        "position_max": 3,
+        "places_gained_min": 5
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "race.detail.results.position",
+      "race.detail.results.grid",
+      "race.detail.startinggrid.grid",
+      "event.status=finished",
+      "event.sport",
+      "fan.presence"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria: 6 a 8 corridas por temporada têm um piloto no pódio depois de ganhar 5 posições ou mais (base: 8 pilotos ganharam 10 ou mais numa corrida em 2025) (fonte: lightsoutblog.com/2025-f1-grand-prix-statistics)",
+    "name": {
+      "pt": "Pódio de recuperação",
+      "es": "Podio de remontada",
+      "en": "Comeback Podium"
+    },
+    "description": {
+      "pt": "Assista a corridas em que alguém ganha cinco posições ou mais e termina no pódio.",
+      "es": "Mira carreras en que alguien gana cinco o más posiciones y termina en el podio.",
+      "en": "Watch races where a driver gains five or more places and finishes on the podium."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 10,
+        "card_key": "formula_1.moments.podium_climb.1"
+      },
+      {
+        "step": 2,
+        "threshold": 2,
+        "bonus_points": 20,
+        "card_key": "formula_1.moments.podium_climb.2"
+      },
+      {
+        "step": 3,
+        "threshold": 4,
+        "bonus_points": 40,
+        "card_key": "formula_1.moments.podium_climb.3"
+      },
+      {
+        "step": 4,
+        "threshold": 8,
+        "bonus_points": 75,
+        "card_key": "formula_1.moments.podium_climb.4"
+      },
+      {
+        "step": 5,
+        "threshold": 20,
+        "bonus_points": 150,
+        "card_key": "formula_1.moments.podium_climb.5"
+      }
+    ]
+  },
+  {
+    "id": "formula_1.moments.pole_to_win",
+    "sport": "formula-1",
+    "category": "moment",
+    "family": "moments",
+    "collection": "formula_1.grid_to_glory",
+    "rule": {
+      "input": "moment",
+      "fact": "race.result",
+      "params": {
+        "pole_to_win": true
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "race.detail.results.position",
+      "race.detail.results.grid",
+      "race.detail.startinggrid.grid",
+      "event.status=finished",
+      "event.sport",
+      "fan.presence"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "quem larga na pole venceu 42,7% das corridas desde 1950 (470 de 1.101) e 70% em 2025 (14 das 20 primeiras); numa temporada de 24 corridas, 10 a 17 (fonte: racingnews365.com/f1-wins-by-starting-position-who-has-set-the-grid-alight; autosport.com/f1/news/f1-2025-title-impact-of-pole-position/10772750)",
+    "name": {
+      "pt": "Da pole à vitória",
+      "es": "De la pole a la victoria",
+      "en": "Pole to Flag"
+    },
+    "description": {
+      "pt": "Assista às corridas em que quem largou na pole cruza a linha em primeiro.",
+      "es": "Mira las carreras en que quien largó desde la pole cruza la meta primero.",
+      "en": "Watch races where the pole-sitter takes the win."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 10,
+        "card_key": "formula_1.moments.pole_to_win.1"
+      },
+      {
+        "step": 2,
+        "threshold": 3,
+        "bonus_points": 20,
+        "card_key": "formula_1.moments.pole_to_win.2"
+      },
+      {
+        "step": 3,
+        "threshold": 6,
+        "bonus_points": 40,
+        "card_key": "formula_1.moments.pole_to_win.3"
+      },
+      {
+        "step": 4,
+        "threshold": 12,
+        "bonus_points": 75,
+        "card_key": "formula_1.moments.pole_to_win.4"
+      },
+      {
+        "step": 5,
+        "threshold": 30,
+        "bonus_points": 150,
+        "card_key": "formula_1.moments.pole_to_win.5"
+      }
+    ]
+  },
+  {
+    "id": "formula_1.moments.safety_car",
+    "sport": "formula-1",
+    "category": "moment",
+    "family": "moments",
+    "collection": "formula_1.pit_wall",
+    "rule": {
+      "input": "moment",
+      "fact": "race.result",
+      "params": {},
+      "presence": "game"
+    },
+    "requires_data": [
+      "race.detail.results.position",
+      "race.detail.results.grid",
+      "race.detail.startinggrid.grid",
+      "event.status=finished",
+      "event.sport",
+      "fan.presence",
+      "proposed.race.detail.safety_car"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": false,
+    "inactive_reason": "o espelho race.detail não traz os períodos de carro de segurança (real ou virtual); falta proposed.race.detail.safety_car e um fato race.safety_car com tipo e volta. A regra acima é só a aproximação (qualquer corrida terminada) e não pode ser ligada assim.",
+    "real_world_frequency": "em 2024, 8 das 24 corridas tiveram carro de segurança completo e mais 4 só o virtual: metade da temporada com alguma neutralização (fonte: lightsoutblog.com/every-safety-car-f1-2024)",
+    "name": {
+      "pt": "Corrida neutralizada",
+      "es": "Carrera neutralizada",
+      "en": "Neutralised Race"
+    },
+    "description": {
+      "pt": "Assista a corridas em que o carro de segurança entra na pista.",
+      "es": "Mira carreras en que el auto de seguridad entra en pista.",
+      "en": "Watch races where the safety car comes out."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 10,
+        "card_key": "formula_1.moments.safety_car.1"
+      },
+      {
+        "step": 2,
+        "threshold": 3,
+        "bonus_points": 20,
+        "card_key": "formula_1.moments.safety_car.2"
+      },
+      {
+        "step": 3,
+        "threshold": 6,
+        "bonus_points": 40,
+        "card_key": "formula_1.moments.safety_car.3"
+      },
+      {
+        "step": 4,
+        "threshold": 12,
+        "bonus_points": 75,
+        "card_key": "formula_1.moments.safety_car.4"
+      },
+      {
+        "step": 5,
+        "threshold": 30,
+        "bonus_points": 150,
+        "card_key": "formula_1.moments.safety_car.5"
+      }
+    ]
+  },
+  {
+    "id": "formula_1.moments.winner_from_back",
+    "sport": "formula-1",
+    "category": "moment",
+    "family": "moments",
+    "collection": "formula_1.charge",
+    "rule": {
+      "input": "moment",
+      "fact": "race.result",
+      "params": {
+        "winner_from_grid_min": 10
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "race.detail.results.position",
+      "race.detail.results.grid",
+      "race.detail.startinggrid.grid",
+      "event.status=finished",
+      "event.sport",
+      "fan.presence"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "41 vitórias saindo de décimo ou pior em toda a história (desde 1950), 5 delas nos anos 2020 até 2024 e mais uma em 2026: cerca de 0,5 a 1 por temporada (fonte: lightsoutblog.com/the-furthest-back-f1-wins; the-race.com/formula-1/f1-wins-from-the-lowest-grid-position-kimi-antonelli-italian-gp)",
+    "name": {
+      "pt": "Vitória do fundo do grid",
+      "es": "Victoria desde el fondo",
+      "en": "Win from the Back"
+    },
+    "description": {
+      "pt": "Assista a uma corrida vencida por quem largou em décimo ou pior.",
+      "es": "Mira una carrera ganada por quien largó décimo o más atrás.",
+      "en": "Watch a race won by a driver who started tenth or lower."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 60,
+        "card_key": "formula_1.moments.winner_from_back.1"
+      }
+    ]
+  },
+  {
+    "id": "formula_1.moments.winner_from_deep",
+    "sport": "formula-1",
+    "category": "moment",
+    "family": "moments",
+    "collection": "formula_1.charge",
+    "rule": {
+      "input": "moment",
+      "fact": "race.result",
+      "params": {
+        "winner_from_grid_min": 15
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "race.detail.results.position",
+      "race.detail.results.grid",
+      "race.detail.startinggrid.grid",
+      "event.status=finished",
+      "event.sport",
+      "fan.presence"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "só 6 vitórias saindo de décimo quinto ou pior desde 1995 (1995, 2000, 2005, 2008, 2024 e 2026): uma a cada 5 temporadas (fonte: lightsoutblog.com/the-furthest-back-f1-wins; the-race.com/formula-1/f1-wins-from-the-lowest-grid-position-kimi-antonelli-italian-gp)",
+    "name": {
+      "pt": "Vitória impossível",
+      "es": "Victoria imposible",
+      "en": "Impossible Win"
+    },
+    "description": {
+      "pt": "Assista a uma corrida vencida por quem largou em décimo quinto ou pior.",
+      "es": "Mira una carrera ganada por quien largó decimoquinto o más atrás.",
+      "en": "Watch a race won by a driver who started fifteenth or lower."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 120,
+        "card_key": "formula_1.moments.winner_from_deep.1"
+      }
+    ]
+  },
+  {
+    "id": "formula_1.moments.winner_from_sixth",
+    "sport": "formula-1",
+    "category": "moment",
+    "family": "moments",
+    "collection": "formula_1.grid_to_glory",
+    "rule": {
+      "input": "moment",
+      "fact": "race.result",
+      "params": {
+        "winner_from_grid_min": 6
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "race.detail.results.position",
+      "race.detail.results.grid",
+      "race.detail.startinggrid.grid",
+      "event.status=finished",
+      "event.sport",
+      "fan.presence"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "cerca de 10% das vitórias da história saíram da sexta posição do grid ou pior (124 de 1.201 na tabela por posição de largada): 2 a 3 por temporada de 24 (fonte: racingnews365.com/f1-wins-by-starting-position-who-has-set-the-grid-alight)",
+    "name": {
+      "pt": "Vitória de longe",
+      "es": "Victoria desde lejos",
+      "en": "Win from Way Back"
+    },
+    "description": {
+      "pt": "Assista a uma corrida vencida por quem largou em sexto ou pior.",
+      "es": "Mira una carrera ganada por quien largó sexto o más atrás.",
+      "en": "Watch a race won by a driver who started sixth or lower."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 25,
+        "card_key": "formula_1.moments.winner_from_sixth.1"
+      }
+    ]
+  },
+  {
+    "id": "formula_1.predictions.every_race",
+    "sport": "formula-1",
+    "category": "participation",
+    "family": "predictions",
+    "collection": "formula_1.race_reader",
+    "rule": {
+      "input": "prediction",
+      "where": {
+        "sport": [
+          "formula-1"
+        ]
+      }
+    },
+    "requires_data": [
+      "fan.prediction",
+      "event.sport"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "24 corridas por temporada em 2024, 2025 e 2026; Platina = a temporada inteira, Lendário = duas temporadas e meia (fonte: motorsportmagazine.com/articles/single-seaters/f1/2026-f1-calendar-full-24-race-schedule-revealed)",
+    "name": {
+      "pt": "Palpite em toda corrida",
+      "es": "Pronóstico en cada carrera",
+      "en": "Call Every Race"
+    },
+    "description": {
+      "pt": "Dê seu Palpite nas corridas da temporada.",
+      "es": "Haz tu pronóstico en las carreras de la temporada.",
+      "en": "Make your prediction for the season’s races."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 0,
+        "card_key": "formula_1.predictions.every_race.1"
+      },
+      {
+        "step": 2,
+        "threshold": 3,
+        "bonus_points": 0,
+        "card_key": "formula_1.predictions.every_race.2"
+      },
+      {
+        "step": 3,
+        "threshold": 8,
+        "bonus_points": 0,
+        "card_key": "formula_1.predictions.every_race.3"
+      },
+      {
+        "step": 4,
+        "threshold": 24,
+        "bonus_points": 0,
+        "card_key": "formula_1.predictions.every_race.4"
+      },
+      {
+        "step": 5,
+        "threshold": 60,
+        "bonus_points": 0,
+        "card_key": "formula_1.predictions.every_race.5"
+      }
+    ]
+  },
+  {
+    "id": "formula_1.predictions.hit_streak",
+    "sport": "formula-1",
+    "category": "hit",
+    "family": "predictions",
+    "collection": "formula_1.race_reader",
+    "rule": {
+      "input": "prediction",
+      "correct": true,
+      "where": {
+        "sport": [
+          "formula-1"
+        ]
+      },
+      "count": {
+        "mode": "streak",
+        "unit": "prediction"
+      }
+    },
+    "requires_data": [
+      "fan.prediction",
+      "event.sport"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria: com cerca de 50% de acerto no vencedor, 4 seguidos saem 1 vez em 16 tentativas e 8 seguidos 1 em 256; em temporadas de domínio (19 vitórias de um piloto em 22 corridas em 2023) a sequência fica mais fácil; Platina = 16 (fonte: racefans.net/2023/12/30/unprecedented-dominance-and-norriss-unwanted-record-the-2023-f1-season-in-stats)",
+    "name": {
+      "pt": "Mão quente nas corridas",
+      "es": "Racha en las carreras",
+      "en": "Race Streak"
+    },
+    "description": {
+      "pt": "Acerte Palpites de corrida seguidos, sem errar nenhum no meio.",
+      "es": "Acierta pronósticos de carreras seguidos, sin fallar ninguno en el medio.",
+      "en": "Get race predictions right back to back, without a miss in between."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 2,
+        "bonus_points": 20,
+        "card_key": "formula_1.predictions.hit_streak.1"
+      },
+      {
+        "step": 2,
+        "threshold": 4,
+        "bonus_points": 40,
+        "card_key": "formula_1.predictions.hit_streak.2"
+      },
+      {
+        "step": 3,
+        "threshold": 8,
+        "bonus_points": 80,
+        "card_key": "formula_1.predictions.hit_streak.3"
+      },
+      {
+        "step": 4,
+        "threshold": 16,
+        "bonus_points": 150,
+        "card_key": "formula_1.predictions.hit_streak.4"
+      },
+      {
+        "step": 5,
+        "threshold": 32,
+        "bonus_points": 300,
+        "card_key": "formula_1.predictions.hit_streak.5"
+      }
+    ]
+  },
+  {
+    "id": "formula_1.predictions.winner_hits",
+    "sport": "formula-1",
+    "category": "hit",
+    "family": "predictions",
+    "collection": "formula_1.race_reader",
+    "rule": {
+      "input": "prediction",
+      "kind": "winner",
+      "correct": true,
+      "where": {
+        "sport": [
+          "formula-1"
+        ]
+      }
+    },
+    "requires_data": [
+      "fan.prediction",
+      "event.sport"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria: em 24 corridas, o torcedor assíduo acerta o vencedor em cerca de metade (quem larga na pole venceu 70% das corridas em 2025 e 42,7% na história); Platina = 12 (fonte: autosport.com/f1/news/f1-2025-title-impact-of-pole-position/10772750; racingnews365.com/f1-wins-by-starting-position-who-has-set-the-grid-alight)",
+    "name": {
+      "pt": "Vencedor na mosca",
+      "es": "Ganador exacto",
+      "en": "Called the Winner"
+    },
+    "description": {
+      "pt": "Acerte quem vence a corrida.",
+      "es": "Acierta quién gana la carrera.",
+      "en": "Predict the race winner."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 20,
+        "card_key": "formula_1.predictions.winner_hits.1"
+      },
+      {
+        "step": 2,
+        "threshold": 3,
+        "bonus_points": 40,
+        "card_key": "formula_1.predictions.winner_hits.2"
+      },
+      {
+        "step": 3,
+        "threshold": 6,
+        "bonus_points": 80,
+        "card_key": "formula_1.predictions.winner_hits.3"
+      },
+      {
+        "step": 4,
+        "threshold": 12,
+        "bonus_points": 150,
+        "card_key": "formula_1.predictions.winner_hits.4"
+      },
+      {
+        "step": 5,
+        "threshold": 30,
+        "bonus_points": 300,
+        "card_key": "formula_1.predictions.winner_hits.5"
+      }
+    ]
+  },
+  {
+    "id": "formula_1.rhythm.early_bird",
+    "sport": "formula-1",
+    "category": "participation",
+    "family": "rhythm",
+    "collection": "formula_1.night_shift",
+    "rule": {
+      "input": "participation",
+      "action": "watched",
+      "where": {
+        "sport": [
+          "formula-1"
+        ],
+        "local_hour": {
+          "from": "06:00",
+          "to": "10:59"
+        }
+      }
+    },
+    "requires_data": [
+      "fan.participation",
+      "fan.presence",
+      "event.sport",
+      "event.starts_at",
+      "program.time_zone"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "entre 6h e 11h no horário local largam 10 a 12 corridas por temporada nas Américas: no Brasil e na Argentina as etapas europeias (10h) e algumas do Oriente Médio e da Ásia (8h e 9h); no México as europeias (7h e 8h) e do Oriente Médio (6h); no leste dos Estados Unidos as europeias (9h); Platina = 12 (fonte: bmcnews.com.br/2025/02/05/ansioso-para-a-f1-2025-confira-o-calendario-com-os-horarios-da-temporada; tudn.com/formula-1/calendario-formula-1-2025-carreras-fechas-horarios-temporada; exame.com/esporte/gp-de-singapura-descubra-programacao-da-f1-e-onde-assistir-as-proximas-corridas)",
+    "name": {
+      "pt": "Largada de manhã cedo",
+      "es": "Largada temprano",
+      "en": "Early Start"
+    },
+    "description": {
+      "pt": "Assista a corridas que largam de manhã cedo no seu horário.",
+      "es": "Mira carreras que largan temprano por la mañana en tu horario.",
+      "en": "Watch races that start early in the morning, your local time."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 0,
+        "card_key": "formula_1.rhythm.early_bird.1"
+      },
+      {
+        "step": 2,
+        "threshold": 3,
+        "bonus_points": 0,
+        "card_key": "formula_1.rhythm.early_bird.2"
+      },
+      {
+        "step": 3,
+        "threshold": 6,
+        "bonus_points": 0,
+        "card_key": "formula_1.rhythm.early_bird.3"
+      },
+      {
+        "step": 4,
+        "threshold": 12,
+        "bonus_points": 0,
+        "card_key": "formula_1.rhythm.early_bird.4"
+      },
+      {
+        "step": 5,
+        "threshold": 30,
+        "bonus_points": 0,
+        "card_key": "formula_1.rhythm.early_bird.5"
+      }
+    ]
+  },
+  {
+    "id": "formula_1.rhythm.night_owl",
+    "sport": "formula-1",
+    "category": "participation",
+    "family": "rhythm",
+    "collection": "formula_1.night_shift",
+    "rule": {
+      "input": "participation",
+      "action": "watched",
+      "where": {
+        "sport": [
+          "formula-1"
+        ],
+        "local_hour": {
+          "from": "22:00",
+          "to": "05:59"
+        }
+      }
+    },
+    "requires_data": [
+      "fan.participation",
+      "fan.presence",
+      "event.sport",
+      "event.starts_at",
+      "program.time_zone"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "4 corridas por temporada largam entre 22h e 6h no horário do Brasil e da Argentina (as etapas da Oceania e do Leste Asiático à 1h, 2h e 4h, e a corrida noturna de sábado na América do Norte à 1h); no México são 5 (três às 22h e 23h de sábado) e no leste dos Estados Unidos 4; Platina = 8 vale por 2 temporadas, exceção declarada (fonte: gazetaesportiva.com/motor/formula-1/gp-japao-f1-2025; bmcnews.com.br/2025/02/05/ansioso-para-a-f1-2025-confira-o-calendario-com-os-horarios-da-temporada; tudn.com/formula-1/calendario-formula-1-2025-carreras-fechas-horarios-temporada)",
+    "name": {
+      "pt": "Corrida de madrugada",
+      "es": "Carrera de madrugada",
+      "en": "Night-Shift Race"
+    },
+    "description": {
+      "pt": "Assista a corridas que largam de madrugada no seu horário.",
+      "es": "Mira carreras que largan de madrugada en tu horario.",
+      "en": "Watch races that start in the small hours, your local time."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 0,
+        "card_key": "formula_1.rhythm.night_owl.1"
+      },
+      {
+        "step": 2,
+        "threshold": 2,
+        "bonus_points": 0,
+        "card_key": "formula_1.rhythm.night_owl.2"
+      },
+      {
+        "step": 3,
+        "threshold": 4,
+        "bonus_points": 0,
+        "card_key": "formula_1.rhythm.night_owl.3"
+      },
+      {
+        "step": 4,
+        "threshold": 8,
+        "bonus_points": 0,
+        "card_key": "formula_1.rhythm.night_owl.4"
+      },
+      {
+        "step": 5,
+        "threshold": 20,
+        "bonus_points": 0,
+        "card_key": "formula_1.rhythm.night_owl.5"
+      }
+    ]
+  }
+]

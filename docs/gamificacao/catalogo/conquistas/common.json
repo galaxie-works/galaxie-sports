@@ -1,0 +1,2249 @@
+[
+  {
+    "id": "common.collector.collections",
+    "sport": null,
+    "category": "participation",
+    "family": "collector",
+    "collection": "common.collector",
+    "rule": {
+      "input": "participation",
+      "action": "consumption"
+    },
+    "requires_data": [
+      "proposed.collection.completed"
+    ],
+    "stepped": true,
+    "seasonal": false,
+    "active": false,
+    "inactive_reason": "A linguagem não tem entrada para \"Coleção completada\" (proposed.collection.completed): hoje completar a Coleção destrava o cosmético direto, sem passar por Conquista. A regra gravada (participation/consumption) é só um lugar reservado e não pode ser importada ativa.",
+    "real_world_frequency": "o Catálogo terá cerca de 80 a 130 Coleções (5 a 10 por esporte mais as comuns); completar uma exige todos os Degraus das Conquistas dela, inclusive o Lendário (estimativa; pesquisa/common.md §8)",
+    "name": {
+      "pt": "Colecionador",
+      "es": "Coleccionista",
+      "en": "Collector"
+    },
+    "description": {
+      "pt": "Complete Coleções de Cartas.",
+      "es": "Completa colecciones de cartas.",
+      "en": "Complete card collections."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 0,
+        "card_key": "common.collector.collections.1"
+      },
+      {
+        "step": 2,
+        "threshold": 3,
+        "bonus_points": 0,
+        "card_key": "common.collector.collections.2"
+      },
+      {
+        "step": 3,
+        "threshold": 8,
+        "bonus_points": 0,
+        "card_key": "common.collector.collections.3"
+      },
+      {
+        "step": 4,
+        "threshold": 20,
+        "bonus_points": 0,
+        "card_key": "common.collector.collections.4"
+      },
+      {
+        "step": 5,
+        "threshold": 50,
+        "bonus_points": 0,
+        "card_key": "common.collector.collections.5"
+      }
+    ]
+  },
+  {
+    "id": "common.collector.sports",
+    "sport": null,
+    "category": "participation",
+    "family": "collector",
+    "collection": "common.collector",
+    "rule": {
+      "input": "participation",
+      "action": "consumption",
+      "count": {
+        "mode": "distinct",
+        "key": "sport"
+      }
+    },
+    "requires_data": [
+      "proposed.collection.completed",
+      "event.sport"
+    ],
+    "stepped": true,
+    "seasonal": false,
+    "active": false,
+    "inactive_reason": "A linguagem não tem entrada para \"Coleção completada\" (proposed.collection.completed): hoje completar a Coleção destrava o cosmético direto, sem passar por Conquista. A regra gravada (participation/consumption com distinct sport) é só um lugar reservado e não pode ser importada ativa.",
+    "real_world_frequency": "cada esporte terá 5 a 10 Coleções; completar uma em 12 esportes diferentes exige anos de uso multiesporte; 12 é teto absoluto, por isso a escada é 2/3/5/8/12 (estimativa; pesquisa/common.md §8)",
+    "name": {
+      "pt": "Álbum multiesporte",
+      "es": "Álbum multideporte",
+      "en": "Multi-sport album"
+    },
+    "description": {
+      "pt": "Complete pelo menos uma Coleção em esportes diferentes.",
+      "es": "Completa al menos una colección en deportes diferentes.",
+      "en": "Complete at least one collection in different sports."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 2,
+        "bonus_points": 0,
+        "card_key": "common.collector.sports.1"
+      },
+      {
+        "step": 2,
+        "threshold": 3,
+        "bonus_points": 0,
+        "card_key": "common.collector.sports.2"
+      },
+      {
+        "step": 3,
+        "threshold": 5,
+        "bonus_points": 0,
+        "card_key": "common.collector.sports.3"
+      },
+      {
+        "step": 4,
+        "threshold": 8,
+        "bonus_points": 0,
+        "card_key": "common.collector.sports.4"
+      },
+      {
+        "step": 5,
+        "threshold": 12,
+        "bonus_points": 0,
+        "card_key": "common.collector.sports.5"
+      }
+    ]
+  },
+  {
+    "id": "common.community.invite",
+    "sport": null,
+    "category": "participation",
+    "family": "community",
+    "collection": "common.community",
+    "rule": {
+      "input": "participation",
+      "action": "poll"
+    },
+    "requires_data": [
+      "proposed.fan.invite"
+    ],
+    "stepped": true,
+    "seasonal": false,
+    "active": false,
+    "inactive_reason": "Não existe sinal de convite aceito (proposed.fan.invite) nem entrada na linguagem para ele; a regra gravada (participation/poll) é só um lugar reservado e não pode ser importada ativa. Só conta convite que vira Perfil ativo, nunca envio de link.",
+    "real_world_frequency": "um torcedor convida 0 a 3 amigos que chegam a usar; 20 e 50 convites aceitos são casos de comunidade organizada, abaixo de 1% dos ativos (estimativa de produto; pesquisa/common.md §7)",
+    "name": {
+      "pt": "Traga a galera",
+      "es": "Trae a tu gente",
+      "en": "Bring the crew"
+    },
+    "description": {
+      "pt": "Convide amigos que passem a acompanhar os jogos com você.",
+      "es": "Invita amigos que pasen a seguir los partidos contigo.",
+      "en": "Invite friends who start following the games with you."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 0,
+        "card_key": "common.community.invite.1"
+      },
+      {
+        "step": 2,
+        "threshold": 3,
+        "bonus_points": 0,
+        "card_key": "common.community.invite.2"
+      },
+      {
+        "step": 3,
+        "threshold": 8,
+        "bonus_points": 0,
+        "card_key": "common.community.invite.3"
+      },
+      {
+        "step": 4,
+        "threshold": 20,
+        "bonus_points": 0,
+        "card_key": "common.community.invite.4"
+      },
+      {
+        "step": 5,
+        "threshold": 50,
+        "bonus_points": 0,
+        "card_key": "common.community.invite.5"
+      }
+    ]
+  },
+  {
+    "id": "common.consumption.lineup",
+    "sport": null,
+    "category": "consumption",
+    "family": "consumption",
+    "collection": "common.community",
+    "rule": {
+      "input": "participation",
+      "action": "consumption"
+    },
+    "requires_data": [
+      "fan.participation",
+      "proposed.fan.participation.consumption.lineup"
+    ],
+    "stepped": true,
+    "seasonal": false,
+    "active": false,
+    "inactive_reason": "Não há sinal de \"conferiu a escalação\" (proposed.fan.participation.consumption.lineup), e a ação consumption da linguagem não distingue resumo de escalação: ativar hoje contaria o mesmo sinal do resumo.",
+    "real_world_frequency": "uma escalação por jogo do time, conferida antes do apito: 40 a 70 por temporada para o torcedor assíduo (estimativa de produto; pesquisa/common.md §7)",
+    "name": {
+      "pt": "Escalação na mão",
+      "es": "Alineación en mano",
+      "en": "Lineup in hand"
+    },
+    "description": {
+      "pt": "Confira a escalação antes de o jogo começar.",
+      "es": "Revisa la alineación antes de que empiece el partido.",
+      "en": "Check the lineup before the game starts."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 10,
+        "bonus_points": 0,
+        "card_key": "common.consumption.lineup.1"
+      },
+      {
+        "step": 2,
+        "threshold": 25,
+        "bonus_points": 0,
+        "card_key": "common.consumption.lineup.2"
+      },
+      {
+        "step": 3,
+        "threshold": 50,
+        "bonus_points": 0,
+        "card_key": "common.consumption.lineup.3"
+      },
+      {
+        "step": 4,
+        "threshold": 100,
+        "bonus_points": 0,
+        "card_key": "common.consumption.lineup.4"
+      },
+      {
+        "step": 5,
+        "threshold": 250,
+        "bonus_points": 0,
+        "card_key": "common.consumption.lineup.5"
+      }
+    ]
+  },
+  {
+    "id": "common.explorer.competitions",
+    "sport": null,
+    "category": "participation",
+    "family": "explorer",
+    "collection": "common.explorer",
+    "rule": {
+      "input": "participation",
+      "action": "watched",
+      "count": {
+        "mode": "distinct",
+        "key": "competition"
+      }
+    },
+    "requires_data": [
+      "fan.participation",
+      "fan.presence",
+      "event.competition.id"
+    ],
+    "stepped": true,
+    "seasonal": false,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "um torcedor médio acompanha 3 a 5 competições; a plataforma cobre cerca de 400 em 12 esportes (estimativa; pesquisa/common.md §4)",
+    "name": {
+      "pt": "Explorador",
+      "es": "Explorador",
+      "en": "Explorer"
+    },
+    "description": {
+      "pt": "Acompanhe ao vivo jogos de competições diferentes.",
+      "es": "Sigue en vivo partidos de competiciones diferentes.",
+      "en": "Follow live games from different competitions."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 2,
+        "bonus_points": 0,
+        "card_key": "common.explorer.competitions.1"
+      },
+      {
+        "step": 2,
+        "threshold": 5,
+        "bonus_points": 0,
+        "card_key": "common.explorer.competitions.2"
+      },
+      {
+        "step": 3,
+        "threshold": 12,
+        "bonus_points": 0,
+        "card_key": "common.explorer.competitions.3"
+      },
+      {
+        "step": 4,
+        "threshold": 30,
+        "bonus_points": 0,
+        "card_key": "common.explorer.competitions.4"
+      },
+      {
+        "step": 5,
+        "threshold": 75,
+        "bonus_points": 0,
+        "card_key": "common.explorer.competitions.5"
+      }
+    ]
+  },
+  {
+    "id": "common.explorer.countries",
+    "sport": null,
+    "category": "participation",
+    "family": "explorer",
+    "collection": "common.explorer",
+    "rule": {
+      "input": "participation",
+      "action": "watched",
+      "count": {
+        "mode": "distinct",
+        "key": "country"
+      }
+    },
+    "requires_data": [
+      "fan.participation",
+      "fan.presence",
+      "event.competition.country"
+    ],
+    "stepped": true,
+    "seasonal": false,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "as competições cobertas vêm de cerca de 30 países mais as continentais e mundiais; o torcedor médio acompanha 1 a 3 países (estimativa; pesquisa/common.md §4)",
+    "name": {
+      "pt": "Cidadão do esporte",
+      "es": "Ciudadano del deporte",
+      "en": "Citizen of sport"
+    },
+    "description": {
+      "pt": "Acompanhe ao vivo competições de países diferentes.",
+      "es": "Sigue en vivo competiciones de países diferentes.",
+      "en": "Follow live competitions from different countries."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 2,
+        "bonus_points": 0,
+        "card_key": "common.explorer.countries.1"
+      },
+      {
+        "step": 2,
+        "threshold": 4,
+        "bonus_points": 0,
+        "card_key": "common.explorer.countries.2"
+      },
+      {
+        "step": 3,
+        "threshold": 8,
+        "bonus_points": 0,
+        "card_key": "common.explorer.countries.3"
+      },
+      {
+        "step": 4,
+        "threshold": 15,
+        "bonus_points": 0,
+        "card_key": "common.explorer.countries.4"
+      },
+      {
+        "step": 5,
+        "threshold": 30,
+        "bonus_points": 0,
+        "card_key": "common.explorer.countries.5"
+      }
+    ]
+  },
+  {
+    "id": "common.explorer.sports",
+    "sport": null,
+    "category": "participation",
+    "family": "explorer",
+    "collection": "common.explorer",
+    "rule": {
+      "input": "participation",
+      "action": "watched",
+      "count": {
+        "mode": "distinct",
+        "key": "sport"
+      }
+    },
+    "requires_data": [
+      "fan.participation",
+      "fan.presence",
+      "event.sport"
+    ],
+    "stepped": true,
+    "seasonal": false,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "a plataforma cobre 12 esportes; o torcedor médio acompanha 1 a 2, o multiesporte 3 a 5; os 12 é teto absoluto, por isso a escada é 2/3/5/8/12 em vez de 2,5x (pesquisa/common.md §4)",
+    "name": {
+      "pt": "Multiesporte",
+      "es": "Multideporte",
+      "en": "Multi-sport"
+    },
+    "description": {
+      "pt": "Acompanhe ao vivo jogos de esportes diferentes.",
+      "es": "Sigue en vivo partidos de deportes diferentes.",
+      "en": "Follow live games across different sports."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 2,
+        "bonus_points": 0,
+        "card_key": "common.explorer.sports.1"
+      },
+      {
+        "step": 2,
+        "threshold": 3,
+        "bonus_points": 0,
+        "card_key": "common.explorer.sports.2"
+      },
+      {
+        "step": 3,
+        "threshold": 5,
+        "bonus_points": 0,
+        "card_key": "common.explorer.sports.3"
+      },
+      {
+        "step": 4,
+        "threshold": 8,
+        "bonus_points": 0,
+        "card_key": "common.explorer.sports.4"
+      },
+      {
+        "step": 5,
+        "threshold": 12,
+        "bonus_points": 0,
+        "card_key": "common.explorer.sports.5"
+      }
+    ]
+  },
+  {
+    "id": "common.knowledge.trivia_streak",
+    "sport": null,
+    "category": "participation",
+    "family": "knowledge",
+    "collection": "common.community",
+    "rule": {
+      "input": "participation",
+      "action": "trivia",
+      "count": {
+        "mode": "streak",
+        "unit": "day"
+      }
+    },
+    "requires_data": [
+      "fan.participation",
+      "event.starts_at",
+      "program.time_zone",
+      "proposed.fan.participation.trivia"
+    ],
+    "stepped": true,
+    "seasonal": false,
+    "active": false,
+    "inactive_reason": "A trivia (#960) ainda não emite o sinal de resposta certa; a sequência conta dias seguidos com trivia certa (unit day), porque a linguagem não tem unidade de sequência por resposta.",
+    "real_world_frequency": "um dia seguido com trivia certa depende de haver trivia todo dia; 30 dias seguidos é um torneio inteiro, 75 atravessa temporadas (estimativa de produto; pesquisa/common.md §7)",
+    "name": {
+      "pt": "Memória de elefante",
+      "es": "Memoria de elefante",
+      "en": "Elephant memory"
+    },
+    "description": {
+      "pt": "Acerte a trivia em dias seguidos.",
+      "es": "Acierta la trivia en días consecutivos.",
+      "en": "Get trivia right on consecutive days."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 3,
+        "bonus_points": 0,
+        "card_key": "common.knowledge.trivia_streak.1"
+      },
+      {
+        "step": 2,
+        "threshold": 7,
+        "bonus_points": 0,
+        "card_key": "common.knowledge.trivia_streak.2"
+      },
+      {
+        "step": 3,
+        "threshold": 15,
+        "bonus_points": 0,
+        "card_key": "common.knowledge.trivia_streak.3"
+      },
+      {
+        "step": 4,
+        "threshold": 30,
+        "bonus_points": 0,
+        "card_key": "common.knowledge.trivia_streak.4"
+      },
+      {
+        "step": 5,
+        "threshold": 75,
+        "bonus_points": 0,
+        "card_key": "common.knowledge.trivia_streak.5"
+      }
+    ]
+  },
+  {
+    "id": "common.loyalty.day_streak",
+    "sport": null,
+    "category": "participation",
+    "family": "loyalty",
+    "collection": "common.loyalty",
+    "rule": {
+      "input": "participation",
+      "action": "watched",
+      "count": {
+        "mode": "streak",
+        "unit": "day"
+      }
+    },
+    "requires_data": [
+      "fan.participation",
+      "fan.presence",
+      "event.starts_at",
+      "program.time_zone"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "um torneio de seleções tem jogo todo dia por 25 a 30 dias; fora disso, um jogo por dia só com vários esportes (basquete e beisebol jogam quase todo dia); 75 dias seguidos deve ficar abaixo de 1% dos ativos (estimativa; pesquisa/common.md §3)",
+    "name": {
+      "pt": "Todo dia tem jogo",
+      "es": "Todos los días hay partido",
+      "en": "A game every day"
+    },
+    "description": {
+      "pt": "Acompanhe pelo menos um jogo ao vivo em dias seguidos.",
+      "es": "Sigue al menos un partido en vivo en días consecutivos.",
+      "en": "Follow at least one match live on consecutive days."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 2,
+        "bonus_points": 0,
+        "card_key": "common.loyalty.day_streak.1"
+      },
+      {
+        "step": 2,
+        "threshold": 5,
+        "bonus_points": 0,
+        "card_key": "common.loyalty.day_streak.2"
+      },
+      {
+        "step": 3,
+        "threshold": 12,
+        "bonus_points": 0,
+        "card_key": "common.loyalty.day_streak.3"
+      },
+      {
+        "step": 4,
+        "threshold": 30,
+        "bonus_points": 0,
+        "card_key": "common.loyalty.day_streak.4"
+      },
+      {
+        "step": 5,
+        "threshold": 75,
+        "bonus_points": 0,
+        "card_key": "common.loyalty.day_streak.5"
+      }
+    ]
+  },
+  {
+    "id": "common.loyalty.derby",
+    "sport": null,
+    "category": "participation",
+    "family": "loyalty",
+    "collection": "common.loyalty",
+    "rule": {
+      "input": "participation",
+      "action": "watched",
+      "where": {
+        "derby": true
+      }
+    },
+    "requires_data": [
+      "fan.participation",
+      "fan.presence",
+      "event.derby_id"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "um clube grande joga 6 a 10 clássicos por temporada no Brasil (estadual, liga, copas), 2 a 4 na Europa e nas ligas das Américas; clássicos de outros times somam mais alguns por rodada (estimativa; pesquisa/common.md §2)",
+    "name": {
+      "pt": "Dia de clássico",
+      "es": "Día de clásico",
+      "en": "Derby day"
+    },
+    "description": {
+      "pt": "Acompanhe clássicos ao vivo, do seu time ou não.",
+      "es": "Sigue clásicos en vivo, de tu equipo o no.",
+      "en": "Follow derbies live, your team or not."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 0,
+        "card_key": "common.loyalty.derby.1"
+      },
+      {
+        "step": 2,
+        "threshold": 3,
+        "bonus_points": 0,
+        "card_key": "common.loyalty.derby.2"
+      },
+      {
+        "step": 3,
+        "threshold": 8,
+        "bonus_points": 0,
+        "card_key": "common.loyalty.derby.3"
+      },
+      {
+        "step": 4,
+        "threshold": 20,
+        "bonus_points": 0,
+        "card_key": "common.loyalty.derby.4"
+      },
+      {
+        "step": 5,
+        "threshold": 50,
+        "bonus_points": 0,
+        "card_key": "common.loyalty.derby.5"
+      }
+    ]
+  },
+  {
+    "id": "common.loyalty.favorite_streak",
+    "sport": null,
+    "category": "participation",
+    "family": "loyalty",
+    "collection": "common.loyalty",
+    "rule": {
+      "input": "participation",
+      "action": "watched",
+      "where": {
+        "favorite_playing": true
+      },
+      "count": {
+        "mode": "streak",
+        "unit": "game"
+      }
+    },
+    "requires_data": [
+      "fan.participation",
+      "fan.presence",
+      "fan.favorite_team_id",
+      "event.participants"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "não perder nenhum jogo seguido do time por 30 jogos é meio ano de calendário cheio; 70 seguidos atravessa mais de uma temporada e deve ficar abaixo de 1% dos ativos (estimativa; pesquisa/common.md §3)",
+    "name": {
+      "pt": "Sem perder um",
+      "es": "Sin perderme uno",
+      "en": "Never miss one"
+    },
+    "description": {
+      "pt": "Acompanhe jogos seguidos do seu time, sem perder nenhum.",
+      "es": "Sigue partidos consecutivos de tu equipo, sin perderte ninguno.",
+      "en": "Follow consecutive matches of your team without missing one."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 2,
+        "bonus_points": 0,
+        "card_key": "common.loyalty.favorite_streak.1"
+      },
+      {
+        "step": 2,
+        "threshold": 5,
+        "bonus_points": 0,
+        "card_key": "common.loyalty.favorite_streak.2"
+      },
+      {
+        "step": 3,
+        "threshold": 12,
+        "bonus_points": 0,
+        "card_key": "common.loyalty.favorite_streak.3"
+      },
+      {
+        "step": 4,
+        "threshold": 30,
+        "bonus_points": 0,
+        "card_key": "common.loyalty.favorite_streak.4"
+      },
+      {
+        "step": 5,
+        "threshold": 70,
+        "bonus_points": 0,
+        "card_key": "common.loyalty.favorite_streak.5"
+      }
+    ]
+  },
+  {
+    "id": "common.loyalty.favorite_watched",
+    "sport": null,
+    "category": "participation",
+    "family": "loyalty",
+    "collection": "common.loyalty",
+    "rule": {
+      "input": "participation",
+      "action": "watched",
+      "where": {
+        "favorite_playing": true
+      }
+    },
+    "requires_data": [
+      "fan.participation",
+      "fan.presence",
+      "fan.favorite_team_id",
+      "event.participants"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "um torcedor assíduo assiste 30 a 50 jogos do time por temporada (o time joga 55 a 75 no Brasil, 45 a 60 na Europa, 82 na liga de basquete, 162 no beisebol); a maioria dos torcedores fica entre 10 e 25 (estimativa; pesquisa/common.md §2)",
+    "name": {
+      "pt": "Do meu time",
+      "es": "De mi equipo",
+      "en": "My team"
+    },
+    "description": {
+      "pt": "Acompanhe ao vivo os jogos do seu time do coração.",
+      "es": "Sigue en vivo los partidos de tu equipo favorito.",
+      "en": "Follow your favorite team live."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 0,
+        "card_key": "common.loyalty.favorite_watched.1"
+      },
+      {
+        "step": 2,
+        "threshold": 4,
+        "bonus_points": 0,
+        "card_key": "common.loyalty.favorite_watched.2"
+      },
+      {
+        "step": 3,
+        "threshold": 12,
+        "bonus_points": 0,
+        "card_key": "common.loyalty.favorite_watched.3"
+      },
+      {
+        "step": 4,
+        "threshold": 40,
+        "bonus_points": 0,
+        "card_key": "common.loyalty.favorite_watched.4"
+      },
+      {
+        "step": 5,
+        "threshold": 100,
+        "bonus_points": 0,
+        "card_key": "common.loyalty.favorite_watched.5"
+      }
+    ]
+  },
+  {
+    "id": "common.loyalty.finals",
+    "sport": null,
+    "category": "participation",
+    "family": "loyalty",
+    "collection": "common.loyalty",
+    "rule": {
+      "input": "participation",
+      "action": "watched",
+      "where": {
+        "stage": [
+          "final"
+        ]
+      }
+    },
+    "requires_data": [
+      "fan.participation",
+      "fan.presence",
+      "event.stage.kind"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "cada competição tem uma final (ou uma série final, em que cada jogo conta); um torcedor multiesporte assiste 3 a 8 finais por ano (estimativa; pesquisa/common.md §2)",
+    "name": {
+      "pt": "Dia de final",
+      "es": "Día de final",
+      "en": "Final day"
+    },
+    "description": {
+      "pt": "Acompanhe finais ao vivo, de qualquer competição.",
+      "es": "Sigue finales en vivo, de cualquier competición.",
+      "en": "Follow finals live, from any competition."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 0,
+        "card_key": "common.loyalty.finals.1"
+      },
+      {
+        "step": 2,
+        "threshold": 3,
+        "bonus_points": 0,
+        "card_key": "common.loyalty.finals.2"
+      },
+      {
+        "step": 3,
+        "threshold": 8,
+        "bonus_points": 0,
+        "card_key": "common.loyalty.finals.3"
+      },
+      {
+        "step": 4,
+        "threshold": 20,
+        "bonus_points": 0,
+        "card_key": "common.loyalty.finals.4"
+      },
+      {
+        "step": 5,
+        "threshold": 50,
+        "bonus_points": 0,
+        "card_key": "common.loyalty.finals.5"
+      }
+    ]
+  },
+  {
+    "id": "common.moments.derby_win",
+    "sport": null,
+    "category": "moment",
+    "family": "moments",
+    "collection": "common.moments",
+    "rule": {
+      "input": "moment",
+      "fact": "game.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win"
+      },
+      "presence": "game",
+      "where": {
+        "sport": [
+          "football",
+          "basketball",
+          "nba",
+          "american-football",
+          "baseball",
+          "hockey",
+          "volleyball",
+          "handball",
+          "rugby",
+          "afl"
+        ],
+        "derby": true
+      }
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.sport",
+      "event.participants",
+      "fan.favorite_team_id",
+      "fan.presence",
+      "event.derby_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "o time de um torcedor joga 2 a 10 clássicos por temporada e vence 35 a 45% deles: 1 a 4 vitórias em clássico por temporada, menos de 5, por isso é única; acontece em parte dos jogos do time (especial) (estimativa; pesquisa/common.md §6)",
+    "name": {
+      "pt": "Clássico é nosso",
+      "es": "El clásico es nuestro",
+      "en": "Derby is ours"
+    },
+    "description": {
+      "pt": "Esteja lá quando o seu time vencer um clássico.",
+      "es": "Está ahí cuando tu equipo gane un clásico.",
+      "en": "Be there when your team wins a derby."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 25,
+        "card_key": "common.moments.derby_win.1"
+      }
+    ]
+  },
+  {
+    "id": "common.moments.favorite_comeback",
+    "sport": null,
+    "category": "moment",
+    "family": "moments",
+    "collection": "common.moments",
+    "rule": {
+      "input": "moment",
+      "fact": "game.comeback",
+      "params": {
+        "team": "favorite",
+        "trailing_by_min": 2
+      },
+      "presence": "game",
+      "where": {
+        "sport": [
+          "football",
+          "hockey"
+        ]
+      }
+    },
+    "requires_data": [
+      "event.incidents.type=goal",
+      "event.incidents.sequence",
+      "event.score.periods",
+      "event.score",
+      "event.status=finished",
+      "event.sport",
+      "event.participants",
+      "fan.favorite_team_id",
+      "fan.presence"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "virada vencendo depois de estar 2 gols atrás: 1 a 4% dos jogos de futebol (cerca de 2 por temporada numa liga de 380 jogos; 4% dos jogos das 5 grandes ligas têm quem abriu 2 gols perdendo) e ordem parecida no hóquei; para o time de um torcedor, menos de 1 por temporada, por isso é única e rara (fontes na pesquisa/common.md §6)",
+    "name": {
+      "pt": "Virada do coração",
+      "es": "Remontada del corazón",
+      "en": "Comeback of the heart"
+    },
+    "description": {
+      "pt": "Esteja lá quando o seu time virar um jogo depois de estar 2 gols atrás.",
+      "es": "Está ahí cuando tu equipo remonte un partido tras ir 2 goles abajo.",
+      "en": "Be there when your team wins after trailing by 2 goals."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 60,
+        "card_key": "common.moments.favorite_comeback.1"
+      }
+    ]
+  },
+  {
+    "id": "common.moments.favorite_win",
+    "sport": null,
+    "category": "moment",
+    "family": "moments",
+    "collection": "common.moments",
+    "rule": {
+      "input": "moment",
+      "fact": "game.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win"
+      },
+      "presence": "game",
+      "where": {
+        "sport": [
+          "football",
+          "basketball",
+          "nba",
+          "american-football",
+          "baseball",
+          "hockey",
+          "volleyball",
+          "handball",
+          "rugby",
+          "afl"
+        ]
+      }
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.sport",
+      "event.participants",
+      "fan.favorite_team_id",
+      "fan.presence"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "o time médio vence 37% dos jogos no futebol (75% dos jogos têm vencedor) e 50% nos esportes sem empate; o torcedor assíduo (30 a 50 jogos do time) vê 12 a 25 vitórias por temporada (fontes na pesquisa/common.md §2)",
+    "name": {
+      "pt": "Eu estava lá",
+      "es": "Yo estuve ahí",
+      "en": "I was there"
+    },
+    "description": {
+      "pt": "Esteja lá, ao vivo, quando o seu time vencer.",
+      "es": "Está ahí, en vivo, cuando tu equipo gane.",
+      "en": "Be there, live, when your team wins."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 10,
+        "card_key": "common.moments.favorite_win.1"
+      },
+      {
+        "step": 2,
+        "threshold": 3,
+        "bonus_points": 20,
+        "card_key": "common.moments.favorite_win.2"
+      },
+      {
+        "step": 3,
+        "threshold": 8,
+        "bonus_points": 40,
+        "card_key": "common.moments.favorite_win.3"
+      },
+      {
+        "step": 4,
+        "threshold": 20,
+        "bonus_points": 75,
+        "card_key": "common.moments.favorite_win.4"
+      },
+      {
+        "step": 5,
+        "threshold": 50,
+        "bonus_points": 150,
+        "card_key": "common.moments.favorite_win.5"
+      }
+    ]
+  },
+  {
+    "id": "common.moments.final_win",
+    "sport": null,
+    "category": "moment",
+    "family": "moments",
+    "collection": "common.moments",
+    "rule": {
+      "input": "moment",
+      "fact": "game.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win"
+      },
+      "presence": "game",
+      "where": {
+        "sport": [
+          "football",
+          "basketball",
+          "nba",
+          "american-football",
+          "baseball",
+          "hockey",
+          "volleyball",
+          "handball",
+          "rugby",
+          "afl"
+        ],
+        "stage": [
+          "final"
+        ]
+      }
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.sport",
+      "event.participants",
+      "fan.favorite_team_id",
+      "fan.presence",
+      "event.stage.kind"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "cada competição tem uma final por temporada e um só vencedor; a maioria dos times não vence nenhuma em anos, os grandes vencem 1 a 2 por ano; nas séries finais (basquete, hóquei, beisebol) cada jogo da fase final conta (estimativa; pesquisa/common.md §6)",
+    "name": {
+      "pt": "Campeão ao vivo",
+      "es": "Campeón en vivo",
+      "en": "Champion live"
+    },
+    "description": {
+      "pt": "Esteja lá quando o seu time vencer um jogo de final.",
+      "es": "Está ahí cuando tu equipo gane un partido de final.",
+      "en": "Be there when your team wins a final."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 60,
+        "card_key": "common.moments.final_win.1"
+      }
+    ]
+  },
+  {
+    "id": "common.moments.overtime_win",
+    "sport": null,
+    "category": "moment",
+    "family": "moments",
+    "collection": "common.moments",
+    "rule": {
+      "input": "moment",
+      "fact": "game.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win",
+        "overtime": true
+      },
+      "presence": "game",
+      "where": {
+        "sport": [
+          "football",
+          "basketball",
+          "nba",
+          "american-football",
+          "baseball",
+          "hockey",
+          "volleyball",
+          "handball",
+          "rugby",
+          "afl"
+        ]
+      }
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.sport",
+      "event.participants",
+      "fan.favorite_team_id",
+      "fan.presence"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "jogos decididos além do tempo normal: 23 a 27% no hóquei (prorrogação ou shootout), 8 a 10% no beisebol (extra innings), 5 a 6% no basquete e no futebol americano; no futebol só em mata-mata (1 a 2% dos jogos de um clube); o time de um torcedor de hóquei vence 8 a 12 por temporada, o de futebol 0 a 2 (fontes na pesquisa/common.md §6)",
+    "name": {
+      "pt": "Além do tempo",
+      "es": "Más allá del tiempo",
+      "en": "Beyond the clock"
+    },
+    "description": {
+      "pt": "Esteja lá quando o seu time vencer na prorrogação, nos pênaltis ou no shootout.",
+      "es": "Está ahí cuando tu equipo gane en la prórroga, en los penales o en el shootout.",
+      "en": "Be there when your team wins in overtime, on penalties or in a shootout."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 10,
+        "card_key": "common.moments.overtime_win.1"
+      },
+      {
+        "step": 2,
+        "threshold": 2,
+        "bonus_points": 20,
+        "card_key": "common.moments.overtime_win.2"
+      },
+      {
+        "step": 3,
+        "threshold": 5,
+        "bonus_points": 40,
+        "card_key": "common.moments.overtime_win.3"
+      },
+      {
+        "step": 4,
+        "threshold": 10,
+        "bonus_points": 75,
+        "card_key": "common.moments.overtime_win.4"
+      },
+      {
+        "step": 5,
+        "threshold": 25,
+        "bonus_points": 150,
+        "card_key": "common.moments.overtime_win.5"
+      }
+    ]
+  },
+  {
+    "id": "common.predictions.competitions",
+    "sport": null,
+    "category": "participation",
+    "family": "predictions",
+    "collection": "common.prediction_habit",
+    "rule": {
+      "input": "prediction",
+      "count": {
+        "mode": "distinct",
+        "key": "competition"
+      }
+    },
+    "requires_data": [
+      "fan.prediction",
+      "event.competition.id"
+    ],
+    "stepped": true,
+    "seasonal": false,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "um torcedor médio acompanha 3 a 5 competições (a liga, a copa, a continental e a seleção do seu time); a plataforma cobre cerca de 400 competições em 12 esportes (estimativa; pesquisa/common.md §4)",
+    "name": {
+      "pt": "Palpite sem fronteira",
+      "es": "Pronóstico sin fronteras",
+      "en": "Borderless predictor"
+    },
+    "description": {
+      "pt": "Palpite em competições diferentes.",
+      "es": "Pronostica en competiciones diferentes.",
+      "en": "Make predictions across different competitions."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 2,
+        "bonus_points": 0,
+        "card_key": "common.predictions.competitions.1"
+      },
+      {
+        "step": 2,
+        "threshold": 5,
+        "bonus_points": 0,
+        "card_key": "common.predictions.competitions.2"
+      },
+      {
+        "step": 3,
+        "threshold": 12,
+        "bonus_points": 0,
+        "card_key": "common.predictions.competitions.3"
+      },
+      {
+        "step": 4,
+        "threshold": 25,
+        "bonus_points": 0,
+        "card_key": "common.predictions.competitions.4"
+      },
+      {
+        "step": 5,
+        "threshold": 60,
+        "bonus_points": 0,
+        "card_key": "common.predictions.competitions.5"
+      }
+    ]
+  },
+  {
+    "id": "common.predictions.full_hit",
+    "sport": null,
+    "category": "hit",
+    "family": "predictions",
+    "collection": "common.predictions",
+    "rule": {
+      "input": "prediction",
+      "correct": true,
+      "fullHit": true
+    },
+    "requires_data": [
+      "fan.prediction"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "Acerto em cheio = placar exato (8 a 12% dos Palpites de placar) ou quantidade exata (o total bate o N pedido em ~25% dos Palpites de quantidade); um palpiteiro assíduo soma 40 a 60 por temporada (estimativa; pesquisa/common.md §2)",
+    "name": {
+      "pt": "Acerto em cheio",
+      "es": "Pleno",
+      "en": "Full hit"
+    },
+    "description": {
+      "pt": "Acerte em cheio: o placar exato ou a quantidade na conta certa.",
+      "es": "Acierta de lleno: el marcador exacto o la cantidad justa.",
+      "en": "Nail it in full: the exact score or the exact count."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 2,
+        "bonus_points": 20,
+        "card_key": "common.predictions.full_hit.1"
+      },
+      {
+        "step": 2,
+        "threshold": 5,
+        "bonus_points": 40,
+        "card_key": "common.predictions.full_hit.2"
+      },
+      {
+        "step": 3,
+        "threshold": 15,
+        "bonus_points": 80,
+        "card_key": "common.predictions.full_hit.3"
+      },
+      {
+        "step": 4,
+        "threshold": 40,
+        "bonus_points": 150,
+        "card_key": "common.predictions.full_hit.4"
+      },
+      {
+        "step": 5,
+        "threshold": 100,
+        "bonus_points": 300,
+        "card_key": "common.predictions.full_hit.5"
+      }
+    ]
+  },
+  {
+    "id": "common.predictions.round_streak",
+    "sport": null,
+    "category": "participation",
+    "family": "predictions",
+    "collection": "common.prediction_habit",
+    "rule": {
+      "input": "prediction",
+      "where": {
+        "competition_type": [
+          "league"
+        ]
+      },
+      "count": {
+        "mode": "streak",
+        "unit": "round"
+      }
+    },
+    "requires_data": [
+      "fan.prediction",
+      "event.competition.type",
+      "event.competition.id",
+      "event.stage.round"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "uma liga de pontos corridos tem 17 (futebol americano) a 38 (futebol) rodadas por temporada; palpitar em todas as rodadas de uma competição é a temporada inteira do palpiteiro assíduo (calendario.md)",
+    "name": {
+      "pt": "Rodada a rodada",
+      "es": "Jornada a jornada",
+      "en": "Round after round"
+    },
+    "description": {
+      "pt": "Palpite em rodadas seguidas da mesma liga, sem pular nenhuma.",
+      "es": "Pronostica en jornadas seguidas de la misma liga, sin saltarte ninguna.",
+      "en": "Predict in consecutive rounds of the same league without skipping one."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 3,
+        "bonus_points": 0,
+        "card_key": "common.predictions.round_streak.1"
+      },
+      {
+        "step": 2,
+        "threshold": 8,
+        "bonus_points": 0,
+        "card_key": "common.predictions.round_streak.2"
+      },
+      {
+        "step": 3,
+        "threshold": 19,
+        "bonus_points": 0,
+        "card_key": "common.predictions.round_streak.3"
+      },
+      {
+        "step": 4,
+        "threshold": 38,
+        "bonus_points": 0,
+        "card_key": "common.predictions.round_streak.4"
+      },
+      {
+        "step": 5,
+        "threshold": 100,
+        "bonus_points": 0,
+        "card_key": "common.predictions.round_streak.5"
+      }
+    ]
+  },
+  {
+    "id": "common.predictions.streak",
+    "sport": null,
+    "category": "hit",
+    "family": "predictions",
+    "collection": "common.prediction_habit",
+    "rule": {
+      "input": "prediction",
+      "correct": true,
+      "count": {
+        "mode": "streak",
+        "unit": "prediction"
+      }
+    },
+    "requires_data": [
+      "fan.prediction"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "com 50 a 55% de acerto por Palpite, a maior sequência de um palpiteiro assíduo numa temporada fica em 8 a 9; sequência de 15 tem ~1% de chance por temporada (cálculo em pesquisa/common.md §3; escala de dificuldade, não de contagem)",
+    "name": {
+      "pt": "Sequência certeira",
+      "es": "Racha certera",
+      "en": "Hot streak"
+    },
+    "description": {
+      "pt": "Acerte Palpites seguidos, sem errar nenhum no meio.",
+      "es": "Acierta pronósticos seguidos, sin fallar ninguno en el medio.",
+      "en": "Get predictions right in a row, with no miss in between."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 2,
+        "bonus_points": 20,
+        "card_key": "common.predictions.streak.1"
+      },
+      {
+        "step": 2,
+        "threshold": 4,
+        "bonus_points": 40,
+        "card_key": "common.predictions.streak.2"
+      },
+      {
+        "step": 3,
+        "threshold": 7,
+        "bonus_points": 80,
+        "card_key": "common.predictions.streak.3"
+      },
+      {
+        "step": 4,
+        "threshold": 10,
+        "bonus_points": 150,
+        "card_key": "common.predictions.streak.4"
+      },
+      {
+        "step": 5,
+        "threshold": 15,
+        "bonus_points": 300,
+        "card_key": "common.predictions.streak.5"
+      }
+    ]
+  },
+  {
+    "id": "common.rhythm.early_bird",
+    "sport": null,
+    "category": "participation",
+    "family": "rhythm",
+    "collection": "common.rhythm",
+    "rule": {
+      "input": "participation",
+      "action": "watched",
+      "where": {
+        "local_hour": {
+          "from": "00:00",
+          "to": "06:00"
+        }
+      }
+    },
+    "requires_data": [
+      "fan.participation",
+      "fan.presence",
+      "event.starts_at",
+      "program.time_zone"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "jogos que começam entre 0h e 6h locais: para o Brasil e a América hispânica, provas e ligas da Ásia e da Oceania e torneios sediados lá (10 a 30 por ano); para a Europa, os jogos noturnos das Américas (dezenas por semana) (estimativa; pesquisa/common.md §5)",
+    "name": {
+      "pt": "Madrugador",
+      "es": "Madrugador",
+      "en": "Early bird"
+    },
+    "description": {
+      "pt": "Acompanhe ao vivo jogos que começam de madrugada, entre 0h e 6h.",
+      "es": "Sigue en vivo partidos que empiezan de madrugada, entre las 0 y las 6.",
+      "en": "Follow live games that start in the small hours, between midnight and 6 am."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 0,
+        "card_key": "common.rhythm.early_bird.1"
+      },
+      {
+        "step": 2,
+        "threshold": 3,
+        "bonus_points": 0,
+        "card_key": "common.rhythm.early_bird.2"
+      },
+      {
+        "step": 3,
+        "threshold": 8,
+        "bonus_points": 0,
+        "card_key": "common.rhythm.early_bird.3"
+      },
+      {
+        "step": 4,
+        "threshold": 20,
+        "bonus_points": 0,
+        "card_key": "common.rhythm.early_bird.4"
+      },
+      {
+        "step": 5,
+        "threshold": 50,
+        "bonus_points": 0,
+        "card_key": "common.rhythm.early_bird.5"
+      }
+    ]
+  },
+  {
+    "id": "common.rhythm.night_owl",
+    "sport": null,
+    "category": "participation",
+    "family": "rhythm",
+    "collection": "common.rhythm",
+    "rule": {
+      "input": "participation",
+      "action": "watched",
+      "where": {
+        "local_hour": {
+          "from": "23:00",
+          "to": "03:00"
+        }
+      }
+    },
+    "requires_data": [
+      "fan.participation",
+      "fan.presence",
+      "event.starts_at",
+      "program.time_zone"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "jogos que começam entre 23h e 3h locais: no Brasil, os jogos noturnos das ligas norte-americanas (basquete, hóquei, beisebol) quase toda noite; na Europa, os jogos noturnos da América do Sul (estimativa; pesquisa/common.md §5)",
+    "name": {
+      "pt": "Coruja",
+      "es": "Búho",
+      "en": "Night owl"
+    },
+    "description": {
+      "pt": "Acompanhe ao vivo jogos que começam tarde da noite, entre 23h e 3h.",
+      "es": "Sigue en vivo partidos que empiezan tarde en la noche, entre las 23 y las 3.",
+      "en": "Follow live games that start late at night, between 11 pm and 3 am."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 0,
+        "card_key": "common.rhythm.night_owl.1"
+      },
+      {
+        "step": 2,
+        "threshold": 4,
+        "bonus_points": 0,
+        "card_key": "common.rhythm.night_owl.2"
+      },
+      {
+        "step": 3,
+        "threshold": 12,
+        "bonus_points": 0,
+        "card_key": "common.rhythm.night_owl.3"
+      },
+      {
+        "step": 4,
+        "threshold": 30,
+        "bonus_points": 0,
+        "card_key": "common.rhythm.night_owl.4"
+      },
+      {
+        "step": 5,
+        "threshold": 80,
+        "bonus_points": 0,
+        "card_key": "common.rhythm.night_owl.5"
+      }
+    ]
+  },
+  {
+    "id": "common.rhythm.weekend",
+    "sport": null,
+    "category": "participation",
+    "family": "rhythm",
+    "collection": "common.rhythm",
+    "rule": {
+      "input": "participation",
+      "action": "watched",
+      "where": {
+        "weekday": [
+          "sat",
+          "sun"
+        ]
+      }
+    },
+    "requires_data": [
+      "fan.participation",
+      "fan.presence",
+      "event.starts_at",
+      "program.time_zone"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "a maioria das rodadas de liga cai no fim de semana: 50 fins de semana por ano, 1 a 2 jogos assistidos em cada pelo torcedor assíduo, 40 a 60 por temporada (estimativa; pesquisa/common.md §5)",
+    "name": {
+      "pt": "Fim de semana é jogo",
+      "es": "Fin de semana es partido",
+      "en": "Weekend means game"
+    },
+    "description": {
+      "pt": "Acompanhe ao vivo jogos de sábado e domingo.",
+      "es": "Sigue en vivo partidos de sábado y domingo.",
+      "en": "Follow live games on Saturdays and Sundays."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 0,
+        "card_key": "common.rhythm.weekend.1"
+      },
+      {
+        "step": 2,
+        "threshold": 5,
+        "bonus_points": 0,
+        "card_key": "common.rhythm.weekend.2"
+      },
+      {
+        "step": 3,
+        "threshold": 15,
+        "bonus_points": 0,
+        "card_key": "common.rhythm.weekend.3"
+      },
+      {
+        "step": 4,
+        "threshold": 40,
+        "bonus_points": 0,
+        "card_key": "common.rhythm.weekend.4"
+      },
+      {
+        "step": 5,
+        "threshold": 100,
+        "bonus_points": 0,
+        "card_key": "common.rhythm.weekend.5"
+      }
+    ]
+  },
+  {
+    "id": "community.poll",
+    "sport": null,
+    "category": "participation",
+    "family": "community",
+    "collection": "common.community",
+    "rule": {
+      "input": "participation",
+      "action": "poll"
+    },
+    "requires_data": [
+      "fan.participation",
+      "proposed.fan.participation.poll"
+    ],
+    "stepped": true,
+    "seasonal": false,
+    "active": false,
+    "inactive_reason": "A enquete ainda não emite o sinal de voto.",
+    "real_world_frequency": "uma a três enquetes por jogo acompanhado: 50 a 150 votos por temporada para o torcedor assíduo (estimativa de produto; pesquisa/common.md §7)",
+    "name": {
+      "pt": "Voz da torcida",
+      "es": "Voz de la hinchada",
+      "en": "Voice of the fans"
+    },
+    "description": {
+      "pt": "Vote nas enquetes.",
+      "es": "Vota en las encuestas.",
+      "en": "Vote in polls."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 3,
+        "bonus_points": 0,
+        "card_key": "community.poll.1"
+      },
+      {
+        "step": 2,
+        "threshold": 10,
+        "bonus_points": 0,
+        "card_key": "community.poll.2"
+      },
+      {
+        "step": 3,
+        "threshold": 30,
+        "bonus_points": 0,
+        "card_key": "community.poll.3"
+      },
+      {
+        "step": 4,
+        "threshold": 75,
+        "bonus_points": 0,
+        "card_key": "community.poll.4"
+      },
+      {
+        "step": 5,
+        "threshold": 200,
+        "bonus_points": 0,
+        "card_key": "community.poll.5"
+      }
+    ]
+  },
+  {
+    "id": "consumption.recap",
+    "sport": null,
+    "category": "consumption",
+    "family": "consumption",
+    "collection": "common.community",
+    "rule": {
+      "input": "participation",
+      "action": "consumption"
+    },
+    "requires_data": [
+      "fan.participation",
+      "proposed.fan.participation.consumption.recap"
+    ],
+    "stepped": true,
+    "seasonal": false,
+    "active": false,
+    "inactive_reason": "Ainda não há sinal real de \"conferiu o resumo\".",
+    "real_world_frequency": "um resumo por jogo do time: 40 a 70 por temporada para o torcedor assíduo (estimativa de produto; pesquisa/common.md §7)",
+    "name": {
+      "pt": "Sempre por dentro",
+      "es": "Siempre al día",
+      "en": "In the know"
+    },
+    "description": {
+      "pt": "Confira o resumo das partidas.",
+      "es": "Revisa el resumen de los partidos.",
+      "en": "Check match recaps."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 10,
+        "bonus_points": 0,
+        "card_key": "consumption.recap.1"
+      },
+      {
+        "step": 2,
+        "threshold": 25,
+        "bonus_points": 0,
+        "card_key": "consumption.recap.2"
+      },
+      {
+        "step": 3,
+        "threshold": 50,
+        "bonus_points": 0,
+        "card_key": "consumption.recap.3"
+      },
+      {
+        "step": 4,
+        "threshold": 100,
+        "bonus_points": 0,
+        "card_key": "consumption.recap.4"
+      },
+      {
+        "step": 5,
+        "threshold": 250,
+        "bonus_points": 0,
+        "card_key": "consumption.recap.5"
+      }
+    ]
+  },
+  {
+    "id": "knowledge.trivia",
+    "sport": null,
+    "category": "participation",
+    "family": "knowledge",
+    "collection": "common.community",
+    "rule": {
+      "input": "participation",
+      "action": "trivia"
+    },
+    "requires_data": [
+      "fan.participation",
+      "proposed.fan.participation.trivia"
+    ],
+    "stepped": true,
+    "seasonal": false,
+    "active": false,
+    "inactive_reason": "A trivia (#960) ainda não emite o sinal de resposta certa.",
+    "real_world_frequency": "uma trivia por jogo acompanhado: 40 a 80 perguntas por temporada para o torcedor assíduo, 50 a 70% de acerto (estimativa de produto; pesquisa/common.md §7)",
+    "name": {
+      "pt": "Conhecedor",
+      "es": "Conocedor",
+      "en": "Expert"
+    },
+    "description": {
+      "pt": "Acerte perguntas da trivia.",
+      "es": "Acierta preguntas de trivia.",
+      "en": "Answer trivia questions right."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 3,
+        "bonus_points": 0,
+        "card_key": "knowledge.trivia.1"
+      },
+      {
+        "step": 2,
+        "threshold": 10,
+        "bonus_points": 0,
+        "card_key": "knowledge.trivia.2"
+      },
+      {
+        "step": 3,
+        "threshold": 30,
+        "bonus_points": 0,
+        "card_key": "knowledge.trivia.3"
+      },
+      {
+        "step": 4,
+        "threshold": 75,
+        "bonus_points": 0,
+        "card_key": "knowledge.trivia.4"
+      },
+      {
+        "step": 5,
+        "threshold": 200,
+        "bonus_points": 0,
+        "card_key": "knowledge.trivia.5"
+      }
+    ]
+  },
+  {
+    "id": "loyalty.watched",
+    "sport": null,
+    "category": "participation",
+    "family": "loyalty",
+    "collection": "common.loyalty",
+    "rule": {
+      "input": "participation",
+      "action": "watched"
+    },
+    "requires_data": [
+      "fan.participation",
+      "fan.presence"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "um torcedor assíduo assiste 30 a 50 jogos do time por temporada (o time joga 55 a 75 no Brasil, 45 a 60 na Europa, 82 na liga de basquete, 162 no beisebol); a maioria dos torcedores fica entre 10 e 25 (estimativa; pesquisa/common.md §2); contando jogos de qualquer time e esporte, 40 a 80 por temporada",
+    "name": {
+      "pt": "Fiel",
+      "es": "Fiel",
+      "en": "Loyal"
+    },
+    "description": {
+      "pt": "Acompanhe jogos ao vivo.",
+      "es": "Sigue partidos en vivo.",
+      "en": "Follow matches live."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 0,
+        "card_key": "loyalty.watched.1"
+      },
+      {
+        "step": 2,
+        "threshold": 5,
+        "bonus_points": 0,
+        "card_key": "loyalty.watched.2"
+      },
+      {
+        "step": 3,
+        "threshold": 15,
+        "bonus_points": 0,
+        "card_key": "loyalty.watched.3"
+      },
+      {
+        "step": 4,
+        "threshold": 38,
+        "bonus_points": 0,
+        "card_key": "loyalty.watched.4"
+      },
+      {
+        "step": 5,
+        "threshold": 100,
+        "bonus_points": 0,
+        "card_key": "loyalty.watched.5"
+      }
+    ]
+  },
+  {
+    "id": "predictions.correct",
+    "sport": null,
+    "category": "hit",
+    "family": "predictions",
+    "collection": "common.predictions",
+    "rule": {
+      "input": "prediction",
+      "correct": true
+    },
+    "requires_data": [
+      "fan.prediction"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "vencedor sai certo em cerca de 45 a 55% dos Palpites, quantidade em 50 a 60%, placar exato em 8 a 12% (estimativa a partir da distribuição de resultados das ligas; ver pesquisa/common.md §2); um palpiteiro assíduo fecha 3 a 6 Palpites por jogo do time (vencedor, placar, quantidade) em 40 a 60 jogos por temporada: 150 a 300 Palpites/ano (estimativa de produto; ver pesquisa/common.md §2)",
+    "name": {
+      "pt": "Palpiteiro",
+      "es": "Pronosticador",
+      "en": "Predictor"
+    },
+    "description": {
+      "pt": "Acerte Palpites de qualquer tipo.",
+      "es": "Acierta pronósticos de cualquier tipo.",
+      "en": "Get predictions of any kind right."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 3,
+        "bonus_points": 20,
+        "card_key": "predictions.correct.1"
+      },
+      {
+        "step": 2,
+        "threshold": 10,
+        "bonus_points": 40,
+        "card_key": "predictions.correct.2"
+      },
+      {
+        "step": 3,
+        "threshold": 30,
+        "bonus_points": 80,
+        "card_key": "predictions.correct.3"
+      },
+      {
+        "step": 4,
+        "threshold": 75,
+        "bonus_points": 150,
+        "card_key": "predictions.correct.4"
+      },
+      {
+        "step": 5,
+        "threshold": 200,
+        "bonus_points": 300,
+        "card_key": "predictions.correct.5"
+      }
+    ]
+  },
+  {
+    "id": "predictions.exact_score",
+    "sport": null,
+    "category": "hit",
+    "family": "predictions",
+    "collection": "common.predictions",
+    "rule": {
+      "input": "prediction",
+      "kind": "exact_score",
+      "correct": true
+    },
+    "requires_data": [
+      "fan.prediction"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "o placar exato sai em cerca de 8 a 12% dos Palpites de placar (o resultado mais comum do futebol, 1 x 1 ou 1 x 0, cobre 10 a 12% dos jogos; nos esportes de muitos pontos o exato é bem mais raro); um palpiteiro assíduo fecha 3 a 6 Palpites por jogo do time (vencedor, placar, quantidade) em 40 a 60 jogos por temporada: 150 a 300 Palpites/ano (estimativa de produto; ver pesquisa/common.md §2)",
+    "name": {
+      "pt": "Na mosca",
+      "es": "En el blanco",
+      "en": "Spot on"
+    },
+    "description": {
+      "pt": "Acerte o placar exato.",
+      "es": "Acierta el marcador exacto.",
+      "en": "Get the exact score right."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 20,
+        "card_key": "predictions.exact_score.1"
+      },
+      {
+        "step": 2,
+        "threshold": 3,
+        "bonus_points": 40,
+        "card_key": "predictions.exact_score.2"
+      },
+      {
+        "step": 3,
+        "threshold": 10,
+        "bonus_points": 80,
+        "card_key": "predictions.exact_score.3"
+      },
+      {
+        "step": 4,
+        "threshold": 25,
+        "bonus_points": 150,
+        "card_key": "predictions.exact_score.4"
+      },
+      {
+        "step": 5,
+        "threshold": 60,
+        "bonus_points": 300,
+        "card_key": "predictions.exact_score.5"
+      }
+    ]
+  },
+  {
+    "id": "predictions.placed",
+    "sport": null,
+    "category": "participation",
+    "family": "predictions",
+    "collection": "common.prediction_habit",
+    "rule": {
+      "input": "prediction"
+    },
+    "requires_data": [
+      "fan.prediction"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "um palpiteiro assíduo fecha 3 a 6 Palpites por jogo do time (vencedor, placar, quantidade) em 40 a 60 jogos por temporada: 150 a 300 Palpites/ano (estimativa de produto; ver pesquisa/common.md §2)",
+    "name": {
+      "pt": "Sempre no jogo",
+      "es": "Siempre en juego",
+      "en": "Always in"
+    },
+    "description": {
+      "pt": "Palpite nos jogos, acertando ou não.",
+      "es": "Pronostica en los partidos, aciertes o no.",
+      "en": "Make predictions, right or wrong."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 5,
+        "bonus_points": 0,
+        "card_key": "predictions.placed.1"
+      },
+      {
+        "step": 2,
+        "threshold": 15,
+        "bonus_points": 0,
+        "card_key": "predictions.placed.2"
+      },
+      {
+        "step": 3,
+        "threshold": 40,
+        "bonus_points": 0,
+        "card_key": "predictions.placed.3"
+      },
+      {
+        "step": 4,
+        "threshold": 100,
+        "bonus_points": 0,
+        "card_key": "predictions.placed.4"
+      },
+      {
+        "step": 5,
+        "threshold": 250,
+        "bonus_points": 0,
+        "card_key": "predictions.placed.5"
+      }
+    ]
+  },
+  {
+    "id": "predictions.quantity",
+    "sport": null,
+    "category": "hit",
+    "family": "predictions",
+    "collection": "common.predictions",
+    "rule": {
+      "input": "prediction",
+      "kind": "quantity",
+      "correct": true
+    },
+    "requires_data": [
+      "fan.prediction"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "\"pelo menos N\" sai certo em 50 a 60% dos Palpites (quem pede \"pelo menos 2 gols\" acerta em ~75% dos jogos de futebol, que têm média de 2,6 a 2,8 gols; quem pede 4 acerta em ~20%); um palpiteiro assíduo fecha 3 a 6 Palpites por jogo do time (vencedor, placar, quantidade) em 40 a 60 jogos por temporada: 150 a 300 Palpites/ano (estimativa de produto; ver pesquisa/common.md §2)",
+    "name": {
+      "pt": "Conta certa",
+      "es": "Cuenta justa",
+      "en": "Right count"
+    },
+    "description": {
+      "pt": "Acerte o Palpite de quantidade (\"pelo menos N\").",
+      "es": "Acierta el pronóstico de cantidad (\"al menos N\").",
+      "en": "Get the quantity prediction (\"at least N\") right."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 3,
+        "bonus_points": 20,
+        "card_key": "predictions.quantity.1"
+      },
+      {
+        "step": 2,
+        "threshold": 10,
+        "bonus_points": 40,
+        "card_key": "predictions.quantity.2"
+      },
+      {
+        "step": 3,
+        "threshold": 30,
+        "bonus_points": 80,
+        "card_key": "predictions.quantity.3"
+      },
+      {
+        "step": 4,
+        "threshold": 75,
+        "bonus_points": 150,
+        "card_key": "predictions.quantity.4"
+      },
+      {
+        "step": 5,
+        "threshold": 200,
+        "bonus_points": 300,
+        "card_key": "predictions.quantity.5"
+      }
+    ]
+  },
+  {
+    "id": "predictions.winner",
+    "sport": null,
+    "category": "hit",
+    "family": "predictions",
+    "collection": "common.predictions",
+    "rule": {
+      "input": "prediction",
+      "kind": "winner",
+      "correct": true
+    },
+    "requires_data": [
+      "fan.prediction"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "no futebol o mandante vence ~45 a 50%, empate ~20 a 25%, visitante ~30% (fontes na pesquisa/common.md §2); quem segue o favorito acerta o vencedor em 45 a 55% dos Palpites; um palpiteiro assíduo fecha 3 a 6 Palpites por jogo do time (vencedor, placar, quantidade) em 40 a 60 jogos por temporada: 150 a 300 Palpites/ano (estimativa de produto; ver pesquisa/common.md §2)",
+    "name": {
+      "pt": "Faro de vencedor",
+      "es": "Olfato ganador",
+      "en": "Winner instinct"
+    },
+    "description": {
+      "pt": "Acerte quem vence (ou o empate).",
+      "es": "Acierta quién gana (o el empate).",
+      "en": "Call the winner (or the draw)."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 3,
+        "bonus_points": 20,
+        "card_key": "predictions.winner.1"
+      },
+      {
+        "step": 2,
+        "threshold": 10,
+        "bonus_points": 40,
+        "card_key": "predictions.winner.2"
+      },
+      {
+        "step": 3,
+        "threshold": 30,
+        "bonus_points": 80,
+        "card_key": "predictions.winner.3"
+      },
+      {
+        "step": 4,
+        "threshold": 75,
+        "bonus_points": 150,
+        "card_key": "predictions.winner.4"
+      },
+      {
+        "step": 5,
+        "threshold": 200,
+        "bonus_points": 300,
+        "card_key": "predictions.winner.5"
+      }
+    ]
+  }
+]
