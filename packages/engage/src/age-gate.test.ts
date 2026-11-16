@@ -165,14 +165,15 @@ describe('portão de idade (#1106)', () => {
     expect(gate(BR, adult, 'viewRestrictedContent').allowed).toBe(true);
   });
 
-  it('marketplace e publicidade para menores seguem a ficha do país', () => {
+  it('marketplace segue a ficha do país; marketing, só adulto', () => {
     expect(gate(US, adult, 'marketplace').reason).toBe('not_in_country');
     expect(
       gate({ ...US, gamification: { ...US.gamification, marketplace: true } }, adult, 'marketplace').allowed,
     ).toBe(true);
     expect(gate(US, adult, 'receiveMarketing').allowed).toBe(true);
-    expect(gate(US, teen('14_15'), 'receiveMarketing').reason).toBe('not_in_country');
-    expect(gate({ ...US, adsToMinors: true }, teen('14_15'), 'receiveMarketing').allowed).toBe(true);
+    // sem marketing até os 18, mesmo com a ficha liberando publicidade a menores (#1107)
+    expect(gate(US, teen('16_17'), 'receiveMarketing').reason).toBe('adult_only');
+    expect(gate({ ...US, adsToMinors: true }, teen('16_17'), 'receiveMarketing').reason).toBe('adult_only');
   });
 
   it('sem ficha, só o adulto lê', () => {

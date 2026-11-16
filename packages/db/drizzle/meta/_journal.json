@@ -775,14 +775,35 @@
     {
       "idx": 110,
       "version": "7",
-      "when": 1794700420000,
-      "tag": "0173_cosmos_diagnostico_dados",
+      "when": 1794700210908,
+      "tag": "0159_menor_padrao",
       "breakpoints": true
     },
     {
       "idx": 111,
       "version": "7",
-      "when": 1794700480000,
+      "when": 1794781554279,
+      "tag": "0168_indice_sync_cursor",
+      "breakpoints": true
+    },
+    {
+      "idx": 112,
+      "version": "7",
+      "when": 1794786384317,
+      "tag": "0169_verificacao_idade",
+      "breakpoints": true
+    },
+    {
+      "idx": 113,
+      "version": "7",
+      "when": 1794786624317,
+      "tag": "0173_cosmos_diagnostico_dados",
+      "breakpoints": true
+    },
+    {
+      "idx": 114,
+      "version": "7",
+      "when": 1794786684317,
       "tag": "0174_cosmos_funcoes_diagnostico",
       "breakpoints": true
     }

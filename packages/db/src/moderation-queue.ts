@@ -710,6 +710,62 @@ export async function closeCase(
   });
 }
 
+/**
+ * A faixa congelada voltou a adulto com uma comprovação nova (#1110). O caso aberto só por `age_band_downgrade` é
+ * fechado como `resolved`, com o código fixo `age.reassured`. O caso que juntou também denúncias de outro motivo
+ * (spam, ameaça) continua aberto, só sem o motivo de idade: a equipe ainda precisa ver o resto. Devolve quantos fechou.
+ */
+export async function closeAgeDowngradeCases(
+  db: Executor,
+  input: {
+    tenantId: string;
+    profileId: string;
+    actor: ModerationActor;
+    clocks: ModerationClocks;
+    now?: Date;
+  },
+): Promise<number> {
+  const open = await db
+    .select({ id: moderationCase.id, reasons: moderationCase.reasons })
+    .from(moderationCase)
+    .where(
+      and(
+        eq(moderationCase.tenantId, input.tenantId),
+        eq(moderationCase.targetProfileId, input.profileId),
+        eq(moderationCase.status, 'open'),
+        sql`'age_band_downgrade' = any(${moderationCase.reasons})`,
+      ),
+    )
+    .for('update');
+  let closed = 0;
+  for (const c of open) {
+    if (c.reasons.some((r) => r !== 'age_band_downgrade')) {
+      await db
+        .update(moderationCase)
+        .set({
+          reasons: sql`array_remove(${moderationCase.reasons}, 'age_band_downgrade')`,
+          updatedAt: input.now ?? new Date(),
+        })
+        .where(and(eq(moderationCase.tenantId, input.tenantId), eq(moderationCase.id, c.id)));
+      continue;
+    }
+    if (
+      await closeCase(db, {
+        tenantId: input.tenantId,
+        caseId: c.id,
+        status: 'resolved',
+        actor: input.actor,
+        reason: 'age.reassured',
+        note: null,
+        clocks: input.clocks,
+        ...(input.now ? { now: input.now } : {}),
+      })
+    )
+      closed++;
+  }
+  return closed;
+}
+
 // ---------------------------------------------------------------------------------------------------------------
 // Bloqueio
 
