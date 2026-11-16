@@ -162,3 +162,17 @@ modules:
       cosmos_ai.moderation:
         requires:
           anyModule: [live_chat, communities]
+
+  age_verification:
+    kind: engage
+    name: Age Verification
+    # #1109: a Galaxie verifica a idade do torcedor por um provedor (Didit primeiro) e cobra por verificação. Fica em
+    # soon até o advogado liberar a transferência internacional e a biometria (DPA com o provedor, RIPD)
+    status: soon
+    # cobrado por uso (age_checks_estimate, age_checks_document): sem teste por dias
+    trialDays: null
+    # só faz sentido com uma superfície do torcedor que use a faixa etária
+    requires:
+      anyModule: [live_chat, communities, gamification, shopping, cosmos_ai]
+    features:
+      age_verification.adaptive: {}
