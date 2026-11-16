@@ -6,6 +6,7 @@ import { MediaDenylist, type MediaDenylistEntry } from '@galaxie/apisports-clien
 import { closeDb, createDb, readRuntimeOverrides, reportRuntimeEnv } from '@galaxie/db';
 import { applyOverrides, lineupMinReviewStatus } from '@galaxie/runtime-config';
 import { envReportWithKek, settingsSecretBox } from '@galaxie/runtime-config/sealed';
+import { CloudflareCdnPurger, cloudflarePurgeConfig } from './cache/cloudflare-purger.js';
 import { hardeningFromEnv } from './config.js';
 import type { ReviewStatus } from './context.js';
 import { FanTokenSigner } from './engage/fan-token.js';
@@ -78,8 +79,21 @@ redis?.on('error', () => {}); // reconexão automática; falhas de cache/rate li
 
 const port = Number(process.env.API_PORT ?? 8080);
 const hardening = hardeningFromEnv();
+// purge por tag na Cloudflare (#1257): CLOUDFLARE_ZONE_ID + CLOUDFLARE_PURGE_TOKEN; sem as duas, NoopCdnPurger.
+// O log do purger só é usado depois da partida (o change feed começa no onReady), quando `app` já existe.
+const cdnPurge = cloudflarePurgeConfig(process.env);
+const cdnPurger = cdnPurge.config
+  ? new CloudflareCdnPurger({
+      ...cdnPurge.config,
+      logger: {
+        info: (obj, msg) => app.log.info(obj, msg),
+        warn: (obj, msg) => app.log.warn(obj, msg),
+      },
+    })
+  : undefined;
 const app = buildServer({
   ...hardening,
+  ...(cdnPurger ? { cdnPurger } : {}),
   ...(db ? { db } : {}),
   ...(redis ? { redis } : {}),
   // prefixo próprio no Valkey (cache, rate limit, uso, liderança e canal do relay do SSE): o candidato do deploy
@@ -109,6 +123,9 @@ const app = buildServer({
     ...(process.env.KNOWLEDGE_DIR ? { knowledgeDir: process.env.KNOWLEDGE_DIR } : {}),
   },
 });
+
+if (cdnPurge.warning) app.log.warn(cdnPurge.warning);
+else if (cdnPurger) app.log.info('purge da CDN: Cloudflare, por tag');
 
 if (hardening.admin && !hardening.admin.ipAllowlist?.length)
   app.log.warn(

@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import type { FastifyReply, FastifyRequest } from 'fastify';
+import { EDGE_TTL_HEADER, edgeTtl } from './edge.js';
 import { cacheControl } from './policy.js';
 import type { CachedResponse, ResponseCache } from './store.js';
 import { ProblemError } from '../errors.js';
@@ -77,6 +78,35 @@ export function surrogateKeyHeader(tags: readonly string[], max = SURROGATE_KEY_
   const all = tags.join(' ');
   if (all.length <= max) return all;
   return [...new Set(tags.filter((t) => !t.includes(':')))].join(' ');
+}
+
+/**
+ * Teto do header `Cache-Tag` (Cloudflare). A Cloudflare aceita até 16 KB, mas ele sai ao lado do `surrogate-key`
+ * (até 8 KB) e os clientes HTTP do Node recusam cabeçalhos acima de 16 KB no total: 4 KB deixa folga.
+ */
+export const CACHE_TAG_MAX = 4 * 1024;
+
+/** Tamanho máximo de uma tag numa chamada de purge da Cloudflare. */
+export const CDN_TAG_MAX_LENGTH = 1024;
+
+/**
+ * Tag aceita pela Cloudflare: ASCII imprimível, sem espaço e sem vírgula (o separador do `Cache-Tag`), com até
+ * 1.024 caracteres (o limite do purge). Tag fora disso não vai no header nem no purge: não daria para purgá-la.
+ */
+export function isCdnTag(tag: string): boolean {
+  return tag.length > 0 && tag.length <= CDN_TAG_MAX_LENGTH && /^[\x21-\x2b\x2d-\x7e]+$/.test(tag);
+}
+
+/**
+ * Valor do header `Cache-Tag` (Cloudflare, tags separadas por vírgula): as mesmas tags do `surrogate-key`, só as
+ * aceitas pela Cloudflare. Acima do teto, só as tags de coleção (sem `:`), como no `surrogate-key`: toda mudança
+ * purga também a coleção (`tagsForChange`), então a cópia da borda ainda cai no purge.
+ */
+export function cacheTagHeader(tags: readonly string[], max = CACHE_TAG_MAX): string {
+  const valid = [...new Set(tags.filter(isCdnTag))];
+  const all = valid.join(',');
+  if (all.length <= max) return all;
+  return valid.filter((t) => !t.includes(':')).join(',');
 }
 
 export function etagOf(body: string): string {
@@ -195,8 +225,25 @@ export async function sendCached(
 
   options.check?.(entry.meta ?? {});
   for (const [k, v] of Object.entries(entry.headers ?? {})) reply.header(k, v);
-  reply.header('etag', entry.etag).header('cache-control', cacheControl(ttl)).header('vary', CACHE_VARY);
-  if (entry.tags.length) reply.header('surrogate-key', surrogateKeyHeader(entry.tags));
+  const cc = cacheControl(ttl);
+  reply.header('etag', entry.etag).header('cache-control', cc).header('vary', CACHE_VARY);
+  if (entry.tags.length) {
+    reply.header('surrogate-key', surrogateKeyHeader(entry.tags));
+    const cacheTag = cacheTagHeader(entry.tags);
+    if (cacheTag) reply.header('cache-tag', cacheTag);
+  }
+  // teto da cópia na borda (Worker da Cloudflare): só respostas de leitura com TTL do recurso ≥ 1 h
+  const edge = edgeTtl({
+    method: request.method,
+    url: request.url,
+    status: entry.status,
+    cacheControl: cc,
+    hasAuthorization: Boolean(request.headers.authorization),
+    route: request.routeOptions.config,
+    resourceTtl: entry.ttl,
+    remainingTtl: ttl,
+  });
+  if (edge !== undefined) reply.header(EDGE_TTL_HEADER, String(edge));
 
   if (matchesEtag(request.headers['if-none-match'], entry.etag)) return reply.code(304).send();
   return reply

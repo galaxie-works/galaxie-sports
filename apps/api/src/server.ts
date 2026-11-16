@@ -56,6 +56,7 @@ import { PgTenantStore, type TenantStore } from './auth/tenant-store.js';
 import { AuthThrottle, type AuthThrottleOptions } from './auth/throttle.js';
 import { RedisVerifiedKeyStore } from './auth/verified-keys.js';
 import { ChangeFeedListener, type ChangeFeedOptions } from './cache/change-feed.js';
+import { EDGE_TTL_HEADER, guardEdgeTtl } from './cache/edge.js';
 import { NoopCdnPurger, type CdnPurger } from './cache/purger.js';
 import { MemoryResponseCache, RedisResponseCache, type ResponseCache } from './cache/store.js';
 import type { AppContext, SemanticConfig } from './context.js';
@@ -157,6 +158,7 @@ export interface ServerOptions {
   rateLimiter?: RateLimiter;
   /** Janela do rate limit (ms). Padrão 60 s; o limite vem do tenant (rate_limit_per_minute). */
   rateLimitWindowMs?: number;
+  /** Purge da CDN chamado pelo change feed (main.ts: Cloudflare com CLOUDFLARE_ZONE_ID e CLOUDFLARE_PURGE_TOKEN). */
   cdnPurger?: CdnPurger;
   /** Escuta `ops.change_feed` e purga o cache (requer db). */
   changeFeed?: boolean | ChangeFeedOptions;
@@ -401,6 +403,23 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
 
   registerErrorHandling(app);
   registerSecurityHeaders(app, options.security);
+  // cache de borda (#1257): a marca do Worker só sai em resposta que a regra aceita (erro, no-store, /internal,
+  // admin, SSE e escrita nunca), e nunca acima do teto, ponha quem pôr
+  app.addHook('onSend', async (request, reply, payload) => {
+    if (!reply.hasHeader(EDGE_TTL_HEADER)) return payload;
+    const edge = guardEdgeTtl({
+      method: request.method,
+      url: request.url,
+      status: reply.statusCode,
+      cacheControl: reply.getHeader('cache-control'),
+      hasAuthorization: Boolean(request.headers.authorization),
+      route: request.routeOptions.config,
+      value: reply.getHeader(EDGE_TTL_HEADER),
+    });
+    if (edge === undefined) reply.removeHeader(EDGE_TTL_HEADER);
+    else reply.header(EDGE_TTL_HEADER, String(edge));
+    return payload;
+  });
   if (options.cors?.origins.length || publishable)
     registerCors(app, options.cors ?? { origins: [] }, publishable);
   app.decorateRequest('tenant', null);
@@ -732,14 +751,18 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
   }
 
   if (options.changeFeed && options.db) {
-    const listener = new ChangeFeedListener(options.db, cache, options.cdnPurger ?? new NoopCdnPurger(), {
+    const cdnPurger: CdnPurger = options.cdnPurger ?? new NoopCdnPurger();
+    const listener = new ChangeFeedListener(options.db, cache, cdnPurger, {
       onGapAbandoned: (gap) => metrics.gapsAbandoned.inc({ consumer: 'cache-purge', reason: gap.reason }),
       ...(typeof options.changeFeed === 'object' ? options.changeFeed : {}),
       logger: app.log,
     });
     app.decorate('changeFeed', listener);
     app.addHook('onReady', async () => listener.start());
-    app.addHook('onClose', async () => listener.stop());
+    app.addHook('onClose', async () => {
+      await listener.stop();
+      await cdnPurger.close?.();
+    });
   }
 
   if (options.realtime && options.db) {
