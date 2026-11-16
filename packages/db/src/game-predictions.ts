@@ -82,7 +82,9 @@ export async function savePredictions(
 ): Promise<{ ok: true; rows: GamePredictionRow[] } | { ok: false; error: 'locked' }> {
   try {
     const rows = await db.transaction(async (tx) => {
-      const [clock] = await tx.execute<{ open: boolean }>(sql`select now() < ${key.lockAt} as open`);
+      const [clock] = await tx.execute<{ open: boolean }>(
+        sql`select now() < ${key.lockAt.toISOString()}::timestamptz as open`,
+      );
       if (!clock?.open) throw new PredictionLocked();
       for (const item of key.items) {
         const saved = await tx
@@ -346,19 +348,26 @@ export async function readMyRanking(
   db: Pick<Database, 'execute'>,
   key: GameProgramKey & { period: string; profileId: string },
 ): Promise<{ position: number | null; points: number; fullHits: number }> {
-  const [me] = await db.execute<{ points: string; full_hits: number; reached_at: string }>(sql`
+  const [me] = await db.execute<{ points: string; full_hits: number; reached_at: unknown }>(sql`
     select points, full_hits, reached_at from game.period_points
      where tenant_id = ${key.tenantId} and program_country = ${key.programCountry}
        and period = ${key.period} and profile_id = ${key.profileId}`);
   if (!me) return { position: null, points: 0, fullHits: 0 };
+  // a comparação fica no SQL, com o instante do banco (microssegundos), sem passar pelo Date do JavaScript
   const [ahead] = await db.execute<{ n: string }>(sql`
+    with me as (
+      select points, full_hits, reached_at, profile_id from game.period_points
+       where tenant_id = ${key.tenantId} and program_country = ${key.programCountry}
+         and period = ${key.period} and profile_id = ${key.profileId}
+    )
     select count(*) as n from game.period_points pp
       join fan.profile f on f.tenant_id = pp.tenant_id and f.id = pp.profile_id and f.deleted_at is null
+      cross join me
      where pp.tenant_id = ${key.tenantId} and pp.program_country = ${key.programCountry}
        and pp.period = ${key.period}
-       and (pp.points > ${me.points}::bigint
-         or (pp.points = ${me.points}::bigint and pp.full_hits > ${me.full_hits}::int)
-         or (pp.points = ${me.points}::bigint and pp.full_hits = ${me.full_hits}::int
-             and (pp.reached_at, pp.profile_id) < (${me.reached_at}::timestamptz, ${key.profileId}::uuid)))`);
+       and (pp.points > me.points
+         or (pp.points = me.points and pp.full_hits > me.full_hits)
+         or (pp.points = me.points and pp.full_hits = me.full_hits
+             and (pp.reached_at, pp.profile_id) < (me.reached_at, me.profile_id)))`);
   return { position: Number(ahead?.n ?? 0) + 1, points: Number(me.points), fullHits: me.full_hits };
 }
