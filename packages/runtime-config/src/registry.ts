@@ -57,6 +57,7 @@ export const SETTING_SECTIONS = [
   'feedback',
   'cosmos',
   'engage',
+  'signup',
 ] as const;
 export type SettingSection = (typeof SETTING_SECTIONS)[number];
 
@@ -1145,6 +1146,55 @@ export const SETTINGS: readonly SettingDef[] = [
     apply: 'restart',
     default: '',
     critical: true,
+  },
+
+  // ── Cadastro em autoatendimento (plataforma comercial F2, doc 02 §Cadastro) ────────────────
+  // Só a demo lê. O cadastro público (/signup) abre apenas com SIGNUP_ENABLED=on E SIGNUP_TERMS_VERSION preenchida: a
+  // versão dos termos de autoatendimento aprovada pelo advogado (#1022) é a trava jurídica. Sem ela, a equipe cria os
+  // clientes por Ajustes › Organizações e marcas.
+  {
+    key: 'SIGNUP_ENABLED',
+    section: 'signup',
+    type: 'enum',
+    options: ['off', 'on'],
+    services: ['demo'],
+    apply: 'refresh',
+    default: 'off',
+    critical: true,
+  },
+  // Identificador da versão dos termos aceita no cadastro (ex.: 2026-11-v1); fica em billing.organization.terms_version
+  {
+    key: 'SIGNUP_TERMS_VERSION',
+    section: 'signup',
+    type: 'text',
+    pattern: /^[A-Za-z0-9][A-Za-z0-9._-]{0,39}$/,
+    allowEmpty: true,
+    services: ['demo'],
+    apply: 'refresh',
+    default: '',
+    critical: true,
+  },
+  // Antiabuso mínimo: organizações criadas por IP nas últimas 24 h (conta o IP do aceite dos termos)
+  {
+    key: 'SIGNUP_PER_IP_PER_DAY',
+    section: 'signup',
+    type: 'int',
+    min: 1,
+    max: 1000,
+    services: ['demo'],
+    apply: 'refresh',
+    default: '5',
+  },
+  // Prazo do trial do Fan Experience no cadastro (PL3, PL15): api.tenant.trial_ends_at = agora + dias
+  {
+    key: 'TRIAL_DAYS',
+    section: 'signup',
+    type: 'int',
+    min: 1,
+    max: 365,
+    services: ['demo'],
+    apply: 'refresh',
+    default: '30',
   },
 
   // ── Credenciais ─────────────────────────────────────────────────────────────────────────────
