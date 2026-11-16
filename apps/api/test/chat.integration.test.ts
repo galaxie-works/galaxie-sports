@@ -310,6 +310,34 @@ describe('Chat ao vivo: salas (#959)', () => {
     expect(muted.json().errors[0].message).toBe('sanctioned');
   });
 
+  it('mensagem fixada aparece na leitura da sala e some quando sai do ar', async () => {
+    clock = Date.now();
+    const t = await tenantKey('chat-fixada', ['core_data', 'live_chat']);
+    const fixture = await game(5);
+    await app.inject({
+      method: 'PUT',
+      url: '/v1/chat/config',
+      headers: { 'x-galaxie-key': t.key },
+      payload: { slowModeSeconds: 0 },
+    });
+    const f = await fan(t.key, 1);
+    const sent = await send(f.token, fixture, 'bem-vindos à sala');
+    expect(sent.statusCode).toBe(201);
+    const messageId = sent.json().data.id as string;
+    expect((await room(t.key, fixture)).json().data.pinned).toBeNull();
+
+    // o painel do cliente (#973) grava a fixada direto na sala
+    await db.execute(sql`update chat.room set pinned_message_id = ${messageId}, pinned_by = 'tenant:user:x', pinned_at = now()
+              where tenant_id = ${t.id} and event_id = ${fixture}`);
+    const pinned = (await room(t.key, fixture)).json().data.pinned;
+    expect(pinned).toMatchObject({ id: messageId, body: 'bem-vindos à sala' });
+
+    await db.execute(
+      sql`update chat.message set visibility = 'hidden' where tenant_id = ${t.id} and id = ${messageId}`,
+    );
+    expect((await room(t.key, fixture)).json().data.pinned).toBeNull();
+  });
+
   it('punição do painel do cliente vale com o id do jogo como escopo', async () => {
     clock = Date.now();
     const t = await tenantKey('chat-mod-jogo', ['core_data', 'live_chat']);

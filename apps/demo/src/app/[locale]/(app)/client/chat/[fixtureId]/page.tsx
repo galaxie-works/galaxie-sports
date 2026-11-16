@@ -42,6 +42,8 @@ async function Room({ fixtureId }: { fixtureId: string }) {
           MUTE_MINUTES.filter((m) => allowed(ctx, rule, { ...place, durationSec: m * 60 }).ok);
         const can: RoomPermissions = {
           hide: allowed(ctx, 'moderation.hide', place).ok,
+          pin: allowed(ctx, 'moderation.pin', place).ok,
+          file: allowed(ctx, 'moderation.queue.view').ok,
           room: allowed(ctx, ROOM_ACTION_RULE, place).ok,
           muteMinutes: minutesFor(AUTHOR_ACTION_RULE.mute),
           shadowMinutes: minutesFor(AUTHOR_ACTION_RULE.shadow_mute),
