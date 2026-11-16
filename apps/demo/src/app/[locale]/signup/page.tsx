@@ -13,6 +13,9 @@ import { readSignupSettings } from '@/lib/signup/settings-db';
 import { CONTACT_EMAIL } from '@/lib/site';
 import { cn } from '@/lib/utils';
 
+// A tela lê a chave do cadastro e a sessão a cada pedido: nada aqui é pré-renderizado no build (sem banco lá).
+export const dynamic = 'force-dynamic';
+
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getT();
   return {
