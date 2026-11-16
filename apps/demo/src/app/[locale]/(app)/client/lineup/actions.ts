@@ -10,6 +10,7 @@ import { parseLineupTarget } from '@galaxie/db/lineups';
 import { revalidatePath } from 'next/cache';
 
 import { can } from '@/lib/client/permissions';
+import { withStaffAudit } from '@/lib/client/staff';
 import { readClientContext } from '@/lib/client/session';
 import { getDictionary } from '@/lib/i18n/dictionary';
 import { getRequestLocale } from '@/lib/i18n/server';
@@ -53,7 +54,7 @@ export interface ReviewRequestInput {
 }
 
 /** "Solicitar revisão" de um item da grade da operadora do tenant (ou a inclusão de um canal num plano). */
-export async function requestLineupReview(input: ReviewRequestInput): Promise<LineupActionResult> {
+export const requestLineupReview = withStaffAudit('lineup.review_request', async (input: ReviewRequestInput): Promise<LineupActionResult> => {
   const t = await texts();
   const r = await tenantOrError();
   if ('error' in r) return { ok: false, error: r.error };
@@ -86,10 +87,10 @@ export async function requestLineupReview(input: ReviewRequestInput): Promise<Li
     console.error('[cliente] falha ao criar pedido de revisão da grade', err);
     return { ok: false, error: t.generic };
   }
-}
+});
 
 /** Interruptor "Mostrar outras operadoras nas respostas da API" do tenant. */
-export async function setShowOtherOperators(value: boolean): Promise<LineupActionResult> {
+export const setShowOtherOperators = withStaffAudit('lineup.show_other_operators', async (value: boolean): Promise<LineupActionResult> => {
   const t = await texts();
   const r = await tenantOrError();
   if ('error' in r) return { ok: false, error: r.error };
@@ -105,4 +106,4 @@ export async function setShowOtherOperators(value: boolean): Promise<LineupActio
     console.error('[cliente] falha ao salvar a preferência de outras operadoras', err);
     return { ok: false, error: t.generic };
   }
-}
+});

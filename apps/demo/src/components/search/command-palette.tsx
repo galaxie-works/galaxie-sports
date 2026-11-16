@@ -318,7 +318,7 @@ export function CommandPalette({
   const T = t.search;
   const router = useRouter();
   const { data: session } = authClient.useSession();
-  const isAdmin = session?.user.role === 'admin';
+  const isAdmin = canAccessAdmin(session?.user.role);
   // Busca de ajustes (#1071): só a equipe, como o resto de Ajustes. Dentro de Ajustes (ou aberta pelo campo do menu)
   // vem antes; fora, depois do app.
   const pathname = usePathname();

@@ -17,6 +17,7 @@ import {
 import { channelListDb, confirmChannelList } from '@/lib/channel-list/store';
 import { UPLOAD_MAX_BYTES, type UploadInput } from '@/lib/channel-list/types';
 import { can } from '@/lib/client/permissions';
+import { withStaffAudit } from '@/lib/client/staff';
 import { readClientContext } from '@/lib/client/session';
 import { getDictionary } from '@/lib/i18n/dictionary';
 import { getRequestLocale } from '@/lib/i18n/server';
@@ -48,7 +49,7 @@ async function tenantOrError() {
 }
 
 /** Envia (ou substitui) a lista: M3U ou nomes colados, com o país padrão opcional. */
-export async function uploadChannels(input: UploadInput): Promise<ChannelListActionResult> {
+export const uploadChannels = withStaffAudit('channels.upload', async (input: UploadInput): Promise<ChannelListActionResult> => {
   const t = await texts();
   const r = await tenantOrError();
   if ('error' in r) return { ok: false, error: r.error };
@@ -72,10 +73,10 @@ export async function uploadChannels(input: UploadInput): Promise<ChannelListAct
     console.error('[cliente] falha ao gravar a lista de canais', err);
     return { ok: false, error: t.generic };
   }
-}
+});
 
 /** Refaz o casamento com o dicionário de emissoras atual (correções mantidas). */
-export async function reprocessChannels(): Promise<ChannelListActionResult> {
+export const reprocessChannels = withStaffAudit('channels.reprocess', async (): Promise<ChannelListActionResult> => {
   const t = await texts();
   const r = await tenantOrError();
   if ('error' in r) return { ok: false, error: r.error };
@@ -88,7 +89,7 @@ export async function reprocessChannels(): Promise<ChannelListActionResult> {
     console.error('[cliente] falha ao reprocessar a lista de canais', err);
     return { ok: false, error: t.generic };
   }
-}
+});
 
 export interface OverrideInput {
   country: string;
@@ -98,7 +99,7 @@ export interface OverrideInput {
 }
 
 /** Correção do cliente numa emissora × país. */
-export async function correctChannels(input: OverrideInput): Promise<ChannelListActionResult> {
+export const correctChannels = withStaffAudit('channels.correct', async (input: OverrideInput): Promise<ChannelListActionResult> => {
   const t = await texts();
   const r = await tenantOrError();
   if ('error' in r) return { ok: false, error: r.error };
@@ -123,10 +124,10 @@ export async function correctChannels(input: OverrideInput): Promise<ChannelList
     console.error('[cliente] falha ao corrigir a lista de canais', err);
     return { ok: false, error: t.generic };
   }
-}
+});
 
 /** Confirma o casamento: a API passa a mandar `client_channels` no onde assistir. */
-export async function confirmChannels(): Promise<ChannelListActionResult> {
+export const confirmChannels = withStaffAudit('channels.confirm', async (): Promise<ChannelListActionResult> => {
   const t = await texts();
   const r = await tenantOrError();
   if ('error' in r) return { ok: false, error: r.error };
@@ -139,4 +140,4 @@ export async function confirmChannels(): Promise<ChannelListActionResult> {
     console.error('[cliente] falha ao confirmar a lista de canais', err);
     return { ok: false, error: t.generic };
   }
-}
+});

@@ -13,7 +13,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import type { UserStatus } from '@/lib/auth/admin';
-import type { Role } from '@/lib/auth/roles';
+import { isStaffRole, type Role } from '@/lib/auth/roles';
 import { useFormatters, useI18n } from '@/lib/i18n/client';
 import { LANGUAGES, isLocale, type Locale } from '@/lib/i18n/config';
 import { fill } from '@/lib/i18n/text';
@@ -42,6 +42,7 @@ export function StatusBadge({ status }: { status: UserStatus }) {
 export function RoleBadge({ role }: { role: Role }) {
   const { t } = useI18n();
   if (role === 'admin') return <Badge variant="primary-light">{t.admin.roles.admin}</Badge>;
+  if (role === 'support') return <Badge variant="primary-light">{t.admin.roles.support}</Badge>;
   if (role === 'client') return <Badge variant="info-light">{t.admin.roles.client}</Badge>;
   return <Badge variant="outline">{t.admin.roles.user}</Badge>;
 }
@@ -127,7 +128,7 @@ export function useAdminFormat(timeZone: string) {
       formatDateTime: (iso: string | null | undefined) => (iso ? f.dayTime(iso) : none),
       /** Validade do acesso em texto curto. */
       accessLabel: (role: Role, expiresAt: string | null) => {
-        if (role === 'admin' || !expiresAt) return t.admin.access.noLimit;
+        if (isStaffRole(role) || !expiresAt) return t.admin.access.noLimit;
         const template =
           new Date(expiresAt).getTime() < Date.now() ? t.admin.access.expiredOn : t.admin.access.until;
         return fill(template, { date: formatDate(expiresAt) });

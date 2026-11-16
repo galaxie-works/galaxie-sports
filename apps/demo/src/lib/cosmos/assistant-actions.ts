@@ -9,6 +9,7 @@ import { parseAttachmentMetas } from '@galaxie/cosmos';
 
 import { readClientContext } from '@/lib/client/session';
 import { getRequestLocale } from '@/lib/i18n/server';
+import { isStaffRole } from '@/lib/auth/roles';
 
 import { assistantAccessError, parseAssistantRequest, prepareQuestion } from './assistant-server';
 import { allowEstimate } from './assistant-limits';
@@ -48,5 +49,5 @@ export async function estimateAssistantQuestion(body: unknown): Promise<Estimate
   if (prepared === 'attachment_unsupported') return { ok: false, error: prepared };
   if (!prepared) return { ok: false, error: 'unavailable' };
   // a equipe Galaxie não gasta créditos do cliente
-  return { ok: true, credits: ctx.role === 'admin' ? 0 : prepared.credits };
+  return { ok: true, credits: isStaffRole(ctx.role) ? 0 : prepared.credits };
 }

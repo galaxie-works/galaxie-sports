@@ -28,6 +28,7 @@ import {
   REQUEST_MAX_BYTES,
 } from '@/lib/cosmos/assistant-server';
 import { getRequestLocale } from '@/lib/i18n/server';
+import { isStaffRole } from '@/lib/auth/roles';
 
 /** Duração máxima da rota (s): menor que o prazo da reserva (300 s), para a limpeza nunca devolver uma pergunta viva. */
 export const maxDuration = 90;
@@ -76,7 +77,7 @@ export async function POST(request: Request) {
   const locale = await getRequestLocale();
   // admissão antes da busca por significado: o vetor da pergunta é chamada paga, e quem seria recusado (limite,
   // saldo, carteira) não chega a ela. Os créditos não dependem da busca, então a estimativa por palavras já serve.
-  if (ctx.role !== 'admin') {
+  if (!isStaffRole(ctx.role)) {
     const quick = await prepareQuestion(scope, req, locale, { files });
     if (quick === 'attachment_unsupported') return fail(quick);
     if (!quick) return fail('unavailable');
@@ -109,7 +110,7 @@ export async function POST(request: Request) {
   };
   // a equipe Galaxie acompanhando o tenant não gasta os créditos dele: o custo fica em cosmos.staff_usage
   const events =
-    ctx.role === 'admin'
+    isStaffRole(ctx.role)
       ? askAssistantAsStaff(
           builderDb(),
           {

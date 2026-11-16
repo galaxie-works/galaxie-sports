@@ -35,8 +35,11 @@ import {
   type PublishableKeyEnv,
 } from '@/lib/builder/store';
 import type { BrandThemeItem, Widget, WidgetKind } from '@/lib/builder/types';
+import { isStaffRole } from '@/lib/auth/roles';
 import { can } from '@/lib/client/permissions';
 import { readClientContext, TENANT_COOKIE } from '@/lib/client/session';
+import { withStaffAudit } from '@/lib/client/staff';
+import { encodeStaffReason, normalizeStaffReason, STAFF_REASON_COOKIE, STAFF_REASON_TTL_S } from '@/lib/client/staff-reason';
 import { isUuid } from '@/lib/client/tenants';
 import { COOKIE_MAX_AGE } from '@/lib/i18n/config';
 import { getDictionary } from '@/lib/i18n/dictionary';
@@ -53,28 +56,47 @@ async function texts() {
 }
 
 /**
- * Sessão com tenant e cargo que configura (`settings.manage`, #1019), ou a mensagem de erro. Chaves, widgets e
- * temas são configuração: Moderador e Voluntário não mexem.
+ * Sessão com tenant e a ação da tela (`keys.manage` para as chaves, `builder.manage` para widgets e temas, #1019 e
+ * #1136), ou a mensagem de erro. É integração: Admin, Dono e Desenvolvedor mexem; Moderador e Voluntário, não.
  */
-async function tenantOrError() {
+async function tenantOrError(action: 'keys.manage' | 'builder.manage') {
   const ctx = await readClientContext();
   const t = await texts();
   if (!ctx) return { error: t.errors.forbidden } as const;
   if (!ctx.tenant) return { error: t.errors.noTenant } as const;
-  if (!can(ctx, 'settings.manage')) return { error: t.errors.role } as const;
+  if (!can(ctx, action)) return { error: t.errors.role } as const;
   return { ctx, tenant: ctx.tenant } as const;
 }
 
 const revalidateClient = () => revalidatePath('/client', 'layout');
 
-/** Qual tenant acompanhar: o admin, qualquer um; o cliente, entre os em que tem cargo (cookie conferido a cada leitura). */
-export async function selectTenant(tenantId: string): Promise<ClientActionResult> {
+/**
+ * Qual tenant acompanhar: a equipe, qualquer um; o cliente, entre os em que tem cargo (cookie conferido a cada
+ * leitura). A equipe num tenant de cliente informa o motivo (ticket ou pedido do cliente, PL17), que fica num cookie
+ * assinado por 8 h e vai em toda escrita para `billing.staff_action`; sem motivo, a troca não acontece. Chamar de novo
+ * com o tenant em foco só troca o motivo. Não passa pelo `withStaffAudit`: é a porta que guarda o motivo.
+ */
+export async function selectTenant(tenantId: string, reason?: string): Promise<ClientActionResult> {
   const ctx = await readClientContext();
   const t = await texts();
   if (!ctx) return { ok: false, error: t.errors.forbidden };
-  // admin escolhe qualquer tenant; o cliente, só os em que tem cargo (#1019)
-  if (!ctx.tenants.some((x) => x.id === tenantId)) return { ok: false, error: t.errors.noTenant };
-  (await cookies()).set(TENANT_COOKIE, tenantId, {
+  const target = ctx.tenants.find((x) => x.id === tenantId);
+  if (!target) return { ok: false, error: t.errors.noTenant };
+  const jar = await cookies();
+  if (isStaffRole(ctx.role)) {
+    if (target.isGalaxie) jar.delete(STAFF_REASON_COOKIE);
+    else {
+      const normalized = normalizeStaffReason(reason);
+      if (!normalized) return { ok: false, error: t.staff.reasonRequired };
+      jar.set(STAFF_REASON_COOKIE, encodeStaffReason(process.env.BETTER_AUTH_SECRET ?? '', { tenantId, reason: normalized }), {
+        path: '/',
+        maxAge: STAFF_REASON_TTL_S,
+        sameSite: 'lax',
+        httpOnly: true,
+      });
+    }
+  }
+  jar.set(TENANT_COOKIE, tenantId, {
     path: '/',
     maxAge: COOKIE_MAX_AGE,
     sameSite: 'lax',
@@ -91,15 +113,15 @@ export interface CreateKeyResult extends ClientActionResult {
   key?: string;
 }
 
-export async function createKey(input: {
+export const createKey = withStaffAudit('keys.create', async (input: {
   name: string;
   origins: string;
   widgetId: string | null;
   /** `live` (padrão, domínios públicos) ou `test` (gs_pk_test_, só localhost). */
   env?: PublishableKeyEnv;
-}): Promise<CreateKeyResult> {
+}): Promise<CreateKeyResult> => {
   const t = await texts();
-  const r = await tenantOrError();
+  const r = await tenantOrError('keys.manage');
   if ('error' in r) return { ok: false, error: r.error };
   const name = input.name.trim().replace(/\s+/g, ' ');
   if (!name || name.length > NAME_MAX) return { ok: false, error: t.errors.keyName };
@@ -140,17 +162,17 @@ export async function createKey(input: {
     console.error('[cliente] falha ao criar chave publicável', err);
     return { ok: false, error: t.errors.generic };
   }
-}
+});
 
-export async function revokeKey(id: string): Promise<ClientActionResult> {
+export const revokeKey = withStaffAudit('keys.revoke', async (id: string): Promise<ClientActionResult> => {
   const t = await texts();
-  const r = await tenantOrError();
+  const r = await tenantOrError('keys.manage');
   if ('error' in r) return { ok: false, error: r.error };
   if (!isUuid(id) || !(await revokePublishableKey(builderDb(), r.tenant.id, id, `panel:${r.ctx.userId}`)))
     return { ok: false, error: t.errors.keyNotFound };
   revalidateClient();
   return { ok: true };
-}
+});
 
 // ─── widgets ─────────────────────────────────────────────────────────────────────────────────────
 
@@ -160,14 +182,14 @@ export interface SaveWidgetResult extends ClientActionResult {
 
 const entityTypesOf = (kind: WidgetKind) => ENTITY_TYPES[kind];
 
-export async function saveWidgetAction(input: {
+export const saveWidgetAction = withStaffAudit('builder.widget.save', async (input: {
   id: string | null;
   kind: unknown;
   name: unknown;
   config: unknown;
-}): Promise<SaveWidgetResult> {
+}): Promise<SaveWidgetResult> => {
   const t = await texts();
-  const r = await tenantOrError();
+  const r = await tenantOrError('builder.manage');
   if ('error' in r) return { ok: false, error: r.error };
   const parsed = parseWidgetInput(input, {
     markets: r.tenant.markets,
@@ -190,17 +212,17 @@ export async function saveWidgetAction(input: {
     if (err instanceof BrandThemeNotFoundError) return { ok: false, error: t.errors.widget.brandTheme };
     return { ok: false, error: t.errors.widgetNotFound };
   }
-}
+});
 
-export async function archiveWidgetAction(id: string): Promise<ClientActionResult> {
+export const archiveWidgetAction = withStaffAudit('builder.widget.archive', async (id: string): Promise<ClientActionResult> => {
   const t = await texts();
-  const r = await tenantOrError();
+  const r = await tenantOrError('builder.manage');
   if ('error' in r) return { ok: false, error: r.error };
   if (!isUuid(id) || !(await archiveWidget(builderDb(), r.tenant.id, id)))
     return { ok: false, error: t.errors.widgetNotFound };
   revalidateClient();
   return { ok: true };
-}
+});
 
 // ─── temas da marca ──────────────────────────────────────────────────────────────────────────────
 
@@ -211,13 +233,13 @@ export interface SaveBrandThemeResult extends ClientActionResult {
 }
 
 /** Cria (`id` null) ou atualiza um tema da marca; na atualização, os widgets ligados mudam juntos. */
-export async function saveBrandThemeAction(input: {
+export const saveBrandThemeAction = withStaffAudit('builder.theme.save', async (input: {
   id: string | null;
   name: unknown;
   theme: unknown;
-}): Promise<SaveBrandThemeResult> {
+}): Promise<SaveBrandThemeResult> => {
   const t = await texts();
-  const r = await tenantOrError();
+  const r = await tenantOrError('builder.manage');
   if ('error' in r) return { ok: false, error: r.error };
   const name = parseBrandThemeName(input.name);
   if (!name) return { ok: false, error: t.errors.brandThemes.name };
@@ -246,19 +268,19 @@ export async function saveBrandThemeAction(input: {
     console.error('[cliente] falha ao salvar tema da marca', err);
     return { ok: false, error: t.errors.generic };
   }
-}
+});
 
 export interface DeleteBrandThemeResult extends ClientActionResult {
   /** Widgets que deixaram de seguir o tema (ficam com o visual que tinham). */
   widgetsUnlinked?: number;
 }
 
-export async function deleteBrandThemeAction(id: string): Promise<DeleteBrandThemeResult> {
+export const deleteBrandThemeAction = withStaffAudit('builder.theme.delete', async (id: string): Promise<DeleteBrandThemeResult> => {
   const t = await texts();
-  const r = await tenantOrError();
+  const r = await tenantOrError('builder.manage');
   if ('error' in r) return { ok: false, error: r.error };
   const unlinked = isUuid(id) ? await deleteWidgetTheme(builderDb(), r.tenant.id, id) : null;
   if (unlinked === null) return { ok: false, error: t.errors.brandThemes.notFound };
   revalidateClient();
   return { ok: true, widgetsUnlinked: unlinked };
-}
+});

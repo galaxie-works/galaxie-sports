@@ -41,6 +41,7 @@ import { getDictionary } from '@/lib/i18n/dictionary';
 import type { Locale } from '@/lib/i18n/config';
 
 import { openApiDocument } from '@/lib/openapi-reference';
+import { isStaffRole } from '@/lib/auth/roles';
 
 import { apiChunks, docChunks } from './assistant-docs';
 
@@ -260,12 +261,12 @@ export function assistantSigningKey(env: Record<string, string | undefined> = pr
  * gastar os créditos dele: a rota usa `askAssistantAsStaff`, e o custo fica em `cosmos.staff_usage`.
  */
 export function assistantAccessError(ctx: {
-  role: 'admin' | 'client';
+  role: 'admin' | 'support' | 'client';
   tenant: { id: string; modules: readonly string[] } | null;
   actor: Actor | null;
 }): 'unauthorized' | 'staff' | 'module' | 'role' | null {
   if (!ctx.tenant) return 'unauthorized';
-  if (ctx.role === 'admin') return null;
+  if (isStaffRole(ctx.role)) return null;
   if (!ctx.tenant.modules.includes('cosmos_ai')) return 'module';
   if (!can(ctx, 'cosmos.assistant.ask')) return 'role';
   return null;

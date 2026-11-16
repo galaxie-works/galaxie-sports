@@ -15,6 +15,7 @@ import type { Actor, TenantRole } from '@galaxie/engage';
 
 import { listMemberships } from './members';
 import { loadRoleOverrides } from './role-permissions';
+import { decodeStaffReason, STAFF_REASON_COOKIE } from './staff-reason';
 import { getTenantInfo, listTenantOptions, type TenantInfo, type TenantOption } from './tenants';
 
 /** Tenant que o admin está acompanhando no painel do cliente. */
@@ -23,15 +24,21 @@ export const TENANT_COOKIE = 'galaxie-tenant';
 export interface ClientContext {
   userId: string;
   email: string;
-  role: 'admin' | 'client';
+  /** `admin` e `support` são a equipe Galaxie (`isStaffRole`); `client` é a pessoa do cliente com cargo. */
+  role: 'admin' | 'support' | 'client';
   /** Tenant em foco; null = cliente sem tenant (convite incompleto) ou nenhum tenant no banco. */
   tenant: TenantInfo | null;
-  /** Tenants que a pessoa pode escolher: todos para o admin; para o cliente, os em que tem cargo. */
+  /** Tenants que a pessoa pode escolher: todos para a equipe; para o cliente, os em que tem cargo (marca ou organização). */
   tenants: TenantOption[];
-  /** Cargo no tenant em foco (#1019); null para a equipe da Galaxie (admin) ou sem tenant. */
+  /** Cargo no tenant em foco (#1019); null para a equipe da Galaxie ou sem tenant. */
   memberRole: TenantRole | null;
   /** Quem age, para o `can()` de `@galaxie/engage`; null = sem tenant em foco. */
   actor: Actor | null;
+  /**
+   * Motivo em vigor da equipe Galaxie no tenant em foco (cookie assinado, 8 h); null para o cliente, no tenant da
+   * Galaxie, ou quando a equipe ainda não informou (aí nenhuma escrita passa: `lib/client/staff.ts`).
+   */
+  staffReason: string | null;
 }
 
 /**
@@ -73,19 +80,31 @@ export const readClientContext = cache(async (): Promise<ClientContext | null> =
               ...(overrides ? { overrides } : {}),
             }
           : null,
+      staffReason: null,
     };
   }
 
+  // equipe Galaxie (admin ou support): qualquer tenant, e o `can()` passa por cima; fora do tenant da Galaxie, toda
+  // escrita leva motivo (`lib/client/staff.ts`)
   const tenants = await listTenantOptions();
   const id = tenants.find((t) => t.id === chosen)?.id ?? tenants[0]?.id ?? null;
   const tenant = id ? await getTenantInfo(id) : null;
+  const staffReason =
+    tenant && !tenant.isGalaxie
+      ? (decodeStaffReason(
+          process.env.BETTER_AUTH_SECRET ?? '',
+          (await cookies()).get(STAFF_REASON_COOKIE)?.value,
+          tenant.id,
+        )?.reason ?? null)
+      : null;
   return {
     ...base,
-    role: 'admin',
+    role: role === 'support' ? 'support' : 'admin',
     tenant,
     tenants,
     memberRole: null,
     actor: tenant ? { kind: 'galaxie_staff' } : null,
+    staffReason,
   };
 });
 

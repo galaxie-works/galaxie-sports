@@ -3,6 +3,7 @@
  * origem, credenciais só como configurada/não configurada, jobs, cota, gasto de IA e histórico. O
  * smoke test do deploy confere esta rota com a assinatura de `lib/ops/smoke.ts`.
  */
+import { isStaffRole } from '@/lib/auth/roles';
 import { auth } from '@/lib/auth/server';
 import { getDictionary } from '@/lib/i18n/dictionary';
 import { getRequestLocale } from '@/lib/i18n/server';
@@ -20,7 +21,7 @@ export async function GET(request: Request) {
     const session = await auth.api.getSession({ headers: request.headers });
     const t = getDictionary(await getRequestLocale()).common;
     if (!session) return Response.json({ title: t.unauthorized }, { status: 401 });
-    if (session.user.role !== 'admin') return Response.json({ title: t.forbidden }, { status: 403 });
+    if (!isStaffRole(session.user.role)) return Response.json({ title: t.forbidden }, { status: 403 });
   }
   try {
     const data = await readOpsSnapshot(now);

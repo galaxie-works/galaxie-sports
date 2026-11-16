@@ -11,6 +11,7 @@ import { LineupPortal } from '@/components/lineup/portal';
 import { getT, getTimeZone } from '@/lib/i18n/server';
 import { lineupReviewAccess, lineupReviewMinimum } from '@/lib/cosmos/lineup-review-tasks';
 import { readOperatorPortal } from '@/lib/lineup/server';
+import { isStaffRole } from '@/lib/auth/roles';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getT();
@@ -35,7 +36,7 @@ async function Lineup() {
         return (
           <div className="flex flex-col gap-4">
             {data.lineup && cosmosMin != null ? (
-              <LineupReviewComposer minCredits={ctx.role === 'admin' ? null : cosmosMin} />
+              <LineupReviewComposer minCredits={isStaffRole(ctx.role) ? null : cosmosMin} />
             ) : null}
             <LineupPortal
               lineup={data.lineup}

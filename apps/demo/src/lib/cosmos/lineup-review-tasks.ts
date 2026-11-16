@@ -9,6 +9,7 @@ import { builderDb } from '@/lib/builder/store';
 import type { ClientContext } from '@/lib/client/session';
 import type { Locale } from '@/lib/i18n/config';
 import { readOperatorPortal } from '@/lib/lineup/server';
+import { isStaffRole } from '@/lib/auth/roles';
 
 import {
   LINEUP_REVIEW_FUNCTION,
@@ -22,8 +23,9 @@ import { widgetTaskAccess, type WidgetTaskError } from './widget-tasks';
 
 export type LineupReviewError = WidgetTaskError | 'noLineup';
 
-/** Mesma regra das outras funções do painel: `settings.manage` com a Cosmos contratada. */
-export const lineupReviewAccess = widgetTaskAccess;
+/** Mesma regra das outras funções do painel: `settings.manage` (a grade é configuração) com a Cosmos contratada. */
+export const lineupReviewAccess = (ctx: Parameters<typeof widgetTaskAccess>[0]) =>
+  widgetTaskAccess(ctx, 'settings.manage');
 
 export async function lineupReviewMinimum(): Promise<number | null> {
   return activeFunctionMinCredits(builderDb(), LINEUP_REVIEW_FUNCTION);
@@ -62,7 +64,7 @@ export async function draftLineupReview(
         const draft = parseLineupReviewAnswer(parseModelJson(answer), catalog);
         return { usable: draft !== null, value: draft! };
       },
-      ...(ctx.role === 'admin' ? { staff: { route: '/client/lineup#cosmos-review' } } : {}),
+      ...(isStaffRole(ctx.role) ? { staff: { route: '/client/lineup#cosmos-review' } } : {}),
     },
     { settings: await readCosmosSettings(db) },
   );

@@ -135,7 +135,7 @@ describe('solicitar revisão', () => {
 
   it('sem sessão do painel ou sem tenant: nega', async () => {
     const input = { targetType: 'plan' as const, targetId: PLAN, message: 'x' };
-    readClientContext.mockResolvedValueOnce(null);
+    readClientContext.mockResolvedValue(null);
     expect(await requestLineupReview(input)).toMatchObject({ ok: false, error: 'Sem acesso a esta ação.' });
     readClientContext.mockResolvedValueOnce(ctx({ tenant: null }));
     expect((await requestLineupReview(input)).ok).toBe(false);
@@ -157,7 +157,7 @@ describe('mostrar outras operadoras', () => {
       emailDomains: [],
     });
     expect((await setShowOtherOperators(true)).ok).toBe(false);
-    readClientContext.mockResolvedValueOnce(null);
+    readClientContext.mockResolvedValue(null);
     expect((await setShowOtherOperators(true)).ok).toBe(false);
     expect(setTenantOperator).not.toHaveBeenCalled();
   });

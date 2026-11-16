@@ -8,6 +8,7 @@ import type { SponsorInput, SponsorIssue } from '@galaxie/engage';
 import { revalidatePath } from 'next/cache';
 
 import { can } from '@/lib/client/permissions';
+import { withStaffAudit } from '@/lib/client/staff';
 import { readClientContext } from '@/lib/client/session';
 import { isUuid } from '@/lib/client/tenants';
 import { archiveSponsor, MAX_SPONSORS, saveSponsor, SponsorError } from '@/lib/client/sponsors';
@@ -48,11 +49,11 @@ const str = (v: unknown, max: number): string | null =>
   typeof v === 'string' && v.trim() ? v.trim().slice(0, max) : null;
 
 /** Cria (`id` nulo) ou altera um patrocinador. */
-export async function saveSponsorAction(input: {
+export const saveSponsorAction = withStaffAudit('sponsors.save', async (input: {
   id: string | null;
   version: number | null;
   sponsor: SponsorInput;
-}): Promise<SponsorActionResult> {
+}): Promise<SponsorActionResult> => {
   const c = await context();
   if ('error' in c) return { ok: false, error: c.error };
   if (input.id !== null && (!isUuid(input.id) || !Number.isInteger(input.version)))
@@ -80,13 +81,13 @@ export async function saveSponsorAction(input: {
   }
   revalidatePath(PATH);
   return { ok: true };
-}
+});
 
 /** Arquiva o patrocinador: some das salas, campanhas e recompensas; as impressões ficam no relatório. */
-export async function archiveSponsorAction(input: {
+export const archiveSponsorAction = withStaffAudit('sponsors.archive', async (input: {
   id: string;
   version: number;
-}): Promise<SponsorActionResult> {
+}): Promise<SponsorActionResult> => {
   const c = await context();
   if ('error' in c) return { ok: false, error: c.error };
   if (!isUuid(input.id) || !Number.isInteger(input.version))
@@ -103,4 +104,4 @@ export async function archiveSponsorAction(input: {
   }
   revalidatePath(PATH);
   return { ok: true };
-}
+});

@@ -1,16 +1,27 @@
 /**
  * Papéis da demo e o que cada um abre. Módulo puro: serve ao proxy, às páginas, às ações e aos testes.
  *
- * - `admin`: gerencia usuários e a operação (Ajustes) e vê o painel do cliente de qualquer tenant.
+ * - `admin`: a equipe Galaxie (o `staff` do desenho da plataforma, PL17): gerencia usuários e a operação (Ajustes) e
+ *   vê o painel do cliente de qualquer tenant.
+ * - `support`: a equipe de suporte. Vê tudo o que o admin vê, no painel e em Ajustes; sobre um tenant de cliente só
+ *   escreve com motivo (`billing.staff_action`), como o admin. Não gerencia os usuários do console (o plugin admin do
+ *   Better Auth só aceita `admin`).
  * - `user`: convidado, só navega na demo.
- * - `client`: operadora cliente, ligada a um tenant da API (`api.tenant`). Navega na demo e tem o painel
- *   do cliente (`/client`): plano, chaves publicáveis e o Builder de widgets, sempre do próprio tenant.
+ * - `client`: operadora cliente, com cargo em um ou mais tenants da API (`api.tenant_member`). Navega na demo e tem o
+ *   painel do cliente (`/client`): plano, chaves publicáveis e o Builder de widgets, sempre do tenant em foco.
  */
 
 import { LOCALES } from '@/lib/i18n/config';
 
-export const ROLES = ['admin', 'user', 'client'] as const;
+export const ROLES = ['admin', 'support', 'user', 'client'] as const;
 export type Role = (typeof ROLES)[number];
+
+/** A equipe Galaxie: `admin` e `support`. Passa por cima do `can()` dos tenants e escreve com motivo. */
+export const STAFF_ROLES = ['admin', 'support'] as const;
+export type StaffRole = (typeof STAFF_ROLES)[number];
+
+export const isStaffRole = (value: unknown): value is StaffRole =>
+  typeof value === 'string' && (STAFF_ROLES as readonly string[]).includes(value);
 
 export const isRole = (value: unknown): value is Role =>
   typeof value === 'string' && (ROLES as readonly string[]).includes(value);
@@ -27,11 +38,11 @@ export const CLIENT_PREFIXES = ['/client', '/api/client'] as const;
 export const matchesPrefix = (pathname: string, prefixes: readonly string[]) =>
   prefixes.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 
-/** Abre a área de admin? */
-export const canAccessAdmin = (role: unknown) => role === 'admin';
+/** Abre a área de admin? (a equipe inteira: admin e support) */
+export const canAccessAdmin = (role: unknown) => isStaffRole(role);
 
-/** Abre o painel do cliente? (o admin entra para acompanhar um tenant) */
-export const canAccessClientPanel = (role: unknown) => role === 'admin' || role === 'client';
+/** Abre o painel do cliente? (a equipe entra para acompanhar um tenant) */
+export const canAccessClientPanel = (role: unknown) => isStaffRole(role) || role === 'client';
 
 /** Cliente precisa de tenant; os outros papéis não ficam ligados a nenhum. */
 export const needsTenant = (role: Role) => role === 'client';

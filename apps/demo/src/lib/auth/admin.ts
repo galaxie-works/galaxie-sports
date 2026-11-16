@@ -10,7 +10,7 @@ import { isLocale, type Locale } from '@/lib/i18n/config';
 
 import { pool } from './db';
 import { otpFailureSummary } from './otp-guard';
-import { roleOf, type Role } from './roles';
+import { isStaffRole, roleOf, type Role } from './roles';
 import { auth, isAccessExpired, type AuthUser } from './server';
 
 /** Situação do usuário no painel (os rótulos ficam no dicionário `admin.status`). */
@@ -37,9 +37,10 @@ export interface DemoUser {
   lastInvite: { at: string; delivered: boolean; kind: string } | null;
 }
 
+/** Sessão da equipe Galaxie (admin ou support), ou volta para a home. O nome ficou; a equipe cresceu (PL17). */
 export async function requireAdmin(): Promise<AuthUser> {
   const session = await auth.api.getSession({ headers: await headers() });
-  if (!session || session.user.role !== 'admin') redirect('/');
+  if (!session || !isStaffRole(session.user.role)) redirect('/');
   return session.user;
 }
 
