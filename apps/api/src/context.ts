@@ -29,6 +29,11 @@ declare module 'fastify' {
      * com `fan`; `exempt` só para o que o torcedor precisa ver mesmo sem poder participar (o próprio estado).
      */
     age?: AgeCapability | 'exempt';
+    /**
+     * Balde próprio no limite por torcedor, fora do geral (120/min de todas as rotas do torcedor): para rota de
+     * toque repetido que já tem limite fino no Valkey (reação do chat, #967), sem gastar a cota de escrever.
+     */
+    fanBucket?: { name: string; perMinute: number };
   }
   interface FastifyRequest {
     /** Torcedor do token `gft_`, nas rotas com `config.fan`. */

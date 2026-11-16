@@ -1066,17 +1066,39 @@ O `GET /v1/fans/me` devolve `age_band_detail`, `age_assurance`, `guardian` e `ag
 | `age_gate.reason` | Quer dizer | `next` |
 |---|---|---|
 | `under_min_age` | Abaixo da idade para participar (13, ou mais se a ficha pedir) | |
-| `adult_only` | Recurso só para 18+: escrever texto livre, resgatar, marketplace, receber Prêmio, contato direto, conteúdo restrito | |
+| `adult_only` | Recurso só para 18+: escrever texto livre, resgatar, marketplace, receber Prêmio, contato direto, marketing (mesmo com opt-in), conteúdo restrito | |
 | `frozen` | A faixa desceu de `18plus` e vale como menor até comprovar a idade | `verify_age` |
 | `guardian_consent` | Falta a autorização do responsável para a idade no país | `guardian_consent` |
 | `guardian_link` | Falta vincular a conta à do responsável | `guardian_link` |
 | `age_assurance` | A comprovação está abaixo da que o país pede para o recurso (no Brasil, estimativa; conteúdo restrito, verificação) | `verify_age` |
-| `not_in_country` | A ficha do país não libera o recurso (marketplace desligado, publicidade para menores) | |
+| `not_in_country` | A ficha do país não libera o recurso (marketplace desligado) | |
 | `no_policy` | O país não tem ficha: só o adulto lê | |
 
 O portão relê o Perfil e a ficha a cada ação, com um cache de até 5 segundos: a autorização revogada vale em até 5 segundos, sem esperar o token vencer. Para revogar, peça um token novo para o Perfil com `guardian.status: "revoked"`; o token antigo para de valer em até 5 segundos. Denunciar, bloquear, ver as próprias punições e apelar não dependem da autorização nem da comprovação: só ficam fora os abaixo da idade para participar. O texto livre que vai junto (`note` da denúncia, `statement` da apelação) é escrita: quem não escreve manda sem ele. As `capabilities` do `GET /v1/fans/me` são o que o portão libera hoje, e o próprio `GET /v1/fans/me` fica aberto para o cliente ver o estado. Um adulto do Brasil sem o bloco `ageAssurance` (vale `self`) não participa até mandar a estimativa.
 
-Faixa que desce de `18plus` para menor no mesmo Perfil congela as ações de adulto (escrever e resgatar) e abre um caso na fila de moderação do cliente (`age_band_downgrade`). Subir de faixa é normal; a congelada só volta a adulto com a correção da faixa (#1110).
+**Verificação de idade da Galaxie (#1109, módulo `age_verification`, pago por verificação).** O cliente que não tem verificação própria contrata o módulo, e a Galaxie verifica pelo Didit. Quem já tem a própria continua mandando `ageAssurance` no token. O fluxo é adaptativo: começa pela estimativa pelo rosto, com prova de vida, e quem fica na dúvida perto dos 18 passa para o documento, com o rosto do documento comparado à selfie.
+
+1. O widget mostra o aviso de biometria e colhe o consentimento. Depois chama `POST /v1/fans/me/age-verification` com `returnUrl` (https; query e fragmento não vão ao provedor) e `consent: { givenAt, textVersion }`, e recebe `url` e `expires_at`.
+2. O torcedor faz a verificação na tela do provedor e volta para o `returnUrl`.
+3. O provedor avisa a API pelo webhook assinado. A API lê a decisão na API do provedor (nunca no corpo do aviso), grava só a faixa e o caminho, e apaga no provedor as imagens, o documento e o template do rosto.
+4. O `GET /v1/fans/me/age-verification` devolve a última verificação: `status` (`pending`, `approved`, `declined`, `review`, `abandoned`, `expired`) e `method` (`estimated` ou `verified`).
+
+Aprovada, o Perfil passa a `age_assurance` `estimated` ou `verified`, com o provedor `galaxie:didit`. O token seguinte mantém essa comprovação, mesmo que o cliente mande uma mais fraca. O cliente não pode mandar `provider` começando com `galaxie:` (400). Data de nascimento, idade estimada, foto e documento nunca são guardados nem devolvidos. Limite: 5 verificações por Perfil em 24 h (429). Só o Perfil declarado adulto faz (menor recebe 403): a verificação comprova 18+ e não muda a faixa, então o menor passaria o rosto pelo provedor sem ganhar nada. O caminho do menor é o responsável. Sem o módulo no plano, 403. Faltando qualquer uma de `DIDIT_API_KEY`, `DIDIT_WORKFLOW_ID` e `DIDIT_WEBHOOK_SECRET` (Ajustes → Credenciais → Verificação de idade, ou .env; valem ao reiniciar a API), a abertura e o webhook respondem 503; o `GET` continua mostrando a última verificação.
+
+Cobrança: cada verificação decidida (aprovada, recusada ou em revisão) entra no uso do mês como `age_checks_estimate` ou `age_checks_document`. Abandonada e expirada sem passo cobrável não contam.
+
+**Padrão protetivo para menores (#1107).** Para `13`, `14_15`, `16_17` (e a faixa congelada), em todos os países, o servidor já começa no modo mais protetivo, como pede o ECA Digital:
+
+- o Perfil fica privado para os outros torcedores (`visibility` vem tudo `private`, e o `PATCH /v1/fans/me` que tenta abrir responde 403 `adult_only`, recusando o pedido inteiro; o que estava aberto volta ao padrão no próximo token); os outros veem só o Apelido;
+- sem foto própria: o `avatarUrl` de um menor não é guardado nem devolvido, e o widget mostra um avatar do catálogo;
+- sem contato direto, marketing (mesmo com opt-in), publicidade direcionada nem conteúdo restrito (o portão recusa `directContact`, `receiveMarketing` e `viewRestrictedContent` como `adult_only`);
+- recomendação só pelo contexto (jogo, time escolhido), localização só pelo país do token, e a Cosmos não analisa emoção nem comportamento de menor para fins comerciais.
+
+O `GET /v1/fans/me` de um menor traz `minor_protections`, a lista dessas proteções com o texto no idioma do torcedor (pt-BR, es, en, fr-CA) e `guardian_can_relax`, as que o responsável pode desligar pelo painel dele (Idade 8, #1111), com o que muda em `relaxed`. Para adulto, a lista vem vazia. Ao completar 18 nada muda sozinho: o torcedor escolhe o que liga. Os Perfis de menores que já existiam antes do #1107 tiveram a foto e a visibilidade zeradas pela migration `0159_menor_padrao`, para que uma escolha pública antiga não volte aos 18.
+
+Faixa que desce de `18plus` para menor no mesmo Perfil congela as ações de adulto (escrever e resgatar) e abre um caso na fila de moderação do cliente (`age_band_downgrade`). Subir de faixa é normal. A congelada não volta a adulto só porque o token voltou a dizer `18plus`: precisa de `ageAssurance` `estimated` ou `verified` com `at` depois do congelamento (e não no futuro). Aí o Perfil volta a adulto e o caso da fila é fechado como resolvido (#1110).
+
+**Mudança de faixa (#1110).** O cliente reemite o token com a faixa nova (aniversário ou correção); o Galaxie não guarda data de nascimento, e a auditoria registra só a troca (`age.band_changed`, de qual faixa para qual). Ao passar de `parentalConsentUnder` ou de `guardianLinkRequiredUnder` da ficha, o portão deixa de pedir a autorização ou o vínculo na hora (a prova da autorização continua guardada pelo prazo da Idade 9). Aos 18 libera escrever e resgatar conforme a ficha, mas o Perfil continua privado e sem foto até o torcedor escolher. Se o país do token muda, vale a ficha do país novo: uma autorização dispensada no Brasil aos 16 volta a ser pedida no México.
 
 **Rotas.**
 
@@ -1084,7 +1106,7 @@ Faixa que desce de `18plus` para menor no mesmo Perfil congela as ações de adu
 |---|---|---|
 | `POST /v1/fans/tokens` | Servidor do cliente | Chave secreta (`x-galaxie-key`). A publicável recebe 403 |
 | `GET /v1/fans/me` | Widget ou app | `Authorization: Bearer gft_…` |
-| `PATCH /v1/fans/me` | Widget ou app | Token do torcedor. Muda só a visibilidade (`avatar`, `favorite_team`, `level`, `badges`) e o time do coração |
+| `PATCH /v1/fans/me` | Widget ou app | Token do torcedor. Muda só a visibilidade (`avatar`, `favorite_team`, `level`, `badges`; menor só fecha) e o time do coração |
 | `GET /v1/fans/me/wallet` | Widget ou app | Token do torcedor. Pontos e Saldo, um item por país de programa |
 | `GET /v1/fans/me/wallet/ledger` | Widget ou app | Token do torcedor. Extrato do programa (`country`, padrão o do Perfil), paginado por `before` |
 | `DELETE /v1/fans/{externalAccountId}/profiles/{externalProfileId}` | Servidor do cliente | Chave secreta. Idempotente (204) |
@@ -1095,6 +1117,8 @@ Faixa que desce de `18plus` para menor no mesmo Perfil congela as ações de adu
 | `PUT` e `DELETE /v1/fans/me/blocks/{profileId}` | Widget ou app | Token do torcedor. Bloqueia e desbloqueia (204, idempotente) |
 | `GET /v1/fans/me/sanctions` | Widget ou app | Token do torcedor. Punições do Perfil, com as apelações |
 | `POST /v1/fans/me/sanctions/{sanctionId}/appeals` | Widget ou app | Token do torcedor. Apelação (uma por etapa) |
+| `POST /v1/fans/me/age-verification` | Widget ou app | Token do torcedor. Abre a verificação de idade da Galaxie (módulo `age_verification`) |
+| `GET /v1/fans/me/age-verification` | Widget ou app | Token do torcedor. A última verificação de idade do Perfil |
 
 **Token.** HMAC-SHA256 com `FAN_TOKEN_SECRET` (mínimo 32 caracteres, o mesmo em todas as instâncias). Sem o segredo, as rotas do torcedor respondem 503. O token leva o tenant, os ids internos da Conta e do Perfil, a faixa, o país, o idioma, o Titular adulto, a superfície (`web` ou `store_app`), o `kid` e a expiração. Verificar não consulta o banco. Validade padrão de 15 minutos, em `FAN_TOKEN_TTL_SECONDS` (painel, Ajustes → Engajamento → Identidade do torcedor; 60 a 3600). Para trocar o segredo sem derrubar quem está logado, mova o atual para `FAN_TOKEN_SECRET_PREVIOUS` e ponha o novo em `FAN_TOKEN_SECRET`; depois de uma validade, apague o anterior. Limite de 120 requisições por minuto por Perfil.
 
@@ -1237,6 +1261,8 @@ A Sala do Jogo (#915, #959): uma sala por jogo e por cliente, criada no primeiro
 **Receber em lotes (#964).** `GET /v1/chat/rooms/{jogo}/stream` é um SSE da sala: ao abrir vem `chat.state` (estado; `read_only_peak` quando a faixa estourou) e `ready` com `last_event_id`; depois, um `chat.batch` por lote (um por segundo por instância), com `id:` = `<época>-<lote>` e as mensagens aprovadas. Nunca sai uma mensagem por vez. Entre instâncias, os lotes passam pelo Valkey: quem está ligado em outra instância vê as mesmas mensagens; lote perdido no pub/sub é emendado pelo histórico. Reconexão: `Last-Event-ID` (ou `?last_event_id=`) reenvia os lotes perdidos do histórico curto (120 lotes por sala); se não dá para emendar (buraco fora do histórico, numeração recomeçada porque o Valkey perdeu a sequência), vem `chat.reset` e o widget relê a sala pelo GET. Ler é livre como no GET; no navegador use um cliente SSE sobre `fetch`, com a chave publicável no header (a chave nunca vai na URL), até 20 streams por chave publicável e IP. A fila de cada sala guarda no máximo 2000 mensagens: acima disso saem as mais antigas do lote (continuam no banco e no GET).
 
 **O jogo dentro do chat (#965).** Gol (com time, escudo, autor e placar), cartão vermelho, VAR, início, intervalo e fim viram mensagens de sistema da sala, com o texto pronto em pt-BR, es e en. Chegam no SSE como `chat.game` (na abertura, a lista inteira com `snapshot: true`; depois, cada lote do jogo) e no GET em `game_messages`. Gol anulado pelo VAR não some: a mensagem do gol volta com o mesmo id e `cancelled: true`, e entra uma mensagem de VAR. Mensagem do jogo não se denuncia nem se apaga; o cliente escolhe os tipos em `PUT /v1/chat/config` (`eventKinds`; `null` = todos, lista vazia desliga). Amarelo, substituição, pênalti perdido e cobranças da disputa de pênaltis não entram. As mensagens seguem a linha do tempo inteira do jogo (lance que muda de posição ou é regravado pelo fornecedor não duplica nem some), só nascem com o jogo ao vivo (detalhe que chega depois do fim não despeja o jogo no chat) e o placar do gol é contado pela própria linha do tempo. Mudança de tipos vale para os streams em até 30 s. Futebol primeiro; nos outros esportes valem início, intervalo e fim.
+
+**Reações (#967).** `POST /v1/chat/rooms/{jogo}/reactions` com `{"reaction": "fire"}` (seis fixas: `fire` 🔥, `clap` 👏, `shock` 😱, `laugh` 😂, `angry` 😡, `ball` ⚽), com o token `gft_`. A reação não é texto: quem tem 13 a 17 anos também reage (portão de idade, `react`); menor de 13 não. Não vira mensagem: soma num contador no Valkey e sai agregada a cada segundo no SSE como `chat.reactions` (`delta` do segundo e `total` do jogo; na abertura, o total com `snapshot: true`), e o GET da sala traz o total em `reactions`. Até 5 por segundo por torcedor (balde próprio, que não gasta a cota das outras rotas do torcedor); acima disso a reação é descartada sem erro (`202` com `accepted: false`, que também vale para o contador fora do ar). Com várias instâncias, uma só fecha cada segundo; o widget usa o maior `total` visto por reação (eventos de instâncias diferentes podem chegar fora de ordem). O total some 24 h depois da última reação da sala. Sala ainda fechada ou encerrada: 409. Banimento e suspensão no cliente também barram a reação (409 com `refusal: sanctioned`); sala congelada continua aceitando. Por ora valem as seis para todos os clientes; a escolha por cliente entra com a configuração da sala.
 
 **Pico (D6).** Vale para o cliente inteiro, como a faixa. A faixa `live_chat.peak_connections` do cliente conta as conexões do stream em todas as instâncias. Acima dela ninguém fica sem ler: a conexão entra com `chat.state: read_only_peak` e, enquanto houver conexões excedentes, só escreve quem já vinha escrevendo (mensagem nos últimos 10 minutos); quem chegou depois recebe 409 com `refusal: room_read_only_peak`. A conexão excedente tenta a vaga de novo a cada heartbeat; com vaga, recebe `chat.state` com o estado real, e o pico some quando não há mais excedentes. O pico fica registrado no log da API (um aviso por cliente por minuto) para o painel.
 
