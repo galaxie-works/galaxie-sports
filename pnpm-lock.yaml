@@ -62,6 +62,9 @@ importers:
       '@galaxie/explore':
         specifier: workspace:*
         version: link:../../packages/explore
+      '@galaxie/game-rules':
+        specifier: workspace:*
+        version: link:../../packages/game-rules
       '@galaxie/geo':
         specifier: workspace:*
         version: link:../../packages/geo

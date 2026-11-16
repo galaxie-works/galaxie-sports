@@ -107,6 +107,38 @@ const ENGAGE_TOPICS: WebhookTopicDef[] = [
     }),
   },
   {
+    topic: 'game.prediction.scored',
+    modules: WEBHOOK_TOPIC_PREFIXES.game,
+    status: 'live',
+    label: { pt: 'Palpite pontuado', es: 'Pronóstico puntuado', en: 'Prediction scored' },
+    description:
+      'O jogo terminou e o Palpite de um torcedor recebeu os Pontos definitivos (zero se errou). Sai uma vez por ' +
+      'Palpite, depois da janela de correção do resultado.',
+    payload: engageEnvelope('WebhookGamePredictionScored', 'game.prediction.scored', {
+      profile_id: profileId,
+      program_country: z.string().length(2).meta({ description: 'País do programa (ISO 3166-1 alfa-2).' }),
+      event_id: z.uuid(),
+      kind: z.enum(['exact_score', 'winner', 'quantity']),
+      points: z.number().int().nonnegative(),
+      full_hit: z.boolean().meta({ description: 'Acerto em cheio.' }),
+    }),
+  },
+  {
+    topic: 'game.prediction.reverted',
+    modules: WEBHOOK_TOPIC_PREFIXES.game,
+    status: 'live',
+    label: { pt: 'Palpite revertido', es: 'Pronóstico revertido', en: 'Prediction reverted' },
+    description:
+      'Durante o jogo, um Palpite que estava certo deixou de estar (gol anulado pelo VAR, placar corrigido). A ' +
+      'pontuação era provisória: nenhum Ponto é estornado.',
+    payload: engageEnvelope('WebhookGamePredictionReverted', 'game.prediction.reverted', {
+      profile_id: profileId,
+      program_country: z.string().length(2),
+      event_id: z.uuid(),
+      kind: z.enum(['exact_score', 'winner', 'quantity']),
+    }),
+  },
+  {
     topic: 'game.achievement.level_reached',
     modules: WEBHOOK_TOPIC_PREFIXES.game,
     status: 'planned',

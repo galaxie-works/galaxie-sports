@@ -39,6 +39,7 @@ export {
 } from './client.js';
 export * from './team-statistics.js';
 export * from './presence.js';
+export * from './game.js';
 export * from './moderation.js';
 export * from './narration.js';
 export * from './chat.js';

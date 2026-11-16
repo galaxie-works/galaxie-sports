@@ -24,6 +24,8 @@ import {
 import { moderationRoutes } from './engage/moderation-routes.js';
 import { chatRoutes } from './chat/routes.js';
 import { ChatHub } from './chat/hub.js';
+import { gameRoutes } from './game/routes.js';
+import { GameScorer, startGameSweep } from './game/scorer.js';
 import { ChatGameFeed } from './chat/game.js';
 import { MemoryChatPeak, RedisChatPeak } from './chat/peak.js';
 import { MemoryReactionCounter, RedisReactionCounter } from './chat/reactions.js';
@@ -662,6 +664,8 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
       reactions: chatReactions,
       stream: options.chat?.stream,
     });
+    // Gamificação (#942): Palpite individual e Ranking
+    await gameRoutes(instance, { db: options.db, now: options.now });
   });
 
   // escopo próprio: o corpo cru do webhook do provedor da verificação de idade (#1109)
@@ -760,6 +764,15 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
     });
     if (app.realtime) app.realtime.subscribe(gameFeed.handle);
     else app.log.warn('chat: tempo real desligado, o jogo não entra no chat');
+  }
+
+  // pontuador do Palpite (#942): provisório pelo tempo real, definitivo pela varredura (que também cobre o tempo real
+  // desligado)
+  if (options.db) {
+    const scorer = new GameScorer(options.db, { logger: app.log });
+    if (app.realtime) app.realtime.subscribe(scorer.handle);
+    const stopSweep = startGameSweep(scorer, app.log);
+    app.addHook('onClose', async () => stopSweep());
   }
 
   return app;

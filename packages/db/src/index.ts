@@ -263,6 +263,7 @@ export {
 } from './fan-wallet.js';
 export * from './presence.js';
 export * from './game.js';
+export * from './game-predictions.js';
 export * from './sponsors.js';
 export * from './moderation-queue.js';
 export {

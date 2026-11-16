@@ -165,3 +165,16 @@ describe('faixas', () => {
     expect(gameAllows('18plus', 'see_prize_code')).toBe(true);
   });
 });
+
+describe('programa', () => {
+  it('Piso por esporte e resultado a partir do placar', async () => {
+    const { quantityFloors, outcomeFromScore, TOTAL_SCORE, countryTimeZone } = await import('./index.js');
+    expect(quantityFloors('football')[TOTAL_SCORE]).toBe(1);
+    expect(quantityFloors('american-football')[TOTAL_SCORE]).toBe(20);
+    expect(quantityFloors('mma')).toEqual({});
+    expect(outcomeFromScore({ home: 2, away: 1 })).toEqual({ home: 2, away: 1, totals: { total_score: 3 } });
+    expect(outcomeFromScore({ home: null, away: null })).toBeNull();
+    expect(countryTimeZone('BR')).toBe('America/Sao_Paulo');
+    expect(countryTimeZone('ZZ')).toBe('UTC');
+  });
+});
