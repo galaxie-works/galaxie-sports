@@ -6,6 +6,7 @@ import {
   ASSISTANT_FUNCTION,
   ASSISTANT_STREAMERS,
   COSMOS_PROVIDERS,
+  FILE_FUNCTIONS,
   activeFunction,
   defaultModelFor,
   isCosmosError,
@@ -174,9 +175,10 @@ describe('provedor e modelo por função (#1088)', () => {
     await upsertFunctionDef(db, { ...def, provider: com[0]! });
     const row = (await listFunctionDefs(db)).find((f) => f.name === ASSISTANT_FUNCTION);
     expect(row?.callable).toEqual(com);
-    // outra função (sem chamador de modelo ainda) não é travada por provedor
-    expect((await listFunctionDefs(db)).find((f) => f.name !== ASSISTANT_FUNCTION)?.callable).toEqual([
-      ...COSMOS_PROVIDERS,
-    ]);
+    // outra função (sem chamador de modelo ainda) não é travada por provedor; as de arquivo têm teste próprio
+    const free = (await listFunctionDefs(db)).find(
+      (f) => f.name !== ASSISTANT_FUNCTION && !FILE_FUNCTIONS.includes(f.name),
+    );
+    expect(free?.callable).toEqual([...COSMOS_PROVIDERS]);
   });
 });

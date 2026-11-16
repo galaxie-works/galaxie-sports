@@ -4,6 +4,7 @@ import { asc } from 'drizzle-orm';
 import postgres from 'postgres';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
+  accessErrorDaily,
   apiResponse,
   applyRoles,
   closeDb,
@@ -384,6 +385,12 @@ describe('data-retention com o papel do ingestor', () => {
       },
       { endpointId: ep!.id, changeId: 3, topic: 'event.updated', payload: {}, status: 'pending' },
     ]);
+    // erros de acesso (#1007): sai o dia além dos 30, fica o recente
+    const day = (d: Date) => d.toISOString().slice(0, 10);
+    await db.insert(accessErrorDaily).values([
+      { tenantId: t!.id, day: day(daysAgo(40)), reason: 'revoked', count: 3, lastAt: daysAgo(40) },
+      { tenantId: t!.id, day: day(daysAgo(2)), reason: 'revoked', count: 1, lastAt: daysAgo(2) },
+    ]);
     await raw('papel-live', daysAgo(40), { retention: 'live', body: 'p1' });
     await raw('papel-live', daysAgo(35), { retention: 'live', body: 'p2' });
 
@@ -392,8 +399,9 @@ describe('data-retention com o papel do ingestor', () => {
       expect(rawReport.deleted).toBeGreaterThan(0);
       const ops = await pruneOpsTables(ingDb, { now: NOW, pauseMs: 0 });
       const byKey = Object.fromEntries(ops.rows.map((r) => [r.key, r.deleted]));
-      expect(byKey).toMatchObject({ llmUsage: 1, webhookDelivered: 1, webhookDead: 1 });
+      expect(byKey).toMatchObject({ llmUsage: 1, webhookDelivered: 1, webhookDead: 1, accessErrors: 1 });
       expect((await db.select().from(webhookDelivery)).map((d) => d.status)).toEqual(['pending']);
+      expect((await db.select().from(accessErrorDaily)).map((a) => a.day)).toEqual([day(daysAgo(2))]);
     } finally {
       await closeDb(ingDb);
     }

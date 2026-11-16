@@ -13,13 +13,19 @@
 import { estimateCostUsd } from '@galaxie/ai-ledger/pricing';
 import type { Database } from '@galaxie/db/client';
 import { reservation, staffUsage } from '@galaxie/db/schema';
-import { createCompletionClient, type CompletionClient, type CompletionResult } from '@galaxie/llm';
+import {
+  createCompletionClient,
+  type CompletionAttachment,
+  type CompletionClient,
+  type CompletionResult,
+} from '@galaxie/llm';
 import { and, count, eq, gte } from 'drizzle-orm';
 
 import { creditsFor } from './credits.js';
 import { isCosmosError } from './errors.js';
 import { cosmosApiKey } from './models.js';
 import type { CosmosSettings } from './settings.js';
+import { BRANDBOOK_PROVIDERS } from './brandbook.js';
 import { activeFunction, getWallet, release, reserve, settle } from './wallet.js';
 
 /** Limites das tarefas de uma chamada. Fora daqui, nada; ajustar é mudar estes números. */
@@ -65,15 +71,42 @@ export interface TaskInput<T> {
   system: string;
   message: string;
   maxOutputTokens: number;
+  /** Arquivos (PDF ou imagem) que o modelo lê junto da mensagem; a reserva conta os tokens deles. */
+  attachments?: CompletionAttachment[];
   /** Vai para o extrato junto do acerto (nunca o texto do cliente). */
   metadata?: Record<string, unknown>;
   /**
    * Confere a resposta do modelo. `usable: false` = nada aproveitável (não cobra). Roda antes do acerto, então pode
    * consultar a API (busca de entidades) e validar com as regras do servidor.
    */
-  evaluate: (text: string) => Promise<{ usable: boolean; value: T }>;
+  evaluate?: (text: string) => Promise<{ usable: boolean; value: T }>;
+  /**
+   * Tarefa de mais de uma chamada (planejar, consultar a API, responder): recebe `ask`, que chama o modelo e soma o uso
+   * de todas as chamadas no mesmo acerto. Sem ela, uma chamada com `system`/`message` e o `evaluate`.
+   */
+  execute?: (ask: TaskAsk) => Promise<{ usable: boolean; value: T }>;
+  /** Chamadas que a reserva cobre (a estimativa multiplica o tamanho de `system`/`message`); padrão 1. */
+  rounds?: number;
+  /** Texto que as rodadas acrescentam ao prompt (resultados da API), em caracteres, para a reserva cobrir. */
+  extraInputChars?: number;
+  /**
+   * Devolve também a resposta que não serve (sem cobrar), com `usable: false`: a tela mostra o "não tenho esse dado"
+   * em vez de um erro. Sem ela, resposta que não serve vira `unreadable`.
+   */
+  keepUnusable?: boolean;
   /** Equipe Galaxie: não reserva nem cobra; o custo vai para `cosmos.staff_usage` com esta rota. */
   staff?: { route: string };
+}
+
+/** Uma chamada ao modelo dentro da tarefa; devolve o texto da resposta. */
+export type TaskAsk = (req: { system: string; message: string; maxOutputTokens: number }) => Promise<string>;
+
+/** Uso somado das chamadas de uma tarefa. */
+interface TaskUsage {
+  inputTokens: number;
+  cachedInputTokens: number;
+  cacheWriteTokens: number;
+  outputTokens: number;
 }
 
 export interface TaskDeps {
@@ -128,14 +161,72 @@ async function overLimit(
   return (row?.n ?? 0) >= TASK_LIMITS.userPerMinute;
 }
 
+/** Tokens de entrada por imagem na reserva (para mais: uma imagem grande custa perto de 1,6 mil nos provedores). */
+export const IMAGE_TOKENS = 1_800;
+/** Tokens de entrada por página de PDF na reserva (o texto e a imagem da página). */
+export const PDF_PAGE_TOKENS = 3_000;
+
+/** Bytes por página no piso da contagem: PDF compactado esconde as páginas, o tamanho não. */
+const PDF_BYTES_PER_PAGE = 100 * 1024;
+
+/**
+ * Páginas de um PDF em base64, para a reserva: o maior entre os objetos `/Type /Page` visíveis, o maior `/Count` da
+ * árvore de páginas e um piso pelo tamanho do arquivo. Em PDF com object streams (1.5+), as páginas ficam
+ * compactadas e a contagem direta dá 0; o piso pelo tamanho segura a reserva. Pelo menos 1.
+ */
+export function pdfPages(base64: string): number {
+  const bytes = Buffer.from(base64, 'base64');
+  const text = bytes.toString('latin1');
+  const objects = (text.match(/\/Type\s*\/Page(?![a-z])/g) ?? []).length;
+  let tree = 0;
+  for (const m of text.matchAll(/\/Count\s+(\d{1,6})\b/g)) tree = Math.max(tree, Number(m[1]));
+  return Math.max(1, objects, tree, Math.ceil(bytes.length / PDF_BYTES_PER_PAGE));
+}
+
+/** Tokens de entrada estimados dos anexos, para a reserva cobrir a chamada. */
+export function attachmentTokens(files: readonly CompletionAttachment[] = []): number {
+  return files.reduce(
+    (n, f) => n + (f.mediaType === 'application/pdf' ? pdfPages(f.data) * PDF_PAGE_TOKENS : IMAGE_TOKENS),
+    0,
+  );
+}
+
 /** Custo real da resposta pelo uso do provedor. */
-const costOf = (model: string, result: CompletionResult) =>
-  estimateCostUsd(model, {
-    inputTokens: result.usage.inputTokens,
-    cachedInputTokens: result.usage.cachedInputTokens,
-    cacheWriteTokens: result.usage.cacheWriteTokens,
-    outputTokens: result.usage.outputTokens,
+const costOf = (model: string, usage: TaskUsage) => estimateCostUsd(model, { ...usage });
+
+/** Roda a tarefa somando o uso de cada chamada (mesmo se uma chamada do meio falhar). */
+async function runTask<T>(
+  input: TaskInput<T>,
+  call: (req: { system: string; message: string; maxOutputTokens: number }) => Promise<CompletionResult>,
+  usage: TaskUsage,
+): Promise<{ usable: boolean; value: T }> {
+  const ask: TaskAsk = async (req) => {
+    const r = await call(req);
+    usage.inputTokens += r.usage.inputTokens;
+    usage.cachedInputTokens += r.usage.cachedInputTokens;
+    usage.cacheWriteTokens += r.usage.cacheWriteTokens;
+    usage.outputTokens += r.usage.outputTokens;
+    return r.text;
+  };
+  if (input.execute) return input.execute(ask);
+  if (!input.evaluate) throw new Error('tarefa sem evaluate nem execute');
+  const text = await ask({
+    system: input.system,
+    message: input.message,
+    maxOutputTokens: input.maxOutputTokens,
   });
+  return input.evaluate(text);
+}
+
+/** Alguma chamada da tarefa respondeu (houve gasto no provedor). */
+const spent = (u: TaskUsage) => u.inputTokens + u.outputTokens > 0;
+
+const emptyUsage = (): TaskUsage => ({
+  inputTokens: 0,
+  cachedInputTokens: 0,
+  cacheWriteTokens: 0,
+  outputTokens: 0,
+});
 
 /** Créditos que a reserva pede: a chamada estimada pelo tamanho do prompt e pela saída máxima, nunca abaixo do mínimo. */
 export function estimateTaskCredits(input: {
@@ -146,10 +237,16 @@ export function estimateTaskCredits(input: {
   minCredits: number;
   multiplier: number;
   settings: CosmosSettings;
+  attachments?: readonly CompletionAttachment[] | undefined;
+  /** Caracteres a mais no prompt (resultados que as rodadas acrescentam). */
+  extraChars?: number;
 }): number {
   return creditsFor({
     costUsd: estimateCostUsd(input.model, {
-      inputTokens: Math.ceil((input.system.length + input.message.length) / CHARS_PER_TOKEN),
+      inputTokens:
+        Math.ceil(
+          (input.system.length + input.message.length + (input.extraChars ?? 0)) / CHARS_PER_TOKEN,
+        ) + attachmentTokens(input.attachments),
       outputTokens: input.maxOutputTokens,
     }),
     multiplier: input.multiplier,
@@ -170,16 +267,20 @@ export async function runCosmosTask<T>(
   const fn = await activeFunction(db, input.functionName);
   const apiKey = fn ? cosmosApiKey(fn.provider, env) : null;
   if (!fn || (!deps.client && !apiKey)) return { ok: false, error: 'unavailable' };
+  // arquivo para um provedor que não lê arquivo (DeepSeek) falharia no envio: recusa antes de reservar
+  if (input.attachments?.length && !(BRANDBOOK_PROVIDERS as readonly string[]).includes(fn.provider))
+    return { ok: false, error: 'unavailable' };
   if (await overLimit(db, input, now())) return { ok: false, error: 'rate_limited' };
 
-  const call = () => {
+  const call = (req: { system: string; message: string; maxOutputTokens: number }) => {
     const client =
       deps.client ?? createCompletionClient(fn.provider, { apiKey: apiKey!, maxRetries: 0, timeoutMs });
     return client.complete({
       model: fn.model,
-      system: input.system,
-      messages: [{ role: 'user', content: input.message }],
-      maxOutputTokens: input.maxOutputTokens,
+      system: req.system,
+      messages: [{ role: 'user', content: req.message }],
+      maxOutputTokens: req.maxOutputTokens,
+      ...(input.attachments?.length ? { attachments: input.attachments } : {}),
       json: true,
       timeoutMs,
       signal: AbortSignal.timeout(timeoutMs),
@@ -190,11 +291,17 @@ export async function runCosmosTask<T>(
   if (input.staff) return runAsStaff(db, input, fn, call);
 
   const wallet = await getWallet(db, input.tenantId);
+  const rounds = Math.max(1, input.rounds ?? 1);
   const estimate = estimateTaskCredits({
     model: fn.model,
-    system: input.system,
-    message: input.message,
-    maxOutputTokens: input.maxOutputTokens,
+    system: input.system.repeat(rounds),
+    message: input.message.repeat(rounds),
+    maxOutputTokens: input.maxOutputTokens * rounds,
+    extraChars: input.extraInputChars ?? 0,
+    // o arquivo vai em cada rodada
+    attachments: input.attachments?.length
+      ? Array.from({ length: rounds }, () => input.attachments ?? []).flat()
+      : undefined,
     minCredits: fn.minCredits,
     multiplier: wallet?.multiplier ?? 1,
     settings: deps.settings,
@@ -219,26 +326,25 @@ export async function runCosmosTask<T>(
     throw err;
   }
 
-  let result: CompletionResult;
-  try {
-    result = await call();
-  } catch (err) {
-    await release(db, { tenantId: input.tenantId, reservationId: held.id }).catch((e) =>
-      console.error('[cosmos] reserva da tarefa não voltou', { fn: input.functionName, e }),
-    );
-    console.error('[cosmos] tarefa falhou no provedor', { fn: input.functionName, err });
-    return { ok: false, error: 'failed' };
-  }
-  // o provedor já respondeu (e cobrou): falha na conferência vira resposta que não serve, com o custo no extrato
+  const usage = emptyUsage();
   let evaluated: { usable: boolean; value: T | null };
   try {
-    evaluated = await input.evaluate(result.text);
+    evaluated = await runTask(input, call, usage);
   } catch (err) {
-    console.error('[cosmos] conferência da tarefa falhou', { fn: input.functionName, err });
+    // nenhuma chamada respondeu: nada foi gasto no provedor e a reserva volta inteira
+    if (!spent(usage)) {
+      await release(db, { tenantId: input.tenantId, reservationId: held.id }).catch((e) =>
+        console.error('[cosmos] reserva da tarefa não voltou', { fn: input.functionName, e }),
+      );
+      console.error('[cosmos] tarefa falhou no provedor', { fn: input.functionName, err });
+      return { ok: false, error: 'failed' };
+    }
+    // o provedor já respondeu (e cobrou): a falha depois vira resposta que não serve, com o custo no extrato
+    console.error('[cosmos] tarefa falhou depois da resposta do provedor', { fn: input.functionName, err });
     evaluated = { usable: false, value: null };
   }
 
-  const costUsd = costOf(fn.model, result);
+  const costUsd = costOf(fn.model, usage);
   const backoff = deps.settleBackoffMs ?? [200, 800];
   let charged = 0;
   for (let attempt = 0; attempt <= backoff.length; attempt++) {
@@ -248,9 +354,9 @@ export async function runCosmosTask<T>(
         reservationId: held.id,
         costUsd,
         maxCredits: held.credits,
-        tokensIn: result.usage.inputTokens,
-        tokensCached: result.usage.cachedInputTokens,
-        tokensOut: result.usage.outputTokens,
+        tokensIn: usage.inputTokens,
+        tokensCached: usage.cachedInputTokens,
+        tokensOut: usage.outputTokens,
         model: fn.model,
         // resposta que não serve não vira cobrança: o custo vai para o extrato, sem débito
         ...(evaluated.usable ? {} : { waive: true }),
@@ -272,7 +378,10 @@ export async function runCosmosTask<T>(
       await sleep(backoff[attempt]!);
     }
   }
-  if (!evaluated.usable) return { ok: false, error: 'unreadable' };
+  if (!evaluated.usable)
+    return input.keepUnusable
+      ? { ok: true, value: evaluated.value as T, usable: false, charged: 0 }
+      : { ok: false, error: 'unreadable' };
   return { ok: true, value: evaluated.value as T, usable: true, charged };
 }
 
@@ -280,7 +389,7 @@ async function runAsStaff<T>(
   db: Database,
   input: TaskInput<T>,
   fn: { provider: string; model: string },
-  call: () => Promise<CompletionResult>,
+  call: (req: { system: string; message: string; maxOutputTokens: number }) => Promise<CompletionResult>,
 ): Promise<TaskResult<T>> {
   const [row] = await db
     .insert(staffUsage)
@@ -292,12 +401,11 @@ async function runAsStaff<T>(
       model: fn.model,
     })
     .returning({ id: staffUsage.id });
-  let result: CompletionResult | null = null;
+  const usage = emptyUsage();
   let evaluated: { usable: boolean; value: T } | null = null;
   let error: string | null = null;
   try {
-    result = await call();
-    evaluated = await input.evaluate(result.text);
+    evaluated = await runTask(input, call, usage);
   } catch (err) {
     error = String((err as Error)?.message ?? err).slice(0, 500);
     console.error('[cosmos] tarefa da equipe falhou', { fn: input.functionName, err });
@@ -306,16 +414,20 @@ async function runAsStaff<T>(
     await db
       .update(staffUsage)
       .set({
-        inputTokens: result?.usage.inputTokens ?? 0,
-        outputTokens: result?.usage.outputTokens ?? 0,
-        costUsd: (result ? costOf(fn.model, result) : 0).toFixed(6),
-        outcome: error || !evaluated?.usable ? 'error' : 'ok',
-        error: error ?? (evaluated?.usable ? null : 'unreadable'),
+        inputTokens: usage.inputTokens,
+        outputTokens: usage.outputTokens,
+        costUsd: costOf(fn.model, usage).toFixed(6),
+        // com keepUnusable, "não serve" é resultado (sem dado, número não conferido), não erro: fica 'ok' com a nota
+        outcome: error || (!evaluated?.usable && !input.keepUnusable) ? 'error' : 'ok',
+        error: error ?? (evaluated?.usable ? null : input.keepUnusable ? 'unusable' : 'unreadable'),
       })
       .where(eq(staffUsage.id, row.id))
       .catch((err) => console.error('[cosmos] uso da tarefa da equipe não foi registrado', err));
   if (error || !evaluated) return { ok: false, error: 'failed' };
-  if (!evaluated.usable) return { ok: false, error: 'unreadable' };
+  if (!evaluated.usable)
+    return input.keepUnusable
+      ? { ok: true, value: evaluated.value, usable: false, charged: 0, staff: true }
+      : { ok: false, error: 'unreadable' };
   return { ok: true, value: evaluated.value, usable: true, charged: 0, staff: true };
 }
 

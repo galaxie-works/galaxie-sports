@@ -1,6 +1,6 @@
 {
-  "id": "1260d10f-ac97-4153-8db8-541e4f63d337",
-  "prevId": "d28a2e75-a244-4abe-b621-1708a3f5dbc0",
+  "id": "00ccd0f2-00fb-4a28-adaa-0f7f8598f449",
+  "prevId": "4bedcd58-cc99-47c4-b8a0-dee4360da709",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -1552,6 +1552,22 @@
           ],
           "isUnique": false,
           "where": "\"core\".\"event_incident\".\"assist_person_id\" is not null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "event_incident_var_idx": {
+          "name": "event_incident_var_idx",
+          "columns": [
+            {
+              "expression": "event_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"core\".\"event_incident\".\"type\" = 'var'",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -9832,6 +9848,149 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "ops.narration_template": {
+      "name": "narration_template",
+      "schema": "ops",
+      "columns": {
+        "key": {
+          "name": "key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "lang": {
+          "name": "lang",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "variants": {
+          "name": "variants",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "updated_by": {
+          "name": "updated_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "narration_template_key_lang_pk": {
+          "name": "narration_template_key_lang_pk",
+          "columns": [
+            "key",
+            "lang"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "ops.narration_template_log": {
+      "name": "narration_template_log",
+      "schema": "ops",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigserial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "key": {
+          "name": "key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "lang": {
+          "name": "lang",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "action": {
+          "name": "action",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "old_variants": {
+          "name": "old_variants",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "new_variants": {
+          "name": "new_variants",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "changed_by": {
+          "name": "changed_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reason": {
+          "name": "reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "changed_at": {
+          "name": "changed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "narration_template_log_changed_idx": {
+          "name": "narration_template_log_changed_idx",
+          "columns": [
+            {
+              "expression": "changed_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "ops.normalize_failure": {
       "name": "normalize_failure",
       "schema": "ops",
@@ -10809,7 +10968,29 @@
           "default": "now()"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "sync_cursor_endpoint_key_idx": {
+          "name": "sync_cursor_endpoint_key_idx",
+          "columns": [
+            {
+              "expression": "endpoint",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {},
       "compositePrimaryKeys": {
         "sync_cursor_provider_sport_endpoint_key_pk": {
@@ -15581,6 +15762,18 @@
           "notNull": true,
           "default": "'{}'::text[]"
         },
+        "catalog_version": {
+          "name": "catalog_version",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "capacity_tier": {
+          "name": "capacity_tier",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -15624,7 +15817,12 @@
         }
       },
       "policies": {},
-      "checkConstraints": {},
+      "checkConstraints": {
+        "tenant_capacity_tier": {
+          "name": "tenant_capacity_tier",
+          "value": "\"api\".\"tenant\".\"capacity_tier\" is null or \"api\".\"tenant\".\"capacity_tier\" in ('C1', 'C2', 'C3', 'C4')"
+        }
+      },
       "isRLSEnabled": false
     },
     "api.tenant_member": {
@@ -16246,6 +16444,18 @@
           "primaryKey": false,
           "notNull": false
         },
+        "duration_ms": {
+          "name": "duration_ms",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "response_excerpt": {
+          "name": "response_excerpt",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "delivered_at": {
           "name": "delivered_at",
           "type": "timestamp with time zone",
@@ -16381,6 +16591,24 @@
           "primaryKey": false,
           "notNull": true,
           "default": true
+        },
+        "failing_since": {
+          "name": "failing_since",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "auto_disabled_at": {
+          "name": "auto_disabled_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "auto_disabled_reason": {
+          "name": "auto_disabled_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         },
         "created_at": {
           "name": "created_at",
@@ -17889,6 +18117,52 @@
           "value": "(\"cosmos\".\"credit_request\".\"status\" = 'open') = (\"cosmos\".\"credit_request\".\"decided_at\" is null)"
         }
       },
+      "isRLSEnabled": false
+    },
+    "cosmos.doc_embedding": {
+      "name": "doc_embedding",
+      "schema": "cosmos",
+      "columns": {
+        "model": {
+          "name": "model",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "content_hash": {
+          "name": "content_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "vector": {
+          "name": "vector",
+          "type": "real[]",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "doc_embedding_model_content_hash_pk": {
+          "name": "doc_embedding_model_content_hash_pk",
+          "columns": [
+            "model",
+            "content_hash"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "cosmos.function_def": {
@@ -19461,6 +19735,85 @@
       },
       "isRLSEnabled": false
     },
+    "cosmos.wallet_quota": {
+      "name": "wallet_quota",
+      "schema": "cosmos",
+      "columns": {
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "scope": {
+          "name": "scope",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "percent": {
+          "name": "percent",
+          "type": "numeric(5, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_by": {
+          "name": "updated_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "wallet_quota_tenant_id_tenant_id_fk": {
+          "name": "wallet_quota_tenant_id_tenant_id_fk",
+          "tableFrom": "wallet_quota",
+          "tableTo": "tenant",
+          "schemaTo": "api",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "wallet_quota_tenant_id_scope_pk": {
+          "name": "wallet_quota_tenant_id_scope_pk",
+          "columns": [
+            "tenant_id",
+            "scope"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "wallet_quota_percent": {
+          "name": "wallet_quota_percent",
+          "value": "\"cosmos\".\"wallet_quota\".\"percent\" > 0 and \"cosmos\".\"wallet_quota\".\"percent\" <= 100"
+        }
+      },
+      "isRLSEnabled": false
+    },
     "engage.country_policy": {
       "name": "country_policy",
       "schema": "engage",
@@ -19506,7 +19859,7 @@
       "checkConstraints": {
         "country_policy_key": {
           "name": "country_policy_key",
-          "value": "\"engage\".\"country_policy\".\"country\" ~ '^([A-Z]{2}|LATAM)$'"
+          "value": "\"engage\".\"country_policy\".\"country\" ~ '^([A-Z]{2}|LATAM|DEFAULT)$'"
         }
       },
       "isRLSEnabled": false
@@ -20036,7 +20389,7 @@
       "checkConstraints": {
         "sponsor_category": {
           "name": "sponsor_category",
-          "value": "category in ('apparel', 'automotive', 'beverage', 'education', 'energy', 'finance', 'food', 'health', 'media', 'retail', 'technology', 'telecom', 'travel', 'other')"
+          "value": "category in ('alcohol', 'apparel', 'automotive', 'beverage', 'education', 'energy', 'finance', 'food', 'health', 'media', 'retail', 'technology', 'telecom', 'travel', 'other')"
         },
         "sponsor_name_len": {
           "name": "sponsor_name_len",
@@ -20347,6 +20700,250 @@
         "account_external_len": {
           "name": "account_external_len",
           "value": "length(\"fan\".\"account\".\"external_account_id\") between 1 and 128"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "fan.age_verification": {
+      "name": "age_verification",
+      "schema": "fan",
+      "columns": {
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "public.uuid_generate_v7()"
+        },
+        "profile_id": {
+          "name": "profile_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "provider": {
+          "name": "provider",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "provider_session_id": {
+          "name": "provider_session_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pending'"
+        },
+        "path": {
+          "name": "path",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "result_band": {
+          "name": "result_band",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_event_id": {
+          "name": "last_event_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "decided_at": {
+          "name": "decided_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "metered_at": {
+          "name": "metered_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "purged_at": {
+          "name": "purged_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "age_verification_provider_session_uq": {
+          "name": "age_verification_provider_session_uq",
+          "columns": [
+            {
+              "expression": "provider",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "provider_session_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "age_verification_profile_idx": {
+          "name": "age_verification_profile_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "profile_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "age_verification_purge_idx": {
+          "name": "age_verification_purge_idx",
+          "columns": [
+            {
+              "expression": "decided_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"fan\".\"age_verification\".\"purged_at\" is null and \"fan\".\"age_verification\".\"decided_at\" is not null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "age_verification_tenant_id_tenant_id_fk": {
+          "name": "age_verification_tenant_id_tenant_id_fk",
+          "tableFrom": "age_verification",
+          "tableTo": "tenant",
+          "schemaTo": "api",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "age_verification_profile_fk": {
+          "name": "age_verification_profile_fk",
+          "tableFrom": "age_verification",
+          "tableTo": "profile",
+          "schemaTo": "fan",
+          "columnsFrom": [
+            "tenant_id",
+            "profile_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "age_verification_pkey": {
+          "name": "age_verification_pkey",
+          "columns": [
+            "tenant_id",
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "age_verification_provider": {
+          "name": "age_verification_provider",
+          "value": "provider in ('didit')"
+        },
+        "age_verification_status": {
+          "name": "age_verification_status",
+          "value": "status in ('pending', 'approved', 'declined', 'review', 'abandoned', 'expired')"
+        },
+        "age_verification_path": {
+          "name": "age_verification_path",
+          "value": "path is null or path in ('estimate', 'document')"
+        },
+        "age_verification_result_band": {
+          "name": "age_verification_result_band",
+          "value": "result_band is null or result_band in ('under13', '13', '14_15', '16_17', '18plus')"
+        },
+        "age_verification_session_len": {
+          "name": "age_verification_session_len",
+          "value": "length(\"fan\".\"age_verification\".\"provider_session_id\") between 1 and 128"
+        },
+        "age_verification_event_len": {
+          "name": "age_verification_event_len",
+          "value": "last_event_id is null or length(last_event_id) between 1 and 128"
+        },
+        "age_verification_decided": {
+          "name": "age_verification_decided",
+          "value": "(status = 'pending' and decided_at is null) or (status <> 'pending' and decided_at is not null)"
+        },
+        "age_verification_approved_band": {
+          "name": "age_verification_approved_band",
+          "value": "status <> 'approved' or (result_band is not null and result_band = '18plus')"
         }
       },
       "isRLSEnabled": false
@@ -20891,11 +21488,86 @@
           "primaryKey": false,
           "notNull": false
         },
+        "avatar_status": {
+          "name": "avatar_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "avatar_ref": {
+          "name": "avatar_ref",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "avatar_hash": {
+          "name": "avatar_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "avatar_checked_at": {
+          "name": "avatar_checked_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
         "age_band": {
           "name": "age_band",
           "type": "text",
           "primaryKey": false,
           "notNull": true
+        },
+        "age_band_detail": {
+          "name": "age_band_detail",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "age_assurance": {
+          "name": "age_assurance",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'self'"
+        },
+        "age_assurance_at": {
+          "name": "age_assurance_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "age_assurance_provider": {
+          "name": "age_assurance_provider",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "guardian_status": {
+          "name": "guardian_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'none'"
+        },
+        "guardian_consent_id": {
+          "name": "guardian_consent_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "guardian_linked": {
+          "name": "guardian_linked",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "age_frozen_at": {
+          "name": "age_frozen_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
         },
         "country": {
           "name": "country",
@@ -21046,6 +21718,30 @@
           "name": "profile_country",
           "value": "\"fan\".\"profile\".\"country\" ~ '^[A-Z]{2}$'"
         },
+        "profile_avatar_status": {
+          "name": "profile_avatar_status",
+          "value": "\"fan\".\"profile\".\"avatar_status\" is null or \"fan\".\"profile\".\"avatar_status\" in ('pending', 'visible', 'held', 'removed')"
+        },
+        "profile_age_band_detail": {
+          "name": "profile_age_band_detail",
+          "value": "\"fan\".\"profile\".\"age_band_detail\" is null or \"fan\".\"profile\".\"age_band_detail\" in ('under13', '13', '14_15', '16_17', '18plus')"
+        },
+        "profile_age_assurance": {
+          "name": "profile_age_assurance",
+          "value": "\"fan\".\"profile\".\"age_assurance\" in ('self', 'estimated', 'verified')"
+        },
+        "profile_age_assurance_provider": {
+          "name": "profile_age_assurance_provider",
+          "value": "\"fan\".\"profile\".\"age_assurance_provider\" is null or length(\"fan\".\"profile\".\"age_assurance_provider\") between 1 and 64"
+        },
+        "profile_guardian_status": {
+          "name": "profile_guardian_status",
+          "value": "\"fan\".\"profile\".\"guardian_status\" in ('none', 'pending', 'granted', 'revoked')"
+        },
+        "profile_guardian_consent": {
+          "name": "profile_guardian_consent",
+          "value": "\"fan\".\"profile\".\"guardian_consent_id\" is null or length(\"fan\".\"profile\".\"guardian_consent_id\") between 1 and 128"
+        },
         "profile_erased": {
           "name": "profile_erased",
           "value": "(\"fan\".\"profile\".\"deleted_at\" is null and \"fan\".\"profile\".\"external_profile_id\" is not null) or (\"fan\".\"profile\".\"deleted_at\" is not null and \"fan\".\"profile\".\"external_profile_id\" is null and \"fan\".\"profile\".\"nickname\" is null and \"fan\".\"profile\".\"avatar_url\" is null)"
@@ -21163,6 +21859,3482 @@
           "value": "\"fan\".\"wallet\".\"balance\" >= 0"
         }
       },
+      "isRLSEnabled": false
+    },
+    "fan.presence_window": {
+      "name": "presence_window",
+      "schema": "fan",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "public.uuid_generate_v7()"
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "profile_id": {
+          "name": "profile_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "event_id": {
+          "name": "event_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "started_at": {
+          "name": "started_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "last_seen_at": {
+          "name": "last_seen_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "last_interaction_at": {
+          "name": "last_interaction_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "heartbeats": {
+          "name": "heartbeats",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        }
+      },
+      "indexes": {
+        "presence_window_lookup_idx": {
+          "name": "presence_window_lookup_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "profile_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "event_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "last_seen_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "presence_window_open_idx": {
+          "name": "presence_window_open_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "profile_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "last_seen_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "presence_window_purge_idx": {
+          "name": "presence_window_purge_idx",
+          "columns": [
+            {
+              "expression": "last_seen_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "presence_window_tenant_id_tenant_id_fk": {
+          "name": "presence_window_tenant_id_tenant_id_fk",
+          "tableFrom": "presence_window",
+          "tableTo": "tenant",
+          "schemaTo": "api",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "presence_window_profile_fk": {
+          "name": "presence_window_profile_fk",
+          "tableFrom": "presence_window",
+          "tableTo": "profile",
+          "schemaTo": "fan",
+          "columnsFrom": [
+            "tenant_id",
+            "profile_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "presence_window_pkey": {
+          "name": "presence_window_pkey",
+          "columns": [
+            "tenant_id",
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "presence_window_order": {
+          "name": "presence_window_order",
+          "value": "\"fan\".\"presence_window\".\"last_seen_at\" >= \"fan\".\"presence_window\".\"started_at\""
+        },
+        "presence_window_interaction": {
+          "name": "presence_window_interaction",
+          "value": "\"fan\".\"presence_window\".\"last_interaction_at\" <= \"fan\".\"presence_window\".\"last_seen_at\""
+        },
+        "presence_window_heartbeats": {
+          "name": "presence_window_heartbeats",
+          "value": "\"fan\".\"presence_window\".\"heartbeats\" >= 1"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "engage.presence_limit": {
+      "name": "presence_limit",
+      "schema": "engage",
+      "columns": {
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "max_games": {
+          "name": "max_games",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_by": {
+          "name": "updated_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "presence_limit_tenant_id_tenant_id_fk": {
+          "name": "presence_limit_tenant_id_tenant_id_fk",
+          "tableFrom": "presence_limit",
+          "tableTo": "tenant",
+          "schemaTo": "api",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "presence_limit_range": {
+          "name": "presence_limit_range",
+          "value": "\"engage\".\"presence_limit\".\"max_games\" between 1 and 10"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "engage.fan_block": {
+      "name": "fan_block",
+      "schema": "engage",
+      "columns": {
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "blocker_profile_id": {
+          "name": "blocker_profile_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "blocked_profile_id": {
+          "name": "blocked_profile_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "fan_block_blocked_idx": {
+          "name": "fan_block_blocked_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "blocked_profile_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "fan_block_tenant_id_tenant_id_fk": {
+          "name": "fan_block_tenant_id_tenant_id_fk",
+          "tableFrom": "fan_block",
+          "tableTo": "tenant",
+          "schemaTo": "api",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "fan_block_blocker_fk": {
+          "name": "fan_block_blocker_fk",
+          "tableFrom": "fan_block",
+          "tableTo": "profile",
+          "schemaTo": "fan",
+          "columnsFrom": [
+            "tenant_id",
+            "blocker_profile_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "fan_block_blocked_fk": {
+          "name": "fan_block_blocked_fk",
+          "tableFrom": "fan_block",
+          "tableTo": "profile",
+          "schemaTo": "fan",
+          "columnsFrom": [
+            "tenant_id",
+            "blocked_profile_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "fan_block_pkey": {
+          "name": "fan_block_pkey",
+          "columns": [
+            "tenant_id",
+            "blocker_profile_id",
+            "blocked_profile_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "fan_block_self": {
+          "name": "fan_block_self",
+          "value": "\"engage\".\"fan_block\".\"blocker_profile_id\" <> \"engage\".\"fan_block\".\"blocked_profile_id\""
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "engage.moderation_appeal": {
+      "name": "moderation_appeal",
+      "schema": "engage",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "public.uuid_generate_v7()"
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sanction_id": {
+          "name": "sanction_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "stage": {
+          "name": "stage",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "statement": {
+          "name": "statement",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pending'"
+        },
+        "route": {
+          "name": "route",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "due_at": {
+          "name": "due_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "case_id": {
+          "name": "case_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "decided_by": {
+          "name": "decided_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "decided_by_kind": {
+          "name": "decided_by_kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "decided_at": {
+          "name": "decided_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "decision_note": {
+          "name": "decision_note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "moderation_appeal_stage_uq": {
+          "name": "moderation_appeal_stage_uq",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "sanction_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "stage",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "moderation_appeal_galaxie_idx": {
+          "name": "moderation_appeal_galaxie_idx",
+          "columns": [
+            {
+              "expression": "due_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"engage\".\"moderation_appeal\".\"route\" = 'galaxie' and \"engage\".\"moderation_appeal\".\"status\" = 'pending'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "moderation_appeal_tenant_id_tenant_id_fk": {
+          "name": "moderation_appeal_tenant_id_tenant_id_fk",
+          "tableFrom": "moderation_appeal",
+          "tableTo": "tenant",
+          "schemaTo": "api",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "moderation_appeal_sanction_fk": {
+          "name": "moderation_appeal_sanction_fk",
+          "tableFrom": "moderation_appeal",
+          "tableTo": "moderation_sanction",
+          "schemaTo": "engage",
+          "columnsFrom": [
+            "tenant_id",
+            "sanction_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "moderation_appeal_case_fk": {
+          "name": "moderation_appeal_case_fk",
+          "tableFrom": "moderation_appeal",
+          "tableTo": "moderation_case",
+          "schemaTo": "engage",
+          "columnsFrom": [
+            "tenant_id",
+            "case_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "moderation_appeal_stage": {
+          "name": "moderation_appeal_stage",
+          "value": "\"engage\".\"moderation_appeal\".\"stage\" in (1, 2)"
+        },
+        "moderation_appeal_status": {
+          "name": "moderation_appeal_status",
+          "value": "\"engage\".\"moderation_appeal\".\"status\" in ('pending', 'upheld', 'overturned')"
+        },
+        "moderation_appeal_route": {
+          "name": "moderation_appeal_route",
+          "value": "\"engage\".\"moderation_appeal\".\"route\" in ('team', 'galaxie')"
+        },
+        "moderation_appeal_second_person": {
+          "name": "moderation_appeal_second_person",
+          "value": "\"engage\".\"moderation_appeal\".\"stage\" = 1 or \"engage\".\"moderation_appeal\".\"decided_by_kind\" is distinct from 'cosmos'"
+        },
+        "moderation_appeal_statement": {
+          "name": "moderation_appeal_statement",
+          "value": "\"engage\".\"moderation_appeal\".\"statement\" is null or length(\"engage\".\"moderation_appeal\".\"statement\") <= 1000"
+        },
+        "moderation_appeal_decided": {
+          "name": "moderation_appeal_decided",
+          "value": "(\"engage\".\"moderation_appeal\".\"status\" = 'pending') = (\"engage\".\"moderation_appeal\".\"decided_at\" is null) and (\"engage\".\"moderation_appeal\".\"status\" = 'pending') = (\"engage\".\"moderation_appeal\".\"decided_by\" is null)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "engage.moderation_audit": {
+      "name": "moderation_audit",
+      "schema": "engage",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "public.uuid_generate_v7()"
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "actor": {
+          "name": "actor",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "actor_kind": {
+          "name": "actor_kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "action": {
+          "name": "action",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "subject_profile_id": {
+          "name": "subject_profile_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "case_id": {
+          "name": "case_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sanction_id": {
+          "name": "sanction_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "appeal_id": {
+          "name": "appeal_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reason": {
+          "name": "reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "rules": {
+          "name": "rules",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "content": {
+          "name": "content",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "content_purge_at": {
+          "name": "content_purge_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "purge_at": {
+          "name": "purge_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "moderation_audit_tenant_idx": {
+          "name": "moderation_audit_tenant_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "moderation_audit_subject_idx": {
+          "name": "moderation_audit_subject_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "subject_profile_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "moderation_audit_purge_idx": {
+          "name": "moderation_audit_purge_idx",
+          "columns": [
+            {
+              "expression": "purge_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "moderation_audit_tenant_id_tenant_id_fk": {
+          "name": "moderation_audit_tenant_id_tenant_id_fk",
+          "tableFrom": "moderation_audit",
+          "tableTo": "tenant",
+          "schemaTo": "api",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "moderation_audit_actor_kind": {
+          "name": "moderation_audit_actor_kind",
+          "value": "\"engage\".\"moderation_audit\".\"actor_kind\" in ('person', 'cosmos', 'galaxie', 'system', 'fan')"
+        },
+        "moderation_audit_action": {
+          "name": "moderation_audit_action",
+          "value": "length(\"engage\".\"moderation_audit\".\"action\") between 1 and 40"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "engage.moderation_case": {
+      "name": "moderation_case",
+      "schema": "engage",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "public.uuid_generate_v7()"
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "target_type": {
+          "name": "target_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "target_id": {
+          "name": "target_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "target_profile_id": {
+          "name": "target_profile_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "module": {
+          "name": "module",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "room": {
+          "name": "room",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "community": {
+          "name": "community",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reasons": {
+          "name": "reasons",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::text[]"
+        },
+        "severity": {
+          "name": "severity",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "report_count": {
+          "name": "report_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'open'"
+        },
+        "hidden_at": {
+          "name": "hidden_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "content": {
+          "name": "content",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "content_purge_at": {
+          "name": "content_purge_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "detail": {
+          "name": "detail",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sanction_id": {
+          "name": "sanction_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "resolved_at": {
+          "name": "resolved_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "resolved_by": {
+          "name": "resolved_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "purge_at": {
+          "name": "purge_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "moderation_case_tenant_id_uq": {
+          "name": "moderation_case_tenant_id_uq",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "moderation_case_open_target_uq": {
+          "name": "moderation_case_open_target_uq",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "target_type",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "target_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"engage\".\"moderation_case\".\"status\" = 'open' and \"engage\".\"moderation_case\".\"source\" <> 'appeal'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "moderation_case_queue_idx": {
+          "name": "moderation_case_queue_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "severity",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "moderation_case_purge_idx": {
+          "name": "moderation_case_purge_idx",
+          "columns": [
+            {
+              "expression": "purge_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "moderation_case_tenant_id_tenant_id_fk": {
+          "name": "moderation_case_tenant_id_tenant_id_fk",
+          "tableFrom": "moderation_case",
+          "tableTo": "tenant",
+          "schemaTo": "api",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "moderation_case_target_profile_fk": {
+          "name": "moderation_case_target_profile_fk",
+          "tableFrom": "moderation_case",
+          "tableTo": "profile",
+          "schemaTo": "fan",
+          "columnsFrom": [
+            "tenant_id",
+            "target_profile_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "moderation_case_sanction_fk": {
+          "name": "moderation_case_sanction_fk",
+          "tableFrom": "moderation_case",
+          "tableTo": "moderation_sanction",
+          "schemaTo": "engage",
+          "columnsFrom": [
+            "tenant_id",
+            "sanction_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "moderation_case_source": {
+          "name": "moderation_case_source",
+          "value": "\"engage\".\"moderation_case\".\"source\" in ('report', 'filter', 'cosmos', 'appeal')"
+        },
+        "moderation_case_target": {
+          "name": "moderation_case_target",
+          "value": "\"engage\".\"moderation_case\".\"target_type\" in ('message', 'comment', 'post', 'profile', 'community_name', 'league_name', 'behavior')"
+        },
+        "moderation_case_module": {
+          "name": "moderation_case_module",
+          "value": "\"engage\".\"moderation_case\".\"module\" in ('chat', 'communities', 'gamification', 'shopping', 'profile')"
+        },
+        "moderation_case_status": {
+          "name": "moderation_case_status",
+          "value": "\"engage\".\"moderation_case\".\"status\" in ('open', 'resolved', 'dismissed')"
+        },
+        "moderation_case_target_id": {
+          "name": "moderation_case_target_id",
+          "value": "length(\"engage\".\"moderation_case\".\"target_id\") between 1 and 200"
+        },
+        "moderation_case_content": {
+          "name": "moderation_case_content",
+          "value": "\"engage\".\"moderation_case\".\"content\" is null or length(\"engage\".\"moderation_case\".\"content\") <= 10000"
+        },
+        "moderation_case_appeal": {
+          "name": "moderation_case_appeal",
+          "value": "(\"engage\".\"moderation_case\".\"source\" = 'appeal') = (\"engage\".\"moderation_case\".\"sanction_id\" is not null)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "engage.moderation_report": {
+      "name": "moderation_report",
+      "schema": "engage",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "public.uuid_generate_v7()"
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "case_id": {
+          "name": "case_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reporter_profile_id": {
+          "name": "reporter_profile_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "target_type": {
+          "name": "target_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "target_id": {
+          "name": "target_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reason": {
+          "name": "reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "note": {
+          "name": "note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "moderation_report_once_uq": {
+          "name": "moderation_report_once_uq",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "case_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "reporter_profile_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "moderation_report_reporter_idx": {
+          "name": "moderation_report_reporter_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "reporter_profile_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "moderation_report_case_idx": {
+          "name": "moderation_report_case_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "case_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "moderation_report_tenant_id_tenant_id_fk": {
+          "name": "moderation_report_tenant_id_tenant_id_fk",
+          "tableFrom": "moderation_report",
+          "tableTo": "tenant",
+          "schemaTo": "api",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "moderation_report_case_fk": {
+          "name": "moderation_report_case_fk",
+          "tableFrom": "moderation_report",
+          "tableTo": "moderation_case",
+          "schemaTo": "engage",
+          "columnsFrom": [
+            "tenant_id",
+            "case_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "moderation_report_reporter_fk": {
+          "name": "moderation_report_reporter_fk",
+          "tableFrom": "moderation_report",
+          "tableTo": "profile",
+          "schemaTo": "fan",
+          "columnsFrom": [
+            "tenant_id",
+            "reporter_profile_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "moderation_report_reason": {
+          "name": "moderation_report_reason",
+          "value": "\"engage\".\"moderation_report\".\"reason\" in ('hate', 'harassment', 'threat', 'sexual', 'spam', 'betting', 'personal_data', 'other')"
+        },
+        "moderation_report_note": {
+          "name": "moderation_report_note",
+          "value": "\"engage\".\"moderation_report\".\"note\" is null or length(\"engage\".\"moderation_report\".\"note\") <= 500"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "engage.moderation_sanction": {
+      "name": "moderation_sanction",
+      "schema": "engage",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "public.uuid_generate_v7()"
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "profile_id": {
+          "name": "profile_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "account_id": {
+          "name": "account_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "level": {
+          "name": "level",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "hidden": {
+          "name": "hidden",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "scope": {
+          "name": "scope",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "scope_id": {
+          "name": "scope_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reason": {
+          "name": "reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "case_id": {
+          "name": "case_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "decided_by": {
+          "name": "decided_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "decided_by_kind": {
+          "name": "decided_by_kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "starts_at": {
+          "name": "starts_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "ends_at": {
+          "name": "ends_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "revoked_at": {
+          "name": "revoked_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "revoked_by": {
+          "name": "revoked_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "purge_at": {
+          "name": "purge_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "moderation_sanction_tenant_id_uq": {
+          "name": "moderation_sanction_tenant_id_uq",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "moderation_sanction_profile_idx": {
+          "name": "moderation_sanction_profile_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "profile_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "moderation_sanction_account_idx": {
+          "name": "moderation_sanction_account_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "account_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"engage\".\"moderation_sanction\".\"account_id\" is not null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "moderation_sanction_tenant_id_tenant_id_fk": {
+          "name": "moderation_sanction_tenant_id_tenant_id_fk",
+          "tableFrom": "moderation_sanction",
+          "tableTo": "tenant",
+          "schemaTo": "api",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "moderation_sanction_profile_fk": {
+          "name": "moderation_sanction_profile_fk",
+          "tableFrom": "moderation_sanction",
+          "tableTo": "profile",
+          "schemaTo": "fan",
+          "columnsFrom": [
+            "tenant_id",
+            "profile_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "moderation_sanction_account_fk": {
+          "name": "moderation_sanction_account_fk",
+          "tableFrom": "moderation_sanction",
+          "tableTo": "account",
+          "schemaTo": "fan",
+          "columnsFrom": [
+            "tenant_id",
+            "account_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "moderation_sanction_case_fk": {
+          "name": "moderation_sanction_case_fk",
+          "tableFrom": "moderation_sanction",
+          "tableTo": "moderation_case",
+          "schemaTo": "engage",
+          "columnsFrom": [
+            "tenant_id",
+            "case_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "moderation_sanction_level": {
+          "name": "moderation_sanction_level",
+          "value": "\"engage\".\"moderation_sanction\".\"level\" in ('warning', 'mute', 'suspension', 'expulsion', 'ban')"
+        },
+        "moderation_sanction_scope": {
+          "name": "moderation_sanction_scope",
+          "value": "\"engage\".\"moderation_sanction\".\"scope\" in ('place', 'community', 'tenant')"
+        },
+        "moderation_sanction_decider": {
+          "name": "moderation_sanction_decider",
+          "value": "\"engage\".\"moderation_sanction\".\"decided_by_kind\" in ('person', 'cosmos', 'galaxie', 'system')"
+        },
+        "moderation_sanction_hidden": {
+          "name": "moderation_sanction_hidden",
+          "value": "not \"engage\".\"moderation_sanction\".\"hidden\" or (\"engage\".\"moderation_sanction\".\"level\" = 'mute' and \"engage\".\"moderation_sanction\".\"ends_at\" is not null)"
+        },
+        "moderation_sanction_hidden_person": {
+          "name": "moderation_sanction_hidden_person",
+          "value": "not \"engage\".\"moderation_sanction\".\"hidden\" or \"engage\".\"moderation_sanction\".\"decided_by_kind\" = 'person'"
+        },
+        "moderation_sanction_reason": {
+          "name": "moderation_sanction_reason",
+          "value": "length(\"engage\".\"moderation_sanction\".\"reason\") between 1 and 500"
+        },
+        "moderation_sanction_dates": {
+          "name": "moderation_sanction_dates",
+          "value": "\"engage\".\"moderation_sanction\".\"ends_at\" is null or \"engage\".\"moderation_sanction\".\"ends_at\" > \"engage\".\"moderation_sanction\".\"starts_at\""
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "chat.game_message": {
+      "name": "game_message",
+      "schema": "chat",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "public.uuid_generate_v7()"
+        },
+        "event_id": {
+          "name": "event_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_key": {
+          "name": "source_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "data": {
+          "name": "data",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "game_message_source_uq": {
+          "name": "game_message_source_uq",
+          "columns": [
+            {
+              "expression": "event_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "source_key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "game_message_event_idx": {
+          "name": "game_message_event_idx",
+          "columns": [
+            {
+              "expression": "event_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "game_message_kind": {
+          "name": "game_message_kind",
+          "value": "kind in ('kickoff', 'goal', 'red_card', 'var', 'half_time', 'full_time')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "chat.message": {
+      "name": "message",
+      "schema": "chat",
+      "columns": {
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "room_id": {
+          "name": "room_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "public.uuid_generate_v7()"
+        },
+        "profile_id": {
+          "name": "profile_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "body": {
+          "name": "body",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "visibility": {
+          "name": "visibility",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'public'"
+        },
+        "flags": {
+          "name": "flags",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::text[]"
+        },
+        "purge_at": {
+          "name": "purge_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "message_room_idx": {
+          "name": "message_room_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "room_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "message_author_idx": {
+          "name": "message_author_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "room_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "profile_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "message_purge_idx": {
+          "name": "message_purge_idx",
+          "columns": [
+            {
+              "expression": "purge_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "message_tenant_id_tenant_id_fk": {
+          "name": "message_tenant_id_tenant_id_fk",
+          "tableFrom": "message",
+          "tableTo": "tenant",
+          "schemaTo": "api",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "message_room_fk": {
+          "name": "message_room_fk",
+          "tableFrom": "message",
+          "tableTo": "room",
+          "schemaTo": "chat",
+          "columnsFrom": [
+            "tenant_id",
+            "room_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "message_profile_fk": {
+          "name": "message_profile_fk",
+          "tableFrom": "message",
+          "tableTo": "profile",
+          "schemaTo": "fan",
+          "columnsFrom": [
+            "tenant_id",
+            "profile_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "message_pkey": {
+          "name": "message_pkey",
+          "columns": [
+            "tenant_id",
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "message_visibility": {
+          "name": "message_visibility",
+          "value": "visibility in ('public', 'shadow', 'hidden')"
+        },
+        "message_body_len": {
+          "name": "message_body_len",
+          "value": "length(\"chat\".\"message\".\"body\") between 1 and 2000"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "chat.room": {
+      "name": "room",
+      "schema": "chat",
+      "columns": {
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "public.uuid_generate_v7()"
+        },
+        "event_id": {
+          "name": "event_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "state": {
+          "name": "state",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'open'"
+        },
+        "slow_mode_seconds": {
+          "name": "slow_mode_seconds",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "strictness": {
+          "name": "strictness",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "state_by": {
+          "name": "state_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "state_at": {
+          "name": "state_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "room_event_uq": {
+          "name": "room_event_uq",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "event_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "room_tenant_id_tenant_id_fk": {
+          "name": "room_tenant_id_tenant_id_fk",
+          "tableFrom": "room",
+          "tableTo": "tenant",
+          "schemaTo": "api",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "room_pkey": {
+          "name": "room_pkey",
+          "columns": [
+            "tenant_id",
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "room_state": {
+          "name": "room_state",
+          "value": "state in ('open', 'frozen', 'read_only_peak')"
+        },
+        "room_strictness": {
+          "name": "room_strictness",
+          "value": "\"chat\".\"room\".\"strictness\" is null or strictness in ('standard', 'strict')"
+        },
+        "room_slow_mode": {
+          "name": "room_slow_mode",
+          "value": "\"chat\".\"room\".\"slow_mode_seconds\" is null or \"chat\".\"room\".\"slow_mode_seconds\" between 0 and 600"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "chat.tenant_config": {
+      "name": "tenant_config",
+      "schema": "chat",
+      "columns": {
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "open_before_minutes": {
+          "name": "open_before_minutes",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "close_after_minutes": {
+          "name": "close_after_minutes",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "slow_mode_seconds": {
+          "name": "slow_mode_seconds",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "strictness": {
+          "name": "strictness",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "event_kinds": {
+          "name": "event_kinds",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by": {
+          "name": "updated_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "tenant_config_tenant_id_tenant_id_fk": {
+          "name": "tenant_config_tenant_id_tenant_id_fk",
+          "tableFrom": "tenant_config",
+          "tableTo": "tenant",
+          "schemaTo": "api",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "tenant_config_open": {
+          "name": "tenant_config_open",
+          "value": "\"chat\".\"tenant_config\".\"open_before_minutes\" is null or \"chat\".\"tenant_config\".\"open_before_minutes\" between 0 and 1440"
+        },
+        "tenant_config_close": {
+          "name": "tenant_config_close",
+          "value": "\"chat\".\"tenant_config\".\"close_after_minutes\" is null or \"chat\".\"tenant_config\".\"close_after_minutes\" between 0 and 1440"
+        },
+        "tenant_config_slow": {
+          "name": "tenant_config_slow",
+          "value": "\"chat\".\"tenant_config\".\"slow_mode_seconds\" is null or \"chat\".\"tenant_config\".\"slow_mode_seconds\" between 0 and 600"
+        },
+        "tenant_config_strictness": {
+          "name": "tenant_config_strictness",
+          "value": "\"chat\".\"tenant_config\".\"strictness\" is null or strictness in ('standard', 'strict')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "billing.catalog_version": {
+      "name": "catalog_version",
+      "schema": "billing",
+      "columns": {
+        "version": {
+          "name": "version",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "first_seen_at": {
+          "name": "first_seen_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "billing.price": {
+      "name": "price",
+      "schema": "billing",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "public.uuid_generate_v7()"
+        },
+        "item_kind": {
+          "name": "item_kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "item_key": {
+          "name": "item_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tier_value": {
+          "name": "tier_value",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "market": {
+          "name": "market",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "currency": {
+          "name": "currency",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "amount_minor": {
+          "name": "amount_minor",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "interval": {
+          "name": "interval",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "starting_at": {
+          "name": "starting_at",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "stripe_price_id": {
+          "name": "stripe_price_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "active": {
+          "name": "active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "catalog_version": {
+          "name": "catalog_version",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "price_active_uq": {
+          "name": "price_active_uq",
+          "columns": [
+            {
+              "expression": "item_kind",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "item_key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "coalesce(\"tier_value\", -1)",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "market",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "currency",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "interval",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"billing\".\"price\".\"active\"",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "price_item_idx": {
+          "name": "price_item_idx",
+          "columns": [
+            {
+              "expression": "item_kind",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "item_key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "price_catalog_version_catalog_version_version_fk": {
+          "name": "price_catalog_version_catalog_version_version_fk",
+          "tableFrom": "price",
+          "tableTo": "catalog_version",
+          "schemaTo": "billing",
+          "columnsFrom": [
+            "catalog_version"
+          ],
+          "columnsTo": [
+            "version"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "price_item_kind": {
+          "name": "price_item_kind",
+          "value": "\"billing\".\"price\".\"item_kind\" in ('plan', 'module', 'tier', 'addon', 'capacity')"
+        },
+        "price_interval": {
+          "name": "price_interval",
+          "value": "\"billing\".\"price\".\"interval\" in ('month', 'year', 'one_time', 'metered')"
+        },
+        "price_currency": {
+          "name": "price_currency",
+          "value": "\"billing\".\"price\".\"currency\" in ('usd', 'brl')"
+        },
+        "price_market_iso2": {
+          "name": "price_market_iso2",
+          "value": "\"billing\".\"price\".\"market\" ~ '^[A-Z]{2}$'"
+        },
+        "price_amount_nonnegative": {
+          "name": "price_amount_nonnegative",
+          "value": "\"billing\".\"price\".\"amount_minor\" >= 0"
+        },
+        "price_tier_value": {
+          "name": "price_tier_value",
+          "value": "(\"billing\".\"price\".\"item_kind\" = 'tier') = (\"billing\".\"price\".\"tier_value\" is not null)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "billing.tenant_override": {
+      "name": "tenant_override",
+      "schema": "billing",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "public.uuid_generate_v7()"
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "key": {
+          "name": "key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "value": {
+          "name": "value",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reason": {
+          "name": "reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "granted_by": {
+          "name": "granted_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "valid_until": {
+          "name": "valid_until",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "revoked_at": {
+          "name": "revoked_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "revoked_by": {
+          "name": "revoked_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "tenant_override_tenant_idx": {
+          "name": "tenant_override_tenant_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "valid_until",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "tenant_override_tenant_id_tenant_id_fk": {
+          "name": "tenant_override_tenant_id_tenant_id_fk",
+          "tableFrom": "tenant_override",
+          "tableTo": "tenant",
+          "schemaTo": "api",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "tenant_override_kind": {
+          "name": "tenant_override_kind",
+          "value": "\"billing\".\"tenant_override\".\"kind\" in ('module_grant', 'module_revoke', 'tier', 'addon', 'feature_grant')"
+        },
+        "tenant_override_value": {
+          "name": "tenant_override_value",
+          "value": "(\"billing\".\"tenant_override\".\"kind\" in ('tier', 'addon')) = (\"billing\".\"tenant_override\".\"value\" is not null) and (\"billing\".\"tenant_override\".\"value\" is null or \"billing\".\"tenant_override\".\"value\" >= 0)"
+        },
+        "tenant_override_reason": {
+          "name": "tenant_override_reason",
+          "value": "length(trim(\"billing\".\"tenant_override\".\"reason\")) > 0"
+        },
+        "tenant_override_revoked": {
+          "name": "tenant_override_revoked",
+          "value": "(\"billing\".\"tenant_override\".\"revoked_at\" is null) = (\"billing\".\"tenant_override\".\"revoked_by\" is null)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "engage.shop_click": {
+      "name": "shop_click",
+      "schema": "engage",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "public.uuid_generate_v7()"
+        },
+        "clicked_at": {
+          "name": "clicked_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "event_id": {
+          "name": "event_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "entity_kind": {
+          "name": "entity_kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "entity_id": {
+          "name": "entity_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "product_id": {
+          "name": "product_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "store_id": {
+          "name": "store_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "origin": {
+          "name": "origin",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "widget_id": {
+          "name": "widget_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "country": {
+          "name": "country",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "locale": {
+          "name": "locale",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "shop_click_event_idx": {
+          "name": "shop_click_event_idx",
+          "columns": [
+            {
+              "expression": "event_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "clicked_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "shop_click_entity_idx": {
+          "name": "shop_click_entity_idx",
+          "columns": [
+            {
+              "expression": "entity_kind",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "entity_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "clicked_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "shop_click_store_idx": {
+          "name": "shop_click_store_idx",
+          "columns": [
+            {
+              "expression": "store_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "clicked_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "shop_click_tenant_idx": {
+          "name": "shop_click_tenant_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "clicked_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "shop_click_origin": {
+          "name": "shop_click_origin",
+          "value": "origin in ('client', 'galaxie_app', 'galaxie_site')"
+        },
+        "shop_click_entity_kind": {
+          "name": "shop_click_entity_kind",
+          "value": "entity_kind in ('competition', 'participant', 'person')"
+        },
+        "shop_click_client_tenant": {
+          "name": "shop_click_client_tenant",
+          "value": "(\"engage\".\"shop_click\".\"origin\" = 'client') = (\"engage\".\"shop_click\".\"tenant_id\" is not null)"
+        },
+        "shop_click_country": {
+          "name": "shop_click_country",
+          "value": "\"engage\".\"shop_click\".\"country\" is null or \"engage\".\"shop_click\".\"country\" ~ '^[A-Z]{2}$'"
+        },
+        "shop_click_locale": {
+          "name": "shop_click_locale",
+          "value": "\"engage\".\"shop_click\".\"locale\" is null or length(\"engage\".\"shop_click\".\"locale\") between 2 and 10"
+        },
+        "shop_click_widget_len": {
+          "name": "shop_click_widget_len",
+          "value": "\"engage\".\"shop_click\".\"widget_id\" is null or length(\"engage\".\"shop_click\".\"widget_id\") between 1 and 80"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "engage.shop_entity": {
+      "name": "shop_entity",
+      "schema": "engage",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "public.uuid_generate_v7()"
+        },
+        "entity_kind": {
+          "name": "entity_kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "entity_id": {
+          "name": "entity_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "kit_brand": {
+          "name": "kit_brand",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "kit_season": {
+          "name": "kit_season",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reviewed_season": {
+          "name": "reviewed_season",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "updated_by": {
+          "name": "updated_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "shop_entity_ref_uq": {
+          "name": "shop_entity_ref_uq",
+          "columns": [
+            {
+              "expression": "entity_kind",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "entity_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "shop_entity_kind": {
+          "name": "shop_entity_kind",
+          "value": "entity_kind in ('competition', 'participant', 'person')"
+        },
+        "shop_entity_kit_brand_len": {
+          "name": "shop_entity_kit_brand_len",
+          "value": "\"engage\".\"shop_entity\".\"kit_brand\" is null or length(\"engage\".\"shop_entity\".\"kit_brand\") between 2 and 40"
+        },
+        "shop_entity_seasons": {
+          "name": "shop_entity_seasons",
+          "value": "(\"engage\".\"shop_entity\".\"kit_season\" is null or \"engage\".\"shop_entity\".\"kit_season\" ~ '^[0-9]{4}(/[0-9]{2})?$') and (\"engage\".\"shop_entity\".\"reviewed_season\" is null or \"engage\".\"shop_entity\".\"reviewed_season\" ~ '^[0-9]{4}(/[0-9]{2})?$')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "engage.shop_entity_store": {
+      "name": "shop_entity_store",
+      "schema": "engage",
+      "columns": {
+        "entity_id": {
+          "name": "entity_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "store_id": {
+          "name": "store_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "lookup_kind": {
+          "name": "lookup_kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "lookup_value": {
+          "name": "lookup_value",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "page_url": {
+          "name": "page_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by": {
+          "name": "updated_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "shop_entity_store_store_idx": {
+          "name": "shop_entity_store_store_idx",
+          "columns": [
+            {
+              "expression": "store_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "shop_entity_store_entity_id_shop_entity_id_fk": {
+          "name": "shop_entity_store_entity_id_shop_entity_id_fk",
+          "tableFrom": "shop_entity_store",
+          "tableTo": "shop_entity",
+          "schemaTo": "engage",
+          "columnsFrom": [
+            "entity_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "shop_entity_store_store_id_shop_store_id_fk": {
+          "name": "shop_entity_store_store_id_shop_store_id_fk",
+          "tableFrom": "shop_entity_store",
+          "tableTo": "shop_store",
+          "schemaTo": "engage",
+          "columnsFrom": [
+            "store_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "shop_entity_store_pkey": {
+          "name": "shop_entity_store_pkey",
+          "columns": [
+            "entity_id",
+            "store_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "shop_entity_store_lookup_kind": {
+          "name": "shop_entity_store_lookup_kind",
+          "value": "lookup_kind in ('category', 'official_seller', 'product_list', 'team_page', 'team_slug')"
+        },
+        "shop_entity_store_lookup_len": {
+          "name": "shop_entity_store_lookup_len",
+          "value": "length(\"engage\".\"shop_entity_store\".\"lookup_value\") between 1 and 500"
+        },
+        "shop_entity_store_page_https": {
+          "name": "shop_entity_store_page_https",
+          "value": "\"engage\".\"shop_entity_store\".\"page_url\" is null or \"engage\".\"shop_entity_store\".\"page_url\" ~ '^https://'"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "engage.shop_product": {
+      "name": "shop_product",
+      "schema": "engage",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "public.uuid_generate_v7()"
+        },
+        "entity_id": {
+          "name": "entity_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "store_id": {
+          "name": "store_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "store_product_id": {
+          "name": "store_product_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "product_type": {
+          "name": "product_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "season": {
+          "name": "season",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "url": {
+          "name": "url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "active": {
+          "name": "active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "position": {
+          "name": "position",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'approved'"
+        },
+        "suggested_by": {
+          "name": "suggested_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reviewed_by": {
+          "name": "reviewed_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reviewed_at": {
+          "name": "reviewed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by": {
+          "name": "updated_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "shop_product_store_item_uq": {
+          "name": "shop_product_store_item_uq",
+          "columns": [
+            {
+              "expression": "entity_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "store_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "store_product_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "shop_product_entity_idx": {
+          "name": "shop_product_entity_idx",
+          "columns": [
+            {
+              "expression": "entity_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "store_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "position",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "shop_product_store_idx": {
+          "name": "shop_product_store_idx",
+          "columns": [
+            {
+              "expression": "store_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "shop_product_entity_id_shop_entity_id_fk": {
+          "name": "shop_product_entity_id_shop_entity_id_fk",
+          "tableFrom": "shop_product",
+          "tableTo": "shop_entity",
+          "schemaTo": "engage",
+          "columnsFrom": [
+            "entity_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "shop_product_store_id_shop_store_id_fk": {
+          "name": "shop_product_store_id_shop_store_id_fk",
+          "tableFrom": "shop_product",
+          "tableTo": "shop_store",
+          "schemaTo": "engage",
+          "columnsFrom": [
+            "store_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "shop_product_type": {
+          "name": "shop_product_type",
+          "value": "product_type in ('away_kit', 'ball', 'cap', 'champion', 'commemorative', 'home_kit', 'jacket', 'mug', 'other', 'scarf', 'third_kit', 'training')"
+        },
+        "shop_product_status": {
+          "name": "shop_product_status",
+          "value": "status in ('approved', 'rejected', 'suggested')"
+        },
+        "shop_product_store_item_len": {
+          "name": "shop_product_store_item_len",
+          "value": "length(\"engage\".\"shop_product\".\"store_product_id\") between 1 and 120"
+        },
+        "shop_product_title_len": {
+          "name": "shop_product_title_len",
+          "value": "length(\"engage\".\"shop_product\".\"title\") between 2 and 160"
+        },
+        "shop_product_season": {
+          "name": "shop_product_season",
+          "value": "\"engage\".\"shop_product\".\"season\" is null or \"engage\".\"shop_product\".\"season\" ~ '^[0-9]{4}(/[0-9]{2})?$'"
+        },
+        "shop_product_url_https": {
+          "name": "shop_product_url_https",
+          "value": "\"engage\".\"shop_product\".\"url\" ~ '^https://'"
+        },
+        "shop_product_position": {
+          "name": "shop_product_position",
+          "value": "\"engage\".\"shop_product\".\"position\" >= 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "engage.shop_store": {
+      "name": "shop_store",
+      "schema": "engage",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "country": {
+          "name": "country",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "network": {
+          "name": "network",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "home_url": {
+          "name": "home_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "active": {
+          "name": "active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "position": {
+          "name": "position",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "client_paths": {
+          "name": "client_paths",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::text[]"
+        },
+        "config": {
+          "name": "config",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
+        },
+        "credentials_sealed": {
+          "name": "credentials_sealed",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "credentials_hint": {
+          "name": "credentials_hint",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "credentials_updated_at": {
+          "name": "credentials_updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "credentials_updated_by": {
+          "name": "credentials_updated_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by": {
+          "name": "updated_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "shop_store_country_idx": {
+          "name": "shop_store_country_idx",
+          "columns": [
+            {
+              "expression": "country",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "position",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "shop_store_id_format": {
+          "name": "shop_store_id_format",
+          "value": "\"engage\".\"shop_store\".\"id\" ~ '^[a-z0-9_]{2,40}$'"
+        },
+        "shop_store_name_len": {
+          "name": "shop_store_name_len",
+          "value": "length(\"engage\".\"shop_store\".\"name\") between 2 and 60"
+        },
+        "shop_store_country_format": {
+          "name": "shop_store_country_format",
+          "value": "\"engage\".\"shop_store\".\"country\" ~ '^[A-Z]{2}$'"
+        },
+        "shop_store_network": {
+          "name": "shop_store_network",
+          "value": "network in ('amazon', 'awin', 'direct', 'impact', 'mercado_livre')"
+        },
+        "shop_store_home_https": {
+          "name": "shop_store_home_https",
+          "value": "\"engage\".\"shop_store\".\"home_url\" is null or \"engage\".\"shop_store\".\"home_url\" ~ '^https://'"
+        },
+        "shop_store_client_paths": {
+          "name": "shop_store_client_paths",
+          "value": "\"engage\".\"shop_store\".\"client_paths\" <@ array['client_code', 'subnetwork']::text[]"
+        },
+        "shop_store_credentials_sealed": {
+          "name": "shop_store_credentials_sealed",
+          "value": "\"engage\".\"shop_store\".\"credentials_sealed\" is null or \"engage\".\"shop_store\".\"credentials_sealed\" like 'enc:%'"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "api.access_error_daily": {
+      "name": "access_error_daily",
+      "schema": "api",
+      "columns": {
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "day": {
+          "name": "day",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reason": {
+          "name": "reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "key_prefix": {
+          "name": "key_prefix",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "detail": {
+          "name": "detail",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "count": {
+          "name": "count",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "last_at": {
+          "name": "last_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "access_error_daily_day_idx": {
+          "name": "access_error_daily_day_idx",
+          "columns": [
+            {
+              "expression": "day",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "access_error_daily_tenant_id_tenant_id_fk": {
+          "name": "access_error_daily_tenant_id_tenant_id_fk",
+          "tableFrom": "access_error_daily",
+          "tableTo": "tenant",
+          "schemaTo": "api",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "access_error_daily_tenant_id_day_reason_key_prefix_detail_pk": {
+          "name": "access_error_daily_tenant_id_day_reason_key_prefix_detail_pk",
+          "columns": [
+            "tenant_id",
+            "day",
+            "reason",
+            "key_prefix",
+            "detail"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
       "isRLSEnabled": false
     }
   },
@@ -21463,7 +25635,9 @@
     "api": "api",
     "cosmos": "cosmos",
     "engage": "engage",
-    "fan": "fan"
+    "fan": "fan",
+    "chat": "chat",
+    "billing": "billing"
   },
   "sequences": {},
   "roles": {},

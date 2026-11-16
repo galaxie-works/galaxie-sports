@@ -13,6 +13,7 @@ import {
 } from 'react';
 
 import {
+  AGE_CHECK_CONSENT_VERSION,
   FAN_TOKEN_CHANGED_EVENT,
   FAN_TOKEN_RENEW_BEFORE_MS,
   fanTokenSubject,
@@ -37,6 +38,7 @@ import {
   type FanCapability,
   type FanStatus,
   type GsCompetitionContext,
+  type GsAgeVerification,
   type GsFanMe,
   type GsEvent,
   type GsGames,
@@ -412,6 +414,9 @@ export function FanGate({ need = 'write', children }: { need?: FanCapability; ch
   const message = fanGateMessage(fan.status, fan.me?.capabilities ?? [], need);
   if (message === null) return <>{children}</>;
   if (message === 'checking') return <div className="gs-state">{texts.loading}</div>;
+  // adulto que precisa comprovar a idade: a verificação da Galaxie, quando o cliente tem o módulo (#1109)
+  if (fan.status === 'ready' && fan.me?.age_band === '18plus' && fan.me.age_status === 'needs_verification')
+    return <AgeCheck fallback={<p>{texts.fan.ageCheck.title}</p>} />;
   const text =
     message === 'unavailable'
       ? texts.error
@@ -431,6 +436,232 @@ export function FanGate({ need = 'write', children }: { need?: FanCapability; ch
           {texts.fan.signInAction}
         </button>
       )}
+    </div>
+  );
+}
+
+/** Estado da verificação de idade no widget. `hidden`: sem o módulo, sem chaves ou Perfil que não pode; mostra o padrão. */
+type AgeCheckState =
+  | 'loading'
+  | 'hidden'
+  | 'idle'
+  | 'starting'
+  | 'pending'
+  | 'waiting'
+  | 'review'
+  | 'failed'
+  | 'limit'
+  | 'error';
+
+/** Enquanto a verificação está `pending`, confere de novo a cada tanto, até este limite (2 minutos). */
+const AGE_CHECK_POLL_MS = 4_000;
+const AGE_CHECK_POLL_MAX = 30;
+/** Falha mais antiga que isto não aparece na abertura: o torcedor vê o aviso e o consentimento de novo. */
+const AGE_CHECK_RECENT_MS = 3_600_000;
+
+/** Verificações aprovadas que já fizeram o widget reler o Perfil (vale para a página toda). */
+const AGE_CHECK_REFRESHED = new Set<string>();
+
+/** O que mostrar para a última verificação; `approved` relê o Perfil. */
+export function ageCheckStateOf(
+  v: GsAgeVerification | null,
+  now = Date.now(),
+): Exclude<AgeCheckState, 'loading' | 'hidden' | 'starting' | 'waiting' | 'limit' | 'error'> | 'approved' {
+  if (!v) return 'idle';
+  if (v.status === 'approved') return 'approved';
+  if (v.status === 'pending') return 'pending';
+  if (v.status === 'review') return 'review';
+  const at = Date.parse(v.decided_at ?? v.created_at);
+  return Number.isFinite(at) && now - at < AGE_CHECK_RECENT_MS ? 'failed' : 'idle';
+}
+
+/** Volta do provedor: só origem e caminho (a API corta query e fragmento); fora de https, a API recusa. */
+export function ageCheckReturnUrl(href: string): string | null {
+  try {
+    const u = new URL(href);
+    return u.protocol === 'https:' ? `${u.origin}${u.pathname}` : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Comprovação de idade feita pela Galaxie (#1109, módulo `age_verification`): aviso de biometria, consentimento
+ * e ida para a tela do provedor na mesma aba (ele volta para a origem e o caminho da página). Na volta, confere até
+ * a decisão chegar pelo webhook e, aprovada, relê o Perfil. Sem o módulo (403), sem as chaves (503) ou fora de
+ * https, mostra `fallback` e o site segue com a comprovação dele (evento `galaxie:fan-status`).
+ */
+export function AgeCheck({ fallback }: { fallback?: ReactNode }) {
+  const { texts, fan } = useGalaxieWidget();
+  const t = texts.fan.ageCheck;
+  const [state, setState] = useState<AgeCheckState>('loading');
+  const [consent, setConsent] = useState(false);
+  const [polls, setPolls] = useState(0);
+  // sobe a cada conferência manual: reagenda a automática (o timer anterior foi invalidado pela geração)
+  const [round, setRound] = useState(0);
+  const fetchRef = useRef(fan.fetch);
+  fetchRef.current = fan.fetch;
+  const refreshRef = useRef(fan.refresh);
+  refreshRef.current = fan.refresh;
+  // sobe a cada ação do torcedor: resposta de um pedido anterior não sobrescreve o estado novo
+  const generationRef = useRef(0);
+
+  const load = useCallback(async (): Promise<AgeCheckState> => {
+    try {
+      const res = await fetchRef.current('/v1/fans/me/age-verification');
+      if (!res.ok) return res.status === 403 || res.status === 404 || res.status === 503 ? 'hidden' : 'error';
+      const body = (await res.json()) as { data: GsAgeVerification | null };
+      const next = ageCheckStateOf(body.data ?? null);
+      if (next !== 'approved') return next;
+      // uma releitura do Perfil por aprovação (o portão desmonta este componente durante a releitura): se ainda
+      // falta comprovar (faixa congelada, ficha que pede documento), oferece outra verificação em vez de reler sem parar
+      const id = body.data!.verification_id;
+      if (AGE_CHECK_REFRESHED.has(id)) return 'idle';
+      AGE_CHECK_REFRESHED.add(id);
+      refreshRef.current();
+      // liberado, o portão troca este componente pelo recurso; senão a próxima conferência cai no `idle` acima
+      return 'pending';
+    } catch {
+      return 'error';
+    }
+  }, []);
+
+  const reload = useCallback(
+    (resetPolls: boolean) => {
+      const generation = ++generationRef.current;
+      if (resetPolls) setPolls(0);
+      void load().then((next) => {
+        if (generation !== generationRef.current) return;
+        setState(next);
+        setRound((n) => n + 1);
+      });
+    },
+    [load],
+  );
+
+  useEffect(() => {
+    reload(true);
+    return () => {
+      generationRef.current += 1;
+    };
+  }, [reload]);
+
+  // página restaurada do cache do navegador (botão Voltar depois de ir ao provedor): confere de novo
+  useEffect(() => {
+    const win = globalThis as {
+      addEventListener?: Window['addEventListener'];
+      removeEventListener?: Window['removeEventListener'];
+    };
+    if (!win.addEventListener || !win.removeEventListener) return;
+    const onShow = (e: Event) => {
+      if ((e as PageTransitionEvent).persisted) reload(true);
+    };
+    win.addEventListener('pageshow', onShow);
+    return () => win.removeEventListener?.('pageshow', onShow);
+  }, [reload]);
+
+  // a decisão chega pelo webhook alguns segundos depois da volta: confere de novo, com limite
+  useEffect(() => {
+    if (state !== 'pending') return;
+    if (polls >= AGE_CHECK_POLL_MAX) {
+      setState('waiting');
+      return;
+    }
+    const generation = generationRef.current;
+    const timer = setTimeout(() => {
+      void load().then((next) => {
+        if (generation !== generationRef.current) return;
+        setState(next);
+        setPolls((n) => n + 1);
+      });
+    }, AGE_CHECK_POLL_MS);
+    return () => clearTimeout(timer);
+  }, [state, polls, round, load]);
+
+  const start = useCallback(async () => {
+    const loc = (globalThis as { location?: Location }).location;
+    const returnUrl = loc ? ageCheckReturnUrl(loc.href) : null;
+    if (!consent || !loc) return;
+    if (!returnUrl) return setState('hidden');
+    const generation = ++generationRef.current;
+    setState('starting');
+    const settle = (next: AgeCheckState) => {
+      if (generation === generationRef.current) setState(next);
+    };
+    try {
+      const res = await fetchRef.current('/v1/fans/me/age-verification', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          returnUrl,
+          consent: { givenAt: new Date().toISOString(), textVersion: AGE_CHECK_CONSENT_VERSION },
+        }),
+      });
+      if (res.status === 429) return settle('limit');
+      if (res.status === 403 || res.status === 503) return settle('hidden');
+      if (!res.ok) return settle('error');
+      const body = (await res.json()) as { data: GsAgeVerification };
+      if (!body.data.url) return settle('error');
+      if (generation !== generationRef.current) return;
+      loc.assign(body.data.url);
+    } catch {
+      settle('error');
+    }
+  }, [consent]);
+
+  const toIdle = () => {
+    generationRef.current += 1;
+    setState('idle');
+  };
+
+  if (state === 'hidden') return <div className="gs-state">{fallback}</div>;
+  if (state === 'loading') return <div className="gs-state">{texts.loading}</div>;
+  const again = (
+    <button type="button" className="gs-button" onClick={toIdle}>
+      {t.retry}
+    </button>
+  );
+  if (state === 'pending' || state === 'waiting')
+    return (
+      <div className="gs-state" data-gs-age-check={state} role="status">
+        <p>{state === 'pending' ? t.pending : t.waiting}</p>
+        <button type="button" className="gs-button" onClick={() => reload(true)}>
+          {t.check}
+        </button>
+        {again}
+      </div>
+    );
+  if (state === 'review')
+    return (
+      <div className="gs-state" data-gs-age-check="review" role="status">
+        <p>{t.review}</p>
+      </div>
+    );
+  if (state === 'failed' || state === 'limit' || state === 'error')
+    return (
+      <div className="gs-state" data-gs-age-check={state} role="status">
+        <p>{state === 'failed' ? t.failed : state === 'limit' ? t.limit : t.error}</p>
+        {state !== 'limit' && again}
+      </div>
+    );
+  return (
+    <div className="gs-state" data-gs-age-check="idle">
+      <p>
+        <strong>{t.title}</strong>
+      </p>
+      <p>{t.notice}</p>
+      <label>
+        <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.currentTarget.checked)} />{' '}
+        {t.consent}
+      </label>
+      <button
+        type="button"
+        className="gs-button"
+        disabled={!consent || state === 'starting'}
+        onClick={() => void start()}
+      >
+        {state === 'starting' ? t.starting : t.start}
+      </button>
     </div>
   );
 }
