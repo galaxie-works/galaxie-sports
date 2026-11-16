@@ -34,7 +34,7 @@ function respond(request: Request, response: Response, headers: Headers): Respon
 }
 
 /**
- * Cache de borda da API (#1257), na rota `api.galaxiesports.com/v1/*`:
+ * Cache de borda da API (#1257), na rota `/v1/*` do host da API (a rota fica no `wrangler.toml`):
  * 1. passa direto (sem olhar nem gravar a borda) o que não é GET, o SSE, o token do torcedor e o que vem sem chave;
  * 2. procura a cópia pela chave URL + SHA-256 da chave da API + locale + origem da página;
  * 3. sem cópia, busca na origem (com o IP e o país do cliente) e guarda só o que a origem marcou com
