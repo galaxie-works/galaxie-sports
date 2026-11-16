@@ -398,6 +398,19 @@ Conteúdo relacionado (migration 0014, [12 §6](12-conteudo-relacionado.md#6-mod
 
 Regras de autenticação, planos e rate limit: [05 §1.1](05-api-publica.md#11-implementação-schema-api).
 
+## 6.2 `billing` — organização e domínio (plataforma comercial, F2)
+
+O schema `billing` nasceu na F1 (#1137) com o catálogo (`billing.catalog_version`, `billing.price`, `billing.tenant_override`; a estrutura do catálogo mora em `config/catalog/`, o preço é dado). A F2 (#1136, migration 0178) põe a organização acima da marca: quem assina e paga é a organização; a marca (`api.tenant`) tem plano, módulos, mercados e chaves.
+
+| Tabela | Uso |
+|---|---|
+| `billing.organization` | Quem assina e paga: `slug` (único), `name`, `country` (ISO2), `currency` (`usd`/`brl`), `billing_entity` (`llc`/`ltda`), `capacity_tier` (C1–C4, padrão C1; a faixa é da organização e o pico é medido por marca), `locale`, `timezone`, dados de fatura (`legal_name`, `tax_id`, `billing_email`, `billing_address`), aceite dos termos (`terms_version`, `terms_accepted_at`, `terms_accepted_by`, `terms_accepted_ip`), `review_status` (`none`/`pending`/`approved`/`rejected`: e-mail grátis cai em revisão manual), `stripe_customer_id`, `is_galaxie` (cliente zero), `created_by` |
+| `billing.organization_member` | Cargos que valem na organização inteira: `user_id` (usuário do console), `role` (`owner`/`billing`), `invited_by`, `invited_at`, `expires_at` (validade do convite), `accepted_at` (null = pendente); única por (organização, usuário) |
+| `billing.domain` | Domínio de uma marca comprovado por TXT: `tenant_id`, `host` (minúsculas), `txt_token` (gerado, único), `verified_at`, `last_checked_at`, `last_error`; único por (marca, host) e um host comprovado pertence a uma marca só |
+| `billing.staff_action` | Toda ação da equipe Galaxie sobre um `tenant_id` ou uma `organization_id` (pelo menos um): `actor`, `action`, `reason` (mínimo 5 caracteres), `payload`; só cresce, como `cosmos.staff_action` |
+
+Na marca: `api.tenant.organization_id` (FK para a organização; nula só até a migration de dados, obrigatória num PR `contrair` futuro) e `api.tenant_member.invite_expires_at` (validade do convite). Os cargos `developer` e `billing` entraram em `api.tenant_member` na migration 0177. A migration de dados da 0178 cria uma organização por marca existente (país pelo primeiro mercado, senão BR; moeda e entidade pela ficha do país; faixa da marca ou C1) e promove cada Dono de marca a Dono da organização; rodar de novo não cria nada a mais.
+
 ## 7. Convenções
 
 - IDs próprios em **UUID v7**; IDs do fornecedor apenas em `provider_map` e nas tabelas espelho.

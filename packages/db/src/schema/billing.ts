@@ -5,6 +5,7 @@ import {
   check,
   index,
   integer,
+  jsonb,
   pgSchema,
   text,
   timestamp,
@@ -129,5 +130,190 @@ export const tenantOverride = billing.table(
     check('tenant_override_reason', sql`length(trim(${t.reason})) > 0`),
     check('tenant_override_revoked', sql`(${t.revokedAt} is null) = (${t.revokedBy} is null)`),
     index('tenant_override_tenant_idx').on(t.tenantId, t.validUntil),
+  ],
+);
+
+// ─── organização, membros, domínios e ações da equipe (F2 #1136, docs 02 e 03 da plataforma) ─────────────────────
+
+/** Moeda em que a organização é faturada; `CAD` depois (doc 03). */
+export const ORGANIZATION_CURRENCIES = ['usd', 'brl'] as const;
+export type OrganizationCurrency = (typeof ORGANIZATION_CURRENCIES)[number];
+
+/** Entidade da Galaxie que fatura: LLC (uma conta Stripe só) ou Ltda, pela ficha do país (PL8). */
+export const BILLING_ENTITIES = ['llc', 'ltda'] as const;
+export type BillingEntity = (typeof BILLING_ENTITIES)[number];
+
+/** Faixas de capacidade (`config/catalog/capacity.yaml`); C3 e C4 só por proposta (PL7, R3). */
+export const CAPACITY_TIERS = ['C1', 'C2', 'C3', 'C4'] as const;
+export type CapacityTier = (typeof CAPACITY_TIERS)[number];
+
+/**
+ * Revisão manual do cadastro (PL2): `none` = entrou direto (e-mail de empresa); `pending` = caiu numa regra antiabuso
+ * (e-mail grátis, limite por IP) e espera a fila do admin; `approved` e `rejected` = decisão do admin.
+ */
+export const ORGANIZATION_REVIEW_STATUSES = ['none', 'pending', 'approved', 'rejected'] as const;
+export type OrganizationReviewStatus = (typeof ORGANIZATION_REVIEW_STATUSES)[number];
+
+/** Endereço de fatura, livre (o Stripe é quem valida); chaves em inglês: `line1`, `city`, `state`, `postal_code`… */
+export type BillingAddress = Record<string, string | undefined>;
+
+/**
+ * Quem assina e paga, acima da marca (doc 03): contrato, entidade e moeda, faixa de capacidade, cliente no Stripe,
+ * termos aceitos. Uma organização tem uma ou mais marcas (`api.tenant.organization_id`); as marcas não compartilham
+ * dado de torcedor nem de widget, só contrato, faixa e fatura. A faixa de capacidade é da organização e o pico é medido
+ * por marca (PL23). O caso comum, uma organização com uma marca só, não vê diferença na tela.
+ */
+export const organization = billing.table(
+  'organization',
+  {
+    id: pkUuidV7(),
+    slug: text('slug').notNull().unique(),
+    name: text('name').notNull(),
+    /** País principal (ISO2): define moeda, entidade e o padrão de locale e fuso. */
+    country: text('country').notNull(),
+    currency: text('currency').$type<OrganizationCurrency>().notNull(),
+    billingEntity: text('billing_entity').$type<BillingEntity>().notNull(),
+    capacityTier: text('capacity_tier').$type<CapacityTier>().notNull().default('C1'),
+    /** Padrão do console e das faturas; null = o do país. */
+    locale: text('locale'),
+    /** Fuso IANA (`America/Sao_Paulo`); null = o do país. */
+    timezone: text('timezone'),
+    // dados de fatura (o cadastro do PR (c) e a tela de Cobrança preenchem)
+    legalName: text('legal_name'),
+    /** CNPJ, EIN ou equivalente, como o cliente informou. */
+    taxId: text('tax_id'),
+    billingEmail: text('billing_email'),
+    billingAddress: jsonb('billing_address').$type<BillingAddress>(),
+    // aceite dos termos de autoatendimento (doc 02 §Cadastro): versão, quando, quem e de onde
+    termsVersion: text('terms_version'),
+    termsAcceptedAt: timestamp('terms_accepted_at', { withTimezone: true }),
+    /** Usuário do console (Better Auth) que aceitou. */
+    termsAcceptedBy: text('terms_accepted_by'),
+    termsAcceptedIp: text('terms_accepted_ip'),
+    reviewStatus: text('review_status').$type<OrganizationReviewStatus>().notNull().default('none'),
+    /** Cliente no Stripe (F4); null até existir. */
+    stripeCustomerId: text('stripe_customer_id'),
+    /** Cliente zero: a própria Galaxie (site e app), que consome tudo sem cobrança. */
+    isGalaxie: boolean('is_galaxie').notNull().default(false),
+    /** Quem criou: `signup:<id do usuário>`, `panel:<id do usuário>`, `cli:<comando>`, `migration:<número>`. */
+    createdBy: text('created_by').notNull(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    check('organization_country_iso2', sql`${t.country} ~ '^[A-Z]{2}$'`),
+    check('organization_currency', sql`${t.currency} in ('usd', 'brl')`),
+    check('organization_billing_entity', sql`${t.billingEntity} in ('llc', 'ltda')`),
+    check('organization_capacity_tier', sql`${t.capacityTier} in ('C1', 'C2', 'C3', 'C4')`),
+    check(
+      'organization_review_status',
+      sql`${t.reviewStatus} in ('none', 'pending', 'approved', 'rejected')`,
+    ),
+    // o aceite vem inteiro ou não vem: versão e data andam juntas
+    check('organization_terms', sql`(${t.termsVersion} is null) = (${t.termsAcceptedAt} is null)`),
+  ],
+);
+
+/** Cargos que valem na organização inteira (doc 03): o Dono e o financeiro. Os demais são da marca (`tenant_member`). */
+export const ORGANIZATION_MEMBER_ROLES = ['owner', 'billing'] as const;
+export type OrganizationMemberRole = (typeof ORGANIZATION_MEMBER_ROLES)[number];
+
+/**
+ * Pessoa com cargo na organização inteira. O cadastro grava quem criou como `owner`; os demais entram por convite com
+ * validade (`expires_at`) e `accepted_at` nulo até o aceite por OTP. A migration 0178 criou um `owner` aqui para cada
+ * Dono de marca que já existia.
+ */
+export const organizationMember = billing.table(
+  'organization_member',
+  {
+    id: pkUuidV7(),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organization.id, { onDelete: 'cascade' }),
+    /** Usuário do console (texto do Better Auth). */
+    userId: text('user_id').notNull(),
+    role: text('role').$type<OrganizationMemberRole>().notNull(),
+    /** Quem convidou: `signup:<id>`, `panel:<id do usuário>`, `galaxie:<id>`, `migration:<número>`. */
+    invitedBy: text('invited_by').notNull(),
+    invitedAt: timestamp('invited_at', { withTimezone: true }).notNull().defaultNow(),
+    /** Validade do convite; null = sem prazo ou já aceito. */
+    expiresAt: timestamp('expires_at', { withTimezone: true }),
+    /** Primeiro acesso depois do convite; null = convite pendente. */
+    acceptedAt: timestamp('accepted_at', { withTimezone: true }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex('organization_member_user_uq').on(t.organizationId, t.userId),
+    index('organization_member_user_idx').on(t.userId),
+    check('organization_member_role', sql`${t.role} in ('owner', 'billing')`),
+  ],
+);
+
+/**
+ * Domínio de uma marca com posse comprovada por registro TXT (doc 02 §Cadastro): só depois de `verified_at` o host
+ * entra como origem da chave publicável e como host do App da Comunidade. Sem a prova, um tenant poderia liberar o
+ * domínio de outro; por isso um host comprovado só pode ser de uma marca. O job `tenant.verify_domain` (PR (b))
+ * confere o TXT e grava `verified_at`, `last_checked_at` e `last_error`.
+ */
+export const domain = billing.table(
+  'domain',
+  {
+    id: pkUuidV7(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenant.id, { onDelete: 'cascade' }),
+    /** Host em minúsculas, sem esquema nem porta (`www.exemplo.com`). */
+    host: text('host').notNull(),
+    /** Valor que o cliente publica no TXT `_galaxie.<host>`; gerado pelo banco (122 bits aleatórios), único. */
+    txtToken: text('txt_token')
+      .notNull()
+      .default(sql`'galaxie-verify=' || replace(gen_random_uuid()::text, '-', '')`),
+    verifiedAt: timestamp('verified_at', { withTimezone: true }),
+    lastCheckedAt: timestamp('last_checked_at', { withTimezone: true }),
+    /** Motivo da última conferência que falhou; null quando passou ou ainda não conferiu. */
+    lastError: text('last_error'),
+    /** Quem cadastrou: `signup:<id>`, `panel:<id do usuário>`, `galaxie:<id>`. */
+    createdBy: text('created_by').notNull(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex('domain_tenant_host_uq').on(t.tenantId, t.host),
+    // um host comprovado pertence a uma marca só
+    uniqueIndex('domain_verified_host_uq')
+      .on(t.host)
+      .where(sql`${t.verifiedAt} is not null`),
+    uniqueIndex('domain_txt_token_uq').on(t.txtToken),
+    check(
+      'domain_host_format',
+      sql`${t.host} ~ '^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$'`,
+    ),
+  ],
+);
+
+/**
+ * Toda ação da equipe Galaxie sobre um tenant ou uma organização (PL17): quem, quando, sobre quem, o quê e por quê,
+ * como `cosmos.staff_action` faz com as carteiras. Só cresce; o painel nunca altera nem apaga uma linha. `action` é
+ * livre (`override.grant`, `review.approve`, `member.role_change`…); `payload` guarda o antes e o depois.
+ */
+export const platformStaffAction = billing.table(
+  'staff_action',
+  {
+    id: pkUuidV7(),
+    tenantId: uuid('tenant_id').references(() => tenant.id, { onDelete: 'cascade' }),
+    organizationId: uuid('organization_id').references(() => organization.id, { onDelete: 'cascade' }),
+    /** Usuário do console da equipe Galaxie (Better Auth). */
+    actor: text('actor').notNull(),
+    action: text('action').notNull(),
+    reason: text('reason').notNull(),
+    payload: jsonb('payload').$type<Record<string, unknown>>(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    check('billing_staff_action_target', sql`${t.tenantId} is not null or ${t.organizationId} is not null`),
+    check('billing_staff_action_reason', sql`length(trim(${t.reason})) >= 5`),
+    index('billing_staff_action_tenant_idx').on(t.tenantId, t.id.desc()),
+    index('billing_staff_action_organization_idx').on(t.organizationId, t.id.desc()),
   ],
 );
