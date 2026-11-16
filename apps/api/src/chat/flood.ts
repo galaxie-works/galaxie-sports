@@ -4,13 +4,26 @@
  * `DUPLICATE_LIMIT` vezes em 60 s (robô e copia-e-cola), fica `blockSeconds` sem enviar. Vale em todas as salas do
  * cliente: trocar de sala não zera o contador.
  *
- * Com Valkey, um script faz a conta e o bloqueio de forma atômica entre instâncias; sem Valkey, o mesmo em memória.
+ * A repetição só conta para textos com `DUPLICATE_MIN_CHARS` ou mais: "GOL" três vezes é comemoração, não robô.
+ *
+ * Com Valkey, um script faz a conta e o bloqueio de forma atômica entre instâncias, numa janela fixa de 60 s que começa
+ * na primeira mensagem (na virada da janela passam até 2N − 1 em poucos segundos; o modo lento segura o ritmo). Sem
+ * Valkey, o mesmo em memória, com janela deslizante.
  */
 import { createHash } from 'node:crypto';
 import type { Redis } from 'ioredis';
 
 export const FLOOD_WINDOW_MS = 60_000;
 export const DUPLICATE_LIMIT = 3;
+/** Texto mais curto que isto não entra na regra de repetição (comemoração curta). */
+export const DUPLICATE_MIN_CHARS = 12;
+/** Pessoas acompanhadas na versão em memória antes de uma faxina dos registros vencidos. */
+const MEMORY_SWEEP_AT = 10_000;
+
+const normalized = (text: string) => text.toLowerCase().replace(/\s+/g, ' ').trim();
+/** A repetição deste texto conta? */
+export const countsAsDuplicate = (text: string): boolean =>
+  [...normalized(text)].length >= DUPLICATE_MIN_CHARS;
 
 export interface FloodRule {
   maxPerMinute: number;
@@ -24,17 +37,20 @@ export interface FloodGuard {
 
 /** Texto comparável: sem caixa, sem espaços repetidos (a mesma mensagem com outro espaço é a mesma). */
 export const floodFingerprint = (text: string): string =>
-  createHash('sha1').update(text.toLowerCase().replace(/\s+/g, ' ').trim()).digest('base64url').slice(0, 16);
+  createHash('sha1').update(normalized(text)).digest('base64url').slice(0, 16);
 
-// KEYS: bloqueio, contador, repetição. ARGV: limite, janela ms, bloqueio ms, limite de repetição
+// KEYS: bloqueio, contador, repetição. ARGV: limite, janela ms, bloqueio ms, limite de repetição, conta repetição
 const HIT_SCRIPT = `
 local left = redis.call('PTTL', KEYS[1])
 if left > 0 then return left end
 local n = redis.call('INCR', KEYS[2])
 if n == 1 then redis.call('PEXPIRE', KEYS[2], tonumber(ARGV[2])) end
-local d = redis.call('INCR', KEYS[3])
-if d == 1 then redis.call('PEXPIRE', KEYS[3], tonumber(ARGV[2])) end
-if n > tonumber(ARGV[1]) or d >= tonumber(ARGV[4]) then
+local d = 0
+if ARGV[5] == '1' then
+  d = redis.call('INCR', KEYS[3])
+  if d == 1 then redis.call('PEXPIRE', KEYS[3], tonumber(ARGV[2])) end
+end
+if n > tonumber(ARGV[1]) or (ARGV[5] == '1' and d >= tonumber(ARGV[4])) then
   redis.call('SET', KEYS[1], '1', 'PX', tonumber(ARGV[3]))
   redis.call('DEL', KEYS[2], KEYS[3])
   return tonumber(ARGV[3])
@@ -59,6 +75,7 @@ export class RedisFloodGuard implements FloodGuard {
       FLOOD_WINDOW_MS,
       rule.blockSeconds * 1000,
       DUPLICATE_LIMIT,
+      countsAsDuplicate(text) ? '1' : '0',
     );
     return Number(left) || 0;
   }
@@ -76,6 +93,7 @@ export class MemoryFloodGuard implements FloodGuard {
     rule: FloodRule,
     now: number,
   ): Promise<number> {
+    if (this.sent.size + this.blocks.size > MEMORY_SWEEP_AT) this.sweep(now);
     const who = `${tenantId}:${profileId}`;
     const until = this.blocks.get(who) ?? 0;
     if (until > now) return until - now;
@@ -83,7 +101,7 @@ export class MemoryFloodGuard implements FloodGuard {
     const print = floodFingerprint(text);
     const recent = (this.sent.get(who) ?? []).filter((m) => now - m.at < FLOOD_WINDOW_MS);
     recent.push({ at: now, print });
-    const same = recent.filter((m) => m.print === print).length;
+    const same = countsAsDuplicate(text) ? recent.filter((m) => m.print === print).length : 0;
     if (recent.length > rule.maxPerMinute || same >= DUPLICATE_LIMIT) {
       this.blocks.set(who, now + rule.blockSeconds * 1000);
       this.sent.delete(who);
@@ -91,5 +109,12 @@ export class MemoryFloodGuard implements FloodGuard {
     }
     this.sent.set(who, recent);
     return 0;
+  }
+
+  /** Tira quem não manda nada há mais de uma janela e os bloqueios vencidos (a memória não cresce sem limite). */
+  private sweep(now: number): void {
+    for (const [who, until] of this.blocks) if (until <= now) this.blocks.delete(who);
+    for (const [who, list] of this.sent)
+      if (!list.some((m) => now - m.at < FLOOD_WINDOW_MS)) this.sent.delete(who);
   }
 }

@@ -42,8 +42,10 @@ describe('Chat ao vivo: anti-flood no Valkey', () => {
   it('a mesma mensagem 3 vezes bloqueia', async () => {
     const g = new RedisFloodGuard(redis, prefix);
     const rule = { maxPerMinute: 10, blockSeconds: 60 };
-    expect(await g.hit('t3', 'p1', 'compre já', rule)).toBe(0);
-    expect(await g.hit('t3', 'p1', 'COMPRE  JÁ', rule)).toBe(0);
-    expect(await g.hit('t3', 'p1', 'compre já', rule)).toBe(60_000);
+    expect(await g.hit('t3', 'p1', 'compre já no link', rule)).toBe(0);
+    expect(await g.hit('t3', 'p1', 'COMPRE  JÁ no link', rule)).toBe(0);
+    expect(await g.hit('t3', 'p1', 'compre já no link', rule)).toBe(60_000);
+    // comemoração curta não entra na repetição
+    for (let i = 0; i < 4; i++) expect(await g.hit('t3', 'p2', 'GOL', rule)).toBe(0);
   });
 });

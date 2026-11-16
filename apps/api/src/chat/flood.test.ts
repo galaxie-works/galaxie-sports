@@ -21,9 +21,22 @@ describe('anti-flood por pessoa', () => {
 
   it('a mesma mensagem 3 vezes bloqueia (caixa e espaços não contam)', async () => {
     const g = new MemoryFloodGuard();
-    expect(await g.hit('t', 'p', 'VAMOS TIME', rule, 0)).toBe(0);
-    expect(await g.hit('t', 'p', 'vamos   time', rule, 1000)).toBe(0);
-    expect(await g.hit('t', 'p', ' Vamos time ', rule, 2000)).toBe(180_000);
+    expect(await g.hit('t', 'p', 'COMPRE AQUI AGORA', rule, 0)).toBe(0);
+    expect(await g.hit('t', 'p', 'compre   aqui agora', rule, 1000)).toBe(0);
+    expect(await g.hit('t', 'p', ' Compre aqui agora ', rule, 2000)).toBe(180_000);
+  });
+
+  it('comemoração curta repetida não é robô', async () => {
+    const g = new MemoryFloodGuard();
+    for (let i = 0; i < 6; i++) expect(await g.hit('t', 'p', 'GOOOL', rule, i * 1000)).toBe(0);
+  });
+
+  it('a memória faz faxina de quem sumiu', async () => {
+    const g = new MemoryFloodGuard();
+    for (let i = 0; i < 10_050; i++) await g.hit('t', `p${i}`, 'oi', rule, 0);
+    await g.hit('t', 'novo', 'oi', rule, 120_000);
+    const size = (g as unknown as { sent: Map<string, unknown> }).sent.size;
+    expect(size).toBeLessThan(100);
   });
 
   it('cada pessoa e cada cliente contam à parte', async () => {

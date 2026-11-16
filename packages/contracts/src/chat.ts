@@ -49,6 +49,7 @@ export const CHAT_SEND_REFUSALS = [
   'room_closed',
   'room_read_only_peak',
   'sanctioned',
+  'flood',
 ] as const;
 
 export const ChatRoomParams = z.object({
@@ -298,7 +299,7 @@ export const chatPaths: ZodOpenApiPathsObject = {
       description:
         'Só torcedor `18plus` escreve; `13_17` lê e reage (403 FAN_AGE_RESTRICTED). A mensagem passa pela base de ' +
         'regras de moderação antes de entrar no lote da sala. Sala congelada, encerrada, ainda fechada ou só ' +
-        'leitura por pico responde 409; o motivo vai em `errors` (`path: refusal`, um de CHAT_SEND_REFUSALS). Modo lento: 429 com Retry-After.',
+        'leitura por pico responde 409; o motivo vai em `errors` (`path: refusal`, um de CHAT_SEND_REFUSALS). Modo lento: 429 com Retry-After. Anti-flood (muitas mensagens em 60 s, ou a mesma repetida): 429 com Retry-After e `refusal: flood`.',
       tags: [TAG],
       security: fanAuth,
       requestParams: { path: ChatRoomParams },
@@ -310,7 +311,7 @@ export const chatPaths: ZodOpenApiPathsObject = {
         '403': problem('Faixa etária (FAN_AGE_RESTRICTED) ou módulo fora do plano (MODULE_NOT_IN_PLAN)'),
         '404': problem('Jogo não encontrado (NOT_FOUND)'),
         '409': problem('Sala fechada para envio ou punição ativa (CONFLICT; motivo em `errors`)'),
-        '429': problem('Modo lento ou limite do torcedor (RATE_LIMITED)'),
+        '429': problem('Modo lento, anti-flood ou limite do torcedor (RATE_LIMITED)'),
         '503': problem('Ficha do país não configurada para o cliente (DEGRADED)'),
       },
     },

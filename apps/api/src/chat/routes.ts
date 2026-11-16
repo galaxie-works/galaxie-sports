@@ -133,6 +133,7 @@ export async function chatRoutes(app: FastifyInstance, deps: ChatRoutesDeps): Pr
   const hub = deps.hub ?? new ChatHub();
   const reactions = deps.reactions ?? new MemoryReactionCounter();
   const flood = deps.flood ?? new MemoryFloodGuard();
+  let floodErrorAt = 0;
   // Fecha o segundo das reações. Toda instância roda o relógio, mas só uma fecha cada segundo (trava no Valkey) e o
   // script atômico garante que cada reação conta uma vez. Uma rodada por vez; o log de falha sai no máximo por minuto
   let flushing = false;
@@ -455,22 +456,6 @@ export async function chatRoutes(app: FastifyInstance, deps: ChatRoutesDeps): Pr
           [{ path: 'body', message: `até ${eff.maxChars} caracteres` }],
           'Mensagem longa demais.',
         );
-      // anti-flood por pessoa, em todas as salas do cliente (no lugar do modo escudo): passou do limite em 60 s ou
-      // repetiu a mesma mensagem, fica o bloqueio. Valkey fora não barra ninguém (o modo lento continua valendo)
-      const floodLeft = await flood
-        .hit(fan.tenantId, fan.profileId, text, eff.flood, at.getTime())
-        .catch(() => 0);
-      if (floodLeft > 0)
-        throw new ProblemError(
-          429,
-          'RATE_LIMITED',
-          'Muitas mensagens',
-          sendRefusalNotice('flood', fan.locale),
-          {
-            headers: { 'retry-after': String(Math.ceil(floodLeft / 1000)) },
-            errors: [{ path: 'refusal', message: 'flood' }],
-          },
-        );
       const screened = screen(
         text,
         {
@@ -505,6 +490,29 @@ export async function chatRoutes(app: FastifyInstance, deps: ChatRoutesDeps): Pr
         ...(shadowMuted ? ['muted'] : []),
       ];
       const purgeAt = await purgeAtFor(fan.tenantId, profile.country, at);
+      // anti-flood por pessoa, em todas as salas do cliente (no lugar do modo escudo): só conta a mensagem que passou
+      // do modo lento e do filtro (tentativa recusada não vira repetição). Passou do limite em 60 s ou repetiu a mesma
+      // mensagem, fica o bloqueio. Valkey fora não barra ninguém (o modo lento continua valendo), mas fica no log
+      const floodLeft = await flood
+        .hit(fan.tenantId, fan.profileId, text, eff.flood, at.getTime())
+        .catch((err: unknown) => {
+          if (Date.now() - floodErrorAt > 60_000) {
+            floodErrorAt = Date.now();
+            request.log.warn({ err }, 'anti-flood do chat indisponível; envio liberado');
+          }
+          return 0;
+        });
+      if (floodLeft > 0)
+        throw new ProblemError(
+          429,
+          'RATE_LIMITED',
+          'Muitas mensagens',
+          sendRefusalNotice('flood', fan.locale),
+          {
+            headers: { 'retry-after': String(Math.ceil(floodLeft / 1000)) },
+            errors: [{ path: 'refusal', message: 'flood' }],
+          },
+        );
       const saved = await insertMessage(
         database,
         {

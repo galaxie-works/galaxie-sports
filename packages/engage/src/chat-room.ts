@@ -97,7 +97,7 @@ const NOTICES: Record<'pt' | 'es' | 'en', Record<ChatSendRefusal, string>> = {
     room_frozen: 'A sala está congelada pela moderação. Você pode continuar lendo.',
     room_closed: 'A sala foi encerrada. As mensagens ficam para leitura.',
     room_read_only_peak: 'A sala está cheia e ficou só leitura para quem entrou agora.',
-    flood: 'Muitas mensagens em pouco tempo. Espere alguns minutos para escrever de novo.',
+    flood: 'Muitas mensagens em pouco tempo. Espere um pouco para escrever de novo.',
   },
   es: {
     age_band: 'Solo los mayores de 18 años escriben en el chat. Puedes leer y reaccionar.',
@@ -105,7 +105,7 @@ const NOTICES: Record<'pt' | 'es' | 'en', Record<ChatSendRefusal, string>> = {
     room_frozen: 'La moderación congeló la sala. Puedes seguir leyendo.',
     room_closed: 'La sala cerró. Los mensajes quedan para lectura.',
     room_read_only_peak: 'La sala está llena y quedó solo de lectura para quienes acaban de entrar.',
-    flood: 'Demasiados mensajes en poco tiempo. Espera unos minutos para volver a escribir.',
+    flood: 'Demasiados mensajes en poco tiempo. Espera un poco para volver a escribir.',
   },
   en: {
     age_band: 'Only people aged 18 or over can write in the chat. You can read and react.',
@@ -113,7 +113,7 @@ const NOTICES: Record<'pt' | 'es' | 'en', Record<ChatSendRefusal, string>> = {
     room_frozen: 'Moderators froze the room. You can keep reading.',
     room_closed: 'The room is closed. Messages stay available to read.',
     room_read_only_peak: 'The room is full and became read-only for people who just joined.',
-    flood: 'Too many messages in a short time. Wait a few minutes before writing again.',
+    flood: 'Too many messages in a short time. Wait a moment before writing again.',
   },
 };
 
