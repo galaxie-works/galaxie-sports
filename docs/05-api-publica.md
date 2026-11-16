@@ -1078,7 +1078,7 @@ O portão relê o Perfil e a ficha a cada ação, com um cache de até 5 segundo
 
 **Verificação de idade da Galaxie (#1109, módulo `age_verification`, pago por verificação).** O cliente que não tem verificação própria contrata o módulo, e a Galaxie verifica pelo Didit. Quem já tem a própria continua mandando `ageAssurance` no token. O fluxo é adaptativo: começa pela estimativa pelo rosto, com prova de vida, e quem fica na dúvida perto dos 18 passa para o documento, com o rosto do documento comparado à selfie.
 
-1. O widget mostra o aviso de biometria e colhe o consentimento. Depois chama `POST /v1/fans/me/age-verification` com `returnUrl` (https; query e fragmento não vão ao provedor) e `consent: { givenAt, textVersion }`, e recebe `url` e `expires_at`.
+1. O widget (o `<AgeCheck>`, que o `<FanGate>` mostra sozinho; ver §9.1) mostra o aviso de biometria e colhe o consentimento. Depois chama `POST /v1/fans/me/age-verification` com `returnUrl` (https; query e fragmento não vão ao provedor) e `consent: { givenAt, textVersion }`, e recebe `url` e `expires_at`.
 2. O torcedor faz a verificação na tela do provedor e volta para o `returnUrl`.
 3. O provedor avisa a API pelo webhook assinado. A API lê a decisão na API do provedor (nunca no corpo do aviso), grava só a faixa e o caminho, e apaga no provedor as imagens, o documento e o template do rosto.
 4. O `GET /v1/fans/me/age-verification` devolve a última verificação: `status` (`pending`, `approved`, `declined`, `review`, `abandoned`, `expired`) e `method` (`estimated` ou `verified`).
@@ -1192,6 +1192,18 @@ document.addEventListener('galaxie:fan-status', (e) => {
   if (e.detail.status === 'needs_verification') abrirComprovacaoDeIdade();
 });
 ```
+
+**Verificação de idade no widget (#1109).** Com o módulo `age_verification` no plano, o widget cuida sozinho do adulto em `needs_verification`. Onde o recurso pede mais do que o Perfil pode, ele mostra:
+
+- o aviso de biometria;
+- a caixa de consentimento, obrigatória;
+- o botão "Verificar idade".
+
+O clique abre a verificação do provedor na mesma aba. No fim, o provedor devolve o torcedor à origem e ao caminho da página, sem query nem fragmento. Página que depende deles, como um app com rota no `#`, precisa ter um widget no caminho. Na volta, o widget confere o resultado por até 2 minutos. Aprovado, relê o Perfil e libera o recurso. Recusado, abandonado ou vencido, oferece "Tentar de novo". Em revisão, pede para voltar mais tarde. No limite de 5 em 24 horas, avisa e não oferece outra tentativa.
+
+O consentimento vai com a versão do texto mostrado (`AGE_CHECK_CONSENT_VERSION`, hoje `v1`).
+
+Sem o módulo, sem as chaves do provedor, com um Perfil que não pode (403 ou 503) ou numa página fora de https, o widget só pede a idade, e o site segue com a comprovação dele pelo evento acima. No React, o mesmo componente é o `<AgeCheck>`.
 
 **HTML puro (embed).** A função na página vale para todos os widgets; o atributo `fan-token` serve para um token fixo. O clique em "Entrar" dispara o evento `galaxie:fan-sign-in`. A função é lida na hora de cada pedido, então pode ser definida depois do `embed.js`.
 
