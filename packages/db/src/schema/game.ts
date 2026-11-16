@@ -192,6 +192,12 @@ export const gamePrediction = game.table(
       columns: [t.tenantId, t.programCountry],
       foreignColumns: [gameProgram.tenantId, gameProgram.programCountry],
     }).onDelete('cascade'),
+    // a regra da época existe: o que foi feito ou ganho pontua pela versão que guarda
+    foreignKey({
+      name: 'prediction_rule_version_fk',
+      columns: [t.tenantId, t.programCountry, t.ruleVersion],
+      foreignColumns: [gameRuleVersion.tenantId, gameRuleVersion.programCountry, gameRuleVersion.version],
+    }).onDelete('cascade'),
     uniqueIndex('prediction_profile_event_uq').on(
       t.tenantId,
       t.programCountry,
@@ -366,6 +372,12 @@ export const gameProgramAchievement = game.table(
       columns: [t.tenantId, t.programCountry],
       foreignColumns: [gameProgram.tenantId, gameProgram.programCountry],
     }).onDelete('cascade'),
+    // a regra da época existe: o que foi feito ou ganho pontua pela versão que guarda
+    foreignKey({
+      name: 'program_achievement_rule_version_fk',
+      columns: [t.tenantId, t.programCountry, t.ruleVersion],
+      foreignColumns: [gameRuleVersion.tenantId, gameRuleVersion.programCountry, gameRuleVersion.version],
+    }).onDelete('cascade'),
     check('program_achievement_custom', sql`${t.custom} = (${t.definition} is not null)`),
     check(
       'program_achievement_thresholds',
@@ -444,6 +456,12 @@ export const gameStepGrant = game.table(
       columns: [t.tenantId, t.programCountry],
       foreignColumns: [gameProgram.tenantId, gameProgram.programCountry],
     }).onDelete('cascade'),
+    // a regra da época existe: o que foi feito ou ganho pontua pela versão que guarda
+    foreignKey({
+      name: 'step_grant_rule_version_fk',
+      columns: [t.tenantId, t.programCountry, t.ruleVersion],
+      foreignColumns: [gameRuleVersion.tenantId, gameRuleVersion.programCountry, gameRuleVersion.version],
+    }).onDelete('cascade'),
     index('step_grant_recent_idx').on(t.tenantId, t.programCountry, t.profileId, t.grantedAt),
     check('step_grant_step', sql`${t.step} between 1 and 5`),
     check('step_grant_source_len', sql`length(${t.sourceEvent}) between 1 and 200`),
@@ -476,6 +494,12 @@ export const gameCardGrant = game.table(
       name: 'card_grant_program_fk',
       columns: [t.tenantId, t.programCountry],
       foreignColumns: [gameProgram.tenantId, gameProgram.programCountry],
+    }).onDelete('cascade'),
+    // a regra da época existe: o que foi feito ou ganho pontua pela versão que guarda
+    foreignKey({
+      name: 'card_grant_rule_version_fk',
+      columns: [t.tenantId, t.programCountry, t.ruleVersion],
+      foreignColumns: [gameRuleVersion.tenantId, gameRuleVersion.programCountry, gameRuleVersion.version],
     }).onDelete('cascade'),
     uniqueIndex('card_grant_profile_card_uq').on(
       t.tenantId,

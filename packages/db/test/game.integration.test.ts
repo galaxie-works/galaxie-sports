@@ -130,7 +130,9 @@ describe('schema game', () => {
     // o Perfil de um cliente não entra no programa de outro: a chave composta recusa
     await expect(predict(tenantB, 'BR', pa, randomUUID(), 1)).rejects.toThrow(/prediction_profile_fk/);
     // programa que não existe no cliente também é recusado
-    await expect(predict(tenantB, 'AR', pb, randomUUID(), 1)).rejects.toThrow(/prediction_program_fk/);
+    await expect(predict(tenantB, 'AR', pb, randomUUID(), 1)).rejects.toThrow(
+      /prediction_(program|rule_version)_fk/,
+    );
   });
 
   it('um Palpite por Perfil, jogo, tipo e assunto', async () => {

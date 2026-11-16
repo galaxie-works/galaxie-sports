@@ -17,6 +17,7 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 import { createdAt, pkUuidV7, updatedAt } from './_shared.js';
+import { organization } from './billing.js';
 import { platform } from './lineups.js';
 import {
   ENGAGE_MODULES,
@@ -118,8 +119,18 @@ export const tenant = api.table(
      * vale até a renovação. null = tenant anterior ao catálogo.
      */
     catalogVersion: text('catalog_version'),
-    /** Faixa de capacidade contratada (C1 a C4, `config/catalog/capacity.yaml`); null = padrão do catálogo. */
+    /**
+     * Faixa de capacidade contratada (C1 a C4, `config/catalog/capacity.yaml`); null = padrão do catálogo. Desde a F2
+     * a faixa é da organização (`billing.organization.capacity_tier`, PL23); a coluna fica até a leitura mudar.
+     */
     capacityTier: text('capacity_tier').$type<'C1' | 'C2' | 'C3' | 'C4'>(),
+    /**
+     * Organização que assina e paga por esta marca (`billing.organization`, F2 #1136). Nula só até a migration de dados
+     * (0178) rodar; passa a obrigatória num PR `contrair` futuro.
+     */
+    organizationId: uuid('organization_id').references((): AnyPgColumn => organization.id, {
+      onDelete: 'restrict',
+    }),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -128,6 +139,7 @@ export const tenant = api.table(
       'tenant_capacity_tier',
       sql`${t.capacityTier} is null or ${t.capacityTier} in ('C1', 'C2', 'C3', 'C4')`,
     ),
+    index('tenant_organization_idx').on(t.organizationId),
   ],
 );
 
@@ -319,8 +331,20 @@ export const moduleUsageMonthly = api.table(
   ],
 );
 
-/** Cargos da equipe do cliente (#1019); a matriz de permissões fica em `@galaxie/engage` (`can`). */
-export const TENANT_MEMBER_ROLES = ['owner', 'admin', 'senior_moderator', 'moderator', 'volunteer'] as const;
+/**
+ * Cargos da equipe do cliente (#1019); a matriz de permissões fica em `@galaxie/engage` (`can`). `developer` (quem
+ * integra: chaves, webhooks, Builder) e `billing` (financeiro: cobrança e faturas, vale na organização inteira) vêm da
+ * plataforma comercial (#1136, PL9).
+ */
+export const TENANT_MEMBER_ROLES = [
+  'owner',
+  'admin',
+  'developer',
+  'billing',
+  'senior_moderator',
+  'moderator',
+  'volunteer',
+] as const;
 export type TenantMemberRole = (typeof TENANT_MEMBER_ROLES)[number];
 
 /** Onde o cargo vale: null = tenant inteiro; senão, só as Comunidades e Salas do Jogo listadas. */
@@ -348,6 +372,8 @@ export const tenantMember = api.table(
     invitedBy: text('invited_by').notNull(),
     /** Primeiro acesso depois do convite; null = convite pendente. */
     acceptedAt: timestamp('accepted_at', { withTimezone: true }),
+    /** Validade do convite (doc 03, F2); null = convite sem prazo ou já aceito. */
+    inviteExpiresAt: timestamp('invite_expires_at', { withTimezone: true }),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -362,7 +388,7 @@ export const tenantMember = api.table(
     check('tenant_member_one_identity', sql`(${t.userId} is null) <> (${t.profileId} is null)`),
     check(
       'tenant_member_role',
-      sql`${t.role} in ('owner', 'admin', 'senior_moderator', 'moderator', 'volunteer')`,
+      sql`${t.role} in ('owner', 'admin', 'developer', 'billing', 'senior_moderator', 'moderator', 'volunteer')`,
     ),
     check('tenant_member_volunteer_is_profile', sql`${t.role} <> 'volunteer' or ${t.profileId} is not null`),
   ],
@@ -391,7 +417,7 @@ export const tenantRolePermission = api.table(
     primaryKey({ columns: [t.tenantId, t.role, t.action] }),
     check(
       'tenant_role_permission_role',
-      sql`${t.role} in ('admin', 'senior_moderator', 'moderator', 'volunteer')`,
+      sql`${t.role} in ('admin', 'developer', 'billing', 'senior_moderator', 'moderator', 'volunteer')`,
     ),
   ],
 );
