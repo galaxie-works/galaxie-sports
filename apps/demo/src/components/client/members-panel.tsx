@@ -211,7 +211,9 @@ function RoleSelect<R extends string>({
   const m = t.client.members;
   const [pending, startTransition] = useTransition();
   if (!options.length) return <Badge variant="secondary">{label(value)}</Badge>;
-  const items = options.some((o) => o.value === value) ? options : [{ value, label: label(value) }, ...options];
+  const items = options.some((o) => o.value === value)
+    ? options
+    : [{ value, label: label(value) }, ...options];
   return (
     <Select
       items={items}
@@ -288,7 +290,13 @@ function RemoveButton({
 }
 
 /** "Convidar de novo": prazo novo para quem ainda não entrou (pendente ou vencido). */
-function ReinviteButton({ onReinvite, email }: { onReinvite: () => Promise<MemberActionResult>; email: string }) {
+function ReinviteButton({
+  onReinvite,
+  email,
+}: {
+  onReinvite: () => Promise<MemberActionResult>;
+  email: string;
+}) {
   const router = useRouter();
   const { t } = useI18n();
   const m = t.client.members;
@@ -325,7 +333,17 @@ function StatusBadge({ status }: { status: InviteStatus }) {
   );
 }
 
-function PersonCell({ name, email, self, status }: { name: string; email: string; self: boolean; status: InviteStatus }) {
+function PersonCell({
+  name,
+  email,
+  self,
+  status,
+}: {
+  name: string;
+  email: string;
+  self: boolean;
+  status: InviteStatus;
+}) {
   const { t } = useI18n();
   const m = t.client.members;
   return (
@@ -433,7 +451,9 @@ export function MembersPanel({
                             {row.status !== 'active' ? (
                               <ReinviteButton
                                 email={row.email}
-                                onReinvite={() => reinviteOrganizationMemberAction({ memberId: row.memberId })}
+                                onReinvite={() =>
+                                  reinviteOrganizationMemberAction({ memberId: row.memberId })
+                                }
                               />
                             ) : null}
                             <RemoveButton

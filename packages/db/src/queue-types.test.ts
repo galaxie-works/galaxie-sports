@@ -38,7 +38,9 @@ describe('registro de tipos', () => {
   it('tenant.verify_domain: só o id do domínio, sem prévia, não destrutiva, 3 tentativas', () => {
     const def = taskType('tenant.verify_domain')!;
     expect(def).toMatchObject({ previa: false, destrutiva: false, maxAttempts: 3 });
-    expect(parseParams(def, { domainId: '01a16029-0000-7000-8000-000000000001' })).toMatchObject({ ok: true });
+    expect(parseParams(def, { domainId: '01a16029-0000-7000-8000-000000000001' })).toMatchObject({
+      ok: true,
+    });
     expect(parseParams(def, { domainId: 'x' }).ok).toBe(false);
     expect(parseParams(def, {}).ok).toBe(false);
   });

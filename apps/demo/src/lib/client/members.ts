@@ -223,7 +223,12 @@ export async function listMemberships(userId: string, legacyTenantId: string | n
         [userId],
       );
       for (const r of org)
-        await logEvent(c, { tenantId: r.tenant_id, memberId: null, action: 'accepted', actor: `panel:${userId}` });
+        await logEvent(c, {
+          tenantId: r.tenant_id,
+          memberId: null,
+          action: 'accepted',
+          actor: `panel:${userId}`,
+        });
     });
     const { rows } = await pool.query(
       `select x.member_id, x.tenant_id, x.role, x.scope, x.accepted_at, x.source
@@ -359,10 +364,12 @@ export async function reinviteTenantMember(input: {
 /** Quantos Donos o tenant tem (com trava da linha, dentro da transação). */
 async function owners(c: PoolClient, tenantId: string): Promise<number> {
   const { rows } = await c.query<{ id: string }>(
-    // linha de pessoa apagada do console (sem o usuário) não conta como Dono
+    // pessoa apagada do console (sem o usuário) e convite vencido não contam como Dono: `listMemberships` também
+    // não os aceita, e a marca ficaria sem ninguém que a gerencie
     `select m.id from api.tenant_member m
       where m.tenant_id = $1 and m.role = 'owner'
         and (m.profile_id is not null or exists (select 1 from "user" u where u.id = m.user_id))
+        and (m.accepted_at is not null or m.invite_expires_at is null or m.invite_expires_at > now())
       for update of m`,
     [tenantId],
   );
@@ -530,7 +537,11 @@ export async function getTenantOrganization(tenantId: string): Promise<TenantOrg
     );
     const first = rows[0];
     if (!first) return null;
-    return { id: first.id, name: first.name, brands: rows.map((r) => ({ id: r.brand_id, name: r.brand_name })) };
+    return {
+      id: first.id,
+      name: first.name,
+      brands: rows.map((r) => ({ id: r.brand_id, name: r.brand_name })),
+    };
   } catch (err) {
     if (isMissingTable(err)) return null;
     throw err;
@@ -558,7 +569,8 @@ async function logOrganizationEvent(
     subject?: string | null;
   },
 ) {
-  for (const tenantId of await brandsOf(c, organizationId)) await logEvent(c, { tenantId, memberId: null, ...e });
+  for (const tenantId of await brandsOf(c, organizationId))
+    await logEvent(c, { tenantId, memberId: null, ...e });
 }
 
 /** Membros da organização, Donos primeiro e por e-mail. */
@@ -610,12 +622,16 @@ export async function getOrganizationMember(
   return (await listOrganizationMembers(organizationId)).find((m) => m.memberId === memberId) ?? null;
 }
 
-/** Quantos Donos a organização tem (com trava da linha, dentro da transação); pessoa apagada do console não conta. */
+/**
+ * Quantos Donos a organização tem (com trava da linha, dentro da transação). Pessoa apagada do console e convite
+ * vencido não contam: `listMemberships` não os aceita, e a organização ficaria sem ninguém que a gerencie.
+ */
 async function organizationOwners(c: PoolClient, organizationId: string): Promise<number> {
   const { rows } = await c.query<{ id: string }>(
     `select om.id from billing.organization_member om
       where om.organization_id = $1 and om.role = 'owner'
         and exists (select 1 from "user" u where u.id = om.user_id)
+        and (om.accepted_at is not null or om.expires_at is null or om.expires_at > now())
       for update of om`,
     [organizationId],
   );

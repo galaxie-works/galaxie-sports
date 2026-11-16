@@ -44,7 +44,9 @@ const pending: DomainRecord = { id: 'd1', host: 'app.exemplo.com', txtToken: TOK
 
 describe('tenant.verify_domain', () => {
   it('marca comprovado quando um dos TXT é igual ao token (pedaços juntados)', async () => {
-    const w = world(pending, { [txtRecordName('app.exemplo.com')]: [['outro'], ['galaxie-', 'verify=token-de-teste']] });
+    const w = world(pending, {
+      [txtRecordName('app.exemplo.com')]: [['outro'], ['galaxie-', 'verify=token-de-teste']],
+    });
     const out = await tenantVerifyDomain(w.deps)(w.ctx);
     expect(out.stats).toEqual({ comprovado: 1, registros: 2 });
     expect(w.saves).toEqual([{ verifiedAt: NOW, lastCheckedAt: NOW, lastError: null }]);
@@ -66,9 +68,12 @@ describe('tenant.verify_domain', () => {
   });
 
   it('já comprovado: só a conferência, sem regravar verified_at; apagado: encerra sem gravar', async () => {
-    const w = world({ ...pending, verifiedAt: new Date('2026-01-01') }, {
-      '_galaxie-verify.app.exemplo.com': [[TOKEN]],
-    });
+    const w = world(
+      { ...pending, verifiedAt: new Date('2026-01-01') },
+      {
+        '_galaxie-verify.app.exemplo.com': [[TOKEN]],
+      },
+    );
     await tenantVerifyDomain(w.deps)(w.ctx);
     expect(w.saves).toEqual([{ lastCheckedAt: NOW, lastError: null }]);
     const gone = world(null, {});

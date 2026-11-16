@@ -45,7 +45,9 @@ function EditDialog({ organization }: { organization: OrganizationRow }) {
   const tiers = CAPACITY_TIERS.map((v) => ({ value: v, label: v }));
   const reviews = REVIEW_STATUSES.map((v) => ({ value: v, label: T.review[v] }));
   const changed =
-    tier !== organization.capacityTier || review !== organization.reviewStatus || galaxie !== organization.isGalaxie;
+    tier !== organization.capacityTier ||
+    review !== organization.reviewStatus ||
+    galaxie !== organization.isGalaxie;
   return (
     <ReasonDialog
       trigger={<Button size="sm">{T.detail.edit}</Button>}
@@ -168,7 +170,10 @@ export function OrganizationDetail({
                     </TableCell>
                     <TableCell className="text-sm">{b.plan}</TableCell>
                     <TableCell>
-                      <Badge variant={b.status === 'active' ? 'success-light' : 'warning-light'} radius="full">
+                      <Badge
+                        variant={b.status === 'active' ? 'success-light' : 'warning-light'}
+                        radius="full"
+                      >
                         {t.client.tenant.status[b.status]}
                       </Badge>
                     </TableCell>
@@ -251,7 +256,9 @@ export function OrganizationDetail({
                       <TableCell>
                         <code className="font-mono text-xs">{a.action}</code>
                       </TableCell>
-                      <TableCell className="text-sm">{brandName(a.tenantId) ?? T.actions.organization}</TableCell>
+                      <TableCell className="text-sm">
+                        {brandName(a.tenantId) ?? T.actions.organization}
+                      </TableCell>
                       <TableCell className="text-sm">{a.reason}</TableCell>
                     </TableRow>
                   ))}

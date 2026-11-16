@@ -3,11 +3,11 @@
 /**
  * Ações da equipe Galaxie em Ajustes › Organizações e marcas (#1136, F2): faixa de capacidade, revisão do cadastro e
  * cliente zero, sempre com motivo, registradas em `billing.staff_action` com o antes e o depois. Só a equipe
- * (`requireAdmin`: admin e support). Nada de preço.
+ * (`requireStaff`: admin e support). Nada de preço.
  */
 import { revalidatePath } from 'next/cache';
 
-import { requireAdmin } from '@/lib/auth/admin';
+import { requireStaff } from '@/lib/auth/admin';
 import {
   CAPACITY_TIERS,
   REVIEW_STATUSES,
@@ -34,18 +34,20 @@ export async function updateOrganizationAction(input: {
   isGalaxie?: boolean;
   reason: string;
 }): Promise<OrganizationActionResult> {
-  const me = await requireAdmin();
+  const me = await requireStaff();
   const e = getDictionary(await getRequestLocale()).platformStaff.errors;
   if (!isUuid(input?.id)) return { ok: false, error: e.notFound };
   const reason = normalizeStaffReason(input.reason);
   if (!reason) return { ok: false, error: e.reason };
   const patch: { capacityTier?: CapacityTier; reviewStatus?: ReviewStatus; isGalaxie?: boolean } = {};
   if (input.capacityTier !== undefined) {
-    if (!(CAPACITY_TIERS as readonly string[]).includes(input.capacityTier)) return { ok: false, error: e.invalid };
+    if (!(CAPACITY_TIERS as readonly string[]).includes(input.capacityTier))
+      return { ok: false, error: e.invalid };
     patch.capacityTier = input.capacityTier as CapacityTier;
   }
   if (input.reviewStatus !== undefined) {
-    if (!(REVIEW_STATUSES as readonly string[]).includes(input.reviewStatus)) return { ok: false, error: e.invalid };
+    if (!(REVIEW_STATUSES as readonly string[]).includes(input.reviewStatus))
+      return { ok: false, error: e.invalid };
     patch.reviewStatus = input.reviewStatus as ReviewStatus;
   }
   if (input.isGalaxie !== undefined) patch.isGalaxie = input.isGalaxie === true;

@@ -13,7 +13,7 @@ import { auth, isAccessExpired } from '@/lib/auth/server';
 
 import type { Actor, TenantRole } from '@galaxie/engage';
 
-import { listMemberships } from './members';
+import { listMemberships, type MembershipSource } from './members';
 import { loadRoleOverrides } from './role-permissions';
 import { decodeStaffReason, STAFF_REASON_COOKIE } from './staff-reason';
 import { getTenantInfo, listTenantOptions, type TenantInfo, type TenantOption } from './tenants';
@@ -32,6 +32,11 @@ export interface ClientContext {
   tenants: TenantOption[];
   /** Cargo no tenant em foco (#1019); null para a equipe da Galaxie ou sem tenant. */
   memberRole: TenantRole | null;
+  /**
+   * De onde vem o cargo em foco: da marca (`api.tenant_member`) ou da organização (`billing.organization_member`,
+   * que vale em todas as marcas). Só o Dono vindo da organização cuida dos cargos dela; null sem cargo.
+   */
+  memberSource: MembershipSource | null;
   /** Quem age, para o `can()` de `@galaxie/engage`; null = sem tenant em foco. */
   actor: Actor | null;
   /**
@@ -70,6 +75,7 @@ export const readClientContext = cache(async (): Promise<ClientContext | null> =
       tenant,
       tenants,
       memberRole: tenant && member ? member.role : null,
+      memberSource: tenant && member ? member.source : null,
       actor:
         tenant && member
           ? {
@@ -103,6 +109,7 @@ export const readClientContext = cache(async (): Promise<ClientContext | null> =
     tenant,
     tenants,
     memberRole: null,
+    memberSource: null,
     actor: tenant ? { kind: 'galaxie_staff' } : null,
     staffReason,
   };

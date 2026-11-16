@@ -49,8 +49,12 @@ export const placeOf = (item: { room: string | null; community: string | null })
 });
 
 /**
- * Quem cuida dos cargos da organização (Dono e Financeiro, que valem em todas as marcas, #1136): o Dono (da
- * organização, que aparece como Dono em cada marca) e a equipe Galaxie. Admin da marca não alcança a organização.
+ * Quem cuida dos cargos da organização (Dono e Financeiro, que valem em todas as marcas, #1136): o Dono **da
+ * organização** (`billing.organization_member`, que aparece como Dono em cada marca) e a equipe Galaxie. Dono só de
+ * uma marca (`api.tenant_member`) e Admin da marca não alcançam a organização.
  */
-export const canManageOrganization = (ctx: { role: string; memberRole: string | null }) =>
-  isStaffRole(ctx.role) || ctx.memberRole === 'owner';
+export const canManageOrganization = (ctx: {
+  role: string;
+  memberRole: string | null;
+  memberSource: 'tenant' | 'organization' | null;
+}) => isStaffRole(ctx.role) || (ctx.memberRole === 'owner' && ctx.memberSource === 'organization');

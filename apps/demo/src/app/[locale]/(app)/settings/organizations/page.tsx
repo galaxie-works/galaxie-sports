@@ -6,7 +6,7 @@ import { SettingsArea } from '@/components/admin/settings-nav';
 import { LoadingStatus } from '@/components/app-shell/loading-status';
 import { PageHeader } from '@/components/app-shell/page-header';
 import { TablePanelSkeleton } from '@/components/app-shell/skeletons';
-import { requireAdmin } from '@/lib/auth/admin';
+import { requireStaff } from '@/lib/auth/admin';
 import { listOrganizations } from '@/lib/client/organizations';
 import { getT } from '@/lib/i18n/server';
 
@@ -17,7 +17,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 async function Organizations() {
   // só a equipe Galaxie (headers): fica fora do shell estático
-  await requireAdmin();
+  await requireStaff();
   return <OrganizationsTable rows={await listOrganizations()} />;
 }
 

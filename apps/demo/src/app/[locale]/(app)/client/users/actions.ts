@@ -109,97 +109,95 @@ async function userForInvite(
 }
 
 /** Convida uma pessoa para a equipe com um cargo. Conta nova nasce como cliente, sem tenant gravado nem prazo. */
-export const inviteMember = withStaffAudit('members.invite', async (input: {
-  email: string;
-  name: string;
-  role: string;
-}): Promise<MemberActionResult> => {
-  const r = await manager();
-  if ('error' in r) return { ok: false, error: r.error };
-  const { m } = r;
-  const email = String(input.email ?? '')
-    .trim()
-    .toLowerCase();
-  const name = String(input.name ?? '').trim();
-  if (!EMAIL_RE.test(email)) return { ok: false, error: m.errors.invalidEmail };
-  if (!name) return { ok: false, error: m.errors.nameRequired };
-  if (!isTenantRole(input.role)) return { ok: false, error: m.errors.roleNotAllowed };
-  if (input.role === 'volunteer') return { ok: false, error: m.errors.volunteerIsProfile };
-  if (!canAssign(r.who, r.tenant.id, input.role)) return { ok: false, error: m.errors.roleNotAllowed };
+export const inviteMember = withStaffAudit(
+  'members.invite',
+  async (input: { email: string; name: string; role: string }): Promise<MemberActionResult> => {
+    const r = await manager();
+    if ('error' in r) return { ok: false, error: r.error };
+    const { m } = r;
+    const email = String(input.email ?? '')
+      .trim()
+      .toLowerCase();
+    const name = String(input.name ?? '').trim();
+    if (!EMAIL_RE.test(email)) return { ok: false, error: m.errors.invalidEmail };
+    if (!name) return { ok: false, error: m.errors.nameRequired };
+    if (!isTenantRole(input.role)) return { ok: false, error: m.errors.roleNotAllowed };
+    if (input.role === 'volunteer') return { ok: false, error: m.errors.volunteerIsProfile };
+    if (!canAssign(r.who, r.tenant.id, input.role)) return { ok: false, error: m.errors.roleNotAllowed };
 
-  const user = await userForInvite(email, name, r.locale, m);
-  if ('error' in user) return { ok: false, error: user.error };
-  const { userId } = user;
-  try {
-    await addTenantMember({
-      tenantId: r.tenant.id,
-      userId,
-      email,
-      role: input.role,
-      scope: null,
-      actor: r.actor,
-    });
-  } catch (err) {
-    return memberError(m, err);
-  }
-  const sent = await sendInvite(userId);
-  done();
-  return { ok: true, link: sent.link };
-});
+    const user = await userForInvite(email, name, r.locale, m);
+    if ('error' in user) return { ok: false, error: user.error };
+    const { userId } = user;
+    try {
+      await addTenantMember({
+        tenantId: r.tenant.id,
+        userId,
+        email,
+        role: input.role,
+        scope: null,
+        actor: r.actor,
+      });
+    } catch (err) {
+      return memberError(m, err);
+    }
+    const sent = await sendInvite(userId);
+    done();
+    return { ok: true, link: sent.link };
+  },
+);
 
 /** Troca o cargo de alguém da equipe (não acima do próprio cargo; o último Dono continua Dono). */
-export const changeMemberRole = withStaffAudit('members.role_change', async (input: {
-  memberId: string;
-  role: string;
-}): Promise<MemberActionResult> => {
-  const r = await manager();
-  if ('error' in r) return { ok: false, error: r.error };
-  const { m } = r;
-  if (!isTenantRole(input.role)) return { ok: false, error: m.errors.roleNotAllowed };
-  const current = await getTenantMember(r.tenant.id, String(input.memberId ?? ''));
-  if (!current) return { ok: false, error: m.errors.notFound };
-  if (!canAssign(r.who, r.tenant.id, input.role as TenantRole, current.role))
-    return { ok: false, error: m.errors.roleNotAllowed };
-  try {
-    await changeTenantMember({
-      tenantId: r.tenant.id,
-      memberId: current.memberId,
-      role: input.role as TenantRole,
-      scope: current.scope,
-      actor: r.actor,
-    });
-  } catch (err) {
-    return memberError(m, err);
-  }
-  done();
-  return { ok: true };
-});
+export const changeMemberRole = withStaffAudit(
+  'members.role_change',
+  async (input: { memberId: string; role: string }): Promise<MemberActionResult> => {
+    const r = await manager();
+    if ('error' in r) return { ok: false, error: r.error };
+    const { m } = r;
+    if (!isTenantRole(input.role)) return { ok: false, error: m.errors.roleNotAllowed };
+    const current = await getTenantMember(r.tenant.id, String(input.memberId ?? ''));
+    if (!current) return { ok: false, error: m.errors.notFound };
+    if (!canAssign(r.who, r.tenant.id, input.role as TenantRole, current.role))
+      return { ok: false, error: m.errors.roleNotAllowed };
+    try {
+      await changeTenantMember({
+        tenantId: r.tenant.id,
+        memberId: current.memberId,
+        role: input.role as TenantRole,
+        scope: current.scope,
+        actor: r.actor,
+      });
+    } catch (err) {
+      return memberError(m, err);
+    }
+    done();
+    return { ok: true };
+  },
+);
 
 /**
  * Liga ou desliga uma ação num cargo (permissões por cargo). Só quem tem `permissions.manage` (o Dono; a equipe
  * Galaxie passa por cima). Dono, ações fixas e cargo abaixo do piso da ação não mudam: o pedido forjado é recusado.
  */
-export const changeRolePermission = withStaffAudit('permissions.change', async (input: {
-  role: string;
-  action: string;
-  allowed: boolean;
-}): Promise<MemberActionResult> => {
-  const r = await manager();
-  if ('error' in r) return { ok: false, error: r.error };
-  const { m } = r;
-  if (!can(r.ctx, 'permissions.manage')) return { ok: false, error: m.permissions.readOnly };
-  if (!isTenantRole(input.role) || !isTenantAction(input.action) || !canReceive(input.role, input.action))
-    return { ok: false, error: m.errors.notConfigurable };
-  await saveRolePermission({
-    tenantId: r.tenant.id,
-    role: input.role,
-    action: input.action,
-    allowed: input.allowed === true,
-    actor: r.actor,
-  });
-  done();
-  return { ok: true };
-});
+export const changeRolePermission = withStaffAudit(
+  'permissions.change',
+  async (input: { role: string; action: string; allowed: boolean }): Promise<MemberActionResult> => {
+    const r = await manager();
+    if ('error' in r) return { ok: false, error: r.error };
+    const { m } = r;
+    if (!can(r.ctx, 'permissions.manage')) return { ok: false, error: m.permissions.readOnly };
+    if (!isTenantRole(input.role) || !isTenantAction(input.action) || !canReceive(input.role, input.action))
+      return { ok: false, error: m.errors.notConfigurable };
+    await saveRolePermission({
+      tenantId: r.tenant.id,
+      role: input.role,
+      action: input.action,
+      allowed: input.allowed === true,
+      actor: r.actor,
+    });
+    done();
+    return { ok: true };
+  },
+);
 
 /** Volta todas as permissões por cargo do tenant à matriz padrão. Só quem tem `permissions.manage`. */
 export const resetPermissions = withStaffAudit('permissions.reset', async (): Promise<MemberActionResult> => {
@@ -212,144 +210,158 @@ export const resetPermissions = withStaffAudit('permissions.reset', async (): Pr
 });
 
 /** Tira o acesso de alguém ao painel deste tenant. */
-export const removeMember = withStaffAudit('members.remove', async (input: { memberId: string }): Promise<MemberActionResult> => {
-  const r = await manager();
-  if ('error' in r) return { ok: false, error: r.error };
-  const { m } = r;
-  const current = await getTenantMember(r.tenant.id, String(input.memberId ?? ''));
-  if (!current) return { ok: false, error: m.errors.notFound };
-  if (!canAssign(r.who, r.tenant.id, null, current.role))
-    return { ok: false, error: m.errors.roleNotAllowed };
-  try {
-    await removeTenantMember({ tenantId: r.tenant.id, memberId: current.memberId, actor: r.actor });
-  } catch (err) {
-    return memberError(m, err);
-  }
-  done();
-  return { ok: true };
-});
+export const removeMember = withStaffAudit(
+  'members.remove',
+  async (input: { memberId: string }): Promise<MemberActionResult> => {
+    const r = await manager();
+    if ('error' in r) return { ok: false, error: r.error };
+    const { m } = r;
+    const current = await getTenantMember(r.tenant.id, String(input.memberId ?? ''));
+    if (!current) return { ok: false, error: m.errors.notFound };
+    if (!canAssign(r.who, r.tenant.id, null, current.role))
+      return { ok: false, error: m.errors.roleNotAllowed };
+    try {
+      await removeTenantMember({ tenantId: r.tenant.id, memberId: current.memberId, actor: r.actor });
+    } catch (err) {
+      return memberError(m, err);
+    }
+    done();
+    return { ok: true };
+  },
+);
 
 /** Convida de novo quem ainda não entrou na marca (pendente ou vencido): prazo novo e e-mail de novo. */
-export const reinviteMember = withStaffAudit('members.reinvite', async (input: {
-  memberId: string;
-}): Promise<MemberActionResult> => {
-  const r = await manager();
-  if ('error' in r) return { ok: false, error: r.error };
-  const { m } = r;
-  const current = await getTenantMember(r.tenant.id, String(input.memberId ?? ''));
-  if (!current) return { ok: false, error: m.errors.notFound };
-  if (current.status === 'active') return { ok: false, error: m.errors.notFound };
-  if (!canAssign(r.who, r.tenant.id, current.role, current.role))
-    return { ok: false, error: m.errors.roleNotAllowed };
-  let userId: string;
-  try {
-    userId = (await reinviteTenantMember({ tenantId: r.tenant.id, memberId: current.memberId, actor: r.actor }))
-      .userId;
-  } catch (err) {
-    return memberError(m, err);
-  }
-  const sent = await sendInvite(userId);
-  done();
-  return { ok: true, link: sent.link };
-});
+export const reinviteMember = withStaffAudit(
+  'members.reinvite',
+  async (input: { memberId: string }): Promise<MemberActionResult> => {
+    const r = await manager();
+    if ('error' in r) return { ok: false, error: r.error };
+    const { m } = r;
+    const current = await getTenantMember(r.tenant.id, String(input.memberId ?? ''));
+    if (!current) return { ok: false, error: m.errors.notFound };
+    if (current.status === 'active') return { ok: false, error: m.errors.notFound };
+    if (!canAssign(r.who, r.tenant.id, current.role, current.role))
+      return { ok: false, error: m.errors.roleNotAllowed };
+    let userId: string;
+    try {
+      userId = (
+        await reinviteTenantMember({ tenantId: r.tenant.id, memberId: current.memberId, actor: r.actor })
+      ).userId;
+    } catch (err) {
+      return memberError(m, err);
+    }
+    const sent = await sendInvite(userId);
+    done();
+    return { ok: true, link: sent.link };
+  },
+);
 
 // ─── organização: Dono e Financeiro valem em todas as marcas (#1136, F2) ──────────────────────────
 
 /** Convida uma pessoa para a organização inteira (Dono ou Financeiro). Só o Dono e a equipe Galaxie. */
-export const inviteOrganizationMember = withStaffAudit('organization.invite', async (input: {
-  email: string;
-  name: string;
-  role: string;
-}): Promise<MemberActionResult> => {
-  const r = await organizationManager();
-  if ('error' in r) return { ok: false, error: r.error };
-  const { m } = r;
-  const email = String(input.email ?? '')
-    .trim()
-    .toLowerCase();
-  const name = String(input.name ?? '').trim();
-  if (!EMAIL_RE.test(email)) return { ok: false, error: m.errors.invalidEmail };
-  if (!name) return { ok: false, error: m.errors.nameRequired };
-  if (!isOrganizationMemberRole(input.role)) return { ok: false, error: m.errors.roleNotAllowed };
-  const user = await userForInvite(email, name, r.locale, m);
-  if ('error' in user) return { ok: false, error: user.error };
-  try {
-    await addOrganizationMember({
-      organizationId: r.organization.id,
-      userId: user.userId,
-      email,
-      role: input.role,
-      actor: r.actor,
-    });
-  } catch (err) {
-    return memberError(m, err);
-  }
-  const sent = await sendInvite(user.userId);
-  done();
-  return { ok: true, link: sent.link };
-});
+export const inviteOrganizationMember = withStaffAudit(
+  'organization.invite',
+  async (input: { email: string; name: string; role: string }): Promise<MemberActionResult> => {
+    const r = await organizationManager();
+    if ('error' in r) return { ok: false, error: r.error };
+    const { m } = r;
+    const email = String(input.email ?? '')
+      .trim()
+      .toLowerCase();
+    const name = String(input.name ?? '').trim();
+    if (!EMAIL_RE.test(email)) return { ok: false, error: m.errors.invalidEmail };
+    if (!name) return { ok: false, error: m.errors.nameRequired };
+    if (!isOrganizationMemberRole(input.role)) return { ok: false, error: m.errors.roleNotAllowed };
+    const user = await userForInvite(email, name, r.locale, m);
+    if ('error' in user) return { ok: false, error: user.error };
+    try {
+      await addOrganizationMember({
+        organizationId: r.organization.id,
+        userId: user.userId,
+        email,
+        role: input.role,
+        actor: r.actor,
+      });
+    } catch (err) {
+      return memberError(m, err);
+    }
+    const sent = await sendInvite(user.userId);
+    done();
+    return { ok: true, link: sent.link };
+  },
+);
 
 /** Troca o cargo na organização (Dono ↔ Financeiro). O último Dono continua Dono. */
-export const changeOrganizationMemberRole = withStaffAudit('organization.role_change', async (input: {
-  memberId: string;
-  role: string;
-}): Promise<MemberActionResult> => {
-  const r = await organizationManager();
-  if ('error' in r) return { ok: false, error: r.error };
-  const { m } = r;
-  if (!isOrganizationMemberRole(input.role)) return { ok: false, error: m.errors.roleNotAllowed };
-  const current = await getOrganizationMember(r.organization.id, String(input.memberId ?? ''));
-  if (!current) return { ok: false, error: m.errors.notFound };
-  try {
-    await changeOrganizationMember({
-      organizationId: r.organization.id,
-      memberId: current.memberId,
-      role: input.role,
-      actor: r.actor,
-    });
-  } catch (err) {
-    return memberError(m, err);
-  }
-  done();
-  return { ok: true };
-});
+export const changeOrganizationMemberRole = withStaffAudit(
+  'organization.role_change',
+  async (input: { memberId: string; role: string }): Promise<MemberActionResult> => {
+    const r = await organizationManager();
+    if ('error' in r) return { ok: false, error: r.error };
+    const { m } = r;
+    if (!isOrganizationMemberRole(input.role)) return { ok: false, error: m.errors.roleNotAllowed };
+    const current = await getOrganizationMember(r.organization.id, String(input.memberId ?? ''));
+    if (!current) return { ok: false, error: m.errors.notFound };
+    try {
+      await changeOrganizationMember({
+        organizationId: r.organization.id,
+        memberId: current.memberId,
+        role: input.role,
+        actor: r.actor,
+      });
+    } catch (err) {
+      return memberError(m, err);
+    }
+    done();
+    return { ok: true };
+  },
+);
 
 /** Tira o cargo da organização (a pessoa perde o acesso a todas as marcas por ele). O último Dono não sai. */
-export const removeOrganizationMemberAction = withStaffAudit('organization.remove', async (input: {
-  memberId: string;
-}): Promise<MemberActionResult> => {
-  const r = await organizationManager();
-  if ('error' in r) return { ok: false, error: r.error };
-  const { m } = r;
-  const current = await getOrganizationMember(r.organization.id, String(input.memberId ?? ''));
-  if (!current) return { ok: false, error: m.errors.notFound };
-  try {
-    await removeOrganizationMember({ organizationId: r.organization.id, memberId: current.memberId, actor: r.actor });
-  } catch (err) {
-    return memberError(m, err);
-  }
-  done();
-  return { ok: true };
-});
+export const removeOrganizationMemberAction = withStaffAudit(
+  'organization.remove',
+  async (input: { memberId: string }): Promise<MemberActionResult> => {
+    const r = await organizationManager();
+    if ('error' in r) return { ok: false, error: r.error };
+    const { m } = r;
+    const current = await getOrganizationMember(r.organization.id, String(input.memberId ?? ''));
+    if (!current) return { ok: false, error: m.errors.notFound };
+    try {
+      await removeOrganizationMember({
+        organizationId: r.organization.id,
+        memberId: current.memberId,
+        actor: r.actor,
+      });
+    } catch (err) {
+      return memberError(m, err);
+    }
+    done();
+    return { ok: true };
+  },
+);
 
 /** Convida de novo para a organização quem ainda não entrou: prazo novo e e-mail de novo. */
-export const reinviteOrganizationMemberAction = withStaffAudit('organization.reinvite', async (input: {
-  memberId: string;
-}): Promise<MemberActionResult> => {
-  const r = await organizationManager();
-  if ('error' in r) return { ok: false, error: r.error };
-  const { m } = r;
-  const current = await getOrganizationMember(r.organization.id, String(input.memberId ?? ''));
-  if (!current || current.status === 'active') return { ok: false, error: m.errors.notFound };
-  let userId: string;
-  try {
-    userId = (
-      await reinviteOrganizationMember({ organizationId: r.organization.id, memberId: current.memberId, actor: r.actor })
-    ).userId;
-  } catch (err) {
-    return memberError(m, err);
-  }
-  const sent = await sendInvite(userId);
-  done();
-  return { ok: true, link: sent.link };
-});
+export const reinviteOrganizationMemberAction = withStaffAudit(
+  'organization.reinvite',
+  async (input: { memberId: string }): Promise<MemberActionResult> => {
+    const r = await organizationManager();
+    if ('error' in r) return { ok: false, error: r.error };
+    const { m } = r;
+    const current = await getOrganizationMember(r.organization.id, String(input.memberId ?? ''));
+    if (!current || current.status === 'active') return { ok: false, error: m.errors.notFound };
+    let userId: string;
+    try {
+      userId = (
+        await reinviteOrganizationMember({
+          organizationId: r.organization.id,
+          memberId: current.memberId,
+          actor: r.actor,
+        })
+      ).userId;
+    } catch (err) {
+      return memberError(m, err);
+    }
+    const sent = await sendInvite(userId);
+    done();
+    return { ok: true, link: sent.link };
+  },
+);

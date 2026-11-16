@@ -39,7 +39,12 @@ import { isStaffRole } from '@/lib/auth/roles';
 import { can } from '@/lib/client/permissions';
 import { readClientContext, TENANT_COOKIE } from '@/lib/client/session';
 import { withStaffAudit } from '@/lib/client/staff';
-import { encodeStaffReason, normalizeStaffReason, STAFF_REASON_COOKIE, STAFF_REASON_TTL_S } from '@/lib/client/staff-reason';
+import {
+  encodeStaffReason,
+  normalizeStaffReason,
+  STAFF_REASON_COOKIE,
+  STAFF_REASON_TTL_S,
+} from '@/lib/client/staff-reason';
 import { isUuid } from '@/lib/client/tenants';
 import { COOKIE_MAX_AGE } from '@/lib/i18n/config';
 import { getDictionary } from '@/lib/i18n/dictionary';
@@ -88,12 +93,16 @@ export async function selectTenant(tenantId: string, reason?: string): Promise<C
     else {
       const normalized = normalizeStaffReason(reason);
       if (!normalized) return { ok: false, error: t.staff.reasonRequired };
-      jar.set(STAFF_REASON_COOKIE, encodeStaffReason(process.env.BETTER_AUTH_SECRET ?? '', { tenantId, reason: normalized }), {
-        path: '/',
-        maxAge: STAFF_REASON_TTL_S,
-        sameSite: 'lax',
-        httpOnly: true,
-      });
+      jar.set(
+        STAFF_REASON_COOKIE,
+        encodeStaffReason(process.env.BETTER_AUTH_SECRET ?? '', { tenantId, reason: normalized }),
+        {
+          path: '/',
+          maxAge: STAFF_REASON_TTL_S,
+          sameSite: 'lax',
+          httpOnly: true,
+        },
+      );
     }
   }
   jar.set(TENANT_COOKIE, tenantId, {
@@ -113,56 +122,59 @@ export interface CreateKeyResult extends ClientActionResult {
   key?: string;
 }
 
-export const createKey = withStaffAudit('keys.create', async (input: {
-  name: string;
-  origins: string;
-  widgetId: string | null;
-  /** `live` (padrão, domínios públicos) ou `test` (gs_pk_test_, só localhost). */
-  env?: PublishableKeyEnv;
-}): Promise<CreateKeyResult> => {
-  const t = await texts();
-  const r = await tenantOrError('keys.manage');
-  if ('error' in r) return { ok: false, error: r.error };
-  const name = input.name.trim().replace(/\s+/g, ' ');
-  if (!name || name.length > NAME_MAX) return { ok: false, error: t.errors.keyName };
-  const { origins, invalid } = parseOrigins(input.origins ?? '', normalizeAllowedOrigin);
-  if (invalid.length) return { ok: false, error: fill(t.errors.origins, { list: invalid.join(', ') }) };
-  if (!origins.length) return { ok: false, error: t.errors.noOrigins };
-  if (origins.length > MAX_ORIGINS)
-    return { ok: false, error: fill(t.errors.tooManyOrigins, { max: MAX_ORIGINS }) };
-  const env: PublishableKeyEnv = input.env === 'test' ? 'test' : 'live';
-  const outside = originsOutsideEnv(env, origins);
-  if (outside.length)
-    return {
-      ok: false,
-      error: fill(env === 'test' ? t.errors.originsTestOnly : t.errors.originsNoLocalhost, {
-        list: outside.join(', '),
-      }),
-    };
-  let widgetId: string | null = null;
-  if (input.widgetId) {
-    const w = isUuid(input.widgetId) ? await getWidget(builderDb(), input.widgetId) : null;
-    if (!w || w.tenantId !== r.tenant.id || w.archivedAt)
-      return { ok: false, error: t.errors.widgetNotFound };
-    widgetId = w.id;
-  }
-  try {
-    const created = await createPublishableKey(builderDb(), {
-      tenantId: r.tenant.id,
-      name,
-      allowedOrigins: origins,
-      widgetId,
-      env,
-      actor: `panel:${r.ctx.userId}`,
-    });
-    revalidateClient();
-    return { ok: true, key: created.key };
-  } catch (err) {
-    if (err instanceof PublishableKeyLimitError) return { ok: false, error: t.errors.keyLimit };
-    console.error('[cliente] falha ao criar chave publicável', err);
-    return { ok: false, error: t.errors.generic };
-  }
-});
+export const createKey = withStaffAudit(
+  'keys.create',
+  async (input: {
+    name: string;
+    origins: string;
+    widgetId: string | null;
+    /** `live` (padrão, domínios públicos) ou `test` (gs_pk_test_, só localhost). */
+    env?: PublishableKeyEnv;
+  }): Promise<CreateKeyResult> => {
+    const t = await texts();
+    const r = await tenantOrError('keys.manage');
+    if ('error' in r) return { ok: false, error: r.error };
+    const name = input.name.trim().replace(/\s+/g, ' ');
+    if (!name || name.length > NAME_MAX) return { ok: false, error: t.errors.keyName };
+    const { origins, invalid } = parseOrigins(input.origins ?? '', normalizeAllowedOrigin);
+    if (invalid.length) return { ok: false, error: fill(t.errors.origins, { list: invalid.join(', ') }) };
+    if (!origins.length) return { ok: false, error: t.errors.noOrigins };
+    if (origins.length > MAX_ORIGINS)
+      return { ok: false, error: fill(t.errors.tooManyOrigins, { max: MAX_ORIGINS }) };
+    const env: PublishableKeyEnv = input.env === 'test' ? 'test' : 'live';
+    const outside = originsOutsideEnv(env, origins);
+    if (outside.length)
+      return {
+        ok: false,
+        error: fill(env === 'test' ? t.errors.originsTestOnly : t.errors.originsNoLocalhost, {
+          list: outside.join(', '),
+        }),
+      };
+    let widgetId: string | null = null;
+    if (input.widgetId) {
+      const w = isUuid(input.widgetId) ? await getWidget(builderDb(), input.widgetId) : null;
+      if (!w || w.tenantId !== r.tenant.id || w.archivedAt)
+        return { ok: false, error: t.errors.widgetNotFound };
+      widgetId = w.id;
+    }
+    try {
+      const created = await createPublishableKey(builderDb(), {
+        tenantId: r.tenant.id,
+        name,
+        allowedOrigins: origins,
+        widgetId,
+        env,
+        actor: `panel:${r.ctx.userId}`,
+      });
+      revalidateClient();
+      return { ok: true, key: created.key };
+    } catch (err) {
+      if (err instanceof PublishableKeyLimitError) return { ok: false, error: t.errors.keyLimit };
+      console.error('[cliente] falha ao criar chave publicável', err);
+      return { ok: false, error: t.errors.generic };
+    }
+  },
+);
 
 export const revokeKey = withStaffAudit('keys.revoke', async (id: string): Promise<ClientActionResult> => {
   const t = await texts();
@@ -182,47 +194,53 @@ export interface SaveWidgetResult extends ClientActionResult {
 
 const entityTypesOf = (kind: WidgetKind) => ENTITY_TYPES[kind];
 
-export const saveWidgetAction = withStaffAudit('builder.widget.save', async (input: {
-  id: string | null;
-  kind: unknown;
-  name: unknown;
-  config: unknown;
-}): Promise<SaveWidgetResult> => {
-  const t = await texts();
-  const r = await tenantOrError('builder.manage');
-  if ('error' in r) return { ok: false, error: r.error };
-  const parsed = parseWidgetInput(input, {
-    markets: r.tenant.markets,
-    entityTypes: entityTypesOf,
-    sports: r.tenant.sports,
-  });
-  if (!parsed.ok) return { ok: false, error: t.errors.widget[parsed.error] };
-  if (input.id !== null && !isUuid(input.id)) return { ok: false, error: t.errors.widgetNotFound };
-  try {
-    // Outro tenant ou widget arquivado: o pacote lança erro (o id do navegador não vale fora do tenant).
-    const widget = await saveWidget(builderDb(), {
-      tenantId: r.tenant.id,
-      ...(input.id ? { id: input.id } : {}),
-      ...parsed.value,
-      createdBy: r.ctx.userId,
+export const saveWidgetAction = withStaffAudit(
+  'builder.widget.save',
+  async (input: {
+    id: string | null;
+    kind: unknown;
+    name: unknown;
+    config: unknown;
+  }): Promise<SaveWidgetResult> => {
+    const t = await texts();
+    const r = await tenantOrError('builder.manage');
+    if ('error' in r) return { ok: false, error: r.error };
+    const parsed = parseWidgetInput(input, {
+      markets: r.tenant.markets,
+      entityTypes: entityTypesOf,
+      sports: r.tenant.sports,
     });
-    revalidateClient();
-    return { ok: true, widget };
-  } catch (err) {
-    if (err instanceof BrandThemeNotFoundError) return { ok: false, error: t.errors.widget.brandTheme };
-    return { ok: false, error: t.errors.widgetNotFound };
-  }
-});
+    if (!parsed.ok) return { ok: false, error: t.errors.widget[parsed.error] };
+    if (input.id !== null && !isUuid(input.id)) return { ok: false, error: t.errors.widgetNotFound };
+    try {
+      // Outro tenant ou widget arquivado: o pacote lança erro (o id do navegador não vale fora do tenant).
+      const widget = await saveWidget(builderDb(), {
+        tenantId: r.tenant.id,
+        ...(input.id ? { id: input.id } : {}),
+        ...parsed.value,
+        createdBy: r.ctx.userId,
+      });
+      revalidateClient();
+      return { ok: true, widget };
+    } catch (err) {
+      if (err instanceof BrandThemeNotFoundError) return { ok: false, error: t.errors.widget.brandTheme };
+      return { ok: false, error: t.errors.widgetNotFound };
+    }
+  },
+);
 
-export const archiveWidgetAction = withStaffAudit('builder.widget.archive', async (id: string): Promise<ClientActionResult> => {
-  const t = await texts();
-  const r = await tenantOrError('builder.manage');
-  if ('error' in r) return { ok: false, error: r.error };
-  if (!isUuid(id) || !(await archiveWidget(builderDb(), r.tenant.id, id)))
-    return { ok: false, error: t.errors.widgetNotFound };
-  revalidateClient();
-  return { ok: true };
-});
+export const archiveWidgetAction = withStaffAudit(
+  'builder.widget.archive',
+  async (id: string): Promise<ClientActionResult> => {
+    const t = await texts();
+    const r = await tenantOrError('builder.manage');
+    if ('error' in r) return { ok: false, error: r.error };
+    if (!isUuid(id) || !(await archiveWidget(builderDb(), r.tenant.id, id)))
+      return { ok: false, error: t.errors.widgetNotFound };
+    revalidateClient();
+    return { ok: true };
+  },
+);
 
 // ─── temas da marca ──────────────────────────────────────────────────────────────────────────────
 
@@ -233,54 +251,56 @@ export interface SaveBrandThemeResult extends ClientActionResult {
 }
 
 /** Cria (`id` null) ou atualiza um tema da marca; na atualização, os widgets ligados mudam juntos. */
-export const saveBrandThemeAction = withStaffAudit('builder.theme.save', async (input: {
-  id: string | null;
-  name: unknown;
-  theme: unknown;
-}): Promise<SaveBrandThemeResult> => {
-  const t = await texts();
-  const r = await tenantOrError('builder.manage');
-  if ('error' in r) return { ok: false, error: r.error };
-  const name = parseBrandThemeName(input.name);
-  if (!name) return { ok: false, error: t.errors.brandThemes.name };
-  const theme = parseTheme(input.theme);
-  if (!theme) return { ok: false, error: t.errors.widget.theme };
-  if (input.id !== null && !isUuid(input.id)) return { ok: false, error: t.errors.brandThemes.notFound };
-  try {
-    const saved = await saveWidgetTheme(builderDb(), {
-      tenantId: r.tenant.id,
-      ...(input.id ? { id: input.id } : {}),
-      name,
-      theme,
-      createdBy: r.ctx.userId,
-    });
-    revalidateClient();
-    return {
-      ok: true,
-      theme: { id: saved.theme.id, name: saved.theme.name, theme: saved.theme.theme, widgetCount: 0 },
-      widgetsUpdated: saved.widgetsUpdated,
-    };
-  } catch (err) {
-    if (err instanceof BrandThemeNameTakenError)
-      return { ok: false, error: fill(t.errors.brandThemes.nameTaken, { name }) };
-    if (err instanceof BrandThemeNotFoundError) return { ok: false, error: t.errors.brandThemes.notFound };
-    if (err instanceof BrandThemeLimitError) return { ok: false, error: t.errors.brandThemes.limit };
-    console.error('[cliente] falha ao salvar tema da marca', err);
-    return { ok: false, error: t.errors.generic };
-  }
-});
+export const saveBrandThemeAction = withStaffAudit(
+  'builder.theme.save',
+  async (input: { id: string | null; name: unknown; theme: unknown }): Promise<SaveBrandThemeResult> => {
+    const t = await texts();
+    const r = await tenantOrError('builder.manage');
+    if ('error' in r) return { ok: false, error: r.error };
+    const name = parseBrandThemeName(input.name);
+    if (!name) return { ok: false, error: t.errors.brandThemes.name };
+    const theme = parseTheme(input.theme);
+    if (!theme) return { ok: false, error: t.errors.widget.theme };
+    if (input.id !== null && !isUuid(input.id)) return { ok: false, error: t.errors.brandThemes.notFound };
+    try {
+      const saved = await saveWidgetTheme(builderDb(), {
+        tenantId: r.tenant.id,
+        ...(input.id ? { id: input.id } : {}),
+        name,
+        theme,
+        createdBy: r.ctx.userId,
+      });
+      revalidateClient();
+      return {
+        ok: true,
+        theme: { id: saved.theme.id, name: saved.theme.name, theme: saved.theme.theme, widgetCount: 0 },
+        widgetsUpdated: saved.widgetsUpdated,
+      };
+    } catch (err) {
+      if (err instanceof BrandThemeNameTakenError)
+        return { ok: false, error: fill(t.errors.brandThemes.nameTaken, { name }) };
+      if (err instanceof BrandThemeNotFoundError) return { ok: false, error: t.errors.brandThemes.notFound };
+      if (err instanceof BrandThemeLimitError) return { ok: false, error: t.errors.brandThemes.limit };
+      console.error('[cliente] falha ao salvar tema da marca', err);
+      return { ok: false, error: t.errors.generic };
+    }
+  },
+);
 
 export interface DeleteBrandThemeResult extends ClientActionResult {
   /** Widgets que deixaram de seguir o tema (ficam com o visual que tinham). */
   widgetsUnlinked?: number;
 }
 
-export const deleteBrandThemeAction = withStaffAudit('builder.theme.delete', async (id: string): Promise<DeleteBrandThemeResult> => {
-  const t = await texts();
-  const r = await tenantOrError('builder.manage');
-  if ('error' in r) return { ok: false, error: r.error };
-  const unlinked = isUuid(id) ? await deleteWidgetTheme(builderDb(), r.tenant.id, id) : null;
-  if (unlinked === null) return { ok: false, error: t.errors.brandThemes.notFound };
-  revalidateClient();
-  return { ok: true, widgetsUnlinked: unlinked };
-});
+export const deleteBrandThemeAction = withStaffAudit(
+  'builder.theme.delete',
+  async (id: string): Promise<DeleteBrandThemeResult> => {
+    const t = await texts();
+    const r = await tenantOrError('builder.manage');
+    if ('error' in r) return { ok: false, error: r.error };
+    const unlinked = isUuid(id) ? await deleteWidgetTheme(builderDb(), r.tenant.id, id) : null;
+    if (unlinked === null) return { ok: false, error: t.errors.brandThemes.notFound };
+    revalidateClient();
+    return { ok: true, widgetsUnlinked: unlinked };
+  },
+);

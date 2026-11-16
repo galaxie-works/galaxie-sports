@@ -37,8 +37,22 @@ export interface DemoUser {
   lastInvite: { at: string; delivered: boolean; kind: string } | null;
 }
 
-/** Sessão da equipe Galaxie (admin ou support), ou volta para a home. O nome ficou; a equipe cresceu (PL17). */
+/**
+ * Sessão de admin, ou volta para a home. Só `admin`: é o papel que o plugin admin do Better Auth aceita, e é quem
+ * gerencia os usuários do console e o resto de Ajustes. O `support` (PL17) entra só onde `requireStaff` deixa.
+ */
 export async function requireAdmin(): Promise<AuthUser> {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session || roleOf(session.user.role) !== 'admin') redirect('/');
+  return session.user;
+}
+
+/**
+ * Sessão da equipe Galaxie (admin ou support), ou volta para a home. Para as telas de Ajustes que a equipe inteira
+ * usa (a home e as organizações dos clientes); mexer em usuário do console continua sendo só do admin
+ * (`requireAdmin`), e a autorização vem antes de qualquer escrita.
+ */
+export async function requireStaff(): Promise<AuthUser> {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session || !isStaffRole(session.user.role)) redirect('/');
   return session.user;

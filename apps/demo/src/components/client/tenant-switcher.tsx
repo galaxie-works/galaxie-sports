@@ -75,7 +75,9 @@ export function StaffReasonDialog({
           }}
         >
           <DialogHeader>
-            <DialogTitle>{tenant ? fill(s.reasonTitle, { tenant: tenant.name }) : s.reasonTitleShort}</DialogTitle>
+            <DialogTitle>
+              {tenant ? fill(s.reasonTitle, { tenant: tenant.name }) : s.reasonTitleShort}
+            </DialogTitle>
             <DialogDescription>{s.reasonDescription}</DialogDescription>
           </DialogHeader>
           <Field data-invalid={error ? true : undefined}>
@@ -155,7 +157,11 @@ export function TenantSwitcher({
         </SelectContent>
       </Select>
       {askReason ? (
-        <StaffReasonDialog open={asking !== null} tenant={asking} onOpenChange={(o) => !o && setAsking(null)} />
+        <StaffReasonDialog
+          open={asking !== null}
+          tenant={asking}
+          onOpenChange={(o) => !o && setAsking(null)}
+        />
       ) : null}
     </div>
   );

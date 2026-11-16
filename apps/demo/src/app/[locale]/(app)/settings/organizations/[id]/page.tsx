@@ -7,7 +7,7 @@ import { SettingsArea } from '@/components/admin/settings-nav';
 import { LoadingStatus } from '@/components/app-shell/loading-status';
 import { PageHeader } from '@/components/app-shell/page-header';
 import { TablePanelSkeleton } from '@/components/app-shell/skeletons';
-import { requireAdmin } from '@/lib/auth/admin';
+import { requireStaff } from '@/lib/auth/admin';
 import { listOrganizationMembers } from '@/lib/client/members';
 import { getOrganization } from '@/lib/client/organizations';
 import { listStaffActions } from '@/lib/client/staff';
@@ -23,7 +23,7 @@ export async function generateMetadata(): Promise<Metadata> {
 type Props = { params: Promise<{ id: string }> };
 
 async function Detail({ params }: Pick<Props, 'params'>) {
-  await requireAdmin();
+  await requireStaff();
   const [{ id }, timeZone] = await Promise.all([params, getTimeZone()]);
   if (!isUuid(id)) notFound();
   const organization = await getOrganization(id);

@@ -52,7 +52,10 @@ beforeEach(() => {
 });
 
 describe('withStaffAudit', () => {
-  const action = withStaffAudit('keys.create', async (input: { name: string }) => ({ ok: true, name: input.name }));
+  const action = withStaffAudit('keys.create', async (input: { name: string }) => ({
+    ok: true,
+    name: input.name,
+  }));
 
   it('o cliente passa direto, sem motivo e sem registro', async () => {
     readClientContext.mockResolvedValue(client());
@@ -63,7 +66,10 @@ describe('withStaffAudit', () => {
   it('a equipe sem motivo é recusada antes da ação', async () => {
     readClientContext.mockResolvedValue(staff());
     const spy = vi.fn(async () => ({ ok: true }));
-    expect(await withStaffAudit('x.y', spy)()).toEqual({ ok: false, error: 'Informe o motivo (ticket ou pedido do cliente) no seletor de tenant antes de agir.' });
+    expect(await withStaffAudit('x.y', spy)()).toEqual({
+      ok: false,
+      error: 'Informe o motivo (ticket ou pedido do cliente) no seletor de tenant antes de agir.',
+    });
     expect(spy).not.toHaveBeenCalled();
     expect(query).not.toHaveBeenCalled();
   });
@@ -73,7 +79,14 @@ describe('withStaffAudit', () => {
     cookieGet.mockReturnValue({ value: encodeStaffReason('segredo', { tenantId: T, reason: 'ticket 42' }) });
     expect(await action({ name: 'site' })).toEqual({ ok: true, name: 'site' });
     expect(query).toHaveBeenCalledTimes(1);
-    expect(query.mock.calls[0]![1]).toEqual([T, ORG, 'u-equipe', 'keys.create', 'ticket 42', { input: { name: 'site' } }]);
+    expect(query.mock.calls[0]![1]).toEqual([
+      T,
+      ORG,
+      'u-equipe',
+      'keys.create',
+      'ticket 42',
+      { input: { name: 'site' } },
+    ]);
   });
 
   it('ação que falhou não entra no registro; motivo de outro tenant não vale', async () => {
@@ -83,7 +96,10 @@ describe('withStaffAudit', () => {
     expect(await failing()).toEqual({ ok: false, error: 'nope' });
     expect(query).not.toHaveBeenCalled();
     cookieGet.mockReturnValue({
-      value: encodeStaffReason('segredo', { tenantId: '01a16029-0000-7000-8000-000000000002', reason: 'ticket' }),
+      value: encodeStaffReason('segredo', {
+        tenantId: '01a16029-0000-7000-8000-000000000002',
+        reason: 'ticket',
+      }),
     });
     expect((await action({ name: 'x' })).ok).toBe(false);
   });
@@ -131,7 +147,7 @@ describe('cobertura das ações do painel', () => {
       const rel = relative(ROOT, file).replace(/\\/g, '/');
       for (const m of code.matchAll(/^export async function (\w+)/gm))
         if (!EXCEPTIONS[m[1]!]) bare.push(`${rel}: ${m[1]}`);
-      for (const m of code.matchAll(/^export const (\w+) = withStaffAudit\('([a-z_]+(?:\.[a-z_]+)+)'/gm))
+      for (const m of code.matchAll(/^export const (\w+) = withStaffAudit\(\s*'([a-z_]+(?:\.[a-z_]+)+)'/gm))
         wrapped.push(m[2]!);
     }
     expect(bare).toEqual([]);

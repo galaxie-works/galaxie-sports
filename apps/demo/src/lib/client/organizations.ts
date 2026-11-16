@@ -1,7 +1,7 @@
 /**
  * Organizações (`billing.organization`, #1136 F2) para Ajustes › Clientes › Organizações e marcas: a equipe Galaxie
  * vê quem assina e paga por cada marca e edita a faixa de capacidade, a revisão do cadastro e o cliente zero, sempre
- * com motivo em `billing.staff_action`. Só no servidor; as páginas chamam `requireAdmin` antes. Nada de preço aqui.
+ * com motivo em `billing.staff_action`. Só no servidor; as páginas chamam `requireStaff` antes. Nada de preço aqui.
  */
 import { pool } from '@/lib/auth/db';
 
@@ -115,7 +115,9 @@ export async function updateOrganization(input: {
     reviewStatus: input.patch.reviewStatus ?? before.reviewStatus,
     isGalaxie: input.patch.isGalaxie ?? before.isGalaxie,
   };
-  const changed = (['capacityTier', 'reviewStatus', 'isGalaxie'] as const).filter((k) => after[k] !== before[k]);
+  const changed = (['capacityTier', 'reviewStatus', 'isGalaxie'] as const).filter(
+    (k) => after[k] !== before[k],
+  );
   if (!changed.length) return false;
   const c = await pool.connect();
   try {

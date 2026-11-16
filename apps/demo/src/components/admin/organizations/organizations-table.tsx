@@ -42,7 +42,10 @@ export function OrganizationsTable({ rows }: { rows: OrganizationRow[] }) {
                   <TableRow key={o.id}>
                     <TableCell>
                       <div className="flex flex-col gap-0.5">
-                        <Link href={`/settings/organizations/${o.id}`} className="font-medium hover:underline">
+                        <Link
+                          href={`/settings/organizations/${o.id}`}
+                          className="font-medium hover:underline"
+                        >
                           {o.name}
                         </Link>
                         <span className="text-muted-foreground flex items-center gap-1.5 text-xs">
@@ -77,7 +80,9 @@ export function OrganizationsTable({ rows }: { rows: OrganizationRow[] }) {
                         {T.review[o.reviewStatus]}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-sm tabular-nums">{fill(T.membersCount, { n: o.members })}</TableCell>
+                    <TableCell className="text-sm tabular-nums">
+                      {fill(T.membersCount, { n: o.members })}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>

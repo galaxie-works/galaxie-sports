@@ -214,7 +214,9 @@ export function DomainsPanel({
                           <Globe className="text-muted-foreground size-3.5" aria-hidden />
                           {row.host}
                         </span>
-                        <span className="text-muted-foreground text-xs tabular-nums">{fmt.date(row.createdAt)}</span>
+                        <span className="text-muted-foreground text-xs tabular-nums">
+                          {fmt.date(row.createdAt)}
+                        </span>
                       </div>
                     </TableCell>
                     <TableCell className="align-top">

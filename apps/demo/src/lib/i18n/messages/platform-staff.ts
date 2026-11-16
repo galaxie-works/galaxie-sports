@@ -27,10 +27,12 @@ export default defineMessages(
     yes: 'Sim',
     no: 'Não',
     emptyTitle: 'Nenhuma organização ainda',
-    emptyDescription: 'A organização nasce com o cadastro ou com a migration de dados que cria uma por marca.',
+    emptyDescription:
+      'A organização nasce com o cadastro ou com a migration de dados que cria uma por marca.',
     detail: {
       title: 'Organização',
-      description: 'A ficha da organização. A faixa de capacidade vale para todas as marcas; o pico é medido por marca.',
+      description:
+        'A ficha da organização. A faixa de capacidade vale para todas as marcas; o pico é medido por marca.',
       edit: 'Editar',
       editTitle: 'Editar a organização',
       editDescription:
@@ -39,7 +41,8 @@ export default defineMessages(
       brands: 'Marcas',
       brandsDescription: 'As marcas desta organização, cada uma com plano, módulos e chaves próprios.',
       members: 'Dono e Financeiro',
-      membersDescription: 'Cargos que valem em todas as marcas. O cliente convida e troca pela tela Usuários e cargos.',
+      membersDescription:
+        'Cargos que valem em todas as marcas. O cliente convida e troca pela tela Usuários e cargos.',
       noMembers: 'Ninguém com cargo na organização ainda.',
     },
     actions: {
@@ -87,10 +90,12 @@ export default defineMessages(
       yes: 'Yes',
       no: 'No',
       emptyTitle: 'No organizations yet',
-      emptyDescription: 'An organization is born with the signup or with the data migration that creates one per brand.',
+      emptyDescription:
+        'An organization is born with the signup or with the data migration that creates one per brand.',
       detail: {
         title: 'Organization',
-        description: 'The organization record. The capacity tier applies to every brand; the peak is measured per brand.',
+        description:
+          'The organization record. The capacity tier applies to every brand; the peak is measured per brand.',
         edit: 'Edit',
         editTitle: 'Edit the organization',
         editDescription:
@@ -99,7 +104,8 @@ export default defineMessages(
         brands: 'Brands',
         brandsDescription: 'The brands of this organization, each with its own plan, modules and keys.',
         members: 'Owner and Billing',
-        membersDescription: 'Roles that apply to every brand. The customer invites and changes them in Users and roles.',
+        membersDescription:
+          'Roles that apply to every brand. The customer invites and changes them in Users and roles.',
         noMembers: 'Nobody with an organization role yet.',
       },
       actions: {
@@ -146,10 +152,12 @@ export default defineMessages(
       yes: 'Sí',
       no: 'No',
       emptyTitle: 'Todavía no hay organizaciones',
-      emptyDescription: 'La organización nace con el registro o con la migración de datos que crea una por marca.',
+      emptyDescription:
+        'La organización nace con el registro o con la migración de datos que crea una por marca.',
       detail: {
         title: 'Organización',
-        description: 'La ficha de la organización. La franja de capacidad vale para todas las marcas; el pico se mide por marca.',
+        description:
+          'La ficha de la organización. La franja de capacidad vale para todas las marcas; el pico se mide por marca.',
         edit: 'Editar',
         editTitle: 'Editar la organización',
         editDescription:
@@ -158,12 +166,14 @@ export default defineMessages(
         brands: 'Marcas',
         brandsDescription: 'Las marcas de esta organización, cada una con plan, módulos y claves propios.',
         members: 'Dueño y Finanzas',
-        membersDescription: 'Cargos que valen en todas las marcas. El cliente invita y cambia desde Usuarios y cargos.',
+        membersDescription:
+          'Cargos que valen en todas las marcas. El cliente invita y cambia desde Usuarios y cargos.',
         noMembers: 'Todavía nadie tiene cargo en la organización.',
       },
       actions: {
         title: 'Acciones del equipo',
-        description: 'Todo lo que el equipo de Galaxie hizo sobre esta organización y sus marcas, con el motivo.',
+        description:
+          'Todo lo que el equipo de Galaxie hizo sobre esta organización y sus marcas, con el motivo.',
         when: 'Cuándo',
         who: 'Quién',
         what: 'Acción',

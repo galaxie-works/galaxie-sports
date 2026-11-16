@@ -774,14 +774,17 @@ export default defineMessages(
       pending: 'Convite pendente',
       expired: 'Convite vencido',
       reinvite: 'Convidar de novo',
-      inviteTtl: 'O convite vale por {days} dias. Depois disso, a pessoa não entra e dá para convidar de novo.',
+      inviteTtl:
+        'O convite vale por {days} dias. Depois disso, a pessoa não entra e dá para convidar de novo.',
       organization: {
         title: 'Organização: {name}',
         description:
           'Dono e Financeiro valem em todas as marcas da organização ({n}). Só o Dono convida e troca estes cargos.',
         inviteTitle: 'Convidar para a organização',
-        inviteDescription: 'O cargo vale em todas as marcas. A pessoa recebe um e-mail e entra com um código, sem senha.',
-        removeBody: 'A pessoa deixa de entrar em todas as marcas da organização por este cargo. A auditoria guarda quem tirou e quando.',
+        inviteDescription:
+          'O cargo vale em todas as marcas. A pessoa recebe um e-mail e entra com um código, sem senha.',
+        removeBody:
+          'A pessoa deixa de entrar em todas as marcas da organização por este cargo. A auditoria guarda quem tirou e quando.',
         readOnly: 'Só o Dono convida e troca os cargos da organização.',
         auditNote: 'Mudanças nos cargos da organização aparecem na auditoria de cada marca.',
         errors: { none: 'Esta marca ainda não tem organização. Fale com a Galaxie.' },
@@ -920,7 +923,8 @@ export default defineMessages(
         'Os domínios da sua marca, comprovados por um registro TXT no DNS. Em breve, o domínio comprovado entra sozinho nas origens da chave publicável.',
       add: 'Adicionar domínio',
       addTitle: 'Adicionar um domínio',
-      addDescription: 'Informe o host (sem https://). Depois, crie o registro TXT que vai aparecer na lista e peça a conferência.',
+      addDescription:
+        'Informe o host (sem https://). Depois, crie o registro TXT que vai aparecer na lista e peça a conferência.',
       host: 'Domínio',
       hostHint: 'Minúsculas, com pelo menos um ponto: www.exemplo.com ou app.exemplo.com.br.',
       status: 'Situação',
@@ -1765,14 +1769,17 @@ export default defineMessages(
         pending: 'Invite pending',
         expired: 'Invite expired',
         reinvite: 'Invite again',
-        inviteTtl: 'An invite is valid for {days} days. After that the person cannot sign in and you can invite again.',
+        inviteTtl:
+          'An invite is valid for {days} days. After that the person cannot sign in and you can invite again.',
         organization: {
           title: 'Organization: {name}',
           description:
             'Owner and Billing apply to every brand of the organization ({n}). Only the Owner invites and changes these roles.',
           inviteTitle: 'Invite to the organization',
-          inviteDescription: 'The role applies to every brand. The person gets an email and signs in with a code, no password.',
-          removeBody: 'The person can no longer sign in to any brand of the organization through this role. The audit log keeps who removed it and when.',
+          inviteDescription:
+            'The role applies to every brand. The person gets an email and signs in with a code, no password.',
+          removeBody:
+            'The person can no longer sign in to any brand of the organization through this role. The audit log keeps who removed it and when.',
           readOnly: 'Only the Owner invites and changes organization roles.',
           auditNote: 'Changes to organization roles show in the audit log of every brand.',
           errors: { none: 'This brand has no organization yet. Talk to Galaxie.' },
@@ -1911,7 +1918,8 @@ export default defineMessages(
           'Your brand’s domains, verified by a TXT record in DNS. Soon, a verified domain will be added to the publishable key origins automatically.',
         add: 'Add domain',
         addTitle: 'Add a domain',
-        addDescription: 'Enter the host (without https://). Then create the TXT record shown in the list and ask for verification.',
+        addDescription:
+          'Enter the host (without https://). Then create the TXT record shown in the list and ask for verification.',
         host: 'Domain',
         hostHint: 'Lowercase, with at least one dot: www.example.com or app.example.co.uk.',
         status: 'Status',
@@ -2768,14 +2776,17 @@ export default defineMessages(
         pending: 'Invitación pendiente',
         expired: 'Invitación vencida',
         reinvite: 'Invitar de nuevo',
-        inviteTtl: 'La invitación vale por {days} días. Después, la persona no entra y se puede invitar de nuevo.',
+        inviteTtl:
+          'La invitación vale por {days} días. Después, la persona no entra y se puede invitar de nuevo.',
         organization: {
           title: 'Organización: {name}',
           description:
             'Dueño y Finanzas valen en todas las marcas de la organización ({n}). Solo el Dueño invita y cambia estos cargos.',
           inviteTitle: 'Invitar a la organización',
-          inviteDescription: 'El cargo vale en todas las marcas. La persona recibe un correo y entra con un código, sin contraseña.',
-          removeBody: 'La persona deja de entrar en todas las marcas de la organización por este cargo. La auditoría guarda quién lo quitó y cuándo.',
+          inviteDescription:
+            'El cargo vale en todas las marcas. La persona recibe un correo y entra con un código, sin contraseña.',
+          removeBody:
+            'La persona deja de entrar en todas las marcas de la organización por este cargo. La auditoría guarda quién lo quitó y cuándo.',
           readOnly: 'Solo el Dueño invita y cambia los cargos de la organización.',
           auditNote: 'Los cambios en los cargos de la organización aparecen en la auditoría de cada marca.',
           errors: { none: 'Esta marca todavía no tiene organización. Hable con Galaxie.' },
@@ -2859,7 +2870,8 @@ export default defineMessages(
           moderator:
             'Oculta, silencia, suspende por un tiempo, fija, activa el modo lento y juzga la primera apelación.',
           volunteer: 'Oculta y silencia hasta 1 hora; el resto va a la cola.',
-          developer: 'Claves, webhooks, Builder, temas y dominios. No ve facturación, moderación ni usuarios.',
+          developer:
+            'Claves, webhooks, Builder, temas y dominios. No ve facturación, moderación ni usuarios.',
           billing: 'Facturación y créditos, en todas las marcas de la organización. Nada de producto.',
         },
         audit: {
@@ -2896,7 +2908,8 @@ export default defineMessages(
         },
       },
       staff: {
-        reasonRequired: 'Indique el motivo (ticket o pedido del cliente) en el selector de tenant antes de actuar.',
+        reasonRequired:
+          'Indique el motivo (ticket o pedido del cliente) en el selector de tenant antes de actuar.',
         reasonTitle: 'Motivo para actuar en {tenant}',
         reasonTitleShort: 'Motivo',
         reasonDescription:
@@ -2904,7 +2917,8 @@ export default defineMessages(
         reason: 'Motivo (ticket o pedido del cliente)',
         reasonHint: 'Al menos 5 caracteres.',
         reasonConfirm: 'Entrar con este motivo',
-        acting: 'Equipo de Galaxie: actuando en este cliente con el motivo "{reason}". Cada cambio queda registrado.',
+        acting:
+          'Equipo de Galaxie: actuando en este cliente con el motivo "{reason}". Cada cambio queda registrado.',
         missing: 'Equipo de Galaxie: indique el motivo antes de cambiar algo en este cliente.',
         change: 'Cambiar el motivo',
         inform: 'Indicar el motivo',
@@ -2915,7 +2929,8 @@ export default defineMessages(
           'Los dominios de su marca, verificados por un registro TXT en el DNS. Pronto, el dominio verificado entrará solo en los orígenes de la clave publicable.',
         add: 'Agregar dominio',
         addTitle: 'Agregar un dominio',
-        addDescription: 'Indique el host (sin https://). Después, cree el registro TXT que aparecerá en la lista y pida la verificación.',
+        addDescription:
+          'Indique el host (sin https://). Después, cree el registro TXT que aparecerá en la lista y pida la verificación.',
         host: 'Dominio',
         hostHint: 'Minúsculas, con al menos un punto: www.ejemplo.com o app.ejemplo.com.ar.',
         status: 'Estado',

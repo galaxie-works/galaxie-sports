@@ -47,7 +47,8 @@ export const isTenantRole = (value: unknown): value is TenantRole =>
  * cargo lateral; Moderador sênior, não.
  */
 const LATERAL_RANK = 1.5;
-export const roleRank = (role: TenantRole) => (isLateralRole(role) ? LATERAL_RANK : TENANT_ROLES.indexOf(role));
+export const roleRank = (role: TenantRole) =>
+  isLateralRole(role) ? LATERAL_RANK : TENANT_ROLES.indexOf(role);
 
 /** Pelo menos tão alto quanto `min`? Só na Escada: um lateral nunca "alcança" um degrau. */
 export const atLeast = (role: TenantRole, min: TenantRole) =>

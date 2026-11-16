@@ -50,39 +50,43 @@ function failure(err: unknown, d: Awaited<ReturnType<typeof texts>>['d']): Domai
 }
 
 /** Cadastra um host na marca (minúsculas; o navegador pode mandar com esquema, que é cortado). */
-export const addDomainAction = withStaffAudit('domains.add', async (input: {
-  host: string;
-}): Promise<DomainActionResult> => {
-  const r = await tenantOrError();
-  if ('error' in r) return { ok: false, error: r.error };
-  try {
-    await addDomain({ tenantId: r.tenant.id, host: input?.host, actor: r.actor });
-  } catch (err) {
-    return failure(err, r.d);
-  }
-  revalidatePath(PATH);
-  return { ok: true };
-});
+export const addDomainAction = withStaffAudit(
+  'domains.add',
+  async (input: { host: string }): Promise<DomainActionResult> => {
+    const r = await tenantOrError();
+    if ('error' in r) return { ok: false, error: r.error };
+    try {
+      await addDomain({ tenantId: r.tenant.id, host: input?.host, actor: r.actor });
+    } catch (err) {
+      return failure(err, r.d);
+    }
+    revalidatePath(PATH);
+    return { ok: true };
+  },
+);
 
 /** Pede a conferência do TXT (tarefa do worker; uma por domínio na fila). */
-export const verifyDomainAction = withStaffAudit('domains.verify', async (input: {
-  id: string;
-}): Promise<DomainActionResult> => {
-  const r = await tenantOrError();
-  if ('error' in r) return { ok: false, error: r.error };
-  const res = await requestDomainVerification(r.tenant.id, String(input?.id ?? ''), r.actor);
-  if (!res) return { ok: false, error: r.d.errors.notFound };
-  revalidatePath(PATH);
-  return { ok: true, queued: !res.created };
-});
+export const verifyDomainAction = withStaffAudit(
+  'domains.verify',
+  async (input: { id: string }): Promise<DomainActionResult> => {
+    const r = await tenantOrError();
+    if ('error' in r) return { ok: false, error: r.error };
+    const res = await requestDomainVerification(r.tenant.id, String(input?.id ?? ''), r.actor);
+    if (!res) return { ok: false, error: r.d.errors.notFound };
+    revalidatePath(PATH);
+    return { ok: true, queued: !res.created };
+  },
+);
 
 /** Remove o domínio da marca (comprovado ou não). */
-export const removeDomainAction = withStaffAudit('domains.remove', async (input: {
-  id: string;
-}): Promise<DomainActionResult> => {
-  const r = await tenantOrError();
-  if ('error' in r) return { ok: false, error: r.error };
-  if (!(await removeDomain(r.tenant.id, String(input?.id ?? '')))) return { ok: false, error: r.d.errors.notFound };
-  revalidatePath(PATH);
-  return { ok: true };
-});
+export const removeDomainAction = withStaffAudit(
+  'domains.remove',
+  async (input: { id: string }): Promise<DomainActionResult> => {
+    const r = await tenantOrError();
+    if ('error' in r) return { ok: false, error: r.error };
+    if (!(await removeDomain(r.tenant.id, String(input?.id ?? ''))))
+      return { ok: false, error: r.d.errors.notFound };
+    revalidatePath(PATH);
+    return { ok: true };
+  },
+);

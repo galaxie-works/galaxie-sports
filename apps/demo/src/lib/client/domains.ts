@@ -26,7 +26,11 @@ export const DOMAIN_TXT_PREFIX = '_galaxie-verify';
 export function normalizeDomainHost(value: unknown): string | null {
   if (typeof value !== 'string') return null;
   let host = value.trim().toLowerCase();
-  host = host.replace(/^[a-z]+:\/\//, '').replace(/[/?#].*$/, '').replace(/:\d+$/, '').replace(/\.$/, '');
+  host = host
+    .replace(/^[a-z]+:\/\//, '')
+    .replace(/[/?#].*$/, '')
+    .replace(/:\d+$/, '')
+    .replace(/\.$/, '');
   if (!host || host.length > DOMAIN_HOST_MAX || !DOMAIN_HOST_RE.test(host)) return null;
   return host;
 }
@@ -89,7 +93,11 @@ export async function listDomains(tenantId: string): Promise<DomainRow[]> {
 }
 
 /** Cadastra um host na marca. Já cadastrado → `exists`; comprovado por outra marca → `taken`. */
-export async function addDomain(input: { tenantId: string; host: unknown; actor: string }): Promise<DomainRow> {
+export async function addDomain(input: {
+  tenantId: string;
+  host: unknown;
+  actor: string;
+}): Promise<DomainRow> {
   const host = normalizeDomainHost(input.host);
   if (!host) throw new DomainError('invalid');
   const current = await listDomains(input.tenantId);

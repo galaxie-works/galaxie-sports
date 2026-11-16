@@ -109,35 +109,34 @@ export async function POST(request: Request) {
     signal: request.signal,
   };
   // a equipe Galaxie acompanhando o tenant não gasta os créditos dele: o custo fica em cosmos.staff_usage
-  const events =
-    isStaffRole(ctx.role)
-      ? askAssistantAsStaff(
-          builderDb(),
-          {
-            ...scope,
-            route: req.context.route,
-            prompt: prepared.prompt,
-            provider: prepared.provider,
-            model: prepared.model,
-            signingKey: assistantSigningKey(),
-            attachments: prepared.attachments,
-          },
-          deps,
-        )
-      : askAssistant(
-          builderDb(),
-          {
-            ...scope,
-            route: req.context.route,
-            prompt: prepared.prompt,
-            credits: prepared.credits,
-            settings: prepared.settings,
-            model: prepared.model,
-            signingKey: assistantSigningKey(),
-            attachments: prepared.attachments,
-          },
-          deps,
-        );
+  const events = isStaffRole(ctx.role)
+    ? askAssistantAsStaff(
+        builderDb(),
+        {
+          ...scope,
+          route: req.context.route,
+          prompt: prepared.prompt,
+          provider: prepared.provider,
+          model: prepared.model,
+          signingKey: assistantSigningKey(),
+          attachments: prepared.attachments,
+        },
+        deps,
+      )
+    : askAssistant(
+        builderDb(),
+        {
+          ...scope,
+          route: req.context.route,
+          prompt: prepared.prompt,
+          credits: prepared.credits,
+          settings: prepared.settings,
+          model: prepared.model,
+          signingKey: assistantSigningKey(),
+          attachments: prepared.attachments,
+        },
+        deps,
+      );
 
   // a primeira resposta decide o status: recusa antes de reservar sai como erro HTTP
   const first = await events.next();

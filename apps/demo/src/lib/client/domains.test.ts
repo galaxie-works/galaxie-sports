@@ -15,7 +15,18 @@ describe('host do domínio comprovado por TXT', () => {
   });
 
   it('recusa o que o CHECK do banco recusa', () => {
-    for (const bad of ['', 'localhost', 'exemplo', '-a.com', 'a-.com', 'a..com', 'a b.com', 'a_b.com', '*.exemplo.com', 42])
+    for (const bad of [
+      '',
+      'localhost',
+      'exemplo',
+      '-a.com',
+      'a-.com',
+      'a..com',
+      'a b.com',
+      'a_b.com',
+      '*.exemplo.com',
+      42,
+    ])
       expect(normalizeDomainHost(bad), String(bad)).toBeNull();
     expect(normalizeDomainHost(`${'a'.repeat(64)}.com`)).toBeNull();
     expect(normalizeDomainHost(`${'a'.repeat(63)}.com`)).toBe(`${'a'.repeat(63)}.com`);
