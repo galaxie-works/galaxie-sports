@@ -20,9 +20,11 @@ import {
 import { validateCommunityConfig, validateCommunityTerms } from '@galaxie/engage';
 import { revalidatePath } from 'next/cache';
 
+import { isStaffRole } from '@/lib/auth/roles';
 import { communityDb } from '@/lib/client/communities';
 import { can } from '@/lib/client/permissions';
 import { readClientContext } from '@/lib/client/session';
+import { withStaffAudit } from '@/lib/client/staff';
 import { isUuid } from '@/lib/client/tenants';
 import { getDictionary } from '@/lib/i18n/dictionary';
 import { getRequestLocale } from '@/lib/i18n/server';
@@ -50,7 +52,7 @@ async function context(opts: { galaxie?: boolean } = {}) {
   return {
     t,
     tenantId: ctx.tenant.id,
-    actor: ctx.role === 'admin' ? `galaxie:${ctx.userId}` : `panel:${ctx.userId}`,
+    actor: isStaffRole(ctx.role) ? `galaxie:${ctx.userId}` : `panel:${ctx.userId}`,
   } as const;
 }
 
@@ -70,172 +72,187 @@ const syncView = (r: CommunitySyncResult) => ({
 });
 
 /** Liga uma regra de escopo: as Comunidades nascem na hora, dentro do teto do tenant. */
-export async function addScopeRuleAction(input: {
-  kind: string;
-  target: string;
-}): Promise<CommunityActionResult> {
-  const c = await context();
-  if ('error' in c) return { ok: false, error: c.error };
-  if (!(COMMUNITY_SCOPE_KINDS as readonly string[]).includes(input.kind) || typeof input.target !== 'string')
-    return { ok: false, error: c.t.errors.invalid_target };
-  try {
-    const r = await addScopeRule(communityDb(), {
-      tenantId: c.tenantId,
-      kind: input.kind as CommunityScopeKind,
-      target: input.target.trim().slice(0, 80),
-      actor: c.actor,
-    });
-    revalidatePath(PATH);
-    return { ok: true, sync: syncView(r) };
-  } catch (err) {
-    return failure(err, c.t);
-  }
-}
+export const addScopeRuleAction = withStaffAudit(
+  'communities.scope.add',
+  async (input: { kind: string; target: string }): Promise<CommunityActionResult> => {
+    const c = await context();
+    if ('error' in c) return { ok: false, error: c.error };
+    if (
+      !(COMMUNITY_SCOPE_KINDS as readonly string[]).includes(input.kind) ||
+      typeof input.target !== 'string'
+    )
+      return { ok: false, error: c.t.errors.invalid_target };
+    try {
+      const r = await addScopeRule(communityDb(), {
+        tenantId: c.tenantId,
+        kind: input.kind as CommunityScopeKind,
+        target: input.target.trim().slice(0, 80),
+        actor: c.actor,
+      });
+      revalidatePath(PATH);
+      return { ok: true, sync: syncView(r) };
+    } catch (err) {
+      return failure(err, c.t);
+    }
+  },
+);
 
 /** Desliga uma regra: as Comunidades que só ela sustentava são arquivadas, sem apagar nada. */
-export async function removeScopeRuleAction(input: { id: string }): Promise<CommunityActionResult> {
-  const c = await context();
-  if ('error' in c) return { ok: false, error: c.error };
-  if (!isUuid(input.id)) return { ok: false, error: c.t.errors.not_found };
-  try {
-    const r = await removeScopeRule(communityDb(), {
-      tenantId: c.tenantId,
-      ruleId: input.id,
-      actor: c.actor,
-    });
-    revalidatePath(PATH);
-    return { ok: true, sync: syncView(r) };
-  } catch (err) {
-    return failure(err, c.t);
-  }
-}
+export const removeScopeRuleAction = withStaffAudit(
+  'communities.scope.remove',
+  async (input: { id: string }): Promise<CommunityActionResult> => {
+    const c = await context();
+    if ('error' in c) return { ok: false, error: c.error };
+    if (!isUuid(input.id)) return { ok: false, error: c.t.errors.not_found };
+    try {
+      const r = await removeScopeRule(communityDb(), {
+        tenantId: c.tenantId,
+        ruleId: input.id,
+        actor: c.actor,
+      });
+      revalidatePath(PATH);
+      return { ok: true, sync: syncView(r) };
+    } catch (err) {
+      return failure(err, c.t);
+    }
+  },
+);
 
 /** Modo de entrada, post de membro, Chat da Comunidade e janela de exibição, com versão otimista. */
-export async function saveCommunityConfigAction(input: {
-  id: string;
-  version: number;
-  joinMode?: unknown;
-  memberPosts?: unknown;
-  chatEnabled?: unknown;
-  historyDays?: unknown;
-}): Promise<CommunityActionResult> {
-  const c = await context();
-  if ('error' in c) return { ok: false, error: c.error };
-  if (!isUuid(input.id) || !Number.isInteger(input.version))
-    return { ok: false, error: c.t.errors.not_found };
-  const v = validateCommunityConfig({
-    joinMode: input.joinMode,
-    memberPosts: input.memberPosts,
-    chatEnabled: input.chatEnabled,
-    historyDays: input.historyDays,
-  });
-  if (!v.ok) return { ok: false, error: c.t.errors.invalid };
-  try {
-    await updateCommunityConfig(communityDb(), {
-      tenantId: c.tenantId,
-      id: input.id,
-      expectedVersion: input.version,
-      patch: v.patch,
+export const saveCommunityConfigAction = withStaffAudit(
+  'communities.config.save',
+  async (input: {
+    id: string;
+    version: number;
+    joinMode?: unknown;
+    memberPosts?: unknown;
+    chatEnabled?: unknown;
+    historyDays?: unknown;
+  }): Promise<CommunityActionResult> => {
+    const c = await context();
+    if ('error' in c) return { ok: false, error: c.error };
+    if (!isUuid(input.id) || !Number.isInteger(input.version))
+      return { ok: false, error: c.t.errors.not_found };
+    const v = validateCommunityConfig({
+      joinMode: input.joinMode,
+      memberPosts: input.memberPosts,
+      chatEnabled: input.chatEnabled,
+      historyDays: input.historyDays,
     });
-  } catch (err) {
-    return failure(err, c.t);
-  }
-  revalidatePath(PATH);
-  return { ok: true };
-}
+    if (!v.ok) return { ok: false, error: c.t.errors.invalid };
+    try {
+      await updateCommunityConfig(communityDb(), {
+        tenantId: c.tenantId,
+        id: input.id,
+        expectedVersion: input.version,
+        patch: v.patch,
+      });
+    } catch (err) {
+      return failure(err, c.t);
+    }
+    revalidatePath(PATH);
+    return { ok: true };
+  },
+);
 
 /** Publica uma versão nova dos termos (os três idiomas). Os membros aceitam de novo antes de escrever. */
-export async function publishTermsAction(input: {
-  id: string;
-  body: { pt?: unknown; es?: unknown; en?: unknown };
-}): Promise<CommunityActionResult> {
-  const c = await context();
-  if ('error' in c) return { ok: false, error: c.error };
-  if (!isUuid(input.id)) return { ok: false, error: c.t.errors.not_found };
-  const v = validateCommunityTerms(input.body);
-  if (!v.ok) return { ok: false, error: c.t.errors.terms };
-  try {
-    await publishTerms(communityDb(), {
-      tenantId: c.tenantId,
-      communityId: input.id,
-      body: v.body,
-      actor: c.actor,
-    });
-  } catch (err) {
-    return failure(err, c.t);
-  }
-  revalidatePath(PATH);
-  return { ok: true };
-}
+export const publishTermsAction = withStaffAudit(
+  'communities.terms.publish',
+  async (input: {
+    id: string;
+    body: { pt?: unknown; es?: unknown; en?: unknown };
+  }): Promise<CommunityActionResult> => {
+    const c = await context();
+    if ('error' in c) return { ok: false, error: c.error };
+    if (!isUuid(input.id)) return { ok: false, error: c.t.errors.not_found };
+    const v = validateCommunityTerms(input.body);
+    if (!v.ok) return { ok: false, error: c.t.errors.terms };
+    try {
+      await publishTerms(communityDb(), {
+        tenantId: c.tenantId,
+        communityId: input.id,
+        body: v.body,
+        actor: c.actor,
+      });
+    } catch (err) {
+      return failure(err, c.t);
+    }
+    revalidatePath(PATH);
+    return { ok: true };
+  },
+);
 
 /** Cria um convite (entrada fechada ou para pular a aprovação). O código aparece uma vez. */
-export async function createInviteAction(input: {
-  id: string;
-  maxUses: number | null;
-  days: number | null;
-}): Promise<CommunityActionResult> {
-  const c = await context();
-  if ('error' in c) return { ok: false, error: c.error };
-  if (!isUuid(input.id)) return { ok: false, error: c.t.errors.not_found };
-  const maxUses =
-    input.maxUses === null
-      ? null
-      : Number.isInteger(input.maxUses)
-        ? Math.min(Math.max(input.maxUses, 1), 100_000)
-        : 1;
-  const days =
-    input.days === null ? null : Number.isInteger(input.days) ? Math.min(Math.max(input.days, 1), 365) : 7;
-  try {
-    const inv = await createInvite(communityDb(), {
-      tenantId: c.tenantId,
-      communityId: input.id,
-      actor: c.actor,
-      maxUses,
-      expiresAt: days === null ? null : new Date(Date.now() + days * 86_400_000),
-    });
-    return { ok: true, code: inv.code };
-  } catch (err) {
-    return failure(err, c.t);
-  }
-}
+export const createInviteAction = withStaffAudit(
+  'communities.invite.create',
+  async (input: {
+    id: string;
+    maxUses: number | null;
+    days: number | null;
+  }): Promise<CommunityActionResult> => {
+    const c = await context();
+    if ('error' in c) return { ok: false, error: c.error };
+    if (!isUuid(input.id)) return { ok: false, error: c.t.errors.not_found };
+    const maxUses =
+      input.maxUses === null
+        ? null
+        : Number.isInteger(input.maxUses)
+          ? Math.min(Math.max(input.maxUses, 1), 100_000)
+          : 1;
+    const days =
+      input.days === null ? null : Number.isInteger(input.days) ? Math.min(Math.max(input.days, 1), 365) : 7;
+    try {
+      const inv = await createInvite(communityDb(), {
+        tenantId: c.tenantId,
+        communityId: input.id,
+        actor: c.actor,
+        maxUses,
+        expiresAt: days === null ? null : new Date(Date.now() + days * 86_400_000),
+      });
+      return { ok: true, code: inv.code };
+    } catch (err) {
+      return failure(err, c.t);
+    }
+  },
+);
 
 /** Aprova ou recusa um pedido de entrada. */
-export async function decideJoinRequestAction(input: {
-  id: string;
-  approve: boolean;
-}): Promise<CommunityActionResult> {
-  const c = await context();
-  if ('error' in c) return { ok: false, error: c.error };
-  if (!isUuid(input.id)) return { ok: false, error: c.t.errors.not_found };
-  const ok = await decideJoinRequest(communityDb(), {
-    tenantId: c.tenantId,
-    requestId: input.id,
-    approve: input.approve === true,
-    actor: c.actor,
-    now: new Date(),
-  });
-  revalidatePath(PATH);
-  return ok ? { ok: true } : { ok: false, error: c.t.errors.not_found };
-}
+export const decideJoinRequestAction = withStaffAudit(
+  'communities.request.decide',
+  async (input: { id: string; approve: boolean }): Promise<CommunityActionResult> => {
+    const c = await context();
+    if ('error' in c) return { ok: false, error: c.error };
+    if (!isUuid(input.id)) return { ok: false, error: c.t.errors.not_found };
+    const ok = await decideJoinRequest(communityDb(), {
+      tenantId: c.tenantId,
+      requestId: input.id,
+      approve: input.approve === true,
+      actor: c.actor,
+      now: new Date(),
+    });
+    revalidatePath(PATH);
+    return ok ? { ok: true } : { ok: false, error: c.t.errors.not_found };
+  },
+);
 
 /** Suspende ou reativa uma Comunidade: só a equipe da Galaxie. */
-export async function suspendCommunityAction(input: {
-  id: string;
-  suspended: boolean;
-}): Promise<CommunityActionResult> {
-  const c = await context({ galaxie: true });
-  if ('error' in c) return { ok: false, error: c.error };
-  if (!isUuid(input.id)) return { ok: false, error: c.t.errors.not_found };
-  try {
-    await setCommunitySuspended(communityDb(), {
-      tenantId: c.tenantId,
-      id: input.id,
-      suspended: input.suspended === true,
-      actor: c.actor,
-    });
-  } catch (err) {
-    return failure(err, c.t);
-  }
-  revalidatePath(PATH);
-  return { ok: true };
-}
+export const suspendCommunityAction = withStaffAudit(
+  'communities.suspend',
+  async (input: { id: string; suspended: boolean }): Promise<CommunityActionResult> => {
+    const c = await context({ galaxie: true });
+    if ('error' in c) return { ok: false, error: c.error };
+    if (!isUuid(input.id)) return { ok: false, error: c.t.errors.not_found };
+    try {
+      await setCommunitySuspended(communityDb(), {
+        tenantId: c.tenantId,
+        id: input.id,
+        suspended: input.suspended === true,
+        actor: c.actor,
+      });
+    } catch (err) {
+      return failure(err, c.t);
+    }
+    revalidatePath(PATH);
+    return { ok: true };
+  },
+);
