@@ -1,6 +1,7 @@
 'use client';
 
-import { MoreHorizontal } from 'lucide-react';
+import { MoreHorizontal, Pin } from 'lucide-react';
+import Link from 'next/link';
 import { useEffect, useState, useTransition } from 'react';
 import { toast } from 'sonner';
 
@@ -29,6 +30,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import {
   authorAction,
   roomAction,
+  pinMessageAction,
   roomMessagesAction,
   setMessageHiddenAction,
 } from '@/lib/chat/panel-actions';
@@ -40,6 +42,9 @@ import { fill } from '@/lib/i18n/text';
 /** O que o cargo abre nesta sala (o servidor confere de novo a cada ação). */
 export interface RoomPermissions {
   hide: boolean;
+  pin: boolean;
+  /** Abre a ficha do torcedor (cargo do tenant inteiro, não de uma sala). */
+  file: boolean;
   room: boolean;
   muteMinutes: number[];
   shadowMinutes: number[];
@@ -194,6 +199,12 @@ export function ChatRoomPanel({
                     <div className="flex flex-wrap items-center gap-2 text-xs">
                       <span className="font-medium">{name}</span>
                       <span className="text-muted-foreground">{f.time(m.createdAt)}</span>
+                      {m.pinned ? (
+                        <Badge variant="info-light" radius="full">
+                          <Pin aria-hidden />
+                          {T.pinned}
+                        </Badge>
+                      ) : null}
                       {m.visibility !== 'public' ? (
                         <Badge
                           variant={m.visibility === 'hidden' ? 'destructive-light' : 'warning-light'}
@@ -211,7 +222,7 @@ export function ChatRoomPanel({
                       {m.body}
                     </p>
                   </div>
-                  {can.hide || anyAuthor ? (
+                  {can.hide || can.pin || can.file || anyAuthor ? (
                     <DropdownMenu>
                       <DropdownMenuTrigger
                         render={
@@ -239,6 +250,20 @@ export function ChatRoomPanel({
                             }
                           >
                             {m.visibility === 'hidden' ? T.restore : T.hide}
+                          </DropdownMenuItem>
+                        ) : null}
+                        {can.pin && (m.pinned || m.visibility === 'public') ? (
+                          <DropdownMenuItem
+                            onClick={() =>
+                              run(() => pinMessageAction({ fixtureId, messageId: m.pinned ? null : m.id }))
+                            }
+                          >
+                            {m.pinned ? T.unpin : T.pin}
+                          </DropdownMenuItem>
+                        ) : null}
+                        {can.file ? (
+                          <DropdownMenuItem render={<Link href={`/client/chat/users/${m.profileId}`} />}>
+                            {T.file}
                           </DropdownMenuItem>
                         ) : null}
                         {can.muteMinutes.length ? (

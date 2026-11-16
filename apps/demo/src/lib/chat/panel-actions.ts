@@ -124,6 +124,11 @@ export async function setMessageHiddenAction(input: {
              and visibility = 'hidden'
           returning id`);
     if (!changed.length) return;
+    // mensagem fora do ar não fica fixada
+    if (input.hidden)
+      await tx.execute(sql`
+        update chat.room set pinned_message_id = null, pinned_by = null, pinned_at = null, updated_at = now()
+         where tenant_id = ${ctx.tenant.id} and id = ${roomId} and pinned_message_id = ${input.messageId}`);
     await recordModerationDecision(tx as unknown as typeof db, {
       tenantId: ctx.tenant.id,
       actor,
@@ -132,6 +137,69 @@ export async function setMessageHiddenAction(input: {
       subjectProfileId: profileId,
       reason: input.hidden ? 'chat.hide' : 'chat.restore',
       rules: { room: fixtureId, message: input.messageId },
+    });
+  });
+  return { ok: true };
+}
+
+/**
+ * Fixa uma mensagem pública no topo da sala (ou desafixa, com `messageId` null). Uma fixada por sala: fixar outra
+ * troca. Mensagem retida ou fora do ar não se fixa.
+ */
+export async function pinMessageAction(input: {
+  fixtureId: string;
+  messageId: string | null;
+}): Promise<ChatActionResult> {
+  const s = await session();
+  if ('error' in s) return { ok: false, error: s.error };
+  const { ctx, actor, T } = s;
+  const fixtureId = fixtureOf(input.fixtureId);
+  if (!fixtureId || (input.messageId !== null && !UUID.test(input.messageId)))
+    return { ok: false, error: T.invalid };
+  if (!hasLiveChat(ctx)) return { ok: false, error: T.role };
+  if (!allowed(ctx, 'moderation.pin', { room: fixtureId }).ok) return { ok: false, error: T.role };
+  const roomId = await roomIdOf(ctx.tenant.id, fixtureId);
+  if (!roomId) return { ok: false, error: T.notFound };
+  let profileId: string | null = null;
+  if (input.messageId) {
+    const msg = await pool.query<{ profile_id: string }>(
+      `select profile_id from chat.message
+        where tenant_id = $1 and room_id = $2 and id = $3 and visibility = 'public'`,
+      [ctx.tenant.id, roomId, input.messageId],
+    );
+    profileId = msg.rows[0]?.profile_id ?? null;
+    if (!profileId) return { ok: false, error: T.notPinnable };
+  }
+  let clocks;
+  try {
+    clocks = await clocksFor(ctx.tenant.id, profileId);
+  } catch (err) {
+    if (err instanceof NoPolicyError) return { ok: false, error: T.noPolicy };
+    throw err;
+  }
+  const by = actor.kind === 'galaxie' ? actor.id : `tenant:${actor.id}`;
+  const db = builderDb();
+  await db.transaction(async (tx) => {
+    const changed = input.messageId
+      ? await tx.execute(sql`
+          update chat.room
+             set pinned_message_id = ${input.messageId}, pinned_by = ${by}, pinned_at = now(), updated_at = now()
+           where tenant_id = ${ctx.tenant.id} and id = ${roomId}
+             and pinned_message_id is distinct from ${input.messageId}
+          returning id`)
+      : await tx.execute(sql`
+          update chat.room set pinned_message_id = null, pinned_by = null, pinned_at = null, updated_at = now()
+           where tenant_id = ${ctx.tenant.id} and id = ${roomId} and pinned_message_id is not null
+          returning id`);
+    if (!changed.length) return;
+    await recordModerationDecision(tx as unknown as typeof db, {
+      tenantId: ctx.tenant.id,
+      actor,
+      action: input.messageId ? 'chat.pin' : 'chat.unpin',
+      clocks,
+      ...(profileId ? { subjectProfileId: profileId } : {}),
+      reason: input.messageId ? 'chat.pin' : 'chat.unpin',
+      rules: { room: fixtureId, ...(input.messageId ? { message: input.messageId } : {}) },
     });
   });
   return { ok: true };

@@ -301,6 +301,34 @@ export const moderationAppeal = engage.table(
   ],
 );
 
+/**
+ * Nota interna da equipe do cliente sobre um torcedor (ficha do usuário, #973). O torcedor não vê. Só recebe linhas
+ * novas: corrigir é escrever outra nota. Sai no relógio de decisões da ficha do país, como a auditoria.
+ */
+export const moderationNote = engage.table(
+  'moderation_note',
+  {
+    id: pkUuidV7(),
+    tenantId: tenantRef(),
+    profileId: uuid('profile_id').notNull(),
+    body: text('body').notNull(),
+    /** `user:<id>` ou `galaxie:<id>`, como na auditoria. */
+    author: text('author').notNull(),
+    purgeAt: ts('purge_at').notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    foreignKey({
+      name: 'moderation_note_profile_fk',
+      columns: [t.tenantId, t.profileId],
+      foreignColumns: [fanProfile.tenantId, fanProfile.id],
+    }).onDelete('cascade'),
+    index('moderation_note_profile_idx').on(t.tenantId, t.profileId, t.createdAt),
+    index('moderation_note_purge_idx').on(t.purgeAt),
+    check('moderation_note_body_len', sql`length(${t.body}) between 1 and 1000`),
+  ],
+);
+
 export const moderationAudit = engage.table(
   'moderation_audit',
   {

@@ -48,6 +48,7 @@ import {
   readRoom,
   readChatEvent,
   readTenantConfig,
+  pinnedMessage,
   recentMessages,
   tenantHasLiveChat,
   writeTenantConfig,
@@ -210,11 +211,13 @@ export async function chatRoutes(app: FastifyInstance, deps: ChatRoutesDeps): Pr
   ): Promise<ChatRoom> {
     const { room, eff, window } = loaded;
     const visible: ChatRoomState[] = ['open', 'frozen', 'read_only_peak', 'closed'];
-    const [messages, game] = await Promise.all([
-      room && visible.includes(window.state)
-        ? recentMessages(db(), tenantId, room.id, eff.historyOnJoin)
-        : Promise.resolve([]),
+    const show = room !== null && visible.includes(window.state);
+    const [messages, game, pinned] = await Promise.all([
+      show ? recentMessages(db(), tenantId, room.id, eff.historyOnJoin) : Promise.resolve([]),
       gameMessages(db(), fixtureId),
+      show && room.pinnedMessageId
+        ? pinnedMessage(db(), tenantId, room.id, room.pinnedMessageId)
+        : Promise.resolve(null),
     ]);
     return {
       data: {
@@ -229,6 +232,7 @@ export async function chatRoutes(app: FastifyInstance, deps: ChatRoutesDeps): Pr
           max_chars: eff.maxChars,
         },
         messages: messages.map(messageView),
+        pinned: pinned ? messageView(pinned) : null,
         game_messages: game.filter((m) => gameKindEnabled(eff.eventKinds, m.kind)),
         reactions: await reactions.totals(`${tenantId}:${fixtureId}`).catch(() => ({})),
       },

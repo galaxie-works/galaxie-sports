@@ -15,6 +15,7 @@ import {
   moderationAppeal,
   moderationAudit,
   moderationCase,
+  moderationNote,
   moderationReport,
   moderationSanction,
 } from './schema/moderation.js';
@@ -1513,7 +1514,7 @@ export async function readAudit(
  */
 export async function purgeModeration(
   db: Database,
-): Promise<{ contents: number; cases: number; sanctions: number; audit: number }> {
+): Promise<{ contents: number; cases: number; sanctions: number; audit: number; notes: number }> {
   return db.transaction(async (tx) => {
     await tx.execute(sql`set local engage.moderation_purge = 'on'`);
     const contentCases = await tx
@@ -1573,11 +1574,16 @@ export async function purgeModeration(
         ),
       )
       .returning({ id: moderationAudit.id });
+    const notes = await tx
+      .delete(moderationNote)
+      .where(sql`${moderationNote.purgeAt} <= now()`)
+      .returning({ id: moderationNote.id });
     return {
       contents: contentCases.length + contentAudit.length,
       cases: cases.length,
       sanctions: sanctions.length,
       audit: auditRows.length,
+      notes: notes.length,
     };
   });
 }
@@ -1661,4 +1667,56 @@ export async function eraseModerationContent(
         or(eq(fanBlock.blockerProfileId, profileId), eq(fanBlock.blockedProfileId, profileId)),
       ),
     );
+  // o que a equipe anotou sobre ele (ficha do usuário, #973)
+  await tx
+    .delete(moderationNote)
+    .where(and(eq(moderationNote.tenantId, tenantId), eq(moderationNote.profileId, profileId)));
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Notas internas da ficha do usuário (#973)
+
+export interface ModerationNoteRow {
+  id: string;
+  body: string;
+  author: string;
+  createdAt: Date;
+}
+
+/** Nota interna da equipe sobre o torcedor. Só entra: corrigir é escrever outra. */
+export async function addModerationNote(
+  db: Executor,
+  input: { tenantId: string; profileId: string; body: string; author: string; purgeAt: Date },
+): Promise<string> {
+  const [row] = await db
+    .insert(moderationNote)
+    .values({
+      tenantId: input.tenantId,
+      profileId: input.profileId,
+      body: input.body,
+      author: input.author,
+      purgeAt: input.purgeAt,
+    })
+    .returning({ id: moderationNote.id });
+  return row!.id;
+}
+
+/** Notas do torcedor, da mais recente para a mais antiga. */
+export async function moderationNotesFor(
+  db: Executor,
+  tenantId: string,
+  profileId: string,
+  limit = 100,
+): Promise<ModerationNoteRow[]> {
+  return db
+    .select({
+      id: moderationNote.id,
+      body: moderationNote.body,
+      author: moderationNote.author,
+      createdAt: moderationNote.createdAt,
+    })
+    .from(moderationNote)
+    .where(and(eq(moderationNote.tenantId, tenantId), eq(moderationNote.profileId, profileId)))
+    .orderBy(desc(moderationNote.createdAt))
+    .limit(limit);
 }

@@ -4,6 +4,7 @@ import { and, eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   activeSanctions,
+  addModerationNote,
   applySanction,
   appealJudges,
   blockFan,
@@ -19,6 +20,7 @@ import {
   holdContent,
   listBlocks,
   listQueue,
+  moderationNotesFor,
   purgeModeration,
   readAudit,
   runMigrations,
@@ -987,5 +989,44 @@ describe('fila única da moderação (B8, #953)', () => {
     });
     const [c] = (await listQueue(db, tenantId)).filter((x) => x.id === r.caseId);
     expect(c!.content).toBe('texto ofensivo');
+  });
+});
+
+describe('notas internas da ficha (#973)', () => {
+  it('lista da mais nova, sai no relógio e some na exclusão do torcedor', async () => {
+    const fan = await profile();
+    const other = await profile();
+    const past = new Date(Date.now() - 60_000);
+    const future = new Date(Date.now() + 86_400_000);
+    await addModerationNote(db, {
+      tenantId,
+      profileId: fan.id,
+      body: 'velha',
+      author: 'user:a',
+      purgeAt: past,
+    });
+    await addModerationNote(db, {
+      tenantId,
+      profileId: fan.id,
+      body: 'nova',
+      author: 'user:a',
+      purgeAt: future,
+    });
+    await addModerationNote(db, {
+      tenantId,
+      profileId: other.id,
+      body: 'outra',
+      author: 'user:b',
+      purgeAt: future,
+    });
+    expect((await moderationNotesFor(db, tenantId, fan.id)).map((n) => n.body)).toEqual(['nova', 'velha']);
+
+    const res = await purgeModeration(db);
+    expect(res.notes).toBeGreaterThanOrEqual(1);
+    expect((await moderationNotesFor(db, tenantId, fan.id)).map((n) => n.body)).toEqual(['nova']);
+
+    await db.transaction((tx) => eraseModerationContent(tx, tenantId, fan.id));
+    expect(await moderationNotesFor(db, tenantId, fan.id)).toEqual([]);
+    expect((await moderationNotesFor(db, tenantId, other.id)).map((n) => n.body)).toEqual(['outra']);
   });
 });

@@ -92,6 +92,8 @@ export interface PanelMessage {
   nickname: string | null;
   visibility: 'public' | 'shadow' | 'hidden';
   flags: string[];
+  /** Fixada no topo da sala para os torcedores. */
+  pinned: boolean;
   createdAt: string;
 }
 
@@ -108,11 +110,14 @@ export async function loadRoomMessages(
     nickname: string | null;
     visibility: PanelMessage['visibility'];
     flags: string[];
+    pinned: boolean;
     created_at: Date;
   }>(
-    `select m.id, m.body, m.profile_id, p.nickname, m.visibility, m.flags, m.created_at
+    `select m.id, m.body, m.profile_id, p.nickname, m.visibility, m.flags, m.created_at,
+            coalesce(r.pinned_message_id = m.id, false) as pinned
        from chat.message m
        join fan.profile p on p.tenant_id = m.tenant_id and p.id = m.profile_id
+       join chat.room r on r.tenant_id = m.tenant_id and r.id = m.room_id
       where m.tenant_id = $1 and m.room_id = $2 and p.deleted_at is null
       order by m.id desc
       limit $3`,
@@ -125,6 +130,7 @@ export async function loadRoomMessages(
     nickname: r.nickname,
     visibility: r.visibility,
     flags: r.flags,
+    pinned: r.pinned,
     createdAt: r.created_at.toISOString(),
   }));
 }
