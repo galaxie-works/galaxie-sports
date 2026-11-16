@@ -415,10 +415,11 @@ export async function chatRoutes(app: FastifyInstance, deps: ChatRoutesDeps): Pr
       if (profile.ageBand !== '18plus')
         throw problems.fanAgeRestricted(sendRefusalNotice('age_band', fan.locale));
 
-      // Suspensão e Banimento valem em todas as salas do cliente; Silenciar, só onde aconteceu. O Silêncio oculto não
+      // Suspensão e Banimento valem em todas as salas do cliente; Silenciar, só onde aconteceu (a sala é o id da
+      // sala ou o do jogo, que o painel do cliente usa, #973). O Silêncio oculto não
       // recusa: a mensagem fica só para o autor (ele não é avisado, é a exceção ao aviso)
       const here = (s: { scope: string; scopeId: string | null }) =>
-        s.scope === 'tenant' || (s.scope === 'place' && s.scopeId === room.id);
+        s.scope === 'tenant' || (s.scope === 'place' && (s.scopeId === room.id || s.scopeId === fixtureId));
       const blocking = sanctions.find(
         (s) =>
           here(s) && (s.level === 'suspension' || s.level === 'ban' || (s.level === 'mute' && !s.hidden)),
