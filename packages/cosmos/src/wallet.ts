@@ -119,9 +119,19 @@ export interface FunctionDefInput {
  * tema a partir do brandbook, só os que leem PDF; a moderação de imagem, só os que leem imagem (os mesmos). Salvar outro
  * deixaria a função "Ativa" respondendo indisponível.
  */
+/**
+ * Funções que mandam arquivo (PDF ou imagem) ao modelo: só os provedores que leem arquivo. A lista de canais lida de
+ * PDF ou print (#1008) tem o nome aqui porque a função mora na demo.
+ */
+export const FILE_FUNCTIONS: readonly string[] = [
+  BRANDBOOK_FUNCTION,
+  IMAGE_MODERATION_FUNCTION_NAME,
+  'channels.import',
+];
+
 export function providerHasCaller(functionName: string, provider: CosmosProvider): boolean {
   if (functionName === ASSISTANT_FUNCTION) return Boolean(ASSISTANT_STREAMERS[provider]);
-  if (functionName === BRANDBOOK_FUNCTION || functionName === IMAGE_MODERATION_FUNCTION_NAME)
+  if (FILE_FUNCTIONS.includes(functionName))
     return (BRANDBOOK_PROVIDERS as readonly string[]).includes(provider);
   return true;
 }

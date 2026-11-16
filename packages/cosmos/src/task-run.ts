@@ -13,13 +13,19 @@
 import { estimateCostUsd } from '@galaxie/ai-ledger/pricing';
 import type { Database } from '@galaxie/db/client';
 import { reservation, staffUsage } from '@galaxie/db/schema';
-import { createCompletionClient, type CompletionClient, type CompletionResult } from '@galaxie/llm';
+import {
+  createCompletionClient,
+  type CompletionAttachment,
+  type CompletionClient,
+  type CompletionResult,
+} from '@galaxie/llm';
 import { and, count, eq, gte } from 'drizzle-orm';
 
 import { creditsFor } from './credits.js';
 import { isCosmosError } from './errors.js';
 import { cosmosApiKey } from './models.js';
 import type { CosmosSettings } from './settings.js';
+import { BRANDBOOK_PROVIDERS } from './brandbook.js';
 import { activeFunction, getWallet, release, reserve, settle } from './wallet.js';
 
 /** Limites das tarefas de uma chamada. Fora daqui, nada; ajustar é mudar estes números. */
@@ -65,6 +71,8 @@ export interface TaskInput<T> {
   system: string;
   message: string;
   maxOutputTokens: number;
+  /** Arquivos (PDF ou imagem) que o modelo lê junto da mensagem; a reserva conta os tokens deles. */
+  attachments?: CompletionAttachment[];
   /** Vai para o extrato junto do acerto (nunca o texto do cliente). */
   metadata?: Record<string, unknown>;
   /**
@@ -153,6 +161,36 @@ async function overLimit(
   return (row?.n ?? 0) >= TASK_LIMITS.userPerMinute;
 }
 
+/** Tokens de entrada por imagem na reserva (para mais: uma imagem grande custa perto de 1,6 mil nos provedores). */
+export const IMAGE_TOKENS = 1_800;
+/** Tokens de entrada por página de PDF na reserva (o texto e a imagem da página). */
+export const PDF_PAGE_TOKENS = 3_000;
+
+/** Bytes por página no piso da contagem: PDF compactado esconde as páginas, o tamanho não. */
+const PDF_BYTES_PER_PAGE = 100 * 1024;
+
+/**
+ * Páginas de um PDF em base64, para a reserva: o maior entre os objetos `/Type /Page` visíveis, o maior `/Count` da
+ * árvore de páginas e um piso pelo tamanho do arquivo. Em PDF com object streams (1.5+), as páginas ficam
+ * compactadas e a contagem direta dá 0; o piso pelo tamanho segura a reserva. Pelo menos 1.
+ */
+export function pdfPages(base64: string): number {
+  const bytes = Buffer.from(base64, 'base64');
+  const text = bytes.toString('latin1');
+  const objects = (text.match(/\/Type\s*\/Page(?![a-z])/g) ?? []).length;
+  let tree = 0;
+  for (const m of text.matchAll(/\/Count\s+(\d{1,6})\b/g)) tree = Math.max(tree, Number(m[1]));
+  return Math.max(1, objects, tree, Math.ceil(bytes.length / PDF_BYTES_PER_PAGE));
+}
+
+/** Tokens de entrada estimados dos anexos, para a reserva cobrir a chamada. */
+export function attachmentTokens(files: readonly CompletionAttachment[] = []): number {
+  return files.reduce(
+    (n, f) => n + (f.mediaType === 'application/pdf' ? pdfPages(f.data) * PDF_PAGE_TOKENS : IMAGE_TOKENS),
+    0,
+  );
+}
+
 /** Custo real da resposta pelo uso do provedor. */
 const costOf = (model: string, usage: TaskUsage) => estimateCostUsd(model, { ...usage });
 
@@ -199,14 +237,15 @@ export function estimateTaskCredits(input: {
   minCredits: number;
   multiplier: number;
   settings: CosmosSettings;
+  attachments?: readonly CompletionAttachment[] | undefined;
   /** Caracteres a mais no prompt (resultados que as rodadas acrescentam). */
   extraChars?: number;
 }): number {
   return creditsFor({
     costUsd: estimateCostUsd(input.model, {
-      inputTokens: Math.ceil(
-        (input.system.length + input.message.length + (input.extraChars ?? 0)) / CHARS_PER_TOKEN,
-      ),
+      inputTokens:
+        Math.ceil((input.system.length + input.message.length + (input.extraChars ?? 0)) / CHARS_PER_TOKEN) +
+        attachmentTokens(input.attachments),
       outputTokens: input.maxOutputTokens,
     }),
     multiplier: input.multiplier,
@@ -227,6 +266,9 @@ export async function runCosmosTask<T>(
   const fn = await activeFunction(db, input.functionName);
   const apiKey = fn ? cosmosApiKey(fn.provider, env) : null;
   if (!fn || (!deps.client && !apiKey)) return { ok: false, error: 'unavailable' };
+  // arquivo para um provedor que não lê arquivo (DeepSeek) falharia no envio: recusa antes de reservar
+  if (input.attachments?.length && !(BRANDBOOK_PROVIDERS as readonly string[]).includes(fn.provider))
+    return { ok: false, error: 'unavailable' };
   if (await overLimit(db, input, now())) return { ok: false, error: 'rate_limited' };
 
   const call = (req: { system: string; message: string; maxOutputTokens: number }) => {
@@ -237,6 +279,7 @@ export async function runCosmosTask<T>(
       system: req.system,
       messages: [{ role: 'user', content: req.message }],
       maxOutputTokens: req.maxOutputTokens,
+      ...(input.attachments?.length ? { attachments: input.attachments } : {}),
       json: true,
       timeoutMs,
       signal: AbortSignal.timeout(timeoutMs),
@@ -254,6 +297,10 @@ export async function runCosmosTask<T>(
     message: input.message.repeat(rounds),
     maxOutputTokens: input.maxOutputTokens * rounds,
     extraChars: input.extraInputChars ?? 0,
+    // o arquivo vai em cada rodada
+    attachments: input.attachments?.length
+      ? Array.from({ length: rounds }, () => input.attachments ?? []).flat()
+      : undefined,
     minCredits: fn.minCredits,
     multiplier: wallet?.multiplier ?? 1,
     settings: deps.settings,
