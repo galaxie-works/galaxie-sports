@@ -23,6 +23,7 @@ import { fanPaths } from './fans.js';
 import { presencePaths } from './presence.js';
 import { moderationPaths } from './moderation.js';
 import { chatPaths } from './chat.js';
+import { communityPaths } from './communities.js';
 import { ChampionsParams, ChampionsQuery, CompetitionChampions } from './champions.js';
 import { ChannelGuide, ChannelGuideParams, ChannelGuideQuery } from './channel-guide.js';
 import { channelListPaths } from './channel-list.js';
@@ -242,6 +243,12 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
         description:
           'Sala do Jogo: uma sala por jogo e por cliente. Ler não exige login; só torcedor 18plus escreve, com o ' +
           'token do torcedor (docs/05 §10).',
+      },
+      {
+        name: 'Comunidades',
+        description:
+          'A rede social privada de torcedores do cliente: uma Comunidade por esporte, campeonato, time ou atleta, ' +
+          'criada pelo escopo que o cliente liga. Tudo com o token do torcedor; quem não é membro vê só a vitrine.',
       },
       {
         name: 'Hipismo',
@@ -760,6 +767,7 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
       ...presencePaths,
       ...moderationPaths,
       ...chatPaths,
+      ...communityPaths,
       ...channelListPaths,
       ...relatedPaths,
     }),

@@ -40,6 +40,7 @@ export const APP_SCHEMAS = [
   'engage',
   'fan',
   'chat',
+  'community',
   'billing',
 ] as const;
 
@@ -47,7 +48,7 @@ export const APP_SCHEMAS = [
  * Schemas com dado pessoal pseudonimizado do torcedor (#937): só a API lê e escreve (e a demo lê, para a
  * moderação). Agentes de IA e ingestor ficam de fora.
  */
-const PERSONAL_SCHEMAS: readonly string[] = ['fan', 'chat'];
+const PERSONAL_SCHEMAS: readonly string[] = ['fan', 'chat', 'community'];
 
 /** Schema do login da demo (fora das migrations: a demo cria as tabelas na subida). */
 export const DEMO_AUTH_SCHEMA = 'demo_auth';
@@ -81,7 +82,7 @@ export const ROLE_GRANTS: Record<RoleService, RoleGrants> = {
   // runtime_env/publishable_key/change_feed em ops
   api: {
     read: [...APP_SCHEMAS, `${DEMO_AUTH_SCHEMA}.${DEMO_FEED_CURSOR}`],
-    write: ['api', 'enrich', 'ops', 'fan', 'engage', 'chat'],
+    write: ['api', 'enrich', 'ops', 'fan', 'engage', 'chat', 'community'],
     // Cosmos AI: só o webhook do Stripe (applyStripeEvent: crédito da compra e da recarga automática, #993/#994)
     modify: ['cosmos.stripe_event', 'cosmos.wallet', 'cosmos.recharge_attempt'],
     // a compra e a recarga automática já existem quando o pagamento chega: a API só muda o estado
@@ -137,6 +138,13 @@ export const ROLE_GRANTS: Record<RoleService, RoleGrants> = {
       // painel do Chat ao vivo do cliente (#973): congelar, modo lento e o padrão das salas (sem apagar sala)
       'chat.room',
       'chat.tenant_config',
+      // Comunidades no painel do cliente (#939): escopo, configuração, convites e a fila de aprovação. A Comunidade
+      // nunca é apagada (sair do escopo arquiva), nem o membro (tirar muda o estado)
+      'community.scope_rule',
+      'community.community',
+      'community.invite',
+      'community.join_request',
+      'community.membership',
     ],
     // painel do Chat ao vivo (#973): tirar do ar e devolver mensagem (a visibilidade); a mensagem nunca é apagada aqui
     update: ['chat.message'],
@@ -146,6 +154,8 @@ export const ROLE_GRANTS: Record<RoleService, RoleGrants> = {
       'cosmos.balance_alert',
       'cosmos.staff_action',
       'cosmos.moderation_config_log',
+      // termos da Comunidade por versão (#939): versão nova é linha nova
+      'community.terms_version',
       // vetores da base de conhecimento do assistente (#1118; sem a tabela, o GRANT é pulado)
       'cosmos.doc_embedding',
     ],

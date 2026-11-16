@@ -23,6 +23,7 @@ import {
 } from './engage/presence-routes.js';
 import { moderationRoutes } from './engage/moderation-routes.js';
 import { chatRoutes } from './chat/routes.js';
+import { communityRoutes } from './engage/community-routes.js';
 import { ChatHub } from './chat/hub.js';
 import { ChatGameFeed } from './chat/game.js';
 import { MemoryChatPeak, RedisChatPeak } from './chat/peak.js';
@@ -662,6 +663,7 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
       reactions: chatReactions,
       stream: options.chat?.stream,
     });
+    await communityRoutes(instance, { db: options.db, now: options.now });
   });
 
   // escopo próprio: o corpo cru do webhook do provedor da verificação de idade (#1109)
