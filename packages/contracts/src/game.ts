@@ -131,6 +131,50 @@ export const MyRanking = z
   .meta({ id: 'MyRanking' });
 export type MyRanking = z.infer<typeof MyRanking>;
 
+export const FanAchievements = z
+  .object({
+    data: z.object({
+      program_country: z.string(),
+      achievements: z.array(
+        z.object({
+          achievement_id: z.string(),
+          season: z.string().meta({ description: '`all` (vitalícia) ou o ano da temporada.' }),
+          count: z.number().int(),
+          steps: z.number().int().meta({ description: 'Degraus alcançados (0 a 5).' }),
+          next_threshold: z
+            .number()
+            .int()
+            .nullable()
+            .meta({ description: 'Quanto falta contar para o próximo.' }),
+          rarity: z
+            .number()
+            .nullable()
+            .meta({ description: 'Fração dos torcedores do programa com o primeiro Degrau (0 a 1).' }),
+        }),
+      ),
+    }),
+  })
+  .meta({ id: 'FanAchievements' });
+export type FanAchievements = z.infer<typeof FanAchievements>;
+
+export const FanCards = z
+  .object({
+    data: z.object({
+      program_country: z.string(),
+      cards: z.array(
+        z.object({
+          card_key: z.string(),
+          achievement_id: z.string(),
+          season: z.string(),
+          step: z.number().int(),
+          granted_at: z.string(),
+        }),
+      ),
+    }),
+  })
+  .meta({ id: 'FanCards' });
+export type FanCards = z.infer<typeof FanCards>;
+
 const problem = (description: string) => ({
   description,
   content: { 'application/problem+json': { schema: Problem } },
@@ -190,6 +234,26 @@ export const gamePaths: ZodOpenApiPathsObject = {
       security: fanAuth,
       requestParams: { path: RankingParams, query: RankingQuery },
       responses: { '200': { description: 'OK', content: json(Ranking) }, ...common },
+    },
+  },
+  '/v1/fans/me/achievements': {
+    get: {
+      summary: 'Minhas Conquistas',
+      description:
+        'Progresso do torcedor em cada Conquista (vitalícia e da temporada), Degraus alcançados e a raridade. ' +
+        'Nenhuma Conquista vem de compra.',
+      tags: [TAG],
+      security: fanAuth,
+      responses: { '200': { description: 'OK', content: json(FanAchievements) }, ...common },
+    },
+  },
+  '/v1/fans/me/cards': {
+    get: {
+      summary: 'Minhas Cartas',
+      description: 'Cartas ganhas, uma certa por Degrau de Conquista. Sem sorteio, sem compra e sem troca.',
+      tags: [TAG],
+      security: fanAuth,
+      responses: { '200': { description: 'OK', content: json(FanCards) }, ...common },
     },
   },
   '/v1/rankings/{period}/me': {

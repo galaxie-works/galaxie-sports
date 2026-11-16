@@ -139,20 +139,27 @@ const ENGAGE_TOPICS: WebhookTopicDef[] = [
     }),
   },
   {
-    topic: 'game.achievement.level_reached',
+    topic: 'game.achievement.step_reached',
     modules: WEBHOOK_TOPIC_PREFIXES.game,
-    status: 'planned',
+    status: 'live',
     label: {
-      pt: 'Nível de conquista atingido',
-      es: 'Nivel de logro alcanzado',
-      en: 'Achievement level reached',
+      pt: 'Degrau de Conquista alcançado',
+      es: 'Escalón de logro alcanzado',
+      en: 'Achievement step reached',
     },
-    description: 'Um torcedor subiu de nível numa conquista do programa de Gamificação.',
-    payload: engageEnvelope('WebhookGameAchievementLevelReached', 'game.achievement.level_reached', {
+    description:
+      'Um torcedor chegou a um Degrau de uma Conquista (vitalícia ou da temporada). Com `completed`, foi o último ' +
+      'Degrau. Use para entregar a recompensa que o seu programa prende àquele Degrau.',
+    payload: engageEnvelope('WebhookGameAchievementStepReached', 'game.achievement.step_reached', {
       profile_id: profileId,
-      program_id: z.uuid(),
-      achievement_id: z.uuid(),
-      level: z.number().int().positive(),
+      program_country: z.string().length(2),
+      achievement_id: z
+        .string()
+        .meta({ description: 'Id estável da Conquista no Catálogo (`predictions.correct`).' }),
+      season: z.string().meta({ description: '`all` (vitalícia) ou o ano da temporada.' }),
+      step: z.number().int().min(1).max(5),
+      completed: z.boolean(),
+      card_key: z.string().nullable().meta({ description: 'Carta que o Degrau deu.' }),
     }),
   },
   {

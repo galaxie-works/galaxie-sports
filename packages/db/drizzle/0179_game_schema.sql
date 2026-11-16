@@ -263,3 +263,80 @@ CREATE UNIQUE INDEX "prediction_profile_event_uq" ON "game"."prediction" USING b
 CREATE INDEX "prediction_event_idx" ON "game"."prediction" USING btree ("tenant_id","program_country","event_id","state");--> statement-breakpoint
 CREATE INDEX "prediction_lock_idx" ON "game"."prediction" USING btree ("event_id","state","lock_at");--> statement-breakpoint
 CREATE INDEX "step_grant_recent_idx" ON "game"."step_grant" USING btree ("tenant_id","program_country","profile_id","granted_at");
+--> statement-breakpoint
+-- Catálogo inicial da Galaxie e os Níveis (seed; espelha o INITIAL_CATALOG e o LEVELS do @galaxie/game-rules).
+INSERT INTO "game"."catalog_achievement" ("id", "sport", "category", "family", "rule", "stepped", "seasonal", "active", "inactive_reason", "name", "description")
+VALUES
+  ('predictions.correct', NULL, 'hit', 'predictions', '{"input":"prediction","correct":true}'::jsonb, true, true, true, NULL, '{"pt":"Palpiteiro","es":"Pronosticador","en":"Predictor"}'::jsonb, '{"pt":"Acerte Palpites de qualquer tipo.","es":"Acierta pronósticos de cualquier tipo.","en":"Get predictions of any kind right."}'::jsonb),
+  ('predictions.exact_score', NULL, 'hit', 'predictions', '{"input":"prediction","kind":"exact_score","correct":true}'::jsonb, true, true, true, NULL, '{"pt":"Na mosca","es":"En el blanco","en":"Spot on"}'::jsonb, '{"pt":"Acerte o placar exato.","es":"Acierta el marcador exacto.","en":"Get the exact score right."}'::jsonb),
+  ('predictions.winner', NULL, 'hit', 'predictions', '{"input":"prediction","kind":"winner","correct":true}'::jsonb, true, true, true, NULL, '{"pt":"Faro de vencedor","es":"Olfato ganador","en":"Winner instinct"}'::jsonb, '{"pt":"Acerte quem vence (ou o empate).","es":"Acierta quién gana (o el empate).","en":"Call the winner (or the draw)."}'::jsonb),
+  ('predictions.quantity', NULL, 'hit', 'predictions', '{"input":"prediction","kind":"quantity","correct":true}'::jsonb, true, true, true, NULL, '{"pt":"Conta certa","es":"Cuenta justa","en":"Right count"}'::jsonb, '{"pt":"Acerte o Palpite de quantidade (\"pelo menos N\").","es":"Acierta el pronóstico de cantidad (\"al menos N\").","en":"Get the quantity prediction (\"at least N\") right."}'::jsonb),
+  ('predictions.placed', NULL, 'participation', 'predictions', '{"input":"prediction"}'::jsonb, true, true, true, NULL, '{"pt":"Sempre no jogo","es":"Siempre en juego","en":"Always in"}'::jsonb, '{"pt":"Palpite nos jogos, acertando ou não.","es":"Pronostica en los partidos, aciertes o no.","en":"Make predictions, right or wrong."}'::jsonb),
+  ('loyalty.watched', NULL, 'participation', 'loyalty', '{"input":"participation","action":"watched"}'::jsonb, true, true, false, 'O jogo assistido ainda não vira sinal de participação: falta a regra de tempo mínimo de presença.', '{"pt":"Fiel","es":"Fiel","en":"Loyal"}'::jsonb, '{"pt":"Acompanhe jogos ao vivo.","es":"Sigue partidos en vivo.","en":"Follow matches live."}'::jsonb),
+  ('knowledge.trivia', NULL, 'participation', 'knowledge', '{"input":"participation","action":"trivia"}'::jsonb, true, false, false, 'A trivia (#960) ainda não emite o sinal de resposta certa.', '{"pt":"Conhecedor","es":"Conocedor","en":"Expert"}'::jsonb, '{"pt":"Acerte perguntas da trivia.","es":"Acierta preguntas de trivia.","en":"Answer trivia questions right."}'::jsonb),
+  ('community.poll', NULL, 'participation', 'community', '{"input":"participation","action":"poll"}'::jsonb, true, false, false, 'A enquete ainda não emite o sinal de voto.', '{"pt":"Voz da torcida","es":"Voz de la hinchada","en":"Voice of the fans"}'::jsonb, '{"pt":"Vote nas enquetes.","es":"Vota en las encuestas.","en":"Vote in polls."}'::jsonb),
+  ('consumption.recap', NULL, 'consumption', 'consumption', '{"input":"participation","action":"consumption"}'::jsonb, true, false, false, 'Ainda não há sinal real de "conferiu o resumo".', '{"pt":"Sempre por dentro","es":"Siempre al día","en":"In the know"}'::jsonb, '{"pt":"Confira o resumo das partidas.","es":"Revisa el resumen de los partidos.","en":"Check match recaps."}'::jsonb)
+ON CONFLICT ("id") DO NOTHING;
+--> statement-breakpoint
+INSERT INTO "game"."catalog_step" ("achievement_id", "step", "threshold", "bonus_points", "card_key")
+VALUES
+  ('predictions.correct', 1, 3, 20, 'predictions.correct.1'),
+  ('predictions.correct', 2, 10, 40, 'predictions.correct.2'),
+  ('predictions.correct', 3, 30, 80, 'predictions.correct.3'),
+  ('predictions.correct', 4, 75, 150, 'predictions.correct.4'),
+  ('predictions.correct', 5, 200, 300, 'predictions.correct.5'),
+  ('predictions.exact_score', 1, 1, 20, 'predictions.exact_score.1'),
+  ('predictions.exact_score', 2, 3, 40, 'predictions.exact_score.2'),
+  ('predictions.exact_score', 3, 10, 80, 'predictions.exact_score.3'),
+  ('predictions.exact_score', 4, 25, 150, 'predictions.exact_score.4'),
+  ('predictions.exact_score', 5, 60, 300, 'predictions.exact_score.5'),
+  ('predictions.winner', 1, 3, 20, 'predictions.winner.1'),
+  ('predictions.winner', 2, 10, 40, 'predictions.winner.2'),
+  ('predictions.winner', 3, 30, 80, 'predictions.winner.3'),
+  ('predictions.winner', 4, 75, 150, 'predictions.winner.4'),
+  ('predictions.winner', 5, 200, 300, 'predictions.winner.5'),
+  ('predictions.quantity', 1, 3, 20, 'predictions.quantity.1'),
+  ('predictions.quantity', 2, 10, 40, 'predictions.quantity.2'),
+  ('predictions.quantity', 3, 30, 80, 'predictions.quantity.3'),
+  ('predictions.quantity', 4, 75, 150, 'predictions.quantity.4'),
+  ('predictions.quantity', 5, 200, 300, 'predictions.quantity.5'),
+  ('predictions.placed', 1, 5, 0, 'predictions.placed.1'),
+  ('predictions.placed', 2, 15, 0, 'predictions.placed.2'),
+  ('predictions.placed', 3, 40, 0, 'predictions.placed.3'),
+  ('predictions.placed', 4, 100, 0, 'predictions.placed.4'),
+  ('predictions.placed', 5, 250, 0, 'predictions.placed.5'),
+  ('loyalty.watched', 1, 1, 0, 'loyalty.watched.1'),
+  ('loyalty.watched', 2, 5, 0, 'loyalty.watched.2'),
+  ('loyalty.watched', 3, 15, 0, 'loyalty.watched.3'),
+  ('loyalty.watched', 4, 38, 0, 'loyalty.watched.4'),
+  ('loyalty.watched', 5, 100, 0, 'loyalty.watched.5'),
+  ('knowledge.trivia', 1, 3, 0, 'knowledge.trivia.1'),
+  ('knowledge.trivia', 2, 10, 0, 'knowledge.trivia.2'),
+  ('knowledge.trivia', 3, 30, 0, 'knowledge.trivia.3'),
+  ('knowledge.trivia', 4, 75, 0, 'knowledge.trivia.4'),
+  ('knowledge.trivia', 5, 200, 0, 'knowledge.trivia.5'),
+  ('community.poll', 1, 3, 0, 'community.poll.1'),
+  ('community.poll', 2, 10, 0, 'community.poll.2'),
+  ('community.poll', 3, 30, 0, 'community.poll.3'),
+  ('community.poll', 4, 75, 0, 'community.poll.4'),
+  ('community.poll', 5, 200, 0, 'community.poll.5'),
+  ('consumption.recap', 1, 10, 0, 'consumption.recap.1'),
+  ('consumption.recap', 2, 25, 0, 'consumption.recap.2'),
+  ('consumption.recap', 3, 50, 0, 'consumption.recap.3'),
+  ('consumption.recap', 4, 100, 0, 'consumption.recap.4'),
+  ('consumption.recap', 5, 250, 0, 'consumption.recap.5')
+ON CONFLICT DO NOTHING;
+--> statement-breakpoint
+INSERT INTO "game"."level_def" ("level", "min_points", "name")
+VALUES
+  (1, 0, '{"pt":"Nível 1","es":"Nivel 1","en":"Level 1"}'::jsonb),
+  (2, 100, '{"pt":"Nível 2","es":"Nivel 2","en":"Level 2"}'::jsonb),
+  (3, 300, '{"pt":"Nível 3","es":"Nivel 3","en":"Level 3"}'::jsonb),
+  (4, 700, '{"pt":"Nível 4","es":"Nivel 4","en":"Level 4"}'::jsonb),
+  (5, 1500, '{"pt":"Nível 5","es":"Nivel 5","en":"Level 5"}'::jsonb),
+  (6, 3000, '{"pt":"Nível 6","es":"Nivel 6","en":"Level 6"}'::jsonb),
+  (7, 6000, '{"pt":"Nível 7","es":"Nivel 7","en":"Level 7"}'::jsonb),
+  (8, 10000, '{"pt":"Nível 8","es":"Nivel 8","en":"Level 8"}'::jsonb),
+  (9, 16000, '{"pt":"Nível 9","es":"Nivel 9","en":"Level 9"}'::jsonb),
+  (10, 25000, '{"pt":"Nível 10","es":"Nivel 10","en":"Level 10"}'::jsonb)
+ON CONFLICT DO NOTHING;

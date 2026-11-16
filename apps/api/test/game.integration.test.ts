@@ -3,6 +3,7 @@ import type { FastifyInstance } from 'fastify';
 import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { closeDb, createDb, event, runMigrations, sport, type Database } from '@galaxie/db';
+import { INITIAL_CATALOG, LEVELS } from '@galaxie/game-rules';
 import { eq, sql } from 'drizzle-orm';
 import { generateAdminKey, hashAdminKey } from '../src/admin/guard.js';
 import { loadPlans } from '../src/admin/plans.js';
@@ -210,7 +211,36 @@ describe('Palpite e Ranking (#942)', () => {
       sql`select w.points from fan.wallet w join fan.profile p on p.tenant_id = w.tenant_id and p.id = w.profile_id
            where p.external_profile_id = ${a.profile}`,
     );
-    expect(Number(wallet!.points)).toBe(120 + 40 + 120);
+    // três Palpites certos (120 + 40 + 120) e os bônus do primeiro Degrau de "Palpiteiro" e de "Na mosca" (20 + 20)
+    expect(Number(wallet!.points)).toBe(120 + 40 + 120 + 20 + 20);
+
+    // Conquistas e Cartas: o primeiro Degrau de "Palpiteiro" (3 acertos) e de "Na mosca" (1 placar exato)
+    const shelf = await app.inject({
+      method: 'GET',
+      url: '/v1/fans/me/achievements',
+      headers: auth(a.token),
+    });
+    expect(shelf.statusCode).toBe(200);
+    const mine = shelf.json().data.achievements as {
+      achievement_id: string;
+      season: string;
+      count: number;
+      steps: number;
+    }[];
+    expect(mine.find((x) => x.achievement_id === 'predictions.correct' && x.season === 'all')).toMatchObject({
+      count: 3,
+      steps: 1,
+    });
+    const cards = await app.inject({ method: 'GET', url: '/v1/fans/me/cards', headers: auth(a.token) });
+    const keys = (cards.json().data.cards as { card_key: string; season: string }[])
+      .filter((c) => c.season === 'all')
+      .map((c) => c.card_key)
+      .sort();
+    expect(keys).toEqual(['predictions.correct.1', 'predictions.exact_score.1']);
+    const [steps] = await db.execute<{ n: number }>(
+      sql`select count(*)::int as n from ops.change_feed where topic = 'game.achievement.step_reached'`,
+    );
+    expect(steps!.n).toBe(4); // vitalícia e temporada de cada um
 
     const period = new Intl.DateTimeFormat('en-CA', {
       timeZone: 'America/Sao_Paulo',
@@ -226,7 +256,7 @@ describe('Palpite e Ranking (#942)', () => {
     });
     expect(ranking.statusCode).toBe(200);
     const entries = ranking.json().data.entries as { position: number; nickname: string; points: number }[];
-    expect(entries.map((e) => e.points)).toEqual([280, 40]);
+    expect(entries.map((e) => e.points)).toEqual([320, 40]);
     expect(ranking.json().data.program_country).toBe('BR');
     const me = await app.inject({ method: 'GET', url: `/v1/rankings/${period}/me`, headers: auth(b.token) });
     expect(me.json().data).toMatchObject({ position: 2, points: 40 });
@@ -256,6 +286,18 @@ describe('Palpite e Ranking (#942)', () => {
       headers: auth(c.token),
     });
     expect((afterErase.json().data.entries as unknown[]).length).toBe(1);
+  });
+
+  it('o Catálogo da migration é o do @galaxie/game-rules', async () => {
+    const rows = await db.execute<{ id: string; active: boolean; steps: number }>(sql`
+      select a.id, a.active, (select count(*)::int from game.catalog_step s where s.achievement_id = a.id) as steps
+        from game.catalog_achievement a order by a.id`);
+    const want = [...INITIAL_CATALOG]
+      .map((e) => ({ id: e.id, active: e.active, steps: e.steps.length }))
+      .sort((x, y) => x.id.localeCompare(y.id));
+    expect([...rows]).toEqual(want);
+    const [levels] = await db.execute<{ n: number }>(sql`select count(*)::int as n from game.level_def`);
+    expect(levels!.n).toBe(LEVELS.length);
   });
 
   it('jogo cancelado anula os Palpites, sem Pontos', async () => {

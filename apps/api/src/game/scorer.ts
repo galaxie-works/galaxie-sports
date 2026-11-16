@@ -14,6 +14,8 @@
  */
 import type { RealtimeChange } from '@galaxie/contracts';
 import {
+  activeAchievements,
+  applyAchievementProgress,
   creditPoints,
   event,
   eventsWithPendingPredictions,
@@ -25,13 +27,17 @@ import {
   publishWebhookEvent,
   writeProvisional,
   type Database,
+  type GameActiveAchievement,
   type GamePendingPrediction,
 } from '@galaxie/db';
 import {
   DEFAULT_POINTS_SCALE,
+  entryAppliesTo,
   outcomeFromScore,
+  ruleMatches,
   periodKeys,
   scorePrediction,
+  type AchievementRule,
   type MatchOutcome,
   type PointsScale,
   type PredictionValue,
@@ -236,6 +242,16 @@ export class GameScorer {
     if (rows.length === 0) return 0;
     const scales = outcome ? await this.scales(rows) : new Map<string, PointsScale>();
     const zones = await this.timeZones(rows);
+    const cache = new Map<string, Promise<GameActiveAchievement[]>>();
+    const achievements = (tenantId: string, programCountry: string) => {
+      const k = `${tenantId}|${programCountry}`;
+      let p = cache.get(k);
+      if (!p) {
+        p = activeAchievements(this.db, { tenantId, programCountry });
+        cache.set(k, p);
+      }
+      return p;
+    };
     let closed = 0;
     for (const r of rows) {
       const result = outcome
@@ -278,6 +294,28 @@ export class GameScorer {
                 'gamificação: crédito recusado',
               );
           }
+          // Conquistas da família Palpites (#912): contam só o definitivo
+          const input = {
+            type: 'prediction' as const,
+            kind: r.kind,
+            correct: result.correct,
+            fullHit: result.fullHit,
+            sport: ev.sport,
+          };
+          const matched = (await achievements(r.tenantId, r.programCountry)).filter(
+            (a) => entryAppliesTo(a, ev.sport) && ruleMatches(a.rule as AchievementRule, input),
+          );
+          if (matched.length)
+            await applyAchievementProgress(tx, {
+              tenantId: r.tenantId,
+              programCountry: r.programCountry,
+              profileId: r.profileId,
+              ruleVersion: r.ruleVersion,
+              season: keys.year,
+              periods: [keys.month, keys.year],
+              sourceEvent: `prediction:${r.id}`,
+              matched,
+            });
           await publishWebhookEvent(tx, {
             tenantId: r.tenantId,
             topic: 'game.prediction.scored',

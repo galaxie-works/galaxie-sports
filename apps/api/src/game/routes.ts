@@ -15,6 +15,8 @@ import {
   PredictionsBody,
   RankingParams,
   RankingQuery,
+  type FanAchievements,
+  type FanCards,
   type MyRanking,
   type OpenPredictions,
   type PredictionInput,
@@ -23,7 +25,10 @@ import {
   type SavedPredictions,
 } from '@galaxie/contracts';
 import {
+  activeAchievements,
   event,
+  readFanAchievements,
+  readFanCards,
   readMyRanking,
   readPredictions,
   readRanking,
@@ -203,6 +208,51 @@ export async function gameRoutes(app: FastifyInstance, deps: GameRoutesDeps): Pr
         position: me.position,
         points: me.points,
         full_hits: me.fullHits,
+      },
+    };
+    return out;
+  });
+
+  app.get('/v1/fans/me/achievements', { config: { fan: true, age: 'read' } }, async (request, reply) => {
+    const fan = request.fan!;
+    const program = await fanProgram(fan.tenantId, fan.profileId);
+    const [rows, active] = await Promise.all([
+      readFanAchievements(db(), { ...program, profileId: fan.profileId }),
+      activeAchievements(db(), program),
+    ]);
+    const thresholds = new Map(active.map((a) => [a.id, a.thresholds]));
+    reply.header('cache-control', 'no-store');
+    const out: FanAchievements = {
+      data: {
+        program_country: program.programCountry,
+        achievements: rows.map((r) => ({
+          achievement_id: r.achievementId,
+          season: r.season,
+          count: r.count,
+          steps: r.steps,
+          next_threshold: thresholds.get(r.achievementId)?.[r.steps] ?? null,
+          rarity: r.rarity,
+        })),
+      },
+    };
+    return out;
+  });
+
+  app.get('/v1/fans/me/cards', { config: { fan: true, age: 'read' } }, async (request, reply) => {
+    const fan = request.fan!;
+    const program = await fanProgram(fan.tenantId, fan.profileId);
+    const cards = await readFanCards(db(), { ...program, profileId: fan.profileId });
+    reply.header('cache-control', 'no-store');
+    const out: FanCards = {
+      data: {
+        program_country: program.programCountry,
+        cards: cards.map((c) => ({
+          card_key: c.cardKey,
+          achievement_id: c.achievementId,
+          season: c.season,
+          step: c.step,
+          granted_at: c.grantedAt.toISOString(),
+        })),
       },
     };
     return out;
