@@ -163,6 +163,24 @@ const ENGAGE_TOPICS: WebhookTopicDef[] = [
     }),
   },
   {
+    topic: 'game.achievement.level_reached',
+    modules: WEBHOOK_TOPIC_PREFIXES.game,
+    status: 'planned',
+    label: {
+      pt: 'Nível de conquista atingido',
+      es: 'Nivel de logro alcanzado',
+      en: 'Achievement level reached',
+    },
+    description:
+      'Planejado com o termo antigo; não é emitido. Use `game.achievement.step_reached`, que traz o Degrau.',
+    payload: engageEnvelope('WebhookGameAchievementLevelReached', 'game.achievement.level_reached', {
+      profile_id: profileId,
+      program_id: z.uuid(),
+      achievement_id: z.uuid(),
+      level: z.number().int().positive(),
+    }),
+  },
+  {
     topic: 'game.points.expiring',
     modules: WEBHOOK_TOPIC_PREFIXES.game,
     status: 'planned',
