@@ -1997,6 +1997,21 @@ export interface WidgetTexts {
     readOnly: string;
     restricted: string;
     expired: string;
+    /** Comprovação de idade feita pela Galaxie (#1109): aviso de biometria, consentimento e estados. */
+    ageCheck: {
+      title: string;
+      notice: string;
+      consent: string;
+      start: string;
+      starting: string;
+      pending: string;
+      check: string;
+      review: string;
+      failed: string;
+      retry: string;
+      limit: string;
+      error: string;
+    };
   };
   retry: string;
   versus: string;
@@ -2567,6 +2582,21 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       readOnly: 'Perfis de 13 a 17 anos podem ler e palpitar, mas não escrever aqui.',
       restricted: 'Este recurso não está disponível para menores de 13 anos.',
       expired: 'Sua sessão terminou. Entre de novo para participar.',
+      ageCheck: {
+        title: 'Confirme que você tem 18 anos ou mais para participar.',
+        notice:
+          'A verificação é feita pela Didit, parceira de verificação de idade. Ela usa uma selfie para estimar a sua idade e, se ficar em dúvida, pede um documento. Guardamos só o resultado. A foto e o documento são apagados assim que a verificação termina.',
+        consent: 'Concordo com o uso da minha imagem para estimar a minha idade.',
+        start: 'Verificar idade',
+        starting: 'Abrindo a verificação…',
+        pending: 'Conferindo a sua verificação. Isso leva poucos segundos.',
+        check: 'Atualizar',
+        review: 'Sua verificação está em análise. Volte mais tarde.',
+        failed: 'Não foi possível confirmar a sua idade.',
+        retry: 'Tentar de novo',
+        limit: 'Você atingiu o limite de tentativas. Tente de novo amanhã.',
+        error: 'A verificação está indisponível agora. Tente de novo em instantes.',
+      },
     },
     forbidden: 'Esta chave não libera este conteúdo. Confira o widget e o plano no portal Galaxie.',
     retry: 'Tentar de novo',
@@ -3164,6 +3194,21 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       readOnly: 'Los perfiles de 13 a 17 años pueden leer y pronosticar, pero no escribir aquí.',
       restricted: 'Esta función no está disponible para menores de 13 años.',
       expired: 'Tu sesión terminó. Inicia sesión de nuevo para participar.',
+      ageCheck: {
+        title: 'Confirma que tienes 18 años o más para participar.',
+        notice:
+          'La verificación la hace Didit, socio de verificación de edad. Usa una selfie para estimar tu edad y, si tiene dudas, pide un documento. Solo guardamos el resultado. La foto y el documento se borran en cuanto termina la verificación.',
+        consent: 'Acepto el uso de mi imagen para estimar mi edad.',
+        start: 'Verificar edad',
+        starting: 'Abriendo la verificación…',
+        pending: 'Revisando tu verificación. Tarda unos segundos.',
+        check: 'Actualizar',
+        review: 'Tu verificación está en revisión. Vuelve más tarde.',
+        failed: 'No fue posible confirmar tu edad.',
+        retry: 'Reintentar',
+        limit: 'Alcanzaste el límite de intentos. Inténtalo de nuevo mañana.',
+        error: 'La verificación no está disponible ahora. Inténtalo de nuevo en unos instantes.',
+      },
     },
     forbidden: 'Esta clave no habilita este contenido. Revisa el widget y el plan en el portal Galaxie.',
     retry: 'Reintentar',
@@ -3766,6 +3811,21 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       readOnly: "Profiles aged 13 to 17 can read and make predictions, but can't post here.",
       restricted: "This feature isn't available to children under 13.",
       expired: 'Your session ended. Sign in again to take part.',
+      ageCheck: {
+        title: 'Confirm you are 18 or older to take part.',
+        notice:
+          'Verification is done by Didit, our age verification partner. It uses a selfie to estimate your age and, if unsure, asks for an ID document. We keep only the result. The photo and the document are deleted as soon as the check ends.',
+        consent: 'I agree to the use of my image to estimate my age.',
+        start: 'Verify age',
+        starting: 'Opening the verification…',
+        pending: 'Checking your verification. This takes a few seconds.',
+        check: 'Refresh',
+        review: 'Your verification is under review. Check back later.',
+        failed: "We couldn't confirm your age.",
+        retry: 'Try again',
+        limit: "You've reached the attempt limit. Try again tomorrow.",
+        error: 'Verification is unavailable right now. Try again in a moment.',
+      },
     },
     forbidden: "This key doesn't unlock this content. Check the widget and plan in the Galaxie portal.",
     retry: 'Try again',
@@ -4896,6 +4956,20 @@ export type FanAgeStatus = (typeof FAN_AGE_STATUSES)[number];
 
 /** Evento que o `<galaxie-widget>` dispara (sobe até o documento) quando o estado do torcedor muda. */
 export const FAN_STATUS_EVENT = 'galaxie:fan-status';
+
+/** Versão do texto de consentimento biométrico (`texts.fan.ageCheck`); sobe quando o texto muda (#1109). */
+export const AGE_CHECK_CONSENT_VERSION = 'v1';
+
+/** `GET /v1/fans/me/age-verification` e `POST` (o que o widget usa, #1109). */
+export interface GsAgeVerification {
+  verification_id: string;
+  status: 'pending' | 'approved' | 'declined' | 'review' | 'abandoned' | 'expired';
+  method: 'estimated' | 'verified' | null;
+  decided_at: string | null;
+  created_at: string;
+  url?: string;
+  expires_at?: string;
+}
 
 export const FAN_TOKEN_PREFIX = 'gft_';
 /** Pede outro token este tanto antes de o atual vencer. */

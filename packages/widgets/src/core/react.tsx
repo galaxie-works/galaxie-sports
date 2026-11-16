@@ -13,6 +13,7 @@ import {
 } from 'react';
 
 import {
+  AGE_CHECK_CONSENT_VERSION,
   FAN_TOKEN_CHANGED_EVENT,
   FAN_TOKEN_RENEW_BEFORE_MS,
   fanTokenSubject,
@@ -37,6 +38,7 @@ import {
   type FanCapability,
   type FanStatus,
   type GsCompetitionContext,
+  type GsAgeVerification,
   type GsFanMe,
   type GsEvent,
   type GsGames,
@@ -412,6 +414,9 @@ export function FanGate({ need = 'write', children }: { need?: FanCapability; ch
   const message = fanGateMessage(fan.status, fan.me?.capabilities ?? [], need);
   if (message === null) return <>{children}</>;
   if (message === 'checking') return <div className="gs-state">{texts.loading}</div>;
+  // adulto que precisa comprovar a idade: a verificação da Galaxie, quando o cliente tem o módulo (#1109)
+  if (fan.status === 'ready' && fan.me?.age_band === '18plus' && fan.me.age_status === 'needs_verification')
+    return <AgeCheck fallback={<p>{texts.fan.ageCheck.title}</p>} />;
   const text =
     message === 'unavailable'
       ? texts.error
@@ -431,6 +436,165 @@ export function FanGate({ need = 'write', children }: { need?: FanCapability; ch
           {texts.fan.signInAction}
         </button>
       )}
+    </div>
+  );
+}
+
+/** Estado da verificação de idade no widget. `hidden`: sem o módulo, sem chaves ou Perfil que não pode; mostra o padrão. */
+type AgeCheckState =
+  'loading' | 'hidden' | 'idle' | 'starting' | 'pending' | 'review' | 'failed' | 'limit' | 'error';
+
+/** Enquanto a verificação está `pending`, confere de novo a cada tanto, até este limite. */
+const AGE_CHECK_POLL_MS = 4_000;
+const AGE_CHECK_POLL_MAX = 30;
+
+const ageCheckStateOf = (v: GsAgeVerification | null): AgeCheckState | 'approved' => {
+  if (!v) return 'idle';
+  if (v.status === 'approved') return 'approved';
+  if (v.status === 'pending') return 'pending';
+  if (v.status === 'review') return 'review';
+  return 'failed';
+};
+
+/**
+ * Comprovação de idade feita pela Galaxie (#1109, módulo `age_verification`): aviso de biometria, consentimento
+ * e ida para a tela do provedor na mesma aba (ele volta para a página). Na volta, confere até a decisão chegar
+ * pelo webhook e, aprovada, relê o Perfil. Sem o módulo (403) ou sem as chaves (503), mostra `fallback` e o site
+ * segue com a comprovação dele (evento `galaxie:fan-status`).
+ */
+export function AgeCheck({ fallback }: { fallback?: ReactNode }) {
+  const { texts, fan } = useGalaxieWidget();
+  const t = texts.fan.ageCheck;
+  const [state, setState] = useState<AgeCheckState>('loading');
+  const [consent, setConsent] = useState(false);
+  const [polls, setPolls] = useState(0);
+  const fetchRef = useRef(fan.fetch);
+  fetchRef.current = fan.fetch;
+  const refreshRef = useRef(fan.refresh);
+  refreshRef.current = fan.refresh;
+
+  const load = useCallback(async (): Promise<AgeCheckState | null> => {
+    try {
+      const res = await fetchRef.current('/v1/fans/me/age-verification');
+      if (!res.ok) return res.status === 403 || res.status === 404 || res.status === 503 ? 'hidden' : 'error';
+      const body = (await res.json()) as { data: GsAgeVerification | null };
+      const next = ageCheckStateOf(body.data ?? null);
+      if (next === 'approved') {
+        refreshRef.current();
+        return null;
+      }
+      return next;
+    } catch {
+      return 'error';
+    }
+  }, []);
+
+  useEffect(() => {
+    let alive = true;
+    void load().then((next) => {
+      if (alive && next) setState(next);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [load]);
+
+  // a decisão chega pelo webhook alguns segundos depois da volta: confere de novo, com limite
+  useEffect(() => {
+    if (state !== 'pending' || polls >= AGE_CHECK_POLL_MAX) return;
+    let alive = true;
+    const timer = setTimeout(() => {
+      void load().then((next) => {
+        if (!alive) return;
+        if (next) setState(next);
+        setPolls((n) => n + 1);
+      });
+    }, AGE_CHECK_POLL_MS);
+    return () => {
+      alive = false;
+      clearTimeout(timer);
+    };
+  }, [state, polls, load]);
+
+  const start = useCallback(async () => {
+    const loc = (globalThis as { location?: Location }).location;
+    if (!consent || !loc) return;
+    setState('starting');
+    try {
+      const res = await fetchRef.current('/v1/fans/me/age-verification', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          returnUrl: loc.href,
+          consent: { givenAt: new Date().toISOString(), textVersion: AGE_CHECK_CONSENT_VERSION },
+        }),
+      });
+      if (res.status === 429) return setState('limit');
+      if (res.status === 403) return setState('hidden');
+      if (!res.ok) return setState('error');
+      const body = (await res.json()) as { data: GsAgeVerification };
+      if (!body.data.url) return setState('error');
+      loc.assign(body.data.url);
+    } catch {
+      setState('error');
+    }
+  }, [consent]);
+
+  if (state === 'hidden') return <div className="gs-state">{fallback}</div>;
+  if (state === 'loading') return <div className="gs-state">{texts.loading}</div>;
+  const again = (
+    <button type="button" className="gs-button" onClick={() => setState('idle')}>
+      {t.retry}
+    </button>
+  );
+  if (state === 'pending')
+    return (
+      <div className="gs-state" data-gs-age-check="pending">
+        <p>{t.pending}</p>
+        <button
+          type="button"
+          className="gs-button"
+          onClick={() => {
+            setPolls(0);
+            void load().then((next) => next && setState(next));
+          }}
+        >
+          {t.check}
+        </button>
+        {again}
+      </div>
+    );
+  if (state === 'review')
+    return (
+      <div className="gs-state" data-gs-age-check="review">
+        <p>{t.review}</p>
+      </div>
+    );
+  if (state === 'failed' || state === 'limit' || state === 'error')
+    return (
+      <div className="gs-state" data-gs-age-check={state}>
+        <p>{state === 'failed' ? t.failed : state === 'limit' ? t.limit : t.error}</p>
+        {state !== 'limit' && again}
+      </div>
+    );
+  return (
+    <div className="gs-state" data-gs-age-check="idle">
+      <p>
+        <strong>{t.title}</strong>
+      </p>
+      <p>{t.notice}</p>
+      <label>
+        <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.currentTarget.checked)} />{' '}
+        {t.consent}
+      </label>
+      <button
+        type="button"
+        className="gs-button"
+        disabled={!consent || state === 'starting'}
+        onClick={() => void start()}
+      >
+        {state === 'starting' ? t.starting : t.start}
+      </button>
     </div>
   );
 }
