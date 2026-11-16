@@ -152,3 +152,30 @@ describe('parseModerationCeiling', () => {
     });
   });
 });
+
+describe('público infantil (#1025)', () => {
+  it('opcional na configuração inteira (vale false), recusado se não for booleano', () => {
+    const { childAudience: _, ...old } = DEFAULT_MODERATION_CONFIG;
+    const parsed = parseModerationConfig(old, open);
+    expect(parsed.ok && parsed.value.childAudience).toBe(false);
+    expect(parseModerationConfig({ ...old, childAudience: true }, open)).toMatchObject({
+      ok: true,
+      value: { childAudience: true },
+    });
+    expect(parseModerationConfig({ ...old, childAudience: 'sim' }, open)).toEqual({
+      ok: false,
+      errors: ['childAudience'],
+    });
+    expect(parseModerationConfig({ childAudience: true }, open, { partial: true })).toEqual({
+      ok: true,
+      value: { childAudience: true },
+    });
+  });
+
+  it('a sala ou comunidade liga, mas não desliga o que o cliente ligou', () => {
+    const kids = { ...DEFAULT_MODERATION_CONFIG, childAudience: true };
+    expect(normalizeModerationConfig({ childAudience: false }, open, kids).childAudience).toBe(true);
+    expect(normalizeModerationConfig({ childAudience: true }, open).childAudience).toBe(true);
+    expect(normalizeModerationConfig({}, open).childAudience).toBe(false);
+  });
+});

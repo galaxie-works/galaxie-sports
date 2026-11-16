@@ -46,6 +46,7 @@ import { parseInput } from '../util.js';
 import { FAN_REVOCATION_TTL_S, type FanRevocations, type FanTokenTtl } from './fan-auth.js';
 import { FAN_CAPABILITIES } from './fan-rules.js';
 import type { FanTokenSigner } from './fan-token.js';
+import { checkAvatar, scheduleAvatarCheck, type AvatarCheckInput } from './fan-avatar.js';
 import type { FanAgeGate } from './age-gate.js';
 import {
   eraseFan,
@@ -64,6 +65,11 @@ export interface FanRoutesDeps {
   signer: FanTokenSigner | null;
   ttl: FanTokenTtl;
   revocations: FanRevocations;
+  /**
+   * Moderação da foto de perfil depois da resposta (#1025). Os testes passam a própria função para esperar o
+   * resultado; o padrão roda em segundo plano e só registra a falha.
+   */
+  avatarCheck?: (db: Database, input: AvatarCheckInput) => Promise<unknown>;
   /** Portão de idade: o pedido de token e a exclusão limpam o cache do Perfil neste processo (#1106). */
   gate?: FanAgeGate | null;
 }
@@ -85,6 +91,13 @@ function meBody(p: FanProfileView, policy: CountryPolicy | null): FanMe {
       nickname: p.nickname,
       // menor não mostra foto própria, nem a gravada antes do #1107
       avatar_url: minorDefaultsApply(facts) ? null : p.avatarUrl,
+      // `removed` (tirada do ar, caso já apagado) chega como `held`: para o torcedor, é a mesma foto fora do ar
+      avatar_status:
+        p.avatarUrl === null || minorDefaultsApply(facts)
+          ? null
+          : p.avatarStatus === 'removed'
+            ? 'held'
+            : (p.avatarStatus ?? 'pending'),
       age_band: p.ageBand,
       age_band_detail: p.ageBandDetail,
       age_assurance: { method: p.ageAssurance, at: p.ageAssuranceAt?.toISOString() ?? null },
@@ -249,6 +262,22 @@ export async function fanRoutes(app: FastifyInstance, deps: FanRoutesDeps): Prom
     // a autorização revogada ou a faixa nova valem na próxima ação, sem esperar o cache do portão
     deps.gate?.invalidate(tenant.tenantId, upserted.profileId);
     const { accountId, profileId } = upserted;
+    // a foto não segura o token: a moderação de imagem roda depois; sem a ficha do país, tenta de novo no próximo
+    // lotado, fica pendente e tenta de novo no próximo pedido
+    const avatarCheck = upserted.avatarCheck;
+    if (avatarCheck && policy)
+      scheduleAvatarCheck(
+        () =>
+          (deps.avatarCheck ?? checkAvatar)(database, {
+            tenantId: tenant.tenantId,
+            profileId,
+            ...avatarCheck,
+            locale: body.locale,
+            ageBand: detailAgeBand(body.ageBand),
+            clocks: clocksFrom(policy, new Date()),
+          }),
+        (err) => request.log.error({ err, tenantId: tenant.tenantId }, 'moderação da foto de perfil falhou'),
+      );
     const ttl = await deps.ttl.seconds();
     const { token, expiresAt } = sign.issue(
       {
