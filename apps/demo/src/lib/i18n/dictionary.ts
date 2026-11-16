@@ -23,6 +23,7 @@ import moderationLists from './messages/moderation-lists';
 import narrationAdmin from './messages/narration-admin';
 import shopping from './messages/shopping';
 import signup from './messages/signup';
+import communities from './messages/communities';
 import sponsors from './messages/sponsors';
 import equestrian from './messages/equestrian';
 import media from './messages/media';
@@ -72,6 +73,7 @@ export const NAMESPACES = {
   narrationAdmin,
   shopping,
   signup,
+  communities,
   sponsors,
   lineup,
   live,
@@ -134,6 +136,7 @@ export const CLIENT_NAMESPACES = [
   'narrationAdmin',
   'shopping',
   'signup',
+  'communities',
   'sponsors',
   'nav',
   'notifications',
