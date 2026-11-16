@@ -321,6 +321,17 @@ describe('Entrada do torcedor (#939)', () => {
     expect((await post(f.token, `/v1/communities/${c.id}/join`)).json().data.result).toBe(
       'already_requested',
     );
+    // termos publicados com o pedido aberto: o Aceite novo fica gravado mesmo sem mudar o pedido
+    const v1 = await publishTerms(db, {
+      tenantId: t.id,
+      communityId: c.id,
+      body: { pt: 'Regras', es: 'Reglas', en: 'Rules' },
+      actor: 'tenant:x',
+    });
+    expect(
+      (await post(f.token, `/v1/communities/${c.id}/join`, { accepted_terms_version: v1 })).json().data
+        .result,
+    ).toBe('already_requested');
     const [req] = await listJoinRequests(db, t.id, c.id);
     expect(req?.profileId).toBe(f.profileId);
     expect(
@@ -332,7 +343,10 @@ describe('Entrada do torcedor (#939)', () => {
         now: new Date(),
       }),
     ).toBe(true);
-    expect((await get(f.token, `/v1/communities/${c.id}`)).json().data.me.membership).toBe('active');
+    expect((await get(f.token, `/v1/communities/${c.id}`)).json().data.me).toMatchObject({
+      membership: 'active',
+      needs_acceptance: false,
+    });
   });
 
   it('fechada: só com convite; quem foi tirado volta só com convite', async () => {

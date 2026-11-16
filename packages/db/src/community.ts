@@ -41,6 +41,16 @@ export {
 type Tx = Parameters<Parameters<Database['transaction']>[0]>[0];
 type Db = Database | Tx;
 
+/** Uma mudança de estado da Comunidade por vez no tenant (sincronização do escopo e suspensão). */
+const lockTenantCommunities = (tx: Tx, tenantId: string) =>
+  tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`community.sync:${tenantId}`}, 0))`);
+
+/** Uma mudança de vínculo por vez para o torcedor na Comunidade (entrar, sair, aprovar, tirar). */
+const lockMember = (tx: Tx, tenantId: string, communityId: string, profileId: string) =>
+  tx.execute(
+    sql`select pg_advisory_xact_lock(hashtextextended(${`community.member:${tenantId}:${communityId}:${profileId}`}, 0))`,
+  );
+
 export interface CommunityAnchor {
   anchorType: CommunityAnchorType;
   anchorId: string;
@@ -194,7 +204,7 @@ export async function syncCommunities(
   actor: string,
 ): Promise<CommunitySyncResult> {
   return db.transaction(async (tx) => {
-    await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`community.sync:${tenantId}`}, 0))`);
+    await lockTenantCommunities(tx, tenantId);
     const rules = await listScopeRules(tx, tenantId);
     const wanted: CommunityAnchor[] = [];
     for (const r of rules) wanted.push(...(await anchorsOfRule(tx, r.kind, r.target)));
@@ -216,15 +226,22 @@ export async function syncCommunities(
         .onConflictDoNothing({
           target: [communityCommunity.tenantId, communityCommunity.anchorType, communityCommunity.anchorId],
         });
-    const move = async (ids: string[], state: CommunityState) => {
+    // só sai do estado em que o plano a leu: suspensa nunca vira ativa nem arquivada por aqui
+    const move = async (ids: string[], from: CommunityState, state: CommunityState) => {
       if (!ids.length) return;
       await tx
         .update(communityCommunity)
         .set({ state, stateBy: actor, stateAt: at })
-        .where(and(eq(communityCommunity.tenantId, tenantId), inArray(communityCommunity.id, ids)));
+        .where(
+          and(
+            eq(communityCommunity.tenantId, tenantId),
+            inArray(communityCommunity.id, ids),
+            eq(communityCommunity.state, from),
+          ),
+        );
     };
-    await move(plan.archive, 'archived');
-    await move(plan.reactivate, 'active');
+    await move(plan.archive, 'active', 'archived');
+    await move(plan.reactivate, 'archived', 'active');
     return {
       created: plan.create.length,
       archived: plan.archive.length,
@@ -564,21 +581,26 @@ export async function setCommunitySuspended(
   db: Database,
   input: { tenantId: string; id: string; suspended: boolean; actor: string },
 ): Promise<CommunityState> {
-  const current = await readCommunity(db, input.tenantId, input.id);
-  if (!current) throw new CommunityError('not_found');
-  let state: CommunityState = 'suspended';
-  if (!input.suspended) {
-    const rules = await listScopeRules(db, input.tenantId);
-    const wanted = new Set<string>();
-    for (const r of rules)
-      for (const a of await anchorsOfRule(db, r.kind, r.target)) wanted.add(`${a.anchorType}:${a.anchorId}`);
-    state = wanted.has(`${current.anchorType}:${current.anchorId}`) ? 'active' : 'archived';
-  }
-  await db
-    .update(communityCommunity)
-    .set({ state, stateBy: input.actor, stateAt: new Date() })
-    .where(and(eq(communityCommunity.tenantId, input.tenantId), eq(communityCommunity.id, input.id)));
-  return state;
+  // na mesma fila da sincronização do escopo: uma não desfaz a outra
+  return db.transaction(async (tx) => {
+    await lockTenantCommunities(tx, input.tenantId);
+    const current = await readCommunity(tx, input.tenantId, input.id);
+    if (!current) throw new CommunityError('not_found');
+    let state: CommunityState = 'suspended';
+    if (!input.suspended) {
+      const rules = await listScopeRules(tx, input.tenantId);
+      const wanted = new Set<string>();
+      for (const r of rules)
+        for (const a of await anchorsOfRule(tx, r.kind, r.target))
+          wanted.add(`${a.anchorType}:${a.anchorId}`);
+      state = wanted.has(`${current.anchorType}:${current.anchorId}`) ? 'active' : 'archived';
+    }
+    await tx
+      .update(communityCommunity)
+      .set({ state, stateBy: input.actor, stateAt: new Date() })
+      .where(and(eq(communityCommunity.tenantId, input.tenantId), eq(communityCommunity.id, input.id)));
+    return state;
+  });
 }
 
 /** Publica uma versão nova dos termos e a põe em vigor. Membros aceitam de novo antes da próxima escrita. */
@@ -704,9 +726,7 @@ export async function joinCommunity(
 ): Promise<CommunityJoinDecision> {
   const { tenantId, communityId, profileId } = input;
   return db.transaction(async (tx) => {
-    await tx.execute(
-      sql`select pg_advisory_xact_lock(hashtextextended(${`community.member:${tenantId}:${communityId}:${profileId}`}, 0))`,
-    );
+    await lockMember(tx, tenantId, communityId, profileId);
     const [c] = await tx
       .select({
         state: communityCommunity.state,
@@ -753,13 +773,14 @@ export async function joinCommunity(
       acceptedTermsVersion: accepted,
       invite: invite ? { valid: invite.valid } : null,
     });
-    if (!decision.ok || decision.result === 'already_member' || decision.result === 'already_requested')
-      return decision;
-    if (c.termsVersion !== null)
+    if (!decision.ok) return decision;
+    // o Aceite da versão em vigor fica gravado mesmo quando nada mais muda (pedido aberto antes da versão nova)
+    if (c.termsVersion !== null && accepted === c.termsVersion)
       await tx
         .insert(communityAcceptance)
         .values({ tenantId, communityId, profileId, version: c.termsVersion, acceptedAt: input.now })
         .onConflictDoNothing();
+    if (decision.result === 'already_member' || decision.result === 'already_requested') return decision;
     if (decision.result === 'requested') {
       await tx
         .insert(communityJoinRequest)
@@ -825,6 +846,7 @@ export async function leaveCommunity(
   input: { tenantId: string; communityId: string; profileId: string; now: Date },
 ): Promise<boolean> {
   return db.transaction(async (tx) => {
+    await lockMember(tx, input.tenantId, input.communityId, input.profileId);
     const left = await tx
       .update(communityMembership)
       .set({ state: 'left', leftAt: input.now })
@@ -891,6 +913,16 @@ export async function decideJoinRequest(
   input: { tenantId: string; requestId: string; approve: boolean; actor: string; now: Date },
 ): Promise<boolean> {
   return db.transaction(async (tx) => {
+    // trava o vínculo do torcedor antes de decidir: a saída e a entrada dele no mesmo instante esperam
+    const [found] = await tx
+      .select({ communityId: communityJoinRequest.communityId, profileId: communityJoinRequest.profileId })
+      .from(communityJoinRequest)
+      .where(
+        and(eq(communityJoinRequest.tenantId, input.tenantId), eq(communityJoinRequest.id, input.requestId)),
+      )
+      .limit(1);
+    if (!found) return false;
+    await lockMember(tx, input.tenantId, found.communityId, found.profileId);
     const [req] = await tx
       .update(communityJoinRequest)
       .set({ state: input.approve ? 'approved' : 'rejected', decidedAt: input.now, decidedBy: input.actor })
@@ -927,17 +959,20 @@ export async function removeMember(
   db: Database,
   input: { tenantId: string; communityId: string; profileId: string; actor: string; now: Date },
 ): Promise<boolean> {
-  const rows = await db
-    .update(communityMembership)
-    .set({ state: 'removed', leftAt: input.now, removedBy: input.actor })
-    .where(
-      and(
-        eq(communityMembership.tenantId, input.tenantId),
-        eq(communityMembership.communityId, input.communityId),
-        eq(communityMembership.profileId, input.profileId),
-        eq(communityMembership.state, 'active'),
-      ),
-    )
-    .returning({ id: communityMembership.profileId });
-  return rows.length > 0;
+  return db.transaction(async (tx) => {
+    await lockMember(tx, input.tenantId, input.communityId, input.profileId);
+    const rows = await tx
+      .update(communityMembership)
+      .set({ state: 'removed', leftAt: input.now, removedBy: input.actor })
+      .where(
+        and(
+          eq(communityMembership.tenantId, input.tenantId),
+          eq(communityMembership.communityId, input.communityId),
+          eq(communityMembership.profileId, input.profileId),
+          eq(communityMembership.state, 'active'),
+        ),
+      )
+      .returning({ id: communityMembership.profileId });
+    return rows.length > 0;
+  });
 }

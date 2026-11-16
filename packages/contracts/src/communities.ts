@@ -53,11 +53,9 @@ export const CommunitySummary = z
       membership: z.enum(COMMUNITY_MEMBERSHIP_VALUES).nullable(),
       pending_request: z.boolean(),
       accepted_terms_version: z.number().int().nullable(),
-      needs_acceptance: z
-        .boolean()
-        .meta({
-          description: 'Membro com termos mais novos que o último Aceite: lê, mas aceita antes de escrever.',
-        }),
+      needs_acceptance: z.boolean().meta({
+        description: 'Membro com termos mais novos que o último Aceite: lê, mas aceita antes de escrever.',
+      }),
     }),
   })
   .meta({ id: 'CommunitySummary' });
@@ -80,14 +78,9 @@ export type CommunityDetail = z.infer<typeof CommunityDetail>;
 
 export const CommunityJoinBody = z
   .strictObject({
-    accepted_terms_version: z
-      .number()
-      .int()
-      .min(1)
-      .nullish()
-      .meta({
-        description: 'Versão dos termos que o torcedor leu e aceitou (obrigatória quando há termos).',
-      }),
+    accepted_terms_version: z.number().int().min(1).nullish().meta({
+      description: 'Versão dos termos que o torcedor leu e aceitou (obrigatória quando há termos).',
+    }),
     invite_code: z
       .string()
       .min(8)
