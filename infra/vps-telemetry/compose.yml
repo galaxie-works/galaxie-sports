@@ -102,6 +102,8 @@ services:
       DIDIT_WORKFLOW_ID: ${DIDIT_WORKFLOW_ID:-}
       DIDIT_WEBHOOK_SECRET: ${DIDIT_WEBHOOK_SECRET:-}
       API_PUBLIC_URL: https://${API_DOMAIN:?defina API_DOMAIN}
+      # Planos e módulos do console, no `upgrade_url` do 403 MODULE_NOT_IN_PLAN (plataforma comercial, #1137)
+      UPGRADE_URL_BASE: https://${DEMO_DOMAIN:?defina DEMO_DOMAIN}/client/plans
       SEMANTIC_MIN_REVIEW_STATUS: ${SEMANTIC_MIN_REVIEW_STATUS:-approved}
       # Hardening (SECURITY.md): CORS estrito, /internal/admin (chave + allowlist), proxy confiável, HSTS
       CORS_ORIGINS: ${CORS_ORIGINS:-}
