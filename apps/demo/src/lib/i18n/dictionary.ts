@@ -17,6 +17,7 @@ import docs from './messages/docs';
 import docsUi from './messages/docs-ui';
 import email from './messages/email';
 import landing from './messages/landing';
+import chatPanel from './messages/chat-panel';
 import moderation from './messages/moderation';
 import moderationLists from './messages/moderation-lists';
 import narrationAdmin from './messages/narration-admin';
@@ -49,6 +50,7 @@ export const NAMESPACES = {
   admin,
   auth,
   channels,
+  chatPanel,
   client,
   code,
   common,
@@ -110,6 +112,7 @@ export const CLIENT_NAMESPACES = [
   'admin',
   'auth',
   'channels',
+  'chatPanel',
   'client',
   'code',
   'common',

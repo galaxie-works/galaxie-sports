@@ -7,6 +7,7 @@ import {
   KeyRound,
   LayoutDashboard,
   ListVideo,
+  MessagesSquare,
   Package,
   Palette,
   ShieldCheck,
@@ -67,6 +68,16 @@ export const CLIENT_NAV = [
     // relatório de cliques e, com a conciliação (#929), de comissão: dinheiro do tenant
     action: 'billing.view',
     module: 'shopping',
+  },
+  {
+    // Chat ao vivo (#973): o moderador de uma sala entra e age só na sala dele
+    id: 'chat',
+    href: '/client/chat',
+    icon: MessagesSquare,
+    group: 'engagement',
+    action: 'moderation.queue.view',
+    module: 'live_chat',
+    scoped: true,
   },
   {
     id: 'moderation',

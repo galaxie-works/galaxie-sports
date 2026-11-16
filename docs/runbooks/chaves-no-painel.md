@@ -18,7 +18,7 @@ a `SETTINGS_KEK`, que fica só no `.env` de cada serviço.
   - tarefas do worker: na próxima tarefa;
   - demo (site e console, incluindo o assistente da Cosmos com as chaves `COSMOS_*_API_KEY`): em até **1 minuto** (e
     na hora, no processo que gravou);
-  - API (`STRIPE_WEBHOOK_SECRET`): **ao reiniciar** a API.
+  - API (`STRIPE_WEBHOOK_SECRET`, `DIDIT_*`): **ao reiniciar** a API.
 - Se a `SETTINGS_KEK` faltar, for curta ou não abrir o cifrado, o serviço usa a chave do `.env` e a tela mostra
   "Não abre com a chave atual". Cada serviço relata ao painel os ids (8 hex, não secretos) das KEKs que tem; o diálogo
   da chave lista os serviços cuja KEK é outra ou curta demais.
