@@ -26,6 +26,7 @@ import { chatRoutes } from './chat/routes.js';
 import { ChatHub } from './chat/hub.js';
 import { ChatGameFeed } from './chat/game.js';
 import { MemoryChatPeak, RedisChatPeak } from './chat/peak.js';
+import { MemoryReactionCounter, RedisReactionCounter } from './chat/reactions.js';
 import type { ChatStreamOptions } from './chat/stream.js';
 import type { FanTokenSigner } from './engage/fan-token.js';
 import { AdminGuard, type AdminGuardOptions } from './admin/guard.js';
@@ -408,6 +409,10 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
     ...(options.chat?.intervalMs ? { intervalMs: options.chat.intervalMs } : {}),
   });
   const chatPeak = options.redis ? new RedisChatPeak(options.redis, prefix) : new MemoryChatPeak();
+  // reações (#967): contador no Valkey, comum a todas as instâncias
+  const chatReactions = options.redis
+    ? new RedisReactionCounter(options.redis, prefix)
+    : new MemoryReactionCounter();
   app.addHook('onReady', () => chatHub.start());
   app.addHook('onClose', () => chatHub.stop());
   registerFanAuth(app, {
@@ -637,6 +642,7 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
       now: options.now,
       hub: chatHub,
       peak: chatPeak,
+      reactions: chatReactions,
       stream: options.chat?.stream,
     });
   });
