@@ -1,0 +1,12 @@
+# Worker de cache de borda da API (#1257). Sem segredos: o Worker não guarda token nem chave; a chave da API do
+# cliente só entra na chave de cache como SHA-256. Passo a passo do deploy: README.md desta pasta.
+name = "galaxie-api-edge-cache"
+main = "src/index.ts"
+compatibility_date = "2026-11-01"
+
+# só na rota da API; o subdomínio workers.dev fica desligado (o Worker não deve ser alcançado por fora da zona)
+workers_dev = false
+routes = [{ pattern = "api.galaxiesports.com/v1/*", zone_name = "galaxiesports.com" }]
+
+[observability]
+enabled = true
