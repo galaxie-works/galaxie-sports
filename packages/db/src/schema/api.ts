@@ -109,8 +109,11 @@ export const TENANT_STATES_WITHOUT_ACCESS: readonly TenantState[] = [
   'cancelled',
 ];
 
-/** Estados em que o worker entrega webhooks (F3, decisão 3). */
-export const TENANT_STATES_WITH_WEBHOOKS: readonly TenantState[] = ['trial', 'active', 'past_due'];
+/**
+ * Estados em que o worker entrega webhooks (F3): `active` e `past_due`. O trial tem SSE, mas não webhooks (doc 02,
+ * tabela "O trial" e linha `trial` de "O que cada estado permite").
+ */
+export const TENANT_STATES_WITH_WEBHOOKS: readonly TenantState[] = ['active', 'past_due'];
 
 /** Cliente da API: plano, módulos, mercados (países) e esportes contratados. */
 export const tenant = api.table(

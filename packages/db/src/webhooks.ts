@@ -284,8 +284,9 @@ export async function sendTenantWebhookTest(
   endpointId: string,
   now: Date = new Date(),
 ): Promise<number | null> {
-  // as mesmas condições do worker: endpoint ativo, tenant em estado que entrega (trial, active, past_due; F3) e plano
-  // com tempo real (senão a entrega iria direto para a DLQ sem envio, e o painel diria que o teste saiu)
+  // as mesmas condições do worker: endpoint ativo, tenant em estado que entrega (active e past_due; em trial não há
+  // webhooks, F3) e plano com tempo real (senão a entrega iria direto para a DLQ sem envio, e o painel diria que o
+  // teste saiu)
   const [ep] = await db
     .select({ id: webhookEndpoint.id })
     .from(webhookEndpoint)

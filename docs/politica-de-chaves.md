@@ -76,6 +76,9 @@ anômalo (§5).
     tenant a `active`; voltar para `trial` dá 30 dias de novo.
   - Sem tempo real (`PLANS_WITHOUT_REALTIME`): `/v1/stream` responde 403 `MODULE_NOT_IN_PLAN`, o cadastro de webhook é
     recusado e o worker não enfileira entregas do tenant.
+  - Webhooks só em `active` e `past_due` (`TENANT_STATES_WITH_WEBHOOKS`): no estado `trial` o SSE funciona, mas o worker
+    não entrega webhooks (doc 02 da plataforma, tabela "O trial"); a entrega que já estava na fila vai para a DLQ com
+    `tenant em trial: sem webhooks`.
 
 ## 4. Limites e cota
 

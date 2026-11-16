@@ -154,7 +154,8 @@ export async function recordTenantCreated(
       reason: input.reason ?? null,
       actor: input.actor,
       payload: input.payload ?? null,
-      ...(input.now ? { createdAt: input.now } : {}),
+      // relógio do processo, o mesmo de transitionTenantState (o do banco pode estar adiantado): a ordem dos eventos fica certa
+      createdAt: input.now ?? new Date(),
     })
     .returning({ id: tenantStateEvent.id });
   return event!.id;

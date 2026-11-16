@@ -5,6 +5,7 @@ import {
   STATES_WITHOUT_ACCESS,
   stateHasAccess,
   TENANT_STATES,
+  TENANT_STATES_WITH_WEBHOOKS,
   TENANT_TRANSITIONS,
   type TenantState,
 } from './state.js';
@@ -77,6 +78,10 @@ describe('máquina de estados do tenant (doc 02)', () => {
       'cancelled',
     ]);
     expect(TENANT_STATES.filter(stateHasAccess)).toEqual(['trial', 'active', 'past_due']);
+  });
+
+  it('webhooks: só active e past_due (o trial tem SSE, não webhooks: doc 02)', () => {
+    expect(TENANT_STATES_WITH_WEBHOOKS).toEqual(['active', 'past_due']);
   });
 
   it('isTenantState', () => {

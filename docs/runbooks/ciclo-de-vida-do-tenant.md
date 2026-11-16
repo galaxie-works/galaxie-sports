@@ -14,7 +14,7 @@ de 10/11 (PL15, PL17) e o brief da F3 (`.fila-merge/briefs/plataforma-f3.md`).
 | `draft` | Cadastro gravado, provisionando (dura a transação do provisionamento) | 401 `TENANT_PENDING_REVIEW` | tela de progresso |
 | `pending_review` | Caiu numa regra antiabuso (e-mail grátis, limite por IP, faixa C3/C4): espera a equipe | 401 `TENANT_PENDING_REVIEW` | só a tela de espera |
 | `rejected` | A equipe recusou o cadastro. Final | 401 `TENANT_REJECTED` | aviso e contato |
-| `trial` | Provisionado; `trial_ends_at` é o prazo | sim, nos limites do teste | tudo, com o prazo no cabeçalho |
+| `trial` | Provisionado; `trial_ends_at` é o prazo | sim, nos limites do teste; SSE sim, webhooks não | tudo, com o prazo no cabeçalho |
 | `trial_expired` | Prazo do trial venceu sem contratação | 401 `TRIAL_EXPIRED` com `upgrade_url` | só Planos e módulos, Cobrança e Chaves |
 | `active` | Pagou um módulo, ou contrato (jornada assistida) | sim | tudo |
 | `past_due` | A cobrança falhou (F4); 7 dias de graça | sim, como `active` | tudo, com faixa de aviso |
@@ -22,9 +22,11 @@ de 10/11 (PL15, PL17) e o brief da F3 (`.fila-merge/briefs/plataforma-f3.md`).
 | `cancelled` | Pedido do cliente, ou prazo vencido em `trial_expired`/`suspended`. Final; os dados ficam pelo prazo de guarda | 401 `TENANT_CANCELLED` | aviso de guarda |
 
 Os estados sem acesso (`STATES_WITHOUT_ACCESS` em `@galaxie/billing`): `draft`, `pending_review`, `rejected`,
-`trial_expired`, `suspended`, `cancelled`. Neles os direitos (`entitlements()`) não têm módulo nenhum e os webhooks não
-são entregues (o worker entrega só em `trial`, `active` e `past_due`). `status` (`active`/`suspended`) segue gravado em
-espelho, `suspended` só quando `state = 'suspended'`, até o PR `contrair` que o retira.
+`trial_expired`, `suspended`, `cancelled`. Neles os direitos (`entitlements()`) não têm módulo nenhum. Webhooks só são
+entregues em `active` e `past_due` (`TENANT_STATES_WITH_WEBHOOKS`): o trial tem SSE, mas não webhooks (doc 02, tabela
+"O trial"); a entrega enfileirada de um tenant em trial vai para a DLQ com `tenant em trial: sem webhooks`, e o teste de
+webhook do console nem entra na fila. `status` (`active`/`suspended`) segue gravado em espelho, `suspended` só quando
+`state = 'suspended'`, até o PR `contrair` que o retira.
 
 A API diz o motivo só a quem provou ter a chave: quem só tem o prefixo (ou erra o segredo) continua vendo o 401
 `INVALID_KEY` comum, para o estado de um cliente não vazar pelo prefixo público. A chave publicável, que é pública,

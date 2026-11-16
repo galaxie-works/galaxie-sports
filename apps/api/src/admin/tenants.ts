@@ -134,11 +134,13 @@ export async function createTenantFromPlan(
       .onConflictDoNothing({ target: tenant.slug })
       .returning({ id: tenant.id });
     if (!created) throw new TenantConflictError(input.slug);
-    await recordTenantCreated(tx, created.id, { cause: 'provision', actor: ADMIN_ACTOR });
+    const now = new Date();
+    await recordTenantCreated(tx, created.id, { cause: 'provision', actor: ADMIN_ACTOR, now });
     await transitionTenantState(tx, created.id, trialEndsAt ? 'trial' : 'active', {
       cause: 'provision',
       actor: ADMIN_ACTOR,
       reason: 'criação pela rota interna de admin',
+      now,
     });
     const [row] = await tx.select().from(tenant).where(eq(tenant.id, created.id));
     if (!row) throw new TenantConflictError(input.slug);
@@ -319,7 +321,7 @@ export async function upsertTenantWithKey(
   actor: KeyActor = 'admin',
 ): Promise<{ tenant: { id: string; created: boolean }; key: CreatedKey }> {
   return db.transaction(async (tx) => {
-    const t = await upsertTenant(tx, input);
+    const t = await upsertTenant(tx, input, actor);
     return { tenant: t, key: await issueKeyIn(tx, t.id, options, now, actor) };
   });
 }

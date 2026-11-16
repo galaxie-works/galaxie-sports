@@ -140,11 +140,17 @@ describe('webhooks no portal do cliente', () => {
     expect(deliveries[0]).toMatchObject({ status: 'pending', attempts: 0, lastError: null });
 
     // tenant suspenso ou que passou a trial: o worker não enviaria, então o teste nem entra na fila
-    await db.update(tenant).set({ status: 'suspended' }).where(eq(tenant.id, tenantA));
+    await db.update(tenant).set({ status: 'suspended', state: 'suspended' }).where(eq(tenant.id, tenantA));
     expect(await sendTenantWebhookTest(db, tenantA, mine!.id)).toBeNull();
-    await db.update(tenant).set({ status: 'active', plan: 'trial' }).where(eq(tenant.id, tenantA));
+    await db
+      .update(tenant)
+      .set({ status: 'active', state: 'active', plan: 'trial' })
+      .where(eq(tenant.id, tenantA));
     expect(await sendTenantWebhookTest(db, tenantA, mine!.id)).toBeNull();
-    await db.update(tenant).set({ plan: 'core_data' }).where(eq(tenant.id, tenantA));
+    // estado trial (F3): SSE sim, webhooks não, mesmo com plano pago
+    await db.update(tenant).set({ plan: 'core_data', state: 'trial' }).where(eq(tenant.id, tenantA));
+    expect(await sendTenantWebhookTest(db, tenantA, mine!.id)).toBeNull();
+    await db.update(tenant).set({ state: 'active' }).where(eq(tenant.id, tenantA));
 
     expect(await setTenantWebhookActive(db, tenantA, mine!.id, false)).toBe(true);
     expect(await sendTenantWebhookTest(db, tenantA, mine!.id)).toBeNull();

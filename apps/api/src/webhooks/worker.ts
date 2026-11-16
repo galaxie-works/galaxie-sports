@@ -357,7 +357,7 @@ export class WebhookWorker {
             .where(
               and(
                 eq(webhookEndpoint.active, true),
-                // estado do tenant (F3): entrega em trial, active e past_due
+                // estado do tenant (F3): entrega em active e past_due (trial tem SSE, não webhooks: doc 02)
                 inArray(tenant.state, [...TENANT_STATES_WITH_WEBHOOKS]),
                 // plano trial (legado): sem webhooks (docs/politica-de-chaves.md §3)
                 notInArray(tenant.plan, [...PLANS_WITHOUT_REALTIME]),
@@ -565,14 +565,17 @@ export class WebhookWorker {
   private async deliver(d: ClaimedDelivery): Promise<keyof DeliveryStats> {
     const id = Number(d.id);
     const attempts = d.attempts + 1;
-    // endpoint desativado, tenant sem acesso pelo estado (suspenso, trial vencido, cancelado…) ou plano sem webhooks
-    // (ex.: passou a trial) depois do enfileiramento: nada é enviado, e a entrega fica na DLQ com o motivo
+    // endpoint desativado, tenant fora dos estados que entregam (em trial, suspenso, trial vencido, cancelado…) ou
+    // plano sem webhooks (ex.: passou a trial) depois do enfileiramento: nada é enviado, e a entrega fica na DLQ com
+    // o motivo
     const off = !d.active
       ? 'endpoint desativado'
       : !(TENANT_STATES_WITH_WEBHOOKS as readonly string[]).includes(d.tenant_state)
         ? d.tenant_state === 'suspended'
           ? 'tenant suspenso'
-          : `tenant sem acesso (${d.tenant_state})`
+          : d.tenant_state === 'trial'
+            ? 'tenant em trial: sem webhooks'
+            : `tenant sem acesso (${d.tenant_state})`
         : PLANS_WITHOUT_REALTIME.includes(d.tenant_plan)
           ? 'plano sem webhooks'
           : null;

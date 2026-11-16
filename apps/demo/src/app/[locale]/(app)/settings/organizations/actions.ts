@@ -77,8 +77,9 @@ const PATH = '/settings/organizations';
 
 const hasKeys = (k: ProvisionedKeys) => Boolean(k.live || k.test || k.publishable);
 
+/** Registro em `billing.staff_action` (o CHECK pede organização ou marca; a marca sem organização grava só o tenant). */
 async function recordStaffAction(input: {
-  organizationId: string;
+  organizationId: string | null;
   tenantId?: string | null;
   actor: string;
   action: string;
@@ -268,15 +269,14 @@ export async function brandStateAction(input: BrandStateActionInput): Promise<Or
           });
       }
     }
-    if (brand.organization_id)
-      await recordStaffAction({
-        organizationId: brand.organization_id,
-        tenantId: brand.id,
-        actor: me.id,
-        action: `brand.${input.action}`,
-        reason,
-        payload,
-      });
+    await recordStaffAction({
+      organizationId: brand.organization_id,
+      tenantId: brand.id,
+      actor: me.id,
+      action: `brand.${input.action}`,
+      reason,
+      payload,
+    });
     // aprovada: as chaves nascem agora, pelo mesmo caminho do cadastro (aparecem uma vez)
     if (input.action === 'approve') {
       const keys = await issueMissingKeys(db, {
