@@ -43,6 +43,7 @@ describe('scheduleFromEnv', () => {
       'assets-palette',
       'change-feed-prune',
       'data-retention',
+      'tenant-lifecycle',
       'fixture-people',
       'quota-status',
       'data-quality',
