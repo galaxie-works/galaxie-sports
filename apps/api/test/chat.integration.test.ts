@@ -327,12 +327,14 @@ describe('Chat ao vivo: salas (#959)', () => {
     expect((await room(t.key, fixture)).json().data.pinned).toBeNull();
 
     // o painel do cliente (#973) grava a fixada direto na sala
-    await pg`update chat.room set pinned_message_id = ${messageId}, pinned_by = 'tenant:user:x', pinned_at = now()
-              where tenant_id = ${t.id} and event_id = ${fixture}`;
+    await db.execute(sql`update chat.room set pinned_message_id = ${messageId}, pinned_by = 'tenant:user:x', pinned_at = now()
+              where tenant_id = ${t.id} and event_id = ${fixture}`);
     const pinned = (await room(t.key, fixture)).json().data.pinned;
     expect(pinned).toMatchObject({ id: messageId, body: 'bem-vindos à sala' });
 
-    await pg`update chat.message set visibility = 'hidden' where tenant_id = ${t.id} and id = ${messageId}`;
+    await db.execute(
+      sql`update chat.message set visibility = 'hidden' where tenant_id = ${t.id} and id = ${messageId}`,
+    );
     expect((await room(t.key, fixture)).json().data.pinned).toBeNull();
   });
 
