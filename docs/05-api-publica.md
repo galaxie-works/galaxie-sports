@@ -1076,6 +1076,17 @@ O `GET /v1/fans/me` devolve `age_band_detail`, `age_assurance`, `guardian` e `ag
 
 O portão relê o Perfil e a ficha a cada ação, com um cache de até 5 segundos: a autorização revogada vale em até 5 segundos, sem esperar o token vencer. Para revogar, peça um token novo para o Perfil com `guardian.status: "revoked"`; o token antigo para de valer em até 5 segundos. Denunciar, bloquear, ver as próprias punições e apelar não dependem da autorização nem da comprovação: só ficam fora os abaixo da idade para participar. O texto livre que vai junto (`note` da denúncia, `statement` da apelação) é escrita: quem não escreve manda sem ele. As `capabilities` do `GET /v1/fans/me` são o que o portão libera hoje, e o próprio `GET /v1/fans/me` fica aberto para o cliente ver o estado. Um adulto do Brasil sem o bloco `ageAssurance` (vale `self`) não participa até mandar a estimativa.
 
+**Verificação de idade da Galaxie (#1109, módulo `age_verification`, pago por verificação).** O cliente que não tem verificação própria contrata o módulo, e a Galaxie verifica pelo Didit. Quem já tem a própria continua mandando `ageAssurance` no token. O fluxo é adaptativo: começa pela estimativa pelo rosto, com prova de vida, e quem fica na dúvida perto dos 18 passa para o documento, com o rosto do documento comparado à selfie.
+
+1. O widget mostra o aviso de biometria e colhe o consentimento. Depois chama `POST /v1/fans/me/age-verification` com `returnUrl` (https; query e fragmento não vão ao provedor) e `consent: { givenAt, textVersion }`, e recebe `url` e `expires_at`.
+2. O torcedor faz a verificação na tela do provedor e volta para o `returnUrl`.
+3. O provedor avisa a API pelo webhook assinado. A API lê a decisão na API do provedor (nunca no corpo do aviso), grava só a faixa e o caminho, e apaga no provedor as imagens, o documento e o template do rosto.
+4. O `GET /v1/fans/me/age-verification` devolve a última verificação: `status` (`pending`, `approved`, `declined`, `review`, `abandoned`, `expired`) e `method` (`estimated` ou `verified`).
+
+Aprovada, o Perfil passa a `age_assurance` `estimated` ou `verified`, com o provedor `galaxie:didit`. O token seguinte mantém essa comprovação, mesmo que o cliente mande uma mais fraca. O cliente não pode mandar `provider` começando com `galaxie:` (400). Data de nascimento, idade estimada, foto e documento nunca são guardados nem devolvidos. Limite: 5 verificações por Perfil em 24 h (429). Só o Perfil declarado adulto faz (menor recebe 403): a verificação comprova 18+ e não muda a faixa, então o menor passaria o rosto pelo provedor sem ganhar nada. O caminho do menor é o responsável. Sem o módulo no plano, 403. Faltando qualquer uma de `DIDIT_API_KEY`, `DIDIT_WORKFLOW_ID` e `DIDIT_WEBHOOK_SECRET` (Ajustes → Credenciais → Verificação de idade, ou .env; valem ao reiniciar a API), a abertura e o webhook respondem 503; o `GET` continua mostrando a última verificação.
+
+Cobrança: cada verificação decidida (aprovada, recusada ou em revisão) entra no uso do mês como `age_checks_estimate` ou `age_checks_document`. Abandonada e expirada sem passo cobrável não contam.
+
 **Padrão protetivo para menores (#1107).** Para `13`, `14_15`, `16_17` (e a faixa congelada), em todos os países, o servidor já começa no modo mais protetivo, como pede o ECA Digital:
 
 - o Perfil fica privado para os outros torcedores (`visibility` vem tudo `private`, e o `PATCH /v1/fans/me` que tenta abrir responde 403 `adult_only`, recusando o pedido inteiro; o que estava aberto volta ao padrão no próximo token); os outros veem só o Apelido;
@@ -1106,6 +1117,8 @@ Faixa que desce de `18plus` para menor no mesmo Perfil congela as ações de adu
 | `PUT` e `DELETE /v1/fans/me/blocks/{profileId}` | Widget ou app | Token do torcedor. Bloqueia e desbloqueia (204, idempotente) |
 | `GET /v1/fans/me/sanctions` | Widget ou app | Token do torcedor. Punições do Perfil, com as apelações |
 | `POST /v1/fans/me/sanctions/{sanctionId}/appeals` | Widget ou app | Token do torcedor. Apelação (uma por etapa) |
+| `POST /v1/fans/me/age-verification` | Widget ou app | Token do torcedor. Abre a verificação de idade da Galaxie (módulo `age_verification`) |
+| `GET /v1/fans/me/age-verification` | Widget ou app | Token do torcedor. A última verificação de idade do Perfil |
 
 **Token.** HMAC-SHA256 com `FAN_TOKEN_SECRET` (mínimo 32 caracteres, o mesmo em todas as instâncias). Sem o segredo, as rotas do torcedor respondem 503. O token leva o tenant, os ids internos da Conta e do Perfil, a faixa, o país, o idioma, o Titular adulto, a superfície (`web` ou `store_app`), o `kid` e a expiração. Verificar não consulta o banco. Validade padrão de 15 minutos, em `FAN_TOKEN_TTL_SECONDS` (painel, Ajustes → Engajamento → Identidade do torcedor; 60 a 3600). Para trocar o segredo sem derrubar quem está logado, mova o atual para `FAN_TOKEN_SECRET_PREVIOUS` e ponha o novo em `FAN_TOKEN_SECRET`; depois de uma validade, apague o anterior. Limite de 120 requisições por minuto por Perfil.
 
