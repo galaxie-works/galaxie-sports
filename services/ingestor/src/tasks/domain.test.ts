@@ -89,7 +89,7 @@ describe('tenant.verify_domain', () => {
   });
 
   it('txtMatches ignora espaços nas pontas', () => {
-    expect(txtMatches([[' galaxie-verify=abc123 ']], TOKEN)).toBe(true);
+    expect(txtMatches([[' galaxie-verify=token-de-teste ']], TOKEN)).toBe(true);
     expect(txtMatches([], TOKEN)).toBe(false);
   });
 });
