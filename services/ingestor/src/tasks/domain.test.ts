@@ -44,7 +44,7 @@ const pending: DomainRecord = { id: 'd1', host: 'app.exemplo.com', txtToken: TOK
 
 describe('tenant.verify_domain', () => {
   it('marca comprovado quando um dos TXT é igual ao token (pedaços juntados)', async () => {
-    const w = world(pending, { [txtRecordName('app.exemplo.com')]: [['outro'], ['galaxie-', 'verify=abc123']] });
+    const w = world(pending, { [txtRecordName('app.exemplo.com')]: [['outro'], ['galaxie-', 'verify=token-de-teste']] });
     const out = await tenantVerifyDomain(w.deps)(w.ctx);
     expect(out.stats).toEqual({ comprovado: 1, registros: 2 });
     expect(w.saves).toEqual([{ verifiedAt: NOW, lastCheckedAt: NOW, lastError: null }]);
