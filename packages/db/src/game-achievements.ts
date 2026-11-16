@@ -427,14 +427,21 @@ export interface GameWatchedCandidate {
 }
 
 /**
- * Perfis com presença verificada em jogos encerrados entre `since` e `until` (a janela de correção), nos clientes
- * com a Gamificação ligada, que ainda não ganharam o "jogo assistido" daquele jogo. A duração do jogo é a prevista
- * (`ends_at_expected - starts_at`); a presença conta só dentro dela.
+ * Perfis que assistiram a jogos encerrados entre `since` e `until` (a janela de correção), nos clientes com a
+ * Gamificação ligada, e que ainda não ganharam o "jogo assistido" daquele jogo.
+ *
+ * - A duração é a **real**: do primeiro `live` ao `finished` do `core.event_state_log`; sem registro, o horário
+ *   oficial e o fim previsto. Vôlei 3x0, luta que acaba no 1º round e jogo atrasado contam certo.
+ * - A presença é recortada a esse intervalo, e o corte (`minFraction`) é feito no SQL.
+ * - Parte da presença (índice por `last_seen_at`), não do evento: a consulta roda a cada minuto e não pode varrer a
+ *   base histórica de jogos.
  */
 export async function watchedCandidates(
   db: Pick<Database, 'execute'>,
-  window: { since: Date; until: Date },
+  window: { since: Date; until: Date; minFraction: number },
 ): Promise<GameWatchedCandidate[]> {
+  // a presença de um jogo que terminou em `since` pode ter acabado até 12 h antes (jogo longo, F1 com bandeira vermelha)
+  const presenceSince = new Date(window.since.getTime() - 12 * 3_600_000);
   const rows = await db.execute<{
     tenant_id: string;
     profile_id: string;
@@ -445,22 +452,38 @@ export async function watchedCandidates(
     present_ms: string;
     event_ms: string;
   }>(sql`
-    select w.tenant_id, w.profile_id, p.country, e.id as event_id, e.sport, e.starts_at,
-           sum(greatest(0, extract(epoch from (least(w.last_seen_at, e.ends_at_expected) - greatest(w.started_at, e.starts_at))) * 1000))::bigint as present_ms,
-           (extract(epoch from (e.ends_at_expected - e.starts_at)) * 1000)::bigint as event_ms
-      from core.event e
-      join fan.presence_window w on w.event_id = e.id
+    with recent as (
+      select distinct w.event_id from fan.presence_window w
+       where w.last_seen_at >= ${presenceSince.toISOString()}::timestamptz
+    ), ev as (
+      select e.id, e.sport, e.starts_at,
+             coalesce((select min(l.occurred_at) from core.event_state_log l
+                        where l.event_id = e.id and l.to_status = 'live'), e.starts_at) as real_start,
+             coalesce((select max(l.occurred_at) from core.event_state_log l
+                        where l.event_id = e.id and l.to_status = 'finished'), e.ends_at_expected) as real_end
+        from recent r join core.event e on e.id = r.event_id
+       where e.status = 'finished'
+    ), done as (
+      select * from ev
+       where real_end >= ${window.since.toISOString()}::timestamptz
+         and real_end <= ${window.until.toISOString()}::timestamptz
+         and real_end > real_start
+    )
+    select w.tenant_id, w.profile_id, p.country, d.id as event_id, d.sport, d.starts_at,
+           sum(greatest(0, extract(epoch from (least(w.last_seen_at, d.real_end) - greatest(w.started_at, d.real_start))) * 1000))::bigint as present_ms,
+           (extract(epoch from (d.real_end - d.real_start)) * 1000)::bigint as event_ms
+      from done d
+      join fan.presence_window w on w.event_id = d.id
       join fan.profile p on p.tenant_id = w.tenant_id and p.id = w.profile_id
                         and p.deleted_at is null and p.age_band <> 'under13'
       join api.tenant t on t.id = w.tenant_id and t.status = 'active' and 'gamification' = any(t.modules)
-     where e.status = 'finished'
-       and e.updated_at >= ${window.since.toISOString()}::timestamptz
-       and e.updated_at <= ${window.until.toISOString()}::timestamptz
-       and not exists (
-         select 1 from game.participation_daily d
-          where d.tenant_id = w.tenant_id and d.profile_id = w.profile_id
-            and d.action = 'watched' and d.ref = 'event:' || e.id::text)
-     group by w.tenant_id, w.profile_id, p.country, e.id, e.sport, e.starts_at, e.ends_at_expected`);
+     where not exists (
+         select 1 from game.participation_daily pd
+          where pd.tenant_id = w.tenant_id and pd.profile_id = w.profile_id
+            and pd.action = 'watched' and pd.ref = 'event:' || d.id::text)
+     group by w.tenant_id, w.profile_id, p.country, d.id, d.sport, d.starts_at, d.real_start, d.real_end
+    having sum(greatest(0, extract(epoch from (least(w.last_seen_at, d.real_end) - greatest(w.started_at, d.real_start)))))
+           >= ${window.minFraction} * extract(epoch from (d.real_end - d.real_start))`);
   return rows.map((r) => ({
     tenantId: r.tenant_id,
     profileId: r.profile_id,

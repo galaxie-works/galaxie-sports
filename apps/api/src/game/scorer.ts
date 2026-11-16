@@ -38,6 +38,7 @@ import {
   cappedParticipationPoints,
   entryAppliesTo,
   watchedEnough,
+  WATCHED_MIN_FRACTION,
   outcomeFromScore,
   ruleMatches,
   periodKeys,
@@ -47,7 +48,7 @@ import {
   type PointsScale,
   type PredictionValue,
 } from '@galaxie/game-rules';
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 import { resolveProgram } from './program.js';
 
 const TOPICS = new Set(['event.score_changed', 'event.status_changed', 'event.incident_added']);
@@ -252,7 +253,8 @@ export class GameScorer {
     const until = new Date(this.now() - this.windowMs);
     const since = new Date(until.getTime() - 48 * 3_600_000);
     let counted = 0;
-    for (const c of await watchedCandidates(this.db, { since, until })) {
+    for (const c of await watchedCandidates(this.db, { since, until, minFraction: WATCHED_MIN_FRACTION })) {
+      // o corte já vem do SQL; a regra pura confere de novo
       if (!watchedEnough(c.presentMs, c.eventMs)) continue;
       try {
         const program = await resolveProgram(this.db, c.tenantId, c.profileCountry);
@@ -263,9 +265,14 @@ export class GameScorer {
           month: '2-digit',
           day: '2-digit',
         }).format(c.startsAt);
-        const scale = DEFAULT_POINTS_SCALE;
+        const scale = await this.programScale(c.tenantId, program.programCountry, program.ruleVersion);
         const done = await this.db.transaction(async (tx) => {
           const key = { tenantId: c.tenantId, programCountry: program.programCountry };
+          // o Perfil pode ter sido excluído depois da seleção: trava e confere dentro da transação
+          const [alive] = await tx.execute<{ ok: number }>(
+            sql`select 1 as ok from fan.profile where tenant_id = ${c.tenantId} and id = ${c.profileId} and deleted_at is null for share`,
+          );
+          if (!alive) return false;
           const rec = await recordParticipation(tx, {
             ...key,
             profileId: c.profileId,
@@ -277,7 +284,7 @@ export class GameScorer {
           });
           if (!rec) return false;
           if (rec.points > 0) {
-            await creditPoints(tx as unknown as Database, {
+            const credit = await creditPoints(tx as unknown as Database, {
               ...key,
               profileId: c.profileId,
               amount: rec.points,
@@ -286,12 +293,13 @@ export class GameScorer {
               sourceEvent: `watched:${c.eventId}`,
               note: 'Jogo assistido',
             });
-            await addPeriodPoints(tx, {
-              ...key,
-              profileId: c.profileId,
-              periods: [keys.month, keys.year],
-              points: rec.points,
-            });
+            if (credit.ok)
+              await addPeriodPoints(tx, {
+                ...key,
+                profileId: c.profileId,
+                periods: [keys.month, keys.year],
+                points: rec.points,
+              });
           }
           const input = { type: 'participation' as const, action: 'watched' as const, sport: c.sport };
           const matched = (await activeAchievements(tx, key)).filter(
@@ -419,6 +427,26 @@ export class GameScorer {
     return closed;
   }
 
+  /** Escala de Pontos da versão de regra vigente do programa. */
+  private async programScale(
+    tenantId: string,
+    programCountry: string,
+    version: number,
+  ): Promise<PointsScale> {
+    const [rule] = await this.db
+      .select({ rules: gameRuleVersion.rules })
+      .from(gameRuleVersion)
+      .where(
+        and(
+          eq(gameRuleVersion.tenantId, tenantId),
+          eq(gameRuleVersion.programCountry, programCountry),
+          eq(gameRuleVersion.version, version),
+        ),
+      );
+    const scale = (rule?.rules as { scale?: Partial<PointsScale> } | undefined)?.scale;
+    return { ...DEFAULT_POINTS_SCALE, ...scale };
+  }
+
   private async timeZones(rows: readonly GamePendingPrediction[]): Promise<Map<string, string>> {
     const tenants = [...new Set(rows.map((r) => r.tenantId))];
     const programs = await this.db
@@ -442,7 +470,8 @@ export function startGameSweep(scorer: GameScorer, log: Logger, everyMs = 60_000
     scorer
       .sweep()
       .then((r) => {
-        if (r.finalized || r.voided || r.watched) log.info?.(r, 'gamificação: Palpites fechados');
+        if (r.finalized || r.voided || r.watched)
+          log.info?.(r, 'gamificação: Palpites fechados e jogos assistidos contados');
       })
       .catch((err: unknown) => log.warn({ err }, 'gamificação: varredura do Palpite falhou'))
       .finally(() => {
