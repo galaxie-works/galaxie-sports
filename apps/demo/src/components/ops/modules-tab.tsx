@@ -60,7 +60,9 @@ import {
   initialCapDraft,
   initialModuleDraft,
   isPaidPlan,
+  measuredApiPerDay,
   measuredCallsPerDay,
+  measuredModulesPerDay,
   moduleDraftTexts,
   modulesNotCovering,
   modulesOfRow,
@@ -174,10 +176,9 @@ function SportModules({
   const view: MirrorApiView | undefined = snapshot.mirror.apis.find((a) => a.api === api);
   const n = (v: number) => new Intl.NumberFormat(locale, { maximumFractionDigits: v < 10 ? 1 : 0 }).format(v);
 
-  const measuredTotal = snapshot.modules.windowDays
-    ? snapshot.modules.costs.filter((c) => c.api === api).reduce((s, c) => s + c.calls, 0) /
-      snapshot.modules.windowDays
-    : null;
+  // o cabeçalho soma os módulos; a API inteira (cargas e outros jobs incluídos) vai na linha de baixo
+  const measuredTotal = measuredModulesPerDay(api, snapshot.modules);
+  const measuredApi = measuredApiPerDay(api, snapshot.modules);
   const changed =
     isChanged(modulesSetting) || isChanged(mirrorSetting) || caps.some((c) => isChanged(c.setting));
   const invalid =
@@ -221,7 +222,9 @@ function SportModules({
             {measuredTotal === null ? M.noLedger : fill(M.measuredTotal, { calls: n(measuredTotal) })}
           </span>
           <span className="text-muted-foreground text-xs">
-            {measuredTotal === null ? '' : fill(M.measuredWindow, { days: snapshot.modules.windowDays })}
+            {measuredTotal === null
+              ? ''
+              : `${fill(M.measuredWindow, { days: snapshot.modules.windowDays })} · ${fill(M.measuredApi, { calls: n(measuredApi ?? 0) })}`}
           </span>
         </div>
       </FrameHeader>
@@ -498,7 +501,7 @@ function CapsSection({
       <div className="flex flex-col gap-0.5 px-4 pt-3 pb-1">
         <span className="text-sm font-medium">{C.title}</span>
         <span className="text-muted-foreground text-xs">
-          {C.description} {fill(C.max, { max: n(max) })}
+          {C.description} {fill(C.max, { max: n(max) })}.
         </span>
       </div>
       <ul className="flex flex-col">

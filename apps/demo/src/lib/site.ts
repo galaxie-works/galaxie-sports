@@ -11,7 +11,7 @@
  * `galaxie/request.ts`) num PR, junto com o `.env` da VPS (`DEMO_DOMAIN`, `API_DOMAIN`). `NEXT_PUBLIC_SITE_URL`
  * serve para build local ou de teste noutro endereço; não é lido em tempo de execução.
  */
-export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'https://sports.galaxie.works').replace(
+export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'https://platform.galaxiesports.com').replace(
   /\/+$/,
   '',
 );

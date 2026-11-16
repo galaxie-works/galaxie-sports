@@ -14,10 +14,12 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import {
   ChatConfigBody,
   ChatMessageBody,
+  ChatReactionBody,
   ChatRoomParams,
   ChatRoomPatchBody,
   type ChatConfig,
   type ChatMessageResponse,
+  type ChatReactionResponse,
   type ChatRoom,
 } from '@galaxie/contracts';
 import { activeSanctions, CHAT_GAME_KINDS, type ChatStrictness, type Database } from '@galaxie/db';
@@ -54,7 +56,8 @@ import {
   type ChatTenantConfigRow,
 } from './rooms.js';
 import { ChatSettings, type ChatSettingsValues } from './settings.js';
-import { ChatHub } from './hub.js';
+import { ChatHub, reactionRoomKey } from './hub.js';
+import { MemoryReactionCounter, type ReactionCounter } from './reactions.js';
 import { gameMessages } from './game.js';
 import { MemoryChatPeak, type ChatPeak } from './peak.js';
 import { registerChatStream, type ChatStreamOptions } from './stream.js';
@@ -68,6 +71,10 @@ export interface ChatRoutesDeps {
   /** Faixa de conexões e pico (D6); sem ele, em memória. */
   peak?: ChatPeak | undefined;
   stream?: ChatStreamOptions | undefined;
+  /** Contador das reações (#967); sem ele, em memória. */
+  reactions?: ReactionCounter | undefined;
+  /** Fecha o segundo das reações a cada `ms`. Padrão 1 s. */
+  reactionsIntervalMs?: number | undefined;
 }
 
 const MODULE = { module: 'live_chat' as const };
@@ -116,6 +123,35 @@ export async function chatRoutes(app: FastifyInstance, deps: ChatRoutesDeps): Pr
   const moderation = deps.db ? new ModerationLists(deps.db) : null;
   const now = () => deps.now?.() ?? new Date();
   const hub = deps.hub ?? new ChatHub();
+  const reactions = deps.reactions ?? new MemoryReactionCounter();
+  // Fecha o segundo das reações. Toda instância roda o relógio, mas só uma fecha cada segundo (trava no Valkey) e o
+  // script atômico garante que cada reação conta uma vez. Uma rodada por vez; o log de falha sai no máximo por minuto
+  let flushing = false;
+  let reactionErrorAt = 0;
+  const reactionTimer = setInterval(() => {
+    if (flushing) return;
+    flushing = true;
+    reactions
+      .flush()
+      .then((list) =>
+        Promise.all(
+          list.map((f) => {
+            const [tenantId, fixtureId] = f.room.split(':') as [string, string];
+            return hub.broadcast(reactionRoomKey(tenantId, fixtureId), f.tally);
+          }),
+        ),
+      )
+      .catch((err: unknown) => {
+        if (Date.now() - reactionErrorAt < 60_000) return;
+        reactionErrorAt = Date.now();
+        app.log.warn({ err }, 'chat: reações indisponíveis');
+      })
+      .finally(() => {
+        flushing = false;
+      });
+  }, deps.reactionsIntervalMs ?? 1_000);
+  reactionTimer.unref();
+  app.addHook('onClose', async () => clearInterval(reactionTimer));
   const peak = deps.peak ?? new MemoryChatPeak(() => now().getTime());
   if (!deps.hub) {
     app.addHook('onReady', () => hub.start());
@@ -194,6 +230,7 @@ export async function chatRoutes(app: FastifyInstance, deps: ChatRoutesDeps): Pr
         },
         messages: messages.map(messageView),
         game_messages: game.filter((m) => gameKindEnabled(eff.eventKinds, m.kind)),
+        reactions: await reactions.totals(`${tenantId}:${fixtureId}`).catch(() => ({})),
       },
     };
   }
@@ -228,6 +265,90 @@ export async function chatRoutes(app: FastifyInstance, deps: ChatRoutesDeps): Pr
     reply.header('cache-control', 'no-store');
     return roomBody(tenant.tenantId, fixtureId, after);
   });
+
+  // Módulo e estado da sala para a reação, guardados por 5 s por cliente e jogo (num gol, milhares de reações por
+  // segundo na mesma sala não podem virar milhares de consultas no banco)
+  const reactionGates = new Map<
+    string,
+    { at: number; value: Promise<{ liveChat: boolean; state: ChatRoomState }> }
+  >();
+  function reactionGate(tenantId: string, fixtureId: string) {
+    const key = `${tenantId}:${fixtureId}`;
+    const hit = reactionGates.get(key);
+    if (hit && Date.now() - hit.at < 5_000) return hit.value;
+    const value = (async () => {
+      const liveChat = await tenantHasLiveChat(db(), tenantId);
+      if (!liveChat) return { liveChat, state: 'closed' as ChatRoomState };
+      return { liveChat, state: (await loadRoom(tenantId, fixtureId, false)).window.state };
+    })();
+    value.catch(() => reactionGates.delete(key));
+    if (reactionGates.size > 10_000) reactionGates.clear();
+    reactionGates.set(key, { at: Date.now(), value });
+    return value;
+  }
+
+  // Banimento ou suspensão do torcedor no cliente, guardado por 10 s (a reação é o caminho quente; a punição nova vale
+  // em até 10 s). Banco fora: não barra (a reação não é texto)
+  const bans = new Map<string, { at: number; value: Promise<boolean> }>();
+  function reactionBanned(tenantId: string, profileId: string, accountId: string): Promise<boolean> {
+    const key = `${tenantId}:${profileId}`;
+    const hit = bans.get(key);
+    if (hit && Date.now() - hit.at < 10_000) return hit.value;
+    const value = activeSanctions(db(), { tenantId, profileId, accountId, now: now() })
+      .then((list) =>
+        list.some((x) => x.scope === 'tenant' && (x.level === 'ban' || x.level === 'suspension')),
+      )
+      .catch(() => false);
+    if (bans.size > 100_000) bans.clear();
+    bans.set(key, { at: Date.now(), value });
+    return value;
+  }
+
+  // Reação (#967): não é texto, então quem tem 13 a 17 também reage (`age: 'react'`; o portão de idade decide pela
+  // ficha do país). Passou do limite por segundo: 202 com `accepted: false`, sem erro (o widget só não soma)
+  app.post(
+    '/v1/chat/rooms/:fixtureId/reactions',
+    // balde próprio (fora dos 120/min do torcedor): tocar 🔥 num gol não pode travar o envio de mensagem
+    { config: { fan: true, age: 'react', fanBucket: { name: 'react', perMinute: 600 } } },
+    async (request, reply) => {
+      const fan = request.fan!;
+      const { fixtureId } = parseInput(ChatRoomParams, request.params);
+      const body = parseInput(ChatReactionBody, request.body);
+      const { liveChat, state } = await reactionGate(fan.tenantId, fixtureId);
+      if (!liveChat) throw problems.moduleNotInPlan('live_chat');
+      const window = { state };
+      if (window.state === 'scheduled' || window.state === 'closed')
+        throw new ProblemError(
+          409,
+          'CONFLICT',
+          'Sala fechada para reações',
+          sendRefusalNotice(window.state === 'closed' ? 'room_closed' : 'room_scheduled', fan.locale),
+          {
+            errors: [
+              { path: 'refusal', message: window.state === 'closed' ? 'room_closed' : 'room_scheduled' },
+            ],
+          },
+        );
+      // banimento e suspensão no cliente também barram a reação (decisão de 15/11); sala congelada segue aceitando
+      if (await reactionBanned(fan.tenantId, fan.profileId, fan.accountId))
+        throw new ProblemError(
+          409,
+          'CONFLICT',
+          'Reação bloqueada por punição',
+          'Você não pode reagir agora. Veja suas punições no seu Perfil.',
+          { errors: [{ path: 'refusal', message: 'sanctioned' }] },
+        );
+      const accepted = await reactions
+        .add(`${fan.tenantId}:${fixtureId}`, fan.profileId, body.reaction)
+        .catch((err: unknown) => {
+          request.log.warn({ err }, 'chat: contador de reações indisponível');
+          return false;
+        });
+      reply.header('cache-control', 'no-store');
+      const res: ChatReactionResponse = { data: { accepted } };
+      return reply.code(202).send(res);
+    },
+  );
 
   app.post(
     '/v1/chat/rooms/:fixtureId/messages',
@@ -295,10 +416,11 @@ export async function chatRoutes(app: FastifyInstance, deps: ChatRoutesDeps): Pr
       if (profile.ageBand !== '18plus')
         throw problems.fanAgeRestricted(sendRefusalNotice('age_band', fan.locale));
 
-      // Suspensão e Banimento valem em todas as salas do cliente; Silenciar, só onde aconteceu. O Silêncio oculto não
+      // Suspensão e Banimento valem em todas as salas do cliente; Silenciar, só onde aconteceu (a sala é o id da
+      // sala ou o do jogo, que o painel do cliente usa, #973). O Silêncio oculto não
       // recusa: a mensagem fica só para o autor (ele não é avisado, é a exceção ao aviso)
       const here = (s: { scope: string; scopeId: string | null }) =>
-        s.scope === 'tenant' || (s.scope === 'place' && s.scopeId === room.id);
+        s.scope === 'tenant' || (s.scope === 'place' && (s.scopeId === room.id || s.scopeId === fixtureId));
       const blocking = sanctions.find(
         (s) =>
           here(s) && (s.level === 'suspension' || s.level === 'ban' || (s.level === 'mute' && !s.hidden)),
@@ -431,6 +553,7 @@ export async function chatRoutes(app: FastifyInstance, deps: ChatRoutesDeps): Pr
     roomState: async (tenantId, fixtureId) => (await loadRoom(tenantId, fixtureId, false)).window.state,
     gameKinds: (tenantId) => cachedKinds(tenantId),
     gameSnapshot: (fixtureId) => cachedGame(fixtureId),
+    reactionTotals: (tenantId, fixtureId) => reactions.totals(`${tenantId}:${fixtureId}`),
   });
 
   async function configBody(tenantId: string): Promise<ChatConfig> {

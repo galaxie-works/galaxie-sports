@@ -170,9 +170,12 @@ export function registerFanAuth(app: FastifyInstance, deps: FanAuthDeps): void {
       request.log.warn({ err }, 'marca de exclusão do torcedor indisponível');
     }
     try {
+      const bucket = request.routeOptions.config.fanBucket;
       const r = await deps.limiter.hit(
-        `fan:${claims.tenantId}:${claims.profileId}`,
-        FAN_RATE_LIMIT_PER_MINUTE,
+        bucket
+          ? `fan:${bucket.name}:${claims.tenantId}:${claims.profileId}`
+          : `fan:${claims.tenantId}:${claims.profileId}`,
+        bucket?.perMinute ?? FAN_RATE_LIMIT_PER_MINUTE,
         deps.windowMs,
       );
       if (!r.allowed) throw problems.rateLimited(Math.ceil(r.resetMs / 1000));

@@ -775,14 +775,35 @@
     {
       "idx": 110,
       "version": "7",
-      "when": 1794530207111,
-      "tag": "0170_cosmos_moderacao_imagem",
+      "when": 1794700210908,
+      "tag": "0159_menor_padrao",
       "breakpoints": true
     },
     {
       "idx": 111,
       "version": "7",
-      "when": 1794530327111,
+      "when": 1794781554279,
+      "tag": "0168_indice_sync_cursor",
+      "breakpoints": true
+    },
+    {
+      "idx": 112,
+      "version": "7",
+      "when": 1794786384317,
+      "tag": "0169_verificacao_idade",
+      "breakpoints": true
+    },
+    {
+      "idx": 113,
+      "version": "7",
+      "when": 1794786444317,
+      "tag": "0170_cosmos_moderacao_imagem",
+      "breakpoints": true
+    },
+    {
+      "idx": 114,
+      "version": "7",
+      "when": 1794786504317,
       "tag": "0171_foto_perfil_moderada",
       "breakpoints": true
     }

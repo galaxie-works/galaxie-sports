@@ -41,6 +41,7 @@ packages/widgets/src/registry/sources.generated.ts
 
 # dump do Valkey/Redis gerado ao rodar o servidor local numa pasta do repo
 dump.rdb
+*.tsbuildinfo
 
 # Grafo do graphify (regerado pelos git hooks a cada commit, 33 MB). So os rotulos das comunidades sao versionados.
 graphify-out/*

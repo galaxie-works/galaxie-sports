@@ -93,6 +93,7 @@ export const openAlerts = (ops: Pick<OpsSnapshot, 'services' | 'credit'>) =>
  * - `FEEDBACK_GITHUB_TOKEN`: as sugestões do app abrem issue no GitHub só se alguém configurar (e o token pode estar
  *   no painel, não no env);
  * - `STRIPE_SECRET_KEY` e `STRIPE_WEBHOOK_SECRET`: sem eles a compra da Cosmos AI fica indisponível, o resto segue;
+ * - `DIDIT_*`: sem eles a verificação de idade da Galaxie (#1109) responde 503, o resto segue;
  * - `METRICS_TOKEN`: só protege o `/metrics`; sem ele as métricas ficam abertas na rede interna;
  * - `QUALITY_API_KEY`: a qualidade dos dados cai na `GALAXIE_DEMO_KEY`.
  */
@@ -100,6 +101,9 @@ export const OPTIONAL_SECRETS: ReadonlySet<string> = new Set([
   'FEEDBACK_GITHUB_TOKEN',
   'STRIPE_SECRET_KEY',
   'STRIPE_WEBHOOK_SECRET',
+  'DIDIT_API_KEY',
+  'DIDIT_WORKFLOW_ID',
+  'DIDIT_WEBHOOK_SECRET',
   'METRICS_TOKEN',
   'QUALITY_API_KEY',
 ]);

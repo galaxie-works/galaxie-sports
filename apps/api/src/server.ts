@@ -26,6 +26,7 @@ import { chatRoutes } from './chat/routes.js';
 import { ChatHub } from './chat/hub.js';
 import { ChatGameFeed } from './chat/game.js';
 import { MemoryChatPeak, RedisChatPeak } from './chat/peak.js';
+import { MemoryReactionCounter, RedisReactionCounter } from './chat/reactions.js';
 import type { ChatStreamOptions } from './chat/stream.js';
 import type { FanTokenSigner } from './engage/fan-token.js';
 import { AdminGuard, type AdminGuardOptions } from './admin/guard.js';
@@ -76,6 +77,12 @@ import {
 import { StreamTokenSigner } from './realtime/stream-token.js';
 import { docsRoutes } from './routes/docs.js';
 import { cosmosStripeRoutes } from './routes/internal/cosmos-stripe.js';
+import {
+  ageVerificationConfigFromEnv,
+  ageVerificationFanRoutes,
+  ageVerificationWebhookRoutes,
+  type AgeVerificationConfig,
+} from './age-verification/routes.js';
 import { internalShopRoutes } from './routes/internal/shop.js';
 import { galaxieShopTenants, shopRoutes } from './routes/v1/shop.js';
 import { ShopClickRecorder, shopClickRoutes } from './shop/clicks.js';
@@ -211,6 +218,8 @@ export interface ServerOptions {
   lineup?: LineupOptions;
   /** Webhook do Stripe da Cosmos AI (#993); padrão: STRIPE_WEBHOOK_SECRET do ambiente. */
   cosmos?: { stripeWebhookSecret?: string };
+  /** Verificação de idade da Galaxie (#1109); padrão: DIDIT_API_KEY, DIDIT_WORKFLOW_ID e DIDIT_WEBHOOK_SECRET. */
+  ageVerification?: AgeVerificationConfig;
 }
 
 /** Limite fixo da chave secreta de teste, por rota (docs/politica-de-chaves.md §1). */
@@ -221,6 +230,7 @@ export const usageRoute = (env: 'live' | 'test', route: string) => (env === 'tes
 
 /** Monta a API sem iniciar o listener — usado pelo main.ts e pelos testes (inject). */
 export function buildServer(options: ServerOptions = {}): FastifyInstance {
+  const ageVerificationConfig = options.ageVerification ?? ageVerificationConfigFromEnv();
   // o serializer de requisição (apiLoggerOptions) não inclui headers: chaves nunca vão para o log
   const app = Fastify({
     logger: options.logger ? apiLoggerOptions() : false,
@@ -379,6 +389,10 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
     ...(options.chat?.intervalMs ? { intervalMs: options.chat.intervalMs } : {}),
   });
   const chatPeak = options.redis ? new RedisChatPeak(options.redis, prefix) : new MemoryChatPeak();
+  // reações (#967): contador no Valkey, comum a todas as instâncias
+  const chatReactions = options.redis
+    ? new RedisReactionCounter(options.redis, prefix)
+    : new MemoryReactionCounter();
   app.addHook('onReady', () => chatHub.start());
   app.addHook('onClose', () => chatHub.stop());
   registerFanAuth(app, {
@@ -585,6 +599,11 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
       ...(options.fanAvatarCheck ? { avatarCheck: options.fanAvatarCheck } : {}),
       gate: fanAgeGate,
     });
+    await ageVerificationFanRoutes(instance, {
+      db: options.db,
+      config: ageVerificationConfig,
+      now: options.now,
+    });
     await presenceRoutes(instance, {
       db: options.db,
       counter: options.redis ? new RedisPresenceCounter(options.redis, prefix) : new MemoryPresenceCounter(),
@@ -600,8 +619,17 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
       now: options.now,
       hub: chatHub,
       peak: chatPeak,
+      reactions: chatReactions,
       stream: options.chat?.stream,
     });
+  });
+
+  // escopo próprio: o corpo cru do webhook do provedor da verificação de idade (#1109)
+  app.register(ageVerificationWebhookRoutes, {
+    db: options.db,
+    config: ageVerificationConfig,
+    meter: () => app.moduleUsage,
+    now: options.now,
   });
 
   // escopo próprio: o parser de corpo cru do webhook não vale para as outras rotas
