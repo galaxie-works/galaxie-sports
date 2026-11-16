@@ -78,6 +78,7 @@ flowchart TB
     packages_crests[crests]
     packages_engage[engage]
     packages_explore[explore]
+    packages_game_rules[game-rules]
     packages_geo[geo]
     packages_knowledge[knowledge]
     packages_llm[llm]

@@ -1,0 +1,23 @@
+{
+  "name": "@galaxie/game-rules",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Regras puras da Gamificação (#904), sem HTTP nem banco: escala de Pontos, pontuação do Palpite, Degraus das Conquistas e desempate do Ranking. Importado pela API e pelos widgets",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --dir src"
+  }
+}

@@ -841,6 +841,13 @@
       "when": 1794786804317,
       "tag": "0176_cosmos_texto_do_jogo",
       "breakpoints": true
+    },
+    {
+      "idx": 120,
+      "version": "7",
+      "when": 1794846560790,
+      "tag": "0179_game_schema",
+      "breakpoints": true
     }
   ]
 }

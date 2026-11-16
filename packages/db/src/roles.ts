@@ -41,13 +41,28 @@ export const APP_SCHEMAS = [
   'fan',
   'chat',
   'billing',
+  'game',
 ] as const;
 
 /**
  * Schemas com dado pessoal pseudonimizado do torcedor (#937): só a API lê e escreve (e a demo lê, para a
  * moderação). Agentes de IA e ingestor ficam de fora.
  */
-const PERSONAL_SCHEMAS: readonly string[] = ['fan', 'chat'];
+const PERSONAL_SCHEMAS: readonly string[] = ['fan', 'chat', 'game'];
+
+/** Tabelas do schema `game` que a API escreve; `game.audit_log` fica fora (só acréscimo). */
+const GAME_API_WRITE = [
+  'game.program',
+  'game.rule_version',
+  'game.prediction',
+  'game.period_points',
+  'game.program_achievement',
+  'game.achievement_progress',
+  'game.step_grant',
+  'game.card_grant',
+  'game.participation_daily',
+  'game.fraud_signal',
+] as const;
 
 /** Schema do login da demo (fora das migrations: a demo cria as tabelas na subida). */
 export const DEMO_AUTH_SCHEMA = 'demo_auth';
@@ -81,7 +96,8 @@ export const ROLE_GRANTS: Record<RoleService, RoleGrants> = {
   // runtime_env/publishable_key/change_feed em ops
   api: {
     read: [...APP_SCHEMAS, `${DEMO_AUTH_SCHEMA}.${DEMO_FEED_CURSOR}`],
-    write: ['api', 'enrich', 'ops', 'fan', 'engage', 'chat'],
+    // Gamificação (#905): tabela por tabela, para o registro de auditoria ficar só de acréscimo (abaixo)
+    write: ['api', 'enrich', 'ops', 'fan', 'engage', 'chat', ...GAME_API_WRITE],
     // Cosmos AI: só o webhook do Stripe (applyStripeEvent: crédito da compra e da recarga automática, #993/#994)
     modify: ['cosmos.stripe_event', 'cosmos.wallet', 'cosmos.recharge_attempt'],
     // a compra e a recarga automática já existem quando o pagamento chega: a API só muda o estado
@@ -92,6 +108,8 @@ export const ROLE_GRANTS: Record<RoleService, RoleGrants> = {
       'cosmos.balance_alert',
       // plataforma comercial (#1137): a API grava a versão do catálogo que carregou ao subir
       'billing.catalog_version',
+      // Gamificação (#905): o registro de auditoria só recebe linha nova; o resto do schema `game` é da API
+      'game.audit_log',
     ],
   },
   // demo (painel de Ajustes): revisão semântica, grades e logos, escudos de time e competição, vídeos,
