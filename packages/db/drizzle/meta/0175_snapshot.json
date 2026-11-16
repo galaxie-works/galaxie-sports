@@ -1,6 +1,6 @@
 {
   "id": "66608ae8-e8d2-4167-b490-e278893ca3d2",
-  "prevId": "6b1609de-f21c-4953-a0a5-3d07404e21c0",
+  "prevId": "0871a401-6d67-47a3-a963-67c661ea1ee3",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -20688,6 +20688,250 @@
         "account_external_len": {
           "name": "account_external_len",
           "value": "length(\"fan\".\"account\".\"external_account_id\") between 1 and 128"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "fan.age_verification": {
+      "name": "age_verification",
+      "schema": "fan",
+      "columns": {
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "public.uuid_generate_v7()"
+        },
+        "profile_id": {
+          "name": "profile_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "provider": {
+          "name": "provider",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "provider_session_id": {
+          "name": "provider_session_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pending'"
+        },
+        "path": {
+          "name": "path",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "result_band": {
+          "name": "result_band",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_event_id": {
+          "name": "last_event_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "decided_at": {
+          "name": "decided_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "metered_at": {
+          "name": "metered_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "purged_at": {
+          "name": "purged_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "age_verification_provider_session_uq": {
+          "name": "age_verification_provider_session_uq",
+          "columns": [
+            {
+              "expression": "provider",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "provider_session_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "age_verification_profile_idx": {
+          "name": "age_verification_profile_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "profile_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "age_verification_purge_idx": {
+          "name": "age_verification_purge_idx",
+          "columns": [
+            {
+              "expression": "decided_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"fan\".\"age_verification\".\"purged_at\" is null and \"fan\".\"age_verification\".\"decided_at\" is not null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "age_verification_tenant_id_tenant_id_fk": {
+          "name": "age_verification_tenant_id_tenant_id_fk",
+          "tableFrom": "age_verification",
+          "tableTo": "tenant",
+          "schemaTo": "api",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "age_verification_profile_fk": {
+          "name": "age_verification_profile_fk",
+          "tableFrom": "age_verification",
+          "tableTo": "profile",
+          "schemaTo": "fan",
+          "columnsFrom": [
+            "tenant_id",
+            "profile_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "age_verification_pkey": {
+          "name": "age_verification_pkey",
+          "columns": [
+            "tenant_id",
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "age_verification_provider": {
+          "name": "age_verification_provider",
+          "value": "provider in ('didit')"
+        },
+        "age_verification_status": {
+          "name": "age_verification_status",
+          "value": "status in ('pending', 'approved', 'declined', 'review', 'abandoned', 'expired')"
+        },
+        "age_verification_path": {
+          "name": "age_verification_path",
+          "value": "path is null or path in ('estimate', 'document')"
+        },
+        "age_verification_result_band": {
+          "name": "age_verification_result_band",
+          "value": "result_band is null or result_band in ('under13', '13', '14_15', '16_17', '18plus')"
+        },
+        "age_verification_session_len": {
+          "name": "age_verification_session_len",
+          "value": "length(\"fan\".\"age_verification\".\"provider_session_id\") between 1 and 128"
+        },
+        "age_verification_event_len": {
+          "name": "age_verification_event_len",
+          "value": "last_event_id is null or length(last_event_id) between 1 and 128"
+        },
+        "age_verification_decided": {
+          "name": "age_verification_decided",
+          "value": "(status = 'pending' and decided_at is null) or (status <> 'pending' and decided_at is not null)"
+        },
+        "age_verification_approved_band": {
+          "name": "age_verification_approved_band",
+          "value": "status <> 'approved' or (result_band is not null and result_band = '18plus')"
         }
       },
       "isRLSEnabled": false

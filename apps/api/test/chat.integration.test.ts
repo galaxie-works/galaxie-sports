@@ -309,6 +309,42 @@ describe('Chat ao vivo: salas (#959)', () => {
     expect(muted.statusCode).toBe(409);
     expect(muted.json().errors[0].message).toBe('sanctioned');
   });
+
+  it('punição do painel do cliente vale com o id do jogo como escopo', async () => {
+    clock = Date.now();
+    const t = await tenantKey('chat-mod-jogo', ['core_data', 'live_chat']);
+    const fixture = await game(5);
+    await app.inject({
+      method: 'PUT',
+      url: '/v1/chat/config',
+      headers: { 'x-galaxie-key': t.key },
+      payload: { slowModeSeconds: 0 },
+    });
+    const f = await fan(t.key, 1);
+    expect((await send(f.token, fixture, 'antes')).statusCode).toBe(201);
+    // o painel (#973) grava a sala pelo id do jogo, não pelo id da sala
+    await applySanction(db, {
+      tenantId: t.id,
+      profileId: f.profileId,
+      accountId: null,
+      level: 'mute',
+      hidden: false,
+      scope: 'place',
+      scopeId: fixture,
+      reason: 'harassment',
+      caseId: null,
+      actor: { id: 'user:mod1', kind: 'person' },
+      endsAt: new Date(clock + 60 * MIN),
+      now: new Date(clock - 1000),
+      clocks: {
+        contentPurgeAt: new Date(clock + 30 * 24 * 60 * MIN),
+        decisionPurgeAt: new Date(clock + 365 * 24 * 60 * MIN),
+      },
+    });
+    const muted = await send(f.token, fixture, 'oi');
+    expect(muted.statusCode).toBe(409);
+    expect(muted.json().errors[0].message).toBe('sanctioned');
+  });
 });
 
 describe('ChatSettings', () => {

@@ -13,11 +13,8 @@ export class NoPolicyError extends Error {
   }
 }
 
-export async function clocksFor(
-  tenantId: string,
-  profileId: string | null,
-  at: Date = new Date(),
-): Promise<ModerationClocks> {
+/** Ficha que vale para o torcedor (ou o país principal do cliente, sem torcedor); null quando não há nenhuma. */
+export async function policyFor(tenantId: string, profileId: string | null): Promise<CountryPolicy | null> {
   const [policies, countries, fan] = await Promise.all([
     pool.query<{ country: string; policy: unknown }>('select country, policy from engage.country_policy'),
     pool.query<{ country: string; primary: boolean; hardening: unknown }>(
@@ -40,7 +37,16 @@ export async function clocksFor(
       hardening: (c.hardening as PolicyHardening | null) ?? null,
     })),
   );
-  if (!resolved) throw new NoPolicyError();
-  const d = retentionDeadlines(resolved.policy, at.getTime());
+  return resolved?.policy ?? null;
+}
+
+export async function clocksFor(
+  tenantId: string,
+  profileId: string | null,
+  at: Date = new Date(),
+): Promise<ModerationClocks> {
+  const policy = await policyFor(tenantId, profileId);
+  if (!policy) throw new NoPolicyError();
+  const d = retentionDeadlines(policy, at.getTime());
   return { contentPurgeAt: new Date(d.contentPurgeAt), decisionPurgeAt: new Date(d.decisionPurgeAt) };
 }
