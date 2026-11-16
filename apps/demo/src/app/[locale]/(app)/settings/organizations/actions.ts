@@ -2,11 +2,23 @@
 
 /**
  * Ações da equipe Galaxie em Ajustes › Organizações e marcas (#1136, F2): faixa de capacidade, revisão do cadastro e
- * cliente zero, sempre com motivo, registradas em `billing.staff_action` com o antes e o depois; e a criação
- * assistida de uma organização (PR c), pelo mesmo provisionamento do cadastro. Só a equipe (`requireStaff`: admin e
- * support). Nada de preço.
+ * cliente zero, sempre com motivo, registradas em `billing.staff_action` com o antes e o depois; a criação assistida
+ * de uma organização (PR c), pelo mesmo provisionamento do cadastro; e, desde a F3 (decisão 7), as ações sobre o
+ * estado de cada marca (aprovar, recusar, suspender, reativar, cancelar, estender o trial), todas por
+ * `transitionTenantState`/`extendTenantTrial` (que gravam o evento) e com o motivo em `billing.staff_action`. Só a
+ * equipe (`requireStaff`: admin e support). Nada de preço.
+ *
+ * O motivo aqui vem do diálogo da própria tela, não do cookie do painel do cliente (`withStaffAudit`, que embrulha as
+ * ações de `/client/**` com o tenant em foco): o registro em `billing.staff_action` é o mesmo.
  */
 import { revalidatePath } from 'next/cache';
+
+import {
+  extendTenantTrial,
+  TenantStateError,
+  transitionTenantState,
+  type TenantState,
+} from '@galaxie/billing';
 
 import { requireStaff } from '@/lib/auth/admin';
 import { pool } from '@/lib/auth/db';
@@ -16,8 +28,11 @@ import { builderDb } from '@/lib/builder/store';
 import { catalog } from '@/lib/client/entitlements';
 import { getOrganization, updateOrganization } from '@/lib/client/organizations';
 import {
+  BRAND_STATE_ACTION_NAMES,
+  BRAND_STATE_ACTIONS,
   CAPACITY_TIERS,
   REVIEW_STATUSES,
+  type BrandStateAction,
   type CapacityTier,
   type ReviewStatus,
 } from '@/lib/client/organizations-shared';
@@ -75,6 +90,46 @@ async function recordStaffAction(input: {
      values ($1, $2, $3, $4, $5, $6)`,
     [input.organizationId, input.tenantId ?? null, input.actor, input.action, input.reason, input.payload],
   );
+}
+
+/** Uma marca com o estado, para as ações da equipe (F3). */
+async function brandOf(tenantId: string) {
+  const { rows } = await pool.query<{
+    id: string;
+    name: string;
+    slug: string;
+    organization_id: string | null;
+    state: TenantState;
+    trial_ends_at: Date | null;
+  }>(
+    'select id::text, name, slug, organization_id::text, state, trial_ends_at from api.tenant where id = $1',
+    [tenantId],
+  );
+  return rows[0] ?? null;
+}
+
+/**
+ * A revisão do cadastro decidida (PL2) muda o estado das marcas da organização que a esperavam (F3, decisão 7):
+ * aprovada → `pending_review → trial`; recusada → `pending_review → rejected`. Marcas noutro estado ficam como estão.
+ * Devolve quantas mudaram.
+ */
+async function applyReviewToBrands(
+  organizationId: string,
+  decision: 'approved' | 'rejected',
+  actor: string,
+  reason: string,
+): Promise<number> {
+  const { rows } = await pool.query<{ id: string }>(
+    `select id::text from api.tenant where organization_id = $1 and state = 'pending_review' order by name, slug`,
+    [organizationId],
+  );
+  for (const brand of rows)
+    await transitionTenantState(builderDb(), brand.id, decision === 'approved' ? 'trial' : 'rejected', {
+      cause: 'review',
+      actor: `galaxie:${actor}`,
+      reason,
+    });
+  return rows.length;
 }
 
 /**
@@ -137,20 +192,107 @@ export async function updateOrganizationAction(input: {
   let issued: IssuedBrandKeys[] = [];
   try {
     const changed = await updateOrganization({ id: input.id, patch, actor: me.id, reason });
-    // aprovou a revisão (PL2): as chaves nascem agora, pelo mesmo caminho do cadastro. Também quando nada mudou e a
-    // organização já estava aprovada: a aprovação pode ter sido gravada numa tentativa em que a emissão falhou
+    const decided =
+      patch.reviewStatus === 'approved' || patch.reviewStatus === 'rejected' ? patch.reviewStatus : null;
+    // a decisão da revisão (PL2) muda o estado das marcas que a esperavam (F3). Também quando nada mudou na
+    // organização: a decisão pode ter sido gravada numa tentativa em que este passo falhou
+    const brandsMoved =
+      decided && (changed || (await getOrganization(input.id))?.reviewStatus === decided)
+        ? await applyReviewToBrands(input.id, decided, me.id, reason)
+        : 0;
+    // aprovou a revisão: as chaves nascem agora, pelo mesmo caminho do cadastro
     if (
-      patch.reviewStatus === 'approved' &&
-      (changed || (await getOrganization(input.id))?.reviewStatus === 'approved')
+      decided === 'approved' &&
+      (changed || brandsMoved || (await getOrganization(input.id))?.reviewStatus === 'approved')
     )
       issued = await issueKeysForOrganization(input.id, me.id, reason);
-    if (!changed && !issued.length) return { ok: false, error: e.unchanged };
+    if (!changed && !issued.length && !brandsMoved) return { ok: false, error: e.unchanged };
   } catch (err) {
+    if (err instanceof TenantStateError) return { ok: false, error: e.transition };
     console.error('[organizações] ação da equipe falhou', err);
     return { ok: false, error: e.generic };
   }
   revalidatePath(PATH);
   revalidatePath(`${PATH}/${input.id}`);
+  return { ok: true, issued };
+}
+
+export interface BrandStateActionInput {
+  tenantId: string;
+  action: BrandStateAction;
+  reason: string;
+  /** Só em `extend_trial`: o novo fim do trial (ISO 8601, no futuro). */
+  trialEndsAt?: string;
+}
+
+/**
+ * Ações da equipe sobre o estado de uma marca (F3, decisão 7), com motivo: aprovar (`pending_review → trial`, com a
+ * revisão da organização aprovada e as chaves emitidas como hoje), recusar (`→ rejected`, revisão recusada), suspender
+ * (`trial`|`active`|`past_due → suspended`), reativar (`suspended → active`), cancelar (`→ cancelled`) e estender o
+ * trial (muda `trial_ends_at`, evento `admin` sem mudar o estado). A transição fora do diagrama volta como erro, sem
+ * gravar nada; `billing.staff_action` guarda o motivo com o antes e o depois.
+ */
+export async function brandStateAction(input: BrandStateActionInput): Promise<OrganizationActionResult> {
+  const me = await requireStaff();
+  const e = getDictionary(await getRequestLocale()).platformStaff.errors;
+  if (!isUuid(input?.tenantId)) return { ok: false, error: e.notFound };
+  if (!BRAND_STATE_ACTION_NAMES.includes(input.action)) return { ok: false, error: e.invalid };
+  const reason = normalizeStaffReason(input.reason);
+  if (!reason) return { ok: false, error: e.reason };
+  const brand = await brandOf(input.tenantId);
+  if (!brand) return { ok: false, error: e.notFound };
+  const actor = `galaxie:${me.id}`;
+  const db = builderDb();
+  let payload: Record<string, unknown>;
+  let issued: IssuedBrandKeys[] = [];
+  try {
+    if (input.action === 'extend_trial') {
+      const until = new Date(String(input.trialEndsAt ?? ''));
+      if (Number.isNaN(until.getTime()) || until.getTime() <= Date.now()) return { ok: false, error: e.date };
+      const r = await extendTenantTrial(db, brand.id, until, { actor, reason });
+      payload = { trial_ends_at: { before: r.before?.toISOString() ?? null, after: r.after.toISOString() } };
+    } else {
+      const to = BRAND_STATE_ACTIONS[input.action].to;
+      const r = await transitionTenantState(db, brand.id, to, { cause: 'admin', actor, reason });
+      payload = { from: r.from, to: r.to };
+      // aprovar e recusar decidem também a revisão do cadastro da organização (PL2), quando ela ainda esperava
+      if ((input.action === 'approve' || input.action === 'reject') && brand.organization_id) {
+        const decision = input.action === 'approve' ? 'approved' : 'rejected';
+        const org = await getOrganization(brand.organization_id);
+        if (org && org.reviewStatus !== decision)
+          await updateOrganization({
+            id: brand.organization_id,
+            patch: { reviewStatus: decision },
+            actor: me.id,
+            reason,
+          });
+      }
+    }
+    if (brand.organization_id)
+      await recordStaffAction({
+        organizationId: brand.organization_id,
+        tenantId: brand.id,
+        actor: me.id,
+        action: `brand.${input.action}`,
+        reason,
+        payload,
+      });
+    // aprovada: as chaves nascem agora, pelo mesmo caminho do cadastro (aparecem uma vez)
+    if (input.action === 'approve') {
+      const keys = await issueMissingKeys(db, {
+        tenantId: brand.id,
+        actor,
+        defaultOrigin: defaultBrandOrigin(brand.slug, SITE_HOST),
+      });
+      if (hasKeys(keys)) issued = [{ tenantId: brand.id, brand: brand.name, keys }];
+    }
+  } catch (err) {
+    if (err instanceof TenantStateError) return { ok: false, error: e.transition };
+    console.error('[organizações] ação sobre o estado da marca falhou', err);
+    return { ok: false, error: e.generic };
+  }
+  revalidatePath(PATH);
+  if (brand.organization_id) revalidatePath(`${PATH}/${brand.organization_id}`);
   return { ok: true, issued };
 }
 
