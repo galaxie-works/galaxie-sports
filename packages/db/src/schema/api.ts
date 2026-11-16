@@ -319,8 +319,20 @@ export const moduleUsageMonthly = api.table(
   ],
 );
 
-/** Cargos da equipe do cliente (#1019); a matriz de permissões fica em `@galaxie/engage` (`can`). */
-export const TENANT_MEMBER_ROLES = ['owner', 'admin', 'senior_moderator', 'moderator', 'volunteer'] as const;
+/**
+ * Cargos da equipe do cliente (#1019); a matriz de permissões fica em `@galaxie/engage` (`can`). `developer` (quem
+ * integra: chaves, webhooks, Builder) e `billing` (financeiro: cobrança e faturas, vale na organização inteira) vêm da
+ * plataforma comercial (#1136, PL9).
+ */
+export const TENANT_MEMBER_ROLES = [
+  'owner',
+  'admin',
+  'developer',
+  'billing',
+  'senior_moderator',
+  'moderator',
+  'volunteer',
+] as const;
 export type TenantMemberRole = (typeof TENANT_MEMBER_ROLES)[number];
 
 /** Onde o cargo vale: null = tenant inteiro; senão, só as Comunidades e Salas do Jogo listadas. */
@@ -362,7 +374,7 @@ export const tenantMember = api.table(
     check('tenant_member_one_identity', sql`(${t.userId} is null) <> (${t.profileId} is null)`),
     check(
       'tenant_member_role',
-      sql`${t.role} in ('owner', 'admin', 'senior_moderator', 'moderator', 'volunteer')`,
+      sql`${t.role} in ('owner', 'admin', 'developer', 'billing', 'senior_moderator', 'moderator', 'volunteer')`,
     ),
     check('tenant_member_volunteer_is_profile', sql`${t.role} <> 'volunteer' or ${t.profileId} is not null`),
   ],
@@ -391,7 +403,7 @@ export const tenantRolePermission = api.table(
     primaryKey({ columns: [t.tenantId, t.role, t.action] }),
     check(
       'tenant_role_permission_role',
-      sql`${t.role} in ('admin', 'senior_moderator', 'moderator', 'volunteer')`,
+      sql`${t.role} in ('admin', 'developer', 'billing', 'senior_moderator', 'moderator', 'volunteer')`,
     ),
   ],
 );
