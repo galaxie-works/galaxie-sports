@@ -44,3 +44,4 @@ export * from './moderation.js';
 export * from './narration.js';
 export * from './chat.js';
 export * from './shop.js';
+export * from './communities.js';
