@@ -15,6 +15,9 @@
 import type { RealtimeChange } from '@galaxie/contracts';
 import {
   activeAchievements,
+  addPeriodPoints,
+  recordParticipation,
+  watchedCandidates,
   applyAchievementProgress,
   creditPoints,
   event,
@@ -32,7 +35,9 @@ import {
 } from '@galaxie/db';
 import {
   DEFAULT_POINTS_SCALE,
+  cappedParticipationPoints,
   entryAppliesTo,
+  watchedEnough,
   outcomeFromScore,
   ruleMatches,
   periodKeys,
@@ -43,6 +48,7 @@ import {
   type PredictionValue,
 } from '@galaxie/game-rules';
 import { and, eq, inArray } from 'drizzle-orm';
+import { resolveProgram } from './program.js';
 
 const TOPICS = new Set(['event.score_changed', 'event.status_changed', 'event.incident_added']);
 const NOT_STARTED = new Set(['scheduled', 'postponed']);
@@ -216,7 +222,7 @@ export class GameScorer {
   }
 
   /** Varredura: prazos vencidos, provisório dos jogos em andamento e definitivo dos encerrados. */
-  async sweep(): Promise<{ finalized: number; voided: number }> {
+  async sweep(): Promise<{ finalized: number; voided: number; watched: number }> {
     await lockPredictions(this.db);
     let finalized = 0;
     let voided = 0;
@@ -233,7 +239,82 @@ export class GameScorer {
         await this.reconcile(ev.id);
       }
     }
-    return { finalized, voided };
+    const watched = await this.sweepWatched();
+    return { finalized, voided, watched };
+  }
+
+  /**
+   * Jogo assistido (decisão de 16/11): presença verificada em pelo menos 2/3 do jogo. Depois da janela de correção,
+   * conta uma vez por Perfil e jogo: Pontos de participação (com o teto diário), Ranking do período e a Conquista
+   * "Fiel". Olha os jogos encerrados nas últimas 48 h.
+   */
+  async sweepWatched(): Promise<number> {
+    const until = new Date(this.now() - this.windowMs);
+    const since = new Date(until.getTime() - 48 * 3_600_000);
+    let counted = 0;
+    for (const c of await watchedCandidates(this.db, { since, until })) {
+      if (!watchedEnough(c.presentMs, c.eventMs)) continue;
+      try {
+        const program = await resolveProgram(this.db, c.tenantId, c.profileCountry);
+        const keys = periodKeys(c.startsAt, program.timeZone);
+        const day = new Intl.DateTimeFormat('en-CA', {
+          timeZone: program.timeZone,
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+        }).format(c.startsAt);
+        const scale = DEFAULT_POINTS_SCALE;
+        const done = await this.db.transaction(async (tx) => {
+          const key = { tenantId: c.tenantId, programCountry: program.programCountry };
+          const rec = await recordParticipation(tx, {
+            ...key,
+            profileId: c.profileId,
+            day,
+            action: 'watched',
+            ref: `event:${c.eventId}`,
+            points: cappedParticipationPoints('watched', 0, scale),
+            dailyCap: scale.dailyParticipationCap,
+          });
+          if (!rec) return false;
+          if (rec.points > 0) {
+            await creditPoints(tx as unknown as Database, {
+              ...key,
+              profileId: c.profileId,
+              amount: rec.points,
+              reason: 'presence',
+              source: 'gamification',
+              sourceEvent: `watched:${c.eventId}`,
+              note: 'Jogo assistido',
+            });
+            await addPeriodPoints(tx, {
+              ...key,
+              profileId: c.profileId,
+              periods: [keys.month, keys.year],
+              points: rec.points,
+            });
+          }
+          const input = { type: 'participation' as const, action: 'watched' as const, sport: c.sport };
+          const matched = (await activeAchievements(tx, key)).filter(
+            (a) => entryAppliesTo(a, c.sport) && ruleMatches(a.rule as AchievementRule, input),
+          );
+          if (matched.length)
+            await applyAchievementProgress(tx, {
+              ...key,
+              profileId: c.profileId,
+              ruleVersion: program.ruleVersion,
+              season: keys.year,
+              periods: [keys.month, keys.year],
+              sourceEvent: `watched:${c.eventId}`,
+              matched,
+            });
+          return true;
+        });
+        if (done) counted++;
+      } catch (err) {
+        this.options.logger?.warn({ err, event: c.eventId }, 'gamificação: jogo assistido falhou');
+      }
+    }
+    return counted;
   }
 
   /** Fecha os Palpites do jogo: com o resultado, ou anulados (`outcome` null). Devolve quantos esta réplica fechou. */
@@ -361,7 +442,7 @@ export function startGameSweep(scorer: GameScorer, log: Logger, everyMs = 60_000
     scorer
       .sweep()
       .then((r) => {
-        if (r.finalized || r.voided) log.info?.(r, 'gamificação: Palpites fechados');
+        if (r.finalized || r.voided || r.watched) log.info?.(r, 'gamificação: Palpites fechados');
       })
       .catch((err: unknown) => log.warn({ err }, 'gamificação: varredura do Palpite falhou'))
       .finally(() => {
