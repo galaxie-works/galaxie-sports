@@ -1,6 +1,6 @@
 {
   "id": "66608ae8-e8d2-4167-b490-e278893ca3d2",
-  "prevId": "0871a401-6d67-47a3-a963-67c661ea1ee3",
+  "prevId": "e8f03c35-30a8-4fa0-9ede-3788601a3631",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -21476,6 +21476,30 @@
           "primaryKey": false,
           "notNull": false
         },
+        "avatar_status": {
+          "name": "avatar_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "avatar_ref": {
+          "name": "avatar_ref",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "avatar_hash": {
+          "name": "avatar_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "avatar_checked_at": {
+          "name": "avatar_checked_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
         "age_band": {
           "name": "age_band",
           "type": "text",
@@ -21681,6 +21705,10 @@
         "profile_country": {
           "name": "profile_country",
           "value": "\"fan\".\"profile\".\"country\" ~ '^[A-Z]{2}$'"
+        },
+        "profile_avatar_status": {
+          "name": "profile_avatar_status",
+          "value": "\"fan\".\"profile\".\"avatar_status\" is null or \"fan\".\"profile\".\"avatar_status\" in ('pending', 'visible', 'held', 'removed')"
         },
         "profile_age_band_detail": {
           "name": "profile_age_band_detail",

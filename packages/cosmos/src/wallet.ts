@@ -16,6 +16,9 @@ import { BRANDBOOK_FUNCTION, BRANDBOOK_PROVIDERS } from './brandbook.js';
 import { ceilCredits, creditsFor, roundCredits } from './credits.js';
 import { CosmosError } from './errors.js';
 import { assertQuota, isQuotaScope, quotaCandidates, quotaFor } from './quota.js';
+
+/** `IMAGE_MODERATION_FUNCTION` (moderation-image.ts), repetido aqui para não criar ciclo de import. */
+const IMAGE_MODERATION_FUNCTION_NAME = 'moderation.image';
 import {
   COSMOS_PROVIDERS,
   isCosmosProvider,
@@ -113,13 +116,18 @@ export interface FunctionDefInput {
 
 /**
  * A função tem quem chame esse provedor? O assistente chama os provedores com chamador (`ASSISTANT_STREAMERS`); o
- * tema a partir do brandbook, só os que leem PDF. Salvar outro deixaria a função "Ativa" respondendo indisponível.
+ * tema a partir do brandbook, só os que leem PDF; a moderação de imagem, só os que leem imagem (os mesmos). Salvar outro
+ * deixaria a função "Ativa" respondendo indisponível.
  */
 /**
  * Funções que mandam arquivo (PDF ou imagem) ao modelo: só os provedores que leem arquivo. A lista de canais lida de
  * PDF ou print (#1008) tem o nome aqui porque a função mora na demo.
  */
-export const FILE_FUNCTIONS: readonly string[] = [BRANDBOOK_FUNCTION, 'channels.import'];
+export const FILE_FUNCTIONS: readonly string[] = [
+  BRANDBOOK_FUNCTION,
+  IMAGE_MODERATION_FUNCTION_NAME,
+  'channels.import',
+];
 
 export function providerHasCaller(functionName: string, provider: CosmosProvider): boolean {
   if (functionName === ASSISTANT_FUNCTION) return Boolean(ASSISTANT_STREAMERS[provider]);
