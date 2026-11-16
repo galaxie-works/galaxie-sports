@@ -37,11 +37,16 @@ export async function purgeChatMessages(db: Database, now: Date, batchSize = 500
         update chat.room r set pinned_message_id = null, pinned_by = null, pinned_at = null, updated_at = now()
          where r.pinned_message_id is not null
            and exists (select 1 from chat.message m where m.tenant_id = r.tenant_id and m.id = r.pinned_message_id
-                        and m.purge_at <= ${now.toISOString()}::timestamptz)`);
+                        and m.purge_at <= ${now.toISOString()}::timestamptz
+                        and (m.legal_hold_until is null or m.legal_hold_until <= ${now.toISOString()}::timestamptz))`);
       const rows = await tx.execute<{ id: string }>(sql`
         delete from chat.message
          where (tenant_id, id) in (select tenant_id, id from chat.message
-                                    where purge_at <= ${now.toISOString()}::timestamptz limit ${batchSize})
+                                    where purge_at <= ${now.toISOString()}::timestamptz
+                                      -- guarda legal (#1289): denunciada às autoridades fica até o fim dela
+                                      and (legal_hold_until is null
+                                           or legal_hold_until <= ${now.toISOString()}::timestamptz)
+                                    limit ${batchSize})
         returning id`);
       return rows.length;
     });

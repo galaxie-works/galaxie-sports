@@ -14,6 +14,7 @@ import {
   decideAppeal,
   eraseModerationContent,
   fileAppeal,
+  flagChildSafety,
   fileReport,
   galaxieAppealQueue,
   hiddenProfilesFor,
@@ -23,6 +24,8 @@ import {
   moderationNotesFor,
   purgeModeration,
   readAudit,
+  readCase,
+  reportToAuthorities,
   runMigrations,
   sanctionsForFan,
   unblockFan,
@@ -1039,5 +1042,91 @@ describe('notas internas da ficha (#973)', () => {
       }),
     ).toBeNull();
     expect((await moderationNotesFor(db, tenantId, other.id)).map((n) => n.body)).toEqual(['outra']);
+  });
+});
+
+describe('guarda legal e denúncia às autoridades (#1289)', () => {
+  it('caso sob guarda não sai no expurgo nem na exclusão do titular; vencida, sai', async () => {
+    const author = await profile();
+    const at = Date.now() - 400 * day;
+    const old = clocks(at);
+    const h = await holdContent(db, {
+      ...target(author.id),
+      source: 'filter',
+      reasons: ['sexual'],
+      severity: 90,
+      hide: true,
+      content: 'conteúdo denunciado',
+      detail: null,
+      clocks: old,
+      now: new Date(at),
+    });
+    const until = new Date(Date.now() + 180 * day);
+    expect(
+      await db.transaction((tx) =>
+        flagChildSafety(tx, {
+          tenantId,
+          caseId: h.caseId,
+          actor: person('mod'),
+          holdUntil: until,
+          clocks: old,
+          now: new Date(at),
+        }),
+      ),
+    ).toBe(true);
+    // marcar de novo não faz nada
+    expect(
+      await db.transaction((tx) =>
+        flagChildSafety(tx, {
+          tenantId,
+          caseId: h.caseId,
+          actor: person('mod'),
+          holdUntil: until,
+          clocks: old,
+          now: new Date(at),
+        }),
+      ),
+    ).toBe(false);
+    expect(
+      await db.transaction((tx) =>
+        reportToAuthorities(tx, {
+          tenantId,
+          caseId: h.caseId,
+          actor: { id: 'galaxie:ops', kind: 'galaxie' },
+          reference: 'PROTO-1',
+          holdUntil: until,
+          clocks: old,
+          now: new Date(at),
+        }),
+      ),
+    ).toBe(true);
+    const c = await readCase(db, tenantId, h.caseId);
+    expect(c).toMatchObject({ childSafety: true });
+    expect(c!.authorityReportedAt).not.toBeNull();
+    expect(c!.legalHoldUntil!.getTime()).toBe(until.getTime());
+
+    await closeCase(db, {
+      tenantId,
+      caseId: h.caseId,
+      status: 'resolved',
+      actor: person('mod'),
+      note: null,
+      clocks: old,
+      now: new Date(at),
+    });
+    await purgeModeration(db);
+    await db.transaction((tx) => eraseModerationContent(tx, tenantId, author.id));
+    const [kept] = await pg`select content from engage.moderation_case where id = ${h.caseId}`;
+    expect(kept!.content).toBe('conteúdo denunciado');
+    const audits = await readAudit(db, tenantId, { caseId: h.caseId });
+    expect(audits.map((a) => a.action)).toEqual(
+      expect.arrayContaining(['authority.flag', 'authority.report']),
+    );
+
+    // a guarda venceu: o expurgo segue o relógio normal
+    await pg`update engage.moderation_case set legal_hold_until = now() - interval '1 minute' where id = ${h.caseId}`;
+    await purgeModeration(db);
+    const [gone] = await pg`select id from engage.moderation_case where id = ${h.caseId}`;
+    expect(gone).toBeUndefined();
   });
 });

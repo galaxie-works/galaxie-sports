@@ -68,6 +68,11 @@ async function Moderation({
           return {
             ...item,
             muteHours,
+            // abuso infantil (#1289): quem tira do ar marca a suspeita; só o admin e a Galaxie denunciam
+            canFlag: !item.childSafety && allowed(ctx, 'moderation.hide', placeOf(item)).ok,
+            canReport:
+              !item.authorityReported &&
+              (ctx.actor?.kind === 'galaxie_staff' || allowed(ctx, 'moderation.ban', placeOf(item)).ok),
             decisions: applicableDecisions(item).filter((d) =>
               d === 'mute' ? muteHours.length > 0 : allowed(ctx, decisionAction(d), placeOf(item)).ok,
             ),

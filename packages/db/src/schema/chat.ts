@@ -113,6 +113,8 @@ export const chatMessage = chat.table(
       .default(sql`'{}'::text[]`),
     /** Relógio de conteúdo da ficha do país (#954): depois disso a mensagem é apagada. */
     purgeAt: timestamp('purge_at', { withTimezone: true }).notNull(),
+    /** Guarda legal (#1289): denunciada (ou sob suspeita de abuso infantil), não sai antes disso. */
+    legalHoldUntil: timestamp('legal_hold_until', { withTimezone: true }),
     createdAt: createdAt(),
   },
   (t) => [

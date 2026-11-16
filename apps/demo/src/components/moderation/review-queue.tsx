@@ -17,11 +17,12 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Field, FieldLabel } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useI18n } from '@/lib/i18n/client';
 import { fill } from '@/lib/i18n/text';
-import { decideCase } from '@/lib/moderation/queue-actions';
+import { decideCase, flagChildSafetyAction, reportAuthoritiesAction } from '@/lib/moderation/queue-actions';
 import type { QueueItem } from '@/lib/moderation/queue-data';
 import {
   dueState,
@@ -36,7 +37,14 @@ const DUE_VARIANT = { overdue: 'destructive-light', soon: 'warning-light', ok: '
 const DESTRUCTIVE: readonly QueueDecision[] = ['remove', 'mute', 'suspend', 'ban'];
 
 /** Item da fila com as decisões que o cargo abre e as durações de silêncio dentro do teto do cargo. */
-export type QueueRow = QueueItem & { decisions: QueueDecision[]; muteHours: number[] };
+export type QueueRow = QueueItem & {
+  decisions: QueueDecision[];
+  muteHours: number[];
+  /** Marca a suspeita de abuso infantil (#1289). */
+  canFlag: boolean;
+  /** Registra a denúncia às autoridades (admin do cliente ou Galaxie). */
+  canReport: boolean;
+};
 
 /**
  * Fila de revisão (#999): os itens da fila única da base (#953), do mais grave, com a sugestão da Cosmos, o prazo e as
@@ -54,6 +62,8 @@ export function ReviewQueue({ items, module }: { items: QueueRow[]; module: stri
   const [deciding, setDeciding] = useState<{ item: QueueRow; decision: QueueDecision } | null>(null);
   const [note, setNote] = useState('');
   const [duration, setDuration] = useState<number>(MUTE_HOURS[0]);
+  const [authority, setAuthority] = useState<{ item: QueueRow; mode: 'flag' | 'report' } | null>(null);
+  const [reference, setReference] = useState('');
   const when = new Intl.DateTimeFormat(locale, { dateStyle: 'short', timeStyle: 'short' });
   const now = Date.now();
 
@@ -83,6 +93,22 @@ export function ReviewQueue({ items, module }: { items: QueueRow[]; module: stri
       if (!r.ok) toast.error(r.error);
       else toast.success(T.done);
       setDeciding(null);
+      router.refresh();
+    });
+
+  const confirmAuthority = () =>
+    authority &&
+    startTransition(async () => {
+      const r =
+        authority.mode === 'flag'
+          ? await flagChildSafetyAction({ caseId: authority.item.id })
+          : await reportAuthoritiesAction({
+              caseId: authority.item.id,
+              ...(reference.trim() ? { reference } : {}),
+            });
+      if (!r.ok) toast.error(r.error);
+      else toast.success(T.done);
+      setAuthority(null);
       router.refresh();
     });
 
@@ -152,6 +178,11 @@ export function ReviewQueue({ items, module }: { items: QueueRow[]; module: stri
               {label(r)}
             </Badge>
           ))}
+          {item.childSafety || item.authorityReported ? (
+            <Badge variant={item.authorityReported ? 'info-light' : 'destructive-light'}>
+              {item.authorityReported ? T.authority.reported : T.authority.pending}
+            </Badge>
+          ) : null}
           <Badge variant={item.hidden ? 'destructive-light' : 'success-light'} className="ml-auto">
             {item.hidden ? T.hidden : T.visible}
           </Badge>
@@ -172,6 +203,36 @@ export function ReviewQueue({ items, module }: { items: QueueRow[]; module: stri
           ) : null}
         </div>
         {suggestion(item)}
+        {item.canFlag || item.canReport ? (
+          <div className="flex flex-wrap justify-end gap-2">
+            {item.canFlag ? (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={pending}
+                onClick={() => setAuthority({ item, mode: 'flag' })}
+              >
+                {T.authority.flag}
+              </Button>
+            ) : null}
+            {item.canReport ? (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={pending}
+                onClick={() => {
+                  setReference('');
+                  setAuthority({ item, mode: 'report' });
+                }}
+              >
+                {T.authority.report}
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
+        {item.childSafety && !item.authorityReported && !item.canReport ? (
+          <p className="text-destructive text-xs">{T.authority.waiting}</p>
+        ) : null}
         {item.decisions.length ? (
           <div className="flex flex-wrap justify-end gap-2">
             {item.decisions.map((d) => (
@@ -223,6 +284,41 @@ export function ReviewQueue({ items, module }: { items: QueueRow[]; module: stri
       ) : (
         <ul className="flex flex-col gap-2">{items.map(row)}</ul>
       )}
+
+      <Dialog open={authority !== null} onOpenChange={(o) => !o && setAuthority(null)}>
+        <DialogContent>
+          {authority ? (
+            <>
+              <DialogHeader>
+                <DialogTitle>{authority.mode === 'flag' ? T.authority.flag : T.authority.report}</DialogTitle>
+                <DialogDescription>
+                  {authority.mode === 'flag' ? T.authority.flagHelp : T.authority.reportHelp}
+                </DialogDescription>
+              </DialogHeader>
+              {authority.mode === 'report' ? (
+                <Field>
+                  <FieldLabel htmlFor={`${ids}-reference`}>{T.authority.reference}</FieldLabel>
+                  <Input
+                    id={`${ids}-reference`}
+                    value={reference}
+                    maxLength={200}
+                    placeholder={T.authority.referencePlaceholder}
+                    onChange={(e) => setReference(e.target.value)}
+                  />
+                </Field>
+              ) : null}
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setAuthority(null)} disabled={pending}>
+                  {T.cancel}
+                </Button>
+                <Button variant="destructive" onClick={confirmAuthority} disabled={pending}>
+                  {T.confirm}
+                </Button>
+              </DialogFooter>
+            </>
+          ) : null}
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={deciding !== null} onOpenChange={(o) => !o && setDeciding(null)}>
         <DialogContent>

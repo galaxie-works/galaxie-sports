@@ -33,6 +33,10 @@ export interface QueueItem {
   dueAt: string | null;
   suggestion: Suggestion | null;
   automatic: boolean;
+  /** Suspeita de abuso infantil (#1289): só fecha depois da denúncia às autoridades. */
+  childSafety: boolean;
+  /** Já denunciado às autoridades (a guarda legal conta daí). */
+  authorityReported: boolean;
 }
 
 export interface DecisionItem {
@@ -90,6 +94,8 @@ const toItem = (c: ModerationCaseView, nick: Map<string, string>): QueueItem => 
   dueAt: c.dueAt?.toISOString() ?? null,
   suggestion: suggestionOf(c.detail),
   automatic: isAutomatic(c.detail),
+  childSafety: c.childSafety,
+  authorityReported: c.authorityReportedAt !== null,
 });
 
 export async function loadModerationQueue(
