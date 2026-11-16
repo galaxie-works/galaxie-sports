@@ -15,6 +15,7 @@ export default defineMessages(
       editTheme: 'Editar tema da marca',
       cosmos: 'Cosmos AI',
       moderation: 'Fila de moderação',
+      chat: 'Chat ao vivo',
       plans: 'Planos e módulos',
     },
     title: 'Painel do cliente',
@@ -32,6 +33,7 @@ export default defineMessages(
       themes: 'Temas',
       cosmos: 'Cosmos AI',
       moderation: 'Fila de moderação',
+      chat: 'Chat ao vivo',
       plans: 'Planos e módulos',
       groups: {
         account: 'Conta',
@@ -746,6 +748,7 @@ export default defineMessages(
         editTheme: 'Edit brand theme',
         cosmos: 'Cosmos AI',
         moderation: 'Moderation queue',
+        chat: 'Live chat',
         plans: 'Plans and modules',
       },
       title: 'Client panel',
@@ -763,6 +766,7 @@ export default defineMessages(
         themes: 'Themes',
         cosmos: 'Cosmos AI',
         moderation: 'Moderation queue',
+        chat: 'Live chat',
         plans: 'Plans and modules',
         groups: {
           account: 'Account',
@@ -1480,6 +1484,7 @@ export default defineMessages(
         editTheme: 'Editar tema de marca',
         cosmos: 'Cosmos AI',
         moderation: 'Cola de moderación',
+        chat: 'Chat en vivo',
         plans: 'Planes y módulos',
       },
       title: 'Panel del cliente',
@@ -1497,6 +1502,7 @@ export default defineMessages(
         themes: 'Temas',
         cosmos: 'Cosmos AI',
         moderation: 'Cola de moderación',
+        chat: 'Chat en vivo',
         plans: 'Planes y módulos',
         groups: {
           account: 'Cuenta',
