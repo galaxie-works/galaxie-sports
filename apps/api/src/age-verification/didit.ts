@@ -102,7 +102,9 @@ export class DiditClient {
       },
     });
     if (!res.ok) throw new DiditError(`didit: criar sessão: HTTP ${res.status}`, res.status);
-    const body = (await res.json()) as { session_id?: unknown; url?: unknown; expires_at?: unknown };
+    const body = (await res.json().catch(() => {
+      throw new DiditError('didit: criar sessão: resposta sem JSON', res.status);
+    })) as { session_id?: unknown; url?: unknown; expires_at?: unknown };
     if (typeof body.session_id !== 'string' || !SESSION_ID.test(body.session_id))
       throw new DiditError('didit: criar sessão: resposta sem session_id', res.status);
     if (typeof body.url !== 'string' || !body.url.startsWith('https://'))
