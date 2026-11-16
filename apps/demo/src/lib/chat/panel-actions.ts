@@ -15,7 +15,7 @@ import { allowed } from '@/lib/client/permissions';
 import { readClientContext } from '@/lib/client/session';
 import { getDictionary } from '@/lib/i18n/dictionary';
 import { getRequestLocale } from '@/lib/i18n/server';
-import { clocksFor, NoPolicyError } from '@/lib/moderation/clocks';
+import { clocksFor, NoPolicyError, policyFor } from '@/lib/moderation/clocks';
 
 import { loadChatRoom, loadRoomMessages, profileInRoom, type PanelMessage } from './panel-data';
 import {
@@ -182,6 +182,9 @@ export async function authorAction(input: {
     return { ok: false, error: T.notFound };
 
   const now = new Date();
+  // a ficha do país do torcedor decide o Silêncio oculto (país que exige aviso de punição não deixa) e os relógios
+  const policy = await policyFor(ctx.tenant.id, input.profileId);
+  if (!policy) return { ok: false, error: T.noPolicy };
   const scope = SANCTION_SCOPE[level];
   const endsAt = level === 'ban' ? null : new Date(now.getTime() + seconds * 1000);
   const problems = checkSanction(
@@ -192,11 +195,17 @@ export async function authorAction(input: {
       endsAt: endsAt?.getTime() ?? null,
       scopeId: scope === 'place' ? input.fixtureId : null,
     },
-    { now: now.getTime(), hiddenEnabled: true, policy: null },
+    // o Silêncio oculto fica ligado para quem o cargo deixa (`moderation.shadow_mute`, que o Dono pode tirar)
+    { now: now.getTime(), hiddenEnabled: hidden, policy },
   );
   if (problems.length) return { ok: false, error: T.invalid };
   // a ação da matriz depende do degrau (o oculto é outra ação); confere de novo pelo nível
-  if (!allowed(ctx, sanctionAction(level, hidden), { room: input.fixtureId }).ok)
+  if (
+    !allowed(ctx, sanctionAction(level, hidden), {
+      room: input.fixtureId,
+      ...(level === 'mute' ? { durationSec: seconds } : {}),
+    }).ok
+  )
     return { ok: false, error: T.role };
 
   let clocks;

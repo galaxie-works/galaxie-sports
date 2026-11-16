@@ -74,7 +74,8 @@ async function Room({ fixtureId }: { fixtureId: string }) {
   );
 }
 
-export default async function ClientChatRoomPage({ params }: { params: Promise<{ fixtureId: string }> }) {
+// Os params só são lidos dentro do Suspense: fora dele o Next recusa o prerender (dado de requisição no shell)
+async function RoomPage({ params }: { params: Promise<{ fixtureId: string }> }) {
   const [t, { fixtureId }] = await Promise.all([getT(), params]);
   return (
     <>
@@ -87,16 +88,22 @@ export default async function ClientChatRoomPage({ params }: { params: Promise<{
         ]}
       />
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 p-4 md:p-6">
-        <Suspense
-          fallback={
-            <LoadingStatus>
-              <TablePanelSkeleton rows={6} columns={['flex-1', 'w-16']} />
-            </LoadingStatus>
-          }
-        >
-          <Room fixtureId={fixtureId} />
-        </Suspense>
+        <Room fixtureId={fixtureId} />
       </div>
     </>
+  );
+}
+
+export default function ClientChatRoomPage({ params }: { params: Promise<{ fixtureId: string }> }) {
+  return (
+    <Suspense
+      fallback={
+        <LoadingStatus className="mx-auto w-full max-w-6xl p-4 md:p-6">
+          <TablePanelSkeleton rows={6} columns={['flex-1', 'w-16']} />
+        </LoadingStatus>
+      }
+    >
+      <RoomPage params={params} />
+    </Suspense>
   );
 }
