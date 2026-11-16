@@ -9,7 +9,7 @@ import { tenantVerifyDomain, txtMatches, txtRecordName, type DomainRecord } from
 import type { TaskContext } from './run.js';
 
 const NOW = new Date('2026-11-16T12:00:00Z');
-const TOKEN = 'galaxie-verify=abc123';
+const TOKEN = 'galaxie-verify=token-de-teste';
 
 function world(record: DomainRecord | null, txt: Record<string, string[][] | Error>) {
   const saves: unknown[] = [];
