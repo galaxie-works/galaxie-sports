@@ -14,7 +14,7 @@ import { sendInvite } from '@/lib/auth/invite';
 import { auth } from '@/lib/auth/server';
 import { builderDb } from '@/lib/builder/store';
 import { catalog } from '@/lib/client/entitlements';
-import { updateOrganization } from '@/lib/client/organizations';
+import { getOrganization, updateOrganization } from '@/lib/client/organizations';
 import {
   CAPACITY_TIERS,
   REVIEW_STATUSES,
@@ -137,9 +137,14 @@ export async function updateOrganizationAction(input: {
   let issued: IssuedBrandKeys[] = [];
   try {
     const changed = await updateOrganization({ id: input.id, patch, actor: me.id, reason });
-    if (!changed) return { ok: false, error: e.unchanged };
-    // aprovou a revisão (PL2): as chaves nascem agora, pelo mesmo caminho do cadastro
-    if (patch.reviewStatus === 'approved') issued = await issueKeysForOrganization(input.id, me.id, reason);
+    // aprovou a revisão (PL2): as chaves nascem agora, pelo mesmo caminho do cadastro. Também quando nada mudou e a
+    // organização já estava aprovada: a aprovação pode ter sido gravada numa tentativa em que a emissão falhou
+    if (
+      patch.reviewStatus === 'approved' &&
+      (changed || (await getOrganization(input.id))?.reviewStatus === 'approved')
+    )
+      issued = await issueKeysForOrganization(input.id, me.id, reason);
+    if (!changed && !issued.length) return { ok: false, error: e.unchanged };
   } catch (err) {
     console.error('[organizações] ação da equipe falhou', err);
     return { ok: false, error: e.generic };

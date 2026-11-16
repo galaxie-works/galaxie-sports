@@ -9,11 +9,16 @@
  *    organização e nula na marca);
  * 2. `api.tenant_member` e `billing.organization_member` com quem criou como Dono (único por tenant e usuário);
  * 3. chaves secretas `live` e `test` (pula o ambiente que já tem chave válida) e uma publicável com o host padrão
- *    (pula se a marca já tem uma ativa) — só quando a revisão do cadastro não está pendente (PL2). O texto das
- *    chaves aparece uma única vez, no retorno;
+ *    (pula se a marca já tem uma ativa), as três na mesma transação: falhou uma, nenhuma fica gravada e a repetição
+ *    emite tudo de novo — só quando a revisão do cadastro não está pendente (PL2). O texto das chaves aparece uma
+ *    única vez, no retorno;
  * 4. um tema da marca com a cor principal informada (pula se a marca já tem tema);
  * 5. o evento `tenant.provisioned` no outbox (`ops.change_feed`), com a faixa que a calculadora indicou e o uso
  *    declarado no payload — só na criação da marca (a F3 marca o checklist e manda o e-mail a partir dele).
+ *
+ * No cadastro (`source: 'signup'`), antes do passo 0 e na mesma transação, a regra "um trial por domínio de e-mail de
+ * empresa" (PL2) é conferida de novo com trava consultiva no banco: a conferência da tela (`signup/actions.ts`) só
+ * roda quando o e-mail ainda não tem usuário, e duas requisições simultâneas não podem passar juntas.
  *
  * Fora daqui, para a F3: a máquina de estados (`draft`, `pending_review`…), o widget de exemplo no Builder, o cliente
  * no Stripe e o e-mail de boas-vindas. `status` e `review_status` que já existem bastam para esta fase.
@@ -21,7 +26,7 @@
 import { createApiKey } from '@galaxie/db/api-keys';
 import { publishChange } from '@galaxie/db/change-feed';
 import type { Database } from '@galaxie/db/client';
-import { recordKeyEvent } from '@galaxie/db';
+import { recordKeyEvent } from '@galaxie/db/key-events';
 import {
   apiKey,
   organization,
@@ -32,10 +37,20 @@ import {
   type OrganizationCurrency,
   type OrganizationReviewStatus,
 } from '@galaxie/db/schema';
-import { createPublishableKey, listWidgetThemes, saveWidgetTheme } from '@galaxie/db/widgets';
+import {
+  generatePublishableKey,
+  listWidgetThemes,
+  MAX_PUBLISHABLE_KEYS_PER_TENANT,
+  normalizeAllowedOrigin,
+  saveWidgetTheme,
+} from '@galaxie/db/widgets';
 import { DEFAULT_THEMES } from '@galaxie/widgets';
 import { recordCatalogVersion, type Catalog, type CapacityTier } from '@galaxie/billing';
 import { and, eq, isNull, sql } from 'drizzle-orm';
+
+import { AUTH_SCHEMA } from '@/lib/auth/db';
+
+import { emailDomain, isFreeEmailDomain } from '@/lib/signup/email-domain';
 
 /** O mesmo prazo dos convites da tela Usuários e cargos (`members.ts`); repetido para não puxar o pool do auth. */
 const INVITE_TTL_DAYS = 7;
@@ -116,7 +131,11 @@ export interface ProvisionResult {
 
 /** Recusas do provisionamento (o painel traduz pelo código). */
 export class ProvisionError extends Error {
-  constructor(readonly code: 'organizationSlugTaken' | 'brandSlugTaken') {
+  constructor(
+    readonly code: 'organizationSlugTaken' | 'brandSlugTaken' | 'domainInTrial',
+    /** `domainInTrial`: a organização em trial que já existe para o domínio. */
+    readonly organizationName: string | null = null,
+  ) {
     super(code);
     this.name = 'ProvisionError';
   }
@@ -131,6 +150,31 @@ function membershipDates(accepted: boolean, now: Date) {
   return accepted
     ? { acceptedAt: now, expiresAt: null }
     : { acceptedAt: null, expiresAt: new Date(now.getTime() + INVITE_TTL_DAYS * 86_400_000) };
+}
+
+/**
+ * Um trial por domínio de e-mail de empresa (PL2): outra organização em trial cujo Dono tem o mesmo domínio e da qual
+ * quem provisiona não é Dono (a repetição do próprio cadastro passa). Serializa por domínio com uma trava consultiva
+ * da transação, para dois cadastros simultâneos do mesmo domínio não passarem juntos.
+ */
+async function assertDomainFree(tx: Tx, input: ProvisionInput) {
+  const domain = emailDomain(input.owner.email.toLowerCase());
+  if (isFreeEmailDomain(domain)) return;
+  await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`signup-domain:${domain}`}))`);
+  const rows = await tx.execute<{ name: string }>(sql`
+    select o.name
+      from billing.organization o
+      join billing.organization_member om on om.organization_id = o.id and om.role = 'owner'
+      join ${sql.raw(`"${AUTH_SCHEMA}"."user"`)} u on u.id = om.user_id
+     where split_part(lower(u.email), '@', 2) = ${domain}
+       and exists (select 1 from api.tenant t where t.organization_id = o.id and t.trial_ends_at > now())
+       and not exists (
+         select 1 from billing.organization_member mine
+          where mine.organization_id = o.id and mine.user_id = ${input.owner.userId})
+     order by o.created_at
+     limit 1`);
+  const taken = rows[0];
+  if (taken) throw new ProvisionError('domainInTrial', taken.name);
 }
 
 async function upsertOrganization(tx: Tx, input: ProvisionInput, now: Date) {
@@ -261,17 +305,18 @@ async function addOwner(tx: Tx, input: ProvisionInput, organizationId: string, t
 
 /**
  * Emite o que falta: a chave secreta de cada ambiente sem chave válida e a publicável quando a marca não tem nenhuma
- * ativa. Rodar de novo não emite nada. Devolve só as chaves emitidas agora (uma única vez).
+ * ativa, tudo numa transação só (com a linha do tenant travada): falhou qualquer uma, nenhuma fica gravada e o texto
+ * de nenhuma se perde. Rodar de novo não emite nada. Devolve só as chaves emitidas agora (uma única vez).
  */
 export async function issueMissingKeys(
   db: Database,
   input: { tenantId: string; actor: string; defaultOrigin: string; now?: Date },
 ): Promise<ProvisionedKeys> {
   const now = input.now ?? new Date();
-  const keys: ProvisionedKeys = { ...NO_KEYS };
-  for (const env of ['live', 'test'] as const) {
-    const issued = await db.transaction(async (tx) => {
-      await tx.select({ id: tenant.id }).from(tenant).where(eq(tenant.id, input.tenantId)).for('update');
+  return db.transaction(async (tx) => {
+    const keys: ProvisionedKeys = { ...NO_KEYS };
+    await tx.select({ id: tenant.id }).from(tenant).where(eq(tenant.id, input.tenantId)).for('update');
+    for (const env of ['live', 'test'] as const) {
       const [active] = await tx
         .select({ n: sql<number>`count(*)::int` })
         .from(apiKey)
@@ -283,7 +328,7 @@ export async function issueMissingKeys(
             sql`(${apiKey.expiresAt} is null or ${apiKey.expiresAt} > ${now.toISOString()}::timestamptz)`,
           ),
         );
-      if ((active?.n ?? 0) > 0) return null;
+      if ((active?.n ?? 0) > 0) continue;
       const key = await createApiKey(tx, input.tenantId, { env, label: KEY_LABEL });
       await recordKeyEvent(tx, {
         tenantId: input.tenantId,
@@ -294,25 +339,44 @@ export async function issueMissingKeys(
         actor: input.actor,
         detail: { env, label: KEY_LABEL },
       });
-      return key.key;
-    });
-    keys[env] = issued;
-  }
-  const [publishable] = await db
-    .select({ n: sql<number>`count(*)::int` })
-    .from(publishableKey)
-    .where(and(eq(publishableKey.tenantId, input.tenantId), isNull(publishableKey.revokedAt)));
-  if ((publishable?.n ?? 0) === 0) {
-    const created = await createPublishableKey(db, {
-      tenantId: input.tenantId,
-      name: PUBLISHABLE_KEY_NAME,
-      allowedOrigins: [input.defaultOrigin],
-      env: 'live',
-      actor: input.actor,
-    });
-    keys.publishable = created.key;
-  }
-  return keys;
+      keys[env] = key.key;
+    }
+    const [publishable] = await tx
+      .select({ n: sql<number>`count(*)::int` })
+      .from(publishableKey)
+      .where(and(eq(publishableKey.tenantId, input.tenantId), isNull(publishableKey.revokedAt)));
+    if ((publishable?.n ?? 0) === 0) {
+      // a mesma emissão de `createPublishableKey` (@galaxie/db/widgets), dentro desta transação
+      const origin = normalizeAllowedOrigin(input.defaultOrigin);
+      if (!origin) throw new Error(`Origem padrão inválida para a chave publicável: ${input.defaultOrigin}`);
+      if (publishable!.n >= MAX_PUBLISHABLE_KEYS_PER_TENANT)
+        throw new Error('A marca já tem o máximo de chaves publicáveis ativas.');
+      const generated = generatePublishableKey('live');
+      const [row] = await tx
+        .insert(publishableKey)
+        .values({
+          tenantId: input.tenantId,
+          name: PUBLISHABLE_KEY_NAME,
+          env: 'live',
+          prefix: generated.prefix,
+          keyHash: generated.keyHash,
+          allowedOrigins: [origin],
+          widgetId: null,
+        })
+        .returning({ id: publishableKey.id });
+      await recordKeyEvent(tx, {
+        tenantId: input.tenantId,
+        keyKind: 'publishable',
+        keyId: row!.id,
+        prefix: generated.prefix,
+        action: 'issued',
+        actor: input.actor,
+        detail: { env: 'live', name: PUBLISHABLE_KEY_NAME },
+      });
+      keys.publishable = generated.key;
+    }
+    return keys;
+  });
 }
 
 /** Tema da marca com a cor principal informada no cadastro, se a marca ainda não tem tema. */
@@ -349,6 +413,7 @@ export async function listOrganizationBrands(
 export async function provisionOrganization(db: Database, input: ProvisionInput): Promise<ProvisionResult> {
   const now = input.now ?? new Date();
   const base = await db.transaction(async (tx) => {
+    if (input.source === 'signup') await assertDomainFree(tx, input);
     const org = await upsertOrganization(tx, input, now);
     const t = await upsertTenant(tx, input, org.id, now);
     await addOwner(tx, input, org.id, t.id, now);

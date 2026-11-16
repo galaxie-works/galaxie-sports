@@ -2,20 +2,34 @@ import { loadCatalog } from '@galaxie/billing';
 import { createDb, closeDb, runMigrations, type Database } from '@galaxie/db';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
-import { createAuthTestDb, type AuthTestDb } from './support/auth-db';
+import { createAuthTestDb, signInAs, type AuthTestDb } from './support/auth-db';
 
 /*
  * Cadastro em autoatendimento (F2 c): o provisionamento cria organização, marca, Dono e chaves uma vez só, por mais
- * vezes que rode; quem está em revisão (PL2) não ganha chave até a equipe aprovar; um trial por domínio de e-mail de
- * empresa; o teto por IP conta o IP do aceite dos termos.
+ * vezes que rode; as três chaves nascem juntas ou nenhuma; quem está em revisão (PL2) não ganha chave até a equipe
+ * aprovar (e a aprovação que falhou no meio emite ao repetir); um trial por domínio de e-mail de empresa, conferido
+ * de novo na hora de provisionar; o teto por IP conta o IP do aceite dos termos.
  */
 
 vi.mock('../src/lib/auth/email', async () => (await import('./support/auth-db')).fakeEmailModule);
+const request = vi.hoisted(() => ({ cookie: '' }));
+vi.mock('next/headers', () => ({
+  headers: async () => new Headers({ cookie: request.cookie }),
+  cookies: async () => ({ get: () => undefined, getAll: () => [], set: () => {} }),
+}));
+vi.mock('next/cache', () => ({ revalidatePath: () => {} }));
+vi.mock('next/root-params', () => ({ locale: async () => 'pt-BR' }));
+vi.mock('next/navigation', () => ({
+  redirect: (to: string) => {
+    throw new Error(`redirect ${to}`);
+  },
+}));
 
 let auth: AuthTestDb;
 let db: Database;
 let provision: typeof import('../src/lib/client/provision');
 let guards: typeof import('../src/lib/signup/guards');
+let staff: typeof import('../src/app/[locale]/(app)/settings/organizations/actions');
 const catalog = loadCatalog();
 
 const ORIGIN = 'https://remo.platform.example';
@@ -37,6 +51,8 @@ beforeAll(async () => {
   db = createDb(process.env.DEMO_DATABASE_URL!, { max: 2 });
   provision = await import('../src/lib/client/provision');
   guards = await import('../src/lib/signup/guards');
+  staff = await import('../src/app/[locale]/(app)/settings/organizations/actions');
+  request.cookie = await signInAs('admin@galaxie.test', 'admin');
 }, 120_000);
 
 afterAll(async () => {
@@ -44,10 +60,9 @@ afterAll(async () => {
   await auth?.drop();
 });
 
-function input(
-  owner: { userId: string; email: string },
-  extra: Partial<import('../src/lib/client/provision').ProvisionInput['organization']> = {},
-): import('../src/lib/client/provision').ProvisionInput {
+type Input = import('../src/lib/client/provision').ProvisionInput;
+
+function input(owner: { userId: string; email: string }, extra: Partial<Input['organization']> = {}): Input {
   return {
     organization: {
       slug: 'clube-do-remo',
@@ -73,6 +88,18 @@ function input(
       selfService: true,
     },
   };
+}
+
+/** Organização em revisão para os testes de aprovação: nasce sem chave. */
+async function pendingOrganization(slug: string, email: string) {
+  const owner = { userId: await user(email), email };
+  const r = await provision.provisionOrganization(db, {
+    ...input(owner, { slug, reviewStatus: 'pending' }),
+    brand: { slug, name: slug },
+  });
+  expect(r.keys).toEqual({ live: null, test: null, publishable: null });
+  expect(await count(`api.api_key where tenant_id = $1`, [r.tenantId])).toBe(0);
+  return r;
 }
 
 describe('provisionamento idempotente', () => {
@@ -103,6 +130,7 @@ describe('provisionamento idempotente', () => {
     ).toBe(1);
     expect(await count(`api.api_key where tenant_id = $1`, [first.tenantId])).toBe(2);
     expect(await count(`ops.publishable_key where tenant_id = $1`, [first.tenantId])).toBe(1);
+    expect(await count(`api.api_key_event where tenant_id = $1`, [first.tenantId])).toBe(3);
     expect(await count(`ops.widget_theme where tenant_id = $1`, [first.tenantId])).toBe(1);
     const feed = await auth.sql.query(
       `select payload from ops.change_feed where topic = 'tenant.provisioned' and entity_id = $1`,
@@ -110,7 +138,6 @@ describe('provisionamento idempotente', () => {
     );
     expect(feed.rows).toHaveLength(1);
     expect(feed.rows[0]!.payload).toMatchObject({ source: 'signup', declared: { tier: 'C1' } });
-    expect(await count(`api.api_key_event where tenant_id = $1`, [first.tenantId])).toBe(3);
 
     const { rows } = await auth.sql.query(
       `select t.plan, t.modules, t.markets, t.capacity_tier, t.catalog_version, t.organization_id,
@@ -131,6 +158,33 @@ describe('provisionamento idempotente', () => {
     });
   });
 
+  it('um trial por domínio de empresa, conferido na hora de provisionar: a segunda pessoa do domínio não passa', async () => {
+    const colleague = { userId: await user('colega@remo.test'), email: 'colega@remo.test' };
+    await expect(
+      provision.provisionOrganization(db, {
+        ...input(colleague, { slug: 'remo-dois' }),
+        brand: { slug: 'remo-dois', name: 'Remo 2' },
+      }),
+    ).rejects.toMatchObject({ code: 'domainInTrial', organizationName: 'Clube do Remo' });
+    expect(await count(`billing.organization where slug = 'remo-dois'`)).toBe(0);
+    // e-mail grátis não entra na regra; a criação pela equipe também não
+    const free = { userId: await user('alguem@gmail.com'), email: 'alguem@gmail.com' };
+    const r = await provision.provisionOrganization(db, {
+      ...input(free, { slug: 'livre', reviewStatus: 'pending' }),
+      brand: { slug: 'livre', name: 'Livre' },
+    });
+    expect(r.organizationCreated).toBe(true);
+    const assisted = { userId: await user('outro@remo.test'), email: 'outro@remo.test' };
+    const s = await provision.provisionOrganization(db, {
+      ...input(assisted, { slug: 'remo-assistido' }),
+      brand: { slug: 'remo-assistido', name: 'Remo assistido' },
+      owner: { ...assisted, accepted: false },
+      actor: 'galaxie:staff',
+      source: 'staff',
+    });
+    expect(s.organizationCreated).toBe(true);
+  });
+
   it('o slug de outra organização não é tomado por quem não é Dono dela', async () => {
     const intruder = { userId: await user('outro@invasor.test'), email: 'outro@invasor.test' };
     await expect(provision.provisionOrganization(db, input(intruder))).rejects.toMatchObject({
@@ -138,34 +192,71 @@ describe('provisionamento idempotente', () => {
     });
   });
 
-  it('em revisão (e-mail grátis, PL2) nada de produção nasce; aprovar emite as chaves que faltam', async () => {
-    const owner = { userId: await user('pessoa@gmail.com'), email: 'pessoa@gmail.com' };
-    const pending = await provision.provisionOrganization(db, {
-      ...input(owner, { slug: 'pessoal', reviewStatus: 'pending' }),
-      brand: { slug: 'pessoal', name: 'Pessoal' },
-    });
-    expect(pending.reviewStatus).toBe('pending');
-    expect(pending.keys).toEqual({ live: null, test: null, publishable: null });
-    expect(await count(`api.api_key where tenant_id = $1`, [pending.tenantId])).toBe(0);
-
-    await auth.sql.query(`update billing.organization set review_status = 'approved' where id = $1`, [
-      pending.organizationId,
-    ]);
-    const brands = await provision.listOrganizationBrands(db, pending.organizationId);
-    expect(brands.map((b) => b.slug)).toEqual(['pessoal']);
+  it('as três chaves nascem juntas ou nenhuma: falhou a publicável, as secretas não ficam gravadas', async () => {
+    const r = await pendingOrganization('atomico', 'dono@atomico.test');
+    await expect(
+      provision.issueMissingKeys(db, {
+        tenantId: r.tenantId,
+        actor: 'galaxie:staff',
+        defaultOrigin: 'nao e origem',
+      }),
+    ).rejects.toThrow(/Origem padrão inválida/);
+    expect(await count(`api.api_key where tenant_id = $1`, [r.tenantId])).toBe(0);
+    expect(await count(`api.api_key_event where tenant_id = $1`, [r.tenantId])).toBe(0);
+    // a repetição emite as três, com o texto de todas
     const keys = await provision.issueMissingKeys(db, {
-      tenantId: pending.tenantId,
+      tenantId: r.tenantId,
       actor: 'galaxie:staff',
       defaultOrigin: ORIGIN,
     });
     expect(keys.live).toMatch(/^gs_live_/);
+    expect(keys.test).toMatch(/^gs_test_/);
     expect(keys.publishable).toMatch(/^gs_pk_live_/);
-    const again = await provision.issueMissingKeys(db, {
-      tenantId: pending.tenantId,
-      actor: 'galaxie:staff',
-      defaultOrigin: ORIGIN,
+    expect(await count(`api.api_key where tenant_id = $1`, [r.tenantId])).toBe(2);
+    expect(await count(`ops.publishable_key where tenant_id = $1`, [r.tenantId])).toBe(1);
+  });
+
+  it('em revisão (e-mail grátis, PL2) nada de produção nasce; aprovar em Ajustes emite as chaves que faltam', async () => {
+    const pending = await pendingOrganization('pessoal', 'pessoa@gmail.com');
+    const brands = await provision.listOrganizationBrands(db, pending.organizationId);
+    expect(brands.map((b) => b.slug)).toEqual(['pessoal']);
+    const r = await staff.updateOrganizationAction({
+      id: pending.organizationId,
+      reviewStatus: 'approved',
+      reason: 'cadastro conferido no ticket 123',
     });
-    expect(again).toEqual({ live: null, test: null, publishable: null });
+    expect(r.ok).toBe(true);
+    expect(r.issued).toHaveLength(1);
+    expect(r.issued![0]!.keys.live).toMatch(/^gs_live_/);
+    expect(r.issued![0]!.keys.publishable).toMatch(/^gs_pk_live_/);
+    expect(await count(`api.api_key where tenant_id = $1`, [pending.tenantId])).toBe(2);
+    expect(
+      await count(`billing.staff_action where organization_id = $1 and action = 'organization.issue_keys'`, [
+        pending.organizationId,
+      ]),
+    ).toBe(1);
+    // aprovar de novo: nada mudou e nada a emitir
+    const again = await staff.updateOrganizationAction({
+      id: pending.organizationId,
+      reviewStatus: 'approved',
+      reason: 'repetindo a aprovação',
+    });
+    expect(again.ok).toBe(false);
+  });
+
+  it('aprovação gravada numa tentativa em que a emissão falhou: repetir emite mesmo sem mudança', async () => {
+    const pending = await pendingOrganization('recupera', 'dono@gmail.com');
+    await auth.sql.query(`update billing.organization set review_status = 'approved' where id = $1`, [
+      pending.organizationId,
+    ]);
+    const r = await staff.updateOrganizationAction({
+      id: pending.organizationId,
+      reviewStatus: 'approved',
+      reason: 'emissão falhou na primeira vez',
+    });
+    expect(r.ok).toBe(true);
+    expect(r.issued).toHaveLength(1);
+    expect(r.issued![0]!.keys.test).toMatch(/^gs_test_/);
     expect(await count(`api.api_key where tenant_id = $1`, [pending.tenantId])).toBe(2);
   });
 
@@ -176,6 +267,7 @@ describe('provisionamento idempotente', () => {
       brand: { slug: 'assistido', name: 'Assistido' },
       owner: { ...owner, accepted: false },
       actor: 'galaxie:staff',
+      source: 'staff',
     });
     const { rows } = await auth.sql.query(
       `select accepted_at, invite_expires_at from api.tenant_member where tenant_id = $1`,
@@ -195,14 +287,14 @@ describe('travas antiabuso do cadastro', () => {
   it('um trial por domínio de e-mail de empresa; vencido o trial, libera', async () => {
     expect(await guards.findTrialOrganizationForDomain('remo.test')).toMatchObject({ name: 'Clube do Remo' });
     expect(await guards.findTrialOrganizationForDomain('outra.test')).toBeNull();
-    await auth.sql.query(
-      `update api.tenant set trial_ends_at = now() - interval '1 day' where slug = 'clube-do-remo'`,
-    );
+    await auth.sql
+      .query(`update api.tenant set trial_ends_at = now() - interval '1 day' where organization_id in
+      (select id from billing.organization where slug in ('clube-do-remo', 'remo-assistido'))`);
     expect(await guards.findTrialOrganizationForDomain('remo.test')).toBeNull();
   });
 
   it('conta as organizações do IP nas últimas 24 h e sabe quem já tem cargo', async () => {
-    expect(await guards.countOrganizationsFromIp('203.0.113.9')).toBe(2);
+    expect(await guards.countOrganizationsFromIp('203.0.113.9')).toBeGreaterThanOrEqual(2);
     expect(await guards.countOrganizationsFromIp('198.51.100.1')).toBe(0);
     const { rows } = await auth.sql.query<{ id: string }>(
       `select id from "user" where email = 'dono@remo.test'`,

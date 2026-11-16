@@ -18,6 +18,7 @@ import type { CapacityTier } from '@/lib/client/organizations-shared';
 import { ProvisionError, provisionOrganization, type ProvisionedKeys } from '@/lib/client/provision';
 import { getDictionary } from '@/lib/i18n/dictionary';
 import { getRequestLocale } from '@/lib/i18n/server';
+import { fill } from '@/lib/i18n/text';
 import { normalizeUsage, recommendCapacityTier } from '@/lib/signup/capacity';
 import { emailDomain, isFreeEmailDomain } from '@/lib/signup/email-domain';
 import { countOrganizationsFromIp, hasAnyMembership } from '@/lib/signup/guards';
@@ -145,6 +146,8 @@ export async function createOrganizationAction(
       source: 'signup',
     });
   } catch (err) {
+    if (err instanceof ProvisionError && err.code === 'domainInTrial')
+      return { ok: false, error: fill(e.domainInTrial, { organization: err.organizationName ?? '' }) };
     if (err instanceof ProvisionError) return { ok: false, error: e.slugTaken };
     console.error('[cadastro] provisionamento falhou', err);
     return { ok: false, error: e.generic };
