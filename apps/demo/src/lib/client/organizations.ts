@@ -5,42 +5,16 @@
  */
 import { pool } from '@/lib/auth/db';
 
+import type {
+  CapacityTier,
+  OrganizationBrand,
+  OrganizationPatch,
+  OrganizationRow,
+  ReviewStatus,
+} from './organizations-shared';
 import { isUuid } from './tenants';
 
-export const CAPACITY_TIERS = ['C1', 'C2', 'C3', 'C4'] as const;
-export type CapacityTier = (typeof CAPACITY_TIERS)[number];
-export const REVIEW_STATUSES = ['none', 'pending', 'approved', 'rejected'] as const;
-export type ReviewStatus = (typeof REVIEW_STATUSES)[number];
-
-export interface OrganizationBrand {
-  id: string;
-  slug: string;
-  name: string;
-  status: 'active' | 'suspended';
-  plan: string;
-}
-
-export interface OrganizationRow {
-  id: string;
-  slug: string;
-  name: string;
-  country: string;
-  currency: string;
-  billingEntity: string;
-  capacityTier: CapacityTier;
-  reviewStatus: ReviewStatus;
-  isGalaxie: boolean;
-  createdAt: string;
-  brands: OrganizationBrand[];
-  members: number;
-}
-
-/** Campos que a equipe edita na organização. */
-export interface OrganizationPatch {
-  capacityTier?: CapacityTier;
-  reviewStatus?: ReviewStatus;
-  isGalaxie?: boolean;
-}
+export * from './organizations-shared';
 
 const isMissingTable = (err: unknown) => (err as { code?: string }).code === '42P01';
 

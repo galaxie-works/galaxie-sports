@@ -6,7 +6,7 @@ import { Badge } from '@/components/reui/badge';
 import { Frame, FramePanel } from '@/components/reui/frame';
 import { ExplainEmpty, SettingsSection } from '@/components/settings';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import type { OrganizationRow } from '@/lib/client/organizations';
+import type { OrganizationRow } from '@/lib/client/organizations-shared';
 import { useI18n } from '@/lib/i18n/client';
 import { fill } from '@/lib/i18n/text';
 

@@ -21,7 +21,7 @@ import {
   type CapacityTier,
   type OrganizationRow,
   type ReviewStatus,
-} from '@/lib/client/organizations';
+} from '@/lib/client/organizations-shared';
 import type { StaffActionRow } from '@/lib/client/staff';
 import { useFormatters, useI18n } from '@/lib/i18n/client';
 
