@@ -244,9 +244,8 @@ export function estimateTaskCredits(input: {
   return creditsFor({
     costUsd: estimateCostUsd(input.model, {
       inputTokens:
-        Math.ceil(
-          (input.system.length + input.message.length + (input.extraChars ?? 0)) / CHARS_PER_TOKEN,
-        ) + attachmentTokens(input.attachments),
+        Math.ceil((input.system.length + input.message.length + (input.extraChars ?? 0)) / CHARS_PER_TOKEN) +
+        attachmentTokens(input.attachments),
       outputTokens: input.maxOutputTokens,
     }),
     multiplier: input.multiplier,
