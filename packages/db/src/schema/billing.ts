@@ -13,7 +13,7 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 import { createdAt, pkUuidV7, updatedAt } from './_shared.js';
-import { tenant } from './api.js';
+import { tenant, type TenantState } from './api.js';
 
 /**
  * Plataforma comercial (#1136, F1 #1137): versões do catálogo, preços de lista e exceções por tenant. A estrutura do
@@ -315,5 +315,64 @@ export const platformStaffAction = billing.table(
     check('billing_staff_action_reason', sql`length(trim(${t.reason})) >= 5`),
     index('billing_staff_action_tenant_idx').on(t.tenantId, t.id.desc()),
     index('billing_staff_action_organization_idx').on(t.organizationId, t.id.desc()),
+  ],
+);
+
+// ─── máquina de estados do tenant (F3, doc 02 §Máquina de estados do tenant) ───────────────────────────────────────
+
+/**
+ * O que provocou a mudança de estado: o cadastro, o provisionamento, a revisão do cadastro (PL2), um pagamento (F4), o
+ * relógio (job `tenant.lifecycle`), a equipe com motivo (PL17), um pedido do cliente ou a migration de dados.
+ */
+export const TENANT_STATE_EVENT_CAUSES = [
+  'signup',
+  'provision',
+  'review',
+  'payment',
+  'clock',
+  'admin',
+  'request',
+  'migration',
+] as const;
+export type TenantStateEventCause = (typeof TENANT_STATE_EVENT_CAUSES)[number];
+
+/**
+ * Histórico da máquina de estados: uma linha por transição (e uma, com `from_state` nulo, pela criação em `draft`). A
+ * transição é sempre por evento registrado; `transitionTenantState` (`@galaxie/billing`) grava aqui e em
+ * `api.tenant.state` na mesma transação. Só cresce.
+ */
+export const tenantStateEvent = billing.table(
+  'tenant_state_event',
+  {
+    id: pkUuidV7(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenant.id, { onDelete: 'cascade' }),
+    /** Estado anterior; null na criação do tenant. */
+    fromState: text('from_state').$type<TenantState>(),
+    toState: text('to_state').$type<TenantState>().notNull(),
+    cause: text('cause').$type<TenantStateEventCause>().notNull(),
+    /** Motivo em texto (obrigatório nas ações da equipe, pelo `staff_action`; livre nas demais). */
+    reason: text('reason'),
+    /** Quem: `signup:<id>`, `galaxie:<id do usuário>`, `job:tenant.lifecycle`, `api:admin`, `migration:<número>`. */
+    actor: text('actor').notNull(),
+    /** O que mais vale guardar (prazo do trial antes e depois, id do pagamento…). */
+    payload: jsonb('payload').$type<Record<string, unknown>>(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    check(
+      'tenant_state_event_from',
+      sql`${t.fromState} is null or ${t.fromState} in ('draft', 'pending_review', 'rejected', 'trial', 'trial_expired', 'active', 'past_due', 'suspended', 'cancelled')`,
+    ),
+    check(
+      'tenant_state_event_to',
+      sql`${t.toState} in ('draft', 'pending_review', 'rejected', 'trial', 'trial_expired', 'active', 'past_due', 'suspended', 'cancelled')`,
+    ),
+    check(
+      'tenant_state_event_cause',
+      sql`${t.cause} in ('signup', 'provision', 'review', 'payment', 'clock', 'admin', 'request', 'migration')`,
+    ),
+    index('tenant_state_event_tenant_idx').on(t.tenantId, t.createdAt),
   ],
 );

@@ -80,6 +80,38 @@ export const PLAN_MODULES: Record<ApiPlan, readonly ApiModule[]> = {
 
 export const tenantStatus = api.enum('tenant_status', ['active', 'suspended']);
 
+/**
+ * Máquina de estados do tenant (plataforma comercial F3, doc 02 §Máquina de estados do tenant): a lista única, usada em
+ * todos os documentos (`TenantState`). `status` segue gravado em espelho (`suspended` só quando `state = 'suspended'`,
+ * `active` nos demais) até o PR `contrair` que o retira; `trial_ends_at` continua sendo o prazo do estado `trial`.
+ * Só `transitionTenantState` (`@galaxie/billing`) escreve `state`.
+ */
+export const TENANT_STATES = [
+  'draft',
+  'pending_review',
+  'rejected',
+  'trial',
+  'trial_expired',
+  'active',
+  'past_due',
+  'suspended',
+  'cancelled',
+] as const;
+export type TenantState = (typeof TENANT_STATES)[number];
+
+/** Estados em que a API recusa toda chave do tenant e os direitos não têm módulo nenhum (F3, decisão 3). */
+export const TENANT_STATES_WITHOUT_ACCESS: readonly TenantState[] = [
+  'draft',
+  'pending_review',
+  'rejected',
+  'trial_expired',
+  'suspended',
+  'cancelled',
+];
+
+/** Estados em que o worker entrega webhooks (F3, decisão 3). */
+export const TENANT_STATES_WITH_WEBHOOKS: readonly TenantState[] = ['trial', 'active', 'past_due'];
+
 /** Cliente da API: plano, módulos, mercados (países) e esportes contratados. */
 export const tenant = api.table(
   'tenant',
@@ -103,6 +135,13 @@ export const tenant = api.table(
     /** Fim do trial (plano `trial`): depois dele nenhuma chave do tenant autentica. null = sem prazo. */
     trialEndsAt: timestamp('trial_ends_at', { withTimezone: true }),
     status: tenantStatus('status').notNull().default('active'),
+    /**
+     * Estado do ciclo de vida (F3, `TENANT_STATES`). O padrão `active` serve só à coluna nova em bancos antigos: a migration
+     * 0185 faz o backfill a partir de `status`, `trial_ends_at` e da revisão da organização.
+     */
+    state: text('state').$type<TenantState>().notNull().default('active'),
+    /** Desde quando o tenant está no estado atual (os prazos do job `tenant.lifecycle` contam daqui). */
+    stateSince: timestamp('state_since', { withTimezone: true }).notNull().defaultNow(),
     /** Plataforma (enrich.platform) quando o cliente é uma operadora/streaming da grade. */
     operatorPlatformId: uuid('operator_platform_id').references((): AnyPgColumn => platform.id, {
       onDelete: 'set null',
@@ -139,7 +178,13 @@ export const tenant = api.table(
       'tenant_capacity_tier',
       sql`${t.capacityTier} is null or ${t.capacityTier} in ('C1', 'C2', 'C3', 'C4')`,
     ),
+    check(
+      'tenant_state',
+      sql`${t.state} in ('draft', 'pending_review', 'rejected', 'trial', 'trial_expired', 'active', 'past_due', 'suspended', 'cancelled')`,
+    ),
     index('tenant_organization_idx').on(t.organizationId),
+    // o job tenant.lifecycle varre por estado e tempo no estado
+    index('tenant_state_idx').on(t.state, t.stateSince),
   ],
 );
 
