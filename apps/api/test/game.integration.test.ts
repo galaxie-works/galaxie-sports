@@ -89,6 +89,8 @@ const fan = async (key: string, ageBand = '18plus') => {
       country: 'br',
       locale: 'pt-BR',
       ageAssurance: { method: 'estimated', at: '2026-11-01' },
+      // menor no Brasil participa com a autorização e a conta vinculada do responsável (ficha do país)
+      ...(ageBand === '13_17' ? { guardian: { status: 'granted', linkedAccount: true } } : {}),
     },
   });
   expect(res.statusCode).toBe(201);
