@@ -7,10 +7,11 @@
  */
 import { randomUUID } from 'node:crypto';
 import { isEngageWebhookTopic, webhookTopic } from '@galaxie/contracts';
-import { and, desc, eq, notInArray, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, notInArray, sql } from 'drizzle-orm';
 import type { Database } from './client.js';
 import {
   PLANS_WITHOUT_REALTIME,
+  TENANT_STATES_WITH_WEBHOOKS,
   tenant,
   webhookDelivery,
   webhookEndpoint,
@@ -283,8 +284,8 @@ export async function sendTenantWebhookTest(
   endpointId: string,
   now: Date = new Date(),
 ): Promise<number | null> {
-  // as mesmas condições do worker: endpoint ativo, tenant ativo e plano com tempo real (senão a entrega iria
-  // direto para a DLQ sem envio, e o painel diria que o teste saiu)
+  // as mesmas condições do worker: endpoint ativo, tenant em estado que entrega (trial, active, past_due; F3) e plano
+  // com tempo real (senão a entrega iria direto para a DLQ sem envio, e o painel diria que o teste saiu)
   const [ep] = await db
     .select({ id: webhookEndpoint.id })
     .from(webhookEndpoint)
@@ -294,7 +295,7 @@ export async function sendTenantWebhookTest(
         eq(webhookEndpoint.id, endpointId),
         eq(webhookEndpoint.tenantId, tenantId),
         eq(webhookEndpoint.active, true),
-        eq(tenant.status, 'active'),
+        inArray(tenant.state, [...TENANT_STATES_WITH_WEBHOOKS]),
         notInArray(tenant.plan, [...PLANS_WITHOUT_REALTIME]),
       ),
     );

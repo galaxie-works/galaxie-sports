@@ -7,6 +7,7 @@ import {
   webhookDelivery,
   webhookEndpoint,
   PLANS_WITHOUT_REALTIME,
+  TENANT_STATES_WITH_WEBHOOKS,
   readWebhookControls,
   sealWebhookSecrets,
   reportWebhookWorker,
@@ -118,7 +119,8 @@ type ClaimedDelivery = {
   url: string;
   secret: string;
   active: boolean;
-  tenant_status: string;
+  /** `api.tenant.state` na hora da reivindicação (F3): só trial, active e past_due recebem. */
+  tenant_state: string;
   tenant_plan: ApiPlan;
 };
 
@@ -355,8 +357,9 @@ export class WebhookWorker {
             .where(
               and(
                 eq(webhookEndpoint.active, true),
-                eq(tenant.status, 'active'),
-                // trial: sem webhooks (docs/politica-de-chaves.md §3)
+                // estado do tenant (F3): entrega em trial, active e past_due
+                inArray(tenant.state, [...TENANT_STATES_WITH_WEBHOOKS]),
+                // plano trial (legado): sem webhooks (docs/politica-de-chaves.md §3)
                 notInArray(tenant.plan, [...PLANS_WITHOUT_REALTIME]),
               ),
             )
@@ -466,7 +469,7 @@ export class WebhookWorker {
             limit ${this.batchSize}
             for update skip locked)
       returning d.id::text, d.endpoint_id, d.change_id::text, d.topic, d.payload, d.attempts,
-                e.url, e.secret, e.active, t.status::text as tenant_status, t.plan::text as tenant_plan`);
+                e.url, e.secret, e.active, t.state::text as tenant_state, t.plan::text as tenant_plan`);
     const stats: DeliveryStats = { delivered: 0, failed: 0, dead: 0, deferred: 0 };
     // o que passa do teto dentro do lote volta à fila de uma vez, sem gastar tentativa; a próxima reivindicação já
     // deixa o endpoint de fora até a janela virar
@@ -562,12 +565,14 @@ export class WebhookWorker {
   private async deliver(d: ClaimedDelivery): Promise<keyof DeliveryStats> {
     const id = Number(d.id);
     const attempts = d.attempts + 1;
-    // endpoint desativado, tenant suspenso ou plano sem webhooks (ex.: passou a trial) depois do
-    // enfileiramento: nada é enviado, e a entrega fica na DLQ com o motivo
+    // endpoint desativado, tenant sem acesso pelo estado (suspenso, trial vencido, cancelado…) ou plano sem webhooks
+    // (ex.: passou a trial) depois do enfileiramento: nada é enviado, e a entrega fica na DLQ com o motivo
     const off = !d.active
       ? 'endpoint desativado'
-      : d.tenant_status !== 'active'
-        ? 'tenant suspenso'
+      : !(TENANT_STATES_WITH_WEBHOOKS as readonly string[]).includes(d.tenant_state)
+        ? d.tenant_state === 'suspended'
+          ? 'tenant suspenso'
+          : `tenant sem acesso (${d.tenant_state})`
         : PLANS_WITHOUT_REALTIME.includes(d.tenant_plan)
           ? 'plano sem webhooks'
           : null;

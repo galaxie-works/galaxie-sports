@@ -649,7 +649,7 @@ describe('webhooks assinados', () => {
       topics: ['score'],
       filters: { events: [id] },
     });
-    await db.update(tenant).set({ status: 'suspended' }).where(eq(tenant.id, tenantId));
+    await db.update(tenant).set({ status: 'suspended', state: 'suspended' }).where(eq(tenant.id, tenantId));
     // entrega que já estava na fila (ou em retentativa) quando o tenant foi suspenso
     const [row] = await db
       .insert(webhookDelivery)

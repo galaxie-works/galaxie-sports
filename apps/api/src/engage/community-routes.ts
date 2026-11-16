@@ -85,7 +85,9 @@ export async function communityRoutes(app: FastifyInstance, deps: CommunityRoute
     let value = hit && Date.now() - hit.at < 10_000 ? hit.value : undefined;
     if (!value) {
       value = db()
-        .select({ ok: sql<boolean>`'communities' = any(${tenant.modules}) and ${tenant.status} = 'active'` })
+        .select({
+          ok: sql<boolean>`'communities' = any(${tenant.modules}) and ${tenant.state} in ('trial', 'active', 'past_due')`,
+        })
         .from(tenant)
         .where(eq(tenant.id, tenantId))
         .limit(1)

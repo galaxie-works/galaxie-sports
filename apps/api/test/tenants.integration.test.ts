@@ -233,9 +233,13 @@ describe('onboarding de tenant', () => {
     ).toBe(404);
 
     const suspended = await adminReq('PATCH', `/internal/admin/tenants/${tenantId}`, { status: 'suspended' });
-    expect(suspended.json().tenant.status).toBe('suspended');
-    expect((await tenantReq(firstKey, 'GET', '/v1/sports')).statusCode).toBe(401);
-    await adminReq('PATCH', `/internal/admin/tenants/${tenantId}`, { status: 'active' });
+    expect(suspended.json().tenant).toMatchObject({ status: 'suspended', state: 'suspended' });
+    // suspenso pela máquina de estados (F3): 402 SUBSCRIPTION_SUSPENDED depois de provar a chave
+    const denied = await tenantReq(firstKey, 'GET', '/v1/sports');
+    expect(denied.statusCode).toBe(402);
+    expect(denied.json().code).toBe('SUBSCRIPTION_SUSPENDED');
+    const reactivated = await adminReq('PATCH', `/internal/admin/tenants/${tenantId}`, { status: 'active' });
+    expect(reactivated.json().tenant).toMatchObject({ status: 'active', state: 'active' });
     expect((await tenantReq(firstKey, 'GET', '/v1/sports')).statusCode).toBe(200);
   });
 

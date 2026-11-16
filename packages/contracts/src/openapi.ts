@@ -4,7 +4,6 @@ import {
   type ZodOpenApiObject,
   type ZodOpenApiOperationObject,
   type ZodOpenApiPathsObject,
-  type ZodOpenApiResponsesObject,
 } from 'zod-openapi';
 import {
   Competition,
@@ -28,7 +27,7 @@ import { communityPaths } from './communities.js';
 import { ChampionsParams, ChampionsQuery, CompetitionChampions } from './champions.js';
 import { ChannelGuide, ChannelGuideParams, ChannelGuideQuery } from './channel-guide.js';
 import { channelListPaths } from './channel-list.js';
-import { LocaleQuery, list, page, Problem } from './common.js';
+import { LocaleQuery, list, page } from './common.js';
 import { webhookPaths } from './webhook-topics-openapi.js';
 import { CompetitionContext, ContextParams, ContextQuery } from './context.js';
 import { Bracket, BracketParams } from './bracket.js';
@@ -69,6 +68,7 @@ import { RealtimeChange, StreamQuery, StreamToken } from './realtime.js';
 import { RelatedContent, RelatedQuery, relatedPaths } from './related.js';
 import { SearchQuery, SearchResponse } from './search.js';
 import { multisportPaths, semanticPaths } from './openapi-semantic.js';
+import { errorResponses } from './openapi-ops.js';
 import { navigationPaths } from './openapi-navigation.js';
 import { equestrianPaths } from './openapi-equestrian.js';
 import { sidelinedPaths } from './sidelined.js';
@@ -87,22 +87,6 @@ import {
   TeamParams,
   TeamsQuery,
 } from './teams.js';
-
-const problemContent = { 'application/problem+json': { schema: Problem } };
-
-const errorResponses = (...statuses: (400 | 401 | 403 | 404 | 429 | 503)[]): ZodOpenApiResponsesObject => {
-  const descriptions = {
-    400: 'Parâmetro inválido (INVALID_PARAMS)',
-    401: 'Chave ausente ou inválida (INVALID_KEY)',
-    403: 'Recurso fora do plano (MODULE_NOT_IN_PLAN / MARKET_NOT_IN_PLAN)',
-    404: 'Entidade inexistente (NOT_FOUND)',
-    429: 'Limite do tenant atingido (RATE_LIMITED) ou cota diária esgotada (QUOTA_EXCEEDED)',
-    503: 'Serviço degradado (DEGRADED) ou em atualização (MAINTENANCE)',
-  } as const;
-  return Object.fromEntries(
-    statuses.map((s) => [String(s), { description: descriptions[s], content: problemContent }]),
-  );
-};
 
 const okHeaders = z.object({
   etag: z.string().meta({ description: 'Validador para If-None-Match (304).' }),

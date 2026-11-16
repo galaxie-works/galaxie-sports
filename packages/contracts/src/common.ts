@@ -29,6 +29,18 @@ export const DEFAULT_LOCALE: SupportedLocale = 'pt-BR';
 export const ERROR_CODES = [
   'INVALID_PARAMS',
   'INVALID_KEY',
+  // estado do tenant (plataforma comercial F3, doc 02 §Máquina de estados): a chave existe e é válida, mas o tenant não
+  // tem acesso agora; `TRIAL_EXPIRED` e `SUBSCRIPTION_SUSPENDED` trazem `upgrade_url`
+  /** Cadastro ainda em provisionamento ou na fila de revisão da equipe (401). */
+  'TENANT_PENDING_REVIEW',
+  /** Cadastro recusado pela equipe (401). */
+  'TENANT_REJECTED',
+  /** O trial acabou sem contratação (401, com `upgrade_url`). */
+  'TRIAL_EXPIRED',
+  /** Assinatura suspensa por falta de pagamento ou pela equipe (402, com `upgrade_url`). */
+  'SUBSCRIPTION_SUSPENDED',
+  /** Conta cancelada: os dados ficam guardados pelo prazo de retenção, as chaves não autenticam (401). */
+  'TENANT_CANCELLED',
   'MODULE_NOT_IN_PLAN',
   'MARKET_NOT_IN_PLAN',
   /** Chave publicável usada de uma origem fora de `allowed_origins` (ou sem Origin/Referer). */

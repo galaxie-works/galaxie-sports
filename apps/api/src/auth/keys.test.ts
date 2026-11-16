@@ -278,18 +278,79 @@ describe('ambiente e formato da chave (docs/politica-de-chaves.md §1)', () => {
 });
 
 describe('trial (docs/politica-de-chaves.md §3)', () => {
-  it('depois do fim do trial nenhuma chave do tenant autentica', async () => {
+  it('depois do fim do trial nenhuma chave do tenant autentica: 401 TRIAL_EXPIRED, mesmo antes do tenant.lifecycle', async () => {
     const { store, key, prefix } = await memoryTenant({
       plan: 'trial',
+      state: 'trial',
       trialEndsAt: new Date(Date.now() + 60_000),
     });
     const auth = new Authenticator(store, { cacheTtlMs: 0 });
     await expect(auth.authenticate(key)).resolves.toMatchObject({ plan: 'trial' });
     store.keys.get(prefix)!.tenant.trialEndsAt = new Date(Date.now() - 1);
-    await expect(auth.authenticate(key)).rejects.toMatchObject({
-      code: 'INVALID_KEY',
-      detail: expect.stringMatching(/trial terminou/),
+    await expect(auth.authenticate(key)).rejects.toMatchObject({ status: 401, code: 'TRIAL_EXPIRED' });
+    // a coluna já diz trial_expired: o mesmo código, sem depender do prazo
+    store.keys.get(prefix)!.tenant.state = 'trial_expired';
+    store.keys.get(prefix)!.tenant.trialEndsAt = null;
+    await expect(auth.authenticate(key)).rejects.toMatchObject({ code: 'TRIAL_EXPIRED' });
+  });
+});
+
+describe('estado do tenant (plataforma comercial F3, doc 02 "O que cada estado permite")', () => {
+  const cases = [
+    ['draft', 401, 'TENANT_PENDING_REVIEW'],
+    ['pending_review', 401, 'TENANT_PENDING_REVIEW'],
+    ['rejected', 401, 'TENANT_REJECTED'],
+    ['trial_expired', 401, 'TRIAL_EXPIRED'],
+    ['suspended', 402, 'SUBSCRIPTION_SUSPENDED'],
+    ['cancelled', 401, 'TENANT_CANCELLED'],
+  ] as const;
+
+  it.each(cases)(
+    '%s: a chave certa recebe %i %s; a errada, o 401 comum sem motivo',
+    async (state, status, code) => {
+      const { store, key } = await memoryTenant({ state });
+      const auth = new Authenticator(store, { cacheTtlMs: 0 });
+      // primeira chamada (segredo ainda não provado): o scrypt roda e, certo, a recusa diz o motivo
+      await expect(auth.authenticate(key)).rejects.toMatchObject({ status, code });
+      // segunda chamada: o segredo já é conhecido, a recusa sai antes do scrypt com o mesmo código
+      await expect(auth.authenticate(key)).rejects.toMatchObject({ status, code });
+      // quem só tem o prefixo não descobre o estado do cliente
+      await expect(auth.authenticate(withRandomSecret(key))).rejects.toMatchObject({
+        status: 401,
+        code: 'INVALID_KEY',
+        detail: 'Envie uma chave válida no header x-galaxie-key.',
+      });
+    },
+  );
+
+  it('trial, active e past_due autenticam (past_due passa como active)', async () => {
+    for (const state of ['trial', 'active', 'past_due'] as const) {
+      const { store, key } = await memoryTenant({ state });
+      await expect(new Authenticator(store).authenticate(key)).resolves.toMatchObject({ plan: 'core_data' });
+    }
+  });
+
+  it('a chave já provada (token do SSE) recebe o código do estado direto', async () => {
+    const { store, key, prefix } = await memoryTenant({ state: 'suspended' });
+    const auth = new Authenticator(store, { cacheTtlMs: 0 });
+    const keyId = store.keys.get(prefix)!.keyId;
+    await expect(auth.authenticateProvenKey(prefix, keyId)).rejects.toMatchObject({
+      status: 402,
+      code: 'SUBSCRIPTION_SUSPENDED',
     });
+    store.keys.get(prefix)!.tenant.state = 'active';
+    await expect(auth.authenticateProvenKey(prefix, keyId)).resolves.toMatchObject({ keyId });
+    expect(key).toBeTruthy();
+  });
+
+  it('o estado entra no diagnóstico como tenant_inactive só depois de provar a chave', async () => {
+    const seen: { tenantId: string; reason: string }[] = [];
+    const { store, key } = await memoryTenant({ state: 'cancelled' });
+    const auth = new Authenticator(store, { cacheTtlMs: 0, onDenied: (d) => void seen.push(d) });
+    await expect(auth.authenticate(withRandomSecret(key))).rejects.toMatchObject({ code: 'INVALID_KEY' });
+    expect(seen.map((d) => d.reason)).toEqual(['invalid_secret']);
+    await expect(auth.authenticate(key)).rejects.toMatchObject({ code: 'TENANT_CANCELLED' });
+    expect(seen.map((d) => d.reason)).toEqual(['invalid_secret', 'tenant_inactive']);
   });
 });
 
@@ -338,8 +399,9 @@ describe('erros de acesso para o diagnóstico (#1007)', () => {
     });
     store.keys.get(prefix)!.expiresAt = null;
     store.keys.get(prefix)!.tenant.status = 'suspended';
+    store.keys.get(prefix)!.tenant.state = 'suspended';
     await expect(new Authenticator(store, { onDenied: r.onDenied }).authenticate(key)).rejects.toMatchObject({
-      code: 'INVALID_KEY',
+      code: 'SUBSCRIPTION_SUSPENDED',
     });
     await expect(
       new Authenticator(store, { onDenied: r.onDenied }).authenticate(generateApiKey('live').key),
@@ -360,7 +422,8 @@ describe('erros de acesso para o diagnóstico (#1007)', () => {
     await expect(proven()).rejects.toMatchObject({ code: 'INVALID_KEY' });
     rec.expiresAt = null;
     rec.tenant.status = 'suspended';
-    await expect(proven()).rejects.toMatchObject({ code: 'INVALID_KEY' });
+    rec.tenant.state = 'suspended';
+    await expect(proven()).rejects.toMatchObject({ code: 'SUBSCRIPTION_SUSPENDED' });
     expect(r.seen.map((d) => d.reason)).toEqual(['revoked', 'expired', 'tenant_inactive']);
     expect(r.seen.every((d) => d.tenantId === rec.tenant.id && d.keyPrefix === prefix)).toBe(true);
   });
