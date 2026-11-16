@@ -14,6 +14,7 @@ import {
 import { builderDb } from '@/lib/builder/store';
 import type { ClientContext } from '@/lib/client/session';
 import type { Locale } from '@/lib/i18n/config';
+import { isStaffRole } from '@/lib/auth/roles';
 
 import {
   CHANNEL_IMPORT_FUNCTION,
@@ -42,8 +43,9 @@ export type ChannelImportError =
   | 'fileEmpty'
   | 'fileUnreadable';
 
-/** Mesma regra das outras funções do painel: `settings.manage` com a Cosmos contratada. */
-export const channelImportAccess = widgetTaskAccess;
+/** Mesma regra das outras funções do painel: `settings.manage` (a lista de canais é configuração) com a Cosmos. */
+export const channelImportAccess = (ctx: Parameters<typeof widgetTaskAccess>[0]) =>
+  widgetTaskAccess(ctx, 'settings.manage');
 
 export async function channelImportMinimum(): Promise<number | null> {
   return activeFunctionMinCredits(builderDb(), CHANNEL_IMPORT_FUNCTION);
@@ -106,7 +108,7 @@ export async function importChannels(
         const result = parseChannelImportAnswer(parseModelJson(text));
         return { usable: result !== null, value: result! };
       },
-      ...(ctx.role === 'admin' ? { staff: { route: '/client/channels#cosmos-import' } } : {}),
+      ...(isStaffRole(ctx.role) ? { staff: { route: '/client/channels#cosmos-import' } } : {}),
     },
     { settings: await readCosmosSettings(db) },
   );

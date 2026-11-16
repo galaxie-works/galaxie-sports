@@ -1,6 +1,7 @@
 import { readClientContext } from '@/lib/client/session';
 import type { MatchTextKind } from '@/lib/cosmos/match-text';
 import { brandVoiceFor, matchTextAccess, matchTextMinimum } from '@/lib/cosmos/match-text-tasks';
+import { isStaffRole } from '@/lib/auth/roles';
 
 import { MatchText } from './match-text';
 
@@ -36,7 +37,7 @@ export async function MatchTextSlot({
       locale={locale}
       kinds={kinds}
       // a equipe Galaxie não gasta créditos do cliente: sem aviso de custo
-      minCredits={ctx.role === 'admin' ? null : minimum}
+      minCredits={isStaffRole(ctx.role) ? null : minimum}
       voiceSaved={saved}
     />
   );

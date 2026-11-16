@@ -15,6 +15,7 @@ import { DEFAULT_LOCALE, LOCALE_COOKIE, isLocale, resolveLocale, type Locale } f
 import { getDictionary } from '@/lib/i18n/dictionary';
 
 import { pool } from './db';
+import { isStaffRole } from './roles';
 import { sendAccessEmail } from './email';
 import {
   clearOtpFailures,
@@ -63,9 +64,9 @@ const localeInput = {
   },
 };
 
-/** Acesso vencido? Admin nunca expira; sem data = sem prazo. */
+/** Acesso vencido? A equipe Galaxie (admin e support) nunca expira; sem data = sem prazo. */
 export function isAccessExpired(user: { role?: string | null; accessExpiresAt?: Date | string | null }) {
-  if (user.role === 'admin' || !user.accessExpiresAt) return false;
+  if (isStaffRole(user.role) || !user.accessExpiresAt) return false;
   return new Date(user.accessExpiresAt).getTime() < Date.now();
 }
 
@@ -257,9 +258,10 @@ export const auth = betterAuth({
     admin({
       defaultRole: 'user',
       adminRoles: ['admin'],
-      // Papéis aceitos (outro valor é recusado ao criar ou mudar papel). O cliente tem as permissões do
-      // convidado no plugin: nada de gerenciar usuários; o painel dele é guardado pelo proxy e pelas ações.
-      roles: { admin: adminAc, user: userAc, client: userAc },
+      // Papéis aceitos (outro valor é recusado ao criar ou mudar papel). O cliente e o support têm as permissões
+      // do convidado no plugin: nada de gerenciar usuários; o painel e Ajustes são guardados pelo proxy e pelas
+      // ações (o support entra em Ajustes, mas não cria nem apaga usuários do console).
+      roles: { admin: adminAc, support: userAc, user: userAc, client: userAc },
       bannedUserMessage: (user) => {
         const locale = (user as { locale?: unknown }).locale;
         return authText(isLocale(locale) ? locale : DEFAULT_LOCALE).banned;

@@ -1,6 +1,7 @@
 import type { ClientAreaContext } from '@/components/client/client-area';
 import type { HelpKind } from '@/lib/cosmos/integration-help';
 import { helpAccess, helpMinimum } from '@/lib/cosmos/integration-tasks';
+import { isStaffRole } from '@/lib/auth/roles';
 
 import { CosmosHelp } from './integration-help';
 
@@ -17,8 +18,8 @@ export async function CosmosHelpSlot({
   kind: HelpKind;
   webhooks?: { id: string; url: string }[];
 }) {
-  if (helpAccess(ctx)) return null;
+  if (helpAccess(ctx, kind)) return null;
   const min = await helpMinimum(kind);
   if (min === null) return null;
-  return <CosmosHelp kind={kind} minCredits={ctx.role === 'admin' ? null : min} webhooks={webhooks} />;
+  return <CosmosHelp kind={kind} minCredits={isStaffRole(ctx.role) ? null : min} webhooks={webhooks} />;
 }

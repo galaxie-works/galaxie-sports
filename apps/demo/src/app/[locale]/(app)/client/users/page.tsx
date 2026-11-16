@@ -1,4 +1,4 @@
-import { canAssign, TENANT_ROLES } from '@galaxie/engage';
+import { ALL_TENANT_ROLES, canAssign } from '@galaxie/engage';
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 
@@ -8,9 +8,14 @@ import { TablePanelSkeleton } from '@/components/app-shell/skeletons';
 import { ClientArea } from '@/components/client/client-area';
 import { MembersPanel } from '@/components/client/members-panel';
 import { RolePermissionsPanel } from '@/components/client/role-permissions-panel';
-import { listMemberEvents, listTenantMembers } from '@/lib/client/members';
+import {
+  getTenantOrganization,
+  listMemberEvents,
+  listOrganizationMembers,
+  listTenantMembers,
+} from '@/lib/client/members';
 import { permissionMatrix } from '@/lib/client/permission-matrix';
-import { can } from '@/lib/client/permissions';
+import { can, canManageOrganization } from '@/lib/client/permissions';
 import { loadRoleOverrides } from '@/lib/client/role-permissions';
 import { getT, getTimeZone } from '@/lib/i18n/server';
 
@@ -24,12 +29,14 @@ async function Members() {
   return (
     <ClientArea section="members">
       {async (ctx) => {
-        const [members, events, overrides] = await Promise.all([
+        const [members, events, overrides, organization] = await Promise.all([
           listTenantMembers(ctx.tenant.id),
           listMemberEvents(ctx.tenant.id, 50),
           // direto do banco: logo depois de gravar, a tabela mostra o que ficou
           loadRoleOverrides(ctx.tenant.id, { fresh: true }),
+          getTenantOrganization(ctx.tenant.id),
         ]);
+        const organizationMembers = organization ? await listOrganizationMembers(organization.id) : [];
         const manage = can(ctx, 'members.manage');
         const actor = ctx.actor;
         return (
@@ -41,6 +48,24 @@ async function Members() {
                 customized={overrides !== null}
               />
             }
+            organization={
+              organization
+                ? {
+                    name: organization.name,
+                    brands: organization.brands.length,
+                    manage: canManageOrganization(ctx),
+                    members: organizationMembers.map((om) => ({
+                      memberId: om.memberId,
+                      email: om.email,
+                      name: om.name,
+                      role: om.role,
+                      status: om.status,
+                      invitedAt: om.invitedAt,
+                      self: om.userId === ctx.userId,
+                    })),
+                  }
+                : null
+            }
             members={members.map((mb) => ({
               memberId: mb.memberId,
               email: mb.email,
@@ -49,13 +74,13 @@ async function Members() {
               scopeCount: mb.scope
                 ? (mb.scope.communities?.length ?? 0) + (mb.scope.rooms?.length ?? 0)
                 : null,
-              pending: mb.acceptedAt === null,
+              status: mb.status,
               createdAt: mb.createdAt,
               self: mb.userId === ctx.userId,
               // cargos que quem está vendo pode dar a esta pessoa (vazio = não pode trocar nem tirar)
               assignable:
                 manage && actor
-                  ? TENANT_ROLES.filter(
+                  ? ALL_TENANT_ROLES.filter(
                       (r) => r !== 'volunteer' && canAssign(actor, ctx.tenant.id, r, mb.role),
                     )
                   : [],
@@ -63,7 +88,7 @@ async function Members() {
             }))}
             invitable={
               manage && actor
-                ? TENANT_ROLES.filter((r) => r !== 'volunteer' && canAssign(actor, ctx.tenant.id, r))
+                ? ALL_TENANT_ROLES.filter((r) => r !== 'volunteer' && canAssign(actor, ctx.tenant.id, r))
                 : []
             }
             events={events}

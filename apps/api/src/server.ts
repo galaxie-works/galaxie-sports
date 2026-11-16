@@ -25,6 +25,8 @@ import { moderationRoutes } from './engage/moderation-routes.js';
 import { chatRoutes } from './chat/routes.js';
 import { communityRoutes } from './engage/community-routes.js';
 import { ChatHub } from './chat/hub.js';
+import { gameRoutes } from './game/routes.js';
+import { GameScorer, startGameSweep } from './game/scorer.js';
 import { ChatGameFeed } from './chat/game.js';
 import { MemoryChatPeak, RedisChatPeak } from './chat/peak.js';
 import { MemoryReactionCounter, RedisReactionCounter } from './chat/reactions.js';
@@ -55,6 +57,7 @@ import { PgTenantStore, type TenantStore } from './auth/tenant-store.js';
 import { AuthThrottle, type AuthThrottleOptions } from './auth/throttle.js';
 import { RedisVerifiedKeyStore } from './auth/verified-keys.js';
 import { ChangeFeedListener, type ChangeFeedOptions } from './cache/change-feed.js';
+import { EDGE_TTL_HEADER, guardEdgeTtl } from './cache/edge.js';
 import { NoopCdnPurger, type CdnPurger } from './cache/purger.js';
 import { MemoryResponseCache, RedisResponseCache, type ResponseCache } from './cache/store.js';
 import type { AppContext, SemanticConfig } from './context.js';
@@ -156,6 +159,7 @@ export interface ServerOptions {
   rateLimiter?: RateLimiter;
   /** Janela do rate limit (ms). Padrão 60 s; o limite vem do tenant (rate_limit_per_minute). */
   rateLimitWindowMs?: number;
+  /** Purge da CDN chamado pelo change feed (main.ts: Cloudflare com CLOUDFLARE_ZONE_ID e CLOUDFLARE_PURGE_TOKEN). */
   cdnPurger?: CdnPurger;
   /** Escuta `ops.change_feed` e purga o cache (requer db). */
   changeFeed?: boolean | ChangeFeedOptions;
@@ -400,6 +404,23 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
 
   registerErrorHandling(app);
   registerSecurityHeaders(app, options.security);
+  // cache de borda (#1257): a marca do Worker só sai em resposta que a regra aceita (erro, no-store, /internal,
+  // admin, SSE e escrita nunca), e nunca acima do teto, ponha quem pôr
+  app.addHook('onSend', async (request, reply, payload) => {
+    if (!reply.hasHeader(EDGE_TTL_HEADER)) return payload;
+    const edge = guardEdgeTtl({
+      method: request.method,
+      url: request.url,
+      status: reply.statusCode,
+      cacheControl: reply.getHeader('cache-control'),
+      hasAuthorization: Boolean(request.headers.authorization),
+      route: request.routeOptions.config,
+      value: reply.getHeader(EDGE_TTL_HEADER),
+    });
+    if (edge === undefined) reply.removeHeader(EDGE_TTL_HEADER);
+    else reply.header(EDGE_TTL_HEADER, String(edge));
+    return payload;
+  });
   if (options.cors?.origins.length || publishable)
     registerCors(app, options.cors ?? { origins: [] }, publishable);
   app.decorateRequest('tenant', null);
@@ -663,6 +684,8 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
       reactions: chatReactions,
       stream: options.chat?.stream,
     });
+    // Gamificação (#942): Palpite individual e Ranking
+    await gameRoutes(instance, { db: options.db, now: options.now });
     await communityRoutes(instance, { db: options.db, now: options.now });
   });
 
@@ -730,14 +753,18 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
   }
 
   if (options.changeFeed && options.db) {
-    const listener = new ChangeFeedListener(options.db, cache, options.cdnPurger ?? new NoopCdnPurger(), {
+    const cdnPurger: CdnPurger = options.cdnPurger ?? new NoopCdnPurger();
+    const listener = new ChangeFeedListener(options.db, cache, cdnPurger, {
       onGapAbandoned: (gap) => metrics.gapsAbandoned.inc({ consumer: 'cache-purge', reason: gap.reason }),
       ...(typeof options.changeFeed === 'object' ? options.changeFeed : {}),
       logger: app.log,
     });
     app.decorate('changeFeed', listener);
     app.addHook('onReady', async () => listener.start());
-    app.addHook('onClose', async () => listener.stop());
+    app.addHook('onClose', async () => {
+      await listener.stop();
+      await cdnPurger.close?.();
+    });
   }
 
   if (options.realtime && options.db) {
@@ -762,6 +789,15 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
     });
     if (app.realtime) app.realtime.subscribe(gameFeed.handle);
     else app.log.warn('chat: tempo real desligado, o jogo não entra no chat');
+  }
+
+  // pontuador do Palpite (#942): provisório pelo tempo real, definitivo pela varredura (que também cobre o tempo real
+  // desligado)
+  if (options.db) {
+    const scorer = new GameScorer(options.db, { logger: app.log });
+    if (app.realtime) app.realtime.subscribe(scorer.handle);
+    const stopSweep = startGameSweep(scorer, app.log);
+    app.addHook('onClose', async () => stopSweep());
   }
 
   return app;

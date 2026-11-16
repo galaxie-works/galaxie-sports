@@ -1,6 +1,13 @@
-import { and, eq, gt, isNull } from 'drizzle-orm';
+import { and, eq, gt, isNull, sql } from 'drizzle-orm';
 import type { Database } from '@galaxie/db/client';
-import { catalogVersion, tenant, tenantModuleLimit, tenantOverride, wallet } from '@galaxie/db/schema';
+import {
+  catalogVersion,
+  organization,
+  tenant,
+  tenantModuleLimit,
+  tenantOverride,
+  wallet,
+} from '@galaxie/db/schema';
 import type { Catalog } from '../catalog/catalog.js';
 import type { CapacityTier } from '../catalog/schema.js';
 import {
@@ -10,7 +17,10 @@ import {
   type ResolveOptions,
 } from './resolve.js';
 
-/** Lê do banco o que a resolução precisa; null = tenant não existe. */
+/**
+ * Lê do banco o que a resolução precisa; null = tenant não existe. A faixa de capacidade é da organização (PL23,
+ * `billing.organization.capacity_tier`); a coluna da marca só vale para a marca que ainda não tem organização.
+ */
 export async function loadEntitlementInputs(
   db: Database,
   tenantId: string,
@@ -28,9 +38,11 @@ export async function loadEntitlementInputs(
       trialEndsAt: tenant.trialEndsAt,
       status: tenant.status,
       catalogVersion: tenant.catalogVersion,
-      capacityTier: tenant.capacityTier,
+      capacityTier: sql<string | null>`coalesce(${organization.capacityTier}, ${tenant.capacityTier})`,
+      organizationId: tenant.organizationId,
     })
     .from(tenant)
+    .leftJoin(organization, eq(organization.id, tenant.organizationId))
     .where(eq(tenant.id, tenantId))
     .limit(1);
   if (!t) return null;

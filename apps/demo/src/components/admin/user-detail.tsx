@@ -68,7 +68,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import type { DemoActivity, DemoSession, DemoUser } from '@/lib/auth/admin';
-import type { Role } from '@/lib/auth/roles';
+import { isStaffRole, type Role } from '@/lib/auth/roles';
 import type { TenantOption } from '@/lib/client/tenants';
 import { initials } from '@/lib/format';
 import { internalPath } from '@/lib/internal-path';
@@ -271,16 +271,16 @@ function AccessTab({
           <Row
             title={t.admin.accessTab.validUntil}
             description={
-              role === 'admin' ? t.admin.accessTab.validUntilHintAdmin : t.admin.accessTab.validUntilHint
+              isStaffRole(role) ? t.admin.accessTab.validUntilHintAdmin : t.admin.accessTab.validUntilHint
             }
           >
             <div className="flex flex-col gap-2">
               <Input
                 type="date"
                 aria-label={t.admin.accessTab.validUntil}
-                value={role === 'admin' ? '' : date}
+                value={isStaffRole(role) ? '' : date}
                 onChange={(e) => setDate(e.target.value)}
-                disabled={role === 'admin'}
+                disabled={isStaffRole(role)}
               />
               <div className="flex flex-wrap gap-1.5">
                 {accessPresets.map((p) => (
@@ -288,7 +288,7 @@ function AccessTab({
                     key={p.value}
                     size="xs"
                     variant="outline"
-                    disabled={role === 'admin'}
+                    disabled={isStaffRole(role)}
                     onClick={() => extend(p.value)}
                   >
                     {p.value === 'none' ? p.label : fill(t.admin.access.extendBy, { days: p.label })}
@@ -307,7 +307,7 @@ function AccessTab({
                       role,
                       tenantId: role === 'client' ? tenantId : null,
                       accessExpiresAt:
-                        role === 'admin' || !date ? null : new Date(`${date}T23:59:59-03:00`).toISOString(),
+                        isStaffRole(role) || !date ? null : new Date(`${date}T23:59:59-03:00`).toISOString(),
                     }),
                   t.admin.accessTab.saved,
                 )

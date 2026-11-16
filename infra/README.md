@@ -8,6 +8,7 @@ observabilidade e os scripts de operação.
 | [`docker-compose.yml`](docker-compose.yml) | Infra **local**: Postgres 17 (porta 5433), Valkey, RustFS/S3 + bucket, e o k6 (perfil `load`) | máquina de dev (`pnpm infra:up`) |
 | [`vps-telemetry/`](vps-telemetry/README.md) | **A stack da VPS**: Traefik na borda, imagens do GHCR, `api`, `demo`, `ingestor`, `agents`, `webhooks`, `lineup-render`, backup, Prometheus e Grafana, página de manutenção, scripts do deploy (`deploy-gh.sh`). [Por unidade](vps-telemetry/UNIDADES.md): o que roda, o smoke e como voltar uma versão | VPS (o nome é o da máquina) |
 | [`traefik/`](traefik/README.md) | Cópia do Traefik da VPS, que serve todas as stacks de lá | VPS |
+| [`cloudflare/`](cloudflare/README.md) | O que roda na Cloudflare: o Worker de cache de borda da API (`api-edge-cache`, deploy à mão com wrangler) | Cloudflare |
 | [`ops/`](ops/README.md) | Plano B de operação a partir da máquina de dev (deploy, trem de merge, portão do Codex, issue de alerta) | dev (Git Bash) |
 | [`backup/`](backup/README.md) | Imagem do backup diário do Postgres (dump validado, retenção, S3 opcional, ensaio de restauração) | VPS (`backup`) |
 | `nas-backup/` | Cópia dos dumps da VPS para o NAS (camada 2 do 3-2-1) | NAS |

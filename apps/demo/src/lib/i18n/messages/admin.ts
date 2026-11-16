@@ -12,6 +12,7 @@ export default defineMessages(
     },
     roles: {
       admin: 'Admin',
+      support: 'Suporte',
       user: 'Convidado',
       client: 'Cliente',
     },
@@ -230,6 +231,7 @@ export default defineMessages(
       },
       roles: {
         admin: 'Admin',
+        support: 'Support',
         user: 'Guest',
         client: 'Client',
       },
@@ -447,6 +449,7 @@ export default defineMessages(
       },
       roles: {
         admin: 'Admin',
+        support: 'Soporte',
         user: 'Invitado',
         client: 'Cliente',
       },

@@ -80,7 +80,7 @@ describe('envio da lista', () => {
   });
 
   it('sem sessão ou sem tenant, nada é gravado', async () => {
-    readClientContext.mockResolvedValueOnce(null);
+    readClientContext.mockResolvedValue(null);
     expect((await uploadChannels({ content: 'GLOBO' })).ok).toBe(false);
     readClientContext.mockResolvedValueOnce(ctx({ tenant: null }));
     expect((await confirmChannels()).ok).toBe(false);

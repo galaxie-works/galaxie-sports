@@ -10,21 +10,49 @@
  *   apelação.
  * - **Voluntário** (`volunteer`): torcedor promovido. Esconde e silencia por até 1 hora; o resto vai para a Fila.
  *
- * A equipe da Galaxie (papel `admin` do console) passa por cima de tudo, em qualquer tenant (`galaxieStaff`).
+ * Os cinco formam a Escada. Fora dela, dois cargos **laterais** da plataforma comercial (#1136, PL9), com lista fixa
+ * de ações (`LATERAL_ALLOW`), sem permissões configuráveis e sem dar cargo a ninguém:
+ *
+ * - **Desenvolvedor** (`developer`): chaves, webhooks, Builder, temas e domínios; não vê cobrança, moderação nem membros.
+ * - **Financeiro** (`billing`): cobrança e créditos; nada de produto. Vale na organização inteira
+ *   (`billing.organization_member`), como o Dono.
+ *
+ * A equipe da Galaxie (papéis `admin` e `support` do console) passa por cima de tudo, em qualquer tenant
+ * (`galaxieStaff`); fora do tenant dela, toda escrita leva motivo e vai para `billing.staff_action`.
  */
 
-/** Do mais alto ao mais baixo. A ordem decide quem pode dar qual cargo. */
+/** A Escada, do mais alto ao mais baixo. A ordem decide quem pode dar qual cargo e quem herda o que de quem. */
 export const TENANT_ROLES = ['owner', 'admin', 'senior_moderator', 'moderator', 'volunteer'] as const;
-export type TenantRole = (typeof TENANT_ROLES)[number];
+export type LadderRole = (typeof TENANT_ROLES)[number];
 
-export const isTenantRole = (value: unknown): value is TenantRole =>
+/** Cargos laterais (fora da Escada): lista fixa de ações, sem configuração, sem dar cargo. */
+export const LATERAL_ROLES = ['developer', 'billing'] as const;
+export type LateralRole = (typeof LATERAL_ROLES)[number];
+
+/** Todos os cargos de `api.tenant_member`: a Escada e os laterais. */
+export const ALL_TENANT_ROLES = [...TENANT_ROLES, ...LATERAL_ROLES] as const;
+export type TenantRole = LadderRole | LateralRole;
+
+export const isLadderRole = (value: unknown): value is LadderRole =>
   typeof value === 'string' && (TENANT_ROLES as readonly string[]).includes(value);
 
-/** Posição do cargo (0 = Dono). Menor = mais poder. */
-export const roleRank = (role: TenantRole) => TENANT_ROLES.indexOf(role);
+export const isLateralRole = (value: unknown): value is LateralRole =>
+  typeof value === 'string' && (LATERAL_ROLES as readonly string[]).includes(value);
 
-/** Pelo menos tão alto quanto `min`? */
-export const atLeast = (role: TenantRole, min: TenantRole) => roleRank(role) <= roleRank(min);
+export const isTenantRole = (value: unknown): value is TenantRole =>
+  isLadderRole(value) || isLateralRole(value);
+
+/**
+ * Posição para dar cargo (0 = Dono). Menor = mais poder. Os laterais ficam entre Admin e Moderador sênior: Admin dá o
+ * cargo lateral; Moderador sênior, não.
+ */
+const LATERAL_RANK = 1.5;
+export const roleRank = (role: TenantRole) =>
+  isLateralRole(role) ? LATERAL_RANK : TENANT_ROLES.indexOf(role);
+
+/** Pelo menos tão alto quanto `min`? Só na Escada: um lateral nunca "alcança" um degrau. */
+export const atLeast = (role: TenantRole, min: TenantRole) =>
+  !isLateralRole(role) && roleRank(role) <= roleRank(min);
 
 /**
  * Ações e o cargo mínimo de cada uma. Ação nova entra aqui com nome `area.verbo` (as da Cosmos, #996, como
@@ -37,7 +65,20 @@ export const ACTIONS = {
   'members.view': 'admin',
   /** Convidar, trocar e tirar cargos até o próprio nível (Dono só pelo Dono). */
   'members.manage': 'admin',
+  /** Grade, canais, patrocinadores e o resto da configuração que não tem ação própria. */
   'settings.manage': 'admin',
+  // Integração (plataforma comercial, #1136): o que o Desenvolvedor faz, separado do `settings.manage`
+  'keys.view': 'admin',
+  /** Chaves secretas e publicáveis. */
+  'keys.manage': 'admin',
+  'webhooks.view': 'admin',
+  'webhooks.manage': 'admin',
+  'builder.view': 'admin',
+  /** Builder, widgets e temas da marca. */
+  'builder.manage': 'admin',
+  'domains.view': 'admin',
+  /** Domínios comprovados por TXT. */
+  'domains.manage': 'admin',
   'audit.view': 'admin',
   /** Exportação judicial: pedido do Dono (ADR 0004). */
   'legal.export': 'owner',
@@ -74,12 +115,30 @@ export const ACTIONS = {
   'cosmos.manage': 'owner',
   /** Perguntar ao assistente (gasta créditos do tenant). Voluntário fica de fora: é torcedor promovido. */
   'cosmos.assistant.ask': 'moderator',
-} as const satisfies Record<string, TenantRole>;
+} as const satisfies Record<string, LadderRole>;
 export type TenantAction = keyof typeof ACTIONS;
 export const TENANT_ACTIONS = Object.keys(ACTIONS) as TenantAction[];
 
 export const isTenantAction = (value: unknown): value is TenantAction =>
   typeof value === 'string' && Object.hasOwn(ACTIONS, value);
+
+/**
+ * O que cada cargo lateral pode, e só isso: nenhuma configuração do Dono acrescenta ou tira. O Desenvolvedor integra
+ * (chaves, webhooks, Builder, temas, domínios); o Financeiro vê a cobrança e compra créditos.
+ */
+export const LATERAL_ALLOW: Record<LateralRole, ReadonlySet<TenantAction>> = {
+  developer: new Set<TenantAction>([
+    'keys.view',
+    'keys.manage',
+    'webhooks.view',
+    'webhooks.manage',
+    'builder.view',
+    'builder.manage',
+    'domains.view',
+    'domains.manage',
+  ]),
+  billing: new Set<TenantAction>(['billing.view', 'billing.buy_credits']),
+};
 
 /*
  * Permissões por cargo configuráveis pelo Dono. A matriz `ACTIONS` é o padrão; o tenant guarda só o que mudou
@@ -101,10 +160,10 @@ export const FIXED_ACTIONS: readonly TenantAction[] = [
 ];
 
 /** Ações do painel (conta, cobrança, Cosmos): o cargo mais baixo que pode recebê-las é o Moderador. */
-const PANEL_FLOOR: TenantRole = 'moderator';
+const PANEL_FLOOR: LadderRole = 'moderator';
 
 /** Cargo mais baixo que pode receber cada ação configurável. Sem entrada = qualquer cargo. */
-export const DELEGATION_FLOOR: Partial<Record<TenantAction, TenantRole>> = Object.fromEntries(
+export const DELEGATION_FLOOR: Partial<Record<TenantAction, LadderRole>> = Object.fromEntries(
   TENANT_ACTIONS.filter((a) => !a.startsWith('moderation.')).map((a) => [a, PANEL_FLOOR]),
 );
 
@@ -118,29 +177,36 @@ export const VIEW_OF: Partial<Record<TenantAction, TenantAction>> = {
   'billing.buy_credits': 'billing.view',
   'members.manage': 'members.view',
   'cosmos.manage': 'cosmos.view',
+  'keys.manage': 'keys.view',
+  'webhooks.manage': 'webhooks.view',
+  'builder.manage': 'builder.view',
+  'domains.manage': 'domains.view',
 };
 
 /** Ações de gerenciar que dependem de `view`. */
 const managersOf = (view: TenantAction) =>
   (Object.keys(VIEW_OF) as TenantAction[]).filter((m) => VIEW_OF[m] === view);
 
-/** Cargos que o Dono configura (ele mesmo sempre pode tudo). */
-export const CONFIGURABLE_ROLES = TENANT_ROLES.filter((r) => r !== 'owner');
+/** Cargos que o Dono configura (ele mesmo sempre pode tudo; os laterais têm lista fixa). */
+export const CONFIGURABLE_ROLES: readonly LadderRole[] = TENANT_ROLES.filter((r) => r !== 'owner');
 
-/** O cargo pode receber a ação (configurável e acima do piso)? */
+/** O cargo pode receber a ação (da Escada, configurável e acima do piso)? */
 export function canReceive(role: TenantRole, action: TenantAction): boolean {
-  if (role === 'owner' || !isConfigurable(action)) return false;
+  if (role === 'owner' || isLateralRole(role) || !isConfigurable(action)) return false;
   const floor = DELEGATION_FLOOR[action];
   if (floor !== undefined && !atLeast(role, floor)) return false;
   // o ver de uma ação de gerenciar fixa não muda para quem gerencia: hoje, `members.view` do Admin
   return !managersOf(action).some((m) => !isConfigurable(m) && atLeast(role, ACTIONS[m]));
 }
 
-/** O que mudou da matriz no tenant: cargo → ação → pode. Só cargos e ações configuráveis contam. */
+/**
+ * O que mudou da matriz no tenant: cargo → ação → pode. Só cargos da Escada e ações configuráveis contam; entrada de
+ * cargo lateral é descartada (`normalizeOverrides`).
+ */
 export type RoleOverrides = Partial<Record<TenantRole, Partial<Record<TenantAction, boolean>>>>;
 
-/** O que o cargo pode fazer pela configuração, sem a Escada (`roleAllows` aplica a Escada). */
-function rawAllows(role: TenantRole, action: TenantAction, overrides: RoleOverrides | null | undefined) {
+/** O que o cargo da Escada pode fazer pela configuração, sem a Escada (`roleAllows` aplica a Escada). */
+function rawAllows(role: LadderRole, action: TenantAction, overrides: RoleOverrides | null | undefined) {
   if (role === 'owner') return true;
   const fallback = atLeast(role, ACTIONS[action]);
   if (!overrides || !canReceive(role, action)) return fallback;
@@ -157,6 +223,8 @@ export function roleAllows(
   action: TenantAction,
   overrides?: RoleOverrides | null,
 ): boolean {
+  // lateral: a lista fixa, e nada da configuração do tenant
+  if (isLateralRole(role)) return LATERAL_ALLOW[role].has(action);
   for (let i = 0; i <= roleRank(role); i++) if (!rawAllows(TENANT_ROLES[i]!, action, overrides)) return false;
   const view = VIEW_OF[action];
   return view === undefined || roleAllows(role, view, overrides);
@@ -210,7 +278,7 @@ export function setRolePermission(
 
 /** Uma célula que mudou entre duas configurações (para a auditoria). */
 export interface PermissionChange {
-  role: TenantRole;
+  role: LadderRole;
   action: TenantAction;
   allowed: boolean;
 }
@@ -297,7 +365,9 @@ export const can = (actor: Actor, action: TenantAction, target: ActionTarget): b
 
 /**
  * Pode dar (ou tirar) o cargo `role` a alguém? Só quem tem `members.manage`, e nunca acima do próprio cargo; Dono só
- * pelo Dono ou pela Galaxie. `currentRole` é o cargo atual da pessoa (trocar ou tirar também exige estar acima dele).
+ * pelo Dono ou pela Galaxie. Os laterais contam como abaixo de Admin e acima de Moderador sênior: Admin dá Desenvolvedor
+ * e Financeiro; Moderador sênior, não. `currentRole` é o cargo atual da pessoa (trocar ou tirar também exige estar
+ * acima dele).
  */
 export function canAssign(
   actor: Actor,
@@ -306,7 +376,8 @@ export function canAssign(
   currentRole: TenantRole | null = null,
 ): boolean {
   if (actor.kind === 'galaxie_staff') return true;
-  if (!can(actor, 'members.manage', { tenantId })) return false;
+  // lateral não dá cargo a ninguém (a lista não tem `members.manage`; a regra fica explícita)
+  if (isLateralRole(actor.role) || !can(actor, 'members.manage', { tenantId })) return false;
   const reaches = (r: TenantRole) => (actor.role === 'owner' ? true : roleRank(r) > roleRank(actor.role));
   if (role !== null && !reaches(role)) return false;
   if (currentRole !== null && !reaches(currentRole)) return false;

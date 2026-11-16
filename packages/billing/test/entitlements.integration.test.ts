@@ -1,4 +1,4 @@
-import { catalogVersion, tenant, tenantOverride, type Database } from '@galaxie/db';
+import { catalogVersion, organization, tenant, tenantOverride, type Database } from '@galaxie/db';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
@@ -105,6 +105,29 @@ describe('entitlements() com o banco', () => {
     const ttl = cache.ttl.get(entitlementsCacheKey(catalog.version, id));
     expect(ttl).toBeGreaterThan(0);
     expect(ttl).toBeLessThanOrEqual(20);
+  });
+
+  it('a faixa de capacidade é da organização (PL23); a da marca só vale sem organização', async () => {
+    const [org] = await db
+      .insert(organization)
+      .values({
+        slug: 'org-faixa',
+        name: 'Organização da faixa',
+        country: 'BR',
+        currency: 'brl',
+        billingEntity: 'ltda',
+        capacityTier: 'C2',
+        createdBy: 'test',
+      })
+      .returning({ id: organization.id });
+    const withOrg = await newTenant('ent-org', { organizationId: org!.id, capacityTier: 'C1' });
+    const alone = await newTenant('ent-sem-org', { capacityTier: 'C1' });
+    const a = await entitlements({ db, catalog }, withOrg);
+    expect(a!.capacity.tier).toBe('C2');
+    expect(a!.organizationId).toBe(org!.id);
+    const b = await entitlements({ db, catalog }, alone);
+    expect(b!.capacity.tier).toBe('C1');
+    expect(b!.organizationId).toBeNull();
   });
 
   it('exceção revogada ou vencida não entra', async () => {

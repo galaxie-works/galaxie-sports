@@ -111,6 +111,10 @@ services:
       ADMIN_IP_ALLOWLIST: ${ADMIN_IP_ALLOWLIST:-}
       TRUST_PROXY: ${TRUST_PROXY:?defina TRUST_PROXY (gateway da rede da stack)}
       HSTS_MAX_AGE: ${HSTS_MAX_AGE:-31536000}
+      # purge por tag na Cloudflare (#1257): sem as duas, o change feed não purga a CDN (a borda vence em 15 min)
+      CLOUDFLARE_ZONE_ID: ${CLOUDFLARE_ZONE_ID:-}
+      CLOUDFLARE_PURGE_TOKEN: ${CLOUDFLARE_PURGE_TOKEN:-}
+      CLOUDFLARE_PURGE_REQUESTS_PER_MINUTE: ${CLOUDFLARE_PURGE_REQUESTS_PER_MINUTE:-}
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -327,6 +331,9 @@ services:
       REDIS_KEY_PREFIX: 'gs-candidate:'
       # o uso do smoke não vai para api.usage_daily: o epoch do prefixo novo travaria a consolidação da produção
       USAGE_PERSIST: 'off'
+      # sem purge na Cloudflare: a versão no ar já purga as mesmas mudanças, e o limite de purge é da conta
+      CLOUDFLARE_ZONE_ID: ''
+      CLOUDFLARE_PURGE_TOKEN: ''
     depends_on: {}
     labels: [traefik.enable=false]
 

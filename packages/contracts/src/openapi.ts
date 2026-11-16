@@ -21,6 +21,7 @@ import {
 import { accountPaths } from './account.js';
 import { fanPaths } from './fans.js';
 import { presencePaths } from './presence.js';
+import { gamePaths } from './game.js';
 import { moderationPaths } from './moderation.js';
 import { chatPaths } from './chat.js';
 import { communityPaths } from './communities.js';
@@ -249,6 +250,12 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
         description:
           'A rede social privada de torcedores do cliente: uma Comunidade por esporte, campeonato, time ou atleta, ' +
           'criada pelo escopo que o cliente liga. Tudo com o token do torcedor; quem não é membro vê só a vitrine.',
+      },
+      {
+        name: 'Gamificação',
+        description:
+          'Palpite individual e Ranking único por cliente e país, com o token do torcedor. Palpitar é sempre grátis e ' +
+          'nunca depende de compra; nada é sorteado.',
       },
       {
         name: 'Hipismo',
@@ -765,6 +772,7 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
       ...accountPaths,
       ...fanPaths,
       ...presencePaths,
+      ...gamePaths,
       ...moderationPaths,
       ...chatPaths,
       ...communityPaths,

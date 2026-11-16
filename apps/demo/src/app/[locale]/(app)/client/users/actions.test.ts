@@ -88,9 +88,12 @@ describe('mudar permissões por cargo', () => {
   });
 
   it('a equipe Galaxie passa por cima; sem sessão ou sem tenant, nada', async () => {
+    // no tenant da própria Galaxie a equipe age sem motivo; num tenant de cliente, `withStaffAudit` exige o motivo
+    // (coberto em lib/client/staff.test.ts)
     readClientContext.mockResolvedValue({
       ...as('owner'),
       role: 'admin',
+      tenant: { ...TENANT, isGalaxie: true },
       memberRole: null,
       actor: { kind: 'galaxie_staff' },
     });

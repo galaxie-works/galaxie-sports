@@ -21,6 +21,7 @@ import { builderDb } from '@/lib/builder/store';
 import { can } from '@/lib/client/permissions';
 import { readClientContext } from '@/lib/client/session';
 import { getRequestLocale } from '@/lib/i18n/server';
+import { isStaffRole } from '@/lib/auth/roles';
 
 /** Maior que o tempo máximo da leitura no provedor (150 s, uma tentativa só) e menor que o prazo da reserva (300 s). */
 export const maxDuration = 200;
@@ -83,10 +84,10 @@ export async function POST(request: Request) {
   const ctx = await readClientContext();
   if (!ctx?.tenant) return fail('unauthorized');
   // a equipe Galaxie não gasta créditos do cliente; a leitura do brandbook ainda não tem o caminho da equipe
-  if (ctx.role === 'admin') return fail('staff');
+  if (isStaffRole(ctx.role)) return fail('staff');
   if (!ctx.tenant.modules.includes('cosmos_ai')) return fail('module');
   // gasta créditos (Cosmos) e o resultado só serve para quem pode salvar temas (Ajustes)
-  if (!can(ctx, 'cosmos.assistant.ask') || !can(ctx, 'settings.manage')) return fail('role');
+  if (!can(ctx, 'cosmos.assistant.ask') || !can(ctx, 'builder.manage')) return fail('role');
 
   const step = new URL(request.url).searchParams.get('step');
   if (step !== 'estimar' && step !== 'criar') return fail('bad_request');

@@ -18,6 +18,7 @@ import type { ApiRequest } from '@/lib/galaxie/request';
 import { apiLocale, type Locale } from '@/lib/i18n/config';
 import { getTimeZone } from '@/lib/i18n/server';
 import { openApiDocument } from '@/lib/openapi-reference';
+import { isStaffRole } from '@/lib/auth/roles';
 
 import { assistantAccessError } from './assistant-server';
 import {
@@ -142,7 +143,7 @@ export async function askDataQuestion(
         const verdict = judgeDataAnswer(loop, { question: input.question, today });
         return { usable: verdict.status === 'answered', value: verdict };
       },
-      ...(ctx.role === 'admin'
+      ...(isStaffRole(ctx.role)
         ? { staff: { route: `${input.context.route.slice(0, 200)}#cosmos-data` } }
         : {}),
     },
@@ -163,7 +164,7 @@ async function sourcesOf(steps: DataStep[], ctx: ClientContext, locale: Locale):
   const brandThemes = await brandThemeItems(tenant.id).catch(() => []);
   const markets = marketsFor(tenant.markets);
   // atalho do Builder só para quem pode criar widget
-  const builder = can(ctx, 'settings.manage');
+  const builder = can(ctx, 'builder.manage');
   return steps.map((s): DataSource => {
     const w = builder ? widgetFor(s.call) : null;
     let widget: DataSource['widget'] = null;

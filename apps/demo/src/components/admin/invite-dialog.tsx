@@ -23,7 +23,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
-import type { Role } from '@/lib/auth/roles';
+import { isStaffRole, type Role } from '@/lib/auth/roles';
 import type { TenantOption } from '@/lib/client/tenants';
 import { useI18n } from '@/lib/i18n/client';
 import type { Locale } from '@/lib/i18n/config';
@@ -49,6 +49,7 @@ export function useRoles(): { value: Role; label: string }[] {
   return [
     { value: 'user', label: t.admin.roles.user },
     { value: 'client', label: t.admin.roles.client },
+    { value: 'support', label: t.admin.roles.support },
     { value: 'admin', label: t.admin.roles.admin },
   ];
 }
@@ -308,9 +309,9 @@ export function InviteDialog({
                 <FieldLabel htmlFor="inv-access">{t.admin.invite.access}</FieldLabel>
                 <Select
                   items={accessPresets}
-                  value={role === 'admin' ? 'none' : days}
+                  value={isStaffRole(role) ? 'none' : days}
                   onValueChange={(v) => setDays(String(v))}
-                  disabled={role === 'admin'}
+                  disabled={isStaffRole(role)}
                 >
                   <SelectTrigger id="inv-access" className="w-full">
                     <SelectValue />
@@ -324,7 +325,7 @@ export function InviteDialog({
                   </SelectContent>
                 </Select>
                 <FieldDescription>
-                  {role === 'admin' ? t.admin.invite.accessHintAdmin : t.admin.invite.accessHint}
+                  {isStaffRole(role) ? t.admin.invite.accessHintAdmin : t.admin.invite.accessHint}
                 </FieldDescription>
               </Field>
               <Field>

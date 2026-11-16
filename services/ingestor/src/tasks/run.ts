@@ -20,6 +20,7 @@ import { acervoImportar } from './acervo.js';
 import { TaskInterruptedError, TaskRefusedError } from './errors.js';
 import { backfillNormalizar, backfillTabelas } from './backfill.js';
 import { cargaHistorica } from './carga.js';
+import { tenantVerifyDomain } from './domain.js';
 import { assetsEspelhar } from './espelho.js';
 
 export { TaskInterruptedError, TaskRefusedError };
@@ -104,6 +105,7 @@ export const TASK_HANDLERS: Readonly<Record<string, TaskHandler>> = {
   'carga.historica': cargaHistorica(),
   'backfill.normalizar': backfillNormalizar(),
   'backfill.tabelas': backfillTabelas(),
+  'tenant.verify_domain': tenantVerifyDomain(),
 };
 
 /** Os tipos que este worker sabe rodar (o `types` do `takeNext`). */

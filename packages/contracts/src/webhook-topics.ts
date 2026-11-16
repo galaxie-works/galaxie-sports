@@ -107,6 +107,62 @@ const ENGAGE_TOPICS: WebhookTopicDef[] = [
     }),
   },
   {
+    topic: 'game.prediction.scored',
+    modules: WEBHOOK_TOPIC_PREFIXES.game,
+    status: 'live',
+    label: { pt: 'Palpite pontuado', es: 'Pronóstico puntuado', en: 'Prediction scored' },
+    description:
+      'O jogo terminou e o Palpite de um torcedor recebeu os Pontos definitivos (zero se errou). Sai uma vez por ' +
+      'Palpite, depois da janela de correção do resultado.',
+    payload: engageEnvelope('WebhookGamePredictionScored', 'game.prediction.scored', {
+      profile_id: profileId,
+      program_country: z.string().length(2).meta({ description: 'País do programa (ISO 3166-1 alfa-2).' }),
+      event_id: z.uuid(),
+      kind: z.enum(['exact_score', 'winner', 'quantity']),
+      points: z.number().int().nonnegative(),
+      full_hit: z.boolean().meta({ description: 'Acerto em cheio.' }),
+    }),
+  },
+  {
+    topic: 'game.prediction.reverted',
+    modules: WEBHOOK_TOPIC_PREFIXES.game,
+    status: 'live',
+    label: { pt: 'Palpite revertido', es: 'Pronóstico revertido', en: 'Prediction reverted' },
+    description:
+      'Durante o jogo, um Palpite que estava certo deixou de estar (gol anulado pelo VAR, placar corrigido). A ' +
+      'pontuação era provisória: nenhum Ponto é estornado.',
+    payload: engageEnvelope('WebhookGamePredictionReverted', 'game.prediction.reverted', {
+      profile_id: profileId,
+      program_country: z.string().length(2),
+      event_id: z.uuid(),
+      kind: z.enum(['exact_score', 'winner', 'quantity']),
+    }),
+  },
+  {
+    topic: 'game.achievement.step_reached',
+    modules: WEBHOOK_TOPIC_PREFIXES.game,
+    status: 'live',
+    label: {
+      pt: 'Degrau de Conquista alcançado',
+      es: 'Escalón de logro alcanzado',
+      en: 'Achievement step reached',
+    },
+    description:
+      'Um torcedor chegou a um Degrau de uma Conquista (vitalícia ou da temporada). Com `completed`, foi o último ' +
+      'Degrau. Use para entregar a recompensa que o seu programa prende àquele Degrau.',
+    payload: engageEnvelope('WebhookGameAchievementStepReached', 'game.achievement.step_reached', {
+      profile_id: profileId,
+      program_country: z.string().length(2),
+      achievement_id: z
+        .string()
+        .meta({ description: 'Id estável da Conquista no Catálogo (`predictions.correct`).' }),
+      season: z.string().meta({ description: '`all` (vitalícia) ou o ano da temporada.' }),
+      step: z.number().int().min(1).max(5),
+      completed: z.boolean(),
+      card_key: z.string().nullable().meta({ description: 'Carta que o Degrau deu.' }),
+    }),
+  },
+  {
     topic: 'game.achievement.level_reached',
     modules: WEBHOOK_TOPIC_PREFIXES.game,
     status: 'planned',
@@ -115,7 +171,8 @@ const ENGAGE_TOPICS: WebhookTopicDef[] = [
       es: 'Nivel de logro alcanzado',
       en: 'Achievement level reached',
     },
-    description: 'Um torcedor subiu de nível numa conquista do programa de Gamificação.',
+    description:
+      'Planejado com o termo antigo; não é emitido. Use `game.achievement.step_reached`, que traz o Degrau.',
     payload: engageEnvelope('WebhookGameAchievementLevelReached', 'game.achievement.level_reached', {
       profile_id: profileId,
       program_id: z.uuid(),

@@ -4,6 +4,8 @@
  */
 import { check, type ActionTarget, type Actor, type Denial, type TenantAction } from '@galaxie/engage';
 
+import { isStaffRole } from '@/lib/auth/roles';
+
 /** O pedaço da sessão que decide: quem age e em qual tenant. */
 export interface PermissionContext {
   actor: Actor | null;
@@ -45,3 +47,14 @@ export const placeOf = (item: { room: string | null; community: string | null })
   ...(item.community ? { community: item.community } : {}),
   ...(item.room ? { room: item.room } : {}),
 });
+
+/**
+ * Quem cuida dos cargos da organização (Dono e Financeiro, que valem em todas as marcas, #1136): o Dono **da
+ * organização** (`billing.organization_member`, que aparece como Dono em cada marca) e a equipe Galaxie. Dono só de
+ * uma marca (`api.tenant_member`) e Admin da marca não alcançam a organização.
+ */
+export const canManageOrganization = (ctx: {
+  role: string;
+  memberRole: string | null;
+  memberSource: 'tenant' | 'organization' | null;
+}) => isStaffRole(ctx.role) || (ctx.memberRole === 'owner' && ctx.memberSource === 'organization');

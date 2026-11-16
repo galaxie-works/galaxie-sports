@@ -21,4 +21,5 @@ export * from './moderation.js';
 export * from './chat.js';
 export * from './billing.js';
 export * from './shop.js';
+export * from './game.js';
 export * from './community.js';
