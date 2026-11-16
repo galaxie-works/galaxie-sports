@@ -561,7 +561,8 @@ export async function automaticSanctionsOf(
 }
 
 export type UndoResult =
-  { ok: true; revoked: number } | { ok: false; reason: 'not_found' | 'not_automatic' | 'appeal' };
+  | { ok: true; revoked: number }
+  | { ok: false; reason: 'not_found' | 'not_automatic' | 'appeal' | 'legal_hold' };
 
 /**
  * Desfaz uma decisão automática (filtro ou Cosmos, #999): o conteúdo volta ao ar, as punições do caso aplicadas pela
@@ -589,12 +590,15 @@ export async function undoDecision(
         resolvedBy: moderationCase.resolvedBy,
         targetProfileId: moderationCase.targetProfileId,
         automatic: sql<boolean>`coalesce(${moderationCase.detail}, '{}'::jsonb) ?| array['filter', 'cosmos']`,
+        held: sql<boolean>`${moderationCase.childSafety} or coalesce(${moderationCase.legalHoldUntil} > now(), false)`,
       })
       .from(moderationCase)
       .where(and(eq(moderationCase.tenantId, input.tenantId), eq(moderationCase.id, input.caseId)))
       .for('update');
     if (!c) return { ok: false, reason: 'not_found' } as const;
     if (c.source === 'appeal') return { ok: false, reason: 'appeal' } as const;
+    // abuso infantil ou guarda legal (#1289): o conteúdo não volta ao ar por aqui
+    if (c.held) return { ok: false, reason: 'legal_hold' } as const;
     // fechado por pessoa: a decisão é dela, e o caminho é a apelação
     const byPerson = c.status !== 'open' && c.resolvedBy !== 'cosmos' && c.resolvedBy !== 'system';
     if (!c.automatic || byPerson) return { ok: false, reason: 'not_automatic' } as const;
@@ -687,7 +691,10 @@ export async function closeCase(
         resolvedAt: now,
         resolvedBy: input.actor.id,
         purgeAt: input.clocks.decisionPurgeAt,
-        ...(input.status === 'dismissed' ? { hiddenAt: null } : {}),
+        // abuso infantil (#1289): o conteúdo marcado não volta ao ar nem ao descartar
+        ...(input.status === 'dismissed'
+          ? { hiddenAt: sql`case when ${moderationCase.childSafety} then ${moderationCase.hiddenAt} end` }
+          : {}),
         ...(input.status === 'resolved' && input.hide
           ? { hiddenAt: sql`coalesce(${moderationCase.hiddenAt}, ${now.toISOString()}::timestamptz)` }
           : {}),
@@ -698,6 +705,8 @@ export async function closeCase(
           eq(moderationCase.tenantId, input.tenantId),
           eq(moderationCase.id, input.caseId),
           eq(moderationCase.status, 'open'),
+          // abuso infantil (#1289): a denúncia às autoridades vem antes de fechar, por qualquer caminho
+          sql`(not ${moderationCase.childSafety} or ${moderationCase.authorityReportedAt} is not null)`,
         ),
       )
       .returning({ id: moderationCase.id, targetProfileId: moderationCase.targetProfileId });
@@ -1779,6 +1788,12 @@ async function holdChatMessage(
   messageId: string,
   until: Date,
 ): Promise<void> {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(messageId)) return;
+  const id = messageId.toLowerCase();
+  // a fixada denunciada sai do topo da sala
+  await tx.execute(sql`
+    update chat.room set pinned_message_id = null, pinned_by = null, pinned_at = null, updated_at = now()
+     where tenant_id = ${tenantId} and pinned_message_id = ${id}::uuid`);
   await tx.execute(sql`
     update chat.message
        set legal_hold_until = greatest(coalesce(legal_hold_until, ${until.toISOString()}::timestamptz),
@@ -1786,7 +1801,7 @@ async function holdChatMessage(
            flags = case when visibility = 'shadow' and not ('was_shadow' = any(flags))
                         then array_append(flags, 'was_shadow') else flags end,
            visibility = 'hidden'
-     where tenant_id = ${tenantId} and id::text = ${messageId}`);
+     where tenant_id = ${tenantId} and id = ${id}::uuid`);
 }
 
 /**
@@ -1874,6 +1889,8 @@ export async function reportToAuthorities(
         eq(moderationCase.tenantId, input.tenantId),
         eq(moderationCase.id, input.caseId),
         isNull(moderationCase.authorityReportedAt),
+        // a apelação é sobre a punição; a denúncia vai no caso original
+        sql`${moderationCase.source} <> 'appeal'`,
       ),
     )
     .returning({

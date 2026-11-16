@@ -107,7 +107,7 @@ export function ReviewQueue({ items, module }: { items: QueueRow[]; module: stri
               ...(reference.trim() ? { reference } : {}),
             });
       if (!r.ok) toast.error(r.error);
-      else toast.success(T.done);
+      else toast.success(authority.mode === 'flag' ? T.authority.flagged : T.authority.recorded);
       setAuthority(null);
       router.refresh();
     });

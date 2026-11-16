@@ -122,6 +122,8 @@ export async function setMessageHiddenAction(input: {
                  flags = array_remove(flags, 'was_shadow')
            where tenant_id = ${ctx.tenant.id} and room_id = ${roomId} and id = ${input.messageId}
              and visibility = 'hidden'
+             -- guarda legal (#1289): denunciada às autoridades não volta ao ar
+             and (legal_hold_until is null or legal_hold_until <= now())
           returning id`);
     if (!changed.length) return;
     // mensagem fora do ar não fica fixada

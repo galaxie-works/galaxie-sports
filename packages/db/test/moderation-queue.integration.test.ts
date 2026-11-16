@@ -29,6 +29,7 @@ import {
   runMigrations,
   sanctionsForFan,
   unblockFan,
+  undoDecision,
   type Database,
   type ModerationClocks,
 } from '../src/index.js';
@@ -1087,6 +1088,21 @@ describe('guarda legal e denúncia às autoridades (#1289)', () => {
         }),
       ),
     ).toBe(false);
+    // antes da denúncia, o caso marcado não fecha por caminho nenhum nem é desfeito
+    expect(
+      await closeCase(db, {
+        tenantId,
+        caseId: h.caseId,
+        status: 'dismissed',
+        actor: person('mod'),
+        note: null,
+        clocks: old,
+        now: new Date(at),
+      }),
+    ).toBe(false);
+    expect(
+      await undoDecision(db, { tenantId, caseId: h.caseId, actor: person('mod'), note: null, clocks: old }),
+    ).toEqual({ ok: false, reason: 'legal_hold' });
     expect(
       await db.transaction((tx) =>
         reportToAuthorities(tx, {

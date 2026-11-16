@@ -106,6 +106,8 @@ export async function decideCase(input: {
     throw err;
   }
 
+  // abuso infantil: a denúncia às autoridades é obrigatória antes de fechar ou desfazer (#1289)
+  if (c.childSafety && !c.authorityReportedAt) return { ok: false, error: T.reportFirst };
   try {
     if (input.decision === 'undo') {
       // desfazer revoga as punições da Cosmos: quem desfaz precisa poder aplicar cada uma (cargo, lugar e duração)
@@ -121,12 +123,18 @@ export async function decideCase(input: {
       const r = await undoDecision(db, { tenantId: ctx.tenant.id, caseId: c.id, actor, note, clocks, now });
       return r.ok
         ? { ok: true }
-        : { ok: false, error: r.reason === 'not_found' ? T.notFound : T.notAutomatic };
+        : {
+            ok: false,
+            error:
+              r.reason === 'not_found'
+                ? T.notFound
+                : r.reason === 'legal_hold'
+                  ? T.legalHold
+                  : T.notAutomatic,
+          };
     }
     if (c.status !== 'open') return { ok: false, error: T.closed };
     if (c.source === 'appeal') return { ok: false, error: T.appeal };
-    // abuso infantil: a denúncia às autoridades é obrigatória antes de fechar (#1289)
-    if (c.childSafety && !c.authorityReportedAt) return { ok: false, error: T.reportFirst };
     if (input.decision === 'approve') {
       const done = await closeCase(db, {
         tenantId: ctx.tenant.id,
@@ -221,6 +229,7 @@ export async function flagChildSafetyAction(input: { caseId: string }): Promise<
   const c = await readCase(db, ctx.tenant.id, input.caseId);
   if (!c) return { ok: false, error: T.notFound };
   if (!allowed(ctx, 'moderation.hide', placeOf(c)).ok) return { ok: false, error: T.role };
+  if (c.childSafety) return { ok: false, error: T.alreadyFlagged };
   const now = new Date();
   let clocks;
   try {
@@ -252,6 +261,7 @@ export async function reportAuthoritiesAction(input: {
   const db = builderDb();
   const c = await readCase(db, ctx.tenant.id, input.caseId);
   if (!c) return { ok: false, error: T.notFound };
+  if (c.source === 'appeal') return { ok: false, error: T.appeal };
   if (actor.kind !== 'galaxie' && !allowed(ctx, 'moderation.ban', placeOf(c)).ok)
     return { ok: false, error: T.reportRole };
   const now = new Date();
