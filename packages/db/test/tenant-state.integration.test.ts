@@ -124,7 +124,9 @@ describe('migration 0185: estado do tenant', () => {
     expect((await stateOf('recusado')).state).toBe('rejected');
     const vencido = await stateOf('trial-vencido');
     expect(vencido.state).toBe('trial_expired');
-    expect(vencido.state_since.getTime()).toBe(vencido.trial_ends_at!.getTime());
+    // os 60 dias até cancelled contam da migration, não do fim do trial (nenhum legado cai na primeira madrugada)
+    expect(vencido.state_since.getTime()).toBeGreaterThan(vencido.trial_ends_at!.getTime());
+    expect(Math.abs(Date.now() - vencido.state_since.getTime())).toBeLessThan(10 * 60_000);
     const emCurso = await stateOf('trial-em-curso');
     expect(emCurso.state).toBe('trial');
     expect(emCurso.state_since.getTime()).toBe(emCurso.created_at.getTime());

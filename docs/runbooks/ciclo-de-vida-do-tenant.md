@@ -135,7 +135,9 @@ Só expande: `api.tenant.state` (CHECK nos 9 estados, padrão `active` para a co
 idempotente: só tenants sem evento) deriva o estado inicial: `status = 'suspended'` → `suspended`; organização com
 `review_status = 'pending'` → `pending_review`, `'rejected'` → `rejected` (antes do prazo do trial, porque o cadastro
 em revisão também nasce com `trial_ends_at`); `trial_ends_at <= now()` → `trial_expired`; `trial_ends_at > now()` ou
-plano `trial` → `trial`; o resto → `active`. Cada tenant ganha um evento `migration` com o que foi lido.
+plano `trial` → `trial`; o resto → `active`. Cada tenant ganha um evento `migration` com o que foi lido. Tenants
+legados com trial vencido ganham os 60 dias de `trial_expired` a partir da migration (`state_since = now()`), não do
+fim do trial: nenhum vai a `cancelled` na primeira madrugada depois do deploy.
 
 ## O que ficou de fora
 

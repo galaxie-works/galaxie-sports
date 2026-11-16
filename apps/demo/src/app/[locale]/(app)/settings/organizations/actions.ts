@@ -18,7 +18,10 @@ import {
   TenantStateError,
   transitionTenantState,
   type TenantState,
+  type TenantStateExecutor,
 } from '@galaxie/billing';
+import { organization, platformStaffAction, tenant } from '@galaxie/db/schema';
+import { and, eq } from 'drizzle-orm';
 
 import { requireStaff } from '@/lib/auth/admin';
 import { pool } from '@/lib/auth/db';
@@ -112,25 +115,60 @@ async function brandOf(tenantId: string) {
 /**
  * A revisão do cadastro decidida (PL2) muda o estado das marcas da organização que a esperavam (F3, decisão 7):
  * aprovada → `pending_review → trial`; recusada → `pending_review → rejected`. Marcas noutro estado ficam como estão.
- * Devolve quantas mudaram.
+ * Roda no banco ou numa transação aberta. Devolve quantas mudaram.
  */
 async function applyReviewToBrands(
+  exec: TenantStateExecutor,
   organizationId: string,
   decision: 'approved' | 'rejected',
   actor: string,
   reason: string,
 ): Promise<number> {
-  const { rows } = await pool.query<{ id: string }>(
-    `select id::text from api.tenant where organization_id = $1 and state = 'pending_review' order by name, slug`,
-    [organizationId],
-  );
+  const rows = await exec
+    .select({ id: tenant.id })
+    .from(tenant)
+    .where(and(eq(tenant.organizationId, organizationId), eq(tenant.state, 'pending_review')))
+    .orderBy(tenant.name, tenant.slug);
   for (const brand of rows)
-    await transitionTenantState(builderDb(), brand.id, decision === 'approved' ? 'trial' : 'rejected', {
+    await transitionTenantState(exec, brand.id, decision === 'approved' ? 'trial' : 'rejected', {
       cause: 'review',
       actor: `galaxie:${actor}`,
       reason,
     });
   return rows.length;
+}
+
+/**
+ * Decide a revisão do cadastro da organização dentro da transação da ação da marca (o mesmo que `updateOrganization`
+ * grava, pelo Drizzle em vez do pool do auth): `review_status`, o `organization.update` em `billing.staff_action` com o
+ * antes e o depois, e as marcas irmãs em `pending_review` (a revisão é da organização). Nada muda se já estava decidida.
+ */
+async function decideReviewInTx(
+  tx: TenantStateExecutor,
+  organizationId: string,
+  decision: 'approved' | 'rejected',
+  actor: string,
+  reason: string,
+): Promise<void> {
+  const [org] = await tx
+    .select({ reviewStatus: organization.reviewStatus })
+    .from(organization)
+    .where(eq(organization.id, organizationId))
+    .for('update');
+  if (org && org.reviewStatus !== decision) {
+    await tx
+      .update(organization)
+      .set({ reviewStatus: decision, updatedAt: new Date() })
+      .where(eq(organization.id, organizationId));
+    await tx.insert(platformStaffAction).values({
+      organizationId,
+      actor,
+      action: 'organization.update',
+      reason,
+      payload: { before: { reviewStatus: org.reviewStatus }, after: { reviewStatus: decision } },
+    });
+  }
+  await applyReviewToBrands(tx, organizationId, decision, actor, reason);
 }
 
 /**
@@ -199,7 +237,7 @@ export async function updateOrganizationAction(input: {
     // organização: a decisão pode ter sido gravada numa tentativa em que este passo falhou
     const brandsMoved =
       decided && (changed || (await getOrganization(input.id))?.reviewStatus === decided)
-        ? await applyReviewToBrands(input.id, decided, me.id, reason)
+        ? await applyReviewToBrands(builderDb(), input.id, decided, me.id, reason)
         : 0;
     // aprovou a revisão: as chaves nascem agora, pelo mesmo caminho do cadastro
     if (
@@ -228,10 +266,12 @@ export interface BrandStateActionInput {
 
 /**
  * Ações da equipe sobre o estado de uma marca (F3, decisão 7), com motivo: aprovar (`pending_review → trial`, com a
- * revisão da organização aprovada e as chaves emitidas como hoje), recusar (`→ rejected`, revisão recusada), suspender
- * (`trial`|`active`|`past_due → suspended`), reativar (`suspended → active`), cancelar (`→ cancelled`) e estender o
- * trial (muda `trial_ends_at`, evento `admin` sem mudar o estado). A transição fora do diagrama volta como erro, sem
- * gravar nada; `billing.staff_action` guarda o motivo com o antes e o depois.
+ * revisão da organização aprovada, as marcas irmãs em revisão movidas e as chaves emitidas como hoje), recusar
+ * (`→ rejected`, revisão recusada), suspender (`trial`|`active`|`past_due → suspended`), reativar (`suspended →
+ * active`), cancelar (`→ cancelled`) e estender o trial (muda `trial_ends_at`, evento `admin` sem mudar o estado).
+ * Transição, decisão da revisão e `billing.staff_action` entram numa transação só: falhou qualquer parte, o estado não
+ * muda sem o motivo gravado. Só a emissão de chaves (idempotente) fica fora, depois do commit. A transição fora do
+ * diagrama volta como erro, sem gravar nada.
  */
 export async function brandStateAction(input: BrandStateActionInput): Promise<OrganizationActionResult> {
   const me = await requireStaff();
@@ -244,47 +284,55 @@ export async function brandStateAction(input: BrandStateActionInput): Promise<Or
   if (!brand) return { ok: false, error: e.notFound };
   const actor = `galaxie:${me.id}`;
   const db = builderDb();
-  let payload: Record<string, unknown>;
   let issued: IssuedBrandKeys[] = [];
+  const until = input.action === 'extend_trial' ? new Date(String(input.trialEndsAt ?? '')) : null;
+  if (until && (Number.isNaN(until.getTime()) || until.getTime() <= Date.now()))
+    return { ok: false, error: e.date };
   try {
-    if (input.action === 'extend_trial') {
-      const until = new Date(String(input.trialEndsAt ?? ''));
-      if (Number.isNaN(until.getTime()) || until.getTime() <= Date.now()) return { ok: false, error: e.date };
-      const r = await extendTenantTrial(db, brand.id, until, { actor, reason });
-      payload = { trial_ends_at: { before: r.before?.toISOString() ?? null, after: r.after.toISOString() } };
-    } else {
-      const to = BRAND_STATE_ACTIONS[input.action].to;
-      const r = await transitionTenantState(db, brand.id, to, { cause: 'admin', actor, reason });
-      payload = { from: r.from, to: r.to };
-      // aprovar e recusar decidem também a revisão do cadastro da organização (PL2), quando ela ainda esperava
-      if ((input.action === 'approve' || input.action === 'reject') && brand.organization_id) {
-        const decision = input.action === 'approve' ? 'approved' : 'rejected';
-        const org = await getOrganization(brand.organization_id);
-        if (org && org.reviewStatus !== decision)
-          await updateOrganization({
-            id: brand.organization_id,
-            patch: { reviewStatus: decision },
-            actor: me.id,
+    await db.transaction(async (tx) => {
+      let payload: Record<string, unknown>;
+      if (until) {
+        const r = await extendTenantTrial(tx, brand.id, until, { actor, reason });
+        payload = {
+          trial_ends_at: { before: r.before?.toISOString() ?? null, after: r.after.toISOString() },
+        };
+      } else {
+        const to = BRAND_STATE_ACTIONS[input.action].to;
+        const r = await transitionTenantState(tx, brand.id, to, { cause: 'admin', actor, reason });
+        payload = { from: r.from, to: r.to };
+        // aprovar e recusar decidem também a revisão do cadastro da organização (PL2) e movem as marcas irmãs
+        if ((input.action === 'approve' || input.action === 'reject') && brand.organization_id)
+          await decideReviewInTx(
+            tx,
+            brand.organization_id,
+            input.action === 'approve' ? 'approved' : 'rejected',
+            me.id,
             reason,
-          });
+          );
       }
-    }
-    await recordStaffAction({
-      organizationId: brand.organization_id,
-      tenantId: brand.id,
-      actor: me.id,
-      action: `brand.${input.action}`,
-      reason,
-      payload,
-    });
-    // aprovada: as chaves nascem agora, pelo mesmo caminho do cadastro (aparecem uma vez)
-    if (input.action === 'approve') {
-      const keys = await issueMissingKeys(db, {
+      // o CHECK pede organização ou marca: a marca sem organização grava só o tenant
+      await tx.insert(platformStaffAction).values({
+        organizationId: brand.organization_id,
         tenantId: brand.id,
-        actor,
-        defaultOrigin: defaultBrandOrigin(brand.slug, SITE_HOST),
+        actor: me.id,
+        action: `brand.${input.action}`,
+        reason,
+        payload,
       });
-      if (hasKeys(keys)) issued = [{ tenantId: brand.id, brand: brand.name, keys }];
+    });
+    // aprovada: as chaves nascem agora (idempotente, fora da transação), pelo mesmo caminho do cadastro; com
+    // organização, também para as marcas irmãs que saíram da revisão. Aparecem uma vez
+    if (input.action === 'approve') {
+      if (brand.organization_id)
+        issued = await issueKeysForOrganization(brand.organization_id, me.id, reason);
+      else {
+        const keys = await issueMissingKeys(db, {
+          tenantId: brand.id,
+          actor,
+          defaultOrigin: defaultBrandOrigin(brand.slug, SITE_HOST),
+        });
+        if (hasKeys(keys)) issued = [{ tenantId: brand.id, brand: brand.name, keys }];
+      }
     }
   } catch (err) {
     if (err instanceof TenantStateError) return { ok: false, error: e.transition };
