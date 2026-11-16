@@ -60,7 +60,7 @@ async function Room({ fixtureId }: { fixtureId: string }) {
             </div>
             <ChatRoomPanel
               fixtureId={fixtureId}
-              title={room ? roomTitle(room) : `#${fixtureId.slice(0, 8)}`}
+              title={room ? roomTitle(room, T.rooms.versus) : `#${fixtureId.slice(0, 8)}`}
               state={room?.state ?? null}
               slowModeSeconds={room?.slowModeSeconds ?? null}
               initial={messages}
@@ -76,7 +76,9 @@ async function Room({ fixtureId }: { fixtureId: string }) {
 
 // Os params só são lidos dentro do Suspense: fora dele o Next recusa o prerender (dado de requisição no shell)
 async function RoomPage({ params }: { params: Promise<{ fixtureId: string }> }) {
-  const [t, { fixtureId }] = await Promise.all([getT(), params]);
+  const [t, { fixtureId: raw }] = await Promise.all([getT(), params]);
+  // minúsculas: o escopo do cargo e o da punição comparam texto
+  const fixtureId = raw.toLowerCase();
   return (
     <>
       <PageHeader

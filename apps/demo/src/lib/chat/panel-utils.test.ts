@@ -28,5 +28,8 @@ describe('painel do chat', () => {
   it('nome da sala pelos times', () => {
     expect(roomTitle({ home: 'Palmeiras', away: 'Botafogo', fixtureId: 'x' })).toBe('Palmeiras x Botafogo');
     expect(roomTitle({ home: null, away: null, fixtureId: '0190f1c0-aaaa' })).toBe('#0190f1c0');
+    expect(roomTitle({ home: 'Boca', away: 'River', fixtureId: 'x' }, '{home} vs {away}')).toBe(
+      'Boca vs River',
+    );
   });
 });

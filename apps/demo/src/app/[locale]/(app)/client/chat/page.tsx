@@ -52,7 +52,7 @@ async function Rooms() {
                       <li key={r.roomId} className="flex flex-wrap items-center justify-between gap-3 py-3">
                         <div className="min-w-0">
                           <Link href={`/client/chat/${r.fixtureId}`} className="font-medium hover:underline">
-                            {roomTitle(r)}
+                            {roomTitle(r, T.rooms.versus)}
                           </Link>
                           <p className="text-muted-foreground text-xs">
                             {f.dayTime(r.startsAt)} · {fill(T.rooms.messages24h, { count: r.messages24h })}

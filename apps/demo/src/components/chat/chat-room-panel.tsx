@@ -5,6 +5,16 @@ import { useEffect, useState, useTransition } from 'react';
 import { toast } from 'sonner';
 
 import { Badge } from '@/components/reui/badge';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Frame, FrameDescription, FrameHeader, FramePanel, FrameTitle } from '@/components/reui/frame';
 import { Button } from '@/components/ui/button';
 import {
@@ -64,24 +74,33 @@ export function ChatRoomPanel({
   const [roomState, setRoomState] = useState(state);
   const [slow, setSlow] = useState<string>(slowModeSeconds === null ? 'default' : String(slowModeSeconds));
   const [pending, start] = useTransition();
+  const [banTarget, setBanTarget] = useState<{ profileId: string; name: string } | null>(null);
 
+  // uma consulta por vez (a próxima só sai depois da resposta) e nada com a aba escondida
   useEffect(() => {
     let alive = true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     const tick = async () => {
-      const next = await roomMessagesAction(fixtureId).catch(() => null);
-      if (alive && next) setMessages(next);
+      if (!document.hidden) {
+        const next = await roomMessagesAction(fixtureId).catch(() => null);
+        if (alive && next) setMessages(next);
+      }
+      if (alive) timer = setTimeout(tick, POLL_MS);
     };
-    const id = setInterval(tick, POLL_MS);
+    timer = setTimeout(tick, POLL_MS);
     return () => {
       alive = false;
-      clearInterval(id);
+      clearTimeout(timer);
     };
   }, [fixtureId]);
 
-  const run = (fn: () => Promise<{ ok: boolean; error?: string }>, after?: () => void) =>
+  const run = (fn: () => Promise<{ ok: boolean; error?: string }>, after?: () => void, undo?: () => void) =>
     start(async () => {
       const r = await fn();
-      if (!r.ok) return void toast.error(r.error ?? t.chatPanel.errors.generic);
+      if (!r.ok) {
+        undo?.();
+        return void toast.error(r.error ?? t.chatPanel.errors.generic);
+      }
       after?.();
       toast.success(T.done);
       const next = await roomMessagesAction(fixtureId).catch(() => null);
@@ -114,13 +133,17 @@ export function ChatRoomPanel({
                   value={slow}
                   onValueChange={(picked) => {
                     const v = picked ?? 'default';
+                    const before = slow;
                     setSlow(v);
-                    run(() =>
-                      roomAction({
-                        fixtureId,
-                        action: 'slow_mode',
-                        slowModeSeconds: v === 'default' ? null : Number(v),
-                      }),
+                    run(
+                      () =>
+                        roomAction({
+                          fixtureId,
+                          action: 'slow_mode',
+                          slowModeSeconds: v === 'default' ? null : Number(v),
+                        }),
+                      undefined,
+                      () => setSlow(before),
                     );
                   }}
                 >
@@ -158,7 +181,7 @@ export function ChatRoomPanel({
         </FrameHeader>
 
         {messages.length === 0 ? (
-          <p className="text-muted-foreground py-6 text-sm">{state ? T.empty : T.noRoom}</p>
+          <p className="text-muted-foreground py-6 text-sm">{roomState ? T.empty : T.noRoom}</p>
         ) : (
           <ul className="flex flex-col divide-y">
             {messages.map((m) => {
@@ -265,10 +288,7 @@ export function ChatRoomPanel({
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
                               variant="destructive"
-                              onClick={() => {
-                                if (window.confirm(fill(T.author.confirmBan, { name })))
-                                  punish(m.profileId, 'ban');
-                              }}
+                              onClick={() => setBanTarget({ profileId: m.profileId, name })}
                             >
                               {T.author.ban}
                             </DropdownMenuItem>
@@ -283,6 +303,28 @@ export function ChatRoomPanel({
           </ul>
         )}
       </FramePanel>
+      <AlertDialog open={banTarget !== null} onOpenChange={(open) => !open && setBanTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{T.author.ban}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {banTarget ? fill(T.author.confirmBan, { name: banTarget.name }) : null}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t.common.cancel}</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => {
+                if (banTarget) punish(banTarget.profileId, 'ban');
+                setBanTarget(null);
+              }}
+            >
+              {T.author.ban}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Frame>
   );
 }

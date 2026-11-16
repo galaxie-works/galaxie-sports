@@ -12,7 +12,7 @@ export default defineMessages(
         'Nenhuma sala nas últimas 36 h nem nas próximas 24 h. A sala nasce quando alguém escreve ou ajusta o jogo.',
       messages24h: '{count} mensagens em 24 h',
       held: '{count} retidas',
-      open: 'Abrir sala',
+      versus: '{home} x {away}',
       state: { open: 'Aberta', frozen: 'Congelada', read_only_peak: 'Só leitura (pico)' },
     },
     room: {
@@ -31,7 +31,7 @@ export default defineMessages(
       restore: 'Devolver',
       queue: 'Ver a fila desta sala',
       author: {
-        menu: 'Punir {name}',
+        menu: 'Ações da mensagem de {name}',
         mute: 'Silenciar na sala',
         shadowMute: 'Silêncio invisível',
         suspend: 'Suspender (todas as salas e Comunidades)',
@@ -74,6 +74,7 @@ export default defineMessages(
       notFound: 'Sala ou torcedor não encontrado.',
       locked: 'A sala está só leitura pelo pico do plano ou foi congelada pela Galaxie.',
       noPolicy: 'O país deste torcedor não tem ficha configurada.',
+      shadowNotAllowed: 'A ficha do país deste torcedor exige avisar a punição: use o silêncio comum.',
       generic: 'Não deu para concluir agora. Tente de novo.',
     },
   },
@@ -88,7 +89,7 @@ export default defineMessages(
           'No rooms in the last 36 h or the next 24 h. A room starts when someone writes or the match is adjusted.',
         messages24h: '{count} messages in 24 h',
         held: '{count} held',
-        open: 'Open room',
+        versus: '{home} vs {away}',
         state: { open: 'Open', frozen: 'Frozen', read_only_peak: 'Read-only (peak)' },
       },
       room: {
@@ -107,7 +108,7 @@ export default defineMessages(
         restore: 'Restore',
         queue: 'See this room in the queue',
         author: {
-          menu: 'Sanction {name}',
+          menu: 'Actions for the message from {name}',
           mute: 'Mute in this room',
           shadowMute: 'Invisible mute',
           suspend: 'Suspend (all rooms and Communities)',
@@ -150,6 +151,7 @@ export default defineMessages(
         notFound: 'Room or fan not found.',
         locked: 'The room is read-only because of the plan peak or was frozen by Galaxie.',
         noPolicy: "This fan's country has no rules sheet set up.",
+        shadowNotAllowed: "This fan's country requires telling them about penalties: use a regular mute.",
         generic: 'Could not finish now. Try again.',
       },
     },
@@ -163,7 +165,7 @@ export default defineMessages(
           'No hay salas en las últimas 36 h ni en las próximas 24 h. La sala nace cuando alguien escribe o se ajusta el partido.',
         messages24h: '{count} mensajes en 24 h',
         held: '{count} retenidos',
-        open: 'Abrir sala',
+        versus: '{home} vs. {away}',
         state: { open: 'Abierta', frozen: 'Congelada', read_only_peak: 'Solo lectura (pico)' },
       },
       room: {
@@ -182,7 +184,7 @@ export default defineMessages(
         restore: 'Devolver',
         queue: 'Ver esta sala en la cola',
         author: {
-          menu: 'Sancionar a {name}',
+          menu: 'Acciones del mensaje de {name}',
           mute: 'Silenciar en la sala',
           shadowMute: 'Silencio invisible',
           suspend: 'Suspender (todas las salas y Comunidades)',
@@ -225,6 +227,7 @@ export default defineMessages(
         notFound: 'Sala o hincha no encontrado.',
         locked: 'La sala está en solo lectura por el pico del plan o la congeló Galaxie.',
         noPolicy: 'El país de este hincha no tiene ficha configurada.',
+        shadowNotAllowed: 'La ficha del país de este hincha exige avisar la sanción: usa el silencio común.',
         generic: 'No se pudo terminar ahora. Intenta de nuevo.',
       },
     },

@@ -19,95 +19,70 @@ export interface ChatRoomRow {
   held: number;
 }
 
+type RoomDbRow = {
+  room_id: string;
+  fixture_id: string;
+  state: ChatRoomRow['state'];
+  slow_mode_seconds: number | null;
+  strictness: ChatRoomRow['strictness'];
+  starts_at: Date;
+  status: string;
+  home: string | null;
+  away: string | null;
+  messages_24h: string;
+  held: string;
+};
+
+const ROOM_SELECT = `select r.id as room_id, r.event_id as fixture_id, r.state, r.slow_mode_seconds, r.strictness,
+        e.starts_at, e.status::text as status,
+        (select coalesce(p.short_name, p.name) from core.event_participant ep
+           join core.participant p on p.id = ep.participant_id
+          where ep.event_id = e.id and ep.side = 'home' limit 1) as home,
+        (select coalesce(p.short_name, p.name) from core.event_participant ep
+           join core.participant p on p.id = ep.participant_id
+          where ep.event_id = e.id and ep.side = 'away' limit 1) as away,
+        (select count(*) from chat.message m
+          where m.tenant_id = r.tenant_id and m.room_id = r.id
+            and m.created_at > now() - interval '24 hours') as messages_24h,
+        (select count(*) from chat.message m
+          where m.tenant_id = r.tenant_id and m.room_id = r.id and m.visibility = 'shadow') as held
+   from chat.room r
+   join core.event e on e.id = r.event_id`;
+
+const roomRow = (r: RoomDbRow): ChatRoomRow => ({
+  roomId: r.room_id,
+  fixtureId: r.fixture_id,
+  state: r.state,
+  slowModeSeconds: r.slow_mode_seconds,
+  strictness: r.strictness,
+  startsAt: r.starts_at.toISOString(),
+  eventStatus: r.status,
+  home: r.home,
+  away: r.away,
+  messages24h: Number(r.messages_24h),
+  held: Number(r.held),
+});
+
 /** Salas do tenant com jogo nas últimas 36 h ou nas próximas 24 h, do jogo mais próximo de agora para o mais longe. */
 export async function loadChatRooms(tenantId: string): Promise<ChatRoomRow[]> {
-  const { rows } = await pool.query<{
-    room_id: string;
-    fixture_id: string;
-    state: ChatRoomRow['state'];
-    slow_mode_seconds: number | null;
-    strictness: ChatRoomRow['strictness'];
-    starts_at: Date;
-    status: string;
-    home: string | null;
-    away: string | null;
-    messages_24h: string;
-    held: string;
-  }>(
-    `select r.id as room_id, r.event_id as fixture_id, r.state, r.slow_mode_seconds, r.strictness,
-            e.starts_at, e.status::text as status,
-            (select coalesce(p.short_name, p.name) from core.event_participant ep
-               join core.participant p on p.id = ep.participant_id
-              where ep.event_id = e.id and ep.side = 'home' limit 1) as home,
-            (select coalesce(p.short_name, p.name) from core.event_participant ep
-               join core.participant p on p.id = ep.participant_id
-              where ep.event_id = e.id and ep.side = 'away' limit 1) as away,
-            (select count(*) from chat.message m
-              where m.tenant_id = r.tenant_id and m.room_id = r.id
-                and m.created_at > now() - interval '24 hours') as messages_24h,
-            (select count(*) from chat.message m
-              where m.tenant_id = r.tenant_id and m.room_id = r.id and m.visibility = 'shadow') as held
-       from chat.room r
-       join core.event e on e.id = r.event_id
+  const { rows } = await pool.query<RoomDbRow>(
+    `${ROOM_SELECT}
       where r.tenant_id = $1
         and e.starts_at between now() - interval '36 hours' and now() + interval '24 hours'
       order by abs(extract(epoch from (e.starts_at - now()))) asc
       limit 100`,
     [tenantId],
   );
-  return rows.map((r) => ({
-    roomId: r.room_id,
-    fixtureId: r.fixture_id,
-    state: r.state,
-    slowModeSeconds: r.slow_mode_seconds,
-    strictness: r.strictness,
-    startsAt: r.starts_at.toISOString(),
-    eventStatus: r.status,
-    home: r.home,
-    away: r.away,
-    messages24h: Number(r.messages_24h),
-    held: Number(r.held),
-  }));
+  return rows.map(roomRow);
 }
 
-/** A sala de um jogo do tenant (null se ninguém escreveu nem ajustou a sala ainda). */
+/** A sala de um jogo do tenant (null se ninguém escreveu nem ajustou a sala ainda). Uma sala só, sem a lista. */
 export async function loadChatRoom(tenantId: string, fixtureId: string): Promise<ChatRoomRow | null> {
-  const rooms = await pool.query<{ room_id: string }>(
-    `select id as room_id from chat.room where tenant_id = $1 and event_id = $2 limit 1`,
+  const { rows } = await pool.query<RoomDbRow>(
+    `${ROOM_SELECT} where r.tenant_id = $1 and r.event_id = $2 limit 1`,
     [tenantId, fixtureId],
   );
-  if (!rooms.rows[0]) return null;
-  const all = await loadChatRooms(tenantId);
-  const hit = all.find((r) => r.roomId === rooms.rows[0]!.room_id);
-  if (hit) return hit;
-  // fora da janela da lista (jogo antigo aberto pelo link): lê só a sala
-  const { rows } = await pool.query<{
-    state: ChatRoomRow['state'];
-    slow_mode_seconds: number | null;
-    strictness: ChatRoomRow['strictness'];
-    starts_at: Date;
-    status: string;
-  }>(
-    `select r.state, r.slow_mode_seconds, r.strictness, e.starts_at, e.status::text as status
-       from chat.room r join core.event e on e.id = r.event_id
-      where r.tenant_id = $1 and r.id = $2`,
-    [tenantId, rooms.rows[0].room_id],
-  );
-  const r = rows[0];
-  if (!r) return null;
-  return {
-    roomId: rooms.rows[0].room_id,
-    fixtureId,
-    state: r.state,
-    slowModeSeconds: r.slow_mode_seconds,
-    strictness: r.strictness,
-    startsAt: r.starts_at.toISOString(),
-    eventStatus: r.status,
-    home: null,
-    away: null,
-    messages24h: 0,
-    held: 0,
-  };
+  return rows[0] ? roomRow(rows[0]) : null;
 }
 
 export interface PanelMessage {

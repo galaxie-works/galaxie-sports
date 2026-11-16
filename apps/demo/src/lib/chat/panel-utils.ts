@@ -62,6 +62,11 @@ export function sanctionOf(action: AuthorAction): { level: 'mute' | 'suspension'
 export const isSlowModeOption = (v: unknown): v is number | null =>
   v === null || (typeof v === 'number' && (SLOW_MODE_OPTIONS as readonly number[]).includes(v));
 
-/** Nome curto do jogo para a lista ("Palmeiras x Botafogo"); sem os times, o id encurtado. */
-export const roomTitle = (r: { home: string | null; away: string | null; fixtureId: string }): string =>
-  r.home && r.away ? `${r.home} x ${r.away}` : `#${r.fixtureId.slice(0, 8)}`;
+/** Nome curto do jogo para a lista ("Palmeiras x Botafogo", pelo modelo do idioma); sem os times, o id encurtado. */
+export const roomTitle = (
+  r: { home: string | null; away: string | null; fixtureId: string },
+  versus = '{home} x {away}',
+): string =>
+  r.home && r.away
+    ? versus.replace('{home}', r.home).replace('{away}', r.away)
+    : `#${r.fixtureId.slice(0, 8)}`;

@@ -7,7 +7,8 @@
  * da base (#953) com os relógios da ficha do país (D5).
  */
 import { applySanction, recordModerationDecision, type ModerationActor } from '@galaxie/db/moderation-queue';
-import { SANCTION_SCOPE, checkSanction, sanctionAction } from '@galaxie/engage';
+import { SANCTION_SCOPE, checkSanction, retentionDeadlines, sanctionAction } from '@galaxie/engage';
+import { sql } from 'drizzle-orm';
 
 import { pool } from '@/lib/auth/db';
 import { builderDb } from '@/lib/builder/store';
@@ -17,7 +18,7 @@ import { getDictionary } from '@/lib/i18n/dictionary';
 import { getRequestLocale } from '@/lib/i18n/server';
 import { clocksFor, NoPolicyError, policyFor } from '@/lib/moderation/clocks';
 
-import { loadChatRoom, loadRoomMessages, profileInRoom, type PanelMessage } from './panel-data';
+import { loadChatSettings, loadRoomMessages, profileInRoom, type PanelMessage } from './panel-data';
 import {
   AUTHOR_ACTION_RULE,
   ROOM_ACTION_RULE,
@@ -47,16 +48,37 @@ async function session() {
   return { ctx: { ...ctx, tenant: ctx.tenant }, actor, T } as const;
 }
 
-/** Mensagens novas da sala para o painel ao vivo (o navegador pede a cada poucos segundos). */
-export async function roomMessagesAction(fixtureId: string): Promise<PanelMessage[] | null> {
-  const s = await session();
-  if ('error' in s || !UUID.test(fixtureId)) return null;
-  if (!allowed(s.ctx, 'moderation.queue.view', { room: fixtureId }).ok) return null;
-  const room = await loadChatRoom(s.ctx.tenant.id, fixtureId);
-  return room ? loadRoomMessages(s.ctx.tenant.id, room.roomId) : [];
+/** Id do jogo em minúsculas (o escopo do cargo e o da punição comparam texto). */
+const fixtureOf = (raw: string): string | null => (UUID.test(raw) ? raw.toLowerCase() : null);
+
+/** Sem o módulo `live_chat`, nenhuma ação do painel vale (a página já some do menu). */
+const hasLiveChat = (ctx: { tenant: { modules: readonly string[] } }) =>
+  ctx.tenant.modules.includes('live_chat');
+
+/** Id da sala do jogo no tenant, sem nada mais (a consulta do painel ao vivo, a cada 3 s, tem de ser leve). */
+async function roomIdOf(tenantId: string, fixtureId: string): Promise<string | null> {
+  const { rows } = await pool.query<{ id: string }>(
+    `select id from chat.room where tenant_id = $1 and event_id = $2 limit 1`,
+    [tenantId, fixtureId],
+  );
+  return rows[0]?.id ?? null;
 }
 
-/** Tira do ar (ou devolve) uma mensagem da sala. O texto fica para a auditoria e a apelação. */
+/** Mensagens da sala para o painel ao vivo (o navegador pede a cada poucos segundos). */
+export async function roomMessagesAction(rawFixtureId: string): Promise<PanelMessage[] | null> {
+  const s = await session();
+  const fixtureId = fixtureOf(rawFixtureId);
+  if ('error' in s || !fixtureId || !hasLiveChat(s.ctx)) return null;
+  if (!allowed(s.ctx, 'moderation.queue.view', { room: fixtureId }).ok) return null;
+  const roomId = await roomIdOf(s.ctx.tenant.id, fixtureId);
+  return roomId ? loadRoomMessages(s.ctx.tenant.id, roomId) : [];
+}
+
+/**
+ * Tira do ar (ou devolve) uma mensagem da sala. Devolver volta ao que era antes: a mensagem retida (abuso ou Silêncio
+ * oculto) volta a ser vista só pelo autor, nunca é publicada por aqui. O texto fica para a auditoria e a apelação. A
+ * mudança e a auditoria entram juntas (sem ficha do país, nenhuma das duas).
+ */
 export async function setMessageHiddenAction(input: {
   fixtureId: string;
   messageId: string;
@@ -65,36 +87,57 @@ export async function setMessageHiddenAction(input: {
   const s = await session();
   if ('error' in s) return { ok: false, error: s.error };
   const { ctx, actor, T } = s;
-  if (!UUID.test(input.fixtureId) || !UUID.test(input.messageId)) return { ok: false, error: T.invalid };
-  if (!allowed(ctx, 'moderation.hide', { room: input.fixtureId }).ok) return { ok: false, error: T.role };
-  const room = await loadChatRoom(ctx.tenant.id, input.fixtureId);
-  if (!room) return { ok: false, error: T.notFound };
-  const { rows } = await pool.query<{ profile_id: string }>(
-    `update chat.message set visibility = $4
-      where tenant_id = $1 and room_id = $2 and id = $3 and visibility <> $4
-      returning profile_id`,
-    [ctx.tenant.id, room.roomId, input.messageId, input.hidden ? 'hidden' : 'public'],
+  const fixtureId = fixtureOf(input.fixtureId);
+  if (!fixtureId || !UUID.test(input.messageId)) return { ok: false, error: T.invalid };
+  if (!hasLiveChat(ctx)) return { ok: false, error: T.role };
+  if (!allowed(ctx, 'moderation.hide', { room: fixtureId }).ok) return { ok: false, error: T.role };
+  const roomId = await roomIdOf(ctx.tenant.id, fixtureId);
+  if (!roomId) return { ok: false, error: T.notFound };
+  const author = await pool.query<{ profile_id: string }>(
+    `select profile_id from chat.message where tenant_id = $1 and room_id = $2 and id = $3`,
+    [ctx.tenant.id, roomId, input.messageId],
   );
-  const row = rows[0];
-  if (!row) return { ok: true };
+  const profileId = author.rows[0]?.profile_id;
+  if (!profileId) return { ok: false, error: T.notFound };
+  let clocks;
   try {
-    const clocks = await clocksFor(ctx.tenant.id, row.profile_id);
-    await recordModerationDecision(builderDb(), {
+    clocks = await clocksFor(ctx.tenant.id, profileId);
+  } catch (err) {
+    if (err instanceof NoPolicyError) return { ok: false, error: T.noPolicy };
+    throw err;
+  }
+  const db = builderDb();
+  await db.transaction(async (tx) => {
+    const changed = input.hidden
+      ? await tx.execute(sql`
+          update chat.message
+             set visibility = 'hidden',
+                 flags = case when visibility = 'shadow' then array_append(flags, 'was_shadow') else flags end
+           where tenant_id = ${ctx.tenant.id} and room_id = ${roomId} and id = ${input.messageId}
+             and visibility <> 'hidden'
+          returning id`)
+      : await tx.execute(sql`
+          update chat.message
+             set visibility = case when 'was_shadow' = any(flags) then 'shadow' else 'public' end,
+                 flags = array_remove(flags, 'was_shadow')
+           where tenant_id = ${ctx.tenant.id} and room_id = ${roomId} and id = ${input.messageId}
+             and visibility = 'hidden'
+          returning id`);
+    if (!changed.length) return;
+    await recordModerationDecision(tx as unknown as typeof db, {
       tenantId: ctx.tenant.id,
       actor,
       action: input.hidden ? 'chat.hide' : 'chat.restore',
       clocks,
-      subjectProfileId: row.profile_id,
+      subjectProfileId: profileId,
       reason: input.hidden ? 'chat.hide' : 'chat.restore',
-      rules: { room: input.fixtureId, message: input.messageId },
+      rules: { room: fixtureId, message: input.messageId },
     });
-  } catch (err) {
-    if (!(err instanceof NoPolicyError)) console.error('[chat] auditoria falhou', { err });
-  }
+  });
   return { ok: true };
 }
 
-/** Congela, reabre ou muda o modo lento da sala (cria a sala se ninguém escreveu ainda). */
+/** Congela, reabre ou muda o modo lento da sala (cria a sala se ninguém escreveu ainda), com a auditoria junto. */
 export async function roomAction(input: {
   fixtureId: string;
   action: 'freeze' | 'open' | 'slow_mode';
@@ -103,55 +146,61 @@ export async function roomAction(input: {
   const s = await session();
   if ('error' in s) return { ok: false, error: s.error };
   const { ctx, actor, T } = s;
-  if (!UUID.test(input.fixtureId)) return { ok: false, error: T.invalid };
+  const fixtureId = fixtureOf(input.fixtureId);
+  if (!fixtureId) return { ok: false, error: T.invalid };
   if (input.action === 'slow_mode' && !isSlowModeOption(input.slowModeSeconds ?? null))
     return { ok: false, error: T.invalid };
-  if (!allowed(ctx, ROOM_ACTION_RULE, { room: input.fixtureId }).ok) return { ok: false, error: T.role };
-  const exists = await pool.query(`select 1 from core.event where id = $1`, [input.fixtureId]);
+  if (!hasLiveChat(ctx)) return { ok: false, error: T.role };
+  if (!allowed(ctx, ROOM_ACTION_RULE, { room: fixtureId }).ok) return { ok: false, error: T.role };
+  const exists = await pool.query(`select 1 from core.event where id = $1`, [fixtureId]);
   if (!exists.rowCount) return { ok: false, error: T.notFound };
-  const by = actor.kind === 'galaxie' ? actor.id : `tenant:${actor.id}`;
-  await pool.query(
-    `insert into chat.room (tenant_id, event_id) values ($1, $2) on conflict (tenant_id, event_id) do nothing`,
-    [ctx.tenant.id, input.fixtureId],
-  );
-  if (input.action === 'slow_mode') {
-    await pool.query(
-      `update chat.room set slow_mode_seconds = $3, updated_at = now() where tenant_id = $1 and event_id = $2`,
-      [ctx.tenant.id, input.fixtureId, input.slowModeSeconds ?? null],
-    );
-  } else {
-    // o pico do plano (D6) não sai pelo painel; o congelamento da Galaxie só a Galaxie desfaz
-    const { rowCount } = await pool.query(
-      `update chat.room set state = $3, state_by = $4, state_at = now(), updated_at = now()
-        where tenant_id = $1 and event_id = $2 and state <> 'read_only_peak'
-          and ($5 or state_by is null or state_by not like 'galaxie:%')`,
-      [
-        ctx.tenant.id,
-        input.fixtureId,
-        input.action === 'freeze' ? 'frozen' : 'open',
-        by,
-        actor.kind === 'galaxie',
-      ],
-    );
-    if (!rowCount) return { ok: false, error: T.locked };
-  }
+  let clocks;
   try {
-    const clocks = await clocksFor(ctx.tenant.id, null);
-    await recordModerationDecision(builderDb(), {
+    clocks = await clocksFor(ctx.tenant.id, null);
+  } catch (err) {
+    if (err instanceof NoPolicyError) return { ok: false, error: T.noPolicy };
+    throw err;
+  }
+  const by = actor.kind === 'galaxie' ? actor.id : `tenant:${actor.id}`;
+  const isGalaxie = actor.kind === 'galaxie';
+  const db = builderDb();
+  const ok = await db.transaction(async (tx) => {
+    await tx.execute(sql`
+      insert into chat.room (tenant_id, event_id) values (${ctx.tenant.id}, ${fixtureId})
+      on conflict (tenant_id, event_id) do nothing`);
+    let changed;
+    if (input.action === 'slow_mode') {
+      changed = await tx.execute(sql`
+        update chat.room set slow_mode_seconds = ${input.slowModeSeconds ?? null}, updated_at = now()
+         where tenant_id = ${ctx.tenant.id} and event_id = ${fixtureId}
+        returning id`);
+    } else {
+      // o pico do plano (D6) não sai pelo painel; só reabrir o que a Galaxie congelou é que é só da Galaxie (o
+      // cliente pode congelar uma sala que a Galaxie reabriu)
+      changed = await tx.execute(sql`
+        update chat.room
+           set state = ${input.action === 'freeze' ? 'frozen' : 'open'}, state_by = ${by}, state_at = now(),
+               updated_at = now()
+         where tenant_id = ${ctx.tenant.id} and event_id = ${fixtureId} and state <> 'read_only_peak'
+           and (${isGalaxie} or ${input.action === 'freeze'} or state <> 'frozen' or state_by is null
+                or state_by not like 'galaxie:%')
+        returning id`);
+    }
+    if (!changed.length) return false;
+    await recordModerationDecision(tx as unknown as typeof db, {
       tenantId: ctx.tenant.id,
       actor,
       action: `chat.${input.action}`,
       clocks,
       reason: `chat.${input.action}`,
       rules: {
-        room: input.fixtureId,
+        room: fixtureId,
         ...(input.action === 'slow_mode' ? { slowModeSeconds: input.slowModeSeconds ?? null } : {}),
       },
     });
-  } catch (err) {
-    if (!(err instanceof NoPolicyError)) console.error('[chat] auditoria falhou', { err });
-  }
-  return { ok: true };
+    return true;
+  });
+  return ok ? { ok: true } : { ok: false, error: T.locked };
 }
 
 /** Silencia (visível ou oculto), suspende ou bane o autor de uma mensagem da sala. */
@@ -166,19 +215,21 @@ export async function authorAction(input: {
   const s = await session();
   if ('error' in s) return { ok: false, error: s.error };
   const { ctx, actor, T } = s;
-  if (!UUID.test(input.fixtureId) || !UUID.test(input.profileId) || !isAuthorAction(input.action))
+  const fixtureId = fixtureOf(input.fixtureId);
+  if (!fixtureId || !UUID.test(input.profileId) || !isAuthorAction(input.action))
     return { ok: false, error: T.invalid };
+  if (!hasLiveChat(ctx)) return { ok: false, error: T.role };
   const seconds = authorActionSeconds(input.action, input.amount);
   if (seconds === null) return { ok: false, error: T.invalid };
   const { level, hidden } = sanctionOf(input.action);
   const gate = allowed(ctx, AUTHOR_ACTION_RULE[input.action], {
-    room: input.fixtureId,
+    room: fixtureId,
     ...(level === 'mute' ? { durationSec: seconds } : {}),
   });
   if (!gate.ok) return { ok: false, error: T.role };
   // a ação vale para quem está na sala da ação (o moderador de uma sala não pune por id de qualquer torcedor)
-  const room = await loadChatRoom(ctx.tenant.id, input.fixtureId);
-  if (!room || !(await profileInRoom(ctx.tenant.id, room.roomId, input.profileId)))
+  const roomId = await roomIdOf(ctx.tenant.id, fixtureId);
+  if (!roomId || !(await profileInRoom(ctx.tenant.id, roomId, input.profileId)))
     return { ok: false, error: T.notFound };
 
   const now = new Date();
@@ -193,28 +244,27 @@ export async function authorAction(input: {
       hidden,
       decidedBy: 'person',
       endsAt: endsAt?.getTime() ?? null,
-      scopeId: scope === 'place' ? input.fixtureId : null,
+      scopeId: scope === 'place' ? fixtureId : null,
     },
     // o Silêncio oculto fica ligado para quem o cargo deixa (`moderation.shadow_mute`, que o Dono pode tirar)
     { now: now.getTime(), hiddenEnabled: hidden, policy },
   );
+  if (problems.includes('hidden_not_allowed')) return { ok: false, error: T.shadowNotAllowed };
   if (problems.length) return { ok: false, error: T.invalid };
   // a ação da matriz depende do degrau (o oculto é outra ação); confere de novo pelo nível
   if (
     !allowed(ctx, sanctionAction(level, hidden), {
-      room: input.fixtureId,
+      room: fixtureId,
       ...(level === 'mute' ? { durationSec: seconds } : {}),
     }).ok
   )
     return { ok: false, error: T.role };
 
-  let clocks;
-  try {
-    clocks = await clocksFor(ctx.tenant.id, input.profileId, now);
-  } catch (err) {
-    if (err instanceof NoPolicyError) return { ok: false, error: T.noPolicy };
-    throw err;
-  }
+  const deadlines = retentionDeadlines(policy, now.getTime());
+  const clocks = {
+    contentPurgeAt: new Date(deadlines.contentPurgeAt),
+    decisionPurgeAt: new Date(deadlines.decisionPurgeAt),
+  };
   try {
     await applySanction(builderDb(), {
       tenantId: ctx.tenant.id,
@@ -223,7 +273,7 @@ export async function authorAction(input: {
       level,
       hidden,
       scope,
-      scopeId: scope === 'place' ? input.fixtureId : null,
+      scopeId: scope === 'place' ? fixtureId : null,
       reason: `chat.${input.action}`,
       caseId: null,
       actor,
@@ -231,7 +281,7 @@ export async function authorAction(input: {
       clocks,
       rules: {
         from: 'chat_panel',
-        room: input.fixtureId,
+        room: fixtureId,
         ...(input.note ? { note: input.note.trim().slice(0, 500) } : {}),
       },
       now,
@@ -255,6 +305,7 @@ export async function saveChatSettingsAction(input: {
   if ('error' in s) return { ok: false, error: s.error };
   const { ctx, actor, T } = s;
   if (!allowed(ctx, 'settings.manage').ok) return { ok: false, error: T.role };
+  if (!hasLiveChat(ctx)) return { ok: false, error: T.role };
   const minutes = (v: number | null) => v === null || (Number.isInteger(v) && v >= 0 && v <= 1440);
   const okSlow =
     input.slowModeSeconds === null ||
@@ -270,6 +321,7 @@ export async function saveChatSettingsAction(input: {
     !okKinds
   )
     return { ok: false, error: T.invalid };
+  const before = await loadChatSettings(ctx.tenant.id);
   const by = actor.kind === 'galaxie' ? actor.id : `tenant:${actor.id}`;
   await pool.query(
     `insert into chat.tenant_config
@@ -289,5 +341,18 @@ export async function saveChatSettingsAction(input: {
       by,
     ],
   );
+  try {
+    await recordModerationDecision(builderDb(), {
+      tenantId: ctx.tenant.id,
+      actor,
+      action: 'chat.settings',
+      clocks: await clocksFor(ctx.tenant.id, null),
+      reason: 'chat.settings',
+      rules: { before, after: input },
+    });
+  } catch (err) {
+    // sem ficha do país do cliente: o padrão vale (não é decisão sobre torcedor), e fica o registro no log
+    console.warn('[chat] auditoria do padrão das salas não gravada', { tenantId: ctx.tenant.id, err });
+  }
   return { ok: true };
 }
