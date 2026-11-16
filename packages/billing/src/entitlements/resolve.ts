@@ -36,7 +36,10 @@ export type TenantRow = {
   trialEndsAt: Date | null;
   status: 'active' | 'suspended';
   catalogVersion: string | null;
+  /** Da organização quando a marca tem uma (PL23); senão, a da marca; null = padrão do catálogo. */
   capacityTier: CapacityTier | null;
+  /** `billing.organization` da marca; null até a migration de dados (0178) rodar. */
+  organizationId?: string | null;
 };
 
 export type OverrideRow = {
@@ -60,6 +63,8 @@ export type EntitlementInputs = {
 
 export type Entitlements = {
   tenantId: string;
+  /** Organização que assina e paga pela marca (F2); null para a marca ainda sem organização. */
+  organizationId: string | null;
   /** O tenant da Galaxie (cliente zero) consome tudo sem cobrança. */
   isGalaxie: boolean;
   state: TenantState;
@@ -72,7 +77,7 @@ export type Entitlements = {
   tiers: Record<string, number>;
   /** Unidades de add-on contratadas: `where_to_watch.extra_markets` → 2. */
   addons: Record<string, number>;
-  /** Faixa de capacidade (por ora do tenant; da organização quando a F2 trouxer a organização). */
+  /** Faixa de capacidade: da organização (PL23), ou da marca ainda sem organização. */
   capacity: {
     tier: CapacityTier;
     viewsPerMonth: number | null;
@@ -197,6 +202,7 @@ export function resolveEntitlements(
 
   const body: Omit<Entitlements, 'version'> = {
     tenantId: tenant.id,
+    organizationId: tenant.organizationId ?? null,
     isGalaxie: opts.galaxieTenantIds?.includes(tenant.id) ?? false,
     state,
     plan: tenant.plan,
