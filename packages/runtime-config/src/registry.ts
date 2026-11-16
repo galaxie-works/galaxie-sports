@@ -1046,10 +1046,9 @@ export const SETTINGS: readonly SettingDef[] = [
   },
 
   // ── Engajamento (#1017) ───────────────────────────────────────────────────────────────────────
-  // validade do token do torcedor (gft_, #937). Curta: punição e exclusão valem na hora pelo Valkey, mas faixa e
-  // país só mudam no próximo token. Relido a cada minuto; os segredos ficam no .env (FAN_TOKEN_SECRET)
   // apagamento automático da moderação e do chat (dados pessoais): cada linha sai no prazo da ficha do país em que foi
-  // decidida (Ajustes → Fichas por país). Desligado, nada é apagado; ligar apaga o que já venceu, sem volta
+  // decidida (Ajustes → Fichas por país). Desligado, nada é apagado; ligar apaga o que já venceu, sem volta. Ainda
+  // não existe a guarda legal do conteúdo denunciado às autoridades: não ligar antes dela
   {
     key: 'MODERATION_PURGE',
     section: 'engage',
@@ -1060,6 +1059,8 @@ export const SETTINGS: readonly SettingDef[] = [
     default: 'off',
     critical: true,
   },
+  // validade do token do torcedor (gft_, #937). Curta: punição e exclusão valem na hora pelo Valkey, mas faixa e
+  // país só mudam no próximo token. Relido a cada minuto; os segredos ficam no .env (FAN_TOKEN_SECRET)
   {
     key: 'FAN_TOKEN_TTL_SECONDS',
     section: 'engage',
