@@ -15,17 +15,17 @@ Texto em português; frases de estilo, prompts e nomes de parâmetros em inglês
 7. **Placa de título é da interface.** A imagem não tem texto nenhum. O terço inferior fica calmo (gramado, piso, gelo, névoa, gradiente) para a interface desenhar a placa de título por cima, nos três idiomas, com a fonte do estilo.
 8. **Nada de compra, sorte ou aposta na imagem.** Sem fichas, dados, roleta, cifrão, carrinho, cofre, vitrine de loja, raspadinha, pacote fechado. A raridade se mostra pela moldura, não por "tesouro".
 
-## 2. Sistema visual: quatro estilos
+## 2. Sistema visual: cinco estilos
 
-O estilo é uma única frase em inglês que entra em todo prompt na terceira posição (seção 6.1). O estilo A é o padrão do Catálogo e já está decidido na padronização; B, C e D são alternativas para escolha do dono. Trocar de estilo é trocar essa frase (seção 7).
+O estilo é uma única frase em inglês que entra em todo prompt na terceira posição (seção 6.1). O estilo A é o padrão do Catálogo e já está decidido na padronização; B, C, D e E são alternativas para escolha do dono (o E, galáctico, é o que conversa com a marca Galaxie e foi provado no lote 0 de 16/11). Trocar de estilo é trocar essa frase (seção 7).
 
-| | A · Vetor plano (padrão) | B · Pôster retrô serigrafado | C · Holográfico noturno | D · Aquarela esportiva |
-| --- | --- | --- | --- | --- |
-| Leitura em 120 px | excelente | muito boa | boa (depende do contraste do glow) | média (lavagem reduz contraste) |
-| Consistência entre gerações | alta | alta | média | baixa a média |
-| Custo de revisão humana | baixo | baixo | médio | alto |
-| Risco de texto escapar | baixo | médio (pôster "pede" letra) | baixo | baixo |
-| Identidade | limpa, atual, app | nostalgia, álbum de figurinha clássico | game, premium, noite de jogo | editorial, emocional |
+| | A · Vetor plano (padrão) | B · Pôster retrô serigrafado | C · Holográfico noturno | D · Aquarela esportiva | E · Galáctico |
+| --- | --- | --- | --- | --- | --- |
+| Leitura em 120 px | excelente | muito boa | boa (depende do contraste do glow) | média (lavagem reduz contraste) | boa (silhueta clara sobre fundo escuro) |
+| Consistência entre gerações | alta | alta | média | baixa a média | alta nas três peças do lote 0 |
+| Custo de revisão humana | baixo | baixo | médio | alto | médio (constelações podem virar "texto") |
+| Risco de texto escapar | baixo | médio (pôster "pede" letra) | baixo | baixo | baixo |
+| Identidade | limpa, atual, app | nostalgia, álbum de figurinha clássico | game, premium, noite de jogo | editorial, emocional | marca Galaxie, épico, colecionável |
 
 ### 2.1 Estilo A · Vetor plano (padrão)
 
@@ -157,6 +157,40 @@ Loose sports watercolor illustration, wet-on-wet washes with controlled bleeding
 
 ```
 Two women in plain white kits forming a wall at the net with arms fully extended, a generic ball crushed against their hands, an attacker in a plain charcoal kit landing below them, the sports hall dissolving into loose indigo and sage washes, afternoon sunlight through high windows left as white paper, the floor fading into a calm pale wash. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Loose sports watercolor illustration, wet-on-wet washes with controlled bleeding, visible pencil underdrawing, white paper reserve for highlights, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.
+```
+
+### 2.5 Estilo E · Galáctico
+
+**Descrição.** O mesmo desenho de formas simplificadas do estilo A, com o cenário levado ao espaço: o campo ou a quadra flutuam como uma plataforma, a arquibancada se dissolve em campo de estrelas, os refletores viram pequenos sóis, e linhas de constelação acompanham o gesto do atleta. É o estilo que conversa com o nome Galaxie e o que mais diferencia o produto numa demonstração. Provado em 16/11 no lote 0 (Degraus 1, 3 e 5 de "Gol nos acréscimos"): leu bem em miniatura, manteve a progressão e não deixou texto escapar; a moldura lendária prismática combinou melhor com ele do que com o A.
+
+**Paleta.**
+
+| Papel | Hex | Uso |
+| --- | --- | --- |
+| Espaço profundo | `#0B1026` | fundo, arquibancada ao longe |
+| Nebulosa índigo | `#2E2A7A` | gradiente do céu, sombra |
+| Nebulosa violeta | `#7A3FB0` | gradiente do céu, brilho secundário |
+| Luz estelar | `#F4F1E6` | uniformes, estrelas, constelações |
+| Âmbar solar | `#F2B544` | refletores, raios do gol, cometa |
+
+**Tipografia da placa de título.** Space Grotesk (semibold) para o nome; Inter para raridade e verso.
+
+**Textura.** Grão fino de filme; estrelas em três tamanhos; constelações como linhas finas com nós brilhantes.
+
+**Iluminação.** Luz vinda do gol ou dos refletores-sóis, contraluz na silhueta; o gramado conserva um verde-petróleo para o olho reconhecer o esporte.
+
+**Frase padrão de estilo:**
+
+```
+Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.
+```
+
+**Como adaptar a cena.** A cena da Carta não muda; acrescentam-se à primeira frase os ganchos espaciais ("the pitch floating as a glowing platform in deep space", "stands fading into a star field", "floodlights shaped like small suns", "a spiral galaxy behind the stadium"). No Lendário, raios do gol "like a supernova" e o relógio "made of stars dissolving into stardust".
+
+**Exemplo de prompt completo** (Carta `common`, gol nos acréscimos, Degrau 1):
+
+```
+A lone stylized striker in a plain white kit sliding on one knee after scoring, generic ball resting in the net behind, the pitch floating as a glowing platform in deep space, a half-empty generic stand fading into a star field, a tall blank scoreboard silhouette with no digits. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.
 ```
 
 ## 3. Molduras por raridade
@@ -391,6 +425,27 @@ A troca é uma decisão do dono e vale para o Catálogo inteiro; não há Carta 
 4. Publicar o Catálogo inteiro de uma vez; não misturar estilos na estante.
 
 Para testar um estilo sem decidir, gerar só as Cartas-ouro: custa poucas imagens e mostra a diferença real.
+
+### 7.1 Tema do cliente: a paleta como parâmetro
+
+Além do estilo, cada programa pode ter a arte nas **cores do cliente** (operadora, emissora, app). É o caminho de "arte própria do cliente" da #924 e um argumento de venda: a mesma estante aparece na identidade visual de quem a oferece. Provado em 16/11 com a Carta Bronze de "Gol nos acréscimos" em três paletas (preto com acento carmesim; violeta a índigo com brilho magenta; azul-marinho com ciano elétrico), a partir do mesmo prompt e da mesma seed.
+
+**Como funciona.** A paleta entra como uma frase a mais no prompt, logo depois da frase de estilo e antes da moldura:
+
+```
+Client palette: <fundo e arquibancada>, <piso>, every light, accent and glow in <cor de destaque>, white kit as the only other color.
+```
+
+A cena, o enquadramento, o estilo, a moldura e o negative não mudam. O estilo A aceita qualquer paleta; o E (galáctico) aceita a troca das duas cores de nebulosa.
+
+**Regras.**
+
+1. **Só cores, nunca marca.** Nenhum logotipo, nome, slogan ou tipografia do cliente entra no prompt nem na imagem; a identidade é a paleta. O negative padrão continua.
+2. **A paleta do cliente não fica neste repositório.** Nomes de clientes e suas cores ficam no cadastro do programa (`game.program`, campo de tema, a criar na issue de cosméticos) ou no Brand Kit do Magnific; aqui só o mecanismo e exemplos por cor.
+3. **Gerar por programa, não por Carta.** O conjunto do cliente é uma geração completa do Catálogo com a frase de paleta; não se mistura Carta neutra com Carta temática na mesma estante.
+4. **Para venda, as Cartas-ouro.** Antes de fechar um cliente, gerar as sete peças da seção 7 (uma por raridade, um fundo, a moldura de avatar do Nível 10) na paleta dele: custa pouco e é o que vai na proposta.
+5. **Moldura por raridade.** Com paleta escura, a moldura `common` (cinza fosco) perde leitura; a segunda rodada (seção 8) resolve com a moldura desenhada pela interface.
+6. **Produção com Brand Kit.** Para o cliente real, o Brand Kit do Magnific com o modelo Magnific One aplica a paleta de forma mais fiel do que a frase; a frase serve para a demonstração e para gerar em outros modelos.
 
 ## 8. Pontos em aberto para o dono
 
