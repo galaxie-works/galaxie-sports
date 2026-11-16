@@ -83,7 +83,12 @@ export const syncCursor = ops.table(
     completedAt: timestamp('completed_at', { withTimezone: true }),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [primaryKey({ columns: [t.provider, t.sport, t.endpoint, t.key] })],
+  (t) => [
+    primaryKey({ columns: [t.provider, t.sport, t.endpoint, t.key] }),
+    // O scheduler do ao vivo e a métrica liveEvents leem por (endpoint, key) sem provedor nem esporte; sem este
+    // índice cada leitura varria a tabela inteira (1,9 milhão de cursores por jogo e por pessoa em 15/11/2026).
+    index('sync_cursor_endpoint_key_idx').on(t.endpoint, t.key),
+  ],
 );
 
 /**
