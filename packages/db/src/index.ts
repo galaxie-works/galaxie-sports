@@ -264,5 +264,6 @@ export {
 export * from './presence.js';
 export * from './sponsors.js';
 export * from './moderation-queue.js';
+export { listTenantAccessErrors, type TenantAccessError } from './access-errors.js';
 export { fanAvatarPublic, fanAvatarPublicUrl } from './fan-avatar-public.js';
 export * from './shop.js';
