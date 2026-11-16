@@ -796,6 +796,20 @@
     {
       "idx": 113,
       "version": "7",
+      "when": 1794786444317,
+      "tag": "0170_cosmos_moderacao_imagem",
+      "breakpoints": true
+    },
+    {
+      "idx": 114,
+      "version": "7",
+      "when": 1794786504317,
+      "tag": "0171_foto_perfil_moderada",
+      "breakpoints": true
+    },
+    {
+      "idx": 115,
+      "version": "7",
       "when": 1794786744317,
       "tag": "0175_cosmos_funcoes_grade",
       "breakpoints": true
