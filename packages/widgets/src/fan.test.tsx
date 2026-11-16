@@ -10,7 +10,13 @@ import {
   isFanToken,
   type FanCapability,
 } from './core/model.js';
-import { FanGate, GalaxieWidgetProvider, useFanSession } from './core/react.js';
+import {
+  ageCheckReturnUrl,
+  ageCheckStateOf,
+  FanGate,
+  GalaxieWidgetProvider,
+  useFanSession,
+} from './core/react.js';
 
 afterEach(() => {
   cleanup();
@@ -452,7 +458,7 @@ describe('<AgeCheck> (verificação de idade da Galaxie, #1109)', () => {
       await waitFor(() => expect(assign).toHaveBeenCalledWith('https://verify.provedor.test/s/1'));
       expect(posts).toHaveLength(1);
       expect(posts[0]).toMatchObject({
-        returnUrl: 'https://site.exemplo/jogo?id=1#chat',
+        returnUrl: 'https://site.exemplo/jogo',
         consent: { textVersion: 'v1' },
       });
       expect(Date.parse((posts[0] as { consent: { givenAt: string } }).consent.givenAt)).not.toBeNaN();
@@ -484,7 +490,12 @@ describe('<AgeCheck> (verificação de idade da Galaxie, #1109)', () => {
     setup(
       <Chat />,
       { fanToken: tokenFor('site') },
-      ageApi(() => new Response(JSON.stringify({ data: item('declined') }), { status: 200 })),
+      ageApi(
+        () =>
+          new Response(JSON.stringify({ data: item('declined', { decided_at: new Date().toISOString() }) }), {
+            status: 200,
+          }),
+      ),
     );
     expect(await screen.findByText('Não foi possível confirmar a sua idade.')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Tentar de novo' }));
@@ -508,5 +519,43 @@ describe('<AgeCheck> (verificação de idade da Galaxie, #1109)', () => {
     } finally {
       vi.unstubAllGlobals();
     }
+  });
+
+  it('aprovada sem liberar o Perfil (faixa congelada): relê uma vez e oferece outra verificação', async () => {
+    let gets = 0;
+    const fetchImpl = ageApi(
+      () => {
+        gets += 1;
+        return new Response(
+          JSON.stringify({
+            data: item('approved', { verification_id: '00000000-0000-4000-8000-0000000000aa' }),
+          }),
+          { status: 200 },
+        );
+      },
+      () => 'needs_verification',
+    );
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    setup(<Chat />, { fanToken: tokenFor('site') }, fetchImpl);
+    expect(await screen.findByText(/Conferindo a sua verificação/)).toBeTruthy();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5_000);
+    });
+    expect(await screen.findByRole('button', { name: 'Verificar idade' })).toBeTruthy();
+    const mes = fetchImpl.mock.calls.filter(([u]) => String(u).endsWith('/v1/fans/me')).length;
+    expect(mes).toBe(2);
+    expect(gets).toBe(2);
+  });
+
+  it('modelo: falha antiga volta ao consentimento; a volta leva só origem e caminho, e só em https', () => {
+    const now = Date.parse('2026-11-16T12:00:00Z');
+    const v = item('declined', { decided_at: '2026-11-16T11:30:00.000Z' }) as never;
+    expect(ageCheckStateOf(v, now)).toBe('failed');
+    expect(ageCheckStateOf(item('expired', { decided_at: '2026-11-15T11:00:00.000Z' }) as never, now)).toBe(
+      'idle',
+    );
+    expect(ageCheckStateOf(null, now)).toBe('idle');
+    expect(ageCheckReturnUrl('https://site.exemplo/jogo?id=1&utm=x#chat')).toBe('https://site.exemplo/jogo');
+    expect(ageCheckReturnUrl('http://localhost:3000/jogo')).toBeNull();
   });
 });

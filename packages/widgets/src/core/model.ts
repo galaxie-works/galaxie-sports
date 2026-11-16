@@ -2005,6 +2005,7 @@ export interface WidgetTexts {
       start: string;
       starting: string;
       pending: string;
+      waiting: string;
       check: string;
       review: string;
       failed: string;
@@ -2585,16 +2586,18 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       ageCheck: {
         title: 'Confirme que você tem 18 anos ou mais para participar.',
         notice:
-          'A verificação é feita pela Didit, parceira de verificação de idade. Ela usa uma selfie para estimar a sua idade e, se ficar em dúvida, pede um documento. Guardamos só o resultado. A foto e o documento são apagados assim que a verificação termina.',
-        consent: 'Concordo com o uso da minha imagem para estimar a minha idade.',
+          'A verificação é feita pela Didit, parceira de verificação de idade. Ela usa uma selfie com prova de vida para estimar a sua idade. Se ficar em dúvida, pede um documento e compara o rosto do documento com a selfie. Guardamos só o resultado. A Didit apaga a foto, o documento e os dados do rosto depois da verificação.',
+        consent:
+          'Concordo com o uso da minha imagem (selfie, prova de vida e, se preciso, comparação com o documento) para confirmar a minha idade.',
         start: 'Verificar idade',
         starting: 'Abrindo a verificação…',
         pending: 'Conferindo a sua verificação. Isso leva poucos segundos.',
+        waiting: 'Ainda não recebemos o resultado. Se você não terminou a verificação, tente de novo.',
         check: 'Atualizar',
         review: 'Sua verificação está em análise. Volte mais tarde.',
         failed: 'Não foi possível confirmar a sua idade.',
         retry: 'Tentar de novo',
-        limit: 'Você atingiu o limite de tentativas. Tente de novo amanhã.',
+        limit: 'Você atingiu o limite de tentativas. Tente de novo mais tarde.',
         error: 'A verificação está indisponível agora. Tente de novo em instantes.',
       },
     },
@@ -3197,16 +3200,18 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       ageCheck: {
         title: 'Confirma que tienes 18 años o más para participar.',
         notice:
-          'La verificación la hace Didit, socio de verificación de edad. Usa una selfie para estimar tu edad y, si tiene dudas, pide un documento. Solo guardamos el resultado. La foto y el documento se borran en cuanto termina la verificación.',
-        consent: 'Acepto el uso de mi imagen para estimar mi edad.',
+          'La verificación la hace Didit, socio de verificación de edad. Usa una selfie con prueba de vida para estimar tu edad. Si tiene dudas, pide un documento y compara el rostro del documento con la selfie. Solo guardamos el resultado. Didit borra la foto, el documento y los datos del rostro después de la verificación.',
+        consent:
+          'Acepto el uso de mi imagen (selfie, prueba de vida y, si hace falta, comparación con el documento) para confirmar mi edad.',
         start: 'Verificar edad',
         starting: 'Abriendo la verificación…',
         pending: 'Revisando tu verificación. Tarda unos segundos.',
+        waiting: 'Todavía no recibimos el resultado. Si no terminaste la verificación, inténtalo de nuevo.',
         check: 'Actualizar',
         review: 'Tu verificación está en revisión. Vuelve más tarde.',
         failed: 'No fue posible confirmar tu edad.',
         retry: 'Reintentar',
-        limit: 'Alcanzaste el límite de intentos. Inténtalo de nuevo mañana.',
+        limit: 'Alcanzaste el límite de intentos. Inténtalo de nuevo más tarde.',
         error: 'La verificación no está disponible ahora. Inténtalo de nuevo en unos instantes.',
       },
     },
@@ -3814,16 +3819,18 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       ageCheck: {
         title: 'Confirm you are 18 or older to take part.',
         notice:
-          'Verification is done by Didit, our age verification partner. It uses a selfie to estimate your age and, if unsure, asks for an ID document. We keep only the result. The photo and the document are deleted as soon as the check ends.',
-        consent: 'I agree to the use of my image to estimate my age.',
+          'Verification is done by Didit, our age verification partner. It uses a selfie with a liveness check to estimate your age. If unsure, it asks for an ID document and compares the face on it with the selfie. We keep only the result. Didit deletes the photo, the document and the face data after the check.',
+        consent:
+          'I agree to the use of my image (selfie, liveness check and, if needed, comparison with my ID) to confirm my age.',
         start: 'Verify age',
         starting: 'Opening the verification…',
         pending: 'Checking your verification. This takes a few seconds.',
+        waiting: "We haven't received the result yet. If you didn't finish the verification, try again.",
         check: 'Refresh',
         review: 'Your verification is under review. Check back later.',
         failed: "We couldn't confirm your age.",
         retry: 'Try again',
-        limit: "You've reached the attempt limit. Try again tomorrow.",
+        limit: "You've reached the attempt limit. Try again later.",
         error: 'Verification is unavailable right now. Try again in a moment.',
       },
     },

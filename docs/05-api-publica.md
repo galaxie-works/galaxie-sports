@@ -1199,11 +1199,11 @@ document.addEventListener('galaxie:fan-status', (e) => {
 - a caixa de consentimento, obrigatória;
 - o botão "Verificar idade".
 
-O clique abre a verificação do provedor na mesma aba, e o provedor devolve o torcedor para a página onde ele estava. Na volta, o widget confere o resultado por até 2 minutos. Aprovado, relê o Perfil e libera o recurso. Recusado, abandonado ou vencido, oferece "Tentar de novo". Em revisão, pede para voltar mais tarde. No limite de 5 por dia, avisa e não oferece outra tentativa.
+O clique abre a verificação do provedor na mesma aba. No fim, o provedor devolve o torcedor à origem e ao caminho da página, sem query nem fragmento. Página que depende deles, como um app com rota no `#`, precisa ter um widget no caminho. Na volta, o widget confere o resultado por até 2 minutos. Aprovado, relê o Perfil e libera o recurso. Recusado, abandonado ou vencido, oferece "Tentar de novo". Em revisão, pede para voltar mais tarde. No limite de 5 em 24 horas, avisa e não oferece outra tentativa.
 
 O consentimento vai com a versão do texto mostrado (`AGE_CHECK_CONSENT_VERSION`, hoje `v1`).
 
-Sem o módulo, sem as chaves do provedor ou com um Perfil que não pode (403 ou 503), o widget só pede a idade, e o site segue com a comprovação dele pelo evento acima. No React, o mesmo componente é o `<AgeCheck>`.
+Sem o módulo, sem as chaves do provedor, com um Perfil que não pode (403 ou 503) ou numa página fora de https, o widget só pede a idade, e o site segue com a comprovação dele pelo evento acima. No React, o mesmo componente é o `<AgeCheck>`.
 
 **HTML puro (embed).** A função na página vale para todos os widgets; o atributo `fan-token` serve para um token fixo. O clique em "Entrar" dispara o evento `galaxie:fan-sign-in`. A função é lida na hora de cada pedido, então pode ser definida depois do `embed.js`.
 
