@@ -76,7 +76,10 @@ export const chatRoom = chat.table(
     /** Quem mudou o estado por último: `tenant:<prefixo>`, `galaxie:<id>`, `system`. */
     stateBy: text('state_by'),
     stateAt: timestamp('state_at', { withTimezone: true }),
-    /** Mensagem fixada no topo da sala pelo painel do cliente (#973); some se a mensagem sair do ar. */
+    /**
+     * Mensagem fixada no topo da sala pelo painel do cliente (#973). Tirar do ar pelo painel desafixa; nos outros
+     * caminhos a leitura da sala só mostra a fixada enquanto ela for pública.
+     */
     pinnedMessageId: uuid('pinned_message_id'),
     pinnedBy: text('pinned_by'),
     pinnedAt: timestamp('pinned_at', { withTimezone: true }),

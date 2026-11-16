@@ -186,6 +186,9 @@ export async function pinMessageAction(input: {
              set pinned_message_id = ${input.messageId}, pinned_by = ${by}, pinned_at = now(), updated_at = now()
            where tenant_id = ${ctx.tenant.id} and id = ${roomId}
              and pinned_message_id is distinct from ${input.messageId}
+             and exists (select 1 from chat.message m
+                          where m.tenant_id = ${ctx.tenant.id} and m.room_id = ${roomId}
+                            and m.id = ${input.messageId} and m.visibility = 'public')
           returning id`)
       : await tx.execute(sql`
           update chat.room set pinned_message_id = null, pinned_by = null, pinned_at = null, updated_at = now()

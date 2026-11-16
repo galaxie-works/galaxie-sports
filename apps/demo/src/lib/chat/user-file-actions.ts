@@ -4,7 +4,7 @@
  * Nota interna na ficha do torcedor (#973). O tenant e o cargo saem da sessão; a nota sai no relógio de decisões da
  * ficha do país do torcedor, como a auditoria.
  */
-import { addModerationNote } from '@galaxie/db/moderation-queue';
+import { addModerationNote, recordModerationDecision } from '@galaxie/db/moderation-queue';
 
 import { pool } from '@/lib/auth/db';
 import { builderDb } from '@/lib/builder/store';
@@ -30,10 +30,10 @@ export async function addNoteAction(input: { profileId: string; body: string }):
   // a ficha é do tenant inteiro: cargo com escopo de sala não anota
   if (!ctx.tenant.modules.includes('live_chat') || !allowed(ctx, 'moderation.hide').ok)
     return { ok: false, error: T.role };
-  const profile = await pool.query(`select 1 from fan.profile where tenant_id = $1 and id = $2`, [
-    ctx.tenant.id,
-    input.profileId,
-  ]);
+  const profile = await pool.query(
+    `select 1 from fan.profile where tenant_id = $1 and id = $2 and deleted_at is null`,
+    [ctx.tenant.id, input.profileId],
+  );
   if (!profile.rowCount) return { ok: false, error: T.notFound };
   let clocks;
   try {
@@ -42,12 +42,33 @@ export async function addNoteAction(input: { profileId: string; body: string }):
     if (err instanceof NoPolicyError) return { ok: false, error: T.noPolicy };
     throw err;
   }
-  await addModerationNote(builderDb(), {
-    tenantId: ctx.tenant.id,
-    profileId: input.profileId.toLowerCase(),
-    body,
-    author: ctx.actor.kind === 'galaxie_staff' ? `galaxie:${ctx.userId}` : `user:${ctx.userId}`,
-    purgeAt: clocks.decisionPurgeAt,
+  const galaxie = ctx.actor.kind === 'galaxie_staff';
+  const tenantId = ctx.tenant.id;
+  const author = galaxie ? `galaxie:${ctx.userId}` : `user:${ctx.userId}`;
+  const profileId = input.profileId.toLowerCase();
+  const db = builderDb();
+  // a nota e a auditoria (sem o texto, que fica só na ficha) entram juntas
+  const id = await db.transaction(async (tx) => {
+    const noteId = await addModerationNote(tx, {
+      tenantId,
+      profileId,
+      body,
+      author,
+      purgeAt: clocks.decisionPurgeAt,
+    });
+    if (!noteId) return null;
+    await recordModerationDecision(tx as unknown as typeof db, {
+      tenantId,
+      actor: { id: author, kind: galaxie ? 'galaxie' : 'person' },
+      action: 'note.add',
+      clocks,
+      subjectProfileId: profileId,
+      reason: 'note.add',
+      rules: { note: noteId },
+    });
+    return noteId;
   });
+  // excluído entre a checagem e a gravação
+  if (!id) return { ok: false, error: T.notFound };
   return { ok: true };
 }

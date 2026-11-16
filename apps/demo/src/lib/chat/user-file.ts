@@ -11,7 +11,7 @@ export interface UserFileSanction {
   id: string;
   level: 'warning' | 'mute' | 'suspension' | 'expulsion' | 'ban';
   hidden: boolean;
-  scope: 'tenant' | 'place';
+  scope: 'tenant' | 'place' | 'community';
   reason: string;
   decidedByKind: 'person' | 'cosmos' | 'galaxie' | 'system';
   startsAt: string;

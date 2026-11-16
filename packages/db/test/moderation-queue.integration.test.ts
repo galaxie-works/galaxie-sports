@@ -1027,6 +1027,17 @@ describe('notas internas da ficha (#973)', () => {
 
     await db.transaction((tx) => eraseModerationContent(tx, tenantId, fan.id));
     expect(await moderationNotesFor(db, tenantId, fan.id)).toEqual([]);
+    await pg`update fan.profile set deleted_at = now(), external_profile_id = null, nickname = null, avatar_url = null
+              where id = ${fan.id}`;
+    expect(
+      await addModerationNote(db, {
+        tenantId,
+        profileId: fan.id,
+        body: 'tarde',
+        author: 'user:a',
+        purgeAt: future,
+      }),
+    ).toBeNull();
     expect((await moderationNotesFor(db, tenantId, other.id)).map((n) => n.body)).toEqual(['outra']);
   });
 });

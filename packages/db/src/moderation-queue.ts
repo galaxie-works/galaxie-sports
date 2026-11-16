@@ -1574,9 +1574,16 @@ export async function purgeModeration(
         ),
       )
       .returning({ id: moderationAudit.id });
+    // no relógio, e as de torcedor excluído que tenham entrado junto com a exclusão
     const notes = await tx
       .delete(moderationNote)
-      .where(sql`${moderationNote.purgeAt} <= now()`)
+      .where(
+        or(
+          sql`${moderationNote.purgeAt} <= now()`,
+          sql`exists (select 1 from fan.profile p where p.tenant_id = ${moderationNote.tenantId}
+            and p.id = ${moderationNote.profileId} and p.deleted_at is not null)`,
+        ),
+      )
       .returning({ id: moderationNote.id });
     return {
       contents: contentCases.length + contentAudit.length,
@@ -1683,22 +1690,21 @@ export interface ModerationNoteRow {
   createdAt: Date;
 }
 
-/** Nota interna da equipe sobre o torcedor. Só entra: corrigir é escrever outra. */
+/**
+ * Nota interna da equipe sobre o torcedor. Só entra: corrigir é escrever outra. Perfil excluído não recebe nota
+ * (null): a checagem e a gravação são um comando só, e o expurgo varre o que escapar de uma exclusão simultânea.
+ */
 export async function addModerationNote(
   db: Executor,
   input: { tenantId: string; profileId: string; body: string; author: string; purgeAt: Date },
-): Promise<string> {
-  const [row] = await db
-    .insert(moderationNote)
-    .values({
-      tenantId: input.tenantId,
-      profileId: input.profileId,
-      body: input.body,
-      author: input.author,
-      purgeAt: input.purgeAt,
-    })
-    .returning({ id: moderationNote.id });
-  return row!.id;
+): Promise<string | null> {
+  const rows = await db.execute<{ id: string }>(sql`
+    insert into engage.moderation_note (tenant_id, profile_id, body, author, purge_at)
+    select ${input.tenantId}, ${input.profileId}, ${input.body}, ${input.author}, ${input.purgeAt.toISOString()}::timestamptz
+     where exists (select 1 from fan.profile p
+                    where p.tenant_id = ${input.tenantId} and p.id = ${input.profileId} and p.deleted_at is null)
+    returning id`);
+  return (rows as unknown as Array<{ id: string }>)[0]?.id ?? null;
 }
 
 /** Notas do torcedor, da mais recente para a mais antiga. */
