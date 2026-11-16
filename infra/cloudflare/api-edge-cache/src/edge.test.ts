@@ -119,6 +119,14 @@ describe('cacheKeyUrl', () => {
     expect(s).not.toBe(p);
   });
 
+  it('só Referer não divide cópia com Origin da mesma página (a resposta sem Origin não leva CORS)', async () => {
+    const comOrigin = await cacheKeyUrl(req('/v1/x', { 'x-galaxie-key': 'k', origin: 'https://b.example' }));
+    const soReferer = await cacheKeyUrl(
+      req('/v1/x', { 'x-galaxie-key': 'k', referer: 'https://b.example/jogo/1' }),
+    );
+    expect(comOrigin).not.toBe(soReferer);
+  });
+
   it('origem da página: Origin, ou a do Referer', () => {
     expect(pageOrigin(new Headers({ origin: 'https://a.example' }))).toBe('https://a.example');
     expect(pageOrigin(new Headers({ referer: 'https://b.example/jogo/1?x=1' }))).toBe('https://b.example');

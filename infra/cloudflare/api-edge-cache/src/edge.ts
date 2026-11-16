@@ -148,7 +148,9 @@ export async function cacheKeyUrl(request: Request): Promise<string> {
   if (!apiKey) throw new Error('requisição sem chave da API não tem chave de cache');
   const locale = resolveLocale(url.searchParams.get('locale'), request.headers.get('accept-language'));
   const keyHash = await sha256Hex(`${apiKey.kind}:${apiKey.key}`);
-  const originHash = (await sha256Hex(pageOrigin(request.headers))).slice(0, 32);
+  // `Origin` presente ou só `Referer` não dividem cópia: a API só emite `Access-Control-Allow-Origin` com `Origin`.
+  const originMode = request.headers.has('origin') ? 'o' : 'r';
+  const originHash = (await sha256Hex(`${originMode}:${pageOrigin(request.headers)}`)).slice(0, 32);
   const kind = apiKey.kind === 'secret' ? 's' : 'p';
   return `https://${url.hostname.toLowerCase()}/__edge-cache/${kind}-${keyHash}/${locale}/${originHash}${url.pathname}${sortedQuery(url)}`;
 }
