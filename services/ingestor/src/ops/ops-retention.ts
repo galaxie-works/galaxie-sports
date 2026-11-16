@@ -10,6 +10,7 @@
  * | ops.job_request         | 30 dias depois de encerrado (pendente e em execução ficam, com a fila)     |
  * | ops.normalize_failure   | 90 dias depois de resolvida (pendente e poison ficam)                      |
  * | api.webhook_delivery    | entregue: 30 dias; DLQ (`dead`): 90 dias; pendente fica                    |
+ * | api.access_error_daily  | 30 dias (por `day`; o diagnóstico de chaves olha a última semana)          |
  *
  * O `ops.change_feed` tem job próprio (`change-feed-prune`, change-feed-retention.ts) e o `raw.api_response` está
  * em raw-retention.ts. Ficam para sempre, de propósito: `core.event_state_log` (a API pública mostra o histórico
@@ -43,6 +44,7 @@ export const OPS_RETENTION = {
   normalizeFailure: { table: 'ops.normalize_failure', days: 90, rule: 'só falhas resolvidas' },
   webhookDelivered: { table: 'api.webhook_delivery', days: 30, rule: 'entregues' },
   webhookDead: { table: 'api.webhook_delivery', days: 90, rule: 'DLQ (dead)' },
+  accessErrors: { table: 'api.access_error_daily', days: 30, rule: 'erros de acesso por dia (diagnóstico)' },
 } as const satisfies Record<string, RetentionPolicy>;
 
 export type OpsRetentionKey = keyof typeof OPS_RETENTION;
@@ -130,6 +132,15 @@ const TARGETS: Target[] = [
     victims: (cutoff) => sql`
       select w.id from api.webhook_delivery w
        where w.status = 'dead' and coalesce(w.last_attempt_at, w.created_at) < ${iso(cutoff)}`,
+  },
+  {
+    key: 'accessErrors',
+    table: 'api.access_error_daily',
+    // PK composta: o lote sai pelo ctid (a linha não é atualizada entre a seleção e o DELETE do mesmo comando)
+    pk: 'ctid',
+    victims: (cutoff) => sql`
+      select a.ctid from api.access_error_daily a
+       where a.day < ${cutoff.toISOString().slice(0, 10)}::date`,
   },
 ];
 

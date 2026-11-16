@@ -1,6 +1,6 @@
 {
   "id": "66608ae8-e8d2-4167-b490-e278893ca3d2",
-  "prevId": "e8f03c35-30a8-4fa0-9ede-3788601a3631",
+  "prevId": "11277936-76c2-4ef2-bdb8-d16926557afb",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -16444,6 +16444,18 @@
           "primaryKey": false,
           "notNull": false
         },
+        "duration_ms": {
+          "name": "duration_ms",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "response_excerpt": {
+          "name": "response_excerpt",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "delivered_at": {
           "name": "delivered_at",
           "type": "timestamp with time zone",
@@ -25223,6 +25235,106 @@
           "value": "\"engage\".\"shop_store\".\"credentials_sealed\" is null or \"engage\".\"shop_store\".\"credentials_sealed\" like 'enc:%'"
         }
       },
+      "isRLSEnabled": false
+    },
+    "api.access_error_daily": {
+      "name": "access_error_daily",
+      "schema": "api",
+      "columns": {
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "day": {
+          "name": "day",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reason": {
+          "name": "reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "key_prefix": {
+          "name": "key_prefix",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "detail": {
+          "name": "detail",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "count": {
+          "name": "count",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "last_at": {
+          "name": "last_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "access_error_daily_day_idx": {
+          "name": "access_error_daily_day_idx",
+          "columns": [
+            {
+              "expression": "day",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "access_error_daily_tenant_id_tenant_id_fk": {
+          "name": "access_error_daily_tenant_id_tenant_id_fk",
+          "tableFrom": "access_error_daily",
+          "tableTo": "tenant",
+          "schemaTo": "api",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "access_error_daily_tenant_id_day_reason_key_prefix_detail_pk": {
+          "name": "access_error_daily_tenant_id_day_reason_key_prefix_detail_pk",
+          "columns": [
+            "tenant_id",
+            "day",
+            "reason",
+            "key_prefix",
+            "detail"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
       "isRLSEnabled": false
     }
   },
