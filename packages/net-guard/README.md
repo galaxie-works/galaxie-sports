@@ -14,4 +14,4 @@ Nenhum pacote do repo nem dependência externa.
 
 ## Usado por
 
-`services/ingestor`, `services/ai-agents`.
+`services/ingestor`, `services/ai-agents`, `apps/api` (foto de perfil, #1025).
