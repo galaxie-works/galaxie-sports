@@ -24,6 +24,7 @@ import { moduleLimitsOf } from '../engage/module-limits.js';
 import { formatSse, processLimitRetryAfter, SseConnection } from '../realtime/sse.js';
 import { parseInput } from '../util.js';
 import { gameRoomKey } from './game.js';
+import { reactionRoomKey } from './hub.js';
 import { ChatHub, formatCursor, parseCursor, type ChatBatch, type ChatCursor } from './hub.js';
 import { PEAK_FLAG_MS, type ChatPeak } from './peak.js';
 
@@ -51,6 +52,8 @@ interface Deps {
   gameKinds(tenantId: string): Promise<readonly string[] | null>;
   /** Mensagens do jogo até agora (o widget troca a lista inteira; correção de VAR vem com o mesmo id). */
   gameSnapshot(fixtureId: string): Promise<{ kind: string }[]>;
+  /** Total das reações do jogo na sala (#967), para quem entra. */
+  reactionTotals(tenantId: string, fixtureId: string): Promise<Record<string, number>>;
 }
 
 const StreamQuery = z.object({ last_event_id: z.string().max(40).optional() });
@@ -246,6 +249,15 @@ export function registerChatStream(app: FastifyInstance, deps: Deps): void {
       const gameBacklog: object[] = [];
       const gameOf = (list: object[]) =>
         (list as { kind: string }[]).filter((m) => !kinds || kinds.includes(m.kind));
+      // reações (#967): a contagem do segundo chega por broadcast, uma vez por segundo, já agregada
+      // a contagem que chega antes do total inicial espera e sai depois dele (senão o total inicial, lido antes,
+      // chegaria por último e voltaria o contador do widget para trás)
+      let reactionsReady = false;
+      const reactionBacklog: object[] = [];
+      const unsubscribeReactions = deps.hub.subscribe(reactionRoomKey(tenant.tenantId, fixtureId), (b) => {
+        if (!reactionsReady) return void reactionBacklog.push(...b.messages);
+        if (!conn.closed) for (const tally of b.messages) conn.write(formatSse('chat.reactions', tally));
+      });
       const unsubscribeGame = deps.hub.subscribe(gameRoomKey(fixtureId), (b) => {
         if (!gameReady) return void gameBacklog.push(...b.messages);
         const messages = gameOf(b.messages);
@@ -302,6 +314,7 @@ export function registerChatStream(app: FastifyInstance, deps: Deps): void {
         clearInterval(heartbeat);
         unsubscribe();
         unsubscribeGame();
+        unsubscribeReactions();
         open.delete(conn);
         releaseSlot();
         conn.closed = true;
@@ -339,6 +352,14 @@ export function registerChatStream(app: FastifyInstance, deps: Deps): void {
         request.log.warn({ err }, 'chat SSE: mensagens do jogo indisponíveis');
       }
       gameReady = true;
+      try {
+        const total = await deps.reactionTotals(tenant.tenantId, fixtureId);
+        conn.write(formatSse('chat.reactions', { delta: {}, total, snapshot: true }));
+      } catch {
+        // contador fora: as reações voltam no próximo segundo
+      }
+      reactionsReady = true;
+      for (const tally of reactionBacklog.splice(0)) conn.write(formatSse('chat.reactions', tally));
       const late = gameOf(gameBacklog.splice(0));
       if (late.length) conn.write(formatSse('chat.game', { messages: late }));
       replaying = false;
