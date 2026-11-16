@@ -2,7 +2,11 @@ import Fastify from 'fastify';
 import { describe, expect, it, vi } from 'vitest';
 import * as z from 'zod';
 import { tagsForChange } from './change-feed.js';
+import { EDGE_MAX_TTL_SEC, EDGE_TTL_HEADER } from './edge.js';
 import {
+  CACHE_TAG_MAX,
+  cacheTagHeader,
+  isCdnTag,
   LEGACY_ENTRY_TTL_SEC,
   matchesEtag,
   remainingTtl,
@@ -225,6 +229,70 @@ describe('surrogateKeyHeader', () => {
     expect(tags.join(' ').length).toBeGreaterThan(SURROGATE_KEY_MAX);
     expect(header).toBe('event competition');
     expect(header.length).toBeLessThanOrEqual(SURROGATE_KEY_MAX);
+  });
+});
+
+describe('Cache-Tag (Cloudflare)', () => {
+  it('as mesmas tags, separadas por vírgula', () => {
+    expect(cacheTagHeader(['event', 'event:1', 'competition:2'])).toBe('event,event:1,competition:2');
+  });
+
+  it('só tags aceitas pela Cloudflare: ASCII imprimível, sem espaço nem vírgula, até 1.024 caracteres', () => {
+    expect(isCdnTag('event:01a16b43-0674')).toBe(true);
+    expect(isCdnTag('')).toBe(false);
+    expect(isCdnTag('a b')).toBe(false);
+    expect(isCdnTag('a,b')).toBe(false);
+    expect(isCdnTag('clássico')).toBe(false);
+    expect(isCdnTag('x'.repeat(1024))).toBe(true);
+    expect(isCdnTag('x'.repeat(1025))).toBe(false);
+    expect(cacheTagHeader(['event', 'a b', 'event'])).toBe('event');
+  });
+
+  it('acima do teto fica só com as tags de coleção', () => {
+    const tags = [
+      'event',
+      ...Array.from({ length: 200 }, (_, i) => `event:${'0'.repeat(30)}${i}`),
+      'competition',
+    ];
+    expect(tags.join(',').length).toBeGreaterThan(CACHE_TAG_MAX);
+    expect(cacheTagHeader(tags)).toBe('event,competition');
+  });
+});
+
+describe('sendCached — marca da borda (x-galaxie-edge-ttl)', () => {
+  function app(ttl: number, loadTtl?: number) {
+    const a = Fastify();
+    a.get('/v1/r', (request, reply) =>
+      sendCached(request, reply, new MemoryResponseCache(), {
+        ttl,
+        load: async () => ({
+          body: { ok: true },
+          tags: ['competition', 'competition:1'],
+          ...(loadTtl ? { ttl: loadTtl } : {}),
+        }),
+      }),
+    );
+    return a;
+  }
+
+  it('recurso de 24 h: Cache-Tag e marca da borda no teto de 15 min', async () => {
+    const res = await app(24 * 3600).inject({ url: '/v1/r' });
+    expect(res.headers['cache-tag']).toBe('competition,competition:1');
+    expect(res.headers['surrogate-key']).toBe('competition competition:1');
+    expect(res.headers[EDGE_TTL_HEADER]).toBe(String(EDGE_MAX_TTL_SEC));
+  });
+
+  it('recurso de 1 h vai à borda; de 5 min ou ao vivo (10 s numa rota de 1 h), não', async () => {
+    expect((await app(3600).inject({ url: '/v1/r' })).headers[EDGE_TTL_HEADER]).toBe(
+      String(EDGE_MAX_TTL_SEC),
+    );
+    expect((await app(300).inject({ url: '/v1/r' })).headers[EDGE_TTL_HEADER]).toBeUndefined();
+    expect((await app(3600, 10).inject({ url: '/v1/r' })).headers[EDGE_TTL_HEADER]).toBeUndefined();
+  });
+
+  it('token do torcedor (Authorization) não vai à borda', async () => {
+    const res = await app(3600).inject({ url: '/v1/r', headers: { authorization: 'Bearer gft_x' } });
+    expect(res.headers[EDGE_TTL_HEADER]).toBeUndefined();
   });
 });
 

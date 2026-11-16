@@ -212,6 +212,24 @@ export const BACKFILL_TABELAS = defineTaskType({
   maxAttempts: 5,
 });
 
+/**
+ * Domínio comprovado por TXT (plataforma comercial, #1136 F2): consulta `_galaxie-verify.<host>` e, se algum registro
+ * é igual ao `txt_token` de `billing.domain`, grava `verified_at`; sempre grava `last_checked_at` e `last_error`.
+ * Idempotente e curta; o painel do cliente enfileira uma por domínio (`dedupe_key` = id). A reconferência diária
+ * dos comprovados fica para a F3. Sem prévia: não há o que planejar.
+ */
+export const TENANT_VERIFY_DOMAIN = defineTaskType({
+  type: 'tenant.verify_domain',
+  descricao:
+    'Confere o registro TXT _galaxie-verify.<host> de um domínio da marca e marca o domínio como comprovado quando o valor bate.',
+  params: z.object({
+    domainId: z.string().uuid().describe('Id do domínio em billing.domain'),
+  }),
+  previa: false,
+  destrutiva: false,
+  maxAttempts: 3,
+});
+
 export type TaskRegistry = readonly TaskTypeDef[];
 
 /** Todos os tipos conhecidos. */
@@ -222,6 +240,7 @@ export const TASK_TYPES: TaskRegistry = [
   CARGA_HISTORICA,
   BACKFILL_NORMALIZAR,
   BACKFILL_TABELAS,
+  TENANT_VERIFY_DOMAIN,
 ] as unknown as TaskRegistry;
 
 export function taskType(type: string, registry: TaskRegistry = TASK_TYPES): TaskTypeDef | undefined {

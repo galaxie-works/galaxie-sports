@@ -1,16 +1,25 @@
+import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { dirname, join, relative } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
   ACTIONS,
   actionsOf,
+  ALL_TENANT_ROLES,
   atLeast,
   can,
   canAssign,
   canReceive,
   check,
+  CONFIGURABLE_ROLES,
   DELEGATION_FLOOR,
   diffOverrides,
   FIXED_ACTIONS,
   isConfigurable,
+  isTenantAction,
+  isTenantRole,
+  LATERAL_ALLOW,
+  LATERAL_ROLES,
   normalizeOverrides,
   roleAllows,
   setRolePermission,
@@ -119,8 +128,138 @@ describe('matriz de cargos (#1019)', () => {
     expect(canAssign({ kind: 'galaxie_staff' }, T, 'owner')).toBe(true);
   });
 
-  it('toda ação tem cargo mínimo válido', () => {
+  it('toda ação tem cargo mínimo válido (na Escada)', () => {
     for (const min of Object.values(ACTIONS)) expect(TENANT_ROLES).toContain(min);
+  });
+
+  it('as ações de integração (chaves, webhooks, Builder, domínios) começam no Admin, como settings.manage', () => {
+    for (const a of ['keys', 'webhooks', 'builder', 'domains'] as const) {
+      expect(ACTIONS[`${a}.view`]).toBe('admin');
+      expect(ACTIONS[`${a}.manage`]).toBe('admin');
+      expect(VIEW_OF[`${a}.manage`]).toBe(`${a}.view`);
+    }
+  });
+});
+
+describe('cargos laterais: Desenvolvedor e Financeiro (#1136, PL9)', () => {
+  it('estão fora da Escada, mas são cargos do tenant', () => {
+    expect(LATERAL_ROLES).toEqual(['developer', 'billing']);
+    expect(ALL_TENANT_ROLES).toEqual([...TENANT_ROLES, ...LATERAL_ROLES]);
+    for (const r of LATERAL_ROLES) {
+      expect(isTenantRole(r)).toBe(true);
+      expect(TENANT_ROLES as readonly string[]).not.toContain(r);
+      expect(CONFIGURABLE_ROLES as readonly string[]).not.toContain(r);
+    }
+  });
+
+  it('o Desenvolvedor integra e não vê cobrança, moderação nem membros', () => {
+    expect(actionsOf('developer')).toEqual([
+      'keys.view',
+      'keys.manage',
+      'webhooks.view',
+      'webhooks.manage',
+      'builder.view',
+      'builder.manage',
+      'domains.view',
+      'domains.manage',
+    ]);
+    expect(can(member('developer'), 'keys.manage', { tenantId: T })).toBe(true);
+    expect(can(member('developer'), 'builder.manage', { tenantId: T })).toBe(true);
+    for (const a of [
+      'billing.view',
+      'members.view',
+      'moderation.queue.view',
+      'settings.manage',
+      'cosmos.view',
+    ] as const)
+      expect(check(member('developer'), a, { tenantId: T })).toEqual({ ok: false, reason: 'role' });
+  });
+
+  it('o Financeiro vê a cobrança e compra créditos, e nada de produto', () => {
+    expect(actionsOf('billing')).toEqual(['billing.view', 'billing.buy_credits']);
+    expect(can(member('billing'), 'billing.buy_credits', { tenantId: T })).toBe(true);
+    expect(can(member('billing'), 'keys.view', { tenantId: T })).toBe(false);
+    expect(can(member('billing'), 'cosmos.manage', { tenantId: T })).toBe(false);
+  });
+
+  it('a lista de cada lateral só tem ações da matriz', () => {
+    for (const r of LATERAL_ROLES) for (const a of LATERAL_ALLOW[r]) expect(isTenantAction(a)).toBe(true);
+  });
+
+  it('a configuração do Dono não alcança os laterais: nem dá, nem tira, nem fica gravada', () => {
+    const forged: RoleOverrides = {
+      developer: { 'billing.view': true, 'keys.manage': false },
+      billing: { 'keys.manage': true },
+    };
+    expect(roleAllows('developer', 'billing.view', forged)).toBe(false);
+    expect(roleAllows('developer', 'keys.manage', forged)).toBe(true);
+    expect(roleAllows('billing', 'keys.manage', forged)).toBe(false);
+    expect(normalizeOverrides(forged)).toEqual({});
+    for (const r of LATERAL_ROLES) for (const a of TENANT_ACTIONS) expect(canReceive(r, a)).toBe(false);
+    expect(setRolePermission(null, 'developer', 'billing.view', true)).toEqual({});
+    // a Escada continua configurável como antes
+    expect(setRolePermission(null, 'admin', 'cosmos.manage', true)).toEqual({
+      admin: { 'cosmos.manage': true },
+    });
+  });
+
+  it('Admin e Dono dão cargo lateral; Moderador sênior, não; um lateral não dá cargo a ninguém', () => {
+    for (const r of LATERAL_ROLES) {
+      expect(canAssign(member('owner'), T, r)).toBe(true);
+      expect(canAssign(member('admin'), T, r)).toBe(true);
+      expect(canAssign(member('senior_moderator'), T, r)).toBe(false);
+      expect(canAssign(member('admin'), T, null, r)).toBe(true);
+      expect(canAssign(member('senior_moderator'), T, 'moderator', r)).toBe(false);
+      expect(canAssign(member(r), T, 'volunteer')).toBe(false);
+      expect(canAssign(member(r), T, 'moderator')).toBe(false);
+      expect(canAssign(member(r), T, null, 'moderator')).toBe(false);
+      // Desenvolvedor não vira Admin pela mão de outro Admin
+      expect(canAssign(member('admin'), T, 'admin', r)).toBe(false);
+    }
+    expect(canAssign({ kind: 'galaxie_staff' }, T, 'developer')).toBe(true);
+    expect(atLeast('developer', 'moderator')).toBe(false);
+    expect(atLeast('developer', 'volunteer')).toBe(false);
+  });
+
+  it('escopo e outro tenant valem para os laterais como para a Escada', () => {
+    expect(check(member('developer'), 'keys.view', { tenantId: 'tenant-b' })).toEqual({
+      ok: false,
+      reason: 'other_tenant',
+    });
+    expect(check(member('developer', { communities: ['c1'] }), 'keys.view', { tenantId: T })).toEqual({
+      ok: false,
+      reason: 'scope',
+    });
+  });
+});
+
+/**
+ * Toda ação que o console usa (`can(ctx, '…')`, `allowed(ctx, '…')`, `canSomewhere(ctx, '…')`, `check(…, '…')` e
+ * `action: '…'` do menu) existe na matriz: uma ação digitada errada não vira um "nunca pode" silencioso.
+ */
+describe('cobertura: toda ação usada no console existe na matriz', () => {
+  const DEMO_SRC = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'apps', 'demo', 'src');
+  const files = (dir: string): string[] =>
+    readdirSync(dir).flatMap((name) => {
+      const path = join(dir, name);
+      if (statSync(path).isDirectory()) return files(path);
+      return /\.tsx?$/.test(name) && !/\.test\.tsx?$/.test(name) ? [path] : [];
+    });
+  const CALLS = /\b(?:can|canSomewhere|allowed|check)\([^()]*?'([a-z_]+(?:\.[a-z_]+)+)'/g;
+  /** O `action:` de cada área do menu (`CLIENT_NAV`); fora do menu, `action:` é outra coisa (auditoria, fila). */
+  const MENU = /\baction:\s*'([a-z_]+(?:\.[a-z_]+)+)'/g;
+
+  it('apps/demo', () => {
+    const used = new Map<string, string>();
+    for (const file of files(DEMO_SRC)) {
+      const code = readFileSync(file, 'utf8');
+      const rel = relative(DEMO_SRC, file).replace(/\\/g, '/');
+      const patterns = rel.endsWith('components/client/client-nav.tsx') ? [CALLS, MENU] : [CALLS];
+      for (const re of patterns) for (const m of code.matchAll(re)) used.set(m[1]!, rel);
+    }
+    expect(used.size).toBeGreaterThan(10);
+    const unknown = [...used].filter(([a]) => !isTenantAction(a)).map(([a, f]) => `${a} (${f})`);
+    expect(unknown).toEqual([]);
   });
 });
 

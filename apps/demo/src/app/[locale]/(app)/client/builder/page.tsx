@@ -12,6 +12,7 @@ import { CATALOG_TAB_PARAM, widgetFamily } from '@/lib/builder/sports';
 import { builderDb, listWidgets } from '@/lib/builder/store';
 import { widgetTaskAccess, widgetTaskMinimums } from '@/lib/cosmos/widget-tasks';
 import { getT, getTimeZone } from '@/lib/i18n/server';
+import { isStaffRole } from '@/lib/auth/roles';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getT();
@@ -37,7 +38,7 @@ async function Widgets({
         return (
           <div className="flex flex-col gap-4">
             {minimums?.compose != null ? (
-              <WidgetComposer minCredits={ctx.role === 'admin' ? null : minimums.compose} />
+              <WidgetComposer minCredits={isStaffRole(ctx.role) ? null : minimums.compose} />
             ) : null}
             <WidgetsPanel
               timeZone={timeZone}

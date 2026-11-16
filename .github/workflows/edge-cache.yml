@@ -1,0 +1,49 @@
+name: Worker de cache de borda
+
+# Testes e typecheck do Worker da Cloudflare (infra/cloudflare/api-edge-cache, #1257). A pasta fica fora do workspace
+# pnpm (não é pacote do monorepo) e, por isso, fora do `turbo` do ci.yml; aqui só roda quando ela muda. Só leitura:
+# nada é publicado (o deploy do Worker é à mão, README da pasta). O teste confere a lista de locales contra
+# packages/contracts/src/common.ts, por isso a mudança nela também dispara.
+on:
+  pull_request:
+    paths:
+      - infra/cloudflare/**
+      - packages/contracts/src/common.ts
+      - .github/workflows/edge-cache.yml
+  push:
+    branches: [main]
+    paths:
+      - infra/cloudflare/**
+      - packages/contracts/src/common.ts
+      - .github/workflows/edge-cache.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: edge-cache-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  test:
+    name: testes do Worker de cache de borda
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      # só as dependências da raiz (vitest e typescript): o Worker não importa nada do monorepo
+      - run: pnpm install --frozen-lockfile --filter galaxie-sports
+
+      - name: Typecheck
+        run: pnpm exec tsc -p infra/cloudflare/api-edge-cache/tsconfig.json
+
+      - name: Testes
+        run: pnpm exec vitest run --root infra/cloudflare/api-edge-cache

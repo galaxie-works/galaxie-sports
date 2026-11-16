@@ -19,7 +19,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { authClient } from '@/lib/auth/client';
-import { canAccessClientPanel } from '@/lib/auth/roles';
+import { canAccessAdmin, canAccessClientPanel } from '@/lib/auth/roles';
 import type { FanProfile } from '@/lib/fan/profile';
 import { initials } from '@/lib/format';
 import { useI18n } from '@/lib/i18n/client';
@@ -60,7 +60,7 @@ export function UserMenu() {
   }
   if (!data) return null;
   const { user } = data;
-  const isAdmin = user.role === 'admin';
+  const isAdmin = canAccessAdmin(user.role);
   const isClient = user.role === 'client';
 
   async function signOut() {

@@ -11,6 +11,7 @@ import { readChannelListPortal } from '@/lib/channel-list/server';
 import { unmatchedChannels, WTW_MARKETS } from '@/lib/channel-list/types';
 import { channelImportAccess, channelImportMinimum } from '@/lib/cosmos/channel-import-tasks';
 import { getT, getTimeZone } from '@/lib/i18n/server';
+import { isStaffRole } from '@/lib/auth/roles';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getT();
@@ -36,7 +37,7 @@ async function Channels() {
           <div className="flex flex-col gap-4">
             {cosmosMin != null ? (
               <ChannelImport
-                minCredits={ctx.role === 'admin' ? null : cosmosMin}
+                minCredits={isStaffRole(ctx.role) ? null : cosmosMin}
                 country={markets.length === 1 ? markets[0]! : null}
                 unmatched={view ? unmatchedChannels(view).map((c) => c.name) : []}
               />

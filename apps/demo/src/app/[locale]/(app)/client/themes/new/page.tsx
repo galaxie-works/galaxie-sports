@@ -8,6 +8,7 @@ import { BrandThemeEditor } from '@/components/client/brand-theme-editor';
 import { ClientArea } from '@/components/client/client-area';
 import { can } from '@/lib/client/permissions';
 import { getT } from '@/lib/i18n/server';
+import { isStaffRole } from '@/lib/auth/roles';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getT();
@@ -40,10 +41,10 @@ export default async function NewBrandThemePage() {
                 initial={null}
                 // a leitura do brandbook gasta créditos do cliente: só para quem usa a Cosmos e salva temas
                 cosmos={
-                  ctx.role !== 'admin' &&
+                  !isStaffRole(ctx.role) &&
                   ctx.tenant.modules.includes('cosmos_ai') &&
                   can(ctx, 'cosmos.assistant.ask') &&
-                  can(ctx, 'settings.manage')
+                  can(ctx, 'builder.manage')
                 }
               />
             )}

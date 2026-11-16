@@ -19,6 +19,7 @@ import { revalidatePath } from 'next/cache';
 
 import { builderDb } from '@/lib/builder/store';
 import { can } from '@/lib/client/permissions';
+import { withStaffAudit } from '@/lib/client/staff';
 import { readClientContext } from '@/lib/client/session';
 import { isUuid } from '@/lib/client/tenants';
 import { parseWebhookForm, webhookSecrets, type WebhookFormInput } from '@/lib/client/webhooks';
@@ -54,13 +55,13 @@ async function texts() {
   return getDictionary(await getRequestLocale()).webhooks;
 }
 
-async function tenantOrError() {
+/** Sessão com tenant e a ação dos webhooks (`webhooks.manage` para escrever, `webhooks.view` para ler), ou o erro. */
+async function tenantOrError(action: 'webhooks.manage' | 'webhooks.view' = 'webhooks.manage') {
   const ctx = await readClientContext();
   const t = await texts();
   if (!ctx) return { t, error: t.errors.forbidden } as const;
   if (!ctx.tenant) return { t, error: t.errors.noTenant } as const;
-  // configuração do tenant: cargo com settings.manage (#1019)
-  if (!can(ctx, 'settings.manage'))
+  if (!can(ctx, action))
     return { t, error: getDictionary(await getRequestLocale()).client.errors.role } as const;
   return { t, tenant: ctx.tenant } as const;
 }
@@ -76,86 +77,104 @@ function portalError(err: unknown, t: Awaited<ReturnType<typeof texts>>): string
   return t.errors.generic;
 }
 
-export async function createWebhook(input: WebhookFormInput): Promise<WebhookActionResult> {
-  const r = await tenantOrError();
-  if ('error' in r) return { ok: false, error: r.error };
-  const { t } = r;
-  const parsed = parseWebhookForm(input, r.tenant.modules);
-  if ('kind' in parsed) {
-    if (parsed.kind === 'ids') return { ok: false, error: fill(t.errors.ids, { field: t[parsed.field] }) };
-    return { ok: false, error: t.errors[parsed.kind] };
-  }
-  const secrets = webhookSecrets();
-  if (!secrets) return { ok: false, error: t.unavailable };
-  try {
-    const { secret } = await createTenantWebhook(builderDb(), r.tenant.id, parsed, secrets);
+export const createWebhook = withStaffAudit(
+  'webhooks.create',
+  async (input: WebhookFormInput): Promise<WebhookActionResult> => {
+    const r = await tenantOrError();
+    if ('error' in r) return { ok: false, error: r.error };
+    const { t } = r;
+    const parsed = parseWebhookForm(input, r.tenant.modules);
+    if ('kind' in parsed) {
+      if (parsed.kind === 'ids') return { ok: false, error: fill(t.errors.ids, { field: t[parsed.field] }) };
+      return { ok: false, error: t.errors[parsed.kind] };
+    }
+    const secrets = webhookSecrets();
+    if (!secrets) return { ok: false, error: t.unavailable };
+    try {
+      const { secret } = await createTenantWebhook(builderDb(), r.tenant.id, parsed, secrets);
+      revalidatePath(PATH);
+      return { ok: true, secret };
+    } catch (err) {
+      return { ok: false, error: portalError(err, t) };
+    }
+  },
+);
+
+export const rotateWebhookSecret = withStaffAudit(
+  'webhooks.rotate',
+  async (id: string): Promise<WebhookActionResult> => {
+    const r = await tenantOrError();
+    if ('error' in r) return { ok: false, error: r.error };
+    if (!isUuid(id)) return { ok: false, error: r.t.errors.notFound };
+    const secrets = webhookSecrets();
+    if (!secrets) return { ok: false, error: r.t.unavailable };
+    try {
+      const secret = await rotateTenantWebhookSecret(builderDb(), r.tenant.id, id, secrets);
+      if (!secret) return { ok: false, error: r.t.errors.notFound };
+      return { ok: true, secret };
+    } catch (err) {
+      return { ok: false, error: portalError(err, r.t) };
+    }
+  },
+);
+
+export const setWebhookActive = withStaffAudit(
+  'webhooks.set_active',
+  async (id: string, active: boolean): Promise<WebhookActionResult> => {
+    const r = await tenantOrError();
+    if ('error' in r) return { ok: false, error: r.error };
+    if (!isUuid(id)) return { ok: false, error: r.t.errors.notFound };
+    const ok = await setTenantWebhookActive(builderDb(), r.tenant.id, id, active === true);
+    if (!ok) return { ok: false, error: r.t.errors.notFound };
     revalidatePath(PATH);
-    return { ok: true, secret };
-  } catch (err) {
-    return { ok: false, error: portalError(err, t) };
-  }
-}
+    return { ok: true };
+  },
+);
 
-export async function rotateWebhookSecret(id: string): Promise<WebhookActionResult> {
-  const r = await tenantOrError();
-  if ('error' in r) return { ok: false, error: r.error };
-  if (!isUuid(id)) return { ok: false, error: r.t.errors.notFound };
-  const secrets = webhookSecrets();
-  if (!secrets) return { ok: false, error: r.t.unavailable };
-  try {
-    const secret = await rotateTenantWebhookSecret(builderDb(), r.tenant.id, id, secrets);
-    if (!secret) return { ok: false, error: r.t.errors.notFound };
-    return { ok: true, secret };
-  } catch (err) {
-    return { ok: false, error: portalError(err, r.t) };
-  }
-}
+export const deleteWebhook = withStaffAudit(
+  'webhooks.delete',
+  async (id: string): Promise<WebhookActionResult> => {
+    const r = await tenantOrError();
+    if ('error' in r) return { ok: false, error: r.error };
+    if (!isUuid(id)) return { ok: false, error: r.t.errors.notFound };
+    const ok = await deleteTenantWebhook(builderDb(), r.tenant.id, id);
+    if (!ok) return { ok: false, error: r.t.errors.notFound };
+    revalidatePath(PATH);
+    return { ok: true };
+  },
+);
 
-export async function setWebhookActive(id: string, active: boolean): Promise<WebhookActionResult> {
-  const r = await tenantOrError();
-  if ('error' in r) return { ok: false, error: r.error };
-  if (!isUuid(id)) return { ok: false, error: r.t.errors.notFound };
-  const ok = await setTenantWebhookActive(builderDb(), r.tenant.id, id, active === true);
-  if (!ok) return { ok: false, error: r.t.errors.notFound };
-  revalidatePath(PATH);
-  return { ok: true };
-}
+export const sendWebhookTest = withStaffAudit(
+  'webhooks.test',
+  async (id: string): Promise<WebhookActionResult> => {
+    const r = await tenantOrError();
+    if ('error' in r) return { ok: false, error: r.error };
+    if (!isUuid(id)) return { ok: false, error: r.t.errors.notFound };
+    const queued = await sendTenantWebhookTest(builderDb(), r.tenant.id, id);
+    // null: não é do tenant ou está desativado (o painel só oferece o teste com o webhook ativo)
+    if (queued == null) return { ok: false, error: r.t.errors.inactive };
+    revalidatePath(PATH);
+    return { ok: true };
+  },
+);
 
-export async function deleteWebhook(id: string): Promise<WebhookActionResult> {
-  const r = await tenantOrError();
-  if ('error' in r) return { ok: false, error: r.error };
-  if (!isUuid(id)) return { ok: false, error: r.t.errors.notFound };
-  const ok = await deleteTenantWebhook(builderDb(), r.tenant.id, id);
-  if (!ok) return { ok: false, error: r.t.errors.notFound };
-  revalidatePath(PATH);
-  return { ok: true };
-}
-
-export async function sendWebhookTest(id: string): Promise<WebhookActionResult> {
-  const r = await tenantOrError();
-  if ('error' in r) return { ok: false, error: r.error };
-  if (!isUuid(id)) return { ok: false, error: r.t.errors.notFound };
-  const queued = await sendTenantWebhookTest(builderDb(), r.tenant.id, id);
-  // null: não é do tenant ou está desativado (o painel só oferece o teste com o webhook ativo)
-  if (queued == null) return { ok: false, error: r.t.errors.inactive };
-  revalidatePath(PATH);
-  return { ok: true };
-}
-
-export async function replayWebhookDead(id: string): Promise<WebhookActionResult> {
-  const r = await tenantOrError();
-  if ('error' in r) return { ok: false, error: r.error };
-  if (!isUuid(id)) return { ok: false, error: r.t.errors.notFound };
-  const count = await replayTenantWebhookDead(builderDb(), r.tenant.id, id);
-  revalidatePath(PATH);
-  return { ok: true, count };
-}
+export const replayWebhookDead = withStaffAudit(
+  'webhooks.replay',
+  async (id: string): Promise<WebhookActionResult> => {
+    const r = await tenantOrError();
+    if ('error' in r) return { ok: false, error: r.error };
+    if (!isUuid(id)) return { ok: false, error: r.t.errors.notFound };
+    const count = await replayTenantWebhookDead(builderDb(), r.tenant.id, id);
+    revalidatePath(PATH);
+    return { ok: true, count };
+  },
+);
 
 /** Últimas entregas do webhook, para o diálogo do histórico. */
 export async function listWebhookDeliveries(
   id: string,
 ): Promise<{ ok: boolean; error?: string; rows?: DeliveryRow[] }> {
-  const r = await tenantOrError();
+  const r = await tenantOrError('webhooks.view');
   if ('error' in r) return { ok: false, error: r.error };
   if (!isUuid(id)) return { ok: false, error: r.t.errors.notFound };
   const rows = await listTenantWebhookDeliveries(builderDb(), r.tenant.id, id, 20);

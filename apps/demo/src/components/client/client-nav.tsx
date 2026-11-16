@@ -3,6 +3,7 @@
 import type { TenantAction } from '@galaxie/engage';
 import {
   Blocks,
+  Globe,
   Handshake,
   KeyRound,
   LayoutDashboard,
@@ -46,11 +47,11 @@ export type ClientNavIcon = ComponentType<SVGProps<SVGSVGElement>>;
 export const CLIENT_NAV = [
   { id: 'overview', href: '/client', icon: LayoutDashboard, group: 'account' },
   { id: 'members', href: '/client/users', icon: Users, group: 'account', action: 'members.view' },
-  { id: 'keys', href: '/client/keys', icon: KeyRound, group: 'account', action: 'settings.manage' },
+  { id: 'keys', href: '/client/keys', icon: KeyRound, group: 'account', action: 'keys.view' },
   // loja de features (plataforma comercial, #1137): todo cargo vê o que o plano inclui, como a visão geral
   { id: 'plans', href: '/client/plans', icon: Package, group: 'account' },
-  { id: 'builder', href: '/client/builder', icon: Blocks, group: 'content', action: 'settings.manage' },
-  { id: 'themes', href: '/client/themes', icon: Palette, group: 'content', action: 'settings.manage' },
+  { id: 'builder', href: '/client/builder', icon: Blocks, group: 'content', action: 'builder.view' },
+  { id: 'themes', href: '/client/themes', icon: Palette, group: 'content', action: 'builder.view' },
   { id: 'lineup', href: '/client/lineup', icon: Tv, group: 'content', action: 'settings.manage' },
   { id: 'channels', href: '/client/channels', icon: ListVideo, group: 'content', action: 'settings.manage' },
   {
@@ -94,8 +95,10 @@ export const CLIENT_NAV = [
     href: '/client/webhooks',
     icon: Webhook,
     group: 'integrations',
-    action: 'settings.manage',
+    action: 'webhooks.view',
   },
+  // domínios comprovados por TXT (plataforma comercial, #1136): quem integra (Desenvolvedor, Admin, Dono)
+  { id: 'domains', href: '/client/domains', icon: Globe, group: 'integrations', action: 'domains.view' },
 ] as const satisfies readonly {
   id: string;
   href: string;

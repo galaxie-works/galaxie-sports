@@ -62,8 +62,11 @@ describe('áreas por cargo e módulo (#1018, #1019)', () => {
     expect(groups[0]!.items.map((i) => i.id)).toEqual(['overview']);
   });
 
-  it('configuração exige settings.manage e a equipe exige members.view', () => {
-    expect(navRequirement('keys')).toEqual({ action: 'settings.manage' });
+  it('chaves exigem keys.view, domínios domains.view e a equipe members.view', () => {
+    expect(navRequirement('keys')).toEqual({ action: 'keys.view' });
+    expect(navRequirement('domains')).toEqual({ action: 'domains.view' });
+    expect(navRequirement('webhooks')).toEqual({ action: 'webhooks.view' });
+    expect(navRequirement('builder')).toEqual({ action: 'builder.view' });
     expect(navRequirement('members')).toEqual({ action: 'members.view' });
     expect(navRequirement('overview')).toEqual({});
   });

@@ -44,6 +44,11 @@ describe('resolveEntitlements', () => {
   it('plano Fan Experience: módulos do tenant, features do plano e faixa de países do plano', () => {
     const e = resolveEntitlements(catalog, inputs(), { now });
     expect(e.state).toBe('active');
+    expect(e.organizationId).toBeNull();
+    expect(
+      resolveEntitlements(catalog, inputs({ tenant: tenantRow({ organizationId: 'org-1' }) }), { now })
+        .organizationId,
+    ).toBe('org-1');
     expect(e.modules).toEqual(['core_data', 'semantic', 'where_to_watch']);
     expect(e.features).toContain('realtime.sse');
     expect(e.features).toContain('where_to_watch.rest');
