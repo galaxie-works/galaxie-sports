@@ -44,3 +44,7 @@ aaa2a1b0d770ad5f0a6b0ca04a8adff071c70a9f:apps/demo/src/lib/cosmos/widget-install
 # 67c7a018 (PR #1246, corte de domínio): falso positivo do generic-api-key no nome do middleware do 301 legado
 # (galaxie-legacy-api-301), sem segredo; desde o commit seguinte o nome é galaxie-legado-301-backend.
 67c7a01846be5ee3f4fc768d9c39220dcf07247f:infra/vps-telemetry/compose.yml:generic-api-key:130
+
+# afbbe063 (PR #1264, F2 b): falso positivo do generic-api-key num token TXT inventado no teste da tarefa
+# tenant.verify_domain; sem segredo. Desde o commit seguinte o token do teste é curto e sem entropia.
+afbbe063c330d04428f07472f1f3dbde7bb10779:services/ingestor/src/tasks/domain.test.ts:generic-api-key:12
