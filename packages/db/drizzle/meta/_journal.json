@@ -845,7 +845,21 @@
     {
       "idx": 120,
       "version": "7",
-      "when": 1794846440797,
+      "when": 1794846546448,
+      "tag": "0177_cargos_developer_billing",
+      "breakpoints": true
+    },
+    {
+      "idx": 121,
+      "version": "7",
+      "when": 1794846983043,
+      "tag": "0178_plataforma_organizacao",
+      "breakpoints": true
+    },
+    {
+      "idx": 122,
+      "version": "7",
+      "when": 1794848760839,
       "tag": "0180_comunidades",
       "breakpoints": true
     }
