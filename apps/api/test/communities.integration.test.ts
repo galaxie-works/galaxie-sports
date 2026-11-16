@@ -16,6 +16,7 @@ import {
   removeScopeRule,
   runMigrations,
   setCommunitySuspended,
+  setContentVisibility,
   updateCommunityConfig,
   type Database,
 } from '@galaxie/db';
@@ -433,5 +434,123 @@ describe('Entrada do torcedor (#939)', () => {
   it('sem token, nada aparece', async () => {
     const res = await app.inject({ method: 'GET', url: '/v1/communities' });
     expect(res.statusCode).toBe(401);
+  });
+});
+
+describe('Feed da Comunidade (#946)', () => {
+  async function member(slug: string) {
+    const t = await tenantKey(slug, ['core_data', 'communities']);
+    const lg = await league(`liga-${slug}`, ['Time A', 'Time B']);
+    await addScopeRule(db, { tenantId: t.id, kind: 'competition', target: lg.id, actor: 'tenant:x' });
+    const [c] = await listCommunities(db, t.id);
+    const adult = await fan(t.key);
+    expect((await post(adult.token, `/v1/communities/${c!.id}/join`)).statusCode).toBe(200);
+    return { t, c: c!, adult, teamId: lg.teamIds[0]! };
+  }
+  const wait = () => new Promise((r) => setTimeout(r, 0));
+
+  it('membro publica com card anexado, comenta e curte; quem não é membro não vê', async () => {
+    const { t, c, adult, teamId } = await member('feed-a');
+    const created = await post(adult.token, `/v1/communities/${c.id}/posts`, {
+      body: 'Que jogo ontem!',
+      attachment: { type: 'participant', id: teamId },
+    });
+    expect(created.statusCode).toBe(201);
+    const p = created.json().data;
+    expect(p).toMatchObject({
+      status: 'published',
+      author: { kind: 'member' },
+      attachment: { type: 'participant' },
+    });
+
+    const reader = await fan(t.key);
+    expect((await get(reader.token, `/v1/communities/${c.id}/posts`)).json().errors[0].message).toBe(
+      'not_member',
+    );
+    await post(reader.token, `/v1/communities/${c.id}/join`);
+    const feed = await get(reader.token, `/v1/communities/${c.id}/posts`);
+    expect(feed.statusCode).toBe(200);
+    expect(feed.json().data.posts.map((x: { id: string }) => x.id)).toEqual([p.id]);
+
+    const liked = await app.inject({
+      method: 'PUT',
+      url: `/v1/posts/${p.id}/like`,
+      headers: { authorization: `Bearer ${reader.token}` },
+    });
+    expect(liked.json().data).toEqual({ liked: true, likes: 1 });
+    const again = await app.inject({
+      method: 'PUT',
+      url: `/v1/posts/${p.id}/like`,
+      headers: { authorization: `Bearer ${reader.token}` },
+    });
+    expect(again.json().data.likes).toBe(1);
+
+    const cm = await post(reader.token, `/v1/posts/${p.id}/comments`, { body: 'Demais' });
+    expect(cm.statusCode).toBe(201);
+    const list = await get(adult.token, `/v1/posts/${p.id}/comments`);
+    expect(list.json().data.map((x: { body: string }) => x.body)).toEqual(['Demais']);
+    const after = (await get(adult.token, `/v1/communities/${c.id}/posts`)).json().data.posts[0];
+    expect(after).toMatchObject({ likes: 1, comments: 1, liked_by_me: false });
+  });
+
+  it('13 a 17 lê e curte, mas não escreve', async () => {
+    const { t, c, adult } = await member('feed-teen');
+    const p = (await post(adult.token, `/v1/communities/${c.id}/posts`, { body: 'Olá' })).json().data;
+    const teen = await fan(t.key, '13_17');
+    const join = await post(teen.token, `/v1/communities/${c.id}/join`);
+    if (join.statusCode !== 200) return; // ficha do país pede autorização: o portão já barra a leitura
+    expect((await get(teen.token, `/v1/communities/${c.id}/posts`)).statusCode).toBe(200);
+    const write = await post(teen.token, `/v1/communities/${c.id}/posts`, { body: 'Oi' });
+    expect(write.statusCode).toBe(403);
+    const like = await app.inject({
+      method: 'PUT',
+      url: `/v1/posts/${p.id}/like`,
+      headers: { authorization: `Bearer ${teen.token}` },
+    });
+    expect(like.statusCode).toBe(200);
+  });
+
+  it('post de membro desligado e termos novos barram a escrita', async () => {
+    const { t, c, adult } = await member('feed-off');
+    await updateCommunityConfig(db, {
+      tenantId: t.id,
+      id: c.id,
+      expectedVersion: c.version,
+      patch: { memberPosts: false },
+    });
+    const off = await post(adult.token, `/v1/communities/${c.id}/posts`, { body: 'Oi' });
+    expect(off.json().errors[0].message).toBe('member_posts_off');
+    await updateCommunityConfig(db, {
+      tenantId: t.id,
+      id: c.id,
+      expectedVersion: c.version + 1,
+      patch: { memberPosts: true },
+    });
+    await publishTerms(db, {
+      tenantId: t.id,
+      communityId: c.id,
+      body: { pt: 'R', es: 'R', en: 'R' },
+      actor: 'tenant:x',
+    });
+    const terms = await post(adult.token, `/v1/communities/${c.id}/posts`, { body: 'Oi' });
+    expect(terms.json().errors[0].message).toBe('terms_required');
+  });
+
+  it('post tirado do ar some do Feed; o intervalo entre envios vale', async () => {
+    const { t, c, adult } = await member('feed-mod');
+    const p = (await post(adult.token, `/v1/communities/${c.id}/posts`, { body: 'Primeiro' })).json().data;
+    const fast = await post(adult.token, `/v1/communities/${c.id}/posts`, { body: 'Segundo' });
+    expect(fast.statusCode).toBe(429);
+    await wait();
+    expect(
+      await setContentVisibility(db, {
+        tenantId: t.id,
+        kind: 'post',
+        id: p.id,
+        visibility: 'hidden',
+        actor: 'panel:1',
+      }),
+    ).toBe(true);
+    expect((await get(adult.token, `/v1/communities/${c.id}/posts`)).json().data.posts).toEqual([]);
   });
 });

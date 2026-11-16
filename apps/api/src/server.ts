@@ -23,6 +23,7 @@ import {
 } from './engage/presence-routes.js';
 import { moderationRoutes } from './engage/moderation-routes.js';
 import { chatRoutes } from './chat/routes.js';
+import { communityFeedRoutes, startCommunityPurge } from './engage/community-feed-routes.js';
 import { communityRoutes } from './engage/community-routes.js';
 import { ChatHub } from './chat/hub.js';
 import { gameRoutes } from './game/routes.js';
@@ -687,6 +688,11 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
     // Gamificação (#942): Palpite individual e Ranking
     await gameRoutes(instance, { db: options.db, now: options.now });
     await communityRoutes(instance, { db: options.db, now: options.now });
+    await communityFeedRoutes(instance, { db: options.db, now: options.now });
+    if (options.db) {
+      const stopCommunityPurge = startCommunityPurge(options.db, instance.log);
+      instance.addHook('onClose', async () => stopCommunityPurge());
+    }
   });
 
   // escopo próprio: o corpo cru do webhook do provedor da verificação de idade (#1109)
