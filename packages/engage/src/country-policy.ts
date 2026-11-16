@@ -81,7 +81,10 @@ export interface CountryPolicy {
   timeZone: string;
   /** Idiomas das listas de palavras e dos textos legais. */
   languages: PolicyLanguage[];
-  /** Publicidade para menores permitida (B10). */
+  /**
+   * Publicidade para menores permitida (B10): só a peça de patrocinador como marca (`sponsors.ts`). Marketing e
+   * publicidade direcionada a menor nunca saem, com ou sem este campo (#1107).
+   */
   adsToMinors: boolean;
   /** Portão jurídico da Gamificação (#940, #917). */
   gamification: { materialExchange: boolean; marketplace: boolean; raffle: boolean };
