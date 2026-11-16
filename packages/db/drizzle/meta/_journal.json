@@ -834,6 +834,13 @@
       "when": 1794786744317,
       "tag": "0175_cosmos_funcoes_grade",
       "breakpoints": true
+    },
+    {
+      "idx": 119,
+      "version": "7",
+      "when": 1794786804317,
+      "tag": "0176_cosmos_texto_do_jogo",
+      "breakpoints": true
     }
   ]
 }

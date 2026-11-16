@@ -132,6 +132,8 @@ export const ROLE_GRANTS: Record<RoleService, RoleGrants> = {
       // tenant é revogada com revoked_at, nunca apagada
       'billing.price',
       'billing.tenant_override',
+      // guia de tom do cliente (#1009)
+      'cosmos.brand_voice',
       // painel do Chat ao vivo do cliente (#973): congelar, modo lento e o padrão das salas (sem apagar sala)
       'chat.room',
       'chat.tenant_config',
