@@ -36,7 +36,7 @@ export async function loadEntitlementInputs(
       rateLimitPerMinute: tenant.rateLimitPerMinute,
       dailyRequestQuota: tenant.dailyRequestQuota,
       trialEndsAt: tenant.trialEndsAt,
-      status: tenant.status,
+      state: tenant.state,
       catalogVersion: tenant.catalogVersion,
       capacityTier: sql<string | null>`coalesce(${organization.capacityTier}, ${tenant.capacityTier})`,
       organizationId: tenant.organizationId,

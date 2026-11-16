@@ -6,6 +6,8 @@ export * from './catalog/schema.js';
 export * from './catalog/plans.js';
 export * from './catalog/catalog.js';
 export { defaultCatalogDir } from './catalog/paths.js';
+export * from './tenant-state/state.js';
+export * from './tenant-state/transition.js';
 export * from './entitlements/resolve.js';
 export * from './entitlements/load.js';
 export * from './usage/assess.js';

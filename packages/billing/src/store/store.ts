@@ -1,6 +1,7 @@
 import { API_PLANS, type ApiModule, type ApiPlan } from '@galaxie/db/schema';
 import { meetsRequirement, type Catalog } from '../catalog/catalog.js';
-import { STATES_WITHOUT_ACCESS, type Entitlements } from '../entitlements/resolve.js';
+import type { Entitlements } from '../entitlements/resolve.js';
+import { STATES_WITHOUT_ACCESS } from '../tenant-state/state.js';
 
 /**
  * A loja de features (plataforma comercial, #1137): cada módulo do catálogo cruzado com os direitos do tenant. É a
