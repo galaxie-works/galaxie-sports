@@ -10,7 +10,13 @@ import {
   isFanToken,
   type FanCapability,
 } from './core/model.js';
-import { FanGate, GalaxieWidgetProvider, useFanSession } from './core/react.js';
+import {
+  ageCheckReturnUrl,
+  ageCheckStateOf,
+  FanGate,
+  GalaxieWidgetProvider,
+  useFanSession,
+} from './core/react.js';
 
 afterEach(() => {
   cleanup();
@@ -357,5 +363,223 @@ describe('<FanGate> e a sessão do torcedor', () => {
     });
     expect(authOf(fetchImpl.mock.calls.at(-1)!)?.endsWith('.B')).toBe(true);
     expect(fetchImpl.mock.calls.some((c) => authOf(c)?.endsWith('.A2'))).toBe(false);
+  });
+});
+
+describe('<AgeCheck> (verificação de idade da Galaxie, #1109)', () => {
+  const Chat = () => (
+    <FanGate>
+      <button type="button">Enviar mensagem</button>
+    </FanGate>
+  );
+
+  /** API de mentira: adulto que precisa comprovar; `verification` responde o GET/POST da verificação. */
+  function ageApi(
+    verification: (init?: RequestInit) => Response,
+    after?: () => 'needs_verification' | 'can_write',
+  ) {
+    let verified = false;
+    return vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
+      const u = String(url);
+      if (u.endsWith('/v1/fans/me')) {
+        const status = after?.() ?? (verified ? 'can_write' : 'needs_verification');
+        return new Response(
+          JSON.stringify({
+            data: {
+              profile_id: 'p1',
+              nickname: 'Tricolor_77',
+              avatar_url: null,
+              age_band: '18plus',
+              country: 'BR',
+              locale: 'pt-BR',
+              capabilities: status === 'can_write' ? CAPS['18plus'] : ['read', 'predict'],
+              age_status: status,
+            },
+          }),
+          { status: 200 },
+        );
+      }
+      if (u.endsWith('/v1/fans/me/age-verification')) {
+        const res = verification(init);
+        if (res.headers.get('x-test-verified')) verified = true;
+        return res;
+      }
+      return new Response('{}', { status: 404 });
+    });
+  }
+
+  const item = (status: string, extra: object = {}) => ({
+    verification_id: '00000000-0000-4000-8000-000000000001',
+    status,
+    method: status === 'approved' ? 'estimated' : null,
+    decided_at: null,
+    created_at: '2026-11-16T10:00:00.000Z',
+    ...extra,
+  });
+
+  it('sem o módulo (403): mostra o pedido de idade e deixa o site comprovar', async () => {
+    setup(
+      <Chat />,
+      { fanToken: tokenFor('site') },
+      ageApi(() => new Response('{}', { status: 403 })),
+    );
+    expect(await screen.findByText(/18 anos ou mais/)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Verificar idade' })).toBeNull();
+    expect(screen.queryByText(/podem ler e palpitar/)).toBeNull();
+  });
+
+  it('com o módulo: aviso de biometria, consentimento obrigatório e ida para o provedor na mesma aba', async () => {
+    const assign = vi.fn();
+    vi.stubGlobal('location', { href: 'https://site.exemplo/jogo?id=1#chat', assign });
+    try {
+      const posts: unknown[] = [];
+      const fetchImpl = ageApi((init) => {
+        if (init?.method === 'POST') {
+          posts.push(JSON.parse(String(init.body)));
+          return new Response(
+            JSON.stringify({
+              data: item('pending', {
+                url: 'https://verify.provedor.test/s/1',
+                expires_at: '2026-11-16T11:00:00.000Z',
+              }),
+            }),
+            { status: 201 },
+          );
+        }
+        return new Response(JSON.stringify({ data: null }), { status: 200 });
+      });
+      setup(<Chat />, { fanToken: tokenFor('site') }, fetchImpl);
+      expect(await screen.findByText(/Didit/)).toBeTruthy();
+      const go = screen.getByRole('button', { name: 'Verificar idade' }) as HTMLButtonElement;
+      expect(go.disabled).toBe(true);
+      fireEvent.click(screen.getByRole('checkbox'));
+      expect(go.disabled).toBe(false);
+      fireEvent.click(go);
+      await waitFor(() => expect(assign).toHaveBeenCalledWith('https://verify.provedor.test/s/1'));
+      expect(posts).toHaveLength(1);
+      expect(posts[0]).toMatchObject({
+        returnUrl: 'https://site.exemplo/jogo',
+        consent: { textVersion: 'v1' },
+      });
+      expect(Date.parse((posts[0] as { consent: { givenAt: string } }).consent.givenAt)).not.toBeNaN();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('na volta: confere até aprovar e relê o Perfil (libera escrever)', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    let calls = 0;
+    const fetchImpl = ageApi(() => {
+      calls += 1;
+      if (calls < 2) return new Response(JSON.stringify({ data: item('pending') }), { status: 200 });
+      return new Response(JSON.stringify({ data: item('approved') }), {
+        status: 200,
+        headers: { 'x-test-verified': '1' },
+      });
+    });
+    setup(<Chat />, { fanToken: tokenFor('site') }, fetchImpl);
+    expect(await screen.findByText(/Conferindo a sua verificação/)).toBeTruthy();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5_000);
+    });
+    expect(await screen.findByRole('button', { name: 'Enviar mensagem' })).toBeTruthy();
+  });
+
+  it('recusada: avisa e deixa tentar de novo; limite (429) sem botão', async () => {
+    setup(
+      <Chat />,
+      { fanToken: tokenFor('site') },
+      ageApi(
+        () =>
+          new Response(JSON.stringify({ data: item('declined', { decided_at: new Date().toISOString() }) }), {
+            status: 200,
+          }),
+      ),
+    );
+    expect(await screen.findByText('Não foi possível confirmar a sua idade.')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Tentar de novo' }));
+    expect(screen.getByRole('button', { name: 'Verificar idade' })).toBeTruthy();
+    cleanup();
+    vi.stubGlobal('location', { href: 'https://site.exemplo/', assign: vi.fn() });
+    try {
+      setup(
+        <Chat />,
+        { fanToken: tokenFor('site') },
+        ageApi((init) =>
+          init?.method === 'POST'
+            ? new Response('{}', { status: 429 })
+            : new Response(JSON.stringify({ data: null }), { status: 200 }),
+        ),
+      );
+      fireEvent.click(await screen.findByRole('checkbox'));
+      fireEvent.click(screen.getByRole('button', { name: 'Verificar idade' }));
+      expect(await screen.findByText(/limite de tentativas/)).toBeTruthy();
+      expect(screen.queryByRole('button', { name: 'Tentar de novo' })).toBeNull();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('aprovada sem liberar o Perfil (faixa congelada): relê uma vez e oferece outra verificação', async () => {
+    let gets = 0;
+    const fetchImpl = ageApi(
+      () => {
+        gets += 1;
+        return new Response(
+          JSON.stringify({
+            data: item('approved', { verification_id: '00000000-0000-4000-8000-0000000000aa' }),
+          }),
+          { status: 200 },
+        );
+      },
+      () => 'needs_verification',
+    );
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    setup(<Chat />, { fanToken: tokenFor('site') }, fetchImpl);
+    expect(await screen.findByText(/Conferindo a sua verificação/)).toBeTruthy();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5_000);
+    });
+    expect(await screen.findByRole('button', { name: 'Verificar idade' })).toBeTruthy();
+    const mes = fetchImpl.mock.calls.filter(([u]) => String(u).endsWith('/v1/fans/me')).length;
+    expect(mes).toBe(2);
+    expect(gets).toBe(2);
+  });
+
+  it('modelo: falha antiga volta ao consentimento; a volta leva só origem e caminho, e só em https', () => {
+    const now = Date.parse('2026-11-16T12:00:00Z');
+    const v = item('declined', { decided_at: '2026-11-16T11:30:00.000Z' }) as never;
+    expect(ageCheckStateOf(v, now)).toBe('failed');
+    expect(ageCheckStateOf(item('expired', { decided_at: '2026-11-15T11:00:00.000Z' }) as never, now)).toBe(
+      'idle',
+    );
+    expect(ageCheckStateOf(null, now)).toBe('idle');
+    expect(ageCheckReturnUrl('https://site.exemplo/jogo?id=1&utm=x#chat')).toBe('https://site.exemplo/jogo');
+    expect(ageCheckReturnUrl('http://localhost:3000/jogo')).toBeNull();
+  });
+
+  it('"Atualizar" no meio da espera não para a conferência automática', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    let calls = 0;
+    const fetchImpl = ageApi(() => {
+      calls += 1;
+      if (calls < 3) return new Response(JSON.stringify({ data: item('pending') }), { status: 200 });
+      return new Response(
+        JSON.stringify({
+          data: item('approved', { verification_id: '00000000-0000-4000-8000-0000000000bb' }),
+        }),
+        {
+          status: 200,
+          headers: { 'x-test-verified': '1' },
+        },
+      );
+    });
+    setup(<Chat />, { fanToken: tokenFor('site') }, fetchImpl);
+    fireEvent.click(await screen.findByRole('button', { name: 'Atualizar' }));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5_000);
+    });
+    expect(await screen.findByRole('button', { name: 'Enviar mensagem' })).toBeTruthy();
   });
 });
