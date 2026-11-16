@@ -66,6 +66,7 @@ export {
   sportProfile,
   type SportProfile,
   type SportScoreUnit,
+  AGE_CHECK_CONSENT_VERSION,
   FAN_CAPABILITIES,
   fanGateMessage,
   fanTokenExpiresAt,
@@ -74,6 +75,7 @@ export {
   fanTokenSubject,
   type FanCapability,
   type FanStatus,
+  type GsAgeVerification,
   type GsFanMe,
 } from './core/model.js';
 
@@ -81,6 +83,7 @@ export {
 export {
   GalaxieWidgetError,
   GalaxieWidgetProvider,
+  AgeCheck,
   FanGate,
   useFanSession,
   useGalaxieWidget,

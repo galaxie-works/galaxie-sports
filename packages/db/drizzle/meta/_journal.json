@@ -810,6 +810,13 @@
     {
       "idx": 115,
       "version": "7",
+      "when": 1794786564317,
+      "tag": "0172_cosmos_funcao_dados",
+      "breakpoints": true
+    },
+    {
+      "idx": 116,
+      "version": "7",
       "when": 1794786624317,
       "tag": "0173_cosmos_diagnostico_dados",
       "breakpoints": true
