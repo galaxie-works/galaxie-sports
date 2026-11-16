@@ -4,7 +4,10 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
-import { updateOrganizationAction } from '@/app/[locale]/(app)/settings/organizations/actions';
+import {
+  updateOrganizationAction,
+  type IssuedBrandKeys,
+} from '@/app/[locale]/(app)/settings/organizations/actions';
 import { ReasonDialog } from '@/components/admin/cosmos/reason-dialog';
 import { Badge } from '@/components/reui/badge';
 import { Frame, FramePanel } from '@/components/reui/frame';
@@ -25,6 +28,8 @@ import {
 import type { StaffActionRow } from '@/lib/client/staff';
 import { useFormatters, useI18n } from '@/lib/i18n/client';
 
+import { IssuedKeysDialog } from './issued-keys-dialog';
+
 function Fact({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-1">
@@ -34,8 +39,17 @@ function Fact({ label, children }: { label: string; children: React.ReactNode })
   );
 }
 
-/** Edição da organização com motivo: faixa de capacidade, revisão do cadastro e cliente zero. */
-function EditDialog({ organization }: { organization: OrganizationRow }) {
+/**
+ * Edição da organização com motivo: faixa de capacidade, revisão do cadastro e cliente zero. Aprovar a revisão emite
+ * as chaves que faltavam (o cadastro em revisão nasce sem elas): aparecem uma vez, numa janela depois desta.
+ */
+function EditDialog({
+  organization,
+  onIssued,
+}: {
+  organization: OrganizationRow;
+  onIssued: (issued: IssuedBrandKeys[]) => void;
+}) {
   const router = useRouter();
   const { t } = useI18n();
   const T = t.platformStaff;
@@ -67,7 +81,10 @@ function EditDialog({ organization }: { organization: OrganizationRow }) {
           isGalaxie: galaxie,
           reason,
         });
-        if (r.ok) router.refresh();
+        if (r.ok) {
+          router.refresh();
+          if (r.issued?.length) onIssued(r.issued);
+        }
         return r;
       }}
     >
@@ -109,6 +126,22 @@ function EditDialog({ organization }: { organization: OrganizationRow }) {
   );
 }
 
+/** A edição e, depois de aprovar a revisão, as chaves emitidas. */
+function EditWithKeys({ organization }: { organization: OrganizationRow }) {
+  const { t } = useI18n();
+  const [issued, setIssued] = useState<IssuedBrandKeys[] | null>(null);
+  return (
+    <>
+      <EditDialog organization={organization} onIssued={setIssued} />
+      <IssuedKeysDialog
+        issued={issued}
+        notice={t.platformStaff.keys.approved}
+        onClose={() => setIssued(null)}
+      />
+    </>
+  );
+}
+
 /** Ficha da organização, as marcas, Donos e Financeiro, e as ações da equipe sobre ela e as marcas. */
 export function OrganizationDetail({
   organization,
@@ -131,7 +164,7 @@ export function OrganizationDetail({
       <SettingsSection
         title={organization.name}
         description={T.detail.description}
-        action={<EditDialog organization={organization} />}
+        action={<EditWithKeys organization={organization} />}
       >
         <Frame>
           <FramePanel className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

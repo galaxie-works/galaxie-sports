@@ -130,6 +130,9 @@ export const ChatRoom = z
       messages: z
         .array(ChatMessage)
         .meta({ description: 'Últimas mensagens, da mais antiga para a mais nova.' }),
+      pinned: ChatMessage.nullable().meta({
+        description: 'Mensagem fixada no topo pela moderação do cliente; null quando não há.',
+      }),
       reactions: ChatReactionCounts.meta({ description: 'Total de reações do jogo nesta sala.' }),
       game_messages: z.array(ChatGameMessage).meta({
         description:

@@ -33,6 +33,7 @@ const SECTION_PAGE: Record<SettingSection, SettingPage> = {
   feedback: { item: 'suggestions', block: 'suggestions' },
   cosmos: { item: 'cosmos', block: 'cosmos' },
   engage: { item: 'fanIdentity', block: 'engage' },
+  signup: { item: 'signups', block: 'signup' },
 };
 
 /** Modelos (e provedores) de IA que moram em outra seção do registro e vão para IA interna (A3). */

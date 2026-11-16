@@ -1,6 +1,6 @@
 {
-  "id": "4d25163b-d175-489e-8ce2-3667ee177707",
-  "prevId": "54c5872d-1ff9-4e88-87b7-8ca6c212177a",
+  "id": "a80c90f0-324f-4cf6-a942-33c3d3c0b2b4",
+  "prevId": "d0ffc3fb-1b07-43d0-b489-e2f0aa94a1a6",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -23196,6 +23196,142 @@
       },
       "isRLSEnabled": false
     },
+    "engage.moderation_note": {
+      "name": "moderation_note",
+      "schema": "engage",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "public.uuid_generate_v7()"
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "profile_id": {
+          "name": "profile_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "body": {
+          "name": "body",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "author": {
+          "name": "author",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "purge_at": {
+          "name": "purge_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "moderation_note_profile_idx": {
+          "name": "moderation_note_profile_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "profile_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "moderation_note_purge_idx": {
+          "name": "moderation_note_purge_idx",
+          "columns": [
+            {
+              "expression": "purge_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "moderation_note_tenant_id_tenant_id_fk": {
+          "name": "moderation_note_tenant_id_tenant_id_fk",
+          "tableFrom": "moderation_note",
+          "tableTo": "tenant",
+          "schemaTo": "api",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "moderation_note_profile_fk": {
+          "name": "moderation_note_profile_fk",
+          "tableFrom": "moderation_note",
+          "tableTo": "profile",
+          "schemaTo": "fan",
+          "columnsFrom": [
+            "tenant_id",
+            "profile_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "moderation_note_body_len": {
+          "name": "moderation_note_body_len",
+          "value": "length(\"engage\".\"moderation_note\".\"body\") between 1 and 1000"
+        }
+      },
+      "isRLSEnabled": false
+    },
     "engage.moderation_report": {
       "name": "moderation_report",
       "schema": "engage",
@@ -24049,6 +24185,31 @@
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
+        },
+        "pinned_message_id": {
+          "name": "pinned_message_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "pinned_by": {
+          "name": "pinned_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "pinned_at": {
+          "name": "pinned_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "shield": {
+          "name": "shield",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
         },
         "created_at": {
           "name": "created_at",

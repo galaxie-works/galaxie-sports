@@ -22,6 +22,7 @@ import moderation from './messages/moderation';
 import moderationLists from './messages/moderation-lists';
 import narrationAdmin from './messages/narration-admin';
 import shopping from './messages/shopping';
+import signup from './messages/signup';
 import communities from './messages/communities';
 import sponsors from './messages/sponsors';
 import equestrian from './messages/equestrian';
@@ -71,6 +72,7 @@ export const NAMESPACES = {
   moderationLists,
   narrationAdmin,
   shopping,
+  signup,
   communities,
   sponsors,
   lineup,
@@ -133,6 +135,7 @@ export const CLIENT_NAMESPACES = [
   'moderationLists',
   'narrationAdmin',
   'shopping',
+  'signup',
   'communities',
   'sponsors',
   'nav',
@@ -155,7 +158,12 @@ export type ClientDictionary = Pick<Dictionary, ClientNamespace>;
  * Páginas públicas (apresentação, login, termos e privacidade): só o que os componentes delas usam. Os
  * textos do app logado (operação, administração, código) não vão no HTML de quem não entrou.
  */
-export const PUBLIC_NAMESPACES = ['auth', 'common', 'shell'] as const satisfies readonly ClientNamespace[];
+export const PUBLIC_NAMESPACES = [
+  'auth',
+  'common',
+  'shell',
+  'signup',
+] as const satisfies readonly ClientNamespace[];
 
 /** Exemplo público: as páginas de jogo, time, campeonato e jogador, sem busca, código e operação. */
 export const EXAMPLE_NAMESPACES = [

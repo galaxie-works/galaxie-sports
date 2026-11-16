@@ -49,6 +49,7 @@ export const PANEL_BLOCKS = [
   'suggestions',
   'cosmos',
   'engage',
+  'signup',
   'history',
 ] as const;
 export type PanelBlock = (typeof PANEL_BLOCKS)[number];
@@ -76,6 +77,8 @@ export const SETTINGS_VIEWS = {
   suggestions: ['suggestions'],
   cosmos: ['cosmos'],
   fanIdentity: ['engage'],
+  // cadastro em autoatendimento (F2): as chaves SIGNUP_* e TRIAL_DAYS em Clientes › Cadastros e trials
+  signups: ['signup'],
   history: ['history'],
 } as const satisfies Record<string, readonly PanelBlock[]>;
 export type SettingsView = keyof typeof SETTINGS_VIEWS;
