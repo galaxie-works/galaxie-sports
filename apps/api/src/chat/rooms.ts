@@ -7,6 +7,7 @@ import {
   chatRoom,
   chatTenantConfig,
   event,
+  fanAvatarPublicUrl,
   fanProfile,
   tenant,
   type ChatGameKind,
@@ -190,7 +191,8 @@ export async function recentMessages(
       body: chatMessage.body,
       profileId: chatMessage.profileId,
       nickname: fanProfile.nickname,
-      avatarUrl: fanProfile.avatarUrl,
+      // só a foto liberada pela moderação (#1025); pendente ou segurada sai null
+      avatarUrl: fanAvatarPublicUrl(),
       avatarVisibility: sql<string | undefined>`${fanProfile.visibility}->>'avatar'`,
       createdAt: chatMessage.createdAt,
     })

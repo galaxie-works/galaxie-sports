@@ -264,4 +264,5 @@ export {
 export * from './presence.js';
 export * from './sponsors.js';
 export * from './moderation-queue.js';
+export { fanAvatarPublic, fanAvatarPublicUrl } from './fan-avatar-public.js';
 export * from './shop.js';
