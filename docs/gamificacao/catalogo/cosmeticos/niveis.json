@@ -9,7 +9,7 @@
       "en": "Front Row"
     },
     "badge": "ball",
-    "badge_prompt": "A generic ball drawn as a circle with abstract panel seams, no brand marks, flat slate-grey with one darker shade for the seams. The emblem colour follows the slate-grey avatar ring of this level band. Square badge icon, 1:1, one abstract emblem centered, transparent background, no text anywhere. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size.",
+    "badge_prompt": "A generic ball drawn as a circle with abstract panel seams, no brand marks, flat slate-grey with one darker shade for the seams. The emblem colour follows the slate-grey avatar ring of this level band. Square badge icon, 1:1, one abstract emblem centered, transparent background, no text anywhere. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
     "badge_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, face, person, filled background, drop shadow"
   },
   {
@@ -22,7 +22,7 @@
       "en": "Legend of the Stands"
     },
     "badge": "constellation",
-    "badge_prompt": "A constellation of seven connected points arranged in the outline of a ball, thin light lines between them, iridescent prismatic gradient with short light rays at the corners. The emblem colour follows the prismatic avatar ring of this level band. Square badge icon, 1:1, one abstract emblem centered, transparent background, no text anywhere. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size.",
+    "badge_prompt": "A constellation of seven connected points arranged in the outline of a ball, thin light lines between them, iridescent prismatic gradient with short light rays at the corners. The emblem colour follows the prismatic avatar ring of this level band. Square badge icon, 1:1, one abstract emblem centered, transparent background, no text anywhere. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
     "badge_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, face, person, filled background, drop shadow"
   },
   {
@@ -35,7 +35,7 @@
       "en": "Ticket in Hand"
     },
     "badge": "ticket",
-    "badge_prompt": "A ticket stub drawn as a rounded rectangle with a perforated tear line and two blank fields, flat slate-grey with a lighter inner panel. The emblem colour follows the slate-grey avatar ring of this level band. Square badge icon, 1:1, one abstract emblem centered, transparent background, no text anywhere. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size.",
+    "badge_prompt": "A ticket stub drawn as a rounded rectangle with a perforated tear line and two blank fields, flat slate-grey with a lighter inner panel. The emblem colour follows the slate-grey avatar ring of this level band. Square badge icon, 1:1, one abstract emblem centered, transparent background, no text anywhere. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
     "badge_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, face, person, filled background, drop shadow"
   },
   {
@@ -48,7 +48,7 @@
       "en": "Scarf On"
     },
     "badge": "scarf",
-    "badge_prompt": "A plain fan scarf drawn as a single wavy band with fringe at both ends, no stripes and no lettering, flat steel-blue with a thin inner line. The emblem colour follows the steel-blue avatar ring of this level band. Square badge icon, 1:1, one abstract emblem centered, transparent background, no text anywhere. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size.",
+    "badge_prompt": "A plain fan scarf drawn as a single wavy band with fringe at both ends, no stripes and no lettering, flat steel-blue with a thin inner line. The emblem colour follows the steel-blue avatar ring of this level band. Square badge icon, 1:1, one abstract emblem centered, transparent background, no text anywhere. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
     "badge_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, face, person, filled background, drop shadow"
   },
   {
@@ -61,7 +61,7 @@
       "en": "Season Seat"
     },
     "badge": "seat",
-    "badge_prompt": "A stadium seat seen from the front, a simple folding chair silhouette with a rounded back, flat steel-blue with a thin inner line. The emblem colour follows the steel-blue avatar ring of this level band. Square badge icon, 1:1, one abstract emblem centered, transparent background, no text anywhere. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size.",
+    "badge_prompt": "A stadium seat seen from the front, a simple folding chair silhouette with a rounded back, flat steel-blue with a thin inner line. The emblem colour follows the steel-blue avatar ring of this level band. Square badge icon, 1:1, one abstract emblem centered, transparent background, no text anywhere. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
     "badge_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, face, person, filled background, drop shadow"
   },
   {
@@ -74,7 +74,7 @@
       "en": "Flag in the Wind"
     },
     "badge": "flag",
-    "badge_prompt": "A plain single-colour flag waving on a short pole, no symbols, flat deep violet with faceted highlights. The emblem colour follows the violet avatar ring of this level band. Square badge icon, 1:1, one abstract emblem centered, transparent background, no text anywhere. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size.",
+    "badge_prompt": "A plain single-colour flag waving on a short pole, no symbols, flat deep violet with faceted highlights. The emblem colour follows the violet avatar ring of this level band. Square badge icon, 1:1, one abstract emblem centered, transparent background, no text anywhere. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
     "badge_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, face, person, filled background, drop shadow"
   },
   {
@@ -87,7 +87,7 @@
       "en": "Under the Lights"
     },
     "badge": "floodlight",
-    "badge_prompt": "A floodlight tower drawn as a thin mast with a cone of light spreading downward, flat deep violet with a faint inner halo. The emblem colour follows the violet avatar ring of this level band. Square badge icon, 1:1, one abstract emblem centered, transparent background, no text anywhere. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size.",
+    "badge_prompt": "A floodlight tower drawn as a thin mast with a cone of light spreading downward, flat deep violet with a faint inner halo. The emblem colour follows the violet avatar ring of this level band. Square badge icon, 1:1, one abstract emblem centered, transparent background, no text anywhere. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
     "badge_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, face, person, filled background, drop shadow"
   },
   {
@@ -100,7 +100,7 @@
       "en": "Voice of the Stands"
     },
     "badge": "podium",
-    "badge_prompt": "A podium drawn as three plain blocks of different heights, the tallest in the middle, flat warm amber with a soft outer halo. The emblem colour follows the amber avatar ring of this level band. Square badge icon, 1:1, one abstract emblem centered, transparent background, no text anywhere. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size.",
+    "badge_prompt": "A podium drawn as three plain blocks of different heights, the tallest in the middle, flat warm amber with a soft outer halo. The emblem colour follows the amber avatar ring of this level band. Square badge icon, 1:1, one abstract emblem centered, transparent background, no text anywhere. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
     "badge_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, face, person, filled background, drop shadow"
   },
   {
@@ -113,7 +113,7 @@
       "en": "Old Guard"
     },
     "badge": "laurel",
-    "badge_prompt": "A closed laurel wreath drawn as two symmetrical branches of simple leaves, flat warm amber with an engraved line pattern and a soft outer halo. The emblem colour follows the amber avatar ring of this level band. Square badge icon, 1:1, one abstract emblem centered, transparent background, no text anywhere. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size.",
+    "badge_prompt": "A closed laurel wreath drawn as two symmetrical branches of simple leaves, flat warm amber with an engraved line pattern and a soft outer halo. The emblem colour follows the amber avatar ring of this level band. Square badge icon, 1:1, one abstract emblem centered, transparent background, no text anywhere. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
     "badge_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, face, person, filled background, drop shadow"
   },
   {
@@ -126,7 +126,7 @@
       "en": "Star of the Stands"
     },
     "badge": "star",
-    "badge_prompt": "A five-pointed star with small engraved stars around it, flat pale amber with a soft halo. The emblem colour follows the pale amber avatar ring of this level band. Square badge icon, 1:1, one abstract emblem centered, transparent background, no text anywhere. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size.",
+    "badge_prompt": "A five-pointed star with small engraved stars around it, flat pale amber with a soft halo. The emblem colour follows the pale amber avatar ring of this level band. Square badge icon, 1:1, one abstract emblem centered, transparent background, no text anywhere. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
     "badge_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, face, person, filled background, drop shadow"
   }
 ]

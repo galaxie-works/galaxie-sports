@@ -17,9 +17,9 @@ Texto em português; frases de estilo, prompts e nomes de parâmetros em inglês
 
 ## 2. Sistema visual: cinco estilos
 
-O estilo é uma única frase em inglês que entra em todo prompt na terceira posição (seção 6.1). O estilo A é o padrão do Catálogo e já está decidido na padronização; B, C, D e E são alternativas para escolha do dono (o E, galáctico, é o que conversa com a marca Galaxie e foi provado no lote 0 de 16/11). Trocar de estilo é trocar essa frase (seção 7).
+O estilo é uma única frase em inglês que entra em todo prompt na terceira posição (seção 6.1). O estilo **E · Galaxie (galáctico)** é o padrão do Catálogo desde 16/11, decidido pelo dono depois do lote 0; A, B, C e D são alternativas. A frase do E está em todos os `art_prompt`; trocar de estilo é trocar essa frase (seção 7). Trocar de estilo é trocar essa frase (seção 7).
 
-| | A · Vetor plano (padrão) | B · Pôster retrô serigrafado | C · Holográfico noturno | D · Aquarela esportiva | E · Galáctico |
+| | A · Vetor plano | B · Pôster retrô serigrafado | C · Holográfico noturno | D · Aquarela esportiva | E · Galaxie (galáctico, padrão) |
 | --- | --- | --- | --- | --- | --- |
 | Leitura em 120 px | excelente | muito boa | boa (depende do contraste do glow) | média (lavagem reduz contraste) | boa (silhueta clara sobre fundo escuro) |
 | Consistência entre gerações | alta | alta | média | baixa a média | alta nas três peças do lote 0 |
@@ -27,7 +27,7 @@ O estilo é uma única frase em inglês que entra em todo prompt na terceira pos
 | Risco de texto escapar | baixo | médio (pôster "pede" letra) | baixo | baixo | baixo |
 | Identidade | limpa, atual, app | nostalgia, álbum de figurinha clássico | game, premium, noite de jogo | editorial, emocional | marca Galaxie, épico, colecionável |
 
-### 2.1 Estilo A · Vetor plano (padrão)
+### 2.1 Estilo A · Vetor plano
 
 **Descrição.** Ilustração vetorial plana, formas grandes e simplificadas, bordas limpas, sem contorno preto, sombras em um único tom mais escuro, grão de papel sutil sobre tudo. Lembra cartaz de evento esportivo moderno e ícone de app: lê-se de longe, envelhece bem, sai consistente do gerador.
 
@@ -159,9 +159,9 @@ Loose sports watercolor illustration, wet-on-wet washes with controlled bleeding
 Two women in plain white kits forming a wall at the net with arms fully extended, a generic ball crushed against their hands, an attacker in a plain charcoal kit landing below them, the sports hall dissolving into loose indigo and sage washes, afternoon sunlight through high windows left as white paper, the floor fading into a calm pale wash. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Loose sports watercolor illustration, wet-on-wet washes with controlled bleeding, visible pencil underdrawing, white paper reserve for highlights, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.
 ```
 
-### 2.5 Estilo E · Galáctico
+### 2.5 Estilo E · Galaxie (galáctico, padrão)
 
-**Descrição.** O mesmo desenho de formas simplificadas do estilo A, com o cenário levado ao espaço: o campo ou a quadra flutuam como uma plataforma, a arquibancada se dissolve em campo de estrelas, os refletores viram pequenos sóis, e linhas de constelação acompanham o gesto do atleta. É o estilo que conversa com o nome Galaxie e o que mais diferencia o produto numa demonstração. Provado em 16/11 no lote 0 (Degraus 1, 3 e 5 de "Gol nos acréscimos"): leu bem em miniatura, manteve a progressão e não deixou texto escapar; a moldura lendária prismática combinou melhor com ele do que com o A.
+**Descrição.** O mesmo desenho de formas simplificadas do estilo A, com o cenário levado ao espaço: o campo ou a quadra flutuam como uma plataforma, a arquibancada se dissolve em campo de estrelas, os refletores viram pequenos sóis, e linhas de constelação acompanham o gesto do atleta. É o estilo que conversa com o nome Galaxie e o que mais diferencia o produto numa demonstração; **é o padrão do Catálogo desde 16/11**, e a frase dele está em todos os `art_prompt`. Provado em 16/11 no lote 0 (Degraus 1, 3 e 5 de "Gol nos acréscimos"): leu bem em miniatura, manteve a progressão e não deixou texto escapar; a moldura lendária prismática combinou melhor com ele do que com o A.
 
 **Paleta.**
 
@@ -436,7 +436,7 @@ Além do estilo, cada programa pode ter a arte nas **cores do cliente** (operado
 Client palette: <fundo e arquibancada>, <piso>, every light, accent and glow in <cor de destaque>, white kit as the only other color.
 ```
 
-A cena, o enquadramento, o estilo, a moldura e o negative não mudam. O estilo A aceita qualquer paleta; o E (galáctico) aceita a troca das duas cores de nebulosa.
+A cena, o enquadramento, o estilo, a moldura e o negative não mudam. O estilo Galaxie aceita a troca das duas cores de nebulosa pela paleta do cliente (o fundo escuro fica); o A aceita qualquer paleta.
 
 **Regras.**
 

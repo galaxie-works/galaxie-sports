@@ -10,7 +10,7 @@
       "collection": "afl.explorer"
     },
     "animated": false,
-    "art_prompt": "A long country road at golden hour running toward a row of distant oval grounds drawn as simple shapes on the horizon, each with four tall goal posts, open sky with light clouds, the road and the plain paddocks across the center kept flat and quiet. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size.",
+    "art_prompt": "A long country road at golden hour running toward a row of distant oval grounds drawn as simple shapes on the horizon, each with four tall goal posts, open sky with light clouds, the road and the plain paddocks across the center kept flat and quiet. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, recognizable venue, landmark, skyline, people in the center"
   },
   {
@@ -24,7 +24,7 @@
       "collection": "afl.highlights"
     },
     "animated": false,
-    "art_prompt": "An empty oval ground seen from high behind the goal posts at dusk, floodlights as geometric cones of amber light, a generic oval ball resting on the turf near the bottom edge, the middle of the ground a calm flat green. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size.",
+    "art_prompt": "An empty oval ground seen from high behind the goal posts at dusk, floodlights as geometric cones of amber light, a generic oval ball resting on the turf near the bottom edge, the middle of the ground a calm flat green. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, recognizable venue, landmark, skyline, people in the center"
   },
   {
@@ -38,7 +38,7 @@
       "collection": "afl.quarters"
     },
     "animated": false,
-    "art_prompt": "A wide oval ground under late afternoon sun divided by soft shadow bands into four quarters, four tall goal posts at each end as thin silhouettes, a blank dark scoreboard frame with no digits above the far stand, the central turf plain. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size.",
+    "art_prompt": "A wide oval ground under late afternoon sun divided by soft shadow bands into four quarters, four tall goal posts at each end as thin silhouettes, a blank dark scoreboard frame with no digits above the far stand, the central turf plain. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, recognizable venue, landmark, skyline, people in the center"
   },
   {
@@ -52,7 +52,7 @@
       "collection": "afl.scoreboard"
     },
     "animated": false,
-    "art_prompt": "A night oval ground seen from the top tier of empty stands, a blank dark scoreboard structure with no digits above the far stand, floodlight cones crossing over the grass, the central grass a calm flat area. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size.",
+    "art_prompt": "A night oval ground seen from the top tier of empty stands, a blank dark scoreboard structure with no digits above the far stand, floodlight cones crossing over the grass, the central grass a calm flat area. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, recognizable venue, landmark, skyline, people in the center"
   },
   {
@@ -66,7 +66,7 @@
       "collection": "afl.september"
     },
     "animated": false,
-    "art_prompt": "An oval ground in early spring at twilight, strips of plain confetti in cream and amber drifting above packed stands drawn as a single dark band, goal posts wrapped in plain pale ribbon, the centre of the ground calm. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size.",
+    "art_prompt": "An oval ground in early spring at twilight, strips of plain confetti in cream and amber drifting above packed stands drawn as a single dark band, goal posts wrapped in plain pale ribbon, the centre of the ground calm. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, recognizable venue, landmark, skyline, people in the center"
   },
   {
@@ -80,7 +80,7 @@
       "collection": "american_football.clutch"
     },
     "animated": false,
-    "art_prompt": "A gridiron at night under floodlights, yard lines without numbers running toward goal posts in silhouette, a blank clock frame with no digits on the far scoreboard, light rain in the beams, the middle of the field calm and slightly darker. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size.",
+    "art_prompt": "A gridiron at night under floodlights, yard lines without numbers running toward goal posts in silhouette, a blank clock frame with no digits on the far scoreboard, light rain in the beams, the middle of the field calm and slightly darker. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, recognizable venue, landmark, skyline, people in the center"
   },
   {
@@ -94,7 +94,7 @@
       "collection": "american_football.dominance"
     },
     "animated": false,
-    "art_prompt": "A wide gridiron at midday with crisp shadows from the stands, yard lines without numbers, one end zone painted flat charcoal and the other flat cream, an empty bench area along the sideline, the center of the field plain. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size.",
+    "art_prompt": "A wide gridiron at midday with crisp shadows from the stands, yard lines without numbers, one end zone painted flat charcoal and the other flat cream, an empty bench area along the sideline, the center of the field plain. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, recognizable venue, landmark, skyline, people in the center"
   },
   {
@@ -108,7 +108,7 @@
       "collection": "american_football.fireworks"
     },
     "animated": false,
-    "art_prompt": "A gridiron at night with plain fireworks bursting above the far stands in amber and cream, floodlights as geometric cones, goal posts in silhouette, yard lines without numbers, the field center calm. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size.",
+    "art_prompt": "A gridiron at night with plain fireworks bursting above the far stands in amber and cream, floodlights as geometric cones, goal posts in silhouette, yard lines without numbers, the field center calm. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, recognizable venue, landmark, skyline, people in the center"
   },
   {
@@ -122,7 +122,7 @@
       "collection": "american_football.gridiron_tour"
     },
     "animated": false,
-    "art_prompt": "An abstract route of light lines connecting bowl-shaped stadium silhouettes across rolling hills that change from late-summer green to autumn amber to winter snow from left to right, no country outlines, the central area a plain gradient. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size.",
+    "art_prompt": "An abstract route of light lines connecting bowl-shaped stadium silhouettes across rolling hills that change from late-summer green to autumn amber to winter snow from left to right, no country outlines, the central area a plain gradient. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, recognizable venue, landmark, skyline, people in the center"
   },
   {
@@ -136,7 +136,7 @@
       "collection": "american_football.postseason"
     },
     "animated": false,
-    "art_prompt": "A gridiron under a winter night sky with falling snowflakes, mist hanging above the stands drawn as a dark band, goal posts in silhouette, yard lines without numbers, the field center calm and slightly darker. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size.",
+    "art_prompt": "A gridiron under a winter night sky with falling snowflakes, mist hanging above the stands drawn as a dark band, goal posts in silhouette, yard lines without numbers, the field center calm and slightly darker. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, recognizable venue, landmark, skyline, people in the center"
   },
   {
@@ -150,7 +150,7 @@
       "collection": "baseball.big_bats"
     },
     "animated": false,
-    "art_prompt": "A ballpark at sunset seen from behind home plate, the outfield wall a plain charcoal band without advertising, a generic ball arcing high over the far wall into an amber sky, the infield dirt and grass across the center kept flat. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size.",
+    "art_prompt": "A ballpark at sunset seen from behind home plate, the outfield wall a plain charcoal band without advertising, a generic ball arcing high over the far wall into an amber sky, the infield dirt and grass across the center kept flat. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, recognizable venue, landmark, skyline, people in the center"
   },
   {
@@ -164,7 +164,7 @@
       "collection": "baseball.close_calls"
     },
     "animated": false,
-    "art_prompt": "A ballpark deep into the night under floodlights, a blank scoreboard frame with no digits beyond the outfield, the bases glowing white on dark dirt, the stands a dark band, the central infield calm. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size.",
+    "art_prompt": "A ballpark deep into the night under floodlights, a blank scoreboard frame with no digits beyond the outfield, the bases glowing white on dark dirt, the stands a dark band, the central infield calm. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, recognizable venue, landmark, skyline, people in the center"
   },
   {
@@ -178,7 +178,7 @@
       "collection": "baseball.mound"
     },
     "animated": false,
-    "art_prompt": "An empty ballpark in early morning light seen from the pitcher’s mound looking toward home plate, dew on the grass, the mound a small warm hill in the lower third, the outfield wall in the upper third, the center flat. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size.",
+    "art_prompt": "An empty ballpark in early morning light seen from the pitcher’s mound looking toward home plate, dew on the grass, the mound a small warm hill in the lower third, the outfield wall in the upper third, the center flat. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, recognizable venue, landmark, skyline, people in the center"
   },
   {
@@ -192,7 +192,7 @@
       "collection": "baseball.summer_to_winter"
     },
     "animated": false,
-    "art_prompt": "A ballpark diamond whose surroundings change season from left to right in flat bands, summer sun, autumn leaves and a winter sky, palm trees at one edge and bare trees at the other, the diamond across the center plain. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size.",
+    "art_prompt": "A ballpark diamond whose surroundings change season from left to right in flat bands, summer sun, autumn leaves and a winter sky, palm trees at one edge and bare trees at the other, the diamond across the center plain. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, recognizable venue, landmark, skyline, people in the center"
   },
   {
@@ -206,7 +206,7 @@
       "collection": "basketball.explorer"
     },
     "animated": false,
-    "art_prompt": "A constellation of small court rectangles, some outdoor with a fence and some indoor with wooden bleachers, connected by light lines over a gradient from dawn to dusk, hoops in silhouette at the edges, no map outlines, the central region a calm gradient. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size.",
+    "art_prompt": "A constellation of small court rectangles, some outdoor with a fence and some indoor with wooden bleachers, connected by light lines over a gradient from dawn to dusk, hoops in silhouette at the edges, no map outlines, the central region a calm gradient. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, recognizable venue, landmark, skyline, people in the center"
   },
   {
@@ -220,7 +220,7 @@
       "collection": "basketball.playoffs"
     },
     "animated": false,
-    "art_prompt": "An indoor court at night seen from the top of wooden bleachers, the hardwood glowing under hanging lamps, the crowd a dark band, plain confetti hanging in the air, the center of the court kept flat and low-contrast. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size.",
+    "art_prompt": "An indoor court at night seen from the top of wooden bleachers, the hardwood glowing under hanging lamps, the crowd a dark band, plain confetti hanging in the air, the center of the court kept flat and low-contrast. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, recognizable venue, landmark, skyline, people in the center"
   },
   {
@@ -234,7 +234,7 @@
       "collection": "basketball.scoreboard"
     },
     "animated": false,
-    "art_prompt": "A gym court seen from above at an angle, a blank dark scoreboard panel with no digits on the end wall, amber light spilling over the painted key areas, the midcourt area calm. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size.",
+    "art_prompt": "A gym court seen from above at an angle, a blank dark scoreboard panel with no digits on the end wall, amber light spilling over the painted key areas, the midcourt area calm. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, recognizable venue, landmark, skyline, people in the center"
   },
   {
@@ -248,7 +248,7 @@
       "collection": "basketball.star_night"
     },
     "animated": false,
-    "art_prompt": "A gym court in darkness with a single spotlight cone falling on the free-throw area, a generic ball resting on the floor at the edge of the light, bleachers as faint silhouettes, the center of the floor a soft dark gradient. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size.",
+    "art_prompt": "A gym court in darkness with a single spotlight cone falling on the free-throw area, a generic ball resting on the floor at the edge of the light, bleachers as faint silhouettes, the center of the floor a soft dark gradient. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, recognizable venue, landmark, skyline, people in the center"
   },
   {
@@ -262,7 +262,7 @@
       "collection": "common.explorer"
     },
     "animated": false,
-    "art_prompt": "An abstract map made of light lines and dots linking small silhouettes of a stadium, an arena, an oval ground, a racetrack loop and a cage across a gradient sky from dawn to night, no country outlines, the central area a calm plain gradient. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size.",
+    "art_prompt": "An abstract map made of light lines and dots linking small silhouettes of a stadium, an arena, an oval ground, a racetrack loop and a cage across a gradient sky from dawn to night, no country outlines, the central area a calm plain gradient. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, recognizable venue, landmark, skyline, people in the center"
   },
   {
@@ -276,7 +276,7 @@
       "level": 10
     },
     "animated": false,
-    "art_prompt": "A deep night sky over an empty pitch, seven bright stars connected by thin light lines into the outline of a ball high in the upper third, a faint aurora band near the horizon, the grass across the center a calm dark green. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size.",
+    "art_prompt": "A deep night sky over an empty pitch, seven bright stars connected by thin light lines into the outline of a ball high in the upper third, a faint aurora band near the horizon, the grass across the center a calm dark green. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, recognizable venue, landmark, skyline, people in the center"
   },
   {
@@ -290,7 +290,7 @@
       "level": 3
     },
     "animated": false,
-    "art_prompt": "Dawn over an empty pitch, cold-to-warm gradient sky in the upper third, dew on the grass, a single goal post in silhouette at the far edge, long low light, the center of the field a calm flat green. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size.",
+    "art_prompt": "Dawn over an empty pitch, cold-to-warm gradient sky in the upper third, dew on the grass, a single goal post in silhouette at the far edge, long low light, the center of the field a calm flat green. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, recognizable venue, landmark, skyline, people in the center"
   },
   {
@@ -304,7 +304,7 @@
       "level": 5
     },
     "animated": false,
-    "art_prompt": "The outside of a stadium at night seen from the parking area, four floodlight towers lit as geometric cones above the dark bowl, the sky a deep petrol blue, the wide empty forecourt across the center a calm dark flat. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size.",
+    "art_prompt": "The outside of a stadium at night seen from the parking area, four floodlight towers lit as geometric cones above the dark bowl, the sky a deep petrol blue, the wide empty forecourt across the center a calm dark flat. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, recognizable venue, landmark, skyline, people in the center"
   },
   {
@@ -318,7 +318,7 @@
       "level": 7
     },
     "animated": false,
-    "art_prompt": "A players’ tunnel seen from inside looking out toward the bright mouth, the walls plain concrete in two flat tones, amber light flooding in from the pitch beyond, the floor of the tunnel across the center a calm dark gradient. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size.",
+    "art_prompt": "A players’ tunnel seen from inside looking out toward the bright mouth, the walls plain concrete in two flat tones, amber light flooding in from the pitch beyond, the floor of the tunnel across the center a calm dark gradient. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, recognizable venue, landmark, skyline, people in the center"
   },
   {
@@ -332,7 +332,7 @@
       "level": 9
     },
     "animated": false,
-    "art_prompt": "Rows of empty plain seats in a stadium under steady rain, water sheeting off the roof edge in the upper third, floodlights haloed by the rain, the middle rows blurred into a calm flat band. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size.",
+    "art_prompt": "Rows of empty plain seats in a stadium under steady rain, water sheeting off the roof edge in the upper third, floodlights haloed by the rain, the middle rows blurred into a calm flat band. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, recognizable venue, landmark, skyline, people in the center"
   },
   {
@@ -346,7 +346,7 @@
       "collection": "common.loyalty"
     },
     "animated": false,
-    "art_prompt": "Rows of empty stadium seats in plain cream and charcoal climbing toward a dusk sky, the nearest row in the lower third, the sky in the upper third, the middle rows softened into a calm flat band. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size.",
+    "art_prompt": "Rows of empty stadium seats in plain cream and charcoal climbing toward a dusk sky, the nearest row in the lower third, the sky in the upper third, the middle rows softened into a calm flat band. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, recognizable venue, landmark, skyline, people in the center"
   },
   {
@@ -360,7 +360,7 @@
       "collection": "football.artistry"
     },
     "animated": false,
-    "art_prompt": "A football pitch at golden hour seen from the touchline, a generic ball frozen in mid-air high above the halfway line against the sky, long shadows across the grass, an empty goal in the distance, the central grass flat and calm. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size.",
+    "art_prompt": "A football pitch at golden hour seen from the touchline, a generic ball frozen in mid-air high above the halfway line against the sky, long shadows across the grass, an empty goal in the distance, the central grass flat and calm. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, recognizable venue, landmark, skyline, people in the center"
   },
   {
@@ -374,7 +374,7 @@
       "collection": "football.big_nights"
     },
     "animated": false,
-    "art_prompt": "A stadium at night seen from the top tier, floodlights as geometric cones, plain pale cloth banners without writing hanging from the stands, the pitch bright green at the edges and a calm darker green in the center. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size.",
+    "art_prompt": "A stadium at night seen from the top tier, floodlights as geometric cones, plain pale cloth banners without writing hanging from the stands, the pitch bright green at the edges and a calm darker green in the center. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, recognizable venue, landmark, skyline, people in the center"
   },
   {
@@ -388,7 +388,7 @@
       "collection": "football.fortress"
     },
     "animated": false,
-    "art_prompt": "A goal seen from behind the net at dawn, the net mesh a clean pattern at the left and right edges, an empty pitch stretching away, a tall stand wall in silhouette behind like a rampart, the central pitch flat. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size.",
+    "art_prompt": "A goal seen from behind the net at dawn, the net mesh a clean pattern at the left and right edges, an empty pitch stretching away, a tall stand wall in silhouette behind like a rampart, the central pitch flat. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, recognizable venue, landmark, skyline, people in the center"
   },
   {
@@ -402,7 +402,7 @@
       "collection": "football.last_minute"
     },
     "animated": false,
-    "art_prompt": "A stadium at night with a blank clock structure with no digits above the far stand, floodlights on, a plain corner flag bent in the wind, the stands a dark band, the center of the pitch calm. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size.",
+    "art_prompt": "A stadium at night with a blank clock structure with no digits above the far stand, floodlights on, a plain corner flag bent in the wind, the stands a dark band, the center of the pitch calm. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, recognizable venue, landmark, skyline, people in the center"
   },
   {
@@ -416,7 +416,7 @@
       "collection": "football.world_tour"
     },
     "animated": false,
-    "art_prompt": "A road made of light crossing three horizons, each with a different generic stadium silhouette, day on the left turning to night on the right, no country outlines, the road and plain fields across the center calm. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size.",
+    "art_prompt": "A road made of light crossing three horizons, each with a different generic stadium silhouette, day on the left turning to night on the right, no country outlines, the road and plain fields across the center calm. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, recognizable venue, landmark, skyline, people in the center"
   },
   {
@@ -430,7 +430,7 @@
       "collection": "formula_1.grid_to_glory"
     },
     "animated": false,
-    "art_prompt": "A starting grid at dawn seen from low on the track, painted grid boxes without numbers receding toward the first corner, a checkered pattern only on the finish gantry overhead, no cars, the empty asphalt across the center flat. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size.",
+    "art_prompt": "A starting grid at dawn seen from low on the track, painted grid boxes without numbers receding toward the first corner, a checkered pattern only on the finish gantry overhead, no cars, the empty asphalt across the center flat. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, recognizable venue, landmark, skyline, people in the center"
   },
   {
@@ -444,7 +444,7 @@
       "collection": "formula_1.pit_wall"
     },
     "animated": false,
-    "art_prompt": "A pit lane at night under cool floodlights, the pit wall gantry in silhouette with blank dark screens, pit boxes marked by plain lines, wet asphalt reflecting the light, no cars, the lane across the center calm. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size.",
+    "art_prompt": "A pit lane at night under cool floodlights, the pit wall gantry in silhouette with blank dark screens, pit boxes marked by plain lines, wet asphalt reflecting the light, no cars, the lane across the center calm. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, recognizable venue, landmark, skyline, people in the center"
   },
   {
@@ -458,7 +458,7 @@
       "collection": "formula_1.world_tour"
     },
     "animated": false,
-    "art_prompt": "A ribbon of racetrack looping through four landscapes drawn as flat shapes, desert, forest, coast and anonymous city lights, from sunrise on the left to night on the right, no landmarks and no map outlines, the asphalt across the center plain. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size.",
+    "art_prompt": "A ribbon of racetrack looping through four landscapes drawn as flat shapes, desert, forest, coast and anonymous city lights, from sunrise on the left to night on the right, no landmarks and no map outlines, the asphalt across the center plain. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, recognizable venue, landmark, skyline, people in the center"
   },
   {
@@ -472,7 +472,7 @@
       "collection": "handball.big_stage"
     },
     "animated": false,
-    "art_prompt": "An indoor handball court under arena lights, the goal areas as flat arcs at both ends, a dark crowd band in the stands, plain pale streamers hanging from the roof, the center of the court calm. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size.",
+    "art_prompt": "An indoor handball court under arena lights, the goal areas as flat arcs at both ends, a dark crowd band in the stands, plain pale streamers hanging from the roof, the center of the court calm. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, recognizable venue, landmark, skyline, people in the center"
   },
   {
@@ -486,7 +486,7 @@
       "collection": "handball.goal_fest"
     },
     "animated": false,
-    "art_prompt": "A handball court seen from behind one goal, the net mesh at the near edge, the far goal small under bright light, resin marks on the floor abstracted as soft dots, the center of the court flat. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size.",
+    "art_prompt": "A handball court seen from behind one goal, the net mesh at the near edge, the far goal small under bright light, resin marks on the floor abstracted as soft dots, the center of the court flat. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, recognizable venue, landmark, skyline, people in the center"
   },
   {
@@ -500,7 +500,7 @@
       "collection": "handball.one_goal"
     },
     "animated": false,
-    "art_prompt": "A handball court at the end of a match in a dark arena, one spotlight cone over the seven-metre line, a blank scoreboard frame with no digits in the upper corner, the court center a calm dark gradient. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size.",
+    "art_prompt": "A handball court at the end of a match in a dark arena, one spotlight cone over the seven-metre line, a blank scoreboard frame with no digits in the upper corner, the court center a calm dark gradient. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, recognizable venue, landmark, skyline, people in the center"
   },
   {
@@ -514,7 +514,7 @@
       "collection": "handball.world_tour"
     },
     "animated": false,
-    "art_prompt": "A chain of handball courts drawn as rectangles with goal arcs, linked by light lines across a field of dots that shifts from dawn to dusk, no country outlines, the central region plain. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size.",
+    "art_prompt": "A chain of handball courts drawn as rectangles with goal arcs, linked by light lines across a field of dots that shifts from dawn to dusk, no country outlines, the central region plain. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, recognizable venue, landmark, skyline, people in the center"
   },
   {
@@ -528,7 +528,7 @@
       "collection": "hockey.extra_time"
     },
     "animated": false,
-    "art_prompt": "An ice rink at night with the arena lights dimmed, blue lines and the centre circle on fresh ice, a blank clock frame with no digits above the far glass, the center ice calm and pale. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size.",
+    "art_prompt": "An ice rink at night with the arena lights dimmed, blue lines and the centre circle on fresh ice, a blank clock frame with no digits above the far glass, the center ice calm and pale. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, recognizable venue, landmark, skyline, people in the center"
   },
   {
@@ -542,7 +542,7 @@
       "collection": "hockey.firepower"
     },
     "animated": false,
-    "art_prompt": "An ice rink seen from behind the net at the end of a period, the goal frame and mesh at the near edge, ice shavings as soft pale marks, warm arena light, the center ice flat. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size.",
+    "art_prompt": "An ice rink seen from behind the net at the end of a period, the goal frame and mesh at the near edge, ice shavings as soft pale marks, warm arena light, the center ice flat. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, recognizable venue, landmark, skyline, people in the center"
   },
   {
@@ -556,7 +556,7 @@
       "collection": "hockey.fortress"
     },
     "animated": false,
-    "art_prompt": "A goal crease seen at ice level from the goalie’s spot, the crease arc in the lower third, the empty rink, the dark glass and the stands beyond, the center ice calm. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size.",
+    "art_prompt": "A goal crease seen at ice level from the goalie’s spot, the crease arc in the lower third, the empty rink, the dark glass and the stands beyond, the center ice calm. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, recognizable venue, landmark, skyline, people in the center"
   },
   {
@@ -570,7 +570,7 @@
       "collection": "hockey.playoff_run"
     },
     "animated": false,
-    "art_prompt": "An ice rink in spring with plain white towels waving from a dark crowd band, cones of light from above, the ice bright at the edges and calm in the center, no writing on any towel or banner. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size.",
+    "art_prompt": "An ice rink in spring with plain white towels waving from a dark crowd band, cones of light from above, the ice bright at the edges and calm in the center, no writing on any towel or banner. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, recognizable venue, landmark, skyline, people in the center"
   },
   {
@@ -584,7 +584,7 @@
       "collection": "hockey.world_tour"
     },
     "animated": false,
-    "art_prompt": "Several rinks drawn as flat shapes along a snowy road, an outdoor frozen pond, a small-town rink and a big arena, the season turning from autumn to spring from left to right, no map outlines, the central snow field calm. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size.",
+    "art_prompt": "Several rinks drawn as flat shapes along a snowy road, an outdoor frozen pond, a small-town rink and a big arena, the season turning from autumn to spring from left to right, no map outlines, the central snow field calm. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, recognizable venue, landmark, skyline, people in the center"
   },
   {
@@ -598,7 +598,7 @@
       "collection": "mma.finishers"
     },
     "animated": false,
-    "art_prompt": "An empty octagonal cage under a single spotlight, the fence mesh a clean pattern at the left and right edges, the canvas plain and pale in the center, the dark arena beyond. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size.",
+    "art_prompt": "An empty octagonal cage under a single spotlight, the fence mesh a clean pattern at the left and right edges, the canvas plain and pale in the center, the dark arena beyond. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, recognizable venue, landmark, skyline, people in the center"
   },
   {
@@ -612,7 +612,7 @@
       "collection": "mma.first_bell"
     },
     "animated": false,
-    "art_prompt": "An octagonal cage at the moment the lights come up, a ring bell shape on the apron in silhouette, the canvas lit amber, the crowd a dark band, the center of the canvas calm. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size.",
+    "art_prompt": "An octagonal cage at the moment the lights come up, a ring bell shape on the apron in silhouette, the canvas lit amber, the crowd a dark band, the center of the canvas calm. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, recognizable venue, landmark, skyline, people in the center"
   },
   {
@@ -626,7 +626,7 @@
       "collection": "mma.night_shift"
     },
     "animated": false,
-    "art_prompt": "A dark arena late at night seen from the highest seats, the cage far below as a small lit octagon, a window of dawn light on one side, the center of the image a calm dark gradient. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size.",
+    "art_prompt": "A dark arena late at night seen from the highest seats, the cage far below as a small lit octagon, a window of dawn light on one side, the center of the image a calm dark gradient. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, recognizable venue, landmark, skyline, people in the center"
   },
   {
@@ -640,7 +640,7 @@
       "collection": "mma.world_tour"
     },
     "animated": false,
-    "art_prompt": "A chain of small octagon shapes linked by light lines across a field of dots shifting from day to night, no country outlines, the central region plain. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size.",
+    "art_prompt": "A chain of small octagon shapes linked by light lines across a field of dots shifting from day to night, no country outlines, the central region plain. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, recognizable venue, landmark, skyline, people in the center"
   },
   {
@@ -654,7 +654,7 @@
       "collection": "nba.explorer"
     },
     "animated": false,
-    "art_prompt": "A big arena court seen from outside through tall glass at night, anonymous city lights as plain dots beyond, the hardwood glowing inside, the central area a calm dark reflection. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size.",
+    "art_prompt": "A big arena court seen from outside through tall glass at night, anonymous city lights as plain dots beyond, the hardwood glowing inside, the central area a calm dark reflection. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, recognizable venue, landmark, skyline, people in the center"
   },
   {
@@ -668,7 +668,7 @@
       "collection": "nba.playoffs"
     },
     "animated": false,
-    "art_prompt": "A big arena at night seen from the upper bowl, the hardwood glowing under a dark blank scoreboard cube with no digits, the crowd a dark band waving plain pale towels, the center of the court flat. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size.",
+    "art_prompt": "A big arena at night seen from the upper bowl, the hardwood glowing under a dark blank scoreboard cube with no digits, the crowd a dark band waving plain pale towels, the center of the court flat. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, recognizable venue, landmark, skyline, people in the center"
   },
   {
@@ -682,7 +682,7 @@
       "collection": "nba.scoreboard"
     },
     "animated": false,
-    "art_prompt": "A big arena court from above at an angle, a blank dark scoreboard cube with no digits hanging over center court, amber light spilling over the painted key areas, the midcourt calm. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size.",
+    "art_prompt": "A big arena court from above at an angle, a blank dark scoreboard cube with no digits hanging over center court, amber light spilling over the painted key areas, the midcourt calm. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, recognizable venue, landmark, skyline, people in the center"
   },
   {
@@ -696,7 +696,7 @@
       "collection": "nba.star_night"
     },
     "animated": false,
-    "art_prompt": "A big arena court in darkness with a single spotlight cone on the three-point arc, a generic ball at rest at the edge of the light, the seats as faint silhouettes, the center a soft dark gradient. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size.",
+    "art_prompt": "A big arena court in darkness with a single spotlight cone on the three-point arc, a generic ball at rest at the edge of the light, the seats as faint silhouettes, the center a soft dark gradient. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, recognizable venue, landmark, skyline, people in the center"
   },
   {
@@ -710,7 +710,7 @@
       "collection": "rugby.big_nights"
     },
     "animated": false,
-    "art_prompt": "A rugby ground at night, H-shaped posts in silhouette at both ends, floodlight cones, a dark stand band with plain flags, the center of the field calm. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size.",
+    "art_prompt": "A rugby ground at night, H-shaped posts in silhouette at both ends, floodlight cones, a dark stand band with plain flags, the center of the field calm. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, recognizable venue, landmark, skyline, people in the center"
   },
   {
@@ -724,7 +724,7 @@
       "collection": "rugby.dawn"
     },
     "animated": false,
-    "art_prompt": "A rugby ground at first light with mist on the grass, H-shaped posts emerging from the fog, a pale cold-to-warm sky gradient in the upper third, the center of the field flat and hazy. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size.",
+    "art_prompt": "A rugby ground at first light with mist on the grass, H-shaped posts emerging from the fog, a pale cold-to-warm sky gradient in the upper third, the center of the field flat and hazy. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, recognizable venue, landmark, skyline, people in the center"
   },
   {
@@ -738,7 +738,7 @@
       "collection": "rugby.last_kick"
     },
     "animated": false,
-    "art_prompt": "A rugby ground at dusk seen from behind the posts, a generic oval ball resting on a kicking tee in the lower third, the posts rising at the edge of the frame, the field beyond calm. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size.",
+    "art_prompt": "A rugby ground at dusk seen from behind the posts, a generic oval ball resting on a kicking tee in the lower third, the posts rising at the edge of the frame, the field beyond calm. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, recognizable venue, landmark, skyline, people in the center"
   },
   {
@@ -752,7 +752,7 @@
       "collection": "rugby.scoreboard"
     },
     "animated": false,
-    "art_prompt": "A rugby ground under afternoon sun, a blank wooden scoreboard frame with no numbers in the far corner, mud patches on the grass abstracted as soft shapes, the center of the field plain. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size.",
+    "art_prompt": "A rugby ground under afternoon sun, a blank wooden scoreboard frame with no numbers in the far corner, mud patches on the grass abstracted as soft shapes, the center of the field plain. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, recognizable venue, landmark, skyline, people in the center"
   },
   {
@@ -766,7 +766,7 @@
       "collection": "rugby.world_tour"
     },
     "animated": false,
-    "art_prompt": "Two halves of sky meeting in the middle, summer on the left and winter on the right, with rugby grounds drawn as flat shapes under each, no map outlines, the central area a calm gradient. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size.",
+    "art_prompt": "Two halves of sky meeting in the middle, summer on the left and winter on the right, with rugby grounds drawn as flat shapes under each, no map outlines, the central area a calm gradient. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, recognizable venue, landmark, skyline, people in the center"
   },
   {
@@ -780,7 +780,7 @@
       "collection": "volleyball.big_nights"
     },
     "animated": false,
-    "art_prompt": "An indoor volleyball court under arena lights, the net stretched across the upper third, plain pale streamers hanging from the roof, a dark crowd band, the center of the court calm. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size.",
+    "art_prompt": "An indoor volleyball court under arena lights, the net stretched across the upper third, plain pale streamers hanging from the roof, a dark crowd band, the center of the court calm. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, recognizable venue, landmark, skyline, people in the center"
   },
   {
@@ -794,7 +794,7 @@
       "collection": "volleyball.dominance"
     },
     "animated": false,
-    "art_prompt": "A volleyball court seen from above one end, the net as a clean line, the far court bright and the near court calm, tall shadows of the net posts across the floor. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size.",
+    "art_prompt": "A volleyball court seen from above one end, the net as a clean line, the far court bright and the near court calm, tall shadows of the net posts across the floor. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, recognizable venue, landmark, skyline, people in the center"
   },
   {
@@ -808,7 +808,7 @@
       "collection": "volleyball.fifth_set"
     },
     "animated": false,
-    "art_prompt": "A volleyball court late at night with the arena lights low, the net in silhouette, a blank scoreboard frame with no digits, a haze of hand chalk in the spotlight, the center of the floor calm. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size.",
+    "art_prompt": "A volleyball court late at night with the arena lights low, the net in silhouette, a blank scoreboard frame with no digits, a haze of hand chalk in the spotlight, the center of the floor calm. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, recognizable venue, landmark, skyline, people in the center"
   },
   {
@@ -822,7 +822,7 @@
       "collection": "volleyball.world_tour"
     },
     "animated": false,
-    "art_prompt": "A beach court at sunset and an indoor court at night side by side as flat shapes, the net line continuing from one to the other, no landmarks, the central area a calm gradient. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size.",
+    "art_prompt": "A beach court at sunset and an indoor court at night side by side as flat shapes, the net line continuing from one to the other, no landmarks, the central area a calm gradient. Wide establishing scene, 16:9, no focal subject, calm low-detail area across the center for overlaid text, horizon in the upper third; the same scene is recomposed, not cropped, as a 9:16 vertical with the calm area kept in the center. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, recognizable venue, landmark, skyline, people in the center"
   }
 ]

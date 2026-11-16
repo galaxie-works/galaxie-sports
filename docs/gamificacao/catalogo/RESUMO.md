@@ -62,13 +62,17 @@ As 112 perguntas dos 13 pacotes estão consolidadas em 50 únicas, por tema, em 
 2. **O que é `final` e como as fases de playoff chegam em `stage.kind`?** Final em série (melhor de 7) ou ida e volta conta por jogo; finais de conferência; etapas de sevens. Afeta toda Conquista com `where.stage` nos dez esportes de time e nas comuns.
 3. **`fan.favorite_team_id` aceita seleção?** Sem isso vôlei, handebol e rugby, onde o público do Brasil e da América hispânica torce por seleção antes de clube, perdem metade do que o pacote calibrou.
 
-Logo atrás: aprovar em bloco as 7 exceções à régua; decidir se "Rei do placar exato" e "Madrugador" ficam no masculino (são os exemplos da missão) ou ganham forma neutra; confirmar o estilo de arte (o guia recomenda manter o A, vetor plano, e testar o C, holográfico noturno, só nas peças de topo antes de decidir).
+Logo atrás: aprovar em bloco as 7 exceções à régua; decidir se "Rei do placar exato" e "Madrugador" ficam no masculino (são os exemplos da missão) ou ganham forma neutra; o estilo de arte já foi decidido: **Galaxie (galáctico)**, provado no lote 0 de 16/11 e aplicado a todos os prompts.
 
-## 5. Revisão independente (16/11)
+## 5. Arte: lote 0 e estilo padrão (16/11)
+
+Cinco Cartas de "Gol nos acréscimos" geradas pelo Magnific no estilo A, depois três no estilo galáctico e a Carta Bronze em três paletas de cliente (só cores, nunca marca). O dono aprovou o lote e **escolheu o estilo Galaxie (galáctico) como padrão**: a frase dele substituiu a do vetor plano em todas as Cartas e nos cosméticos; o guia de arte traz o estilo (seção 2.5) e o tema por cliente pela paleta (seção 7.1). Registro e custo na issue #1283.
+
+## 6. Revisão independente (16/11)
 
 O Codex ficou sem cota, então um revisor de leitura percorreu as 1.172 Cartas, as 109 Coleções, os cosméticos e as 360 Conquistas. Achou 4 itens que violavam regra fixa, todos de vocabulário e já corrigidos: "pleno" (jargão de aposta em espanhol) virou "acierto total" / "de lleno"; "octógono" (marca) virou "gaiola" / "jaula"; "placares cravados" (gíria de aposta) virou "placares exatos gravados"; "você já sabe onde dói" (MMA, 13+) virou "onde fecha". Dos 24 ajustes de idioma e coerência, 21 foram aplicados (léxico latino-americano unificado em "tiempo extra", "narrador", "gimnasio", "clavada"; inglês literal; provocação a rival em 6 versos; duas descrições que prometiam mais que a regra). Ficaram como decisão registrada: "fecha" e "jornada" convivem; nomes de até 4 palavras valem; e **37 das 109 Coleções têm Carta de Conquista inativa (5 só de inativas)**, então aparecem na estante com a Carta em silhueta e só fecham quando a Conquista ligar.
 
-## 6. Como importar (quando aprovado)
+## 7. Como importar (quando aprovado)
 
 1. Responder as perguntas de [consolidado.md](pesquisa/consolidado.md) e ajustar os pacotes afetados (cada pacote tem o gerador que o produziu; regenerar e revalidar).
 2. Mapear cada caminho de `requires_data` para a base e conferir as regras de momento contra jogos reais (um jogo por fato, no mínimo).

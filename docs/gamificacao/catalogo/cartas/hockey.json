@@ -13,7 +13,7 @@
       "es": "Un pronóstico aquí, otro allá, y el mapa se congela en el lugar justo.",
       "en": "One call here, another there, and the map freezes into place."
     },
-    "art_prompt": "A stylized paper map on a table with two glowing pin shapes and two tiny generic pucks, a stylized fan’s hands placing the second pin, warm morning light, flat vector. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_prompt": "A stylized paper map on a table with two glowing pin shapes and two tiny generic pucks, a stylized fan’s hands placing the second pin, warm morning light, flat vector. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -30,7 +30,7 @@
       "es": "Liga, playoff, selecciones: todo cabe en tu pronóstico.",
       "en": "League, playoffs, national teams: your calls cover it all."
     },
-    "art_prompt": "A stylized map spread wide with four glowing pins connected by thin lines, a stylized fan leaning over it with a generic phone with a blank screen, steel-blue afternoon light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_prompt": "A stylized map spread wide with four glowing pins connected by thin lines, a stylized fan leaning over it with a generic phone with a blank screen, steel-blue afternoon light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -47,7 +47,7 @@
       "es": "Ocho torneos y ningún huso horario te asusta.",
       "en": "Eight tournaments and no time zone scares you."
     },
-    "art_prompt": "A stylized globe on a desk with eight glowing pins forming a constellation across the northern half, a stylized fan silhouette spinning it with one finger, night lamp light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_prompt": "A stylized globe on a desk with eight glowing pins forming a constellation across the northern half, a stylized fan silhouette spinning it with one finger, night lamp light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -64,7 +64,7 @@
       "es": "Dieciséis torneos en la punta de la lengua.",
       "en": "Sixteen competitions at the tip of the tongue."
     },
-    "art_prompt": "A stylized fan silhouette standing inside a planetarium-like dome where sixteen glowing pin-lights form a violet map across the ceiling, faceted glow, frost patterns at the edges. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_prompt": "A stylized fan silhouette standing inside a planetarium-like dome where sixteen glowing pin-lights form a violet map across the ceiling, faceted glow, frost patterns at the edges. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -81,7 +81,7 @@
       "es": "No hay pista que no hayas pronosticado.",
       "en": "There is no rink you have not called."
     },
-    "art_prompt": "A stylized fan silhouette standing on a floating puck-shaped planet covered in a network of prismatic light lines and thirty-two glowing nodes, light rays and floating ice particles, deep space backdrop. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_prompt": "A stylized fan silhouette standing on a floating puck-shaped planet covered in a network of prismatic light lines and thirty-two glowing nodes, light rays and floating ice particles, deep space backdrop. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -98,7 +98,7 @@
       "es": "El hielo es igual en cualquier idioma.",
       "en": "Ice is the same in every language."
     },
-    "art_prompt": "A stylized fan watching a generic hockey game on a tablet at an airport-like window with a plain plane silhouette outside, players in plain white and plain charcoal kits on the screen, daylight, snow outside. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_prompt": "A stylized fan watching a generic hockey game on a tablet at an airport-like window with a plain plane silhouette outside, players in plain white and plain charcoal kits on the screen, daylight, snow outside. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -115,7 +115,7 @@
       "es": "Dos acentos de narrador, el mismo ruido del disco en el vidrio.",
       "en": "Two commentators’ accents, the same clack of puck on glass."
     },
-    "art_prompt": "A stylized fan with headphones in front of two floating screens each showing an arena of different architecture, no flags or symbols, steel-blue tones, cozy interior. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_prompt": "A stylized fan with headphones in front of two floating screens each showing an arena of different architecture, no flags or symbols, steel-blue tones, cozy interior. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -132,7 +132,7 @@
       "es": "Tu pasaporte de hincha ya tiene sellos de hielo.",
       "en": "Your fan passport already has frosty stamps."
     },
-    "art_prompt": "A stylized plain passport-like booklet without text open on a table showing four abstract glowing stamp shapes of pucks and arenas, a stylized fan’s hand holding a generic phone beside it, warm lamp light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_prompt": "A stylized plain passport-like booklet without text open on a table showing four abstract glowing stamp shapes of pucks and arenas, a stylized fan’s hand holding a generic phone beside it, warm lamp light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -149,7 +149,7 @@
       "es": "Ocho países, ocho formas de gritar gol.",
       "en": "Eight countries, eight ways to shout goal."
     },
-    "art_prompt": "A stylized fan silhouette standing at the center of a ring of eight arena silhouettes of varied architecture glowing violet, night, faceted glow, no flags, snow falling softly. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_prompt": "A stylized fan silhouette standing at the center of a ring of eight arena silhouettes of varied architecture glowing violet, night, faceted glow, no flags, snow falling softly. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -166,7 +166,7 @@
       "es": "Dieciséis países y ningún partido extranjero.",
       "en": "Sixteen countries, no game ever foreign."
     },
-    "art_prompt": "A stylized fan silhouette standing on a stylized frosted globe wrapped in amber light with sixteen glowing arena markers across the northern continents without borders or flags, engraved laurel-like glow and soft outer glow. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_prompt": "A stylized fan silhouette standing on a stylized frosted globe wrapped in amber light with sixteen glowing arena markers across the northern continents without borders or flags, engraved laurel-like glow and soft outer glow. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -183,7 +183,7 @@
       "es": "Hicieron el hielo y el calendario empezó a contar.",
       "en": "The ice went in and the calendar started counting."
     },
-    "art_prompt": "A stylized wall calendar without numbers with one page glowing softly, a stylized fan beside it holding a generic puck, morning light, flat vector interior. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_prompt": "A stylized wall calendar without numbers with one page glowing softly, a stylized fan beside it holding a generic puck, morning light, flat vector interior. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -200,7 +200,7 @@
       "es": "Del otoño al invierno, el disco no paró.",
       "en": "From autumn into winter, the puck never stopped."
     },
-    "art_prompt": "Two stylized windows side by side showing the same generic rink in falling leaves and in first snow, a stylized fan silhouette walking past them, steel-blue tones. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_prompt": "Two stylized windows side by side showing the same generic rink in falling leaves and in first snow, a stylized fan silhouette walking past them, steel-blue tones. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -217,7 +217,7 @@
       "es": "Cuatro meses, cuatro motivos para encender la pantalla tarde en la noche.",
       "en": "Four months, four reasons to turn on the screen late at night."
     },
-    "art_prompt": "A stylized tree beside a generic outdoor rink shown half bare under snow and half in spring bloom, a stylized fan seated beneath watching a tiny game, soft light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_prompt": "A stylized tree beside a generic outdoor rink shown half bare under snow and half in spring bloom, a stylized fan seated beneath watching a tiny game, soft light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -234,7 +234,7 @@
       "es": "Nueve meses de hielo, del primer entrenamiento a la copa.",
       "en": "Nine months of ice, from first practice to the trophy."
     },
-    "art_prompt": "A ring of nine stylized moon phases glowing violet above a generic arena, a stylized fan silhouette standing at center ice looking up, night, faceted glow. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_prompt": "A ring of nine stylized moon phases glowing violet above a generic arena, a stylized fan silhouette standing at center ice looking up, night, faceted glow. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -251,7 +251,7 @@
       "es": "Dieciocho meses de partidos, ninguno sin disco.",
       "en": "Eighteen months of games, not one without a puck."
     },
-    "art_prompt": "A stylized fan silhouette standing on a sundial-like generic rink where two full rings of amber light orbit overhead with eighteen glowing marks, engraved laurel-like glow, soft outer glow. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_prompt": "A stylized fan silhouette standing on a sundial-like generic rink where two full rings of amber light orbit overhead with eighteen glowing marks, engraved laurel-like glow, soft outer glow. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -268,7 +268,7 @@
       "es": "Todo hincha recuerda su primer saque.",
       "en": "Every fan remembers their first puck drop."
     },
-    "art_prompt": "A young stylized fan with a plain white scarf sitting alone in a wide generic arena stand at a sunny afternoon game, players in plain white kit small on the ice below, soft shadows, cold breath visible. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_prompt": "A young stylized fan with a plain white scarf sitting alone in a wide generic arena stand at a sunny afternoon game, players in plain white kit small on the ice below, soft shadows, cold breath visible. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -285,7 +285,7 @@
       "es": "Ya se sabe las líneas de memoria.",
       "en": "Already knows the lines by heart."
     },
-    "art_prompt": "A stylized fan standing in a half-full generic arena stand with a few silhouetted friends, holding a plain white towel overhead, a women’s team in plain white kit lining up at the blue line, late afternoon light, steel-blue tones. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_prompt": "A stylized fan standing in a half-full generic arena stand with a few silhouetted friends, holding a plain white towel overhead, a women’s team in plain white kit lining up at the blue line, late afternoon light, steel-blue tones. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -302,7 +302,7 @@
       "es": "Partido de martes, partido de sábado, ahí estabas.",
       "en": "Tuesday game, Saturday game, you were there."
     },
-    "art_prompt": "A stylized fan in the middle of a packed generic arena with arms wide, silhouetted fans of every age around, arena lights dimming for the player entrance, a team in plain white kit skating out below. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_prompt": "A stylized fan in the middle of a packed generic arena with arms wide, silhouetted fans of every age around, arena lights dimming for the player entrance, a team in plain white kit skating out below. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -319,7 +319,7 @@
       "es": "Cuarenta y un partidos. Media temporada, entera en el corazón.",
       "en": "Forty-one games. Half the season, all of the heart."
     },
-    "art_prompt": "A stylized fan standing at the front of the stand with a plain white flag without symbols, a sea of silhouetted fans behind in violet light, the rink glowing under night lights, a faint calendar-like grid of light without numbers above, faceted glow. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_prompt": "A stylized fan standing at the front of the stand with a plain white flag without symbols, a sea of silhouetted fans behind in violet light, the rink glowing under night lights, a faint calendar-like grid of light without numbers above, faceted glow. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -336,7 +336,7 @@
       "es": "Cien partidos después, el frío sigue en la panza, no en las manos.",
       "en": "A hundred games later, the chill is still in the gut, not the hands."
     },
-    "art_prompt": "A stylized fan silhouette seen from behind at the top of an arena with amber light rays and an engraved laurel-like glow surrounding, a trail of one hundred faint seat shapes lighting up behind, frost on the glass, night. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_prompt": "A stylized fan silhouette seen from behind at the top of an arena with amber light rays and an engraved laurel-like glow surrounding, a trail of one hundred faint seat shapes lighting up behind, frost on the glass, night. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -353,7 +353,7 @@
       "es": "Partido sí, partido sí.",
       "en": "Game after game."
     },
-    "art_prompt": "Two stylized arena seats side by side with a stylized fan seated in the second one, the first seat glowing faintly as if just vacated, cold morning light, frost on the glass of a generic rink. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_prompt": "Two stylized arena seats side by side with a stylized fan seated in the second one, the first seat glowing faintly as if just vacated, cold morning light, frost on the glass of a generic rink. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -370,7 +370,7 @@
       "es": "Cinco partidos, cinco presencias, ningún horario difícil.",
       "en": "Five games, five appearances, no hour too late."
     },
-    "art_prompt": "A row of five stylized arena seats each with a glowing outline, a stylized fan standing on the fifth with a plain white towel raised, afternoon light, scattered silhouetted fans, steel-blue tones. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_prompt": "A row of five stylized arena seats each with a glowing outline, a stylized fan standing on the fifth with a plain white towel raised, afternoon light, scattered silhouetted fans, steel-blue tones. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -387,7 +387,7 @@
       "es": "Ni nieve, ni madrugada, ni cansancio.",
       "en": "Not snow, not the late hour, not fatigue."
     },
-    "art_prompt": "A stylized female fan walking through falling snow under a plain umbrella toward a glowing arena entrance, a trail of ten glowing footprints in the snow behind, night, steel-blue tones. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_prompt": "A stylized female fan walking through falling snow under a plain umbrella toward a glowing arena entrance, a trail of ten glowing footprints in the snow behind, night, steel-blue tones. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -404,7 +404,7 @@
       "es": "Un mes entero de partidos sin pestañear.",
       "en": "A whole month of games without blinking."
     },
-    "art_prompt": "A stylized fan standing alone at the center of an empty generic arena lit by a single violet spotlight, twenty glowing seat outlines arranged in a crescent behind, faceted violet glow. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_prompt": "A stylized fan standing alone at the center of an empty generic arena lit by a single violet spotlight, twenty glowing seat outlines arranged in a crescent behind, faceted violet glow. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -421,7 +421,7 @@
       "es": "Media temporada sin faltar ni una vez.",
       "en": "Half a season, not a single absence."
     },
-    "art_prompt": "A stylized fan silhouette standing at the summit of an arena with amber light rays and an engraved laurel-like glow, a long spiral of forty glowing seats winding down the stands to the ice below, night. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_prompt": "A stylized fan silhouette standing at the summit of an arena with amber light rays and an engraved laurel-like glow, a long spiral of forty glowing seats winding down the stands to the ice below, night. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -438,7 +438,7 @@
       "es": "Hay partidos en que nadie se sienta.",
       "en": "Some games, nobody sits down."
     },
-    "art_prompt": "A stylized fan watching from the glass as two teams in plain white and plain charcoal kits line up for the opening faceoff of a playoff game, white towels without markings on every seat, daylight through high arena windows. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_prompt": "A stylized fan watching from the glass as two teams in plain white and plain charcoal kits line up for the opening faceoff of a playoff game, white towels without markings on every seat, daylight through high arena windows. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -455,7 +455,7 @@
       "es": "Tres partidos de eliminación, tres nudos en la garganta.",
       "en": "Three knockout games, three lumps in the throat."
     },
-    "art_prompt": "Two stylized fans of different ages gripping each other’s arms in an arena stand, the ice below glowing with players in plain white and plain charcoal kits, three faint glowing marks above, dusk, steel-blue tones. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_prompt": "Two stylized fans of different ages gripping each other’s arms in an arena stand, the ice below glowing with players in plain white and plain charcoal kits, three faint glowing marks above, dusk, steel-blue tones. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -472,7 +472,7 @@
       "es": "Dos series enteras sin perderse una noche.",
       "en": "Two full series without missing a night."
     },
-    "art_prompt": "A stylized fan at a crowded living-room watch party, eight tiny floating arena shapes glowing above the television, friends of diverse ages cheering with white towels, night. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_prompt": "A stylized fan at a crowded living-room watch party, eight tiny floating arena shapes glowing above the television, friends of diverse ages cheering with white towels, night. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -489,7 +489,7 @@
       "es": "Dieciséis noches sin vuelta atrás.",
       "en": "Sixteen nights with no way back."
     },
-    "art_prompt": "A stylized fan silhouette standing before a wall of sixteen glowing arena outlines like a gallery, violet light, towels frozen mid-wave in the air, faceted violet glow. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_prompt": "A stylized fan silhouette standing before a wall of sixteen glowing arena outlines like a gallery, violet light, towels frozen mid-wave in the air, faceted violet glow. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -506,7 +506,7 @@
       "es": "Cuarenta noches en que todo estaba en juego.",
       "en": "Forty nights when everything was on the line."
     },
-    "art_prompt": "A stylized fan silhouette at the center of a circular hall of amber light where forty tiny generic trophy shapes float in a ring, engraved laurel-like glow, soft outer glow, frost patterns on the floor. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_prompt": "A stylized fan silhouette at the center of a circular hall of amber light where forty tiny generic trophy shapes float in a ring, engraved laurel-like glow, soft outer glow, frost patterns on the floor. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -523,7 +523,7 @@
       "es": "Veinte minutos, cuatro goles, un arquero sin respuestas.",
       "en": "Twenty minutes, four goals, a goalie out of answers."
     },
-    "art_prompt": "A stylized female skater in a plain white kit celebrating in front of a net where four generic pucks rest, teammates of varied builds and genders raising sticks, a goaltender in a plain charcoal kit looking down, steel-blue arena light, a blank scoreboard silhouette. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_prompt": "A stylized female skater in a plain white kit celebrating in front of a net where four generic pucks rest, teammates of varied builds and genders raising sticks, a goaltender in a plain charcoal kit looking down, steel-blue arena light, a blank scoreboard silhouette. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -540,7 +540,7 @@
       "es": "Tres goles abajo y la tribuna seguía golpeando los vidrios.",
       "en": "Three goals down and the crowd was still pounding the glass."
     },
-    "art_prompt": "A stylized team in plain white kit climbing a staircase of light carved into a wall of ice out of a dark pit toward a glowing net at the top, three faint shadows of opponents in plain charcoal kit at the bottom, a radiant crowd silhouette above, warm amber glow. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_prompt": "A stylized team in plain white kit climbing a staircase of light carved into a wall of ice out of a dark pit toward a glowing net at the top, three faint shadows of opponents in plain charcoal kit at the bottom, a radiant crowd silhouette above, warm amber glow. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -557,7 +557,7 @@
       "es": "Dos abajo en el tablero. Nadie lo miró.",
       "en": "Two down on the board. Nobody looked at it."
     },
-    "art_prompt": "A stylized women’s team in plain white kit of varied heights and builds skating out of the tunnel for a new period with determined posture, a blank scoreboard silhouette above with two faint marks on one side, cool arena light warming to amber at the far end of the rink. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_prompt": "A stylized women’s team in plain white kit of varied heights and builds skating out of the tunnel for a new period with determined posture, a blank scoreboard silhouette above with two faint marks on one side, cool arena light warming to amber at the far end of the rink. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -574,7 +574,7 @@
       "es": "Seis patinadores, ningún arquero, un segundo de coraje.",
       "en": "Six skaters, no goalie, one second of courage."
     },
-    "art_prompt": "Six stylized skaters in plain white kit swarming the offensive zone as the puck slips past a goaltender in a plain charcoal kit, their own net far behind standing empty and glowing, a blank clock shape showing almost nothing left, night arena lights. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_prompt": "Six stylized skaters in plain white kit swarming the offensive zone as the puck slips past a goaltender in a plain charcoal kit, their own net far behind standing empty and glowing, a blank clock shape showing almost nothing left, night arena lights. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -591,7 +591,7 @@
       "es": "Tres goles y el hielo desaparece bajo los sombreros.",
       "en": "Three goals and the ice vanishes under the hats."
     },
-    "art_prompt": "A stylized skater in a plain white kit gliding past the glass with one glove raised while dozens of plain generic hats of every shape rain onto the ice from silhouetted fans, arena workers scooping them up, warm evening arena light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_prompt": "A stylized skater in a plain white kit gliding past the glass with one glove raised while dozens of plain generic hats of every shape rain onto the ice from silhouetted fans, arena workers scooping them up, warm evening arena light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -608,7 +608,7 @@
       "es": "En el playoff, el tiempo extra solo termina con un gol.",
       "en": "In the playoffs, overtime ends only with a goal."
     },
-    "art_prompt": "A stylized skater in a plain white kit sliding on the knees toward the corner glass with both fists clenched, teammates leaping over the boards behind, a goaltender in a plain charcoal kit slumped against the post, deep violet arena light, silhouetted fans on their feet. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_prompt": "A stylized skater in a plain white kit sliding on the knees toward the corner glass with both fists clenched, teammates leaping over the boards behind, a goaltender in a plain charcoal kit slumped against the post, deep violet arena light, silhouetted fans on their feet. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -625,7 +625,7 @@
       "es": "El próximo gol vale el partido. Y fue nuestro.",
       "en": "Next goal wins. It was ours."
     },
-    "art_prompt": "A lone stylized skater in a plain white kit gliding away from the net with one arm raised, the generic puck resting in the net behind, a goaltender in a plain charcoal kit on the knees, a quiet generic rink in cool morning light, a blank scoreboard silhouette with no digits. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_prompt": "A lone stylized skater in a plain white kit gliding away from the net with one arm raised, the generic puck resting in the net behind, a goaltender in a plain charcoal kit on the knees, a quiet generic rink in cool morning light, a blank scoreboard silhouette with no digits. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -642,7 +642,7 @@
       "es": "Hielo abierto, espacio de sobra, corazón acelerado.",
       "en": "Open ice, all that room, heart in the throat."
     },
-    "art_prompt": "Three stylized skaters in plain white kit and three in plain charcoal kit spread across a wide empty rink, long shadows under arena lights, a player in white winding up for a shot at the top of the circle, a half-full generic stand leaning forward, dusk-blue tones. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_prompt": "Three stylized skaters in plain white kit and three in plain charcoal kit spread across a wide empty rink, long shadows under arena lights, a player in white winding up for a shot at the top of the circle, a half-full generic stand leaning forward, dusk-blue tones. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -659,7 +659,7 @@
       "es": "Nadie se sentó. Nadie parpadeó. Entró.",
       "en": "Nobody sat down. Nobody blinked. It went in."
     },
-    "art_prompt": "A diverse group of stylized players in plain white kit pouring over the boards to mob a teammate at the glass, sticks and gloves flying into the air, a packed generic arena under bright night lights, confetti-like paper strips drifting down. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_prompt": "A diverse group of stylized players in plain white kit pouring over the boards to mob a teammate at the glass, sticks and gloves flying into the air, a packed generic arena under bright night lights, confetti-like paper strips drifting down. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -676,7 +676,7 @@
       "es": "Cuando el reloj se pone en cero, el partido es suyo.",
       "en": "When the clock resets, the game belongs to them."
     },
-    "art_prompt": "A stylized skater in a plain white kit standing tall at center ice with arms spread wide, a giant blank clock shape glowing faintly above the rink, a wall of silhouetted fans behind, violet arena light and faceted glow. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_prompt": "A stylized skater in a plain white kit standing tall at center ice with arms spread wide, a giant blank clock shape glowing faintly above the rink, a wall of silhouetted fans behind, violet arena light and faceted glow. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -693,7 +693,7 @@
       "es": "Veinticinco veces el partido pasó del tiempo y se quedó con nosotros.",
       "en": "Twenty-five times the game ran long and stayed ours."
     },
-    "art_prompt": "An epic low-angle view of a stylized skater in a plain white kit frozen mid-shot above a sea of silhouetted fans, light rays bursting from the net, a colossal blank clock face dissolving into prismatic particles behind, floating ice crystals. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: iridescent prismatic border with light rays and floating particles.",
+    "art_prompt": "An epic low-angle view of a stylized skater in a plain white kit frozen mid-shot above a sea of silhouetted fans, light rays bursting from the net, a colossal blank clock face dissolving into prismatic particles behind, floating ice crystals. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: iridescent prismatic border with light rays and floating particles.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -710,7 +710,7 @@
       "es": "El árbitro señaló el centro. El resto fueron nervios.",
       "en": "The referee pointed to center ice. The rest was nerves."
     },
-    "art_prompt": "A stylized referee in a plain striped shirt pointing to center ice while a skater in a plain white kit picks up the puck alone, a goaltender in a plain charcoal kit tapping the posts, the whole arena of silhouettes gone still, dramatic violet side lighting. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_prompt": "A stylized referee in a plain striped shirt pointing to center ice while a skater in a plain white kit picks up the puck alone, a goaltender in a plain charcoal kit tapping the posts, the whole arena of silhouettes gone still, dramatic violet side lighting. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -727,7 +727,7 @@
       "es": "Solo el atacante, el arquero y el silencio de la arena.",
       "en": "Just the shooter, the goalie, and a silent arena."
     },
-    "art_prompt": "A stylized skater in a plain white kit carrying the puck alone from center ice toward a goaltender in a plain charcoal kit crouched in the crease, every other player lined up at the bench, a spotlight-like glow on the ice, silhouetted fans holding their breath. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_prompt": "A stylized skater in a plain white kit carrying the puck alone from center ice toward a goaltender in a plain charcoal kit crouched in the crease, every other player lined up at the bench, a spotlight-like glow on the ice, silhouetted fans holding their breath. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -744,7 +744,7 @@
       "es": "Eran cuatro contra cinco. El disco no contó.",
       "en": "Four against five. The puck did not count."
     },
-    "art_prompt": "A lone stylized skater in a plain white kit racing down the ice with the puck while four opponents in plain charcoal kit chase from behind, an empty penalty box with its door open at the boards, long shadows under arena lights, a generic crowd rising. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_prompt": "A lone stylized skater in a plain white kit racing down the ice with the puck while four opponents in plain charcoal kit chase from behind, an empty penalty box with its door open at the boards, long shadows under arena lights, a generic crowd rising. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -761,7 +761,7 @@
       "es": "Un período entero para arreglarlo todo.",
       "en": "One full period to fix everything."
     },
-    "art_prompt": "A stylized skater in a plain white kit stepping onto fresh ice from the bench with a stick across the shoulders, a blank scoreboard silhouette showing a faint one-mark deficit, pale morning light through high arena windows, a sparse generic stand. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_prompt": "A stylized skater in a plain white kit stepping onto fresh ice from the bench with a stick across the shoulders, a blank scoreboard silhouette showing a faint one-mark deficit, pale morning light through high arena windows, a sparse generic stand. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -778,7 +778,7 @@
       "es": "Rehicieron el hielo. El partido también.",
       "en": "They resurfaced the ice. The game too."
     },
-    "art_prompt": "A stylized ice-resurfacing machine with no markings finishing a glossy lap on an empty rink while two teams in plain white and plain charcoal kits wait at the gates, a stylized fan in the stand leaning forward, steel-blue afternoon tones. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_prompt": "A stylized ice-resurfacing machine with no markings finishing a glossy lap on an empty rink while two teams in plain white and plain charcoal kits wait at the gates, a stylized fan in the stand leaning forward, steel-blue afternoon tones. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -795,7 +795,7 @@
       "es": "Veinte minutos de presión y la red se movió dos veces.",
       "en": "Twenty minutes of pressure and the net bulged twice."
     },
-    "art_prompt": "A diverse group of stylized players in plain white kit crashing the net with sticks raised as the generic puck crosses the line, a goaltender in a plain charcoal kit sprawled, night arena lights, a roaring generic crowd of silhouettes with raised arms. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_prompt": "A diverse group of stylized players in plain white kit crashing the net with sticks raised as the generic puck crosses the line, a goaltender in a plain charcoal kit sprawled, night arena lights, a roaring generic crowd of silhouettes with raised arms. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -812,7 +812,7 @@
       "es": "Empezar abajo se volvió costumbre. Terminar arriba también.",
       "en": "Starting behind became a habit. So did finishing ahead."
     },
-    "art_prompt": "A stylized captain in a plain white kit with a plain armband pointing the stick toward the net at center ice, a violet glow rising from the ice, a faint three-section clock arc above with the last section lit, silhouetted fans in violet light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_prompt": "A stylized captain in a plain white kit with a plain armband pointing the stick toward the net at center ice, a violet glow rising from the ice, a faint three-section clock arc above with the last section lit, silhouetted fans in violet light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -829,7 +829,7 @@
       "es": "Veinte remontadas en el tercero. El marcador nunca asustó.",
       "en": "Twenty third-period comebacks. The score never scared us."
     },
-    "art_prompt": "A monumental stylized skater in a plain white kit raising a stick toward a prismatic sky above a stadium-sized rink, a spiral of twenty glowing puck shapes orbiting, light rays and floating ice particles, silhouetted fans filling every tier. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: iridescent prismatic border with light rays and floating particles.",
+    "art_prompt": "A monumental stylized skater in a plain white kit raising a stick toward a prismatic sky above a stadium-sized rink, a spiral of twenty glowing puck shapes orbiting, light rays and floating ice particles, silhouetted fans filling every tier. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: iridescent prismatic border with light rays and floating particles.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -846,7 +846,7 @@
       "es": "Tres a dos. Lo dijiste antes del primer saque.",
       "en": "Three to two. You said it before the first faceoff."
     },
-    "art_prompt": "A stylized fan seen from behind on a sofa holding a generic phone with a blank screen, a small television showing two silhouetted teams in plain white and plain charcoal kits at a faceoff circle, morning light through a window, cozy flat vector interior. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_prompt": "A stylized fan seen from behind on a sofa holding a generic phone with a blank screen, a small television showing two silhouetted teams in plain white and plain charcoal kits at a faceoff circle, morning light through a window, cozy flat vector interior. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -863,7 +863,7 @@
       "es": "Dos noches, dos marcadores exactos grabados en el hielo.",
       "en": "Two nights, two scores nailed on the ice."
     },
-    "art_prompt": "Two stylized fans of different ages, genders and backgrounds bumping fists in a living room, the television glowing with players in plain white and plain charcoal kits, two faint target rings floating above them, warm evening light, steel-blue tones. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_prompt": "Two stylized fans of different ages, genders and backgrounds bumping fists in a living room, the television glowing with players in plain white and plain charcoal kits, two faint target rings floating above them, warm evening light, steel-blue tones. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -880,7 +880,7 @@
       "es": "Cinco marcadores exactos. El disco no te engaña.",
       "en": "Five exact scores. The puck cannot fool you."
     },
-    "art_prompt": "A stylized fan standing at a crowded living-room watch party, friends of diverse ages cheering, a blank scoreboard shape over the television, five glowing target rings stacked in the air, night lighting. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_prompt": "A stylized fan standing at a crowded living-room watch party, friends of diverse ages cheering, a blank scoreboard shape over the television, five glowing target rings stacked in the air, night lighting. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -897,7 +897,7 @@
       "es": "Diez veces el marcador exacto. La arena pregunta antes de jugar.",
       "en": "Ten exact scores. The arena asks before the drop."
     },
-    "art_prompt": "A stylized figure in a plain hooded cloak seated on an arena step gazing into a glowing crystal ball that shows two tiny silhouetted teams in plain white and plain charcoal kits on a rink, violet arena light, silhouetted fans leaning in to listen. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_prompt": "A stylized figure in a plain hooded cloak seated on an arena step gazing into a glowing crystal ball that shows two tiny silhouetted teams in plain white and plain charcoal kits on a rink, violet arena light, silhouetted fans leaning in to listen. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -914,7 +914,7 @@
       "es": "Veinticinco exactos. Las leyendas leen el hielo con los ojos cerrados.",
       "en": "Twenty-five exact scores. Legends read the ice with their eyes closed."
     },
-    "art_prompt": "A stylized figure with eyes closed floating above a glowing rink, hands open as prismatic light rays and floating ice particles form a giant abstract target over center ice, two silhouetted teams in plain white and plain charcoal kits below. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: iridescent prismatic border with light rays and floating particles.",
+    "art_prompt": "A stylized figure with eyes closed floating above a glowing rink, hands open as prismatic light rays and floating ice particles form a giant abstract target over center ice, two silhouetted teams in plain white and plain charcoal kits below. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: iridescent prismatic border with light rays and floating particles.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -931,7 +931,7 @@
       "es": "Un acierto es un pronóstico. Dos seguidos ya es lectura.",
       "en": "One hit is a call. Two in a row is reading the game."
     },
-    "art_prompt": "Two generic pucks resting in a row on a glossy ice line each with a small glowing ring, a stylized fan silhouette kneeling at the boards to look at them, morning light in an empty generic rink. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_prompt": "Two generic pucks resting in a row on a glossy ice line each with a small glowing ring, a stylized fan silhouette kneeling at the boards to look at them, morning light in an empty generic rink. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -948,7 +948,7 @@
       "es": "Cinco partidos, cinco aciertos, cero dudas.",
       "en": "Five games, five hits, zero doubt."
     },
-    "art_prompt": "Five generic pucks in a diagonal line across the ice each glowing a little brighter than the last, a stylized fan walking along them with confident stride, steel-blue afternoon light, empty generic stand. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_prompt": "Five generic pucks in a diagonal line across the ice each glowing a little brighter than the last, a stylized fan walking along them with confident stride, steel-blue afternoon light, empty generic stand. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -965,7 +965,7 @@
       "es": "La racha se volvió tema de tribuna.",
       "en": "The streak became arena talk."
     },
-    "art_prompt": "A chain of ten glowing generic pucks forming an arc over a stylized rink like a bridge, a stylized fan silhouette standing beneath with arms crossed, silhouetted fans pointing from the stands, dusk. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_prompt": "A chain of ten glowing generic pucks forming an arc over a stylized rink like a bridge, a stylized fan silhouette standing beneath with arms crossed, silhouetted fans pointing from the stands, dusk. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -982,7 +982,7 @@
       "es": "En el deporte más impredecible, veinticinco aciertos seguidos.",
       "en": "In the least predictable sport, twenty-five straight."
     },
-    "art_prompt": "A stylized fan silhouette with a raised hand wrapped in violet flame-like light melting a trail into the ice, a long spiral of glowing generic pucks rising into the arena rafters, faceted violet glow. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_prompt": "A stylized fan silhouette with a raised hand wrapped in violet flame-like light melting a trail into the ice, a long spiral of glowing generic pucks rising into the arena rafters, faceted violet glow. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -999,7 +999,7 @@
       "es": "Cincuenta partidos sin fallar. Nadie lo cree, y es verdad.",
       "en": "Fifty straight without a miss. Nobody believes it, and it is true."
     },
-    "art_prompt": "A comet made of countless glowing generic pucks streaking across a prismatic sky over a stylized arena, a stylized fan silhouette standing on the roof edge watching, light rays and floating ice particles everywhere. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: iridescent prismatic border with light rays and floating particles.",
+    "art_prompt": "A comet made of countless glowing generic pucks streaking across a prismatic sky over a stylized arena, a stylized fan silhouette standing on the roof edge watching, light rays and floating ice particles everywhere. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: iridescent prismatic border with light rays and floating particles.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -1016,7 +1016,7 @@
       "es": "Partido uno de la serie, pronóstico uno de la tuya.",
       "en": "Game one of the series, call one of yours."
     },
-    "art_prompt": "A stylized bracket drawn as glowing lines on a dark chalkboard-like surface with one path lit, a stylized fan silhouette tapping the lit path with a generic phone in the other hand, soft daylight, no letters or numbers. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_prompt": "A stylized bracket drawn as glowing lines on a dark chalkboard-like surface with one path lit, a stylized fan silhouette tapping the lit path with a generic phone in the other hand, soft daylight, no letters or numbers. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -1033,7 +1033,7 @@
       "es": "Lees la serie como quien lee el hielo.",
       "en": "You read the series like you read the ice."
     },
-    "art_prompt": "A stylized fan sitting cross-legged on an arena step studying a large floating glowing bracket of lines without labels, three paths lit in steel-blue, afternoon light, scattered silhouetted fans. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_prompt": "A stylized fan sitting cross-legged on an arena step studying a large floating glowing bracket of lines without labels, three paths lit in steel-blue, afternoon light, scattered silhouetted fans. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -1050,7 +1050,7 @@
       "es": "Ronda a ronda, acierto a acierto, hasta la final.",
       "en": "Round by round, call by call, all the way to the final."
     },
-    "art_prompt": "A glowing bracket shaped like a tree growing from center ice toward the arena roof, many branches lit, a stylized fan standing at the trunk with arms raised, dusk light over a generic rink. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_prompt": "A glowing bracket shaped like a tree growing from center ice toward the arena roof, many branches lit, a stylized fan standing at the trunk with arms raised, dusk light over a generic rink. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -1067,7 +1067,7 @@
       "es": "En las noches sin vuelta, tu lectura es ley.",
       "en": "On nights with no way back, your read is law."
     },
-    "art_prompt": "A stylized fan silhouette standing at center ice with a violet glowing bracket wrapping around like a crown of light, silhouetted teams in plain white and plain charcoal kits on each side, night arena, faceted violet glow. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_prompt": "A stylized fan silhouette standing at center ice with a violet glowing bracket wrapping around like a crown of light, silhouetted teams in plain white and plain charcoal kits on each side, night arena, faceted violet glow. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -1084,7 +1084,7 @@
       "es": "Cincuenta definiciones leídas antes del primer saque.",
       "en": "Fifty deciders read before the first puck drop."
     },
-    "art_prompt": "A colossal prismatic bracket of light rays rising from a rink into the night with every path lit, a stylized fan silhouette at its base with floating ice particles swirling, epic wide composition. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: iridescent prismatic border with light rays and floating particles.",
+    "art_prompt": "A colossal prismatic bracket of light rays rising from a rink into the night with every path lit, a stylized fan silhouette at its base with floating ice particles swirling, epic wide composition. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: iridescent prismatic border with light rays and floating particles.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -1101,7 +1101,7 @@
       "es": "Ni el cambio de arquero frenó el marcador.",
       "en": "Not even a goalie change slowed the score."
     },
-    "art_prompt": "A stylized team in plain white kit celebrating in a loose circle at center ice while five generic pucks rest inside the far net, a second goaltender in a plain charcoal kit skating in to replace the first, bright festive arena light, a cheering generic stand. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_prompt": "A stylized team in plain white kit celebrating in a loose circle at center ice while five generic pucks rest inside the far net, a second goaltender in a plain charcoal kit skating in to replace the first, bright festive arena light, a cheering generic stand. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -1118,7 +1118,7 @@
       "es": "Nueve meses de hielo por un minuto con la copa.",
       "en": "Nine months on ice for one minute with the trophy."
     },
-    "art_prompt": "A stylized captain in a plain white kit lifting a plain generic trophy without engravings over the head at center ice, teammates of diverse builds and genders circling with sticks raised, golden confetti and amber light, a packed generic arena in silhouette. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_prompt": "A stylized captain in a plain white kit lifting a plain generic trophy without engravings over the head at center ice, teammates of diverse builds and genders circling with sticks raised, golden confetti and amber light, a packed generic arena in silhouette. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -1135,7 +1135,7 @@
       "es": "Tiraron desde todos lados. Nada pasó.",
       "en": "They shot from everywhere. Nothing got through."
     },
-    "art_prompt": "A stylized goaltender in a plain white kit standing firm in the crease with pads stacked, dozens of generic pucks frozen in the air around the frame as if repelled by an invisible wall of light, a dark generic stand behind, strong contrast lighting. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_prompt": "A stylized goaltender in a plain white kit standing firm in the crease with pads stacked, dozens of generic pucks frozen in the air around the frame as if repelled by an invisible wall of light, a dark generic stand behind, strong contrast lighting. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -1152,7 +1152,7 @@
       "es": "Diez goles. Los arqueros no lo recordarán con cariño.",
       "en": "Ten goals. The goalies will not remember it fondly."
     },
-    "art_prompt": "A stylized fan of any gender on a sofa with a generic phone with a blank screen, a television showing two silhouetted teams in plain white and plain charcoal kits with a tall blank scoreboard shape, morning light, cozy flat vector interior. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_prompt": "A stylized fan of any gender on a sofa with a generic phone with a blank screen, a television showing two silhouetted teams in plain white and plain charcoal kits with a tall blank scoreboard shape, morning light, cozy flat vector interior. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -1169,7 +1169,7 @@
       "es": "Dos noches en que nadie defendió nada.",
       "en": "Two nights when nobody played defense."
     },
-    "art_prompt": "Two stylized fans of different ages and backgrounds high-fiving in a living room, the television glowing with players in plain white and plain charcoal kits piling in front of a net, two faint puck-shaped glows floating above them, steel-blue evening light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_prompt": "Two stylized fans of different ages and backgrounds high-fiving in a living room, the television glowing with players in plain white and plain charcoal kits piling in front of a net, two faint puck-shaped glows floating above them, steel-blue evening light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -1186,7 +1186,7 @@
       "es": "Lluvia de discos de un lado y del otro.",
       "en": "Pucks raining in at both ends."
     },
-    "art_prompt": "A stylized fan standing among a crowd of silhouetted friends at a living-room watch party, the television showing a women’s game with players in plain white and plain charcoal kits, a floating blank scoreboard shape over it, ten tiny glowing puck shapes arranged in an arc above, night lighting. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_prompt": "A stylized fan standing among a crowd of silhouetted friends at a living-room watch party, the television showing a women’s game with players in plain white and plain charcoal kits, a floating blank scoreboard shape over it, ten tiny glowing puck shapes arranged in an arc above, night lighting. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -1203,7 +1203,7 @@
       "es": "Ocho noches con el tablero lleno. Las viste todas.",
       "en": "Eight nights with a crowded board. You saw them all."
     },
-    "art_prompt": "A stylized fan silhouette standing in a generic stand with a violet spotlight, eight blank scoreboard shapes floating in a crescent behind each glowing from the inside, teams in plain white and plain charcoal kits small on the ice below, faceted violet glow. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_prompt": "A stylized fan silhouette standing in a generic stand with a violet spotlight, eight blank scoreboard shapes floating in a crescent behind each glowing from the inside, teams in plain white and plain charcoal kits small on the ice below, faceted violet glow. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -1220,7 +1220,7 @@
       "es": "Veinte partidos de diez goles. Ningún arquero te quiere en la tribuna.",
       "en": "Twenty ten-goal games. No goalie wants you in the stands."
     },
-    "art_prompt": "A stylized fan silhouette at the top of a stadium-sized rink under a prismatic sky where a storm of glowing puck shapes streaks toward both nets at once, light rays and floating ice particles, silhouetted fans filling every tier. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: iridescent prismatic border with light rays and floating particles.",
+    "art_prompt": "A stylized fan silhouette at the top of a stadium-sized rink under a prismatic sky where a storm of glowing puck shapes streaks toward both nets at once, light rays and floating ice particles, silhouetted fans filling every tier. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: iridescent prismatic border with light rays and floating particles.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -1237,7 +1237,7 @@
       "es": "En el playoff, cada triunfo pesa distinto.",
       "en": "In the playoffs, every win weighs more."
     },
-    "art_prompt": "A stylized skater in a plain white kit raising one fist at the final horn while a teammate hugs the goaltender, a generic arena with every seat filled by silhouettes, white towels without markings waving, daylight through high windows. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_prompt": "A stylized skater in a plain white kit raising one fist at the final horn while a teammate hugs the goaltender, a generic arena with every seat filled by silhouettes, white towels without markings waving, daylight through high windows. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -1254,7 +1254,7 @@
       "es": "La barba crece, la serie avanza.",
       "en": "The beard grows, the series moves on."
     },
-    "art_prompt": "Two stylized players in plain white kit with stylized thick beards bumping fists at the bench, a third teammate of a different build grinning, a faint bracket of glowing lines on the glass behind them without labels, steel-blue arena light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_prompt": "Two stylized players in plain white kit with stylized thick beards bumping fists at the bench, a third teammate of a different build grinning, a faint bracket of glowing lines on the glass behind them without labels, steel-blue arena light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -1271,7 +1271,7 @@
       "es": "Cuatro triunfos cierran una serie. Viste una entera.",
       "en": "Four wins close a series. You watched a whole one."
     },
-    "art_prompt": "A diverse stylized team in plain white kit, women and men of varied builds, lined up to shake hands with opponents in plain charcoal kit at center ice after a series, four glowing marks floating above the handshake line, night arena light, respectful silhouetted crowd standing. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_prompt": "A diverse stylized team in plain white kit, women and men of varied builds, lined up to shake hands with opponents in plain charcoal kit at center ice after a series, four glowing marks floating above the handshake line, night arena light, respectful silhouetted crowd standing. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -1288,7 +1288,7 @@
       "es": "Ocho triunfos de playoff. La mitad del camino a la copa.",
       "en": "Eight playoff wins. Halfway to the trophy."
     },
-    "art_prompt": "A stylized captain in a plain white kit skating alone down a corridor of violet light toward a glowing generic trophy silhouette at the far end of the rink, eight glowing marks along the boards, faceted violet glow, silhouetted fans in the dark. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_prompt": "A stylized captain in a plain white kit skating alone down a corridor of violet light toward a glowing generic trophy silhouette at the far end of the rink, eight glowing marks along the boards, faceted violet glow, silhouetted fans in the dark. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -1305,7 +1305,7 @@
       "es": "Veinte triunfos de playoff. Más que un camino al título.",
       "en": "Twenty playoff wins. More than one run to a title."
     },
-    "art_prompt": "A stylized team in plain white kit hoisting a plain generic trophy without engravings at center ice under prismatic light rays, floating ice particles and confetti, silhouetted fans with raised arms filling a stadium-sized arena. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: iridescent prismatic border with light rays and floating particles.",
+    "art_prompt": "A stylized team in plain white kit hoisting a plain generic trophy without engravings at center ice under prismatic light rays, floating ice particles and confetti, silhouetted fans with raised arms filling a stadium-sized arena. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: iridescent prismatic border with light rays and floating particles.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -1322,7 +1322,7 @@
       "es": "Primero, segundo, tercero: ningún período dio tregua.",
       "en": "First, second, third: not one period let up."
     },
-    "art_prompt": "Three stylized skaters of a women’s team in plain white kit standing side by side at center ice each raising a stick, three glowing arcs of light above them forming a full ring, opponents in plain charcoal kit leaving the ice in the background, steel-blue arena light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_prompt": "Three stylized skaters of a women’s team in plain white kit standing side by side at center ice each raising a stick, three glowing arcs of light above them forming a full ring, opponents in plain charcoal kit leaving the ice in the background, steel-blue arena light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   },
   {
@@ -1339,7 +1339,7 @@
       "es": "Sesenta minutos, decenas de tiros, cero en el tablero.",
       "en": "Sixty minutes, dozens of shots, a zero on the board."
     },
-    "art_prompt": "A stylized female goaltender in a plain white kit standing calmly in the crease with the glove raised holding the puck, an untouched net behind, teammates of diverse builds skating in to tap her pads, a quiet generic arena in soft morning light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_prompt": "A stylized female goaltender in a plain white kit standing calmly in the crease with the glove raised holding the puck, an untouched net behind, teammates of diverse builds skating in to tap her pads, a quiet generic arena in soft morning light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
   }
 ]

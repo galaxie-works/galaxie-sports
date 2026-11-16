@@ -85,7 +85,7 @@ Todo `art_prompt` é autossuficiente, em inglês, e segue esta ordem, em frases 
 
 1. **Cena** genérica: silhuetas ou figuras estilizadas, uniformes neutros ("plain white kit" e "plain charcoal kit", nunca cor de clube conhecida), bola e equipamento genéricos, arquibancada sem faixas. Diversidade de gênero, etnia e tipo físico; esportes femininos presentes.
 2. **Enquadramento**: "vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate".
-3. **Estilo**: a frase padrão do estilo escolhido. O padrão do Catálogo é o estilo A do [guia de arte](arte/guia.md): `Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size.` Trocar de estilo é trocar essa frase em todas as Cartas.
+3. **Estilo**: a frase padrão do estilo escolhido. O padrão do Catálogo é o estilo **Galaxie** (galáctico, estilo E do [guia de arte](arte/guia.md), decisão do dono em 16/11 depois do lote 0): `Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.` Trocar de estilo é trocar essa frase em todas as Cartas; o vetor plano (estilo A) fica como alternativa no guia.
 4. **Moldura por raridade**, frase padrão:
    - `common`: `Card frame: plain slate-grey border, matte finish.`
    - `special`: `Card frame: brushed steel-blue border with a thin inner line.`
