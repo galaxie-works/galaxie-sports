@@ -157,6 +157,25 @@ describe('transitionTenantState', () => {
     expect(after!.modules).toEqual([]);
   });
 
+  it('entitlements com uma transação aberta é recusado antes de gravar (invalidaria antes do commit)', async () => {
+    const id = await newTenant('estado-tx', {
+      state: 'trial',
+      trialEndsAt: new Date(Date.now() + 86_400_000),
+    });
+    const cache = memoryCache();
+    await expect(
+      db.transaction((tx) =>
+        transitionTenantState(tx, id, 'suspended', {
+          cause: 'admin',
+          actor: 'galaxie:u6',
+          entitlements: { cache, catalog },
+        }),
+      ),
+    ).rejects.toThrow(/só vale com o banco/);
+    expect((await row(id)).state).toBe('trial');
+    expect(await events(id)).toEqual([]);
+  });
+
   it('estender o trial muda o prazo com um evento admin sem mudar o estado; fora do trial, recusa', async () => {
     const before = new Date('2026-12-01T00:00:00Z');
     const after = new Date('2026-12-15T00:00:00Z');

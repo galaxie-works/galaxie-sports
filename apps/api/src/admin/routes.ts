@@ -244,6 +244,18 @@ export async function adminRoutes(app: FastifyInstance, opts: AdminRoutesOptions
     const { id } = parseInput(TenantParams, request.params);
     const { status, ...body } = parseInput(PatchTenantBody, request.body ?? {});
     const current = await tenantOr404(id);
+    // plano com prazo (o `trial` legado, decisão 13 do brief) só entra em draft ou trial: fora disso o prazo nunca
+    // valeria (o fallback do autenticador e dos direitos só vale no estado trial)
+    if (
+      body.plan !== undefined &&
+      body.plan !== current.plan &&
+      trialEndsFor(plans, body.plan) &&
+      current.state !== 'trial' &&
+      current.state !== 'draft'
+    )
+      throw problems.conflict(
+        `O tenant está em ${current.state}: o plano ${body.plan} tem prazo de trial e só vale em trial ou draft.`,
+      );
     let updated = Object.keys(body).length ? await updateTenant(db, plans, current.id, body) : current;
     if (!updated) throw problems.notFound('Tenant');
     // a máquina de estados (F3) é quem muda `status`: suspender e reativar viram transições com evento; a troca de um

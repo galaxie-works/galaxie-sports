@@ -109,6 +109,9 @@ export const TENANT_STATES_WITHOUT_ACCESS: readonly TenantState[] = [
   'cancelled',
 ];
 
+/** Estados com acesso à API, aos widgets e aos módulos pelo token do torcedor (F3): `past_due` passa como `active`. */
+export const TENANT_STATES_WITH_ACCESS: readonly TenantState[] = ['trial', 'active', 'past_due'];
+
 /**
  * Estados em que o worker entrega webhooks (F3): `active` e `past_due`. O trial tem SSE, mas não webhooks (doc 02,
  * tabela "O trial" e linha `trial` de "O que cada estado permite").

@@ -1,10 +1,14 @@
 /**
  * `transitionTenantState`: a única função que escreve `api.tenant.state` (F3, decisão 2). Numa transação: trava a
  * linha do tenant, confere a transição pela tabela do diagrama, grava o evento em `billing.tenant_state_event`,
- * atualiza `state`, `state_since` e o espelho de `status`, e publica `tenant.state_changed` no `ops.change_feed`. Depois
- * do commit, invalida o cache de direitos quando quem chama tem o cache (a API); sem ele, o TTL de um minuto cobre.
+ * atualiza `state`, `state_since` e o espelho de `status`, e publica `tenant.state_changed` no `ops.change_feed`.
+ * Chamada com o banco (`Database`), abre a própria transação e, depois do commit, invalida o cache de direitos quando
+ * quem chama tem o cache (a API); sem ele, o TTL de um minuto cobre. Chamada com uma transação aberta (`Tx`), vira um
+ * savepoint dela e **não aceita `entitlements`**: a invalidação rodaria antes do commit e o próximo leitor recolocaria
+ * o estado antigo no cache. Quem precisa dos dois invalida depois do próprio commit.
  */
 import { eq } from 'drizzle-orm';
+import { PgTransaction } from 'drizzle-orm/pg-core';
 import { publishChange } from '@galaxie/db/change-feed';
 import type { Database } from '@galaxie/db/client';
 import { tenant, tenantStateEvent, type TenantState, type TenantStateEventCause } from '@galaxie/db/schema';
@@ -14,7 +18,10 @@ import { canTransition, isTenantState } from './state.js';
 
 /** Transação aberta do Drizzle (o mesmo tipo que `provisionOrganization` usa). */
 export type Tx = Parameters<Parameters<Database['transaction']>[0]>[0];
-/** O banco ou uma transação já aberta: dentro de uma transação, a mudança vira savepoint dela. */
+/**
+ * O banco ou uma transação já aberta: dentro de uma transação, a mudança vira savepoint dela (e `entitlements` não
+ * pode ser passado, ver `assertInvalidationAllowed`).
+ */
 export type TenantStateExecutor = Database | Tx;
 
 /** Tópico publicado no `ops.change_feed` a cada mudança de estado (webhooks e console ouvem por ele). */
@@ -43,7 +50,10 @@ export class TenantStateError extends Error {
   }
 }
 
-/** Cache de direitos a invalidar depois da mudança (a API passa o Valkey e o catálogo; a demo não tem cache). */
+/**
+ * Cache de direitos a invalidar depois do commit (a API passa o Valkey e o catálogo; a demo não tem cache). Só vale com
+ * o executor `Database`: com `Tx` a função lança, porque invalidaria antes do commit.
+ */
 export interface EntitlementsInvalidation {
   cache: EntitlementsCacheStore | null | undefined;
   catalog: Pick<Catalog, 'version'>;
@@ -77,6 +87,17 @@ async function lockTenant(tx: Tx, tenantId: string) {
   return row;
 }
 
+/** `entitlements` com uma transação aberta é erro de programação: a invalidação rodaria antes do commit. */
+function assertInvalidationAllowed(
+  db: TenantStateExecutor,
+  input: Pick<TransitionInput, 'entitlements'>,
+): void {
+  if (input.entitlements && db instanceof PgTransaction)
+    throw new Error(
+      'transitionTenantState/extendTenantTrial: a invalidação de direitos (entitlements) só vale com o banco, não com uma transação aberta; invalide depois do commit.',
+    );
+}
+
 /** `status` em espelho (decisão 1): `suspended` só quando o estado é `suspended`. */
 export const mirroredStatus = (state: TenantState): 'active' | 'suspended' =>
   state === 'suspended' ? 'suspended' : 'active';
@@ -92,6 +113,7 @@ export async function transitionTenantState(
   input: TransitionInput,
 ): Promise<TransitionResult> {
   if (!isTenantState(to)) throw new TenantStateError('invalid_state', tenantId, null, to);
+  assertInvalidationAllowed(db, input);
   const now = input.now ?? new Date();
   const result = await db.transaction(async (tx) => {
     const row = await lockTenant(tx, tenantId);
@@ -171,6 +193,7 @@ export async function extendTenantTrial(
   trialEndsAt: Date,
   input: Omit<TransitionInput, 'cause' | 'payload'>,
 ): Promise<{ tenantId: string; before: Date | null; after: Date; eventId: string }> {
+  assertInvalidationAllowed(db, input);
   const now = input.now ?? new Date();
   const result = await db.transaction(async (tx) => {
     const row = await lockTenant(tx, tenantId);

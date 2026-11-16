@@ -11,7 +11,7 @@
  * `last_error` registra (nenhuma origem sai sem decisão do dono).
  */
 import { resolveTxt as dnsResolveTxt } from 'node:dns/promises';
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, eq, isNull, sql } from 'drizzle-orm';
 import { domain, normalizeAllowedOrigin, publishableKey, type Database } from '@galaxie/db';
 import type { TaskHandler } from './run.js';
 
@@ -63,27 +63,28 @@ export const pgDomainStore: Pick<DomainVerifyDeps, 'load' | 'save' | 'addOrigins
     return row ?? null;
   },
   async addOrigins(db, tenantId, origins) {
-    const keys = await db
-      .select({ id: publishableKey.id, allowedOrigins: publishableKey.allowedOrigins })
-      .from(publishableKey)
+    if (!origins.length) return 0;
+    // um só UPDATE por chave, no banco: ler e regravar a lista perderia uma edição simultânea do painel. Só as chaves
+    // a que falta alguma origem mudam, e só as faltantes entram, na ordem dada
+    const wanted = sql`ARRAY[${sql.join(
+      origins.map((o) => sql`${o}`),
+      sql`, `,
+    )}]::text[]`;
+    const rows = await db
+      .update(publishableKey)
+      .set({
+        allowedOrigins: sql`${publishableKey.allowedOrigins} || array(select o from unnest(${wanted}) as o where not (o = any(${publishableKey.allowedOrigins})))`,
+      })
       .where(
         and(
           eq(publishableKey.tenantId, tenantId),
           eq(publishableKey.env, 'live'),
           isNull(publishableKey.revokedAt),
+          sql`not (${publishableKey.allowedOrigins} @> ${wanted})`,
         ),
-      );
-    let changed = 0;
-    for (const key of keys) {
-      const missing = origins.filter((o) => !key.allowedOrigins.includes(o));
-      if (!missing.length) continue;
-      await db
-        .update(publishableKey)
-        .set({ allowedOrigins: [...key.allowedOrigins, ...missing] })
-        .where(eq(publishableKey.id, key.id));
-      changed += 1;
-    }
-    return changed;
+      )
+      .returning({ id: publishableKey.id });
+    return rows.length;
   },
   async save(db, id, patch) {
     await db
