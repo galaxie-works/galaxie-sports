@@ -6,7 +6,7 @@
  * As regras (quem escreve, filtro de texto, punições) ficam nas rotas e em `@galaxie/engage`; aqui a leitura e a
  * gravação, sempre filtradas pelo tenant.
  */
-import { and, desc, eq, isNotNull, isNull, lt, notInArray, or, sql } from 'drizzle-orm';
+import { and, desc, eq, gt, gte, isNotNull, isNull, lt, notInArray, or, sql } from 'drizzle-orm';
 import type { Database } from './client.js';
 import { fanAvatarPublicUrl } from './fan-avatar-public.js';
 import {
@@ -97,6 +97,7 @@ const postCols = (viewer: string) => ({
   pinnedAt: communityPost.pinnedAt,
   createdAt: communityPost.createdAt,
   likes: sql<number>`(select count(*)::int from ${communityReaction} r
+    join fan.profile rp on rp.tenant_id = r.tenant_id and rp.id = r.profile_id and rp.deleted_at is null
     where r.tenant_id = ${communityPost.tenantId} and r.post_id = ${communityPost.id})`,
   comments: sql<number>`(select count(*)::int from ${communityComment} c
     join fan.profile cp on cp.tenant_id = c.tenant_id and cp.id = c.profile_id and cp.deleted_at is null
@@ -141,9 +142,12 @@ const toPost = (r: RawPost): CommunityPostRow => ({
 /** Perfil do autor ainda existe (ou o post não é de membro). */
 const authorAlive = or(isNull(communityPost.profileId), isNull(fanProfile.deletedAt));
 
+/** Ainda dentro do relógio de conteúdo da ficha (o expurgo apaga depois; até lá, já não aparece). */
+const notExpired = (now: Date) => gt(communityPost.purgeAt, now);
+
 /**
- * Uma página do Feed, do mais novo para o mais velho, e os fixados (até 3) na primeira página. `since` corta pela
- * janela de exibição da Comunidade.
+ * Uma página do Feed, do mais novo para o mais velho, e os fixados (até 3) na primeira página. O fixado sai só em
+ * `pinned`, nunca repetido em `posts`. `since` corta pela janela de exibição da Comunidade.
  */
 export async function listFeed(
   db: Database,
@@ -154,6 +158,7 @@ export async function listFeed(
     before?: string | null;
     limit: number;
     since?: Date | null;
+    now: Date;
   },
 ): Promise<{ pinned: CommunityPostRow[]; posts: CommunityPostRow[] }> {
   const { tenantId, communityId, viewerProfileId: viewer } = input;
@@ -162,11 +167,18 @@ export async function listFeed(
     eq(communityPost.communityId, communityId),
     visibleTo(communityPost, viewer),
     authorAlive,
-    input.since ? sql`${communityPost.createdAt} >= ${input.since}` : undefined,
+    notExpired(input.now),
+    input.since ? gte(communityPost.createdAt, input.since) : undefined,
   );
   const [posts, pinned] = await Promise.all([
     selectPosts(db, viewer)
-      .where(and(base, input.before ? lt(communityPost.id, input.before) : undefined))
+      .where(
+        and(
+          base,
+          isNull(communityPost.pinnedAt),
+          input.before ? lt(communityPost.id, input.before) : undefined,
+        ),
+      )
       .orderBy(desc(communityPost.id))
       .limit(Math.min(Math.max(input.limit, 1), 50)),
     input.before
@@ -179,12 +191,16 @@ export async function listFeed(
   return { pinned: pinned.map(toPost), posts: posts.map(toPost) };
 }
 
-/** Um post visível ao torcedor (com a Comunidade dele), senão null. */
+/**
+ * Um post visível ao torcedor, senão null: as mesmas travas do Feed (visibilidade, autor, relógio da ficha e janela
+ * de exibição), para que o id de um post fora do Feed não abra comentário nem curtida.
+ */
 export async function readPost(
   db: Database,
   tenantId: string,
   postId: string,
   viewerProfileId: string,
+  opts: { now: Date; since?: Date | null },
 ): Promise<CommunityPostRow | null> {
   const [row] = await selectPosts(db, viewerProfileId)
     .where(
@@ -193,6 +209,8 @@ export async function readPost(
         eq(communityPost.id, postId),
         visibleTo(communityPost, viewerProfileId),
         authorAlive,
+        notExpired(opts.now),
+        opts.since ? gte(communityPost.createdAt, opts.since) : undefined,
       ),
     )
     .limit(1);
@@ -268,7 +286,14 @@ export interface CommunityCommentRow {
 /** Comentários do post, do mais velho para o mais novo, depois de `after` (paginação para frente). */
 export async function listComments(
   db: Database,
-  input: { tenantId: string; postId: string; viewerProfileId: string; after?: string | null; limit: number },
+  input: {
+    tenantId: string;
+    postId: string;
+    viewerProfileId: string;
+    after?: string | null;
+    limit: number;
+    now: Date;
+  },
 ): Promise<CommunityCommentRow[]> {
   const rows = await db
     .select({
@@ -299,7 +324,8 @@ export async function listComments(
             eq(communityComment.profileId, input.viewerProfileId),
           ),
         ),
-        input.after ? sql`${communityComment.id} > ${input.after}` : undefined,
+        gt(communityComment.purgeAt, input.now),
+        input.after ? gt(communityComment.id, input.after) : undefined,
       ),
     )
     .orderBy(communityComment.id)
@@ -364,6 +390,20 @@ export async function pinPost(
   input: { tenantId: string; postId: string; pinned: boolean; actor: string },
 ): Promise<boolean> {
   return db.transaction(async (tx) => {
+    // uma fixação por vez em cada Comunidade (senão duas ao mesmo tempo deixam quatro fixados)
+    const [target] = await tx
+      .select({ communityId: communityPost.communityId })
+      .from(communityPost)
+      .where(and(eq(communityPost.tenantId, input.tenantId), eq(communityPost.id, input.postId)))
+      .limit(1);
+    if (!target) return false;
+    await tx
+      .select({ id: communityCommunity.id })
+      .from(communityCommunity)
+      .where(
+        and(eq(communityCommunity.tenantId, input.tenantId), eq(communityCommunity.id, target.communityId)),
+      )
+      .for('update');
     const [post] = await tx
       .update(communityPost)
       .set(
@@ -424,21 +464,32 @@ export async function setContentVisibility(
   return rows.length > 0;
 }
 
-/** Posts e comentários vencidos pelo relógio de conteúdo da ficha (#954). Apaga em lotes; devolve quantos saíram. */
-export async function purgeCommunityContent(db: Database, now: Date, batch = 1000): Promise<number> {
-  const comments = await db.execute<{ n: number }>(sql`
-    with gone as (
-      delete from community.comment where ctid in (
-        select ctid from community.comment where purge_at <= ${now} limit ${batch})
-      returning 1)
-    select count(*)::int as n from gone`);
-  const posts = await db.execute<{ n: number }>(sql`
-    with gone as (
-      delete from community.post where ctid in (
-        select ctid from community.post where purge_at <= ${now} limit ${batch})
-      returning 1)
-    select count(*)::int as n from gone`);
-  return (comments[0]?.n ?? 0) + (posts[0]?.n ?? 0);
+/**
+ * Posts e comentários vencidos pelo relógio de conteúdo da ficha (#954). Apaga em lotes até zerar (ou até `maxBatches`,
+ * para não prender a conexão); devolve quantos saíram. A leitura já esconde o vencido antes do expurgo.
+ */
+export async function purgeCommunityContent(
+  db: Database,
+  now: Date,
+  batch = 1000,
+  maxBatches = 50,
+): Promise<number> {
+  const at = now.toISOString();
+  let total = 0;
+  for (const table of ['community.comment', 'community.post'] as const) {
+    for (let i = 0; i < maxBatches; i += 1) {
+      const [row] = await db.execute<{ n: number }>(sql`
+        with gone as (
+          delete from ${sql.raw(table)} where ctid in (
+            select ctid from ${sql.raw(table)} where purge_at <= ${at}::timestamptz limit ${batch})
+          returning 1)
+        select count(*)::int as n from gone`);
+      const n = row?.n ?? 0;
+      total += n;
+      if (n < batch) break;
+    }
+  }
+  return total;
 }
 
 /** A Comunidade do post, se o post é do tenant. */

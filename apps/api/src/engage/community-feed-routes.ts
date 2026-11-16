@@ -142,13 +142,21 @@ export async function communityFeedRoutes(
     return { c, acceptedTermsVersion: standing.acceptedTermsVersion };
   }
 
+  /** Início da janela de exibição da Comunidade. */
+  const windowStart = (c: CommunityRow, at: Date) =>
+    new Date(at.getTime() - (c.historyDays ?? DEFAULT_HISTORY_DAYS) * 86_400_000);
+
   /** O post visível ao torcedor e a Comunidade dele, com o torcedor membro. */
   async function memberPost(fan: { tenantId: string; profileId: string; locale: string }, postId: string) {
     await gate.requireModule(fan.tenantId);
     const communityId = await communityOfPost(db(), fan.tenantId, postId);
     if (!communityId) throw problems.notFound('Post');
     const member = await asMember(fan, communityId);
-    const post = await readPost(db(), fan.tenantId, postId, fan.profileId);
+    const at = now();
+    const post = await readPost(db(), fan.tenantId, postId, fan.profileId, {
+      now: at,
+      since: windowStart(member.c, at),
+    });
     if (!post) throw problems.notFound('Post');
     return { ...member, post };
   }
@@ -233,14 +241,15 @@ export async function communityFeedRoutes(
       const { communityId } = parseInput(CommunityParams, request.params);
       const q = parseInput(FeedQuery, request.query);
       const { c } = await asMember(fan, communityId);
-      const days = c.historyDays ?? DEFAULT_HISTORY_DAYS;
+      const at = now();
       const page = await listFeed(db(), {
         tenantId: fan.tenantId,
         communityId,
         viewerProfileId: fan.profileId,
         before: q.before ?? null,
         limit: q.limit,
-        since: new Date(now().getTime() - days * 86_400_000),
+        since: windowStart(c, at),
+        now: at,
       });
       reply.header('x-robots-tag', 'noindex, nofollow');
       return {
@@ -268,7 +277,7 @@ export async function communityFeedRoutes(
       flags: w.flags,
       purgeAt: w.purgeAt,
     });
-    const post = await readPost(db(), fan.tenantId, saved.id, fan.profileId);
+    const post = await readPost(db(), fan.tenantId, saved.id, fan.profileId, { now: w.at });
     const res: CommunityPostResponse = { data: postView(post!) };
     return reply.code(201).send(res);
   });
@@ -284,6 +293,7 @@ export async function communityFeedRoutes(
       viewerProfileId: fan.profileId,
       after: q.after ?? null,
       limit: q.limit,
+      now: now(),
     });
     return { data: rows.map(commentView), next: rows.length === q.limit ? rows[rows.length - 1]!.id : null };
   });
@@ -332,6 +342,15 @@ export async function communityFeedRoutes(
         const { post } = await memberPost(fan, postId);
         // o retido (só o autor vê) não recebe curtida de ninguém além do autor, e o próprio autor não precisa
         if (post.visibility !== 'public') throw problems.notFound('Post');
+        // suspensão e banimento no cliente barram também a curtida (como a reação no chat); o silêncio só barra texto
+        const sanctions = await activeSanctions(db(), {
+          tenantId: fan.tenantId,
+          profileId: fan.profileId,
+          accountId: fan.accountId,
+          now: now(),
+        });
+        if (sanctions.some((x) => x.scope === 'tenant' && (x.level === 'ban' || x.level === 'suspension')))
+          throw refuse('sanctioned', 'Você não pode participar agora. Veja suas punições no seu Perfil.');
         const likes = await setReaction(db(), {
           tenantId: fan.tenantId,
           postId,

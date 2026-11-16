@@ -11,6 +11,7 @@ import {
   decideJoinRequest,
   listCommunities,
   listJoinRequests,
+  pinPost,
   publishTerms,
   removeMember,
   removeScopeRule,
@@ -534,6 +535,16 @@ describe('Feed da Comunidade (#946)', () => {
     });
     const terms = await post(adult.token, `/v1/communities/${c.id}/posts`, { body: 'Oi' });
     expect(terms.json().errors[0].message).toBe('terms_required');
+  });
+
+  it('o fixado sai só em pinned, sem repetir em posts', async () => {
+    const { t, c, adult } = await member('feed-pin');
+    const p = (await post(adult.token, `/v1/communities/${c.id}/posts`, { body: 'Regras da casa' })).json()
+      .data;
+    expect(await pinPost(db, { tenantId: t.id, postId: p.id, pinned: true, actor: 'panel:1' })).toBe(true);
+    const feed = (await get(adult.token, `/v1/communities/${c.id}/posts`)).json().data;
+    expect(feed.pinned.map((x: { id: string }) => x.id)).toEqual([p.id]);
+    expect(feed.posts).toEqual([]);
   });
 
   it('post tirado do ar some do Feed; o intervalo entre envios vale', async () => {
