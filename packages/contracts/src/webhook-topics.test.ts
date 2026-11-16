@@ -84,8 +84,13 @@ describe('registro de tópicos de webhook', () => {
       'event.incident_added',
     ]);
     expect(topics(['core_data'])).not.toContain('where_to_watch.changed');
-    // engajamento ainda não emite: nenhum aparece, mesmo com o módulo ligado
-    expect(topics(['live_chat', 'gamification', 'cosmos_ai'])).toEqual([]);
+    // do engajamento, só aparece o que já é emitido: o Palpite da Gamificação (#942)
+    expect(topics(['live_chat', 'gamification', 'cosmos_ai'])).toEqual([
+      'game.prediction.scored',
+      'game.prediction.reverted',
+      'game.achievement.step_reached',
+    ]);
+    expect(topics(['live_chat', 'cosmos_ai'])).toEqual([]);
   });
 
   it('a documentação da API traz um webhook por tópico do registro', () => {
