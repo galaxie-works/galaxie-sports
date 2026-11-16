@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
+import { connection } from 'next/server';
+import { Suspense } from 'react';
 
 import { AuthShell } from '@/components/auth/auth-shell';
 import { OrganizationWizard } from '@/components/signup/organization-wizard';
@@ -14,9 +16,6 @@ import { readStartingPrices } from '@/lib/signup/prices';
 import { readSignupSettings } from '@/lib/signup/settings-db';
 import { SPORT_FAMILIES } from '@/lib/sport-families';
 
-// A tela lê a chave do cadastro e a sessão a cada pedido: nada aqui é pré-renderizado no build (sem banco lá).
-export const dynamic = 'force-dynamic';
-
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getT();
   return { title: t.signup.meta.organization, robots: { index: false, follow: false } };
@@ -27,7 +26,18 @@ export async function generateMetadata(): Promise<Metadata> {
  * nenhuma. Quem já tem vai ao painel; a equipe Galaxie cria clientes em Ajustes. Lê o catálogo (faixas de capacidade),
  * os preços "a partir de" de cada mercado e os esportes, e entrega tudo ao assistente como dado.
  */
-export default async function SignupOrganizationPage() {
+export default function SignupOrganizationPage() {
+  // Com `cacheComponents`, o que lê o banco e a sessão fica num filho sob Suspense (`connection()`): nada é
+  // pré-renderizado no build, onde não há Postgres.
+  return (
+    <Suspense>
+      <Content />
+    </Suspense>
+  );
+}
+
+async function Content() {
+  await connection();
   const [t, settings, session] = await Promise.all([
     getT(),
     readSignupSettings(),

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
+import { connection } from 'next/server';
 import { Suspense } from 'react';
 
 import { AuthShell } from '@/components/auth/auth-shell';
@@ -12,9 +13,6 @@ import { fill, rich } from '@/lib/i18n/text';
 import { readSignupSettings } from '@/lib/signup/settings-db';
 import { CONTACT_EMAIL } from '@/lib/site';
 import { cn } from '@/lib/utils';
-
-// A tela lê a chave do cadastro e a sessão a cada pedido: nada aqui é pré-renderizado no build (sem banco lá).
-export const dynamic = 'force-dynamic';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getT();
@@ -37,7 +35,18 @@ const link = (href: string) => (chunk: string) => (
  * Cadastro em autoatendimento (doc 02 §Cadastro). Desligado (ou sem a versão dos termos aprovada), mostra "em breve"
  * com o contato comercial, sem formulário. Quem já tem sessão vai direto ao assistente da organização.
  */
-export default async function SignupPage() {
+export default function SignupPage() {
+  // Com `cacheComponents`, o que lê o banco e a sessão fica num filho sob Suspense (`connection()`), como as páginas
+  // de países e esportes: a casca é estática e nada é pré-renderizado no build, onde não há Postgres.
+  return (
+    <Suspense>
+      <Content />
+    </Suspense>
+  );
+}
+
+async function Content() {
+  await connection();
   const t = await getT();
   const S = t.signup;
   const [settings, session] = await Promise.all([
