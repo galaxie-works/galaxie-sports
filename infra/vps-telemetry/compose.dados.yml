@@ -75,7 +75,7 @@ services:
 
   # Object storage S3-compatível (assets espelhados). O RustFS usa ~0,5–1 GB em uso normal: 256m causa OOM. Exposto pelo Traefik só para leitura (GET/HEAD) do bucket.
   s3:
-    image: rustfs/rustfs:1.0.4
+    image: rustfs/rustfs:1.0.5
     restart: unless-stopped
     # memória presa de 924 MiB medida no limite de 1 g, e OOM em 29/10 (#533); pico 973 × 1,4
     mem_limit: 1344m
@@ -105,7 +105,7 @@ services:
   #   - S3_TASKS_BUCKET (pacotes e relatórios das tarefas, tasks/<id>/): privado, sem política nenhuma (qualquer
   #     política que alguém tenha posto à mão é apagada) e fora do Traefik. Só quem tem a chave do RustFS lê (#587).
   s3-init:
-    image: amazon/aws-cli:2.39.5
+    image: amazon/aws-cli:2.40.2
     depends_on:
       - s3
     environment:
