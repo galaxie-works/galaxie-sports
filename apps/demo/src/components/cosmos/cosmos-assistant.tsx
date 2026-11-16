@@ -9,6 +9,8 @@
  * (c-code-block-18). Anexos na pergunta (#1065) pelo exemplo c-attachment-2: imagem, PDF ou texto, lidos e
  * conferidos aqui antes de mandar, com a estimativa já contando o anexo. O arquivo fica só na memória da tela e da
  * pergunta. O cliente vê só créditos: a estimativa antes e o gasto real depois.
+ * O modo "Dados da API" (#1006) responde consultando a API e mostra de onde veio cada número, com "Ver código" e
+ * "Transformar em widget". Ele não leva anexo.
  */
 import {
   ASSISTANT_ATTACHMENT_LIMITS,
@@ -33,6 +35,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useId, useRef, useState } from 'react';
 
+import { ApiCodeButton } from '@/components/docs/api-code-button';
 import { IconStack } from '@/components/reui/icon-stack';
 import {
   CodeBlock,
@@ -79,7 +82,11 @@ import {
 } from '@/components/ui/message-scroller';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Spinner } from '@/components/ui/spinner';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { estimateAssistantQuestion } from '@/lib/cosmos/assistant-actions';
+import { askDataWithCosmos, dataQuestionMode } from '@/lib/cosmos/data-question-actions';
+import type { DataSource } from '@/lib/cosmos/data-question-server';
+import { requestPath, requestSearch } from '@/lib/galaxie/request';
 import { readAssistantStream, type AssistantErrorCode } from '@/lib/cosmos/assistant-stream';
 import { readScreenContext, routeOf, suggestionGroup } from '@/lib/cosmos/screen-context';
 import { useI18n } from '@/lib/i18n/client';
@@ -90,6 +97,10 @@ import { CosmosIcon } from './cosmos-icon';
 /** Mesmo limite do servidor (`QUESTION_MAX`). */
 const QUESTION_MAX = 2000;
 const ESTIMATE_DELAY_MS = 600;
+/** Mesmo limite do servidor (`DATA_QUESTION_MAX`). */
+const DATA_QUESTION_MAX = 600;
+
+type Mode = 'docs' | 'data';
 
 /** Anexo lido no navegador: o que a estimativa precisa e o conteúdo em base64 para a pergunta. */
 interface PendingFile {
@@ -130,6 +141,14 @@ interface Turn {
    * resposta pronta o conteúdo sai da memória.
    */
   files?: TurnFile[];
+  /** Modo da pergunta: "dados" responde pela API, com as fontes. */
+  mode?: Mode;
+  /** Fontes da resposta do modo "dados". */
+  sources?: DataSource[];
+  /** Aviso no lugar do texto do erro (o modo "dados" tem casos próprios). */
+  errorMessage?: string;
+  /** Nota abaixo da resposta (sem dado: nada foi cobrado). */
+  note?: string;
 }
 
 const history = (turns: Turn[]) =>
@@ -152,6 +171,12 @@ export function CosmosAssistant({
   const [estimate, setEstimate] = useState<number | null>(null);
   const [estimating, setEstimating] = useState(false);
   const [route, setRoute] = useState('/');
+  const [mode, setMode] = useState<Mode>('docs');
+  const [dataMode, setDataMode] = useState<{
+    available: boolean;
+    minCredits: number;
+    retry?: boolean;
+  } | null>(null);
   const [files, setFiles] = useState<PendingFile[]>([]);
   const [fileError, setFileError] = useState<string | null>(null);
   const [reading, setReading] = useState(false);
@@ -163,6 +188,7 @@ export function CosmosAssistant({
   const abortRef = useRef<AbortController | null>(null);
   const counter = useRef(0);
   const busy = turns.some((x) => x.status === 'waiting' || x.status === 'streaming');
+  const dataBusy = turns.some((x) => x.mode === 'data' && x.status === 'waiting');
   // a estimativa só muda com a conversa já fechada, não a cada pedaço da resposta
   const turnsRef = useRef(turns);
   useEffect(() => {
@@ -176,13 +202,29 @@ export function CosmosAssistant({
     if (open) setRoute(routeOf(window.location.pathname));
   }, [open, pathname]);
 
+  // o modo "Dados da API" aparece se a função estiver no catálogo e o cargo puder perguntar (lido uma vez; recusa
+  // passageira, pelo limite ou pela rede, é lida de novo na próxima abertura do painel)
+  const modeKnown = dataMode !== null && !dataMode.retry;
+  useEffect(() => {
+    if (!open || modeKnown) return;
+    let live = true;
+    dataQuestionMode()
+      .then((r) => live && setDataMode(r))
+      .catch(() => live && setDataMode({ available: false, minCredits: 0, retry: true }));
+    return () => {
+      live = false;
+    };
+  }, [open, modeKnown]);
+  const dataOn = mode === 'data' && !!dataMode?.available;
+  const maxLength = dataOn ? DATA_QUESTION_MAX : QUESTION_MAX;
+
   // para a resposta em andamento se o painel for desmontado
   useEffect(() => () => abortRef.current?.abort(), []);
 
   // estimativa antes de perguntar, com uma pausa para não chamar a cada tecla
   useEffect(() => {
     const question = draft.trim();
-    if (!open || !question || question.length > QUESTION_MAX) {
+    if (!open || dataOn || !question || question.length > QUESTION_MAX) {
       setEstimate(null);
       setEstimating(false);
       return;
@@ -210,7 +252,7 @@ export function CosmosAssistant({
       live = false;
       window.clearTimeout(id);
     };
-  }, [draft, open, settled, files]);
+  }, [draft, open, settled, files, dataOn]);
 
   const L = ASSISTANT_ATTACHMENT_LIMITS;
   const attachmentText = (error: AttachmentError, name = '') =>
@@ -298,9 +340,57 @@ export function CosmosAssistant({
   const patch = (id: string, change: Partial<Turn>) =>
     setTurns((all) => all.map((x) => (x.id === id ? { ...x, ...change } : x)));
 
+  async function askData(q: string) {
+    if (busy) return;
+    const round = counter.current++;
+    const answerId = `a${round}`;
+    setDraft('');
+    setTurns((all) => [
+      ...all,
+      { id: `q${round}`, role: 'user', text: q },
+      { id: answerId, role: 'assistant', text: '', status: 'waiting', question: q, mode: 'data' },
+    ]);
+    const D = T.data;
+    try {
+      const r = await askDataWithCosmos({ question: q, context: readScreenContext() });
+      if (!r.ok) {
+        const code: AssistantErrorCode =
+          r.error === 'empty' || r.error === 'tooLong'
+            ? 'bad_request'
+            : r.error === 'unreadable'
+              ? 'failed'
+              : r.error;
+        patch(answerId, {
+          status: 'error',
+          error: code,
+          ...(r.error === 'unreadable' ? { errorMessage: D.unreadable } : {}),
+        });
+        return;
+      }
+      const v = r.result;
+      if (v.status === 'unverified')
+        patch(answerId, { status: 'error', error: 'failed', errorMessage: D.unverified });
+      else
+        patch(answerId, {
+          status: 'done',
+          // "sem dado": a frase fixa, nunca o texto do modelo
+          text: v.status === 'answered' ? v.answer : D.noDataAnswer,
+          sources: v.sources,
+          ...(v.status === 'answered' && dataMode?.minCredits ? { charged: v.charged } : {}),
+          ...(v.status === 'no_data' ? { note: D.noData } : {}),
+        });
+    } catch {
+      patch(answerId, { status: 'error', error: 'failed' });
+    }
+  }
+
   async function ask(question: string, attached: readonly TurnFile[] = files) {
     const q = question.trim();
     if (!q || busy || reading) return;
+    if (dataOn) {
+      if (q.length <= DATA_QUESTION_MAX) await askData(q);
+      return;
+    }
     if (q.length > QUESTION_MAX) return;
     const round = counter.current++;
     const userId = `q${round}`;
@@ -368,7 +458,16 @@ export function CosmosAssistant({
 
   const group = suggestionGroup(route);
   const suggestions = Object.values(T.suggestions[group]);
-  const errorText = (code: AssistantErrorCode) => fill(T.errors[code], { max: QUESTION_MAX });
+  const errorText = (code: AssistantErrorCode) => fill(T.errors[code], { max: maxLength });
+  const costLine = dataOn
+    ? dataMode!.minCredits > 0
+      ? fill(T.data.from, { credits: n.format(dataMode!.minCredits) })
+      : T.data.free
+    : estimating
+      ? T.estimating
+      : estimate !== null
+        ? fill(T.estimate, { credits: n.format(estimate) })
+        : null;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -450,7 +549,12 @@ export function CosmosAssistant({
                             labels={T}
                             errorText={errorText}
                             format={(v) => n.format(v)}
-                            onRetry={() => turn.question && void ask(turn.question, turn.files ?? [])}
+                            onRetry={() =>
+                              turn.question &&
+                              void (turn.mode === 'data'
+                                ? askData(turn.question)
+                                : ask(turn.question, turn.files ?? []))
+                            }
                             onNavigate={() => onOpenChange(false)}
                           />
                         )}
@@ -484,6 +588,27 @@ export function CosmosAssistant({
                 e.target.value = '';
               }}
             />
+            {dataMode?.available ? (
+              <ToggleGroup
+                variant="outline"
+                size="sm"
+                value={[mode]}
+                onValueChange={(next) => {
+                  if (!next[0]) return;
+                  setMode(next[0] as Mode);
+                  if (next[0] === 'data') {
+                    // o modo dados aceita menos texto e nenhum anexo: o que não cabe seria recusado sem aviso
+                    setDraft((d) => d.slice(0, DATA_QUESTION_MAX));
+                    setFiles([]);
+                    setFileError(null);
+                  }
+                }}
+                aria-label={T.data.modeLabel}
+              >
+                <ToggleGroupItem value="docs">{T.data.modeDocs}</ToggleGroupItem>
+                <ToggleGroupItem value="data">{T.data.modeData}</ToggleGroupItem>
+              </ToggleGroup>
+            ) : null}
             <InputGroup>
               {files.length ? (
                 <InputGroupAddon align="block-start">
@@ -502,10 +627,10 @@ export function CosmosAssistant({
               ) : null}
               <InputGroupTextarea
                 aria-label={T.inputLabel}
-                placeholder={T.placeholder}
+                placeholder={dataOn ? T.data.placeholder : T.placeholder}
                 className="max-h-48 min-h-24 pb-12"
                 value={draft}
-                maxLength={QUESTION_MAX}
+                maxLength={maxLength}
                 onChange={(e) => setDraft(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
@@ -515,25 +640,23 @@ export function CosmosAssistant({
                 }}
               />
               <InputGroupAddon align="block-end">
-                <InputGroupButton
-                  ref={attachButton}
-                  type="button"
-                  variant="ghost"
-                  size="icon-xs"
-                  aria-label={T.attach}
-                  aria-describedby={hintId}
-                  title={fill(T.attachHint, { max: L.maxFiles })}
-                  disabled={busy || reading || files.length >= L.maxFiles}
-                  onClick={() => fileInput.current?.click()}
-                >
-                  {reading ? <Spinner /> : <PaperclipIcon aria-hidden />}
-                </InputGroupButton>
+                {dataOn ? null : (
+                  <InputGroupButton
+                    ref={attachButton}
+                    type="button"
+                    variant="ghost"
+                    size="icon-xs"
+                    aria-label={T.attach}
+                    aria-describedby={hintId}
+                    title={fill(T.attachHint, { max: L.maxFiles })}
+                    disabled={busy || reading || files.length >= L.maxFiles}
+                    onClick={() => fileInput.current?.click()}
+                  >
+                    {reading ? <Spinner /> : <PaperclipIcon aria-hidden />}
+                  </InputGroupButton>
+                )}
                 <span className="text-muted-foreground text-xs" aria-live="polite">
-                  {estimating
-                    ? T.estimating
-                    : estimate !== null
-                      ? fill(T.estimate, { credits: n.format(estimate) })
-                      : null}
+                  {costLine}
                 </span>
                 {busy ? (
                   <InputGroupButton
@@ -541,8 +664,10 @@ export function CosmosAssistant({
                     variant="outline"
                     size="icon-xs"
                     className="ml-auto"
-                    aria-label={T.stop}
-                    title={T.stop}
+                    // a consulta à API não tem como parar no meio (roda no servidor): o botão fica, desligado
+                    aria-label={dataBusy ? T.data.notStoppable : T.stop}
+                    title={dataBusy ? T.data.notStoppable : T.stop}
+                    disabled={dataBusy}
                     onClick={() => abortRef.current?.abort()}
                   >
                     <SquareIcon className="size-3.5" aria-hidden />
@@ -660,7 +785,7 @@ function AnswerMessage({
         <MessageContent>
           <Bubble variant="outline" className="max-w-full">
             <BubbleContent>
-              <p role="alert">{errorText(turn.error ?? 'failed')}</p>
+              <p role="alert">{turn.errorMessage ?? errorText(turn.error ?? 'failed')}</p>
               <div className="mt-3 flex flex-wrap gap-2">
                 {action ? (
                   <Link href="/client/cosmos" onClick={onNavigate} className={buttonVariants({ size: 'sm' })}>
@@ -701,7 +826,9 @@ function AnswerMessage({
                   <Spinner />
                 </MarkerIcon>
                 <MarkerContent>
-                  <span className="animate-pulse motion-reduce:animate-none">{T.thinking}</span>
+                  <span className="animate-pulse motion-reduce:animate-none">
+                    {turn.mode === 'data' ? T.data.thinking : T.thinking}
+                  </span>
                 </MarkerContent>
               </Marker>
             ) : (
@@ -728,12 +855,21 @@ function AnswerMessage({
                 ),
               )
             )}
+            {done && turn.note ? <p className="text-muted-foreground text-xs">{turn.note}</p> : null}
+            {done && turn.sources?.length ? (
+              <DataSources sources={turn.sources} labels={T} onNavigate={onNavigate} />
+            ) : null}
           </BubbleContent>
         </Bubble>
         <MessageFooter className="gap-0.5">
           {done && turn.charged !== undefined ? (
             <span className="pe-1 tabular-nums">
-              {fill(T.charged, { credits: format(turn.charged), available: format(turn.available ?? 0) })}
+              {turn.mode === 'data'
+                ? fill(T.data.charged, { credits: format(turn.charged) })
+                : fill(T.charged, {
+                    credits: format(turn.charged),
+                    available: format(turn.available ?? 0),
+                  })}
             </span>
           ) : null}
           <Button
@@ -767,5 +903,44 @@ function AnswerMessage({
         </MessageFooter>
       </MessageContent>
     </Message>
+  );
+}
+
+/** Fontes da resposta do modo "dados": a chamada exata, o código dela e o widget equivalente. */
+function DataSources({
+  sources,
+  labels: T,
+  onNavigate,
+}: {
+  sources: DataSource[];
+  labels: Labels;
+  onNavigate: () => void;
+}) {
+  return (
+    <div className="flex flex-col gap-2 border-t pt-3">
+      <span className="text-muted-foreground text-xs font-medium">{T.data.sources}</span>
+      <ul className="flex flex-col gap-2">
+        {sources.map((s, i) => (
+          <li key={i} className="flex flex-col gap-1.5">
+            <code className="bg-muted rounded px-1.5 py-0.5 text-xs break-all">
+              GET {requestPath(s.request)}
+              {requestSearch(s.request)}
+            </code>
+            <div className="flex flex-wrap gap-1.5">
+              <ApiCodeButton request={s.request} labeled />
+              {s.widget ? (
+                <Link
+                  href={`/client/builder/new?cosmos=${encodeURIComponent(s.widget.draft)}`}
+                  onClick={onNavigate}
+                  className={buttonVariants({ variant: 'outline', size: 'xs' })}
+                >
+                  {T.data.toWidget}
+                </Link>
+              ) : null}
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
