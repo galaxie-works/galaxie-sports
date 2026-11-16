@@ -21,6 +21,6 @@
     "drizzle-orm": "^0.45.4",
     "fastify": "^5.12.8",
     "ioredis": "^6.0.0",
-    "postgres": "^4.1.0"
+    "postgres": "^4.1.1"
   }
 }
