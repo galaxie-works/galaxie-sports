@@ -21488,6 +21488,30 @@
           "primaryKey": false,
           "notNull": false
         },
+        "avatar_status": {
+          "name": "avatar_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "avatar_ref": {
+          "name": "avatar_ref",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "avatar_hash": {
+          "name": "avatar_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "avatar_checked_at": {
+          "name": "avatar_checked_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
         "age_band": {
           "name": "age_band",
           "type": "text",
@@ -21693,6 +21717,10 @@
         "profile_country": {
           "name": "profile_country",
           "value": "\"fan\".\"profile\".\"country\" ~ '^[A-Z]{2}$'"
+        },
+        "profile_avatar_status": {
+          "name": "profile_avatar_status",
+          "value": "\"fan\".\"profile\".\"avatar_status\" is null or \"fan\".\"profile\".\"avatar_status\" in ('pending', 'visible', 'held', 'removed')"
         },
         "profile_age_band_detail": {
           "name": "profile_age_band_detail",

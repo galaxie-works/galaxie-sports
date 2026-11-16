@@ -36,6 +36,7 @@ import {
 import type { TenantContext } from '../auth/authenticator.js';
 import { ProblemError, problems } from '../errors.js';
 import { parseInput } from '../util.js';
+import { publicAvatars } from '../engage/fan-avatar.js';
 import { readFan } from '../engage/fans.js';
 import { clocksFor } from '../engage/moderation-routes.js';
 import { ModerationLists } from '../engage/moderation.js';
@@ -502,7 +503,8 @@ export async function chatRoutes(app: FastifyInstance, deps: ChatRoutesDeps): Pr
         body: text,
         profileId: fan.profileId,
         nickname: profile.nickname,
-        avatarUrl: profile.avatarUrl,
+        // a mensagem vai para a sala: só a foto liberada pela moderação (#1025)
+        avatarUrl: (await publicAvatars(database, fan.tenantId, [fan.profileId])).get(fan.profileId) ?? null,
         avatarVisibility: profile.visibility.avatar,
         createdAt: saved.createdAt,
       });

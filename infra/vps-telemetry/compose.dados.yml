@@ -134,7 +134,7 @@ services:
     restart: 'no'
     logging: *logging
 
-  # pg_dump diário (BACKUP_TIME, UTC), 7 dumps no volume `backups` (o NAS guarda a retenção longa), verificador a cada
+  # pg_dump diário (BACKUP_TIME, UTC), 3 dumps no volume `backups` (o NAS guarda a retenção longa), verificador a cada
   # 6 h, ensaio de restauração no dia 1 de cada mês, cópia opcional para S3 externo e, com BACKUP_S3_SYNC_PREFIXES, a
   # dos assets do RustFS (e, com BACKUP_S3_SYNC_TASKS_BUCKET=true, a do bucket das tarefas; docs/runbooks/exercicio-dr.md).
   backup:
@@ -150,7 +150,7 @@ services:
       # troca, o dono. A restauração real (restore.sh) roda com o dono: README › Papéis do banco
       DB_URL_BACKUP: ${DB_URL_BACKUP:-postgres://${POSTGRES_USER:-galaxie}:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-galaxie_sports}}
       BACKUP_TIME: ${BACKUP_TIME:-03:30}
-      BACKUP_KEEP_DAILY: ${BACKUP_KEEP_DAILY:-7}
+      BACKUP_KEEP_DAILY: ${BACKUP_KEEP_DAILY:-3}
       BACKUP_CHECK_INTERVAL_H: ${BACKUP_CHECK_INTERVAL_H:-6}
       BACKUP_NAS_RECEIPT: ${BACKUP_NAS_RECEIPT:-true}
       RESTORE_DRILL_DAY: ${RESTORE_DRILL_DAY:-1}

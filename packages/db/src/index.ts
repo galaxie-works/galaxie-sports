@@ -275,4 +275,5 @@ export {
   type TenantSecretKeyState,
   type TenantWebhookFailure,
 } from './access-errors.js';
+export { fanAvatarPublic, fanAvatarPublicUrl } from './fan-avatar-public.js';
 export * from './shop.js';
