@@ -1,7 +1,7 @@
 # Grafana com datasource (Prometheus), o painel de cota e a ponte dos alertas do Prometheus provisionados; os canais
 # dos alertas (push pelo ntfy e resumo diário por e-mail) ligam pelo ambiente (entrypoint.sh).
 #   docker build -t galaxie-sports-grafana infra/observability/grafana
-FROM grafana/grafana:13.3.0
+FROM grafana/grafana:13.3.1
 COPY provisioning/ /etc/grafana/provisioning/
 COPY alerting/ /etc/grafana/alerting/
 COPY dashboards/ /etc/grafana/dashboards/galaxie/
