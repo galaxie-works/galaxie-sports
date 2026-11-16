@@ -5,6 +5,8 @@ packages:
   - tests/integration
 
 allowBuilds:
+  # vem do @tensorflow/tfjs (triagem de imagem da Cosmos); o script de instalação só imprime um aviso
+  core-js: false
   esbuild: true
   # binários prontos vêm dos opcionais @img/sharp-*; o script de instalação só confere
   sharp: false
