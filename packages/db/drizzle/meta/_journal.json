@@ -876,6 +876,13 @@
       "when": 1794860102274,
       "tag": "0181_chat_moderacao_parte2",
       "breakpoints": true
+    },
+    {
+      "idx": 125,
+      "version": "7",
+      "when": 1794866764067,
+      "tag": "0188_chat_antiflood",
+      "breakpoints": true
     }
   ]
 }

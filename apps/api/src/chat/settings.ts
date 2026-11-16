@@ -11,6 +11,8 @@ export const CHAT_SETTING_KEYS = {
   slowModeSeconds: 'CHAT_SLOW_MODE_SECONDS',
   maxChars: 'CHAT_MESSAGE_MAX_CHARS',
   historyOnJoin: 'CHAT_HISTORY_ON_JOIN',
+  floodMaxPerMinute: 'CHAT_FLOOD_MAX_PER_MINUTE',
+  floodBlockSeconds: 'CHAT_FLOOD_BLOCK_SECONDS',
 } as const;
 
 export type ChatSettingsValues = Record<keyof typeof CHAT_SETTING_KEYS, number>;

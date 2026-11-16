@@ -118,6 +118,8 @@ export interface ChatTenantConfigRow {
   slowModeSeconds: number | null;
   strictness: ChatStrictness | null;
   eventKinds: ChatGameKind[] | null;
+  floodMaxPerMinute: number | null;
+  floodBlockSeconds: number | null;
 }
 
 const EMPTY_CONFIG: ChatTenantConfigRow = {
@@ -126,6 +128,8 @@ const EMPTY_CONFIG: ChatTenantConfigRow = {
   slowModeSeconds: null,
   strictness: null,
   eventKinds: null,
+  floodMaxPerMinute: null,
+  floodBlockSeconds: null,
 };
 
 export async function readTenantConfig(db: Database, tenantId: string): Promise<ChatTenantConfigRow> {
@@ -136,6 +140,8 @@ export async function readTenantConfig(db: Database, tenantId: string): Promise<
       slowModeSeconds: chatTenantConfig.slowModeSeconds,
       strictness: chatTenantConfig.strictness,
       eventKinds: chatTenantConfig.eventKinds,
+      floodMaxPerMinute: chatTenantConfig.floodMaxPerMinute,
+      floodBlockSeconds: chatTenantConfig.floodBlockSeconds,
     })
     .from(chatTenantConfig)
     .where(eq(chatTenantConfig.tenantId, tenantId))

@@ -189,6 +189,14 @@ export const ChatConfigBody = z
         description:
           'Tipos de mensagem do jogo nas salas; `null` = todos. Lista vazia desliga o jogo no chat.',
       }),
+    floodMaxPerMinute: z.number().int().min(3).max(60).nullable().optional().meta({
+      description:
+        'Anti-flood: mensagens por torcedor em 60 s antes do bloqueio; `null` = padrão da Galaxie (10).',
+    }),
+    floodBlockSeconds: z.number().int().min(30).max(1800).nullable().optional().meta({
+      description:
+        'Anti-flood: segundos sem enviar depois de passar do limite; `null` = padrão da Galaxie (180).',
+    }),
   })
   .meta({ id: 'ChatConfigBody' });
 export type ChatConfigBody = z.infer<typeof ChatConfigBody>;
@@ -201,6 +209,8 @@ export const ChatConfig = z
       slow_mode_seconds: z.number().int(),
       strictness: z.enum(CHAT_STRICTNESS_VALUES),
       event_kinds: z.array(z.enum(CHAT_GAME_KIND_VALUES)),
+      flood_max_per_minute: z.number().int(),
+      flood_block_seconds: z.number().int(),
       custom: z
         .array(z.string())
         .meta({ description: 'Campos com valor próprio do cliente (o resto é padrão).' }),
