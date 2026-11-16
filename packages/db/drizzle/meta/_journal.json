@@ -862,6 +862,13 @@
       "when": 1794849211462,
       "tag": "0179_game_schema",
       "breakpoints": true
+    },
+    {
+      "idx": 123,
+      "version": "7",
+      "when": 1794853952155,
+      "tag": "0180_comunidades",
+      "breakpoints": true
     }
   ]
 }
