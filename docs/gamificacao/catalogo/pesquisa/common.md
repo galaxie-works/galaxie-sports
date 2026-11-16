@@ -1,6 +1,6 @@
 # Pesquisa: Conquistas comuns a todos os esportes
 
-Material de trabalho das Conquistas com `sport: null` ([conquistas/common.json](../conquistas/common.json), [cartas/common.json](../cartas/common.json), [cartas/colecoes-common.json](../cartas/colecoes-common.json)). Aqui pode haver nome de liga e caso real para calibrar frequência; nada disso vai ao torcedor.
+Material de trabalho das Conquistas com `sport: null` ([conquistas/common.json](../conquistas/common.json), [cartas/common.json](../cartas/common.json), [cartas/colecoes.json](../cartas/colecoes.json)). Aqui pode haver nome de liga e caso real para calibrar frequência; nada disso vai ao torcedor.
 
 As 9 Conquistas que já existem no banco (`INITIAL_CATALOG` em `packages/game-rules/src/achievements.ts`) entram com id, nome, descrição, Degraus e bônus iguais aos do código, mais os campos novos (`collection`, `requires_data`, `real_world_frequency`). As 25 novas têm id `common.<familia>.<nome>`.
 
@@ -154,4 +154,4 @@ Raridade das Cartas pela regra mecânica (Bronze comum, Prata e Ouro especial, P
 - **Subtipo de consumo:** `action: consumption` não distingue resumo de escalação; `proposed.fan.participation.consumption.recap|lineup`.
 - **Vencedor da série** nos playoffs de basquete, hóquei e beisebol: não está no contrato; "final vencida" conta por jogo.
 - **Fuso individual do torcedor** (`proposed.fan.time_zone`): Madrugador e Coruja usam o fuso do programa.
-- Nada da padronização ou do validador precisou mudar; o validador passou a conferir `cartas/colecoes-common.json` (8 Coleções), o que não está descrito no cabeçalho dele.
+- Nada da padronização ou do validador precisou mudar; o validador passou a conferir `cartas/colecoes.json` (8 Coleções), o que não está descrito no cabeçalho dele.

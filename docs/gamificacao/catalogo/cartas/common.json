@@ -230,8 +230,8 @@
       "en": "Twenty friends"
     },
     "flavor": {
-      "pt": "Vinte amigos trazidos. Isso já é torcida organizada do bem.",
-      "es": "Veinte amigos traídos. Eso ya es hinchada organizada de las buenas.",
+      "pt": "Vinte amigos trazidos. Isso já é uma arquibancada inteira.",
+      "es": "Veinte amigos traídos. Eso ya es una tribuna entera.",
       "en": "Twenty friends brought in. That is a proper supporters group."
     },
     "art_prompt": "A golden-lit section of a stadium at sunset packed with fan silhouettes in plain kits, scarves raised together, violet sky. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
@@ -724,7 +724,7 @@
     },
     "flavor": {
       "pt": "Doze dias seguidos. O calendário virou tabela.",
-      "es": "Doce días seguidos. El calendario se volvió fixture.",
+      "es": "Doce días seguidos. El calendario se volvió tabla de partidos.",
       "en": "Twelve days straight. The calendar became a fixture list."
     },
     "art_prompt": "A long arc of alternating suns and moons spanning a stadium under afternoon light, fan silhouettes in the stands, generic pitch below. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
@@ -1246,7 +1246,7 @@
     "rarity": "common",
     "name": {
       "pt": "Primeira prorrogação",
-      "es": "Primera prórroga",
+      "es": "Primer tiempo extra",
       "en": "First overtime"
     },
     "flavor": {
@@ -1263,7 +1263,7 @@
     "rarity": "special",
     "name": {
       "pt": "Duas prorrogações",
-      "es": "Dos prórrogas",
+      "es": "Dos tiempos extra",
       "en": "Two overtimes"
     },
     "flavor": {
@@ -1280,12 +1280,12 @@
     "rarity": "special",
     "name": {
       "pt": "Cinco prorrogações",
-      "es": "Cinco prórrogas",
+      "es": "Cinco tiempos extra",
       "en": "Five overtimes"
     },
     "flavor": {
       "pt": "Cinco vitórias na prorrogação. O tempo extra é seu amigo.",
-      "es": "Cinco victorias en la prórroga. El tiempo extra es tu amigo.",
+      "es": "Cinco victorias en tiempo extra. El reloj largo es tu amigo.",
       "en": "Five overtime wins. Extra time is your friend."
     },
     "art_prompt": "A stadium under afternoon light with a large glowing clock face without numerals above the scoreboard, fan silhouettes in plain white kits leaping, players piling on in celebration. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
@@ -1297,7 +1297,7 @@
     "rarity": "rare",
     "name": {
       "pt": "Dez prorrogações",
-      "es": "Diez prórrogas",
+      "es": "Diez tiempos extra",
       "en": "Ten overtimes"
     },
     "flavor": {
@@ -1314,12 +1314,12 @@
     "rarity": "legendary",
     "name": {
       "pt": "Vinte e cinco prorrogações",
-      "es": "Veinticinco prórrogas",
+      "es": "Veinticinco tiempos extra",
       "en": "Twenty-five overtimes"
     },
     "flavor": {
       "pt": "Vinte e cinco vitórias na prorrogação. Você vive no tempo extra.",
-      "es": "Veinticinco victorias en la prórroga. Vives en el tiempo extra.",
+      "es": "Veinticinco victorias en tiempo extra. Vives en el reloj largo.",
       "en": "Twenty-five overtime wins. You live in extra time."
     },
     "art_prompt": "A night stadium with a prismatic clock face without numerals spinning above the pitch, light rays and floating particles, fan silhouettes in plain white kits celebrating. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: iridescent prismatic border with light rays and floating particles.",
@@ -1416,7 +1416,7 @@
     "rarity": "common",
     "name": {
       "pt": "Primeiro cheio",
-      "es": "Primer pleno",
+      "es": "Primer acierto total",
       "en": "First full hit"
     },
     "flavor": {
@@ -1433,12 +1433,12 @@
     "rarity": "special",
     "name": {
       "pt": "Cheio de novo",
-      "es": "Pleno otra vez",
+      "es": "De lleno otra vez",
       "en": "Full hit again"
     },
     "flavor": {
       "pt": "Cinco acertos em cheio. Já é hábito.",
-      "es": "Cinco plenos. Ya es costumbre.",
+      "es": "Cinco de lleno. Ya es costumbre.",
       "en": "Five full hits. It is becoming a habit."
     },
     "art_prompt": "Five generic balls lined dead center along the halfway line of a sunlit pitch, each in its own chalk circle, a few fan silhouettes watching from a low stand. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
@@ -1455,7 +1455,7 @@
     },
     "flavor": {
       "pt": "Quinze acertos em cheio. O jogo cabe na sua palma.",
-      "es": "Quince plenos. El partido cabe en tu mano.",
+      "es": "Quince de lleno. El partido cabe en tu mano.",
       "en": "Fifteen full hits. The game fits in your palm."
     },
     "art_prompt": "A stylized open hand silhouette holding a glowing generic ball above a stadium pitch, concentric light rings around it, afternoon light, crowd silhouettes. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
@@ -1467,12 +1467,12 @@
     "rarity": "rare",
     "name": {
       "pt": "Cheio de ouro",
-      "es": "Pleno dorado",
+      "es": "Acierto dorado",
       "en": "Golden full hit"
     },
     "flavor": {
       "pt": "Quarenta acertos em cheio. Uma temporada sem errar a conta.",
-      "es": "Cuarenta plenos. Una temporada sin fallar la cuenta.",
+      "es": "Cuarenta de lleno. Una temporada sin fallar la cuenta.",
       "en": "Forty full hits. A season without missing the count."
     },
     "art_prompt": "A golden glowing generic ball at the exact center of a full stadium at sunset, light rings expanding to the stands filled with fan silhouettes, violet sky. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
@@ -1489,7 +1489,7 @@
     },
     "flavor": {
       "pt": "Cem acertos em cheio. Nada escapa ao seu cálculo.",
-      "es": "Cien plenos. Nada escapa a tu cálculo.",
+      "es": "Cien de lleno. Nada escapa a tu cálculo.",
       "en": "A hundred full hits. Nothing escapes your reckoning."
     },
     "art_prompt": "A night stadium with a prismatic generic ball hovering at the center of the pitch, rays and floating particles radiating outward, thousands of fan silhouettes lit by the glow. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: iridescent prismatic border with light rays and floating particles.",

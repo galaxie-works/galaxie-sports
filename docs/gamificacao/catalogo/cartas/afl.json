@@ -351,7 +351,7 @@
     "flavor": {
       "pt": "Jogo sim, jogo sim.",
       "es": "Partido sí, partido sí.",
-      "en": "Match in, match in."
+      "en": "Match after match."
     },
     "art_prompt": "Two stylized stadium seats side by side with a stylized fan seated in the second one, the first seat glowing faintly as if just vacated, an oval field beyond, morning light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"

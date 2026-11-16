@@ -64,7 +64,11 @@ As 112 perguntas dos 13 pacotes estão consolidadas em 50 únicas, por tema, em 
 
 Logo atrás: aprovar em bloco as 7 exceções à régua; decidir se "Rei do placar exato" e "Madrugador" ficam no masculino (são os exemplos da missão) ou ganham forma neutra; confirmar o estilo de arte (o guia recomenda manter o A, vetor plano, e testar o C, holográfico noturno, só nas peças de topo antes de decidir).
 
-## 5. Como importar (quando aprovado)
+## 5. Revisão independente (16/11)
+
+O Codex ficou sem cota, então um revisor de leitura percorreu as 1.172 Cartas, as 109 Coleções, os cosméticos e as 360 Conquistas. Achou 4 itens que violavam regra fixa, todos de vocabulário e já corrigidos: "pleno" (jargão de aposta em espanhol) virou "acierto total" / "de lleno"; "octógono" (marca) virou "gaiola" / "jaula"; "placares cravados" (gíria de aposta) virou "placares exatos gravados"; "você já sabe onde dói" (MMA, 13+) virou "onde fecha". Dos 24 ajustes de idioma e coerência, 21 foram aplicados (léxico latino-americano unificado em "tiempo extra", "narrador", "gimnasio", "clavada"; inglês literal; provocação a rival em 6 versos; duas descrições que prometiam mais que a regra). Ficaram como decisão registrada: "fecha" e "jornada" convivem; nomes de até 4 palavras valem; e **37 das 109 Coleções têm Carta de Conquista inativa (5 só de inativas)**, então aparecem na estante com a Carta em silhueta e só fecham quando a Conquista ligar.
+
+## 6. Como importar (quando aprovado)
 
 1. Responder as perguntas de [consolidado.md](pesquisa/consolidado.md) e ajustar os pacotes afetados (cada pacote tem o gerador que o produziu; regenerar e revalidar).
 2. Mapear cada caminho de `requires_data` para a base e conferir as regras de momento contra jogos reais (um jogo por fato, no mínimo).

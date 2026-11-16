@@ -669,7 +669,7 @@
     "description": {
       "pt": "Assista ao jogo em que seu time perde o primeiro tempo por catorze ou mais e termina vencendo.",
       "es": "Mira el partido en que tu equipo pierde el primer tiempo por catorce o más y termina ganando.",
-      "en": "Watch the match your team trails by fourteen or more at half time and goes on to win."
+      "en": "Watch your team trail by fourteen or more at half time and go on to win."
     },
     "steps": [
       {
@@ -717,7 +717,7 @@
     "description": {
       "pt": "Assista ao jogo em que seu time perde o primeiro tempo por sete ou mais e termina vencendo.",
       "es": "Mira el partido en que tu equipo pierde el primer tiempo por siete o más y termina ganando.",
-      "en": "Watch the match your team trails by seven or more at half time and goes on to win."
+      "en": "Watch your team trail by seven or more at half time and go on to win."
     },
     "steps": [
       {
@@ -763,12 +763,12 @@
     "real_world_frequency": "em 38 anos de Copa do Mundo masculina só duas partidas de mata-mata foram à prorrogação (as finais de 1995 e 2003); nos playoffs das ligas, cerca de uma por década; para quem assiste a 5 a 10 mata-matas por temporada, menos de 0,1 (fonte: rugbyworld.com/tournaments/rugby-world-cup/happens-theres-draw-rugby-world-cup-102954)",
     "name": {
       "pt": "Prorrogação na decisão",
-      "es": "Suplementario en la definición",
+      "es": "Tiempo extra en la definición",
       "en": "Knockout Extra Time"
     },
     "description": {
       "pt": "Assista a um jogo de mata-mata que só se decide na prorrogação.",
-      "es": "Mira un partido de eliminación directa que solo se define en el tiempo suplementario.",
+      "es": "Mira un partido de eliminación directa que solo se define en el tiempo extra.",
       "en": "Watch a knockout match that is only settled in extra time."
     },
     "steps": [
@@ -936,7 +936,7 @@
     "description": {
       "pt": "Assista ao jogo em que seu time marca trinta pontos ou mais só no segundo tempo.",
       "es": "Mira el partido en que tu equipo anota treinta puntos o más solo en el segundo tiempo.",
-      "en": "Watch the match your team scores thirty or more points in the second half alone."
+      "en": "Watch your team score thirty or more points in the second half alone."
     },
     "steps": [
       {
@@ -984,7 +984,7 @@
     "description": {
       "pt": "Assista ao jogo em que um jogador do seu time marca três tries.",
       "es": "Mira el partido en que un jugador de tu equipo marca tres tries.",
-      "en": "Watch the match one of your team’s players scores three tries."
+      "en": "Watch one of your team’s players score three tries."
     },
     "steps": [
       {

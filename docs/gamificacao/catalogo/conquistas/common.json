@@ -682,7 +682,7 @@
     "real_world_frequency": "não perder nenhum jogo seguido do time por 30 jogos é meio ano de calendário cheio; 70 seguidos atravessa mais de uma temporada e deve ficar abaixo de 1% dos ativos (estimativa; pesquisa/common.md §3)",
     "name": {
       "pt": "Sem perder um",
-      "es": "Sin perderme uno",
+      "es": "Sin perderse uno",
       "en": "Never miss one"
     },
     "description": {
@@ -1181,7 +1181,7 @@
     },
     "description": {
       "pt": "Esteja lá quando o seu time vencer na prorrogação, nos pênaltis ou no shootout.",
-      "es": "Está ahí cuando tu equipo gane en la prórroga, en los penales o en el shootout.",
+      "es": "Está ahí cuando tu equipo gane en el tiempo extra, en los penales o en el shootout.",
       "en": "Be there when your team wins in overtime, on penalties or in a shootout."
     },
     "steps": [
@@ -1303,7 +1303,7 @@
     "real_world_frequency": "Acerto em cheio = placar exato (8 a 12% dos Palpites de placar) ou quantidade exata (o total bate o N pedido em ~25% dos Palpites de quantidade); um palpiteiro assíduo soma 40 a 60 por temporada (estimativa; pesquisa/common.md §2)",
     "name": {
       "pt": "Acerto em cheio",
-      "es": "Pleno",
+      "es": "Acierto total",
       "en": "Full hit"
     },
     "description": {

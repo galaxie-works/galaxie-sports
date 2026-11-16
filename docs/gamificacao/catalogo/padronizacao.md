@@ -15,10 +15,10 @@ Guia curto para quem cria uma Conquista, Carta ou cosmético novo. O [validador]
 
 ## 2. Tom de voz dos nomes e textos
 
-- Nome: 1 a 3 palavras, orgulho, sem trocadilho de aposta, sem provocação a rival. Até 32 caracteres. Ex.: "Na mosca", "Fiel", "Virada épica".
+- Nome: 1 a 4 palavras (até 32 caracteres), orgulho, sem trocadilho de aposta, sem provocação a rival. Ex.: "Na mosca", "Fiel", "Virada épica".
 - Descrição: uma frase, o que fazer, até 120 caracteres. Fala com o torcedor ("Acompanhe…", "Esteja lá quando…").
 - Verso da Carta (`flavor`): até 80 caracteres, frase de arquibancada, sem citação real.
-- Três idiomas sempre: `pt` (Brasil), `es` (neutro: sem voseo, sem "vosotros", sem regionalismo; "partido", "hinchada", "marcador"), `en` (natural, não literal). Cada idioma soa como se tivesse nascido nele.
+- Três idiomas sempre: `pt` (Brasil), `es` (neutro latino-americano: sem voseo, sem "vosotros", sem regionalismo de um país só; "partido", "hinchada", "marcador", "tiempo extra" (não "prórroga" nem "suplementario"), "narrador" (não "relator"), "gimnasio" (não "pabellón"), "clavada" (não "volcada"); "fecha" e "jornada" valem as duas; "arquero" e "chicharra" são as escolhas declaradas), `en` (natural, não literal). Cada idioma soa como se tivesse nascido nele. Em espanhol, "pleno" é jargão de aposta: nunca.
 - Nada de entidade real em texto nenhum: clube, seleção, liga, competição, estádio, atleta, técnico, árbitro, marca, patrocinador, mascote, bordão. Inclui siglas de liga. O validador tem uma lista de alerta, mas a busca final é de quem revisa.
 - Nada de compra, sorte, troca ou aposta (nem "green", "odd", "cravou a aposta", "apuesta", "cuota", "bet", "wager").
 - Público 13+: sem violência gráfica (no MMA: "finalização", "nocaute", nunca o dano), sem álcool, sem linguagem chula.
@@ -152,7 +152,7 @@ Carta (`cartas/<esporte>.json`, lista):
 }
 ```
 
-Coleções (`cartas/colecoes.json`, lista): `{ "id": "football.last_minute", "sport": "football|null", "name": {pt, es, en}, "description": {pt, es, en}, "cards": ["...card_key"], "unlock": { "frame": "frame.<x>" | "background": "background.<x>" | "title": "title.<x>" } }`. Completar a Coleção destrava o cosmético apontado; nunca Pontos, nunca Carta extra.
+Coleções (`cartas/colecoes.json`, lista): `{ "id": "football.last_minute", "sport": "football|null", "name": {pt, es, en}, "description": {pt, es, en}, "cards": ["...card_key"], "unlock": { "frame": "frame.<x>" | "background": "background.<x>" | "title": "title.<x>" } }`. Completar a Coleção destrava o cosmético apontado; nunca Pontos, nunca Carta extra. Coleção com Carta de Conquista inativa aparece na estante com a Carta em silhueta e só fecha quando a Conquista ligar; o cosmético dela espera junto.
 
 Cosmético (`cosmeticos/{niveis,molduras,fundos,titulos}.json`, listas): `id`, `name` {pt, es, en}, `unlock` (`{ "level": 5 }`, `{ "collection": "..." }` ou `{ "achievement": "...", "step": 5 }`), `animated` (bool; se true, `animation` descreve o loop), e, para molduras e fundos, `art_prompt` e `art_negative_prompt` no padrão das Cartas.
 

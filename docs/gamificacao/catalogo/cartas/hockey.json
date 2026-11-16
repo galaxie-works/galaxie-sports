@@ -112,7 +112,7 @@
     },
     "flavor": {
       "pt": "Dois sotaques de narrador, o mesmo barulho do disco no vidro.",
-      "es": "Dos acentos de relator, el mismo ruido del disco en el vidrio.",
+      "es": "Dos acentos de narrador, el mismo ruido del disco en el vidrio.",
       "en": "Two commentators’ accents, the same clack of puck on glass."
     },
     "art_prompt": "A stylized fan with headphones in front of two floating screens each showing an arena of different architecture, no flags or symbols, steel-blue tones, cozy interior. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
@@ -351,7 +351,7 @@
     "flavor": {
       "pt": "Jogo sim, jogo sim.",
       "es": "Partido sí, partido sí.",
-      "en": "Game in, game in."
+      "en": "Game after game."
     },
     "art_prompt": "Two stylized arena seats side by side with a stylized fan seated in the second one, the first seat glowing faintly as if just vacated, cold morning light, frost on the glass of a generic rink. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
@@ -485,9 +485,9 @@
       "en": "Sixteen Nights"
     },
     "flavor": {
-      "pt": "Dezesseis noites. As mesmas que levam alguém ao título.",
-      "es": "Dieciséis noches. Las mismas que llevan a alguien al título.",
-      "en": "Sixteen nights. The same number it takes to win it all."
+      "pt": "Dezesseis noites sem volta.",
+      "es": "Dieciséis noches sin vuelta atrás.",
+      "en": "Sixteen nights with no way back."
     },
     "art_prompt": "A stylized fan silhouette standing before a wall of sixteen glowing arena outlines like a gallery, violet light, towels frozen mid-wave in the air, faceted violet glow. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
@@ -859,8 +859,8 @@
       "en": "Two Scores"
     },
     "flavor": {
-      "pt": "Duas noites, dois placares cravados no gelo.",
-      "es": "Dos noches, dos marcadores clavados en el hielo.",
+      "pt": "Duas noites, dois placares exatos gravados no gelo.",
+      "es": "Dos noches, dos marcadores exactos grabados en el hielo.",
       "en": "Two nights, two scores nailed on the ice."
     },
     "art_prompt": "Two stylized fans of different ages, genders and backgrounds bumping fists in a living room, the television glowing with players in plain white and plain charcoal kits, two faint target rings floating above them, warm evening light, steel-blue tones. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
@@ -1097,9 +1097,9 @@
       "en": "Tired Net"
     },
     "flavor": {
-      "pt": "O goleiro deles foi trocado. Não adiantou.",
-      "es": "Cambiaron al arquero. No sirvió.",
-      "en": "They changed goalies. It did not help."
+      "pt": "Nem a troca de goleiro segurou o placar.",
+      "es": "Ni el cambio de arquero frenó el marcador.",
+      "en": "Not even a goalie change slowed the score."
     },
     "art_prompt": "A stylized team in plain white kit celebrating in a loose circle at center ice while five generic pucks rest inside the far net, a second goaltender in a plain charcoal kit skating in to replace the first, bright festive arena light, a cheering generic stand. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"

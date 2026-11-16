@@ -316,7 +316,7 @@
     },
     "flavor": {
       "pt": "Vinte e cinco jogos seguidos. O ginásio já guarda o lugar.",
-      "es": "Veinticinco partidos seguidos. El pabellón ya guarda el lugar.",
+      "es": "Veinticinco partidos seguidos. El gimnasio ya guarda el lugar.",
       "en": "Twenty-five straight. The hall saves the seat now."
     },
     "art_prompt": "A stylized fan silhouette seated alone in a violet spotlight at the center of a vast generic stand, dozens of faint overlapping ghost images of the same seated figure fading behind, faceted violet glow. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
@@ -537,7 +537,7 @@
     },
     "flavor": {
       "pt": "A bola entrou junto com a buzina.",
-      "es": "La pelota entró junto con la bocina.",
+      "es": "La pelota entró junto con la chicharra.",
       "en": "The ball crossed the line with the buzzer."
     },
     "art_prompt": "A stylized handball player in a plain white kit frozen mid-air in a jump shot over a goalkeeper in a plain charcoal kit, the generic handball a hand’s width from the goal line, a giant blank clock shape with no digits glowing violet above, every silhouetted fan in the arena on their feet. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
@@ -549,7 +549,7 @@
     "rarity": "historic",
     "name": {
       "pt": "Do fundo do ginásio",
-      "es": "Desde el fondo del pabellón",
+      "es": "Desde el fondo del gimnasio",
       "en": "From the Back of the Hall"
     },
     "flavor": {
@@ -775,7 +775,7 @@
     },
     "flavor": {
       "pt": "Perdia no intervalo. Ninguém no ginásio acreditou que ficaria assim.",
-      "es": "Perdía al descanso. Nadie en el pabellón creyó que seguiría así.",
+      "es": "Perdía al descanso. Nadie en el gimnasio creyó que seguiría así.",
       "en": "Behind at the break. Nobody in the hall believed it would stay that way."
     },
     "art_prompt": "A stylized handball player in a plain white kit sprinting on a fast break along a generic indoor court, a generic handball tucked under one arm, two opponents in plain charcoal kit left behind, afternoon light in warm and steel-blue bands, half-full bleachers with silhouetted fans rising. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
@@ -808,9 +808,9 @@
       "en": "Second-Half Owner"
     },
     "flavor": {
-      "pt": "No intervalo, o adversário sorria. No apito final, não.",
-      "es": "Al descanso, el rival sonreía. Al silbato final, no.",
-      "en": "At the break the opponents were smiling. At the final whistle, not."
+      "pt": "No intervalo era derrota. No apito final, festa.",
+      "es": "Al descanso era derrota. Al silbato final, fiesta.",
+      "en": "Behind at the break. Celebrating at the final whistle."
     },
     "art_prompt": "A stylized handball captain in a plain white kit standing at the center of a generic indoor court with both fists raised, teammates of varied builds and genders running toward them, a huge blank clock shape glowing violet over the stands, confetti-like paper drifting through arena lights. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
@@ -843,7 +843,7 @@
     },
     "flavor": {
       "pt": "Trinta minutos, vinte gols, um ginásio ensurdecido.",
-      "es": "Treinta minutos, veinte goles, un pabellón ensordecido.",
+      "es": "Treinta minutos, veinte goles, un gimnasio ensordecido.",
       "en": "Thirty minutes, twenty goals, one deafened hall."
     },
     "art_prompt": "A stylized handball winger in a plain white kit diving horizontally from the corner to shoot, a generic handball leaving the hand with a bright trail, a defender in a plain charcoal kit a step late, a tall blank scoreboard glowing steel-blue, silhouetted fans leaning over the rail. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
@@ -877,7 +877,7 @@
     },
     "flavor": {
       "pt": "Um arremesso, um goleiro, um ginásio sem respirar.",
-      "es": "Un lanzamiento, un arquero, un pabellón sin respirar.",
+      "es": "Un lanzamiento, un arquero, un gimnasio sin respirar.",
       "en": "One throw, one keeper, a hall holding its breath."
     },
     "art_prompt": "A stylized handball player in a plain white kit standing alone at the seven-metre line facing a goalkeeper in a plain charcoal kit crouched wide in the goal, a line of five generic handballs on the floor, teammates linked arm in arm at the center circle, prismatic light rays over a silent silhouetted crowd. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: iridescent prismatic border with light rays and floating particles.",
@@ -1195,7 +1195,7 @@
     "rarity": "rare",
     "name": {
       "pt": "Olho de ginásio",
-      "es": "Ojo de pabellón",
+      "es": "Ojo de cancha",
       "en": "Arena Eye"
     },
     "flavor": {
@@ -1251,7 +1251,7 @@
     },
     "flavor": {
       "pt": "Dois ginásios estranhos, duas vitórias na mala.",
-      "es": "Dos pabellones ajenos, dos victorias en la maleta.",
+      "es": "Dos gimnasios ajenos, dos victorias en la maleta.",
       "en": "Two strange halls, two wins in the bag."
     },
     "art_prompt": "A stylized team bus silhouette parked outside a generic arena at dusk, players in plain white kit boarding with raised fists and sports bags, a faint glowing scoreboard shape in the arena window, steel-blue evening tones. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
@@ -1268,7 +1268,7 @@
     },
     "flavor": {
       "pt": "Quando seu time chega, o ginásio inteiro fica tenso.",
-      "es": "Cuando llega tu equipo, el pabellón entero se tensa.",
+      "es": "Cuando llega tu equipo, el gimnasio entero se tensa.",
       "en": "When your team arrives, the whole hall tenses up."
     },
     "art_prompt": "A stylized women’s handball team in plain white kit walking in a line onto a generic indoor court under hostile night lighting, silhouetted home fans in the stands leaning forward, a generic handball held high by the leading player. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
@@ -1285,7 +1285,7 @@
     },
     "flavor": {
       "pt": "Oito ginásios calados. Um time que viaja bem.",
-      "es": "Ocho pabellones callados. Un equipo que viaja bien.",
+      "es": "Ocho gimnasios callados. Un equipo que viaja bien.",
       "en": "Eight silenced halls. A team that travels well."
     },
     "art_prompt": "A stylized handball captain in a plain white kit standing on a generic court with a crown-shaped formation of violet light rays behind, a stylized map of roads glowing faintly on the floor with eight lit points, silhouetted fans in the dark stands. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
@@ -1302,7 +1302,7 @@
     },
     "flavor": {
       "pt": "Vinte casas alheias, vinte vitórias. Nenhum ginásio é longe.",
-      "es": "Veinte casas ajenas, veinte victorias. Ningún pabellón queda lejos.",
+      "es": "Veinte casas ajenas, veinte victorias. Ningún gimnasio queda lejos.",
       "en": "Twenty away halls, twenty wins. No arena is too far."
     },
     "art_prompt": "A stylized handball team in plain white kit standing on a glowing road of light that stretches across a night landscape toward dozens of distant arena silhouettes, prismatic light rays and floating particles around them. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: iridescent prismatic border with light rays and floating particles.",

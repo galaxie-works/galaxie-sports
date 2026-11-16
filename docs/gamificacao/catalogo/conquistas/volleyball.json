@@ -540,9 +540,9 @@
       "en": "Deuce Set"
     },
     "description": {
-      "pt": "Assista aos sets que seu time vence depois do empate em 24 a 24.",
-      "es": "Mira los sets que tu equipo gana después del empate en 24 a 24.",
-      "en": "Watch the sets your team wins after a 24-24 tie."
+      "pt": "Assista aos sets em que seu time passa dos 25 pontos, depois do empate em 24 a 24.",
+      "es": "Mira los sets en que tu equipo pasa de los 25 puntos, tras el empate en 24 a 24.",
+      "en": "Watch the sets where your team goes past 25 points after a 24-24 tie."
     },
     "steps": [
       {

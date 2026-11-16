@@ -1190,7 +1190,7 @@
     },
     "description": {
       "pt": "As vitórias do seu time que você viu ao vivo: comuns, viradas, clássicos, finais e prorrogações. Destrava a moldura \"Eu estava lá\".",
-      "es": "Las victorias de tu equipo que viste en vivo: normales, remontadas, clásicos, finales y prórrogas. Desbloquea el marco \"Yo estuve ahí\".",
+      "es": "Las victorias de tu equipo que viste en vivo: normales, remontadas, clásicos, finales y tiempos extra. Desbloquea el marco \"Yo estuve ahí\".",
       "en": "The wins of your team you saw live: regular, comebacks, derbies, finals and overtime. Unlocks the \"I was there\" frame."
     },
     "cards": [
@@ -1261,7 +1261,7 @@
     },
     "description": {
       "pt": "Os acertos: vencedor, quantidade, placar exato, acerto em cheio e qualquer tipo. Destrava a moldura \"Olho clínico\".",
-      "es": "Los aciertos: ganador, cantidad, marcador exacto, pleno y de cualquier tipo. Desbloquea el marco \"Ojo clínico\".",
+      "es": "Los aciertos: ganador, cantidad, marcador exacto, acierto total y de cualquier tipo. Desbloquea el marco \"Ojo clínico\".",
       "en": "The right calls: winner, count, exact score, full hit and any kind. Unlocks the \"Sharp eye\" frame."
     },
     "cards": [
@@ -2775,7 +2775,7 @@
     },
     "description": {
       "pt": "Mata-matas, finais e a prorrogação que ninguém esperava: as noites em que o rugby decide alguma coisa.",
-      "es": "Eliminatorias, finales y el suplementario que nadie esperaba: las noches en que el rugby decide algo.",
+      "es": "Eliminatorias, finales y el tiempo extra que nadie esperaba: las noches en que el rugby decide algo.",
       "en": "Knockouts, finals and the extra time nobody expected: the nights when rugby decides something."
     },
     "cards": [

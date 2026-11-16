@@ -27,7 +27,7 @@
     },
     "flavor": {
       "pt": "Dois sotaques de locutor, o mesmo sino.",
-      "es": "Dos acentos de relator, la misma campana.",
+      "es": "Dos acentos de narrador, la misma campana.",
       "en": "Two commentators’ accents, one same bell."
     },
     "art_prompt": "A stylized fan with headphones in front of two floating screens each showing an arena of different architecture with a cage at the center inside a generic octagonal cage with plain padded posts and a plain canvas, no flags or symbols, steel-blue tones, cozy interior. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
@@ -979,7 +979,7 @@
     },
     "flavor": {
       "pt": "O locutor ainda estava se sentando.",
-      "es": "El relator todavía se estaba sentando.",
+      "es": "El narrador todavía se estaba sentando.",
       "en": "The announcer was still sitting down."
     },
     "art_prompt": "A stylized fighter in plain white shorts and unbranded gloves frozen mid-stride toward the cage door with a fist raised inside a generic octagonal cage with plain padded posts and a plain canvas, a generic referee waving off behind, a blank stopwatch shape glowing violet with faceted light above the cage, silhouetted fans still finding their seats. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
@@ -990,9 +990,9 @@
     "collection": "mma.finishers",
     "rarity": "common",
     "name": {
-      "pt": "Luz apagada",
-      "es": "Luz apagada",
-      "en": "Lights Out"
+      "pt": "Primeiro nocaute",
+      "es": "Primer nocaut",
+      "en": "First Knockout"
     },
     "flavor": {
       "pt": "O árbitro entrou e o ginásio explodiu.",
@@ -1007,9 +1007,9 @@
     "collection": "mma.finishers",
     "rarity": "special",
     "name": {
-      "pt": "Cinco apagões",
-      "es": "Cinco apagones",
-      "en": "Five Blackouts"
+      "pt": "Cinco nocautes",
+      "es": "Cinco nocauts",
+      "en": "Five Knockouts"
     },
     "flavor": {
       "pt": "Cinco noites, cinco gritos no mesmo segundo.",
@@ -1165,8 +1165,8 @@
       "en": "Couch Black Belt"
     },
     "flavor": {
-      "pt": "Trinta finalizações vistas: você já sabe onde dói.",
-      "es": "Treinta sumisiones vistas: ya sabes dónde duele.",
+      "pt": "Trinta finalizações vistas: você já sabe onde fecha.",
+      "es": "Treinta sumisiones vistas: ya sabes dónde se cierra.",
       "en": "Thirty submissions watched: you know where the hold goes."
     },
     "art_prompt": "A stylized fan on a sofa leaning toward a television that shows two silhouetted grapplers in plain white and plain charcoal shorts inside a generic octagonal cage with plain padded posts and a plain canvas, a floating violet faceted belt shape above the fan, night interior with a warm lamp. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
@@ -1602,8 +1602,8 @@
     "collection": "mma.oracle",
     "rarity": "legendary",
     "name": {
-      "pt": "Vidente do octógono",
-      "es": "Vidente del octágono",
+      "pt": "Vidente da gaiola",
+      "es": "Vidente de la jaula",
       "en": "Cage Seer"
     },
     "flavor": {

@@ -113,7 +113,7 @@
     "flavor": {
       "pt": "Cinco escudos diferentes na tela, uma só emoção.",
       "es": "Cinco escudos distintos en la pantalla, una sola emoción.",
-      "en": "Five different sidelines on screen, one same thrill."
+      "en": "Five different sidelines on screen, the same thrill."
     },
     "art_prompt": "A stylized map unfolded wide with five glowing pins connected by thin lines, a stylized fan leaning over it with a generic phone with blank screen, steel-blue afternoon light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, helmet logos, end-zone lettering, yard-line numerals"
@@ -266,7 +266,7 @@
     "flavor": {
       "pt": "Domingo sim, domingo sim.",
       "es": "Domingo sí, domingo sí.",
-      "en": "Sunday in, Sunday in."
+      "en": "Sunday after Sunday."
     },
     "art_prompt": "Two stylized stadium seats side by side with a stylized fan seated in the second one, the first seat glowing faintly as if just vacated, morning light, generic stand. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, helmet logos, end-zone lettering, yard-line numerals"
@@ -1199,9 +1199,9 @@
       "en": "Owner of the Rivalry"
     },
     "flavor": {
-      "pt": "Oito clássicos vencidos. O rival já sabe o roteiro.",
-      "es": "Ocho clásicos ganados. El rival ya conoce el guion.",
-      "en": "Eight rivalry wins. The rival knows the script by now."
+      "pt": "Oito clássicos vencidos. Já virou tradição.",
+      "es": "Ocho clásicos ganados. Ya es tradición.",
+      "en": "Eight rivalry wins. It is a tradition by now."
     },
     "art_prompt": "A stylized captain in a plain white kit with a plain matte white helmet without any logo raising a fist at midfield of a generic gridiron with plain yard lines and no end-zone lettering, a crown-shaped formation of violet light rays behind, the stands split in two colors of light, confetti falling, late evening. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, helmet logos, end-zone lettering, yard-line numerals"

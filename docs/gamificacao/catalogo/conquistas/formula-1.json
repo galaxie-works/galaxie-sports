@@ -1419,9 +1419,9 @@
       "en": "Night-Shift Race"
     },
     "description": {
-      "pt": "Assista a corridas que largam de madrugada no seu horário.",
-      "es": "Mira carreras que largan de madrugada en tu horario.",
-      "en": "Watch races that start in the small hours, your local time."
+      "pt": "Assista a corridas que largam tarde da noite ou de madrugada no seu horário.",
+      "es": "Mira carreras que largan tarde en la noche o de madrugada en tu horario.",
+      "en": "Watch races that start late at night or in the small hours, your local time."
     },
     "steps": [
       {

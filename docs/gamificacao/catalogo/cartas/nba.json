@@ -266,7 +266,7 @@
     "flavor": {
       "pt": "Jogo sim, jogo sim.",
       "es": "Partido sí, partido sí.",
-      "en": "Game in, game in."
+      "en": "Game after game."
     },
     "art_prompt": "Two stylized arena seats side by side with a stylized fan seated in the second one, the first seat glowing faintly as if just vacated, morning light, generic stand. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
@@ -788,7 +788,7 @@
     "name": {
       "pt": "Mestre do triplo",
       "es": "Maestro del triple-doble",
-      "en": "Triple Threat"
+      "en": "Triple-Double Master"
     },
     "flavor": {
       "pt": "Dez noites completas em todas as colunas.",
@@ -1285,7 +1285,7 @@
     },
     "flavor": {
       "pt": "Enterrada atrás de enterrada, e a torcida pedindo mais.",
-      "es": "Volcada tras volcada, y la hinchada pidiendo más.",
+      "es": "Clavada tras clavada, y la hinchada pidiendo más.",
       "en": "Dunk after dunk, and the crowd asking for more."
     },
     "art_prompt": "A stylized player in a plain white kit catching a lob above the rim for a dunk, a packed silhouetted crowd on its feet, night floodlights, confetti-like streaks of light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
@@ -1301,9 +1301,9 @@
       "en": "Steamroller"
     },
     "flavor": {
-      "pt": "Temporada de vitórias largas, sem dó.",
-      "es": "Temporada de victorias amplias, sin piedad.",
-      "en": "A season of wide margins, no mercy."
+      "pt": "Temporada de vitórias largas, sem relaxar.",
+      "es": "Temporada de victorias amplias, sin aflojar.",
+      "en": "A season of wide margins, never easing up."
     },
     "art_prompt": "A stylized team in plain white kit marching in a V formation across a court bathed in violet light, opponents in plain charcoal kit fading into the background, faceted violet glow, night. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
@@ -1607,9 +1607,9 @@
       "en": "Road to the Title"
     },
     "flavor": {
-      "pt": "Dezesseis vitórias. Um troféu.",
-      "es": "Dieciséis victorias. Un trofeo.",
-      "en": "Sixteen wins. One trophy."
+      "pt": "Dezesseis vitórias de playoff. Mais que um caminho até o título.",
+      "es": "Dieciséis victorias de playoffs. Más que un camino al título.",
+      "en": "Sixteen playoff wins. More than one road to the title."
     },
     "art_prompt": "A stylized team of diverse builds and genders in plain white kit lifting a plain generic trophy on a podium of prismatic light, a bracket of light fully lit behind, light rays, floating particles, a sea of silhouetted fans. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: iridescent prismatic border with light rays and floating particles.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"

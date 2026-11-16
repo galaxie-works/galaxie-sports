@@ -176,7 +176,7 @@
     "id": "title.exact_score_king",
     "name": {
       "pt": "Rei do placar exato",
-      "es": "Rey del marcador",
+      "es": "Rey del marcador exacto",
       "en": "Exact Score King"
     },
     "unlock": {
@@ -262,7 +262,7 @@
     "id": "title.full_hit",
     "name": {
       "pt": "Acerto em cheio",
-      "es": "Pleno total",
+      "es": "Acierto total",
       "en": "Full Hit"
     },
     "unlock": {
@@ -470,7 +470,7 @@
   {
     "id": "title.oval_faithful",
     "name": {
-      "pt": "Fiel ao rúgbi",
+      "pt": "Fiel ao rugby",
       "es": "Fiel al rugby",
       "en": "Oval Faithful"
     },

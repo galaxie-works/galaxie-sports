@@ -26,9 +26,9 @@
       "en": "Four Competitions"
     },
     "flavor": {
-      "pt": "Liga grande, liga de inverno, torneio do Caribe: tudo cabe no seu palpite.",
-      "es": "Liga grande, liga invernal, torneo caribeño: todo cabe en tu pronóstico.",
-      "en": "Big league, winter league, Caribbean tournament: your calls cover it all."
+      "pt": "Liga grande, liga de inverno, copa de verão: tudo cabe no seu palpite.",
+      "es": "Liga grande, liga invernal, copa de verano: todo cabe en tu pronóstico.",
+      "en": "Big league, winter league, summer cup: your calls cover it all."
     },
     "art_prompt": "A stylized map spread wide with four glowing pins connected by thin lines, a stylized fan leaning over it with a generic phone with a blank screen, steel-blue afternoon light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
@@ -112,8 +112,8 @@
     },
     "flavor": {
       "pt": "Dois sotaques de narrador, uma só emoção.",
-      "es": "Dos acentos de relator, una sola emoción.",
-      "en": "Two commentators’ accents, one same thrill."
+      "es": "Dos acentos de narrador, una sola emoción.",
+      "en": "Two commentators’ accents, the same thrill."
     },
     "art_prompt": "A stylized fan with headphones in front of two floating screens each showing a ballpark of different architecture, no flags or symbols, steel-blue tones, cozy interior. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
@@ -351,7 +351,7 @@
     "flavor": {
       "pt": "Jogo sim, jogo sim.",
       "es": "Partido sí, partido sí.",
-      "en": "Game in, game in."
+      "en": "Game after game."
     },
     "art_prompt": "Two stylized bleacher seats side by side with a stylized fan seated in the second one, the first seat glowing faintly as if just vacated, morning light, a generic diamond below. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Flat vector illustration, bold simplified shapes, clean edges, limited five-color palette, subtle paper grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
     "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
