@@ -558,4 +558,28 @@ describe('<AgeCheck> (verificação de idade da Galaxie, #1109)', () => {
     expect(ageCheckReturnUrl('https://site.exemplo/jogo?id=1&utm=x#chat')).toBe('https://site.exemplo/jogo');
     expect(ageCheckReturnUrl('http://localhost:3000/jogo')).toBeNull();
   });
+
+  it('"Atualizar" no meio da espera não para a conferência automática', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    let calls = 0;
+    const fetchImpl = ageApi(() => {
+      calls += 1;
+      if (calls < 3) return new Response(JSON.stringify({ data: item('pending') }), { status: 200 });
+      return new Response(
+        JSON.stringify({
+          data: item('approved', { verification_id: '00000000-0000-4000-8000-0000000000bb' }),
+        }),
+        {
+          status: 200,
+          headers: { 'x-test-verified': '1' },
+        },
+      );
+    });
+    setup(<Chat />, { fanToken: tokenFor('site') }, fetchImpl);
+    fireEvent.click(await screen.findByRole('button', { name: 'Atualizar' }));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5_000);
+    });
+    expect(await screen.findByRole('button', { name: 'Enviar mensagem' })).toBeTruthy();
+  });
 });

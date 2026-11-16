@@ -497,6 +497,8 @@ export function AgeCheck({ fallback }: { fallback?: ReactNode }) {
   const [state, setState] = useState<AgeCheckState>('loading');
   const [consent, setConsent] = useState(false);
   const [polls, setPolls] = useState(0);
+  // sobe a cada conferência manual: reagenda a automática (o timer anterior foi invalidado pela geração)
+  const [round, setRound] = useState(0);
   const fetchRef = useRef(fan.fetch);
   fetchRef.current = fan.fetch;
   const refreshRef = useRef(fan.refresh);
@@ -529,7 +531,9 @@ export function AgeCheck({ fallback }: { fallback?: ReactNode }) {
       const generation = ++generationRef.current;
       if (resetPolls) setPolls(0);
       void load().then((next) => {
-        if (generation === generationRef.current) setState(next);
+        if (generation !== generationRef.current) return;
+        setState(next);
+        setRound((n) => n + 1);
       });
     },
     [load],
@@ -572,7 +576,7 @@ export function AgeCheck({ fallback }: { fallback?: ReactNode }) {
       });
     }, AGE_CHECK_POLL_MS);
     return () => clearTimeout(timer);
-  }, [state, polls, load]);
+  }, [state, polls, round, load]);
 
   const start = useCallback(async () => {
     const loc = (globalThis as { location?: Location }).location;
