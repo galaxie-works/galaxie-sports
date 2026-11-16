@@ -134,7 +134,12 @@ export const ROLE_GRANTS: Record<RoleService, RoleGrants> = {
       'billing.tenant_override',
       // guia de tom do cliente (#1009)
       'cosmos.brand_voice',
+      // painel do Chat ao vivo do cliente (#973): congelar, modo lento e o padrão das salas (sem apagar sala)
+      'chat.room',
+      'chat.tenant_config',
     ],
+    // painel do Chat ao vivo (#973): tirar do ar e devolver mensagem (a visibilidade); a mensagem nunca é apagada aqui
+    update: ['chat.message'],
     // o que foi escrito não muda: extrato, alertas de saldo, ações da equipe e o histórico da moderação
     append: [
       'cosmos.ledger',
