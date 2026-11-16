@@ -71,3 +71,12 @@ describe('motor de Conquistas', () => {
     expect(levelFor(25_000)).toBe(10);
   });
 });
+
+describe('jogo assistido', () => {
+  it('pelo menos 2/3 do jogo', async () => {
+    const { watchedEnough } = await import('./index.js');
+    expect(watchedEnough(60 * 60_000, 90 * 60_000)).toBe(true);
+    expect(watchedEnough(59 * 60_000, 90 * 60_000)).toBe(false);
+    expect(watchedEnough(10, 0)).toBe(false);
+  });
+});
