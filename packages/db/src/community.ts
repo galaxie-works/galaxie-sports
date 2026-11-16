@@ -27,6 +27,17 @@ import {
 import { competition, event, eventParticipant, participant, person, season, sport } from './schema/core.js';
 import { MODULE_LIMITS, isValidModuleLimit } from './engage-modules.js';
 
+export {
+  COMMUNITY_ANCHOR_TYPES,
+  COMMUNITY_JOIN_MODES,
+  COMMUNITY_SCOPE_KINDS,
+  COMMUNITY_STATES,
+  type CommunityAnchorType,
+  type CommunityJoinMode,
+  type CommunityScopeKind,
+  type CommunityState,
+} from './schema/community.js';
+
 type Tx = Parameters<Parameters<Database['transaction']>[0]>[0];
 type Db = Database | Tx;
 
@@ -473,6 +484,47 @@ export async function readTerms(
     )
     .limit(1);
   return row ?? null;
+}
+
+/** Regras do escopo com o nome do alvo no idioma pedido (tela do console). */
+export async function describeScopeRules(
+  db: Db,
+  tenantId: string,
+  locale = 'pt-BR',
+): Promise<(CommunityScopeRuleRow & { name: string | null })[]> {
+  const rules = await listScopeRules(db, tenantId);
+  const anchorOf = (r: CommunityScopeRuleRow): CommunityAnchor => ({
+    anchorType:
+      r.kind === 'sport'
+        ? 'sport'
+        : r.kind === 'participant'
+          ? 'participant'
+          : r.kind === 'person'
+            ? 'person'
+            : 'competition',
+    anchorId: r.target,
+  });
+  const names = await anchorNames(db, rules.map(anchorOf), locale);
+  return rules.map((r) => {
+    const a = anchorOf(r);
+    return { ...r, name: names.get(`${a.anchorType}:${a.anchorId}`)?.name ?? null };
+  });
+}
+
+/** Esportes do catálogo, para escolher o escopo por esporte. */
+export async function listSportsForScope(
+  db: Db,
+  locale = 'pt-BR',
+): Promise<{ slug: string; name: string }[]> {
+  const rows = await db.select({ slug: sport.slug }).from(sport);
+  const names = await anchorNames(
+    db,
+    rows.map((r) => ({ anchorType: 'sport' as const, anchorId: r.slug })),
+    locale,
+  );
+  return rows
+    .map((r) => ({ slug: r.slug, name: names.get(`sport:${r.slug}`)?.name ?? r.slug }))
+    .sort((a, b) => a.name.localeCompare(b.name, locale));
 }
 
 // ---------------------------------------------------------------- configuração (console e Galaxie)
