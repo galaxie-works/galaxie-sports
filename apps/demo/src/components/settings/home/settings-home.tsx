@@ -29,7 +29,7 @@ import {
   ItemTitle,
 } from '@/components/ui/item';
 import { Skeleton } from '@/components/ui/skeleton';
-import { requireAdmin } from '@/lib/auth/admin';
+import { requireStaff } from '@/lib/auth/admin';
 import type { Locale } from '@/lib/i18n/config';
 import type { Dictionary } from '@/lib/i18n/dictionary';
 import { createFormatters } from '@/lib/i18n/format';
@@ -178,7 +178,7 @@ async function HomeContent({
   historyHref: string;
 }) {
   // Sessão de admin (headers) e fuso (cookie): fica fora do shell estático, como as outras páginas de Ajustes.
-  await requireAdmin();
+  await requireStaff();
   const [t, timeZone, locale] = await Promise.all([getT(), getTimeZone(), getLocale()]);
   const data = await readSettingsHome(t.review.summary, links);
   return (

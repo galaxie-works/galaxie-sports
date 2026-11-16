@@ -15,6 +15,7 @@ import { activeFunctionMinCredits, parseModelJson, readCosmosSettings, runCosmos
 import { builderDb, listPublishableKeys } from '@/lib/builder/store';
 import type { ClientContext } from '@/lib/client/session';
 import type { Locale } from '@/lib/i18n/config';
+import { isStaffRole } from '@/lib/auth/roles';
 
 import {
   HELP_FUNCTION,
@@ -33,14 +34,24 @@ import {
   type HelpKind,
   type KeyFact,
 } from './integration-help';
+import type { TenantAction } from '@galaxie/engage';
+
 import { widgetTaskAccess, type WidgetTaskError } from './widget-tasks';
 
 export type HelpTaskError = WidgetTaskError | 'notFound';
 
 export type HelpTaskResult = { ok: true; answer: HelpAnswer | null } | { ok: false; error: HelpTaskError };
 
-/** Mesma regra das funções do Builder: quem edita as configurações (`settings.manage`) com a Cosmos contratada. */
-export const helpAccess = widgetTaskAccess;
+/** Ação de cada ajuda: a tela de chaves pede `keys.view`, a de webhooks `webhooks.view`, o relatório de uso a conta. */
+const HELP_ACTION: Record<HelpKind, TenantAction> = {
+  keys: 'keys.view',
+  webhooks: 'webhooks.view',
+  usage: 'settings.manage',
+};
+
+/** Mesma regra das funções do Builder, com a ação da tela, num tenant com a Cosmos contratada. */
+export const helpAccess = (ctx: Parameters<typeof widgetTaskAccess>[0], kind: HelpKind) =>
+  widgetTaskAccess(ctx, HELP_ACTION[kind]);
 
 /** Mínimo de cada função para o aviso de custo; null = função fora do catálogo (o cartão some). */
 export async function helpMinimum(kind: HelpKind): Promise<number | null> {
@@ -83,7 +94,7 @@ async function run(
         const answer = parseHelpAnswer(parseModelJson(text), allowedUrls);
         return { usable: answer !== null, value: answer };
       },
-      ...(ctx.role === 'admin' ? { staff: { route: `${SCREEN[kind]}#cosmos-${kind}` } } : {}),
+      ...(isStaffRole(ctx.role) ? { staff: { route: `${SCREEN[kind]}#cosmos-${kind}` } } : {}),
     },
     { settings: await readCosmosSettings(db) },
   );
@@ -140,7 +151,7 @@ export async function diagnoseKeys(
   locale: Locale,
   now = new Date(),
 ): Promise<HelpTaskResult> {
-  const denied = helpAccess(ctx);
+  const denied = helpAccess(ctx, 'keys');
   if (denied) return { ok: false, error: denied };
   const tenant = ctx.tenant!;
   const [keys, errors] = await Promise.all([
@@ -162,7 +173,7 @@ export async function diagnoseWebhook(
   endpointId: string,
   locale: Locale,
 ): Promise<HelpTaskResult> {
-  const denied = helpAccess(ctx);
+  const denied = helpAccess(ctx, 'webhooks');
   if (denied) return { ok: false, error: denied };
   const tenant = ctx.tenant!;
   const db = builderDb();
@@ -192,7 +203,7 @@ export async function reportUsage(
   locale: Locale,
   now = new Date(),
 ): Promise<HelpTaskResult> {
-  const denied = helpAccess(ctx);
+  const denied = helpAccess(ctx, 'usage');
   if (denied) return { ok: false, error: denied };
   const tenant = ctx.tenant!;
   const db = builderDb();

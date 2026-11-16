@@ -7,8 +7,10 @@ import type { TenantInfo } from '@/lib/client/tenants';
 import { getT } from '@/lib/i18n/server';
 
 import { can, canSomewhere } from '@/lib/client/permissions';
+import { isStaffRole } from '@/lib/auth/roles';
 
 import { CLIENT_NAV, ClientNavSheet, ClientSideNav, navRequirement, type ClientSection } from './client-nav';
+import { StaffReasonBanner } from './staff-reason-banner';
 import { TenantSwitcher } from './tenant-switcher';
 
 export type ClientAreaContext = ClientContext & { tenant: TenantInfo };
@@ -35,6 +37,9 @@ export async function ClientArea({
   };
   const visible = tenant ? CLIENT_NAV.map((i) => i.id).filter(opens) : undefined;
   const denied = tenant ? !opens(section) : false;
+  const staff = isStaffRole(ctx.role);
+  // a equipe num tenant de cliente escreve só com motivo (PL17): a moldura mostra o motivo em vigor ou cobra um
+  const staffOnClient = staff && tenant !== null && !tenant.isGalaxie;
   return (
     <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:gap-6">
       <ClientSideNav active={section} visible={visible} className="hidden lg:sticky lg:top-18 lg:block" />
@@ -42,8 +47,8 @@ export async function ClientArea({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <ClientNavSheet active={section} visible={visible} className="lg:hidden" />
           <div className="ml-auto flex items-center gap-2">
-            {(ctx.role === 'admin' && ctx.tenants.length) || ctx.tenants.length > 1 ? (
-              <TenantSwitcher tenants={ctx.tenants} value={tenant?.id ?? null} />
+            {(staff && ctx.tenants.length) || ctx.tenants.length > 1 ? (
+              <TenantSwitcher tenants={ctx.tenants} value={tenant?.id ?? null} askReason={staff} />
             ) : tenant ? (
               <span className="text-sm font-medium">{tenant.name}</span>
             ) : null}
@@ -54,6 +59,7 @@ export async function ClientArea({
             ) : null}
           </div>
         </div>
+        {staffOnClient ? <StaffReasonBanner tenant={tenant} reason={ctx.staffReason} /> : null}
         {tenant && denied ? (
           <EmptyState title={t.client.tenant.denyTitle} description={t.client.tenant.denyBody} />
         ) : tenant ? (
@@ -61,7 +67,7 @@ export async function ClientArea({
         ) : (
           <EmptyState
             title={t.client.title}
-            description={ctx.role === 'admin' ? t.client.tenant.none : t.client.tenant.noneClient}
+            description={staff ? t.client.tenant.none : t.client.tenant.noneClient}
           />
         )}
       </div>

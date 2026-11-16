@@ -6,6 +6,7 @@
  */
 import { readClientContext } from '@/lib/client/session';
 import { getRequestLocale } from '@/lib/i18n/server';
+import { isStaffRole } from '@/lib/auth/roles';
 
 import { assistantAccessError } from './assistant-server';
 import { allowEstimate } from './assistant-limits';
@@ -30,7 +31,7 @@ export async function dataQuestionMode(): Promise<{
   if (!allowEstimate(ctx.userId)) return { available: false, minCredits: 0, retry: true };
   const min = await dataQuestionMinCredits();
   if (min === null) return { available: false, minCredits: 0 };
-  return { available: true, minCredits: ctx.role === 'admin' ? 0 : min };
+  return { available: true, minCredits: isStaffRole(ctx.role) ? 0 : min };
 }
 
 const ROUTE_MAX = 200;

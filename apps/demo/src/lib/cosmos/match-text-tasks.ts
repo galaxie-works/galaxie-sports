@@ -19,6 +19,7 @@ import {
 import { builderDb } from '@/lib/builder/store';
 import type { ClientContext } from '@/lib/client/session';
 import { getEvent, getEventContext, getStats } from '@/lib/galaxie/api';
+import { isStaffRole } from '@/lib/auth/roles';
 
 import {
   allowedNumbers,
@@ -37,7 +38,8 @@ import { widgetTaskAccess, type WidgetTaskError } from './widget-tasks';
 export type MatchTextError = WidgetTaskError | 'event' | 'noContext' | 'invalid';
 
 /** Mesma regra das outras funções do painel: `settings.manage` com a Cosmos contratada. */
-export const matchTextAccess = widgetTaskAccess;
+export const matchTextAccess = (ctx: Parameters<typeof widgetTaskAccess>[0]) =>
+  widgetTaskAccess(ctx, 'settings.manage');
 
 export async function matchTextMinimum(): Promise<number | null> {
   return activeFunctionMinCredits(builderDb(), MATCH_TEXT_FUNCTION);
@@ -117,7 +119,7 @@ export async function draftMatchText(
         const parsed = parseMatchTextAnswer(parseModelJson(text), allowed, voice.avoid, lang);
         return { usable: parsed.ok, value: parsed.ok ? parsed.text : null! };
       },
-      ...(ctx.role === 'admin' ? { staff: { route: '/events#cosmos-text' } } : {}),
+      ...(isStaffRole(ctx.role) ? { staff: { route: '/events#cosmos-text' } } : {}),
     },
     { settings: await readCosmosSettings(db) },
   );

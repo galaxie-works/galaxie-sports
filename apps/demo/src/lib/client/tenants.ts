@@ -16,15 +16,20 @@ import {
 
 import { pool } from '@/lib/auth/db';
 
-/** Opção de tenant (seletores do admin). */
+/** Opção de tenant (seletor de marca da equipe e do cliente com mais de uma marca). */
 export interface TenantOption {
   id: string;
   slug: string;
   name: string;
   status: 'active' | 'suspended';
+  /** A marca é da própria Galaxie (`billing.organization.is_galaxie`): a equipe age sem motivo. */
+  isGalaxie: boolean;
 }
 
 export interface TenantInfo extends TenantOption {
+  /** Organização que assina e paga (`billing.organization`, F2); null só até a migration de dados rodar. */
+  organizationId: string | null;
+  organizationName: string | null;
   plan: string;
   modules: string[];
   /** Países (ISO2) contratados; vazio = todos os mercados. */
@@ -62,16 +67,21 @@ async function rows<T extends object>(sql: string, params: unknown[] = []): Prom
 
 export async function listTenantOptions(): Promise<TenantOption[]> {
   return rows<TenantOption>(
-    `select id::text, slug, name, status::text as status from api.tenant order by name, slug`,
+    `select t.id::text, t.slug, t.name, t.status::text as status, coalesce(o.is_galaxie, false) as "isGalaxie"
+       from api.tenant t left join billing.organization o on o.id = t.organization_id
+      order by t.name, t.slug`,
   );
 }
 
 export async function getTenantInfo(id: string): Promise<TenantInfo | null> {
   if (!isUuid(id)) return null;
   const [row] = await rows<TenantInfo>(
-    `select id::text, slug, name, status::text as status, plan, modules, markets, sports,
-            rate_limit_per_minute as "rateLimitPerMinute", daily_request_quota as "dailyRequestQuota"
-       from api.tenant where id = $1`,
+    `select t.id::text, t.slug, t.name, t.status::text as status, t.plan, t.modules, t.markets, t.sports,
+            t.rate_limit_per_minute as "rateLimitPerMinute", t.daily_request_quota as "dailyRequestQuota",
+            t.organization_id::text as "organizationId", o.name as "organizationName",
+            coalesce(o.is_galaxie, false) as "isGalaxie"
+       from api.tenant t left join billing.organization o on o.id = t.organization_id
+      where t.id = $1`,
     [id],
   );
   return row ?? null;

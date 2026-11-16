@@ -73,6 +73,7 @@ novo, com o mesmo resultado.
 | `backfill.normalizar` | Normalização completa raw → core do futebol (o `normalize:football --tudo`) | Um endpoint do raw por lote | Respostas por endpoint | Não |
 | `backfill.tabelas` | Recálculo local das tabelas (o `standings:recompute`) | Lotes de `lote` temporadas (padrão 20) | Quantas temporadas | Não |
 | `exemplo.eco` | Exemplo e teste da fila (`pausaMs` faz cada lote demorar, para exercitar a drenagem) | Um lote por repetição | Quantos lotes | Não |
+| `tenant.verify_domain` | Confere o TXT `_galaxie-verify.<host>` de um domínio da marca (`billing.domain`) e grava `verified_at` quando o valor bate; sempre grava `last_checked_at` e `last_error` | Uma consulta, sem lotes; o painel do cliente enfileira uma por domínio (`dedupe_key` = id) | Sem prévia | Não |
 
 Parâmetros (`gs tarefa tipos` mostra todos, com o padrão):
 
@@ -83,6 +84,7 @@ Parâmetros (`gs tarefa tipos` mostra todos, com o padrão):
 | `carga.historica` | `etapas` (lista JSON: `temporadas`, `detalhes`, `pessoas`, `perfis`; padrão todas), `tierMax` (padrão 2), `ligas` (lista JSON de ids da api-sports), `semLive`, `maxChamadasPorLote` |
 | `backfill.normalizar` | `endpoints` (lista JSON, ex. `["/fixtures"]`; padrão: todos os do raw) |
 | `backfill.tabelas` | `dias` (padrão 4), `temporadas` (lista JSON de ids), `lote` |
+| `tenant.verify_domain` | `domainId` (id em `billing.domain`) |
 
 Exemplos (no contêiner, troque `pnpm --filter @galaxie/ingestor gs` por `node dist/cli/gs.js`):
 

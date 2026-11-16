@@ -28,6 +28,7 @@ import {
   REQUEST_MAX_BYTES,
 } from '@/lib/cosmos/assistant-server';
 import { getRequestLocale } from '@/lib/i18n/server';
+import { isStaffRole } from '@/lib/auth/roles';
 
 /** Duração máxima da rota (s): menor que o prazo da reserva (300 s), para a limpeza nunca devolver uma pergunta viva. */
 export const maxDuration = 90;
@@ -76,7 +77,7 @@ export async function POST(request: Request) {
   const locale = await getRequestLocale();
   // admissão antes da busca por significado: o vetor da pergunta é chamada paga, e quem seria recusado (limite,
   // saldo, carteira) não chega a ela. Os créditos não dependem da busca, então a estimativa por palavras já serve.
-  if (ctx.role !== 'admin') {
+  if (!isStaffRole(ctx.role)) {
     const quick = await prepareQuestion(scope, req, locale, { files });
     if (quick === 'attachment_unsupported') return fail(quick);
     if (!quick) return fail('unavailable');
@@ -108,35 +109,34 @@ export async function POST(request: Request) {
     signal: request.signal,
   };
   // a equipe Galaxie acompanhando o tenant não gasta os créditos dele: o custo fica em cosmos.staff_usage
-  const events =
-    ctx.role === 'admin'
-      ? askAssistantAsStaff(
-          builderDb(),
-          {
-            ...scope,
-            route: req.context.route,
-            prompt: prepared.prompt,
-            provider: prepared.provider,
-            model: prepared.model,
-            signingKey: assistantSigningKey(),
-            attachments: prepared.attachments,
-          },
-          deps,
-        )
-      : askAssistant(
-          builderDb(),
-          {
-            ...scope,
-            route: req.context.route,
-            prompt: prepared.prompt,
-            credits: prepared.credits,
-            settings: prepared.settings,
-            model: prepared.model,
-            signingKey: assistantSigningKey(),
-            attachments: prepared.attachments,
-          },
-          deps,
-        );
+  const events = isStaffRole(ctx.role)
+    ? askAssistantAsStaff(
+        builderDb(),
+        {
+          ...scope,
+          route: req.context.route,
+          prompt: prepared.prompt,
+          provider: prepared.provider,
+          model: prepared.model,
+          signingKey: assistantSigningKey(),
+          attachments: prepared.attachments,
+        },
+        deps,
+      )
+    : askAssistant(
+        builderDb(),
+        {
+          ...scope,
+          route: req.context.route,
+          prompt: prepared.prompt,
+          credits: prepared.credits,
+          settings: prepared.settings,
+          model: prepared.model,
+          signingKey: assistantSigningKey(),
+          attachments: prepared.attachments,
+        },
+        deps,
+      );
 
   // a primeira resposta decide o status: recusa antes de reservar sai como erro HTTP
   const first = await events.next();

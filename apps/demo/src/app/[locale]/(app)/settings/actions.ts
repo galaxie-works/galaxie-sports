@@ -11,7 +11,7 @@ import { requireAdmin } from '@/lib/auth/admin';
 import { pool } from '@/lib/auth/db';
 import { clearOtpFailures } from '@/lib/auth/otp-guard';
 import { sendInvite } from '@/lib/auth/invite';
-import { isRole, needsTenant, type Role } from '@/lib/auth/roles';
+import { type Role, isRole, isStaffRole, needsTenant } from '@/lib/auth/roles';
 import { auth } from '@/lib/auth/server';
 import { removeMembershipsOf } from '@/lib/client/members';
 import { tenantExists } from '@/lib/client/tenants';
@@ -127,7 +127,7 @@ export async function inviteUser(input: InviteInput): Promise<ActionResult> {
           company: clean(input.company),
           phone: clean(input.phone),
           notes: clean(input.notes),
-          accessExpiresAt: input.role === 'admin' ? null : expiryFromDays(input.accessDays),
+          accessExpiresAt: isStaffRole(input.role) ? null : expiryFromDays(input.accessDays),
           locale: isLocale(input.locale) ? input.locale : null,
           tenantId: tenant.tenantId,
         },
@@ -174,7 +174,7 @@ export async function updateAccess(
 ): Promise<ActionResult> {
   const me = await requireAdmin();
   if (!isRole(input.role)) return fail('invalidRole');
-  if (userId === me.id && input.role !== 'admin') return fail('selfDemote');
+  if (userId === me.id && !isStaffRole(input.role)) return fail('selfDemote');
   const tenant = await tenantFor(input.role, input.tenantId);
   if ('error' in tenant) return fail(tenant.error);
   try {
@@ -196,7 +196,7 @@ export async function updateAccess(
       body: {
         userId,
         data: {
-          accessExpiresAt: input.role === 'admin' ? null : input.accessExpiresAt,
+          accessExpiresAt: isStaffRole(input.role) ? null : input.accessExpiresAt,
           tenantId: tenant.tenantId,
         },
       },

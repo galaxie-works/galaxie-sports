@@ -15,6 +15,7 @@ import { requireClientContext } from '@/lib/client/session';
 import { widgetTaskAccess, widgetTaskMinimums } from '@/lib/cosmos/widget-tasks';
 import { isUuid } from '@/lib/client/tenants';
 import { getI18n, getT } from '@/lib/i18n/server';
+import { isStaffRole } from '@/lib/auth/roles';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getT();
@@ -56,7 +57,7 @@ async function Editor({ params }: { params: Params }) {
                 brandThemes={await brandThemeItems(tenant.id)}
                 cosmosInstall={
                   minimums?.install != null
-                    ? { minCredits: ctx.role === 'admin' ? null : minimums.install }
+                    ? { minCredits: isStaffRole(ctx.role) ? null : minimums.install }
                     : null
                 }
               />

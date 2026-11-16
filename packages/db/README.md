@@ -126,8 +126,8 @@ pela CLI `gs tarefa` e pelo painel (Ajustes → Sistema → Tarefas): `requestTa
   e `previa`.
 
 Os executores moram no worker (`services/ingestor/src/tasks/run.ts`: `TASK_HANDLERS` e `runTask`). Tipos registrados:
-`exemplo.eco`, `acervo.importar` (destrutiva), `assets.espelhar`, `carga.historica`, `backfill.normalizar` e
-`backfill.tabelas`. O executor recebe o `signal` do encerramento e confere entre os lotes (`checkStop`): a tarefa
+`exemplo.eco`, `acervo.importar` (destrutiva), `assets.espelhar`, `carga.historica`, `backfill.normalizar`,
+`backfill.tabelas` e `tenant.verify_domain` (sem prévia: confere o TXT de um domínio da marca). O executor recebe o `signal` do encerramento e confere entre os lotes (`checkStop`): a tarefa
 interrompida volta à fila com `release`. O worker (`services/ingestor/src/worker`, o serviço `worker` da stack) toma no
 processo pai, roda o `runTask` num processo filho com heap fixo e renova a concessão do pai (`leaseLost` no `runTask`).
 Com QUEUE_MODE=enqueue, o scheduler só enfileira os jobs que declaram `task` (`@galaxie/scheduler`, `queue-mode.ts`).

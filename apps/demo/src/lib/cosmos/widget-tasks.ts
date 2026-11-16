@@ -26,8 +26,10 @@ import { builderDb } from '@/lib/builder/store';
 import type { WidgetEntityType } from '@/lib/builder/types';
 import { can } from '@/lib/client/permissions';
 import type { ClientContext } from '@/lib/client/session';
+import type { TenantAction } from '@galaxie/engage';
 import { galaxieGet } from '@/lib/galaxie/server';
 import { apiLocale, type Locale } from '@/lib/i18n/config';
+import { isStaffRole } from '@/lib/auth/roles';
 
 import {
   COMPOSE_FUNCTION,
@@ -54,16 +56,17 @@ import {
 export type WidgetTaskError = TaskErrorCode | 'unauthorized' | 'module' | 'role';
 
 /**
- * Quem pode pedir: quem edita o Builder (`settings.manage`) num tenant com a Cosmos contratada. A equipe Galaxie
- * acompanha qualquer tenant sem gastar os créditos dele.
+ * Quem pode pedir: quem edita o Builder (`builder.manage`; as outras telas passam a ação delas) num tenant com a Cosmos
+ * contratada. A equipe Galaxie acompanha qualquer tenant sem gastar os créditos dele.
  */
 export function widgetTaskAccess(
   ctx: Pick<ClientContext, 'role' | 'tenant' | 'actor'>,
+  action: TenantAction = 'builder.manage',
 ): 'unauthorized' | 'module' | 'role' | null {
   if (!ctx.tenant) return 'unauthorized';
-  if (ctx.role === 'admin') return null;
+  if (isStaffRole(ctx.role)) return null;
   if (!ctx.tenant.modules.includes('cosmos_ai')) return 'module';
-  if (!can(ctx, 'settings.manage')) return 'role';
+  if (!can(ctx, action)) return 'role';
   return null;
 }
 
@@ -209,7 +212,7 @@ export async function composeWidgets(
       maxOutputTokens: composeMaxOutputTokens(input.mode),
       metadata: { mode: input.mode },
       evaluate,
-      ...(ctx.role === 'admin' ? { staff: { route: '/client/builder#cosmos-widget' } } : {}),
+      ...(isStaffRole(ctx.role) ? { staff: { route: '/client/builder#cosmos-widget' } } : {}),
     },
     { settings: await readCosmosSettings(db) },
   );
@@ -256,7 +259,7 @@ export async function installGuide(
         const guide = parseInstallAnswer(parseModelJson(text));
         return { usable: guide !== null, value: guide! };
       },
-      ...(ctx.role === 'admin' ? { staff: { route: '/client/builder#cosmos-install' } } : {}),
+      ...(isStaffRole(ctx.role) ? { staff: { route: '/client/builder#cosmos-install' } } : {}),
     },
     { settings: await readCosmosSettings(db) },
   );

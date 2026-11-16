@@ -11,9 +11,14 @@ import {
 } from './roles';
 
 describe('papéis da demo', () => {
-  it('reconhece só admin, user e client', () => {
+  it('reconhece só admin, support, user e client', () => {
     expect(isRole('client')).toBe(true);
+    expect(isRole('support')).toBe(true);
     expect(isRole('superadmin')).toBe(false);
+    // a equipe Galaxie abre Ajustes e o painel de qualquer tenant
+    expect(canAccessAdmin('support')).toBe(true);
+    expect(canAccessClientPanel('support')).toBe(true);
+    expect(routeAccess('/settings/users', 'support')).toBe('allow');
     expect(roleOf('client')).toBe('client');
     expect(roleOf(null)).toBe('user');
     expect(roleOf('admin,user')).toBe('user');
