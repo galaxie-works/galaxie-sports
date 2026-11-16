@@ -15,6 +15,7 @@ import {
   ShoppingBag,
   Tv,
   Users,
+  UsersRound,
   Webhook,
 } from 'lucide-react';
 import type { ComponentType, SVGProps } from 'react';
@@ -60,6 +61,15 @@ export const CLIENT_NAV = [
     icon: Handshake,
     group: 'engagement',
     action: 'settings.manage',
+  },
+  {
+    // Comunidades (#939): escopo e configuração de cada Comunidade
+    id: 'communities',
+    href: '/client/communities',
+    icon: UsersRound,
+    group: 'engagement',
+    action: 'settings.manage',
+    module: 'communities',
   },
   {
     id: 'shopping',

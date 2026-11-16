@@ -10,6 +10,8 @@ import type { OrganizationRow } from '@/lib/client/organizations-shared';
 import { useI18n } from '@/lib/i18n/client';
 import { fill } from '@/lib/i18n/text';
 
+import { NewOrganizationDialog } from './new-organization-dialog';
+
 const REVIEW_VARIANT = {
   none: 'secondary',
   pending: 'warning-light',
@@ -22,7 +24,7 @@ export function OrganizationsTable({ rows }: { rows: OrganizationRow[] }) {
   const { t } = useI18n();
   const T = t.platformStaff;
   return (
-    <SettingsSection title={T.title} description={T.description}>
+    <SettingsSection title={T.title} description={T.description} action={<NewOrganizationDialog />}>
       <Frame>
         <FramePanel className="p-0">
           {rows.length ? (

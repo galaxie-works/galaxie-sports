@@ -48,6 +48,8 @@ export interface ChatRoomRow {
   slowModeSeconds: number | null;
   strictness: ChatStrictness | null;
   stateBy: string | null;
+  pinnedMessageId: string | null;
+  shield: boolean;
 }
 
 const roomCols = {
@@ -57,6 +59,8 @@ const roomCols = {
   slowModeSeconds: chatRoom.slowModeSeconds,
   strictness: chatRoom.strictness,
   stateBy: chatRoom.stateBy,
+  pinnedMessageId: chatRoom.pinnedMessageId,
+  shield: chatRoom.shield,
 };
 
 /** A sala do jogo para o cliente, se já existe (leitura: não cria). */
@@ -217,6 +221,41 @@ export async function recentMessages(
     .orderBy(desc(chatMessage.id))
     .limit(limit);
   return rows.reverse();
+}
+
+/** A mensagem fixada da sala, se ainda é pública e o autor não foi excluído (#973). */
+export async function pinnedMessage(
+  db: Database,
+  tenantId: string,
+  roomId: string,
+  messageId: string,
+): Promise<ChatMessageRow | null> {
+  const [row] = await db
+    .select({
+      id: chatMessage.id,
+      body: chatMessage.body,
+      profileId: chatMessage.profileId,
+      nickname: fanProfile.nickname,
+      avatarUrl: fanAvatarPublicUrl(),
+      avatarVisibility: sql<string | undefined>`${fanProfile.visibility}->>'avatar'`,
+      createdAt: chatMessage.createdAt,
+    })
+    .from(chatMessage)
+    .innerJoin(
+      fanProfile,
+      and(eq(fanProfile.tenantId, chatMessage.tenantId), eq(fanProfile.id, chatMessage.profileId)),
+    )
+    .where(
+      and(
+        eq(chatMessage.tenantId, tenantId),
+        eq(chatMessage.roomId, roomId),
+        eq(chatMessage.id, messageId),
+        eq(chatMessage.visibility, 'public'),
+        isNull(fanProfile.deletedAt),
+      ),
+    )
+    .limit(1);
+  return row ?? null;
 }
 
 /** Quando o torcedor mandou a última mensagem na sala (modo lento). */

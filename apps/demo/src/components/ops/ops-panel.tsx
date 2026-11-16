@@ -180,6 +180,7 @@ export function OpsPanel({
       </>
     ),
     engage: () => <SectionCard block="engage" snapshot={snapshot} timeZone={timeZone} />,
+    signup: () => <SectionCard block="signup" snapshot={snapshot} timeZone={timeZone} />,
   };
   const blocks: readonly PanelBlock[] = SETTINGS_VIEWS[view];
   // o topo da página (#1072) mostra a frase, o "Atualizado" e o filtro "Alterados no painel" das linhas desta página

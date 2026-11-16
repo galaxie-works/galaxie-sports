@@ -22,8 +22,11 @@ export const PUBLIC_FILES = ['/robots.txt', '/sitemap.xml', '/icon.png', '/apple
 /** A versão no ar, que o deploy e o smoke conferem (só o hash da imagem e a versão do Node). */
 const VERSION_ROUTE = '/api/version';
 
-/** Login e a API do próprio auth: públicos com tudo o que vem abaixo deles. */
-const PUBLIC_PREFIXES = ['/login', '/api/auth'];
+/**
+ * Login, o cadastro em autoatendimento (`/signup`, com o assistente em `/signup/organization`, que exige sessão por
+ * conta própria) e a API do próprio auth: públicos com tudo o que vem abaixo deles.
+ */
+const PUBLIC_PREFIXES = ['/login', '/signup', '/api/auth'];
 
 /**
  * Exemplo público (cópia gravada das páginas do app, sem a API): só as quatro páginas e as imagens

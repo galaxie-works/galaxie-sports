@@ -23,6 +23,10 @@
       "types": "./dist/widgets.d.ts",
       "default": "./dist/widgets.js"
     },
+    "./community": {
+      "types": "./dist/community.d.ts",
+      "default": "./dist/community.js"
+    },
     "./webhooks": {
       "types": "./dist/webhooks.d.ts",
       "default": "./dist/webhooks.js"
@@ -74,6 +78,14 @@
     "./access-errors": {
       "types": "./dist/access-errors.d.ts",
       "default": "./dist/access-errors.js"
+    },
+    "./api-keys": {
+      "types": "./dist/api-keys.d.ts",
+      "default": "./dist/api-keys.js"
+    },
+    "./key-events": {
+      "types": "./dist/key-events.d.ts",
+      "default": "./dist/key-events.js"
     }
   },
   "files": [

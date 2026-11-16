@@ -280,3 +280,4 @@ export {
 } from './access-errors.js';
 export { fanAvatarPublic, fanAvatarPublicUrl } from './fan-avatar-public.js';
 export * from './shop.js';
+export * from './community.js';

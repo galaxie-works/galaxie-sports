@@ -158,6 +158,7 @@ export default defineMessages(
       postgame: 'Pós-jogo',
       credentials: 'Credenciais',
       lineup: 'Grade de canais',
+      signup: 'Cadastro',
     },
     soon: {
       badge: 'Em breve',
@@ -270,6 +271,8 @@ export default defineMessages(
       suggestions: 'O botão de sugestões e a repo do GitHub que recebe as issues.',
       cosmos: 'Crédito, teste e teto de segurança da Cosmos AI.',
       fanIdentity: 'Validade do token do torcedor. O segredo que assina o token fica em Credenciais.',
+      signups:
+        'O cadastro em autoatendimento (/signup): liga/desliga, versão dos termos aceita, limite por IP e prazo do trial.',
       history: 'Quem mudou o quê no painel e os pedidos de "rodar agora".',
       refreshHint: 'O que você muda aqui sobrescreve o .env da VPS sem reiniciar os contêineres.',
     },
@@ -355,6 +358,11 @@ export default defineMessages(
         title: 'Engajamento',
         description:
           'A base do Chat ao vivo, das Comunidades, da Gamificação e do Shop the game. Aqui fica a validade do token do torcedor.',
+      },
+      signup: {
+        title: 'Cadastro em autoatendimento',
+        description:
+          'O cadastro público só abre ligado E com a versão dos termos preenchida (a aprovada pelo advogado). Desligado, /signup mostra "em breve" e a equipe cria os clientes em Organizações e marcas.',
       },
     },
     source: {
@@ -1860,6 +1868,26 @@ export default defineMessages(
       },
       FEEDBACK_GITHUB_REPO: { label: 'Repositório das sugestões' },
       FEEDBACK_GITHUB_TOKEN: { label: 'Token das sugestões' },
+      SIGNUP_ENABLED: {
+        label: 'Cadastro público',
+        description:
+          'Ligado, /signup aceita cadastros (se a versão dos termos estiver preenchida). Desligado, a página mostra "em breve" com o contato comercial.',
+      },
+      SIGNUP_TERMS_VERSION: {
+        label: 'Versão dos termos de autoatendimento',
+        description:
+          'Identificador da versão aprovada pelo advogado (ex.: 2026-11-v1), gravado na organização a cada aceite. Vazio = nenhuma aprovada: o cadastro não abre mesmo ligado.',
+      },
+      SIGNUP_PER_IP_PER_DAY: {
+        label: 'Organizações por IP por dia',
+        description:
+          'Teto de organizações criadas pelo mesmo IP em 24 h (conta o IP do aceite dos termos). Acima, o cadastro recusa.',
+      },
+      TRIAL_DAYS: {
+        label: 'Dias de trial',
+        description:
+          'Prazo do trial do Fan Experience para quem se cadastra ou é criado pela equipe. Vale para as organizações novas; as existentes mantêm o prazo gravado.',
+      },
       STRIPE_SECRET_KEY: { label: 'Stripe: chave secreta' },
       STRIPE_WEBHOOK_SECRET: { label: 'Stripe: segredo do webhook' },
       DIDIT_API_KEY: { label: 'Didit: chave da API' },
@@ -2147,6 +2175,7 @@ export default defineMessages(
         postgame: 'Post-game',
         credentials: 'Credentials',
         lineup: 'Channel lineup',
+        signup: 'Sign-up',
       },
       soon: {
         badge: 'Coming soon',
@@ -2259,6 +2288,8 @@ export default defineMessages(
         suggestions: 'The suggestions button and the GitHub repo that receives the issues.',
         cosmos: 'Cosmos AI credit, trial and safety ceiling.',
         fanIdentity: 'How long the fan token lasts. The secret that signs it is in Credentials.',
+        signups:
+          'Self-service sign-up (/signup): on/off, accepted terms version, per-IP limit and trial length.',
         history: 'Who changed what in the panel and the "run now" requests.',
         refreshHint: 'Changes here override the VPS .env without restarting containers.',
       },
@@ -2344,6 +2375,11 @@ export default defineMessages(
           title: 'Engagement',
           description:
             'The shared base of Live chat, Communities, Gamification and Shop the game. This is where the fan token lifetime lives.',
+        },
+        signup: {
+          title: 'Self-service sign-up',
+          description:
+            'Public sign-up only opens when enabled AND the terms version is filled in (the one approved by legal). When off, /signup shows "coming soon" and the team creates customers in Organizations and brands.',
         },
       },
       source: { db: 'Panel', env: 'Container env', default: 'Code default', label: 'Value source' },
@@ -3831,6 +3867,26 @@ export default defineMessages(
         },
         FEEDBACK_GITHUB_REPO: { label: 'Suggestions repository' },
         FEEDBACK_GITHUB_TOKEN: { label: 'Suggestions token' },
+        SIGNUP_ENABLED: {
+          label: 'Public sign-up',
+          description:
+            'On, /signup accepts sign-ups (when the terms version is filled in). Off, the page shows "coming soon" with the sales contact.',
+        },
+        SIGNUP_TERMS_VERSION: {
+          label: 'Self-service terms version',
+          description:
+            'Identifier of the version approved by legal (e.g. 2026-11-v1), stored on the organization at every acceptance. Empty = none approved: sign-up stays closed even when on.',
+        },
+        SIGNUP_PER_IP_PER_DAY: {
+          label: 'Organizations per IP per day',
+          description:
+            'Ceiling of organizations created by the same IP in 24 h (counts the IP of the terms acceptance). Above it, sign-up refuses.',
+        },
+        TRIAL_DAYS: {
+          label: 'Trial days',
+          description:
+            'Length of the Fan Experience trial for self-service sign-ups and team-created customers. Applies to new organizations; existing ones keep the stored date.',
+        },
         STRIPE_SECRET_KEY: { label: 'Stripe: secret key' },
         STRIPE_WEBHOOK_SECRET: { label: 'Stripe: webhook secret' },
         DIDIT_API_KEY: { label: 'Didit: API key' },
@@ -4118,6 +4174,7 @@ export default defineMessages(
         postgame: 'Pospartido',
         credentials: 'Credenciales',
         lineup: 'Grilla de canales',
+        signup: 'Registro',
       },
       soon: {
         badge: 'Próximamente',
@@ -4231,6 +4288,8 @@ export default defineMessages(
         suggestions: 'El botón de sugerencias y el repo de GitHub que recibe las issues.',
         cosmos: 'Crédito, prueba y tope de seguridad de Cosmos AI.',
         fanIdentity: 'Validez del token del hincha. El secreto que lo firma está en Credenciales.',
+        signups:
+          'El registro en autoservicio (/signup): encendido/apagado, versión de los términos aceptada, límite por IP y plazo de la prueba.',
         history: 'Quién cambió qué en el panel y los pedidos de "ejecutar ahora".',
         refreshHint: 'Lo que cambie aquí sobrescribe el .env de la VPS sin reiniciar los contenedores.',
       },
@@ -4319,6 +4378,11 @@ export default defineMessages(
           title: 'Interacción',
           description:
             'La base del Chat en vivo, las Comunidades, la Gamificación y Shop the game. Aquí está la validez del token del hincha.',
+        },
+        signup: {
+          title: 'Registro en autoservicio',
+          description:
+            'El registro público solo abre encendido Y con la versión de los términos completada (la aprobada por el abogado). Apagado, /signup muestra "próximamente" y el equipo crea los clientes en Organizaciones y marcas.',
         },
       },
       source: {
@@ -5826,6 +5890,26 @@ export default defineMessages(
         },
         FEEDBACK_GITHUB_REPO: { label: 'Repositorio de sugerencias' },
         FEEDBACK_GITHUB_TOKEN: { label: 'Token de sugerencias' },
+        SIGNUP_ENABLED: {
+          label: 'Registro público',
+          description:
+            'Encendido, /signup acepta registros (si la versión de los términos está completada). Apagado, la página muestra "próximamente" con el contacto comercial.',
+        },
+        SIGNUP_TERMS_VERSION: {
+          label: 'Versión de los términos de autoservicio',
+          description:
+            'Identificador de la versión aprobada por el abogado (ej.: 2026-11-v1), guardado en la organización en cada aceptación. Vacío = ninguna aprobada: el registro no abre aunque esté encendido.',
+        },
+        SIGNUP_PER_IP_PER_DAY: {
+          label: 'Organizaciones por IP por día',
+          description:
+            'Tope de organizaciones creadas por la misma IP en 24 h (cuenta la IP de la aceptación de los términos). Por encima, el registro rechaza.',
+        },
+        TRIAL_DAYS: {
+          label: 'Días de prueba',
+          description:
+            'Plazo de la prueba de Fan Experience para quien se registra o es creado por el equipo. Vale para las organizaciones nuevas; las existentes mantienen la fecha guardada.',
+        },
         STRIPE_SECRET_KEY: { label: 'Stripe: clave secreta' },
         STRIPE_WEBHOOK_SECRET: { label: 'Stripe: secreto del webhook' },
         DIDIT_API_KEY: { label: 'Didit: clave de la API' },

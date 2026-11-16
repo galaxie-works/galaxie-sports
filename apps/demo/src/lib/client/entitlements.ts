@@ -18,7 +18,7 @@ declare global {
 }
 
 /** Catálogo carregado uma vez por processo (muda só no deploy). */
-function catalog(): Catalog {
+export function catalog(): Catalog {
   globalThis.__galaxieCatalog ??= loadCatalog();
   return globalThis.__galaxieCatalog;
 }
