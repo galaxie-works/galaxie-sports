@@ -244,6 +244,25 @@ describe('Palpite e Ranking (#942)', () => {
     );
     expect(steps!.n).toBe(4); // vitalícia e temporada de cada um
 
+    // quem já ganhou: o total conta todos; a lista só mostra quem deixou as Conquistas públicas
+    const earners = () =>
+      app.inject({
+        method: 'GET',
+        url: '/v1/achievements/predictions.correct/earners',
+        headers: auth(c.token),
+      });
+    expect((await earners()).json().data).toMatchObject({ total: 1, earners: [] });
+    const open1 = await app.inject({
+      method: 'PATCH',
+      url: '/v1/fans/me',
+      headers: auth(a.token),
+      payload: { visibility: { badges: 'public' } },
+    });
+    expect(open1.statusCode).toBe(200);
+    expect((await earners()).json().data.earners).toEqual([
+      expect.objectContaining({ nickname: expect.any(String), avatar_url: null, step: 1 }),
+    ]);
+
     const period = new Intl.DateTimeFormat('en-CA', {
       timeZone: 'America/Sao_Paulo',
       year: 'numeric',

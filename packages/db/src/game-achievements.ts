@@ -495,3 +495,52 @@ export async function watchedCandidates(
     eventMs: Number(r.event_ms),
   }));
 }
+
+export interface GameAchievementEarners {
+  /** Quantos Perfis do programa têm o primeiro Degrau (todos, inclusive os privados: é só um número). */
+  total: number;
+  /** Alguns que deixaram as Conquistas visíveis, do Degrau mais alto e mais recente. */
+  earners: { profileId: string; nickname: string | null; avatarUrl: string | null; step: number }[];
+}
+
+/**
+ * "Quem já ganhou" (decisão de 16/11): Perfis do mesmo cliente e país que chegaram ao primeiro Degrau. Só aparece
+ * quem é adulto, não está com a faixa congelada e deixou `badges` público; a foto, só com `avatar` público e liberada
+ * pela moderação de imagem. Menor nunca aparece (#1107).
+ */
+export async function readAchievementEarners(
+  db: Pick<Database, 'execute'>,
+  key: GameProgramKey & { achievementId: string; season: string; limit: number },
+): Promise<GameAchievementEarners> {
+  const [total] = await db.execute<{ n: string }>(sql`
+    select count(*) as n from game.step_grant
+     where tenant_id = ${key.tenantId} and program_country = ${key.programCountry}
+       and achievement_id = ${key.achievementId} and season = ${key.season} and step = 1`);
+  const rows = await db.execute<{
+    profile_id: string;
+    nickname: string | null;
+    avatar_url: string | null;
+    step: number;
+  }>(sql`
+    select g.profile_id, p.nickname,
+           case when p.visibility->>'avatar' = 'public' and p.avatar_status = 'visible' then p.avatar_url end as avatar_url,
+           max(g.step)::int as step
+      from game.step_grant g
+      join fan.profile p on p.tenant_id = g.tenant_id and p.id = g.profile_id
+     where g.tenant_id = ${key.tenantId} and g.program_country = ${key.programCountry}
+       and g.achievement_id = ${key.achievementId} and g.season = ${key.season}
+       and p.deleted_at is null and p.age_band = '18plus' and p.age_frozen_at is null
+       and p.visibility->>'badges' = 'public'
+     group by g.profile_id, p.nickname, p.visibility, p.avatar_status, p.avatar_url
+     order by max(g.step) desc, max(g.granted_at) desc
+     limit ${key.limit}`);
+  return {
+    total: Number(total?.n ?? 0),
+    earners: rows.map((r) => ({
+      profileId: r.profile_id,
+      nickname: r.nickname,
+      avatarUrl: r.avatar_url,
+      step: r.step,
+    })),
+  };
+}
