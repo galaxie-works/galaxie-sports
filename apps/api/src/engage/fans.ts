@@ -4,6 +4,7 @@
  */
 import {
   erasePresence,
+  eraseGame,
   eraseModerationContent,
   fanAccount,
   fanErasureLog,
@@ -438,6 +439,8 @@ export async function eraseFan(
     // presença ao vivo (#906): as janelas saem junto
     await erasePresence(tx, input.tenantId, target.profileId);
     await eraseModerationContent(tx, input.tenantId, target.profileId);
+    // Gamificação (#905): Palpites, Ranking, progresso, Degraus e Cartas saem; a auditoria fica sem ligar a ninguém
+    await eraseGame(tx, input.tenantId, target.profileId);
     await tx.insert(fanErasureLog).values({
       tenantId: input.tenantId,
       profileId: target.profileId,
