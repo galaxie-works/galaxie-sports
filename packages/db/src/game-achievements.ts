@@ -370,7 +370,7 @@ export async function addPeriodPoints(
  * teto diário (`dailyCap`), somando o que o Perfil já ganhou no dia em participação. Devolve null se já tinha entrado.
  */
 export async function recordParticipation(
-  tx: Pick<Database, 'insert' | 'execute'>,
+  tx: Pick<Database, 'select' | 'insert' | 'update' | 'delete' | 'execute'>,
   key: GameProgramKey & {
     profileId: string;
     day: string;
