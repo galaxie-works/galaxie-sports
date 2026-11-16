@@ -4,6 +4,8 @@ import { describe, expect, it } from 'vitest';
 import type { ModulesSnapshot } from '@/lib/ops/types';
 
 import {
+  measuredApiPerDay,
+  measuredModulesPerDay,
   capSliderMax,
   capStep,
   capText,
@@ -83,7 +85,8 @@ describe('rascunho dos módulos por tier', () => {
       expect.arrayContaining(['predictions', 'odds', 'team-stats']),
     );
     expect(modulesNotCovering('football', 3)).toEqual([]);
-    expect(modulesNotCovering('football', 1).map((d) => d.id)).toEqual(['people-mirror']);
+    // elencos: o tier 1 é do sync diário (people-rotation), então o módulo do espelho não conta como falta
+    expect(modulesNotCovering('football', 1)).toEqual([]);
     const draft = initialModuleDraft('football', null, null);
     expect(draft.predictions).toEqual([true, true, false]);
     expect(rowSummary('football', draft, 3)).toMatchObject({ on: 9 });
@@ -118,6 +121,25 @@ describe('rascunho dos módulos por tier', () => {
     expect(cost('football', 'injuries-season')).toBe(20);
     expect(cost('football', 'wtw')).toBeNull();
     expect(cost('basketball', 'agenda')).toBe(3);
+    // o cabeçalho soma só os módulos; a API inteira inclui o que está fora deles
+    expect(measuredModulesPerDay('football', snapshot)).toBe(60 + 4 + 500 + 1 + 20);
+    expect(measuredApiPerDay('football', snapshot)).toBe((700 + 3500 + 7 + 140) / 7);
+    expect(measuredModulesPerDay('football', { ...snapshot, windowDays: 0 })).toBeNull();
+    // endpoint compartilhado por dois módulos (NBA: elenco e estatísticas por jogo) entra uma vez só no cabeçalho
+    const nba: ModulesSnapshot = {
+      windowDays: 7,
+      from: '2026-11-05',
+      costs: [
+        { api: 'nba', endpoint: '/players/statistics', job: 'sync:mirror', calls: 70 },
+        { api: 'nba', endpoint: '/players', job: 'sync:mirror', calls: 14 },
+      ],
+      steps: [],
+    };
+    const nbaCost = (id: string) => measuredCallsPerDay('nba', moduleDef('nba', id)!, nba);
+    expect(nbaCost('roster')).toBe(12);
+    expect(nbaCost('game-stats')).toBe(10);
+    expect(measuredModulesPerDay('nba', nba)).toBe(12);
+    expect(measuredApiPerDay('nba', nba)).toBe(12);
     expect(
       measuredCallsPerDay('football', moduleDef('football', 'live')!, { ...snapshot, windowDays: 0 }),
     ).toBeNull();

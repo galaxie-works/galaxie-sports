@@ -159,7 +159,7 @@ jobs:
     environment:
       name: producao
       # vars.DEMO_DOMAIN (Settings › Variables) troca junto com o DEMO_DOMAIN do .env da VPS no corte de domínio (#627)
-      url: https://${{ vars.DEMO_DOMAIN || 'sports.galaxie.works' }}
+      url: https://${{ vars.DEMO_DOMAIN || 'platform.galaxiesports.com' }}
     permissions:
       contents: write # tag e release das notas de versão
       packages: read # a VPS baixa as imagens com o token deste job (vale só enquanto ele roda)
