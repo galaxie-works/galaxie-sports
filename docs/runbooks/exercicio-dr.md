@@ -21,7 +21,7 @@ Três cópias, em dois lugares diferentes, uma fora da VPS:
 |---|---|---|---|---|
 | 1 | Volume `backups` da VPS | Dump diário (`pg_dump -Fc`, zstd; cifrado com age, `.dump.age`, com `BACKUP_AGE_RECIPIENTS`) + `.sha256` | 3 dumps diários (`BACKUP_KEEP_DAILY=3`, por contagem: com o backup parado, nada some) | serviço `backup` |
 | 2 | NAS do dono (fora da VPS) | Cópia dos dumps (cifrados: o NAS nunca tem a chave) e `.sha256` | 7 diários + 4 semanais + 6 mensais | stack `galaxie-sports-backup-nas` no NAS (abaixo) |
-| 1 e 2, com a réplica no NAS ([replica-no-nas.md](replica-no-nas.md)) | O dump diário passa a ser feito **no NAS**, a partir da réplica física (stack `nas-replica`), direto em `daily/` com a mesma rotação; a VPS fica com um dump **semanal** (`BACKUP_DAYS=0`, 4 guardados) para o pior caso, e o NAS deixa o recibo `.nas_last_dump` na VPS | idem | `dump.sh` da stack `nas-replica`; `nas-pull.sh` com `NAS_DUMPS_FROM_REPLICA=1` só copia os assets |
+| 1 e 2, com a réplica no NAS ([replica-no-nas.md](replica-no-nas.md)) | O dump diário passa a ser feito **no NAS**, a partir da réplica física (stack `nas-replica`), direto em `daily/` com a mesma rotação; a VPS fica com um dump **semanal** (`BACKUP_DAYS=0`, 3 guardados) para o pior caso, e o NAS deixa o recibo `.nas_last_dump` na VPS | idem | `dump.sh` da stack `nas-replica`; `nas-pull.sh` com `NAS_DUMPS_FROM_REPLICA=1` (ligado junto com a stack) só copia os assets |
 | 3 | Provedor da VPS | Backup semanal da VPS inteira (a API da Hostinger mostrou 2 pontos em 04/11/2026; não há snapshot) | a do provedor | provedor da VPS |
 
 A cópia para um S3 externo (`BACKUP_S3_*`) continua opcional e pode somar uma camada. O bucket remoto guarda tudo: sem regra de

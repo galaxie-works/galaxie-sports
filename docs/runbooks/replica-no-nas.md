@@ -55,14 +55,19 @@ flowchart LR
   (`172.30.50.0/24`), que é o que o `pg_hba.conf` libera para o papel `replicador`, só para `replication`.
 - **Réplica**: `pg_basebackup` na primeira subida, depois WAL em streaming pelo slot `nas_replica`. Só leitura; nunca
   promovida (o entrypoint e o `dump.sh` recusam).
-- **Dumps**: no NAS, em `daily/` (rotação 7/4/6, a mesma da cópia de antes) ou `pre-migrate/`, com o replay da réplica
-  pausado durante o `pg_dump`. O recibo `.nas_last_dump` na VPS é a prova que o deploy e o verificador conferem.
-- **VPS**: dump semanal (domingo, 4 guardados) para o pior caso; `nas-pull.sh` continua copiando os assets do S3.
+- **Dumps**: no NAS, em `daily/` (rotação 7/4/6, a mesma da cópia de antes, e a mesma trava do `nas-pull.sh`) ou
+  `pre-migrate/`. O `pg_dump` roda sem pausar o replay (pausar exige superusuário; o papel de backup não é): ele tem
+  snapshot próprio e a réplica sobe com `max_standby_streaming_delay=-1`, então a consulta longa nunca é cancelada por
+  conflito com a recuperação. O recibo `.nas_last_dump` na VPS é a prova que o deploy e o verificador conferem.
+- **Deploy com migration**: sem recibo recente, o deploy deixa um **pedido de dump** na VPS e espera o NAS atender
+  ([Deploy sem dump local](#deploy-sem-dump-local)).
+- **VPS**: dump semanal (domingo, 3 guardados) para o pior caso; `nas-pull.sh` continua copiando os assets do S3.
 
 ## O que não muda
 
-- **Produção intacta**: nada é apagado, nenhum serviço da VPS é recriado (o `replica-proxy` é um serviço novo; os
-  parâmetros de WAL entram por `ALTER SYSTEM` + reload). O `preparar-replica.sh` é idempotente.
+- **Produção intacta**: nada é apagado, nenhum serviço da VPS é recriado (o `replica-proxy` é um serviço novo, com IP
+  fixo na rede da stack; os parâmetros de WAL entram por `ALTER SYSTEM` + reload). O `preparar-replica.sh` é
+  idempotente e guarda só os 3 backups mais novos do `authorized_keys`.
 - Os papéis, senhas e dados que já existem; o formato dos dumps (`restore.sh` lê os do NAS como lia os da VPS); a
   cópia dos assets do S3 pelo `nas-pull.sh`; o `espelho` semanal produção → dev, que continua lendo `daily/`.
 - Até ligar `DUMP_MODE=nas`, `BACKUP_DUMP_SOURCE=nas` e `NAS_DUMPS_FROM_REPLICA=1`, **tudo continua como hoje**: o deploy
@@ -86,14 +91,16 @@ ssh root@203.0.113.10 'cd /docker/galaxie-sports && bash -s' < infra/vps-telemet
 ```
 
 O script confere `wal_level`, `max_wal_senders` e `max_replication_slots` (os padrões do 17 bastam), aplica
-`wal_keep_size=2GB` e `max_slot_wal_keep_size=4GB` (`REPLICA_WAL_KEEP_SIZE`, `REPLICA_MAX_SLOT_WAL_KEEP_SIZE` no `.env`),
-gera `REPLICATOR_PASSWORD` no `.env` e cria o papel `replicador`, libera o `pg_hba.conf`, sobe o `replica-proxy`,
-instala `/usr/local/bin/galaxie-nas-receipt` e troca o comando forçado da chave `galaxie-nas-receipt` para ele (a mesma
-chave passa a aceitar `pull` e `dump …`). Ele avisa que falta a chave do túnel: ela vem do passo 2.
+`wal_keep_size=512MB` (uma queda curta do link, mesmo sem slot) e `max_slot_wal_keep_size=4GB` (o teto do slot, que é
+quem guarda de verdade; `REPLICA_WAL_KEEP_SIZE`, `REPLICA_MAX_SLOT_WAL_KEEP_SIZE` no `.env`), gera
+`REPLICATOR_PASSWORD` no `.env` e cria o papel `replicador`, libera o `pg_hba.conf` só para o IP fixo do
+`replica-proxy` (`172.30.50.250/32`), sobe o `replica-proxy`, instala `/usr/local/bin/galaxie-nas-receipt` e troca o
+comando forçado da chave `galaxie-nas-receipt` para ele (a mesma chave passa a aceitar `pull`, `dump …` e `pedido`).
+Ele avisa que falta a chave do túnel: ela vem do passo 2.
 
 Variáveis que ele deixa no `.env` da VPS (todas com padrão em [`env.example`](../../infra/vps-telemetry/env.example)):
-`REPLICATOR_PASSWORD`, `REPLICA_WAL_KEEP_SIZE`, `REPLICA_MAX_SLOT_WAL_KEEP_SIZE`, `REPLICA_HBA_CIDR`,
-`REPLICA_PROXY_BIND`. Mudou um valor: rode o script de novo.
+`REPLICATOR_PASSWORD`, `REPLICA_WAL_KEEP_SIZE`, `REPLICA_MAX_SLOT_WAL_KEEP_SIZE`, `REPLICA_PROXY_IP`,
+`REPLICA_HBA_CIDR`, `REPLICA_PROXY_BIND`. Mudou um valor: rode o script de novo.
 
 ### 2. NAS: pastas, chaves e a `nas-lib.sh`
 
@@ -121,6 +128,11 @@ variáveis de [`env.example`](../../infra/nas-replica/env.example). Os dois segr
 `REPLICATOR_PASSWORD` (`grep ^REPLICATOR_PASSWORD= .env`) e `DUMP_PGPASSWORD` (a senha do papel `galaxie_backup` em
 `DB_URL_BACKUP`). Pela API: `POST /api/stacks/create/standalone/string?endpointId=<id>` com `name`, `stackFileContent` e
 `env` (lista de `{name, value}`); atualizar: `PUT /api/stacks/<id>?endpointId=<id>`.
+
+**Na mesma hora**, na stack `galaxie-sports-backup-nas`: `NAS_DUMPS_FROM_REPLICA=1` e redeploy. O `nas-pull.sh` para de
+puxar dumps da VPS e segue só com os prefixos do S3 e o recibo `.nas_last_pull`; os dumps que ele já trouxe ficam em
+`daily/` como estão, até a rotação. As duas stacks usam a mesma trava (`NAS_BACKUP_PATH/.lock`), então nunca mexem em
+`daily/` ao mesmo tempo, mas sem a variável os dois escreveriam dumps do mesmo dia lá.
 
 ### 4. Primeira sincronização
 
@@ -167,49 +179,61 @@ Só com os passos 4 e 5 conferidos. Em ordem:
    padrão 120). O próximo deploy com migration confere o recibo em vez de rodar o `pg_dump`
    ([Deploy sem dump local](#deploy-sem-dump-local)).
 2. **VPS, `.env`** (confira antes que não há deploy em curso): `BACKUP_DUMP_SOURCE=nas`, `BACKUP_DAYS=0`,
-   `BACKUP_KEEP_DAILY=4`; depois `docker compose -f compose.dados.yml up -d --no-deps backup`. O `backup` passa a dumpar
-   só aos domingos (4 guardados) e o verificador passa a aceitar o recibo do NAS como prova (registrando o job
-   `nas-dump` para os alertas). Esta mudança precisa da imagem do `backup` com este PR
+   `BACKUP_KEEP_DAILY=3`; depois `docker compose -f compose.dados.yml up -d --no-deps backup`. O `backup` passa a dumpar
+   só aos domingos (3 guardados) e o verificador passa a aceitar o recibo do NAS como prova (registrando os jobs
+   `nas-dump` e `backup-mode-nas` para os alertas). Esta mudança precisa da imagem do `backup` com este PR
    (`gh workflow run dados-backup.yml`, [stack-dados-e-observabilidade.md](stack-dados-e-observabilidade.md)).
-3. **NAS, stack `galaxie-sports-backup-nas`**: variável `NAS_DUMPS_FROM_REPLICA=1` e redeploy. O `nas-pull.sh` para de
-   puxar dumps e continua com os prefixos do S3 e o recibo `.nas_last_pull` (`BACKUP_NAS_RECEIPT=true` segue valendo).
-4. Observabilidade: `gh workflow run deploy.yml -f project=obs` para os alertas novos (`NasDumpStale`, o `BackupStale`
+3. Observabilidade: `gh workflow run deploy.yml -f project=obs` para os alertas novos (`NasDumpStale`, o `BackupStale`
    que entende o `nas-dump`, o SLO `backup`).
+
+(`NAS_DUMPS_FROM_REPLICA=1` na stack de backup do NAS já foi ligado no passo 3, junto com a stack.)
 
 ## Deploy sem dump local
 
 Com `DUMP_MODE=nas` (variável do repositório; padrão `vps`), o `deploy-gh.sh` chama
 [`nas-dump-check.sh`](../../infra/vps-telemetry/nas-dump-check.sh) na VPS em vez do `pre-migrate-dump.sh`, só quando o
-journal do SHA tem migration que o banco não tem. A prova aceita, nesta ordem: o recibo `.nas_last_dump` com até
-`NAS_DUMP_MAX_AGE_MIN` minutos e tamanho plausível (≥ 256 MB e ≥ 5 % do banco), **ou** um dump feito na própria VPS
-(`/backups` ou `pre-migrate/`) com a mesma idade. Sem prova, o deploy **para antes de tocar no banco** e imprime as duas
-saídas:
+journal do SHA tem migration que o banco não tem. Nesta ordem:
 
-- pedir o dump ao NAS e disparar de novo: `exec` no `nas-replica-dumper-1` com `/dump.sh pre-migrate <antigo>-<novo>`
-  (pela API do Portainer; ~20 a 40 min; o recibo sai no fim);
-- ou rodar este deploy uma vez com `DUMP_MODE=vps` (`gh variable set DUMP_MODE --body vps`, deploy, e voltar).
+1. **Recibo recente dispensa tudo**: `.nas_last_dump` com até `NAS_DUMP_MAX_AGE_MIN` minutos (padrão 120) e tamanho
+   plausível (≥ 256 MB e ≥ 5 % do banco) é a prova. Um dump feito na própria VPS (`/backups` ou `pre-migrate/`, o
+   semanal de domingo ou um deploy anterior com `DUMP_MODE=vps`) com a mesma idade também.
+2. **Senão, o deploy pede o dump ao NAS e espera.** Ele grava o pedido `.nas_dump_request` no volume de backups
+   (`<quando> <rótulo>`, o rótulo é `gha-<run id>-<antigo>-<novo>`) e espera até `NAS_DUMP_WAIT_MIN` minutos (padrão
+   20) por um recibo gravado **depois** do pedido. No NAS, o `dumper` consulta o pedido a cada minuto pela chave de
+   recibo (`dump.sh --pedido` → comando forçado `pedido`), faz o `pg_dump` da réplica em `pre-migrate/` com esse rótulo
+   e toca o recibo, que apaga o pedido. O deploy vê o recibo e segue para o `migrate`. Tempos: 1 min até o NAS ver o
+   pedido + o `pg_dump` (10 a 40 min, conforme o banco) + o recibo; o teto de 20 min cabe no passo do deploy
+   (75 min), e `NAS_DUMP_WAIT_MIN` sobe se o dump passar disso.
+3. **Sem recibo no prazo**, o deploy retira o pedido e **para antes de tocar no banco**, com a mensagem: conferir o NAS
+   (`last_dump.txt`, logs de `dumper`, `postgres` e `tunnel` no Portainer: túnel caído? réplica atrasada ou no
+   basebackup? dump ainda rodando?) ou publicar com `DUMP_MODE=vps` por um deploy (`gh variable set DUMP_MODE --body
+   vps`; o `pg_dump` volta a rodar na VPS, custa CPU e disco). Um dump que termine depois do prazo ainda deixa o recibo:
+   o deploy seguinte o aceita como recibo recente.
 
 Regra operacional que continua valendo: no máximo um deploy com migration por dia, de madrugada, com `st` abaixo de 20
-%. O roteiro de um deploy com migration passa a ser: pedir o dump ao NAS (`pre-migrate`), esperar o `last_dump.txt`,
-disparar o deploy. `skip_dump=1` continua pulando os dois modos (só com o OK do dono).
+%. `skip_dump=1` continua pulando os dois modos (só com o OK do dono). Nada muda no deploy sem migration.
 
 ## Operação diária
 
 - **Dump diário**: 03:30 UTC pelo cron do `dumper`. Estado em `NAS_BACKUP_PATH/last_dump.txt`; recibo na VPS com
   `preparar-replica.sh --status`.
 - **Dump sob demanda**: `exec` no `nas-replica-dumper-1` (`/dump.sh` ou `/dump.sh pre-migrate <rótulo>`), ou o
-  arquivo-gatilho `NAS_BACKUP_PATH/.dump-now`.
+  arquivo-gatilho `NAS_BACKUP_PATH/.dump-now`. O deploy com migration pede sozinho ([acima](#deploy-sem-dump-local)).
 - **Alertas** (`backup-disco`, push): `BackupCheckFailed` (verificador da VPS: sem prova de backup com até 26 h, ou dump
-  semanal local com mais de 8 dias), `NasDumpStale` (sem recibo novo do NAS há 26 h), `BackupStale` (nem o NAS nem a
-  VPS dumparam em 26 h). O slot e a conexão de replicação não têm exporter: a consulta está em [Paradas](#paradas) e o
-  `--status` a imprime; conferir uma vez por semana enquanto não houver alerta.
+  semanal local com mais de 8 dias), `NasDumpStale` (sem recibo novo do NAS há 26 h, só enquanto
+  `BACKUP_DUMP_SOURCE=nas`: o verificador registra o job `backup-mode-nas` a cada 6 h e o alerta exige um com menos de
+  12 h), `BackupStale` (nem o NAS nem a VPS dumparam em 26 h). O slot e a conexão de replicação não têm exporter: a
+  consulta está em [Paradas](#paradas) e o `--status` a imprime; conferir uma vez por semana enquanto não houver alerta.
 - **Onde ver**: logs dos três contêineres no Portainer; na VPS, `preparar-replica.sh --status`.
 
 ## Paradas
 
 | Sinal | Causa provável | O que fazer |
 | --- | --- | --- |
-| `last_dump.txt`: `réplica atrasada: N MB de WAL por aplicar` | A réplica recebeu mas não aplicou (dump anterior longo com o replay pausado, NAS lento) ou o túnel ficou fora e ela está alcançando | Esperar; `select now() - pg_last_xact_replay_timestamp()` na réplica cai sozinho. Persistindo, log do `postgres` do NAS |
+| `last_dump.txt`: `réplica atrasada: N MB de WAL por aplicar` | A réplica recebeu mas não aplicou (um `pg_dump` longo segura o replay por `max_standby_streaming_delay=-1`, NAS lento) ou o túnel ficou fora e ela está alcançando | Esperar; `select now() - pg_last_xact_replay_timestamp()` na réplica cai sozinho. Persistindo, log do `postgres` do NAS |
+| Log do `dumper`: `o replay da réplica estava pausado` | Alguém rodou `pg_wal_replay_pause()` à mão | O `dump.sh` retoma sozinho quando pode; sem permissão, `select pg_wal_replay_resume()` como superusuário na réplica |
+| Deploy: `o NAS não atendeu o pedido de dump em 20 min` | NAS fora, túnel caído, réplica atrasada ou ainda no basebackup, `pg_dump` mais longo que `NAS_DUMP_WAIT_MIN`, ou outro dump rodando (trava) | `last_dump.txt` e logs no Portainer; `--status` na VPS. Dump só demorou: disparar o deploy de novo (o recibo que chegou depois vale). Pressa: `DUMP_MODE=vps` por um deploy |
+| `postgres` do NAS reiniciando com `replication slot "nas_replica" already exists` (versões anteriores do entrypoint) | Sobra de um basebackup interrompido | O entrypoint atual apaga sozinho um slot inativo antes do basebackup; se não conseguir, `select pg_drop_replication_slot('nas_replica')` na VPS |
 | `--status`: slot `active=f` | A réplica não está conectada: túnel caído, `postgres` do NAS parado, ou a réplica está refazendo o basebackup | Logs de `tunnel` e `postgres` no Portainer; o `autossh` reconecta sozinho quando a VPS volta a responder |
 | `--status`: slot `wal_status=lost`; `last_dump.txt` manda refazer; log do `postgres` do NAS com "requested WAL segment … has already been removed" | O NAS ficou fora por mais WAL que `max_slot_wal_keep_size` (4 GB) e a produção invalidou o slot, de propósito, para não encher o disco | [Refazer a réplica](#refazer-a-réplica) |
 | `tunnel` reiniciando; `pg_isready -h tunnel` falha | Chave do túnel fora do `authorized_keys`, `known_hosts` desatualizado (VPS recriada), `replica-proxy` parado, porta ocupada | `preparar-replica.sh --status` (proxy e chaves); `ssh-keyscan -t ed25519` da VPS para o `known_hosts` do NAS |
@@ -246,6 +270,10 @@ Em qualquer ordem, cada um independente:
 - Deploy: `gh variable set DUMP_MODE --body vps` (ou `gh variable delete DUMP_MODE`): o `pg_dump` volta para a VPS no
   próximo deploy com migration.
 - VPS: `BACKUP_DUMP_SOURCE=vps`, `BACKUP_DAYS=` (vazio) e `BACKUP_KEEP_DAILY=3` no `.env`, `up -d --no-deps backup`.
+  **Alerta preso?** Não: a série `nas-dump` continua no banco (o último recibo envelhece para sempre), mas o
+  `NasDumpStale` exige o job `backup-mode-nas` com menos de 12 h, que o verificador só registra em modo `nas`; duas
+  verificações depois (12 h) o alerta desarma sozinho, e o `BackupStale` volta a depender só do `pg-backup`, que o
+  diário da VPS alimenta de novo.
 - NAS: `NAS_DUMPS_FROM_REPLICA=0` na stack de backup (o `rsync` dos dumps volta); parar a stack `nas-replica`. O slot
   pode ficar (`max_slot_wal_keep_size` o limita); para tirar: `pg_drop_replication_slot('nas_replica')`. O
   `replica-proxy` e as chaves são inofensivos; para desfazer de vez, `docker compose -f compose.dados.yml rm -sf
@@ -301,7 +329,9 @@ Sem `DUMP_AGE_RECIPIENTS`, o `dump.sh` recusa enviar e diz por quê (o dump e o 
 ## Segurança
 
 - A chave do túnel só encaminha porta para `127.0.0.1:5432` da VPS; a de recibo só roda o `galaxie-nas-receipt`, que só
-  escreve dois arquivos no volume de backups com campos validados. Nenhuma das duas abre shell.
+  escreve dois arquivos no volume de backups (os recibos) e lê um (o pedido), com campos validados e sem expansão de
+  glob (`set -f`). Nenhuma das duas abre shell. O NAS nunca executa nada que venha da VPS além do rótulo do dump, que
+  é validado dos dois lados.
 - O papel `replicador` só tem `REPLICATION` e `LOGIN`: lê WAL e as views de sistema (o `dump.sh` consulta
   `pg_replication_slots` com ele), nenhuma tabela. A senha fica no `.env` da VPS e nas variáveis da stack do NAS.
 - O `replica-proxy` publica só em loopback da VPS. O NAS tem a cópia inteira do banco em claro (como já tinha os dumps):
