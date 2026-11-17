@@ -95,6 +95,39 @@ describe('storeView (loja de features, #1137)', () => {
     expect(v.odds?.state).toBe('included');
   });
 
+  it('módulo de engajamento vendável com teste: "Ativar teste" aparece uma vez por organização', () => {
+    // catálogo em memória: o Chat ao vivo à venda (no catálogo real ainda está `soon`)
+    const selling = {
+      ...catalog,
+      modules: {
+        ...catalog.modules,
+        live_chat: { ...catalog.modules.live_chat, status: 'available' as const },
+      },
+    };
+    const ent: StoreEntitlements = {
+      plan: 'fan_experience',
+      modules: ['core_data', 'where_to_watch', 'semantic'],
+      state: 'active',
+    };
+    const fresh = byModule(storeView(selling, ent));
+    expect(fresh.live_chat).toMatchObject({ state: 'available', trialDays: 14 });
+    expect(canStartModuleTrial(fresh.live_chat!)).toBe(true);
+    // já testado nesta organização: o cartão segue disponível (contratar), mas sem o teste
+    const used = byModule(storeView(selling, ent, { trialsUsed: ['live_chat'] }));
+    expect(used.live_chat).toMatchObject({ state: 'available', trialDays: null });
+    expect(canStartModuleTrial(used.live_chat!)).toBe(false);
+    // em teste agora: cartão em teste com o prazo, sem oferta de novo teste
+    const trialing = byModule(
+      storeView(selling, {
+        ...ent,
+        modules: [...ent.modules, 'live_chat'],
+        moduleTrials: { live_chat: '2026-11-30T12:00:00.000Z' },
+      }),
+    );
+    expect(trialing.live_chat).toMatchObject({ state: 'trial', trialEndsAt: '2026-11-30T12:00:00.000Z' });
+    expect(canStartModuleTrial(trialing.live_chat!)).toBe(false);
+  });
+
   it('tenant sem acesso: tudo bloqueado, sem oferta de plano', () => {
     for (const state of ['suspended', 'trial_expired', 'cancelled'] as const) {
       const items = storeView(catalog, { plan: 'core_data', modules: [], state });

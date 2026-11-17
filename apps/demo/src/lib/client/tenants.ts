@@ -15,6 +15,8 @@ import {
 } from '@galaxie/db/engage-modules';
 import type { TenantState } from '@galaxie/db/schema';
 
+import { effectiveState } from '@galaxie/billing';
+
 import { pool } from '@/lib/auth/db';
 
 /** Opção de tenant (seletor de marca da equipe e do cliente com mais de uma marca). */
@@ -31,7 +33,11 @@ export interface TenantInfo extends TenantOption {
   /** Organização que assina e paga (`billing.organization`, F2); null só até a migration de dados rodar. */
   organizationId: string | null;
   organizationName: string | null;
-  /** Estado do ciclo de vida (F3): o console mostra e restringe o menu por ele; `status` é só o espelho. */
+  /**
+   * Estado do ciclo de vida (F3) que vale agora: a coluna, com o mesmo fallback da API e dos direitos (`effectiveState`:
+   * `trial` com `trial_ends_at` vencido conta como `trial_expired` até o job `tenant.lifecycle` gravar a transição). O
+   * console mostra e restringe o menu por ele; `status` é só o espelho.
+   */
   state: TenantState;
   /** Desde quando está no estado (ISO 8601). */
   stateSince: string;
@@ -93,7 +99,14 @@ export async function getTenantInfo(id: string): Promise<TenantInfo | null> {
       where t.id = $1`,
     [id],
   );
-  return row ?? null;
+  if (!row) return null;
+  return {
+    ...row,
+    state: effectiveState(
+      { state: row.state, trialEndsAt: row.trialEndsAt ? new Date(row.trialEndsAt) : null },
+      new Date(),
+    ),
+  };
 }
 
 export async function tenantExists(id: string): Promise<boolean> {

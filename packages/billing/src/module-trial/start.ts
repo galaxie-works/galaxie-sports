@@ -12,7 +12,8 @@
  */
 import { sql } from 'drizzle-orm';
 import { publishChange } from '@galaxie/db/change-feed';
-import { moduleTrial, tenantOverride, type ApiModule } from '@galaxie/db/schema';
+import { eq } from 'drizzle-orm';
+import { moduleTrial, tenant, tenantOverride, type ApiModule } from '@galaxie/db/schema';
 import type { Catalog } from '../catalog/catalog.js';
 import { invalidateEntitlements } from '../entitlements/load.js';
 import {
@@ -27,7 +28,7 @@ export const MODULE_TRIAL_STARTED_TOPIC = 'tenant.module_trial_started';
 /** `reason` dos `tenant_override` do teste: é como se distinguem dos acordos da equipe. */
 export const MODULE_TRIAL_REASON = 'module_trial';
 
-export type ModuleTrialErrorCode = 'unknown_module' | 'no_trial' | 'already_used';
+export type ModuleTrialErrorCode = 'unknown_module' | 'no_trial' | 'already_used' | 'wrong_organization';
 
 export class ModuleTrialError extends Error {
   constructor(
@@ -39,7 +40,9 @@ export class ModuleTrialError extends Error {
         ? `Módulo desconhecido no catálogo: ${module}.`
         : code === 'no_trial'
           ? `O módulo ${module} não tem teste no catálogo.`
-          : `O módulo ${module} já foi testado nesta organização.`,
+          : code === 'wrong_organization'
+            ? `A marca não é da organização informada: o teste de ${module} não foi ligado.`
+            : `O módulo ${module} já foi testado nesta organização.`,
     );
     this.name = 'ModuleTrialError';
   }
@@ -74,7 +77,12 @@ export interface StartedModuleTrial {
 
 const DAY_MS = 86_400_000;
 
-/** Violação do índice único por organização e módulo (direto do driver ou embrulhada pelo Drizzle). */
+/**
+ * Violação do índice único por organização e módulo (direto do driver ou embrulhada pelo Drizzle em `cause`). Quando o
+ * driver traz `constraint_name` (o postgres-js traz), ela tem de ser a do índice. Premissa para quando não traz: dentro
+ * da transação do teste, o único 23505 possível é o deste índice (a chave primária é UUID v7 gerada pelo banco e
+ * `tenant_override` não tem índice único), por isso o código sozinho basta.
+ */
 function isUniqueModuleTrial(err: unknown): boolean {
   const own = err as {
     code?: string;
@@ -82,14 +90,13 @@ function isUniqueModuleTrial(err: unknown): boolean {
     cause?: { code?: string; constraint_name?: string };
   };
   const e = own.code ? own : own.cause;
-  return (
-    e?.code === '23505' && (!e.constraint_name || e.constraint_name === 'module_trial_organization_module_uq')
-  );
+  if (e?.code !== '23505') return false;
+  return e.constraint_name === undefined || e.constraint_name === 'module_trial_organization_module_uq';
 }
 
 /**
- * Liga o teste do módulo para a marca. Lança `ModuleTrialError` (`unknown_module`, `no_trial`, `already_used`) sem
- * gravar nada.
+ * Liga o teste do módulo para a marca. Lança `ModuleTrialError` (`unknown_module`, `no_trial`, `wrong_organization`,
+ * `already_used`) sem gravar nada.
  */
 export async function startModuleTrial(
   db: TenantStateExecutor,
@@ -112,6 +119,14 @@ export async function startModuleTrial(
       await tx.execute(
         sql`select pg_advisory_xact_lock(hashtext(${`module-trial:${input.organizationId}:${module}`}))`,
       );
+      // a marca tem de ser da organização informada: o "uma vez por organização" não pode ser contornado nem a prova
+      // ficar na organização errada
+      const [brand] = await tx
+        .select({ organizationId: tenant.organizationId })
+        .from(tenant)
+        .where(eq(tenant.id, input.tenantId));
+      if (!brand || brand.organizationId !== input.organizationId)
+        throw new ModuleTrialError('wrong_organization', module);
       const [row] = await tx
         .insert(moduleTrial)
         .values({
