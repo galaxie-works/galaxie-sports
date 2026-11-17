@@ -12,3 +12,4 @@ export * from './entitlements/resolve.js';
 export * from './entitlements/load.js';
 export * from './usage/assess.js';
 export * from './store/store.js';
+export * from './module-trial/start.js';
