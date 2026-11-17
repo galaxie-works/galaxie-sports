@@ -429,7 +429,9 @@ O que mudou (PR "Perf: jobs por minuto e gameFacts sem varrer core.event", migra
   agenda padrão passou de 3 para 10 min (decisão do dono em 17/11).
 - **`recap-run`**: uma consulta só compara o carimbo do insumo de cada jogo (`services/ai-agents/src/recap/input-stamp.ts`)
   com o da última montagem dos fatos; jogo sem mudança sai da fila sem consulta própria (no dev, 200 jogos: de 1.479
-  consultas e 3,7 a 5,8 s por execução para 2 consultas e 1,2 s).
+  consultas e 3,7 a 5,8 s por execução para 5 comandos e 0,18 s; a consulta do carimbo roda sem JIT, que sozinho
+  custava 1,3 s de compilação nela). O carimbo vale `RECAP_INPUT_MAX_AGE_HOURS` (painel ›
+  IA, padrão 6 h) e os mais velhos são apagados no fim de cada execução.
 
 ### Medir de novo
 
