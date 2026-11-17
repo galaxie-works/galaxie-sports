@@ -11,8 +11,12 @@ vi.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 const decide = vi.fn();
+const flag = vi.fn();
+const report = vi.fn();
 vi.mock('@/lib/moderation/queue-actions', () => ({
   decideCase: (...a: unknown[]) => decide(...a),
+  flagChildSafetyAction: (...a: unknown[]) => flag(...a),
+  reportAuthoritiesAction: (...a: unknown[]) => report(...a),
   moreDecisions: vi.fn(),
 }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
@@ -20,7 +24,11 @@ vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 import { ReviewQueue, type QueueRow } from './review-queue';
 
 afterEach(cleanup);
-beforeEach(() => decide.mockReset().mockResolvedValue({ ok: true }));
+beforeEach(() => {
+  decide.mockReset().mockResolvedValue({ ok: true });
+  flag.mockReset().mockResolvedValue({ ok: true });
+  report.mockReset().mockResolvedValue({ ok: true });
+});
 
 const T = clientDictionary('pt-BR').moderation.queue;
 const row = (patch: Partial<QueueRow> = {}): QueueRow => ({
@@ -51,8 +59,12 @@ const row = (patch: Partial<QueueRow> = {}): QueueRow => ({
     fallback: null,
   },
   automatic: true,
+  childSafety: false,
+  authorityReported: false,
   decisions: ['approve', 'remove', 'undo', 'mute'],
   muteHours: [1, 6],
+  canFlag: false,
+  canReport: false,
   ...patch,
 });
 
@@ -94,5 +106,33 @@ describe('fila de revisão', () => {
   it('fila vazia explica o que aparece aqui', () => {
     view([]);
     expect(screen.getByText(T.empty)).toBeTruthy();
+  });
+});
+
+describe('abuso infantil e denúncia às autoridades (#1289)', () => {
+  it('marca a suspeita e registra a denúncia com o protocolo', async () => {
+    view([row({ canFlag: true, canReport: true })]);
+    fireEvent.click(screen.getByRole('button', { name: T.authority.flag }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: T.confirm }));
+    });
+    expect(flag).toHaveBeenCalledWith({ caseId: '0190f000-0000-7000-8000-000000000001' });
+
+    fireEvent.click(screen.getByRole('button', { name: T.authority.report }));
+    fireEvent.change(screen.getByLabelText(T.authority.reference), { target: { value: 'SAFERNET-123' } });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: T.confirm }));
+    });
+    expect(report).toHaveBeenCalledWith({
+      caseId: '0190f000-0000-7000-8000-000000000001',
+      reference: 'SAFERNET-123',
+    });
+  });
+
+  it('caso marcado sem denúncia avisa quem não pode denunciar', () => {
+    view([row({ childSafety: true })]);
+    expect(screen.getByText(T.authority.pending)).toBeTruthy();
+    expect(screen.getByText(T.authority.waiting)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: T.authority.report })).toBeNull();
   });
 });

@@ -1,6 +1,6 @@
 {
-  "id": "43acf03e-85df-4898-9b32-184bd2e6f3b6",
-  "prevId": "b7dbcecd-4774-4a71-b0cc-025c44305845",
+  "id": "caa6cac5-9caf-42cf-b0a8-f6d3059e2288",
+  "prevId": "e2d3ed23-76c4-4372-a3fd-9ef39987dc9f",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -23085,6 +23085,37 @@
           "primaryKey": false,
           "notNull": false
         },
+        "child_safety": {
+          "name": "child_safety",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "legal_hold_until": {
+          "name": "legal_hold_until",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "authority_reported_at": {
+          "name": "authority_reported_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "authority_reported_by": {
+          "name": "authority_reported_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "authority_reference": {
+          "name": "authority_reference",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -23278,6 +23309,14 @@
         "moderation_case_appeal": {
           "name": "moderation_case_appeal",
           "value": "(\"engage\".\"moderation_case\".\"source\" = 'appeal') = (\"engage\".\"moderation_case\".\"sanction_id\" is not null)"
+        },
+        "moderation_case_authority_ref": {
+          "name": "moderation_case_authority_ref",
+          "value": "\"engage\".\"moderation_case\".\"authority_reference\" is null or length(\"engage\".\"moderation_case\".\"authority_reference\") between 1 and 200"
+        },
+        "moderation_case_authority_report": {
+          "name": "moderation_case_authority_report",
+          "value": "(\"engage\".\"moderation_case\".\"authority_reported_at\" is null) = (\"engage\".\"moderation_case\".\"authority_reported_by\" is null)"
         }
       },
       "isRLSEnabled": false
@@ -24061,6 +24100,12 @@
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true
+        },
+        "legal_hold_until": {
+          "name": "legal_hold_until",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
         },
         "created_at": {
           "name": "created_at",

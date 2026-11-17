@@ -9,14 +9,18 @@ import {
   applySanction,
   automaticSanctionsOf,
   closeCase,
+  flagChildSafety,
   readCase,
+  reportToAuthorities,
   undoDecision,
   type ModerationActor,
 } from '@galaxie/db/moderation-queue';
 import {
   SANCTION_LEVELS,
   SANCTION_SCOPE,
+  STRICT_LEGAL_RULES,
   checkSanction,
+  legalHoldUntil,
   sanctionAction,
   type SanctionLevel,
 } from '@galaxie/engage';
@@ -27,7 +31,7 @@ import { readClientContext } from '@/lib/client/session';
 import { getDictionary } from '@/lib/i18n/dictionary';
 import { getRequestLocale } from '@/lib/i18n/server';
 
-import { clocksFor, NoPolicyError } from './clocks';
+import { clocksFor, NoPolicyError, policyFor } from './clocks';
 import { loadDecisions, type DecisionItem } from './queue-data';
 import {
   MUTE_HOURS,
@@ -102,6 +106,8 @@ export async function decideCase(input: {
     throw err;
   }
 
+  // abuso infantil: a denúncia às autoridades é obrigatória antes de fechar ou desfazer (#1289)
+  if (c.childSafety && !c.authorityReportedAt) return { ok: false, error: T.reportFirst };
   try {
     if (input.decision === 'undo') {
       // desfazer revoga as punições da Cosmos: quem desfaz precisa poder aplicar cada uma (cargo, lugar e duração)
@@ -117,7 +123,15 @@ export async function decideCase(input: {
       const r = await undoDecision(db, { tenantId: ctx.tenant.id, caseId: c.id, actor, note, clocks, now });
       return r.ok
         ? { ok: true }
-        : { ok: false, error: r.reason === 'not_found' ? T.notFound : T.notAutomatic };
+        : {
+            ok: false,
+            error:
+              r.reason === 'not_found'
+                ? T.notFound
+                : r.reason === 'legal_hold'
+                  ? T.legalHold
+                  : T.notAutomatic,
+          };
     }
     if (c.status !== 'open') return { ok: false, error: T.closed };
     if (c.source === 'appeal') return { ok: false, error: T.appeal };
@@ -194,6 +208,83 @@ export async function decideCase(input: {
     console.error('[moderação] decisão da fila falhou', { tenantId: ctx.tenant.id, caseId: c.id, err });
     return { ok: false, error: T.generic };
   }
+}
+
+/** Fim da guarda legal a partir de `from`: o prazo da ficha do país do autor; sem ficha, o mais longo (365 dias). */
+async function holdFrom(tenantId: string, profileId: string | null, from: Date): Promise<Date> {
+  const policy = await policyFor(tenantId, profileId).catch(() => null);
+  return new Date(legalHoldUntil(policy ?? STRICT_LEGAL_RULES, from.getTime()));
+}
+
+/**
+ * Suspeita de abuso infantil (#1289): tira o conteúdo do ar, preserva (guarda legal desde já) e trava o caso até a
+ * denúncia às autoridades. Quem tira conteúdo do ar no lugar do caso marca.
+ */
+export async function flagChildSafetyAction(input: { caseId: string }): Promise<QueueActionResult> {
+  const s = await session();
+  if ('error' in s) return { ok: false, error: s.error };
+  const { ctx, actor, T } = s;
+  if (!UUID.test(input.caseId)) return { ok: false, error: T.invalid };
+  const db = builderDb();
+  const c = await readCase(db, ctx.tenant.id, input.caseId);
+  if (!c) return { ok: false, error: T.notFound };
+  if (!allowed(ctx, 'moderation.hide', placeOf(c)).ok) return { ok: false, error: T.role };
+  if (c.childSafety) return { ok: false, error: T.alreadyFlagged };
+  const now = new Date();
+  let clocks;
+  try {
+    clocks = await clocksFor(ctx.tenant.id, c.targetProfileId, now);
+  } catch (err) {
+    if (err instanceof NoPolicyError) return { ok: false, error: T.noPolicy };
+    throw err;
+  }
+  const holdUntil = await holdFrom(ctx.tenant.id, c.targetProfileId, now);
+  const ok = await db.transaction((tx) =>
+    flagChildSafety(tx, { tenantId: ctx.tenant.id, caseId: c.id, actor, holdUntil, clocks, now }),
+  );
+  return ok ? { ok: true } : { ok: false, error: T.closed };
+}
+
+/**
+ * Registra a denúncia às autoridades (#1289). Só o admin do cliente (o cargo que bane, `moderation.ban`) e a equipe
+ * Galaxie denunciam. A guarda legal conta da denúncia.
+ */
+export async function reportAuthoritiesAction(input: {
+  caseId: string;
+  reference?: string;
+}): Promise<QueueActionResult> {
+  const s = await session();
+  if ('error' in s) return { ok: false, error: s.error };
+  const { ctx, actor, T } = s;
+  if (!UUID.test(input.caseId)) return { ok: false, error: T.invalid };
+  const reference = typeof input.reference === 'string' ? input.reference.trim().slice(0, 200) || null : null;
+  const db = builderDb();
+  const c = await readCase(db, ctx.tenant.id, input.caseId);
+  if (!c) return { ok: false, error: T.notFound };
+  if (c.source === 'appeal') return { ok: false, error: T.appeal };
+  if (actor.kind !== 'galaxie' && !allowed(ctx, 'moderation.ban', placeOf(c)).ok)
+    return { ok: false, error: T.reportRole };
+  const now = new Date();
+  let clocks;
+  try {
+    clocks = await clocksFor(ctx.tenant.id, c.targetProfileId, now);
+  } catch (err) {
+    if (err instanceof NoPolicyError) return { ok: false, error: T.noPolicy };
+    throw err;
+  }
+  const holdUntil = await holdFrom(ctx.tenant.id, c.targetProfileId, now);
+  const ok = await db.transaction((tx) =>
+    reportToAuthorities(tx, {
+      tenantId: ctx.tenant.id,
+      caseId: c.id,
+      actor,
+      reference,
+      holdUntil,
+      clocks,
+      now,
+    }),
+  );
+  return ok ? { ok: true } : { ok: false, error: T.alreadyReported };
 }
 
 /** Próxima página do histórico, com os mesmos filtros (só os da lista fechada). Sem o cargo, nada volta. */

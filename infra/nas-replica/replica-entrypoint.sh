@@ -28,9 +28,14 @@ VOL="$(dirname "$PGDATA")"
 TMP="$VOL/basebackup.tmp"
 
 log() { printf '{"level":"%s","time":"%s","service":"nas-replica","msg":"%s"}\n' "$1" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$2"; }
-# como o usuário postgres (a imagem alpine usa su-exec); num teste sem root, direto
+# como o usuário postgres: a imagem postgres:17-alpine traz o gosu (su-exec ficou nas versões antigas; na primeira subida
+# em 17/11/2026 o basebackup falhou com "su-exec: not found"); num teste sem root, direto
 as_postgres() {
-  if [ "$(id -u)" = 0 ]; then su-exec postgres "$@"; else "$@"; fi
+  if [ "$(id -u)" != 0 ]; then "$@"
+  elif command -v gosu >/dev/null 2>&1; then gosu postgres "$@"
+  elif command -v su-exec >/dev/null 2>&1; then su-exec postgres "$@"
+  else log error "nem gosu nem su-exec na imagem: não dá para rodar como postgres"; exit 1
+  fi
 }
 own() { [ "$(id -u)" != 0 ] || chown postgres:postgres "$@"; }
 

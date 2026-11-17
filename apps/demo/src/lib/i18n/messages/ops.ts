@@ -1998,6 +1998,11 @@ export default defineMessages(
           'Custo de provedor que vale 1 crédito, para converter o custo real em créditos. Vazio, cada chamada cobra só o mínimo da função. O cliente nunca vê este número.',
         unit: 'US$',
       },
+      MODERATION_PURGE: {
+        label: 'Apagamento automático da moderação',
+        description:
+          'Ligado, apaga de hora em hora o que venceu o prazo da ficha do país: conteúdo removido, decisões, notas internas e mensagens do chat. Os prazos se escolhem em Fichas por país. Não tem volta. Ainda não existe a guarda legal do conteúdo denunciado às autoridades: não ligue antes dela.',
+      },
       FAN_TOKEN_TTL_SECONDS: {
         label: 'Validade do token do torcedor',
         description:
@@ -4054,6 +4059,11 @@ export default defineMessages(
           description:
             'Provider cost worth 1 credit, used to turn real cost into credits. Empty, each call charges only the function minimum. Clients never see this number.',
           unit: 'US$',
+        },
+        MODERATION_PURGE: {
+          label: 'Automatic moderation deletion',
+          description:
+            "When on, deletes every hour what passed the country rules sheet's deadline: removed content, decisions, internal notes and chat messages. Deadlines are chosen in Country rules. It cannot be undone. The legal hold for content reported to the authorities does not exist yet: do not turn this on before it does.",
         },
         FAN_TOKEN_TTL_SECONDS: {
           label: 'Fan token lifetime',
@@ -6135,6 +6145,11 @@ export default defineMessages(
           description:
             'Costo de proveedor que vale 1 crédito, para convertir el costo real en créditos. Vacío, cada llamada cobra solo el mínimo de la función. El cliente nunca ve este número.',
           unit: 'US$',
+        },
+        MODERATION_PURGE: {
+          label: 'Borrado automático de la moderación',
+          description:
+            'Encendido, borra cada hora lo que venció el plazo de la ficha del país: contenido eliminado, decisiones, notas internas y mensajes del chat. Los plazos se eligen en Fichas por país. No tiene vuelta atrás. Todavía no existe la retención legal del contenido denunciado a las autoridades: no lo enciendas antes.',
         },
         FAN_TOKEN_TTL_SECONDS: {
           label: 'Validez del token del hincha',

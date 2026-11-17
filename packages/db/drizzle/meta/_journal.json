@@ -922,14 +922,21 @@
     {
       "idx": 131,
       "version": "7",
-      "when": 1794951969621,
-      "tag": "0191_extensao_pg_trgm",
+      "when": 1794953958359,
+      "tag": "0189_moderacao_guarda_legal",
       "breakpoints": true
     },
     {
       "idx": 132,
       "version": "7",
-      "when": 1794954246642,
+      "when": 1794953959359,
+      "tag": "0191_extensao_pg_trgm",
+      "breakpoints": true
+    },
+    {
+      "idx": 133,
+      "version": "7",
+      "when": 1794956173669,
       "tag": "0192_busca_trigram_pessoa",
       "breakpoints": true
     }
