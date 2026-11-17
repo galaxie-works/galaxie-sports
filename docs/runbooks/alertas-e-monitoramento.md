@@ -399,6 +399,62 @@ O que ele fez fica em `/tmp/selfheal.log` dentro do contêiner e no `docker insp
 docker compose exec api cat /tmp/selfheal.log
 ```
 
+## CPU dos jobs por minuto
+
+A VPS tem 2 vCPU, e o provedor limita o uso quando ela passa do teto (CPU roubada `st` alta no `top`). Em 17/11/2026,
+com a CPU limitada a 30%, os três jobs do scheduler que rodam a cada minuto (cada execução é um processo Node novo)
+somavam mais de 60 s de trabalho por minuto:
+
+| Job | Duração por execução (17/11, CPU limitada) | O que custava |
+|---|---|---|
+| `events-clock` | 7 a 28 s | lia os 48 mil jogos `scheduled` pelo índice de status para achar os poucos que começam em 10 min |
+| `explore-summary` | 9 a 49 s | contava jogo novo por `core.event.created_at` sem índice; com jogo ao vivo, refazia a conta inteira quase todo minuto |
+| `postgame-close` | 11 a 43 s | quase todo o tempo era o Node carregando cliente do fornecedor, logger e normalização (~1,4 s de CPU de 2,3 s) antes de saber que não havia lista na vez |
+
+O que mudou (PR "Perf: jobs por minuto e gameFacts sem varrer core.event", migration 0183):
+
+- **Índices** (`-- galaxie:concurrently`, criados sem travar a escrita): `event_created_at_idx` e o parcial
+  `event_open_starts_idx` (`starts_at` só dos jogos `scheduled`/`starting`/`live`/`break`/`suspended`).
+- **`events-clock`**: os candidatos saem em páginas por `(starts_at, id)` com `order by` e `limit`, o que faz o
+  Postgres ler pelo índice parcial (no dev: de 4.952 buffers e 33 a 48 ms para 58 buffers e 0,7 ms).
+- **`explore-summary`**: freio `EXPLORE_MIN_INTERVAL_SEC` (painel › Agenda, padrão 180 s) e a conta de jogo novo pelo
+  índice de `created_at` (de 874 buffers e 7,8 ms para 3 buffers e 0,08 ms); a configuração geográfica só é lida
+  quando há conta.
+- **`postgame-close`**: decide com o banco (pendentes e cursores, dezenas de ms) e só carrega cliente, logger e
+  normalização quando há lista na vez (no dev: de 1,6 a 1,8 s para 1,2 a 1,3 s por execução ociosa).
+- **Jobs de agentes e do ingestor sem workers paralelos**: o perfil `job` e o `live` de `createDb` mandam
+  `max_parallel_workers_per_gather = 0` na partida da sessão (`DB_PARALLEL_WORKERS`, packages/db/src/client.ts); a API
+  e a demo seguem com o do servidor. `DB_MAX_PARALLEL_WORKERS_PER_GATHER` no env troca numa CLI rodada à mão.
+- **`related-run`**: `gameFacts` numa passada por tabela (`left join lateral`) em vez de sete subconsultas por jogo; a
+  agenda padrão passou de 3 para 10 min (decisão do dono em 17/11).
+- **`recap-run`**: uma consulta só compara o carimbo do insumo de cada jogo (`services/ai-agents/src/recap/input-stamp.ts`)
+  com o da última montagem dos fatos; jogo sem mudança sai da fila sem consulta própria (no dev, 200 jogos: de 1.479
+  consultas e 3,7 a 5,8 s por execução para 5 comandos e 0,18 s; a consulta do carimbo roda sem JIT, que sozinho
+  custava 1,3 s de compilação nela). O carimbo vale `RECAP_INPUT_MAX_AGE_HOURS` (painel ›
+  IA, padrão 6 h) e os mais velhos são apagados no fim de cada execução.
+
+### Medir de novo
+
+Duração por job nas últimas 24 h (o scheduler grava `stats.duration_ms` em cada execução):
+
+```sql
+select job, count(*) as execucoes,
+       (percentile_cont(array[0.1, 0.5, 0.9]) within group (order by (stats->>'duration_ms')::numeric))::int[]
+         as p10_p50_p90_ms,
+       round(sum((stats->>'duration_ms')::numeric) / 1000 / 1440, 1) as s_por_minuto
+  from ops.job_run
+ where started_at > now() - interval '24 hours'
+   and stats ? 'duration_ms'
+   and job in ('events-clock', 'explore-summary', 'postgame-close', 'related-run', 'recap-run', 'wtw-channel')
+ group by 1
+ order by s_por_minuto desc;
+```
+
+`s_por_minuto` é o trabalho médio do job por minuto do dia: a soma dos jobs de minuto em minuto passar de 60 é o sinal
+de que eles se acumulam. Para ver uma consulta, `EXPLAIN (ANALYZE, BUFFERS)` no banco de dev (cópia da produção) com
+as datas do dado de lá; o número que importa é `Buffers` (páginas lidas), que não depende da CPU estar limitada. Antes
+de medir na produção, confira o `st` no `top` (com CPU roubada alta, os tempos saem inflados).
+
 ## Métricas novas no `/metrics` da API
 
 | Métrica | Fonte |

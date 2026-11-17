@@ -47,9 +47,10 @@ export const AGENT_JOBS: readonly ScheduledJob[] = [
     name: 'related-run',
     description:
       'Conteúdo relacionado (YouTube): canais oficiais primeiro e busca como complemento, para os jogos encerrados nas últimas 24 h, por prioridade nos mercados e com reserva para os jogos do dia',
-    // a cada 3 min o dia todo: o jogo que acabou entra na fila na frente (os canais oficiais trazem vídeo em minutos);
-    // execução sem jogo novo não chama o YouTube
-    cron: '*/3 * * * *',
+    // a cada 10 min o dia todo (decisão do dono em 17/11/2026, antes a cada 3: vídeos relacionados até 10 min depois do
+    // fim do jogo). O jogo que acabou entra na fila na frente; execução sem jogo novo não chama o YouTube. A agenda do
+    // painel (SCHEDULE_RELATED_RUN) vale por cima
+    cron: '*/10 * * * *',
     script: 'dist/cli/related-run.js',
     args: [],
     timeoutMs: 20 * MINUTE,
