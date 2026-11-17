@@ -90,7 +90,28 @@ export default defineMessages(
       cancel: 'Cancelar',
       done: 'Decisão registrada.',
       readOnly: 'Seu cargo vê a fila, mas não decide este item.',
+      authority: {
+        flag: 'Suspeita de abuso infantil',
+        flagHelp:
+          'Tira o conteúdo do ar e o preserva pela guarda legal da ficha do país. O caso só fecha depois da denúncia às autoridades, que o admin do cliente ou a Galaxie registram.',
+        report: 'Registrar denúncia às autoridades',
+        reportHelp:
+          'Registre aqui depois de denunciar ao órgão competente. O conteúdo fica guardado pelo prazo legal da ficha do país, contado de hoje, e não sai nem a pedido do titular.',
+        reference: 'Protocolo da denúncia (opcional)',
+        referencePlaceholder: 'Número ou link do registro no órgão',
+        pending: 'Abuso infantil: denúncia pendente',
+        reported: 'Denunciado às autoridades',
+        waiting:
+          'Este caso espera a denúncia às autoridades, que só o admin do cliente ou a Galaxie registram.',
+        flagged: 'Suspeita registrada. O conteúdo saiu do ar e está guardado.',
+        recorded: 'Denúncia registrada. O conteúdo fica guardado pelo prazo legal.',
+      },
       errors: {
+        reportFirst: 'Suspeita de abuso infantil: registre a denúncia às autoridades antes de fechar o caso.',
+        reportRole: 'Só o admin do cliente ou a Galaxie registram a denúncia às autoridades.',
+        alreadyReported: 'Este caso já foi denunciado às autoridades.',
+        alreadyFlagged: 'Este caso já está marcado como suspeita de abuso infantil.',
+        legalHold: 'O conteúdo está sob guarda legal e não volta ao ar.',
         forbidden: 'Sua sessão não abre a fila deste cliente.',
         role: 'Seu cargo não permite esta decisão aqui.',
         invalid: 'Decisão inválida. Recarregue a página e tente de novo.',
@@ -281,7 +302,28 @@ export default defineMessages(
         cancel: 'Cancel',
         done: 'Decision recorded.',
         readOnly: 'Your role can see the queue but cannot decide this item.',
+        authority: {
+          flag: 'Suspected child abuse',
+          flagHelp:
+            "Takes the content down and preserves it for the legal hold set in the country rules. The case only closes after the report to the authorities, which the client's admin or Galaxie records.",
+          report: 'Record report to the authorities',
+          reportHelp:
+            "Record it here after reporting to the proper authority. The content is kept for the country's legal hold period, counted from today, and is not deleted even at the data subject's request.",
+          reference: 'Report reference (optional)',
+          referencePlaceholder: "Number or link of the authority's record",
+          pending: 'Child abuse: report pending',
+          reported: 'Reported to the authorities',
+          waiting:
+            "This case is waiting for the report to the authorities, which only the client's admin or Galaxie can record.",
+          flagged: 'Suspicion recorded. The content was taken down and is preserved.',
+          recorded: 'Report recorded. The content is kept for the legal period.',
+        },
         errors: {
+          reportFirst: 'Suspected child abuse: record the report to the authorities before closing the case.',
+          reportRole: "Only the client's admin or Galaxie can record the report to the authorities.",
+          alreadyReported: 'This case was already reported to the authorities.',
+          alreadyFlagged: 'This case is already flagged as suspected child abuse.',
+          legalHold: 'The content is under legal hold and cannot be restored.',
           forbidden: 'Your session does not open this client’s queue.',
           role: 'Your role does not allow this decision here.',
           invalid: 'Invalid decision. Reload the page and try again.',
@@ -467,7 +509,29 @@ export default defineMessages(
         cancel: 'Cancelar',
         done: 'Decisión registrada.',
         readOnly: 'Tu cargo ve la cola, pero no decide este ítem.',
+        authority: {
+          flag: 'Sospecha de abuso infantil',
+          flagHelp:
+            'Saca el contenido de la plataforma y lo preserva por la retención legal de la ficha del país. El caso solo se cierra después de la denuncia a las autoridades, que registran el admin del cliente o Galaxie.',
+          report: 'Registrar denuncia a las autoridades',
+          reportHelp:
+            'Registrala acá después de denunciar ante el organismo competente. El contenido queda guardado por el plazo legal de la ficha del país, contado desde hoy, y no se borra ni a pedido del titular.',
+          reference: 'Número de la denuncia (opcional)',
+          referencePlaceholder: 'Número o enlace del registro en el organismo',
+          pending: 'Abuso infantil: denuncia pendiente',
+          reported: 'Denunciado a las autoridades',
+          waiting:
+            'Este caso espera la denuncia a las autoridades, que solo el admin del cliente o Galaxie registran.',
+          flagged: 'Sospecha registrada. El contenido salió de la plataforma y quedó guardado.',
+          recorded: 'Denuncia registrada. El contenido queda guardado por el plazo legal.',
+        },
         errors: {
+          reportFirst:
+            'Sospecha de abuso infantil: registrá la denuncia a las autoridades antes de cerrar el caso.',
+          reportRole: 'Solo el admin del cliente o Galaxie registran la denuncia a las autoridades.',
+          alreadyReported: 'Este caso ya fue denunciado a las autoridades.',
+          alreadyFlagged: 'Este caso ya está marcado como sospecha de abuso infantil.',
+          legalHold: 'El contenido está bajo retención legal y no vuelve a la plataforma.',
           forbidden: 'Tu sesión no abre la cola de este cliente.',
           role: 'Tu cargo no permite esta decisión acá.',
           invalid: 'Decisión inválida. Recargá la página y probá de nuevo.',

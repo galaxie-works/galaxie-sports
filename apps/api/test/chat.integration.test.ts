@@ -5,6 +5,7 @@ import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { applySanction, closeDb, createDb, runMigrations, type Database } from '@galaxie/db';
 import { sql } from 'drizzle-orm';
+import { moderationPurgeOn, purgeChatMessages } from '../src/engage/moderation-purge.js';
 import { generateAdminKey, hashAdminKey } from '../src/admin/guard.js';
 import { loadPlans } from '../src/admin/plans.js';
 import { FanTokenSigner } from '../src/engage/fan-token.js';
@@ -270,6 +271,37 @@ describe('Chat ao vivo: salas (#959)', () => {
     expect((await room(t.key, fixture)).json().data.state).toBe('open');
     expect((await send(f.token, fixture, 'agora')).statusCode).toBe(201);
     expect((await send(f.token, fixture, 'sem modo lento')).statusCode).toBe(201);
+  });
+
+  it('apagamento automático: mensagem com o relógio vencido sai e desafixa a sala', async () => {
+    clock = Date.now();
+    const t = await tenantKey('chat-expurgo', ['core_data', 'live_chat']);
+    const fixture = await game(5);
+    await app.inject({
+      method: 'PUT',
+      url: '/v1/chat/config',
+      headers: { 'x-galaxie-key': t.key },
+      payload: { slowModeSeconds: 0 },
+    });
+    const f = await fan(t.key, 1);
+    const old = (await send(f.token, fixture, 'velha')).json().data.id as string;
+    const fresh = (await send(f.token, fixture, 'nova')).json().data.id as string;
+    await db.execute(sql`update chat.message set purge_at = now() - interval '1 minute'
+                          where tenant_id = ${t.id} and id = ${old}`);
+    await db.execute(sql`update chat.room set pinned_message_id = ${old}
+                          where tenant_id = ${t.id} and event_id = ${fixture}`);
+    // desligado por padrão: a chave do painel só liga com MODERATION_PURGE=on
+    expect(await moderationPurgeOn(db, {})).toBe(false);
+    expect(await moderationPurgeOn(db, { MODERATION_PURGE: 'on' })).toBe(true);
+    expect(await purgeChatMessages(db, new Date())).toBeGreaterThanOrEqual(1);
+    const left = await db.execute<{ id: string }>(
+      sql`select id from chat.message where tenant_id = ${t.id} order by id`,
+    );
+    expect(left.map((r) => r.id)).toEqual([fresh]);
+    const [roomRow] = await db.execute<{ pinned: string | null }>(
+      sql`select pinned_message_id as pinned from chat.room where tenant_id = ${t.id} and event_id = ${fixture}`,
+    );
+    expect(roomRow?.pinned).toBeNull();
   });
 
   it('anti-flood: passou do limite do cliente em 60 s, fica sem enviar (429 com retry-after)', async () => {

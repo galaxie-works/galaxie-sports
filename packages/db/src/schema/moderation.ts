@@ -103,6 +103,18 @@ export const moderationCase = engage.table(
     resolvedBy: text('resolved_by'),
     /** Relógio de decisões: o caso resolvido sai do banco depois disso. */
     purgeAt: ts('purge_at'),
+    /** Suspeita de abuso infantil (#1289): a denúncia às autoridades é obrigatória antes de fechar o caso. */
+    childSafety: boolean('child_safety').notNull().default(false),
+    /**
+     * Guarda legal (#1289): até aqui nada do caso sai, nem pelo relógio nem por pedido de exclusão do titular. Começa na
+     * suspeita (preservação) e conta da denúncia, pelo `legalHoldDays` da ficha do país.
+     */
+    legalHoldUntil: ts('legal_hold_until'),
+    authorityReportedAt: ts('authority_reported_at'),
+    /** `user:<id>` ou `galaxie:<id>`: só o admin do cliente e a equipe Galaxie denunciam. */
+    authorityReportedBy: text('authority_reported_by'),
+    /** Protocolo ou número da denúncia no órgão (opcional). */
+    authorityReference: text('authority_reference'),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -132,6 +144,14 @@ export const moderationCase = engage.table(
     check('moderation_case_target_id', sql`length(${t.targetId}) between 1 and 200`),
     check('moderation_case_content', sql`${t.content} is null or length(${t.content}) <= 10000`),
     check('moderation_case_appeal', sql`(${t.source} = 'appeal') = (${t.sanctionId} is not null)`),
+    check(
+      'moderation_case_authority_ref',
+      sql`${t.authorityReference} is null or length(${t.authorityReference}) between 1 and 200`,
+    ),
+    check(
+      'moderation_case_authority_report',
+      sql`(${t.authorityReportedAt} is null) = (${t.authorityReportedBy} is null)`,
+    ),
   ],
 );
 
