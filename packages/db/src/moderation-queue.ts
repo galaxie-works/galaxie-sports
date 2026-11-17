@@ -1516,11 +1516,25 @@ export async function purgeModeration(
   db: Database,
 ): Promise<{ contents: number; cases: number; sanctions: number; audit: number; notes: number }> {
   return db.transaction(async (tx) => {
+    // uma réplica por vez (a API roda de hora em hora em todas): quem não pega a trava sai sem fazer nada
+    const [lock] = await tx.execute<{ ok: boolean }>(
+      sql`select pg_try_advisory_xact_lock(hashtextextended('engage.moderation:purge', 0)) as ok`,
+    );
+    if (!lock?.ok) return { contents: 0, cases: 0, sanctions: 0, audit: 0, notes: 0 };
     await tx.execute(sql`set local engage.moderation_purge = 'on'`);
+    // caso ainda na fila ou com apelação pendente guarda a prova até a decisão
     const contentCases = await tx
       .update(moderationCase)
       .set({ content: null, contentPurgeAt: null })
-      .where(and(sql`${moderationCase.contentPurgeAt} <= now()`, sql`${moderationCase.content} is not null`))
+      .where(
+        and(
+          sql`${moderationCase.contentPurgeAt} <= now()`,
+          sql`${moderationCase.content} is not null`,
+          sql`${moderationCase.status} <> 'open'`,
+          sql`not exists (select 1 from ${moderationAppeal} a where a.tenant_id = ${moderationCase.tenantId}
+            and a.case_id = ${moderationCase.id} and a.status = 'pending')`,
+        ),
+      )
       .returning({ id: moderationCase.id });
     const contentAudit = await tx
       .update(moderationAudit)

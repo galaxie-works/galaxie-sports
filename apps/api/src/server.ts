@@ -12,6 +12,7 @@ import {
   registerFanAuth,
   type FanRevocations,
 } from './engage/fan-auth.js';
+import { startModerationPurge } from './engage/moderation-purge.js';
 import { FanAgeGate } from './engage/age-gate.js';
 import { fanRoutes, type FanRoutesDeps } from './engage/fan-routes.js';
 import {
@@ -682,6 +683,9 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
     if (options.db) {
       const stopPurge = startPresencePurge(options.db, instance.log);
       instance.addHook('onClose', async () => stopPurge());
+      // apagamento automático da moderação e do chat: só com MODERATION_PURGE=on em Ajustes
+      const stopModerationPurge = startModerationPurge(options.db, instance.log);
+      instance.addHook('onClose', async () => stopModerationPurge());
     }
     await moderationRoutes(instance, { db: options.db, now: options.now, gate: fanAgeGate });
     await chatRoutes(instance, {
