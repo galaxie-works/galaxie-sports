@@ -144,7 +144,13 @@ describe('startModuleTrialAction', () => {
     ]);
     const results = [a, b].sort((x, y) => Number(y.ok) - Number(x.ok));
     expect(results[0]).toMatchObject({ ok: true, endsAt: expect.any(String) });
-    expect(results[1]).toEqual({ ok: false, error: 'Esta organização já testou este módulo.' });
+    // o segundo clique cai no índice único (se os dois chegaram juntos ao banco) ou, se o primeiro já tinha gravado
+    // quando ele leu a loja, na guarda da loja: nos dois casos nada grava
+    expect(results[1]!.ok).toBe(false);
+    expect([
+      'Esta organização já testou este módulo.',
+      'Este módulo não está disponível para teste agora.',
+    ]).toContain(results[1]!.error);
     expect(await count('billing.module_trial where organization_id = $1', [ids.org])).toBe(1);
     const overrides = await db.sql.query<{ kind: string; key: string; value: number | null; reason: string }>(
       `select kind, key, value, reason from billing.tenant_override where tenant_id = $1 order by kind, key`,
