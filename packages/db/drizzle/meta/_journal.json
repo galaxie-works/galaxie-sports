@@ -915,7 +915,14 @@
     {
       "idx": 130,
       "version": "7",
-      "when": 1794952029804,
+      "when": 1794951968621,
+      "tag": "0188_chat_antiflood",
+      "breakpoints": true
+    },
+    {
+      "idx": 131,
+      "version": "7",
+      "when": 1794953958359,
       "tag": "0189_moderacao_guarda_legal",
       "breakpoints": true
     }
