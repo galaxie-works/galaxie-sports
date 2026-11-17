@@ -147,6 +147,39 @@ export default defineMessages(
       blockedNotice:
         'Este tenant está sem acesso no momento (suspenso ou com o teste encerrado). Fale com o time da Galaxie para regularizar.',
     },
+    checklist: {
+      title: 'Primeira sessão',
+      intro: '{done} de {total} passos feitos. Cada passo se marca sozinho quando acontece.',
+      dismiss: 'Ocultar',
+      done: 'Feito',
+      pending: 'Pendente',
+      secretPlaceholder: 'RESTO_DA_CHAVE',
+      sampleWidgetName: 'Placar do dia',
+      steps: {
+        call: {
+          title: 'Primeira chamada',
+          body: 'Rode o curl com a sua chave de teste: o prefixo já está preenchido; o resto da chave apareceu uma única vez, no fim do cadastro.',
+          noKey: 'A marca não tem chave de teste ativa. Gere uma pela API ou fale com o time da Galaxie.',
+          action: 'Ver chaves',
+        },
+        widget: {
+          title: 'Um widget no ar',
+          body: 'Cole o embed do widget de exemplo numa página da origem cadastrada, com a sua chave publicável. O passo se marca na primeira requisição do widget.',
+          noWidget: 'Monte um widget no Builder e instale o embed numa página da origem cadastrada.',
+          action: 'Abrir o Builder',
+        },
+        invite: {
+          title: 'Convide alguém',
+          body: 'Convide uma pessoa da sua equipe em Usuários e cargos. O passo se marca quando ela aceitar o convite.',
+          action: 'Convidar',
+        },
+        plan: {
+          title: 'Escolha o plano',
+          body: 'Planos e módulos mostra o preço previsto e os módulos para testar. O passo se marca quando a conta sai do teste.',
+          action: 'Ver planos',
+        },
+      },
+    },
     overview: {
       plan: 'Plano',
       status: 'Situação',
@@ -1201,6 +1234,41 @@ export default defineMessages(
         unavailable: "We could not read this tenant's entitlements right now. Try again in a moment.",
         blockedNotice:
           'This tenant has no access right now (suspended or trial ended). Talk to the Galaxie team to sort it out.',
+      },
+      checklist: {
+        title: 'First session',
+        intro: '{done} of {total} steps done. Each step is checked off on its own when it happens.',
+        dismiss: 'Hide',
+        done: 'Done',
+        pending: 'Pending',
+        secretPlaceholder: 'REST_OF_KEY',
+        sampleWidgetName: "Today's scores",
+        steps: {
+          call: {
+            title: 'First call',
+            body: 'Run the curl with your test key: the prefix is filled in; the rest of the key was shown only once, at the end of sign-up.',
+            noKey:
+              'This brand has no active test key. Issue one through the API or contact the Galaxie team.',
+            action: 'See keys',
+          },
+          widget: {
+            title: 'A widget live',
+            body: "Paste the sample widget embed on a page of the registered origin, with your publishable key. The step is checked off on the widget's first request.",
+            noWidget:
+              'Build a widget in the Builder and install the embed on a page of the registered origin.',
+            action: 'Open the Builder',
+          },
+          invite: {
+            title: 'Invite someone',
+            body: 'Invite a teammate in Users and roles. The step is checked off when they accept the invitation.',
+            action: 'Invite',
+          },
+          plan: {
+            title: 'Choose your plan',
+            body: 'Plans and modules shows the expected price and the modules you can try. The step is checked off when the account leaves the trial.',
+            action: 'See plans',
+          },
+        },
       },
       overview: {
         plan: 'Plan',
@@ -2262,6 +2330,40 @@ export default defineMessages(
         unavailable: 'No pudimos leer los derechos del tenant ahora. Probá de nuevo en un momento.',
         blockedNotice:
           'Este tenant no tiene acceso por ahora (suspendido o con la prueba terminada). Hablá con el equipo de Galaxie para regularizarlo.',
+      },
+      checklist: {
+        title: 'Primera sesión',
+        intro: '{done} de {total} pasos hechos. Cada paso se marca solo cuando ocurre.',
+        dismiss: 'Ocultar',
+        done: 'Hecho',
+        pending: 'Pendiente',
+        secretPlaceholder: 'RESTO_DE_LA_CLAVE',
+        sampleWidgetName: 'Marcador del día',
+        steps: {
+          call: {
+            title: 'Primera llamada',
+            body: 'Ejecuta el curl con tu clave de prueba: el prefijo ya está completo; el resto de la clave apareció una sola vez, al final del registro.',
+            noKey:
+              'La marca no tiene clave de prueba activa. Genera una por la API o habla con el equipo de Galaxie.',
+            action: 'Ver claves',
+          },
+          widget: {
+            title: 'Un widget en el aire',
+            body: 'Pega el embed del widget de ejemplo en una página del origen registrado, con tu clave publicable. El paso se marca con la primera solicitud del widget.',
+            noWidget: 'Arma un widget en el Builder e instala el embed en una página del origen registrado.',
+            action: 'Abrir el Builder',
+          },
+          invite: {
+            title: 'Invita a alguien',
+            body: 'Invita a una persona de tu equipo en Usuarios y roles. El paso se marca cuando acepte la invitación.',
+            action: 'Invitar',
+          },
+          plan: {
+            title: 'Elige el plan',
+            body: 'Planes y módulos muestra el precio previsto y los módulos para probar. El paso se marca cuando la cuenta sale de la prueba.',
+            action: 'Ver planes',
+          },
+        },
       },
       overview: {
         plan: 'Plan',

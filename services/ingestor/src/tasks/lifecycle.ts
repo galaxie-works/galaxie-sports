@@ -10,9 +10,12 @@
  * - `cancelled` há mais de `TENANT_CANCELLED_RETENTION_DAYS`: só conta (o aviso no painel); o produto não apaga nada
  *   sem decisão do dono.
  *
+ * Depois das transições, manda os e-mails do ciclo de vida (decisão 11; `../mail/lifecycle-notifications.ts`): lembretes
+ * do trial nos dias de `TRIAL_REMINDER_DAYS`, trial vencido, teste de módulo acabando (`MODULE_TRIAL_REMINDER_DAYS_BEFORE`
+ * dias antes), suspensão e cancelamento, registrados em `billing.tenant_notification` antes do envio (idempotência).
  * E reenfileira `tenant.verify_domain` (`dedupe_key` = id do domínio) para cada domínio comprovado conferido há mais de
- * 24 h: a reconferência diária da decisão 12. Idempotente: a segunda rodada do dia não encontra nada a mudar. Os
- * e-mails de lembrete (decisão 11) entram no PR (c) da F3, dentro desta tarefa.
+ * 24 h: a reconferência diária da decisão 12. Idempotente: a segunda rodada do dia não encontra nada a mudar nem a
+ * enviar.
  */
 import { and, inArray, isNotNull, isNull, lt, or, sql } from 'drizzle-orm';
 import { transitionTenantState, TenantStateError } from '@galaxie/billing';
@@ -20,6 +23,15 @@ import { domain, readRuntimeOverrides, tenant, type Database, type TenantState }
 import { enqueue } from '@galaxie/db/queue';
 import { TENANT_VERIFY_DOMAIN } from '@galaxie/db/queue-types';
 import { resolveSetting, settingDef } from '@galaxie/runtime-config';
+import { logger } from '../logger.js';
+import {
+  parseReminderDays,
+  pgNotificationDeps,
+  sendLifecycleNotifications,
+  type NotificationDeps,
+  type NotificationReport,
+  type NotificationSettings,
+} from '../mail/lifecycle-notifications.js';
 import type { TaskHandler } from './run.js';
 
 export const LIFECYCLE_ACTOR = 'job:tenant.lifecycle';
@@ -29,8 +41,11 @@ export const DOMAIN_RECHECK_MS = 24 * 60 * 60_000;
 
 const DAY_MS = 86_400_000;
 
-/** Prazos do ciclo de vida (dias), lidos de `runtime_setting` com a precedência do painel (banco > env > padrão). */
-export interface LifecycleSettings {
+/**
+ * Prazos do ciclo de vida (dias) e os dias dos e-mails, lidos de `runtime_setting` com a precedência do painel
+ * (banco > env > padrão).
+ */
+export interface LifecycleSettings extends NotificationSettings {
   trialExpiredDays: number;
   pastDueDays: number;
   suspendedDays: number;
@@ -42,6 +57,8 @@ export const LIFECYCLE_SETTING_KEYS = {
   pastDueDays: 'TENANT_PAST_DUE_DAYS',
   suspendedDays: 'TENANT_SUSPENDED_DAYS',
   cancelledRetentionDays: 'TENANT_CANCELLED_RETENTION_DAYS',
+  trialReminderDays: 'TRIAL_REMINDER_DAYS',
+  moduleTrialReminderDaysBefore: 'MODULE_TRIAL_REMINDER_DAYS_BEFORE',
 } as const;
 
 /** Resolve os prazos a partir das sobrescritas do painel e do env (puro; `readLifecycleSettings` lê o banco). */
@@ -49,13 +66,16 @@ export function resolveLifecycleSettings(
   overrides: ReadonlyMap<string, string>,
   env: NodeJS.ProcessEnv = process.env,
 ): LifecycleSettings {
-  const read = (key: string): number => {
+  const raw = (key: string): string => {
     const def = settingDef(key);
     if (!def) throw new Error(`Chave ${key} não está no registro do painel.`);
-    const value = resolveSetting(def, { overrides, env: (k) => env[k] }).value ?? def.default;
+    return String(resolveSetting(def, { overrides, env: (k) => env[k] }).value ?? def.default);
+  };
+  const read = (key: string): number => {
+    const value = raw(key);
     const n = Number(value);
     if (!Number.isInteger(n) || n < 0)
-      throw new Error(`${key} precisa ser um inteiro ≥ 0 (recebido: ${String(value)}).`);
+      throw new Error(`${key} precisa ser um inteiro ≥ 0 (recebido: ${value}).`);
     return n;
   };
   return {
@@ -63,6 +83,8 @@ export function resolveLifecycleSettings(
     pastDueDays: read(LIFECYCLE_SETTING_KEYS.pastDueDays),
     suspendedDays: read(LIFECYCLE_SETTING_KEYS.suspendedDays),
     cancelledRetentionDays: read(LIFECYCLE_SETTING_KEYS.cancelledRetentionDays),
+    trialReminderDays: parseReminderDays(raw(LIFECYCLE_SETTING_KEYS.trialReminderDays)),
+    moduleTrialReminderDaysBefore: read(LIFECYCLE_SETTING_KEYS.moduleTrialReminderDaysBefore),
   };
 }
 
@@ -156,11 +178,14 @@ export interface LifecycleDeps {
   /** Domínios comprovados cuja última conferência é anterior a `before` (ou nunca conferidos). */
   staleDomains: (db: Database, before: Date) => Promise<{ id: string; host: string }[]>;
   enqueueVerify: (db: Database, domainId: string) => Promise<{ created: boolean }>;
+  /** E-mails do ciclo de vida (decisão 11); null desliga (ensaios que só olham as transições). */
+  notifications: NotificationDeps | null;
   now?: () => Date;
 }
 
 export const pgLifecycleDeps: Omit<LifecycleDeps, 'now'> = {
   settings: (db) => readLifecycleSettings(db),
+  notifications: pgNotificationDeps(),
   async listTenants(db) {
     return db
       .select({
@@ -214,6 +239,10 @@ export interface LifecycleReport {
   /** Tenants cancelados com a guarda vencida: o aviso; nada foi apagado. */
   retentionExpired: string[];
   domainsRechecked: number;
+  /** E-mails desta rodada (decisão 11). */
+  notifications: NotificationReport;
+  /** Os e-mails falharam em bloco (banco, transporte): registrado, e a rodada seguiu para os domínios. */
+  mailError: string | null;
 }
 
 /** Uma rodada do relógio (a CLI e a tarefa da fila chamam esta função). */
@@ -233,6 +262,8 @@ export async function runTenantLifecycle(
     refused: [],
     retentionExpired: [],
     domainsRechecked: 0,
+    notifications: { sent: [], registered: [], failed: [] },
+    mailError: null,
   };
   for (const t of tenants) {
     if (retentionExpired(t, at, settings)) report.retentionExpired.push(t.slug);
@@ -241,11 +272,22 @@ export async function runTenantLifecycle(
     try {
       await deps.transition(db, t.id, due.to, { reason: due.reason, payload: due.payload, now: at });
       report.transitions.push({ tenant: t.slug, from: t.state, to: due.to });
+      // a lista em memória acompanha o banco: quem acabou de vencer recebe o e-mail nesta rodada
+      t.state = due.to;
+      t.stateSince = at;
     } catch (err) {
       if (!(err instanceof TenantStateError)) throw err;
       report.refused.push({ tenant: t.slug, error: err.message });
     }
   }
+  // os e-mails não derrubam a rodada: a reconferência dos domínios vem depois e tem de rodar
+  if (deps.notifications)
+    try {
+      report.notifications = await sendLifecycleNotifications(db, tenants, at, settings, deps.notifications);
+    } catch (err) {
+      report.mailError = err instanceof Error ? err.message : String(err);
+      logger.error({ err }, 'tenant.lifecycle: e-mails do ciclo de vida falharam; a rodada seguiu');
+    }
   for (const d of await deps.staleDomains(db, new Date(at.getTime() - DOMAIN_RECHECK_MS))) {
     const r = await deps.enqueueVerify(db, d.id);
     if (r.created) report.domainsRechecked += 1;
@@ -266,16 +308,26 @@ export function tenantLifecycle(deps: LifecycleDeps = pgLifecycleDeps): TaskHand
         ? [`guarda vencida (nada apagado): ${report.retentionExpired.join(', ')}`]
         : []),
       `${report.domainsRechecked} domínio(s) de volta à conferência`,
+      `${report.notifications.sent.length} e-mail(s) enviado(s), ${report.notifications.registered.length} registrado(s) sem entrega, ${report.notifications.failed.length} com falha`,
+      ...report.notifications.sent.map(
+        (n) => `${n.tenant}: ${n.kind}${n.ref ? ` ${n.ref}` : ''} → ${n.recipients}`,
+      ),
+      ...report.notifications.failed.map((n) => `${n.tenant}: ${n.kind} falhou (${n.error})`),
+      ...(report.mailError ? [`e-mails interrompidos: ${report.mailError}`] : []),
     ];
     await checkpoint({ log, progresso: { feitos: report.examined, total: report.examined } });
     return {
-      detail: `${report.transitions.length} transição(ões), ${report.domainsRechecked} domínio(s) reconferido(s)`,
+      detail: `${report.transitions.length} transição(ões), ${report.notifications.sent.length} e-mail(s), ${report.domainsRechecked} domínio(s) reconferido(s)`,
       stats: {
         examinados: report.examined,
         transicoes: report.transitions.length,
         recusadas: report.refused.length,
         guardaVencida: report.retentionExpired.length,
         dominiosReconferidos: report.domainsRechecked,
+        emailsEnviados: report.notifications.sent.length,
+        emailsRegistrados: report.notifications.registered.length,
+        emailsComFalha: report.notifications.failed.length,
+        ...(report.mailError ? { emailsErro: report.mailError } : {}),
       },
     };
   };

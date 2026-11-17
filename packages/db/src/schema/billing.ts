@@ -411,3 +411,50 @@ export const moduleTrial = billing.table(
     check('module_trial_period', sql`${t.endsAt} > ${t.startedAt}`),
   ],
 );
+
+// ─── e-mails do ciclo de vida (F3, decisão 11; doc 02 §O trial e §Provisionamento, passo 9) ───────────────────────
+
+/** O que cada e-mail do ciclo de vida é; o texto fica na demo (boas-vindas) e no worker (`services/ingestor/src/mail`). */
+export const TENANT_NOTIFICATION_KINDS = [
+  'welcome',
+  'trial_reminder',
+  'trial_expired',
+  'module_trial_ending',
+  'suspended',
+  'cancelled',
+] as const;
+export type TenantNotificationKind = (typeof TENANT_NOTIFICATION_KINDS)[number];
+
+/**
+ * Registro de cada e-mail do ciclo de vida mandado aos Donos e ao Financeiro da organização: a idempotência é o índice
+ * único por tenant, `kind` e `ref` (`ref` distingue o dia do lembrete do trial, o módulo do teste acabando e o
+ * `state_since` da suspensão ou do cancelamento; vazio nos demais). Quem envia grava a linha **antes** de enviar
+ * (`insert ... on conflict do nothing`: a segunda rodada do dia não envia de novo), e depois do envio preenche `sent_at`
+ * e `recipients`; se o envio falhou, apaga a linha para a próxima rodada tentar de novo. `sent_at` nulo com a linha
+ * gravada = registrado sem entrega (SMTP não configurado ou organização sem destinatário). `kind` fica sem CHECK para
+ * um e-mail novo não pedir migration. Só cresce.
+ */
+export const tenantNotification = billing.table(
+  'tenant_notification',
+  {
+    id: pkUuidV7(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenant.id, { onDelete: 'cascade' }),
+    kind: text('kind').$type<TenantNotificationKind>().notNull(),
+    /** Dia do lembrete (`'23'`), módulo (`'chat'`), `state_since` em ISO 8601, ou vazio. */
+    ref: text('ref').notNull().default(''),
+    /** Quando o e-mail saiu de fato; null = registrado sem entrega. */
+    sentAt: timestamp('sent_at', { withTimezone: true }),
+    /** E-mails de quem recebeu (Donos e Financeiro da organização no momento do envio). */
+    recipients: text('recipients')
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex('tenant_notification_tenant_kind_ref_uq').on(t.tenantId, t.kind, t.ref),
+    index('tenant_notification_tenant_idx').on(t.tenantId, t.createdAt),
+  ],
+);

@@ -904,6 +904,13 @@
       "when": 1794928640567,
       "tag": "0186_module_trial",
       "breakpoints": true
+    },
+    {
+      "idx": 129,
+      "version": "7",
+      "when": 1794928730137,
+      "tag": "0187_tenant_notification",
+      "breakpoints": true
     }
   ]
 }
