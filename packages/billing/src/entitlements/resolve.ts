@@ -10,6 +10,9 @@ import {
 import type { CapacityTier } from '../catalog/schema.js';
 import { STATES_WITHOUT_ACCESS, type TenantState } from '../tenant-state/state.js';
 
+/** Feature que a conta em `trial` não tem, mesmo com o módulo (doc 02 §O trial: SSE sim, webhooks não). */
+export const TRIAL_WITHOUT_FEATURES: readonly string[] = ['realtime.webhooks'];
+
 /** O que o banco diz do tenant (só o que a resolução usa). */
 export type TenantRow = {
   id: string;
@@ -47,6 +50,8 @@ export type EntitlementInputs = {
   overrides: OverrideRow[];
   /** Carteira da Cosmos; null = o tenant nunca teve carteira. */
   wallet: { available: number; status: 'active' | 'blocked' } | null;
+  /** `billing.module_trial` da marca com `ends_at > now` (F3, decisão 9); ausente = nenhum módulo em teste. */
+  moduleTrials?: { module: ApiModule | string; endsAt: Date }[];
 };
 
 export type Entitlements = {
@@ -76,9 +81,18 @@ export type Entitlements = {
   markets: string[];
   /** Esportes; [] = todos. */
   sports: string[];
+  /**
+   * Cota e limite por minuto que valem agora: os do tenant ou, com a conta em `trial`, o menor entre eles e o modelo
+   * `trial` de `config/catalog/plans.yaml` (decisão 14). A API aplica estes, não as colunas do tenant.
+   */
   limits: { rateLimitPerMinute: number; dailyRequestQuota: number | null };
   credits: { available: number; status: 'active' | 'blocked' } | null;
   trialEndsAt: string | null;
+  /**
+   * Módulos em teste pela loja (F3, decisão 9): módulo → fim do teste (ISO 8601). Só os que estão em `modules` agora;
+   * o override `module_grant` do teste vence na mesma hora e o módulo sai sozinho.
+   */
+  moduleTrials: Partial<Record<ApiModule, string>>;
   /** Versão do catálogo que o tenant assinou (ou a atual, para tenant anterior ao catálogo). */
   catalogVersion: string;
   /** O que no dado do tenant não bate com o catálogo (exceção com chave desconhecida, dependência que falta). */
@@ -185,6 +199,33 @@ export function resolveEntitlements(
     else if (o.key in tiers) tiers[o.key] = o.value ?? tiers[o.key]!;
   }
 
+  // limites do teste (decisão 14; doc 02 §O trial): com a conta em `trial`, o modelo `trial` do catálogo é a tabela dos
+  // limites: cota e limite por minuto são o menor entre o do tenant e o do modelo, as faixas que o modelo lista viram
+  // teto e a feature de webhooks sai. Fora de `trial` nada muda (o tenant legado de plano `trial` já tem esses valores)
+  const limits = {
+    rateLimitPerMinute: tenant.rateLimitPerMinute,
+    dailyRequestQuota: tenant.dailyRequestQuota,
+  };
+  if (state === 'trial') {
+    const trialModel = catalog.plans.trial;
+    limits.rateLimitPerMinute = Math.min(limits.rateLimitPerMinute, trialModel.rateLimitPerMinute);
+    limits.dailyRequestQuota = minQuota(limits.dailyRequestQuota, trialModel.dailyRequestQuota);
+    for (const [k, v] of Object.entries(trialModel.tiers)) if (k in tiers) tiers[k] = Math.min(tiers[k]!, v);
+    for (const f of TRIAL_WITHOUT_FEATURES) features.delete(f);
+  }
+
+  // módulos em teste pela loja: só os que ainda estão nos direitos (o override vence junto com o teste)
+  const moduleTrials: Partial<Record<ApiModule, string>> = {};
+  for (const t of input.moduleTrials ?? []) {
+    if (t.endsAt.getTime() <= now.getTime()) continue;
+    if (!knownModules.has(t.module)) {
+      warnings.push(`teste de módulo desconhecido: ${t.module}`);
+      continue;
+    }
+    if (moduleList.includes(t.module as ApiModule))
+      moduleTrials[t.module as ApiModule] = t.endsAt.toISOString();
+  }
+
   const capTier =
     tenant.capacityTier && catalog.capacity.tiers[tenant.capacityTier]
       ? tenant.capacityTier
@@ -209,14 +250,24 @@ export function resolveEntitlements(
     },
     markets: [...tenant.markets],
     sports: [...tenant.sports],
-    limits: { rateLimitPerMinute: tenant.rateLimitPerMinute, dailyRequestQuota: tenant.dailyRequestQuota },
+    limits,
     credits: input.wallet ? { available: input.wallet.available, status: input.wallet.status } : null,
     trialEndsAt: tenant.trialEndsAt ? tenant.trialEndsAt.toISOString() : null,
+    moduleTrials: Object.fromEntries(
+      Object.entries(moduleTrials).sort(([a], [b]) => a.localeCompare(b)),
+    ) as Partial<Record<ApiModule, string>>,
     catalogVersion: tenant.catalogVersion ?? catalog.version,
     warnings,
   };
   const version = createHash('sha256').update(JSON.stringify(body)).digest('hex').slice(0, 16);
   return { ...body, version };
+}
+
+/** A menor cota diária entre duas; null = sem cota, que perde para qualquer número. */
+export function minQuota(a: number | null, b: number | null): number | null {
+  if (a === null) return b;
+  if (b === null) return a;
+  return Math.min(a, b);
 }
 
 /** O tenant pode usar o módulo agora? */

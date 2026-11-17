@@ -83,6 +83,10 @@ anômalo (§5).
 
 ## 4. Limites e cota
 
+- **Os limites valem pelos direitos** (`entitlements().limits`, plataforma comercial F3): o que a API aplica é o
+  limite por minuto e a cota dos direitos do tenant, que normalmente são as colunas `rate_limit_per_minute` e
+  `daily_request_quota`, mas na conta em `trial` são o menor entre elas e o modelo `trial` do catálogo (60 por minuto,
+  5 mil por dia; `config/catalog/plans.yaml`). `/v1/account` devolve os efetivos.
 - **Rate limit:**
   - secreta: `rate_limit_per_minute` do plano, por tenant × rota;
   - secreta de teste: 60 por rota, em balde próprio;

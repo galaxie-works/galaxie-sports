@@ -31,11 +31,14 @@ export interface TenantContext {
   markets: string[];
   /** Esportes contratados; vazio = todos. */
   sports: string[];
+  /** Limite por minuto que vale: o dos direitos (`entitlements().limits`, com os tetos do trial) ou, sem eles, a coluna. */
   rateLimitPerMinute: number;
-  /** Cota diária de produção do tenant; null/ausente = sem cota (docs/politica-de-chaves.md §4). */
+  /** Cota diária de produção que vale; null/ausente = sem cota (docs/politica-de-chaves.md §4). */
   dailyRequestQuota?: number | null;
   /** Features ligadas pelos direitos do tenant (presente quando a API resolve os direitos). */
   features?: string[];
+  /** Faixas dos direitos (`core_data.sse_connections` → 5 no trial); presente quando a API resolve os direitos. */
+  tiers?: Record<string, number>;
 }
 
 export interface AuthenticatorOptions {
@@ -377,7 +380,12 @@ function contextOf(record: KeyRecord, prefix: string): TenantContext {
  */
 export function withEntitlements(
   ctx: TenantContext,
-  ent: { modules: readonly ApiModule[]; features: readonly string[] },
+  ent: {
+    modules: readonly ApiModule[];
+    features: readonly string[];
+    limits?: { rateLimitPerMinute: number; dailyRequestQuota: number | null };
+    tiers?: Record<string, number>;
+  },
 ): TenantContext {
   const allows = ctx.keyAllows;
   const modules = withoutClosedModules(
@@ -385,7 +393,16 @@ export function withEntitlements(
     ctx.slug,
     ctx.keyKind,
   );
-  return { ...ctx, modules, features: [...ent.features] };
+  return {
+    ...ctx,
+    modules,
+    features: [...ent.features],
+    // cota e limite por minuto saem dos direitos (F3, decisão 14): no trial são os tetos do teste, não a coluna
+    ...(ent.limits
+      ? { rateLimitPerMinute: ent.limits.rateLimitPerMinute, dailyRequestQuota: ent.limits.dailyRequestQuota }
+      : {}),
+    ...(ent.tiers ? { tiers: { ...ent.tiers } } : {}),
+  };
 }
 
 export function assertModule(ctx: TenantContext, module: ApiModule): void {

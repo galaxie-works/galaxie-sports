@@ -22,9 +22,18 @@
 #
 # A cota diária vale para o uso de produção (a chave de teste fica fora): aviso a partir de 80% e
 # 429 QUOTA_EXCEEDED a partir de 110%, até a virada do dia UTC (docs/politica-de-chaves.md §4).
+#
+# O modelo `trial` tem dois papéis (plataforma comercial F3, decisão 14 do brief; doc 02 §O trial):
+#   1. plano dos tenants legados que ainda o têm (selfService: false, não ofertado; sai do código num PR próprio,
+#      decisão 13);
+#   2. **a tabela dos limites do teste**: com a conta no estado `trial`, `entitlements()` usa o menor entre o limite do
+#      tenant e o deste modelo (rateLimitPerMinute, dailyRequestQuota), fixa as faixas listadas em `tiers` como teto
+#      (core_data.sse_connections = 5) e tira a feature realtime.webhooks dos direitos. Quem muda o que o trial permite
+#      muda aqui, não no código.
 
 plans:
-  # Avaliação: 30 dias, só dados esportivos, cota baixa e sem tempo real (SSE e webhooks).
+  # Avaliação: 30 dias, cota baixa, SSE com 5 conexões e sem webhooks. Como plano, só os tenants legados; como tabela
+  # de limites, vale para toda conta em `trial` (ver cabeçalho).
   trial:
     name: Trial
     modules: [core_data]
@@ -37,6 +46,9 @@ plans:
     trialDays: 30
     # sai como plano na F3: o teste passa a ser por módulo (PL1, PL3); fica até lá para os tenants que já o têm
     selfService: false
+    tiers:
+      # teto do teste (doc 02 §O trial): o estado `trial` não passa de 5 conexões SSE
+      core_data.sse_connections: 5
 
   core_data:
     name: Core Data

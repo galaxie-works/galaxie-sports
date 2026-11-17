@@ -5,12 +5,13 @@
  */
 import {
   TENANT_STATES,
+  TENANT_STATES_WITH_ACCESS,
   TENANT_STATES_WITH_WEBHOOKS,
   TENANT_STATES_WITHOUT_ACCESS,
   type TenantState,
 } from '@galaxie/db/schema';
 
-export { TENANT_STATES, TENANT_STATES_WITH_WEBHOOKS, type TenantState };
+export { TENANT_STATES, TENANT_STATES_WITH_ACCESS, TENANT_STATES_WITH_WEBHOOKS, type TenantState };
 
 /** Estados em que a API recusa toda chave e os direitos não têm módulo nenhum (decisão 3). */
 export const STATES_WITHOUT_ACCESS: readonly TenantState[] = TENANT_STATES_WITHOUT_ACCESS;
@@ -45,4 +46,4 @@ export function canTransition(from: TenantState, to: TenantState): boolean {
 }
 
 /** O estado dá acesso à API e aos widgets? (`past_due` passa como `active`.) */
-export const stateHasAccess = (state: TenantState): boolean => !STATES_WITHOUT_ACCESS.includes(state);
+export const stateHasAccess = (state: TenantState): boolean => TENANT_STATES_WITH_ACCESS.includes(state);

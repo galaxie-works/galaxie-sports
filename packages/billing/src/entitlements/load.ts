@@ -2,6 +2,7 @@ import { and, eq, gt, isNull, sql } from 'drizzle-orm';
 import type { Database } from '@galaxie/db/client';
 import {
   catalogVersion,
+  moduleTrial,
   organization,
   tenant,
   tenantModuleLimit,
@@ -46,7 +47,7 @@ export async function loadEntitlementInputs(
     .where(eq(tenant.id, tenantId))
     .limit(1);
   if (!t) return null;
-  const [moduleLimits, overrides, wallets] = await Promise.all([
+  const [moduleLimits, overrides, wallets, moduleTrials] = await Promise.all([
     db
       .select({ key: tenantModuleLimit.key, value: tenantModuleLimit.value })
       .from(tenantModuleLimit)
@@ -74,12 +75,18 @@ export async function loadEntitlementInputs(
       .from(wallet)
       .where(eq(wallet.tenantId, tenantId))
       .limit(1),
+    // testes de módulo em curso (F3, decisão 9): o prazo que a loja mostra e que o cache respeita
+    db
+      .select({ module: moduleTrial.module, endsAt: moduleTrial.endsAt })
+      .from(moduleTrial)
+      .where(and(eq(moduleTrial.tenantId, tenantId), gt(moduleTrial.endsAt, now))),
   ]);
   return {
     tenant: { ...t, capacityTier: (t.capacityTier ?? null) as CapacityTier | null },
     moduleLimits,
     overrides,
     wallet: wallets[0] ?? null,
+    moduleTrials,
   };
 }
 
@@ -132,7 +139,11 @@ export async function entitlements(deps: EntitlementsDeps, tenantId: string): Pr
   if (deps.cache) {
     const ttl = cacheTtlSeconds(
       deps.cacheSeconds ?? ENTITLEMENTS_CACHE_SECONDS,
-      [inputs.tenant.trialEndsAt, ...inputs.overrides.map((o) => o.validUntil)],
+      [
+        inputs.tenant.trialEndsAt,
+        ...inputs.overrides.map((o) => o.validUntil),
+        ...(inputs.moduleTrials ?? []).map((m) => m.endsAt),
+      ],
       now,
     );
     if (ttl > 0) {
