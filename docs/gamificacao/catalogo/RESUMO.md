@@ -66,7 +66,7 @@ Logo atrás: aprovar em bloco as 7 exceções à régua; decidir se "Rei do plac
 
 ## 5. Arte: lote 0 e estilo padrão (16/11)
 
-Cinco Cartas de "Gol nos acréscimos" geradas pelo Magnific no estilo A, depois três no estilo galáctico e a Carta Bronze em três paletas de cliente (só cores, nunca marca). O dono aprovou o lote e **escolheu o estilo Galaxie (galáctico) como padrão**: a frase dele substituiu a do vetor plano em todas as Cartas e nos cosméticos; o guia de arte traz o estilo (seção 2.5) e o tema por cliente pela paleta (seção 7.1). Registro e custo na issue #1283.
+Cinco Cartas de "Gol nos acréscimos" geradas pelo Magnific no estilo A, depois três no estilo galáctico e a Carta Bronze em três paletas de cliente (só cores, nunca marca). O dono aprovou o lote e **escolheu o estilo Galaxie (galáctico) como padrão**: a frase dele substituiu a do vetor plano em todas as Cartas e nos cosméticos; o guia de arte traz o estilo (seção 2.5) e o tema por cliente pela paleta (seção 7.1). Registro e custo na issue #1283. **Orçamento (seção 6.5 do guia):** 50 créditos por Carta no modelo que entrega o estilo (os baratos foram testados e reprovados); o Catálogo inteiro custaria 58,6 mil, então a geração vai por portões: 7 Cartas-ouro agora, um conjunto de demonstração quando a estante mostrar placeholder, comuns e futebol quando o motor conceder os momentos, os outros esportes quando houver cliente; nunca Carta de Conquista inativa nem Catálogo regerado para prospect (o tema do cliente padrão é a interface nas cores dele, sem crédito).
 
 ## 6. Revisão independente (16/11)
 

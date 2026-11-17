@@ -385,7 +385,30 @@ Geração em lote: por Coleção, na ordem dos `card_key`, Degrau 1 ao 5, para a
 - Selo: SVG (desenhado), com PNG 512 × 512 de apoio.
 - Nome: `<card_key>.<ext>`, `<id do cosmético>.<ext>`; nunca espaço nem acento.
 
-### 6.5 Checklist de revisão humana (cada imagem, antes de aprovar)
+### 6.5 Orçamento: o que gerar, quando, e o que nunca gerar
+
+Medido em 16/11 (lote 0): o modelo que entrega o estilo custa **50 créditos por Carta em 1k** (Nano Banana 2.1 ou Flux.2 Pro; o Auto cobra 65; 2k cobra 65). Os modelos baratos foram testados e não servem: Flux.2 Klein (10 créditos) escreveu texto inventado na placa de título, e Flux.1 Fast (5) ignorou o estilo e a moldura. A economia vem do escopo, não do modelo.
+
+| Conjunto | Cartas | Créditos a 50 |
+| --- | --- | --- |
+| Catálogo inteiro | 1.172 | 58,6 mil |
+| Só Conquistas ativas, sem prompt repetido (basquete e NBA compartilham 63 cenas) | cerca de 960 | cerca de 48 mil |
+| MVP do #910 (comuns, futebol, basquete, futebol americano), ativas | 352 | 17,6 mil |
+| Comuns e futebol, ativas | 198 | 9,9 mil |
+| Conjunto de demonstração (7 Cartas-ouro + uma Coleção inteira do futebol) | cerca de 25 | cerca de 1,3 mil |
+
+**Portões (cada um com o OK do dono e o número de créditos escrito na issue #1283 antes de rodar):**
+
+1. **Agora:** só as 7 Cartas-ouro no estilo Galaxie (cerca de 350). Nada mais até o widget da estante existir.
+2. **Quando a estante (#919, #926) mostrar Carta sem arte com um placeholder por raridade:** o conjunto de demonstração (cerca de 1,3 mil). O produto roda com placeholder; a arte entra por esporte, à medida que os clientes pedirem.
+3. **Quando o motor conceder os momentos do futebol (fase 2) e a fase 0 estiver respondida:** comuns e futebol ativas (9,9 mil). Antes disso as decisões do dono ainda podem mudar Carta única em cinco Degraus ou tirar uma família inteira.
+4. **Por esporte, quando os fatos dele estiverem no motor e houver cliente para ele:** 60 a 90 Cartas por pacote (3 a 4,6 mil); basquete e NBA juntos aproveitam as 63 cenas iguais.
+
+**Nunca:** Carta de Conquista inativa (143 Cartas, 7,2 mil créditos jogados fora); o Catálogo inteiro de uma vez; o Catálogo regerado na paleta de um prospect (seção 7.1); moldura por IA depois que a interface passar a desenhá-la (a moldura desenhada pela interface elimina a maior causa de regeração e permite o tema do cliente gratuito).
+
+**Reserva de regeração:** 15% do lote. Lote que estourar para, e o motivo (texto escapando, cor de clube, mão deformada) volta para o prompt antes de continuar. Gasto real anotado na #1283 a cada lote.
+
+### 6.6 Checklist de revisão humana (cada imagem, antes de aprovar)
 
 Olhar o master e depois a versão de 120 px.
 
@@ -442,8 +465,8 @@ A cena, o enquadramento, o estilo, a moldura e o negative não mudam. O estilo G
 
 1. **Só cores, nunca marca.** Nenhum logotipo, nome, slogan ou tipografia do cliente entra no prompt nem na imagem; a identidade é a paleta. O negative padrão continua.
 2. **A paleta do cliente não fica neste repositório.** Nomes de clientes e suas cores ficam no cadastro do programa (`game.program`, campo de tema, a criar na issue de cosméticos) ou no Brand Kit do Magnific; aqui só o mecanismo e exemplos por cor.
-3. **Gerar por programa, não por Carta.** O conjunto do cliente é uma geração completa do Catálogo com a frase de paleta; não se mistura Carta neutra com Carta temática na mesma estante.
-4. **Para venda, as Cartas-ouro.** Antes de fechar um cliente, gerar as sete peças da seção 7 (uma por raridade, um fundo, a moldura de avatar do Nível 10) na paleta dele: custa pouco e é o que vai na proposta.
+3. **Tema do cliente em dois níveis, pelo custo.** O nível padrão é **gratuito**: a arte neutra do Catálogo com a interface (moldura, placa de título, fundo da estante, selo) nas cores do cliente, configurada no programa. O nível completo, a arte inteira regerada com a frase de paleta, custa o Catálogo de novo (cerca de 50 mil créditos) e **só se faz com contrato assinado e esse custo no preço**; nunca por prospecção. Não se mistura Carta neutra com Carta temática na mesma estante.
+4. **Para venda, só as Cartas-ouro.** Para um prospect concreto (proposta em andamento), as sete peças da seção 7 na paleta dele, cerca de 350 créditos; nada além disso antes do contrato.
 5. **Moldura por raridade.** Com paleta escura, a moldura `common` (cinza fosco) perde leitura; a segunda rodada (seção 8) resolve com a moldura desenhada pela interface.
 6. **Produção com Brand Kit.** Para o cliente real, o Brand Kit do Magnific com o modelo Magnific One aplica a paleta de forma mais fiel do que a frase; a frase serve para a demonstração e para gerar em outros modelos.
 
