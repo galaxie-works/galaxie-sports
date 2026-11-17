@@ -35,3 +35,9 @@ description = "Chaves de itens da base semântica (pt-BR.cheer-3-derby, es-AR.al
 # Só a linha inteira "key: '<locale>.<slug>'," (testes e fixtures da revisão semântica).
 regexTarget = "line"
 regexes = ['''^\s*key:\s*'[a-z]{2}(-[A-Z]{2})?\.[a-z0-9][a-z0-9-]*',?\s*$''']
+
+[[allowlists]]
+description = "card_key do Catálogo de Conquistas (docs/gamificacao/catalogo): id da Conquista + Degrau, não segredo"
+# Só a linha inteira `"card_key": "<id>.<degrau>"` dos JSON do Catálogo.
+regexTarget = "line"
+regexes = ['''^\s*"card_key":\s*"[a-z0-9_]+(\.[a-z0-9_]+)+",?\s*$''']
