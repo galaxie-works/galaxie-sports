@@ -11,15 +11,14 @@ import { fill } from '@/lib/i18n/text';
 import { can, canSomewhere } from '@/lib/client/permissions';
 import { isStaffRole } from '@/lib/auth/roles';
 
+import { ClientNavSheet, ClientSideNav } from './client-nav';
 import {
   CLIENT_NAV,
-  ClientNavSheet,
-  ClientSideNav,
   navRequirement,
   sectionsForState,
   STATES_WITH_NOTICE_ONLY,
   type ClientSection,
-} from './client-nav';
+} from './client-nav-shared';
 import { StaffReasonBanner } from './staff-reason-banner';
 import { TenantStateNotice, type NoticeState } from './tenant-state-notice';
 import { TenantSwitcher } from './tenant-switcher';
