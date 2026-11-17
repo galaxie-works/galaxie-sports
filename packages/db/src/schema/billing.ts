@@ -385,6 +385,7 @@ export const tenantStateEvent = billing.table(
  * transação, esta linha, um `tenant_override` `module_grant` do módulo e um `tenant_override` `tier` por faixa com o
  * mínimo do catálogo, todos com `valid_until = ends_at` e `reason = 'module_trial'`: no fim o override vence sozinho e o
  * módulo sai dos direitos, sem job. `started_by`: `panel:<id do usuário>` ou `galaxie:<id>`. Só cresce: a linha fica
+ * (as duas FKs são `restrict`: nem apagar a marca nem a organização apaga a prova do teste usado)
  * como prova de que o teste já foi usado.
  */
 export const moduleTrial = billing.table(
@@ -394,9 +395,10 @@ export const moduleTrial = billing.table(
     organizationId: uuid('organization_id')
       .notNull()
       .references(() => organization.id, { onDelete: 'restrict' }),
+    /** Marca que ligou o teste; `restrict` nos dois lados: apagar a marca ou a organização não pode apagar a prova. */
     tenantId: uuid('tenant_id')
       .notNull()
-      .references(() => tenant.id, { onDelete: 'cascade' }),
+      .references(() => tenant.id, { onDelete: 'restrict' }),
     module: text('module').$type<ApiModule>().notNull(),
     startedAt: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
     endsAt: timestamp('ends_at', { withTimezone: true }).notNull(),

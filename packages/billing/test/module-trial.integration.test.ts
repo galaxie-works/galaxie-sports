@@ -173,6 +173,41 @@ describe('startModuleTrial', () => {
     });
   });
 
+  it('marca de outra organização (ou inexistente): wrong_organization, sem gravar nada', async () => {
+    const org = await newOrganization('org-teste-e');
+    const other = await newOrganization('org-teste-e2');
+    const id = await newTenant('teste-e', org);
+    await expect(
+      startModuleTrial(db, catalog, {
+        tenantId: id,
+        organizationId: other,
+        module: 'live_chat',
+        actor: 'panel:u5',
+      }),
+    ).rejects.toMatchObject({ code: 'wrong_organization' });
+    await expect(
+      startModuleTrial(db, catalog, {
+        tenantId: '00000000-0000-7000-8000-00000000dead',
+        organizationId: org,
+        module: 'live_chat',
+        actor: 'panel:u5',
+      }),
+    ).rejects.toMatchObject({ code: 'wrong_organization' });
+    expect(await overridesOf(id)).toHaveLength(0);
+    expect(
+      await db.select({ id: moduleTrial.id }).from(moduleTrial).where(eq(moduleTrial.organizationId, other)),
+    ).toHaveLength(0);
+    // a organização certa segue livre para testar
+    await expect(
+      startModuleTrial(db, catalog, {
+        tenantId: id,
+        organizationId: org,
+        module: 'live_chat',
+        actor: 'panel:u5',
+      }),
+    ).resolves.toMatchObject({ module: 'live_chat' });
+  });
+
   it('entitlements com transação aberta é recusado antes de gravar (a invalidação rodaria antes do commit)', async () => {
     const org = await newOrganization('org-teste-d');
     const id = await newTenant('teste-d', org);
