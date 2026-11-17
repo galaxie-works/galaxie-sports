@@ -162,6 +162,10 @@ api-sports); os logos enviados à mão em Ajustes → Grades e ofertas e os do a
 - NAS: `ssh/known_hosts` com a chave de host nova e, com IP novo, `VPS_HOST` da stack `galaxie-sports-backup-nas`
   ([exercicio-dr.md › Cópia no NAS](exercicio-dr.md)) e da stack `nas-replica` (o `known_hosts` dela também; a réplica
   se refaz numa VPS nova: `preparar-replica.sh` e [replica-no-nas.md › Refazer](replica-no-nas.md#refazer-a-réplica)).
+- Réplica no NAS ([docs/16](../16-implantacao.md)) ([docs/16](../16-implantacao.md)): a VPS nova precisa do papel de replicação, do `pg_hba`, do slot com
+  teto e das chaves SSH restritas do túnel e do recibo (#1306); a stack `nas-replica` aponta para o host novo e faz a
+  primeira sincronização inteira de novo. Passo a passo em [replica-no-nas.md](replica-no-nas.md). Enquanto a réplica não volta,
+  o deploy com migration nova usa `DUMP_MODE=vps`.
 - Monitor externo e alertas por push: nada muda se os domínios forem os mesmos.
 - Rodar o workflow Deploy com `sha=<o mesmo SHA>` e `force=1` para conferir o caminho do Actions (smoke incluído).
 

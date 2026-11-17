@@ -1,9 +1,14 @@
 # infra/backup
 
-Imagem `galaxie-sports-backup`: dump diário do Postgres, validação, retenção, cópia opcional para S3 e os scripts de
+Imagem `galaxie-sports-backup`: dump do Postgres (diário até 11/2026; semanal no desenho novo), validação, retenção, cópia opcional para S3 e os scripts de
 restauração. Roda como o serviço `backup` da stack da VPS ([`infra/vps-telemetry/compose.yml`](../vps-telemetry/compose.yml)).
-A cópia para o NAS (camada 2 do 3-2-1) fica em [`infra/nas-backup`](../nas-backup); o verificador e o ensaio mensal, em
+A cópia para o NAS fica em [`infra/nas-backup`](../nas-backup); o verificador e o ensaio mensal, em
 [docs/runbooks/exercicio-dr.md](../../docs/runbooks/exercicio-dr.md).
+
+> **Desenho novo desde 17/11/2026** ([docs/16 · Implantação](../../docs/16-implantacao.md)): o dump diário e o de
+> pré-deploy nascem no NAS, a partir da réplica do Postgres (stack `nas-replica`, #1307), e este serviço fica na VPS
+> com o dump semanal, a cópia dos prefixos do S3, o verificador e o ensaio (#1309). O agendamento diário descrito
+> abaixo é o **histórico (até 11/2026)**, que segue até a execução da réplica (#1312).
 
 | Script | O que faz |
 |---|---|
