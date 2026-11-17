@@ -30,7 +30,7 @@ test.describe('cliente logado', () => {
     // a moldura do console (`components/client/client-area.tsx`, servidor) chama `sectionsForState` e `navRequirement`,
     // exportadas de `client-nav.tsx`, que é `'use client'` ("Attempted to call sectionsForState() from the server").
     // Quando a correção entrar, este teste passa a "passar inesperadamente" e o `test.fail` sai junto.
-    test.fail(true, 'console do cliente quebra no servidor: sectionsForState vem de um módulo use client');
+    test.fail(true, 'console do cliente quebra no servidor: sectionsForState vem de um módulo use client (#1346)');
     await page.goto('/client');
     await expect(page).toHaveURL(/\/client$/);
     await expect(page.getByText('Marca E2E').first()).toBeVisible();
