@@ -29,6 +29,10 @@ services:
     # no pico chega a 97, as 97 vagas de antes (conta no README › Conexões). Cada conexão ociosa custa ~5 MB: 130 × 5 =
     # 650 MB + 512 MB de shared_buffers cabem no limite de 2,5 GB mesmo no pior caso (o uso real fica em ~600 MB). Teto
     # para sessão esquecida em transação (psql à mão); os da aplicação vêm por pool (packages/db/src/client.ts).
+    # Réplica no NAS (docs/runbooks/replica-no-nas.md): wal_level=replica, max_wal_senders=10 e max_replication_slots=10
+    # são os padrões do Postgres 17 e bastam; wal_keep_size e max_slot_wal_keep_size (contexto sighup) são aplicados pelo
+    # preparar-replica.sh com ALTER SYSTEM a partir do .env (REPLICA_WAL_KEEP_SIZE, REPLICA_MAX_SLOT_WAL_KEEP_SIZE), sem
+    # recriar este serviço; ficam no postgresql.auto.conf do volume. Um -c aqui ganharia deles: mantenha os valores iguais.
     command:
       - postgres
       - -c
@@ -54,6 +58,26 @@ services:
       interval: 10s
       timeout: 5s
       retries: 20
+    logging: *logging
+
+  # Porta local para o túnel SSH da réplica do NAS (docs/runbooks/replica-no-nas.md): publica o Postgres da stack só em
+  # 127.0.0.1 da VPS (REPLICA_PROXY_BIND) por um socat avulso, sem recriar o postgres (publicar a porta nele exigiria
+  # parar o banco). O túnel do NAS chega com permitopen="127.0.0.1:5432" e o Postgres vê a conexão vindo do IP deste
+  # contêiner (rede da stack, 172.30.50.0/24), que é o que o pg_hba liberado pelo preparar-replica.sh aceita para o papel
+  # replicador. Sem a stack do NAS o serviço é inofensivo: só loopback da VPS, e o papel exige senha. Subir:
+  # preparar-replica.sh (ou docker compose -f compose.dados.yml up -d --no-deps replica-proxy).
+  replica-proxy:
+    image: alpine:3.22
+    restart: unless-stopped
+    mem_limit: 32m
+    ports:
+      - ${REPLICA_PROXY_BIND:-127.0.0.1:5432}:5432
+    depends_on:
+      - postgres
+    entrypoint:
+      - /bin/sh
+      - -c
+      - apk add --no-cache -q socat && exec socat -d TCP-LISTEN:5432,fork,reuseaddr TCP:postgres:5432
     logging: *logging
 
   valkey:
