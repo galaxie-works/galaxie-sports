@@ -1,0 +1,1738 @@
+[
+  {
+    "id": "american_football.explorer.months",
+    "sport": "american-football",
+    "category": "participation",
+    "family": "explorer",
+    "collection": "american_football.gridiron_tour",
+    "rule": {
+      "input": "participation",
+      "action": "watched",
+      "where": {
+        "sport": [
+          "american-football"
+        ]
+      },
+      "count": {
+        "mode": "distinct",
+        "key": "month"
+      }
+    },
+    "requires_data": [
+      "fan.participation",
+      "fan.presence",
+      "event.sport",
+      "event.starts_at",
+      "program.time_zone"
+    ],
+    "stepped": true,
+    "seasonal": false,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "o calendário é curto: o universitário vai do fim de agosto a janeiro e o profissional de setembro a fevereiro, 7 meses com jogo por ano somando os dois; Platina = 7 meses (um ano inteiro de bola), Lendário = 14 (dois anos) (fonte: fbschedules.com/college-football-schedule-2024-the-hawaii-exemption-and-week-zero; si.com/nfl/2021/01/09/nfl-expanded-playoffs-explained)",
+    "name": {
+      "pt": "De agosto a fevereiro",
+      "es": "De agosto a febrero",
+      "en": "August to February"
+    },
+    "description": {
+      "pt": "Assista a futebol americano em meses diferentes do ano.",
+      "es": "Mira fútbol americano en meses distintos del año.",
+      "en": "Watch football in different months of the year."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 0,
+        "card_key": "american_football.explorer.months.1"
+      },
+      {
+        "step": 2,
+        "threshold": 2,
+        "bonus_points": 0,
+        "card_key": "american_football.explorer.months.2"
+      },
+      {
+        "step": 3,
+        "threshold": 4,
+        "bonus_points": 0,
+        "card_key": "american_football.explorer.months.3"
+      },
+      {
+        "step": 4,
+        "threshold": 7,
+        "bonus_points": 0,
+        "card_key": "american_football.explorer.months.4"
+      },
+      {
+        "step": 5,
+        "threshold": 14,
+        "bonus_points": 0,
+        "card_key": "american_football.explorer.months.5"
+      }
+    ]
+  },
+  {
+    "id": "american_football.explorer.teams",
+    "sport": "american-football",
+    "category": "participation",
+    "family": "explorer",
+    "collection": "american_football.gridiron_tour",
+    "rule": {
+      "input": "participation",
+      "action": "watched",
+      "where": {
+        "sport": [
+          "american-football"
+        ]
+      },
+      "count": {
+        "mode": "distinct",
+        "key": "team"
+      }
+    },
+    "requires_data": [
+      "fan.participation",
+      "fan.presence",
+      "event.sport",
+      "event.participants"
+    ],
+    "stepped": true,
+    "seasonal": false,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "a liga profissional tem 32 times e o universitário de primeira divisão 134 programas; cada jogo assistido soma 2 times; um torcedor assíduo vê 40 a 50 times diferentes por temporada; Platina = 32 (a liga inteira), Lendário = 80 (fonte: en.wikipedia.com/wiki/NCAA_FBS; profootballrumors.com/2020/03/nfl-officially-expands-playoffs-to-14-teams)",
+    "name": {
+      "pt": "Mapa dos times",
+      "es": "Mapa de equipos",
+      "en": "Team Map"
+    },
+    "description": {
+      "pt": "Assista a jogos de times diferentes de futebol americano.",
+      "es": "Mira partidos de equipos distintos de fútbol americano.",
+      "en": "Watch games featuring different football teams."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 2,
+        "bonus_points": 0,
+        "card_key": "american_football.explorer.teams.1"
+      },
+      {
+        "step": 2,
+        "threshold": 5,
+        "bonus_points": 0,
+        "card_key": "american_football.explorer.teams.2"
+      },
+      {
+        "step": 3,
+        "threshold": 12,
+        "bonus_points": 0,
+        "card_key": "american_football.explorer.teams.3"
+      },
+      {
+        "step": 4,
+        "threshold": 32,
+        "bonus_points": 0,
+        "card_key": "american_football.explorer.teams.4"
+      },
+      {
+        "step": 5,
+        "threshold": 80,
+        "bonus_points": 0,
+        "card_key": "american_football.explorer.teams.5"
+      }
+    ]
+  },
+  {
+    "id": "american_football.loyalty.favorite_games",
+    "sport": "american-football",
+    "category": "participation",
+    "family": "loyalty",
+    "collection": "american_football.faithful",
+    "rule": {
+      "input": "participation",
+      "action": "watched",
+      "where": {
+        "sport": [
+          "american-football"
+        ],
+        "favorite_playing": true
+      }
+    },
+    "requires_data": [
+      "fan.participation",
+      "fan.presence",
+      "fan.favorite_team_id",
+      "event.participants",
+      "event.sport"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "a temporada regular profissional tem 17 jogos por time desde 2021, mais até 4 de playoff; o universitário tem 12 mais final de conferência, bowl ou playoff; Platina = os 17 da temporada regular, Lendário = 45, cerca de 2,5 temporadas (fonte: si.com/nfl/2021/01/09/nfl-expanded-playoffs-explained; fbschedules.com/college-football-schedule-2024-the-hawaii-exemption-and-week-zero)",
+    "name": {
+      "pt": "Fiel ao time",
+      "es": "Fiel al equipo",
+      "en": "True to the Team"
+    },
+    "description": {
+      "pt": "Assista aos jogos do seu time do coração.",
+      "es": "Mira los partidos de tu equipo del corazón.",
+      "en": "Watch your favorite team’s games."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 0,
+        "card_key": "american_football.loyalty.favorite_games.1"
+      },
+      {
+        "step": 2,
+        "threshold": 3,
+        "bonus_points": 0,
+        "card_key": "american_football.loyalty.favorite_games.2"
+      },
+      {
+        "step": 3,
+        "threshold": 8,
+        "bonus_points": 0,
+        "card_key": "american_football.loyalty.favorite_games.3"
+      },
+      {
+        "step": 4,
+        "threshold": 17,
+        "bonus_points": 0,
+        "card_key": "american_football.loyalty.favorite_games.4"
+      },
+      {
+        "step": 5,
+        "threshold": 45,
+        "bonus_points": 0,
+        "card_key": "american_football.loyalty.favorite_games.5"
+      }
+    ]
+  },
+  {
+    "id": "american_football.loyalty.favorite_streak",
+    "sport": "american-football",
+    "category": "participation",
+    "family": "loyalty",
+    "collection": "american_football.faithful",
+    "rule": {
+      "input": "participation",
+      "action": "watched",
+      "where": {
+        "sport": [
+          "american-football"
+        ],
+        "favorite_playing": true
+      },
+      "count": {
+        "mode": "streak",
+        "unit": "game"
+      }
+    },
+    "requires_data": [
+      "fan.participation",
+      "fan.presence",
+      "fan.favorite_team_id",
+      "event.participants",
+      "event.sport"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria: com um jogo por semana, um torcedor assíduo assiste a 80 a 90% dos jogos do time; 17 seguidos é a temporada regular inteira sem falhar e 34 são duas temporadas (base: 17 jogos por time, si.com/nfl/2021/01/09/nfl-expanded-playoffs-explained)",
+    "name": {
+      "pt": "Sem perder um jogo",
+      "es": "Sin perderse un partido",
+      "en": "Never Miss a Game"
+    },
+    "description": {
+      "pt": "Assista a jogos seguidos do seu time, sem pular nenhum.",
+      "es": "Mira partidos seguidos de tu equipo, sin saltarte ninguno.",
+      "en": "Watch your team’s games back to back, without skipping one."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 2,
+        "bonus_points": 0,
+        "card_key": "american_football.loyalty.favorite_streak.1"
+      },
+      {
+        "step": 2,
+        "threshold": 4,
+        "bonus_points": 0,
+        "card_key": "american_football.loyalty.favorite_streak.2"
+      },
+      {
+        "step": 3,
+        "threshold": 8,
+        "bonus_points": 0,
+        "card_key": "american_football.loyalty.favorite_streak.3"
+      },
+      {
+        "step": 4,
+        "threshold": 17,
+        "bonus_points": 0,
+        "card_key": "american_football.loyalty.favorite_streak.4"
+      },
+      {
+        "step": 5,
+        "threshold": 34,
+        "bonus_points": 0,
+        "card_key": "american_football.loyalty.favorite_streak.5"
+      }
+    ]
+  },
+  {
+    "id": "american_football.loyalty.playoff_watched",
+    "sport": "american-football",
+    "category": "participation",
+    "family": "loyalty",
+    "collection": "american_football.postseason",
+    "rule": {
+      "input": "participation",
+      "action": "watched",
+      "where": {
+        "sport": [
+          "american-football"
+        ],
+        "stage": [
+          "knockout"
+        ]
+      }
+    },
+    "requires_data": [
+      "fan.participation",
+      "fan.presence",
+      "event.sport",
+      "event.stage.kind"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "13 jogos de playoff profissional por temporada (14 times classificados) e 11 do playoff universitário de 12 times; um torcedor assíduo assiste a cerca de 10 por temporada (fonte: profootballrumors.com/2020/03/nfl-officially-expands-playoffs-to-14-teams; si.com/college/tcu/football/12-team-college-football-playoff-begins-2024)",
+    "name": {
+      "pt": "Janeiro em campo",
+      "es": "Enero en la cancha",
+      "en": "January Football"
+    },
+    "description": {
+      "pt": "Assista a jogos de playoff de qualquer time.",
+      "es": "Mira partidos de postemporada de cualquier equipo.",
+      "en": "Watch playoff games from any team."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 0,
+        "card_key": "american_football.loyalty.playoff_watched.1"
+      },
+      {
+        "step": 2,
+        "threshold": 2,
+        "bonus_points": 0,
+        "card_key": "american_football.loyalty.playoff_watched.2"
+      },
+      {
+        "step": 3,
+        "threshold": 5,
+        "bonus_points": 0,
+        "card_key": "american_football.loyalty.playoff_watched.3"
+      },
+      {
+        "step": 4,
+        "threshold": 10,
+        "bonus_points": 0,
+        "card_key": "american_football.loyalty.playoff_watched.4"
+      },
+      {
+        "step": 5,
+        "threshold": 25,
+        "bonus_points": 0,
+        "card_key": "american_football.loyalty.playoff_watched.5"
+      }
+    ]
+  },
+  {
+    "id": "american_football.loyalty.rivalry_watched",
+    "sport": "american-football",
+    "category": "participation",
+    "family": "loyalty",
+    "collection": "american_football.rivalry",
+    "rule": {
+      "input": "participation",
+      "action": "watched",
+      "where": {
+        "sport": [
+          "american-football"
+        ],
+        "derby": true
+      }
+    },
+    "requires_data": [
+      "fan.participation",
+      "fan.presence",
+      "event.sport",
+      "event.derby_id"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria sobre o calendário: 6 jogos de divisão do próprio time por temporada mais os clássicos de outros times e as rivalidades universitárias de fim de temporada; um torcedor assíduo assiste a cerca de 8 por temporada (base: si.com/nfl/2021/01/09/nfl-expanded-playoffs-explained)",
+    "name": {
+      "pt": "Dia de clássico",
+      "es": "Día de clásico",
+      "en": "Rivalry Day"
+    },
+    "description": {
+      "pt": "Assista a clássicos de futebol americano, do seu time ou de qualquer outro.",
+      "es": "Mira clásicos de fútbol americano, de tu equipo o de cualquier otro.",
+      "en": "Watch football rivalry games, your team’s or anyone else’s."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 0,
+        "card_key": "american_football.loyalty.rivalry_watched.1"
+      },
+      {
+        "step": 2,
+        "threshold": 2,
+        "bonus_points": 0,
+        "card_key": "american_football.loyalty.rivalry_watched.2"
+      },
+      {
+        "step": 3,
+        "threshold": 4,
+        "bonus_points": 0,
+        "card_key": "american_football.loyalty.rivalry_watched.3"
+      },
+      {
+        "step": 4,
+        "threshold": 8,
+        "bonus_points": 0,
+        "card_key": "american_football.loyalty.rivalry_watched.4"
+      },
+      {
+        "step": 5,
+        "threshold": 20,
+        "bonus_points": 0,
+        "card_key": "american_football.loyalty.rivalry_watched.5"
+      }
+    ]
+  },
+  {
+    "id": "american_football.moments.big_quarter",
+    "sport": "american-football",
+    "category": "moment",
+    "family": "moments",
+    "collection": "american_football.fireworks",
+    "rule": {
+      "input": "moment",
+      "fact": "score.period",
+      "params": {
+        "team": "favorite",
+        "period": "any",
+        "points_min": 21
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria: um time marca em média 5 a 6 pontos por quarto (22 a 23 por jogo em 2020-25, média combinada de 45,9), e 21 ou mais num único quarto pede três touchdowns em quinze minutos; cerca de 6 a 10% dos jogos de um time, ou 1 a 2 por temporada (base: deucescracked.com/blog/nfl-margin-of-victory-data-1999-2025)",
+    "name": {
+      "pt": "Quarto de 21",
+      "es": "Cuarto de 21",
+      "en": "Twenty-One Quarter"
+    },
+    "description": {
+      "pt": "Assista ao jogo em que seu time marca vinte e um pontos ou mais num único quarto.",
+      "es": "Mira el partido en que tu equipo anota veintiún puntos o más en un solo cuarto.",
+      "en": "Watch the game where your team scores twenty-one or more points in a single quarter."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 60,
+        "card_key": "american_football.moments.big_quarter.1"
+      }
+    ]
+  },
+  {
+    "id": "american_football.moments.comeback_14",
+    "sport": "american-football",
+    "category": "moment",
+    "family": "moments",
+    "collection": "american_football.comebacks",
+    "rule": {
+      "input": "moment",
+      "fact": "score.comeback",
+      "params": {
+        "team": "favorite",
+        "trailing_by_min": 14,
+        "at": "any"
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "viradas de 14 ou mais pontos: 9 na liga profissional em 2024 e 11 em 2023, em 272 jogos (3 a 4% dos jogos); para o time do torcedor, cerca de 0,3 por temporada, uma a cada 3 temporadas (fonte: champsorchumps.us/records/biggest-nfl-comebacks-in-2024; champsorchumps.us/records/biggest-nfl-comebacks-in-2023)",
+    "name": {
+      "pt": "Virada de dois touchdowns",
+      "es": "Remontada de dos touchdowns",
+      "en": "Two-Touchdown Comeback"
+    },
+    "description": {
+      "pt": "Assista ao jogo em que seu time vence depois de estar catorze pontos atrás.",
+      "es": "Mira el partido en que tu equipo gana tras estar catorce puntos abajo.",
+      "en": "Watch the game where your team wins after trailing by fourteen points."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 120,
+        "card_key": "american_football.moments.comeback_14.1"
+      }
+    ]
+  },
+  {
+    "id": "american_football.moments.comeback_21",
+    "sport": "american-football",
+    "category": "moment",
+    "family": "moments",
+    "collection": "american_football.comebacks",
+    "rule": {
+      "input": "moment",
+      "fact": "score.comeback",
+      "params": {
+        "team": "favorite",
+        "trailing_by_min": 21,
+        "at": "any"
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "viradas de 21 ou mais pontos: 0 em 2024 e 2 em 2023 na liga profissional (272 jogos por temporada); a maior virada da história regular foi de 33 pontos; uma franquia tradicional tem 7 vitórias em 113 jogos em que esteve 21 atrás; para o time do torcedor, menos de uma a cada 15 temporadas (fonte: theanalyst.com/articles/biggest-comeback-wins-in-nfl-history; champsorchumps.us/records/biggest-nfl-comebacks-in-2023)",
+    "name": {
+      "pt": "Virada impossível",
+      "es": "Remontada imposible",
+      "en": "Impossible Comeback"
+    },
+    "description": {
+      "pt": "Assista ao jogo em que seu time vence depois de estar vinte e um pontos atrás.",
+      "es": "Mira el partido en que tu equipo gana tras estar veintiún puntos abajo.",
+      "en": "Watch the game where your team wins after trailing by twenty-one points."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 200,
+        "card_key": "american_football.moments.comeback_21.1"
+      }
+    ]
+  },
+  {
+    "id": "american_football.moments.forty_points",
+    "sport": "american-football",
+    "category": "moment",
+    "family": "moments",
+    "collection": "american_football.fireworks",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win",
+        "margin_min": 14
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id",
+      "proposed.rule.params.score.result.points_min"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": false,
+    "inactive_reason": "o dado existe (event.score traz os pontos do time), mas o fato score.result não tem parâmetro de pontos do próprio time: total_min soma os dois lados e points_min só existe em score.period. Precisa do parâmetro points_min em score.result (proposed.rule.params.score.result.points_min). A regra acima é só a aproximação (vitória por 14 ou mais).",
+    "real_world_frequency": "estimativa própria: o time que mais marcou 40 ou mais pontos desde 2018 tem 22 jogos assim em 7 temporadas (3 por ano), e os de menos têm 1 em 5 temporadas; a média da liga fica em 4 a 6% dos jogos de um time, 0,7 a 1 por temporada (base: statmuse.com/nfl/ask/most-games-with-40-points-by-an-nfl-team-since-2018; statmuse.com/nfl/ask/fewest-games-with-40-points-by-an-nfl-team-since-2020)",
+    "name": {
+      "pt": "Quarenta pontos",
+      "es": "Cuarenta puntos",
+      "en": "Forty Points"
+    },
+    "description": {
+      "pt": "Assista ao jogo em que seu time marca quarenta pontos ou mais.",
+      "es": "Mira el partido en que tu equipo anota cuarenta puntos o más.",
+      "en": "Watch the game where your team scores forty points or more."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 60,
+        "card_key": "american_football.moments.forty_points.1"
+      }
+    ]
+  },
+  {
+    "id": "american_football.moments.fourth_quarter_comeback",
+    "sport": "american-football",
+    "category": "moment",
+    "family": "moments",
+    "collection": "american_football.comebacks",
+    "rule": {
+      "input": "moment",
+      "fact": "score.comeback",
+      "params": {
+        "team": "favorite",
+        "trailing_by_min": 1,
+        "at": "last_regular"
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "o time que entra perdendo no 4º quarto vence 16,3% das vezes (39 vitórias em 245 jogos com alguém atrás em 2016, igual à média histórica), ou seja, cerca de 15% dos jogos têm virada no último quarto; para o time do torcedor, 1 a 1,5 por temporada de 17 jogos (fonte: footballperspective.com/games-are-closer-than-ever-now-part-ii/)",
+    "name": {
+      "pt": "Virada no último quarto",
+      "es": "Remontada en el último cuarto",
+      "en": "Fourth-Quarter Comeback"
+    },
+    "description": {
+      "pt": "Assista ao jogo em que seu time entra perdendo no último quarto e vence.",
+      "es": "Mira el partido en que tu equipo entra perdiendo al último cuarto y gana.",
+      "en": "Watch the game where your team enters the fourth quarter behind and wins."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 60,
+        "card_key": "american_football.moments.fourth_quarter_comeback.1"
+      }
+    ]
+  },
+  {
+    "id": "american_football.moments.overtime_win",
+    "sport": "american-football",
+    "category": "moment",
+    "family": "moments",
+    "collection": "american_football.comebacks",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win",
+        "overtime": true
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "cerca de 5 a 6% dos jogos da liga profissional vão à prorrogação (16 em 272 em 2024, 13 em 2023; 5,5% na série longa da liga); no universitário, 4 a 6% (30 a 36 jogos por ano); para o time do torcedor, cerca de 1 prorrogação e 0,5 vitória em prorrogação por temporada (fonte: nbcsports.com/nfl/profootballtalk/rumor-mill/news/nfl-had-nearly-500-fewer-plays-from-scrimmage-in-2024; operations.nfl.com/gameday/analytics/stats-articles/using-data-and-analytics-to-evaluate-the-2022-club-proposals-on-overtime-in-the-postseason; si.com/college/2016/11/10/what-do-college-coaches-think-when-overtime-arrives)",
+    "name": {
+      "pt": "Vitória na prorrogação",
+      "es": "Victoria en tiempo extra",
+      "en": "Overtime Win"
+    },
+    "description": {
+      "pt": "Assista ao jogo em que seu time vence na prorrogação.",
+      "es": "Mira el partido en que tu equipo gana en tiempo extra.",
+      "en": "Watch the game your team wins in overtime."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 60,
+        "card_key": "american_football.moments.overtime_win.1"
+      }
+    ]
+  },
+  {
+    "id": "american_football.moments.passer_300",
+    "sport": "american-football",
+    "category": "moment",
+    "family": "moments",
+    "collection": "american_football.fireworks",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "total_min": 50
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id",
+      "proposed.player_game_stats.passing_yards"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": false,
+    "inactive_reason": "falta estatística de jogador por partida: jardas de passe não chegam ao motor. Precisa de proposed.player_game_stats.passing_yards e de um fato american_football.player_stat com stat e min. A regra acima é só a aproximação (jogo do seu time com 50 pontos somados).",
+    "real_world_frequency": "estimativa própria: cerca de 80 a 100 jogos de 300 jardas de passe por temporada na liga profissional (os líderes individuais têm 6 por temporada; o recordista do período 2020-25 soma 33), ou 15 a 18% dos jogos de um time; para o time do torcedor, 2,5 a 3 por temporada (base: statmuse.com/nfl/ask/most-300-yard-passing-games-from-2020-to-2025)",
+    "name": {
+      "pt": "Trezentas jardas",
+      "es": "Trescientas yardas",
+      "en": "Three Hundred Yards"
+    },
+    "description": {
+      "pt": "Assista ao jogo em que o quarterback do seu time passa para trezentas jardas ou mais.",
+      "es": "Mira el partido en que el mariscal de campo de tu equipo lanza para trescientas yardas o más.",
+      "en": "Watch the game where your team’s quarterback throws for three hundred yards or more."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 25,
+        "card_key": "american_football.moments.passer_300.1"
+      }
+    ]
+  },
+  {
+    "id": "american_football.moments.period_sweep",
+    "sport": "american-football",
+    "category": "moment",
+    "family": "moments",
+    "collection": "american_football.dominance",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win",
+        "period_sweep": true
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria: vencer os quatro quartos pede vantagem em cada parcial (quarto empatado não conta), o que acontece em cerca de 5 a 8% dos jogos; para o time do torcedor, 0,5 a 1 por temporada (sem fonte estatística pública consolidada; base de margens: deucescracked.com/blog/nfl-margin-of-victory-data-1999-2025)",
+    "name": {
+      "pt": "Quatro quartos",
+      "es": "Cuatro cuartos",
+      "en": "All Four Quarters"
+    },
+    "description": {
+      "pt": "Assista ao jogo em que seu time vence todos os quatro quartos.",
+      "es": "Mira el partido en que tu equipo gana los cuatro cuartos.",
+      "en": "Watch the game where your team wins all four quarters."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 60,
+        "card_key": "american_football.moments.period_sweep.1"
+      }
+    ]
+  },
+  {
+    "id": "american_football.moments.pick_six",
+    "sport": "american-football",
+    "category": "moment",
+    "family": "moments",
+    "collection": "american_football.defense",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win"
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id",
+      "proposed.player_game_stats.interception_touchdowns",
+      "proposed.event.play_by_play"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": false,
+    "inactive_reason": "o motor recebe só o placar por quarto e o status: não há estatística de jogador por partida nem lance a lance para saber que uma interceptação virou touchdown. Precisa de proposed.player_game_stats.interception_touchdowns (ou proposed.event.play_by_play) e de um fato novo na linguagem (ex.: american_football.defensive_touchdown). A regra acima é só a aproximação (vitória do seu time) e não pode ser ligada assim.",
+    "real_world_frequency": "estimativa própria: cerca de 50 a 60 interceptações devolvidas para touchdown por temporada na liga profissional (líderes de time com 3 em 2024, recorde individual de 5 em 2023); para a defesa do time do torcedor, 1,5 a 2 por temporada (base: statmuse.com/nfl/ask/most-pick-sixes-2024; guinnessworldrecords.com/world-records/763968-most-interceptions-returned-for-a-touchdown-in-an-nfl-season)",
+    "name": {
+      "pt": "Interceptação para touchdown",
+      "es": "Intercepción y touchdown",
+      "en": "Pick-Six"
+    },
+    "description": {
+      "pt": "Esteja assistindo quando a defesa do seu time interceptar e devolver para touchdown.",
+      "es": "Mira en vivo cuando la defensa de tu equipo intercepte y la devuelva hasta el touchdown.",
+      "en": "Be watching when your team’s defense intercepts a pass and returns it for a touchdown."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 60,
+        "card_key": "american_football.moments.pick_six.1"
+      }
+    ]
+  },
+  {
+    "id": "american_football.moments.safety",
+    "sport": "american-football",
+    "category": "moment",
+    "family": "moments",
+    "collection": "american_football.defense",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win"
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id",
+      "proposed.event.play_by_play",
+      "proposed.player_game_stats.safeties"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": false,
+    "inactive_reason": "o placar por quarto não distingue como os pontos foram marcados: um safety (2 pontos) não é identificável sem lance a lance ou estatística de time por partida. Precisa de proposed.event.play_by_play (ou proposed.player_game_stats.safeties) e de um fato novo na linguagem. A regra acima é só a aproximação (vitória do seu time).",
+    "real_world_frequency": "cerca de 11 a 13 safeties por temporada na liga profissional (13 em 2023, 11 em 2022, em 272 jogos; recorde de 26 em 1988), ou 4 a 5% dos jogos; para a defesa do time do torcedor, 0,35 a 0,4 por temporada (fonte: wikiwand.com/en/articles/List_of_safety_records; statmuse.com/nfl/ask/most-safeties-nfl-2023)",
+    "name": {
+      "pt": "Safety",
+      "es": "Safety",
+      "en": "Safety"
+    },
+    "description": {
+      "pt": "Esteja assistindo quando a defesa do seu time marcar um safety.",
+      "es": "Mira en vivo cuando la defensa de tu equipo anote un safety.",
+      "en": "Be watching when your team’s defense scores a safety."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 120,
+        "card_key": "american_football.moments.safety.1"
+      }
+    ]
+  },
+  {
+    "id": "american_football.moments.shootout",
+    "sport": "american-football",
+    "category": "moment",
+    "family": "moments",
+    "collection": "american_football.fireworks",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "total_min": 70
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "cerca de 6,9% dos jogos da liga profissional somam 68 pontos ou mais; 70 ou mais fica um pouco abaixo (estimativa própria: 4 a 6% dos jogos, 10 a 16 por temporada); a média combinada é de 45,9 pontos em 2020-25; para o time do torcedor, 0,7 a 1 por temporada (fonte: poolgenius.teamrankings.com/football-pool-picks/articles/point-total-tiebreakers-what-are-the-most-common-scores/; deucescracked.com/blog/nfl-margin-of-victory-data-1999-2025)",
+    "name": {
+      "pt": "Chuva de pontos",
+      "es": "Lluvia de puntos",
+      "en": "Point Shower"
+    },
+    "description": {
+      "pt": "Assista a um jogo do seu time com setenta pontos ou mais somando os dois lados.",
+      "es": "Mira un partido de tu equipo con setenta puntos o más sumando los dos lados.",
+      "en": "Watch a game of your team with seventy or more combined points."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 60,
+        "card_key": "american_football.moments.shootout.1"
+      }
+    ]
+  },
+  {
+    "id": "american_football.moments.walk_off_field_goal",
+    "sport": "american-football",
+    "category": "moment",
+    "family": "moments",
+    "collection": "american_football.clutch",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win",
+        "margin_max": 3
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id",
+      "proposed.event.play_by_play",
+      "proposed.event.last_scoring_play"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": false,
+    "inactive_reason": "o motor não sabe qual foi o último lance de pontos nem quanto tempo restava: o placar por quarto não traz o instante do field goal. Precisa de proposed.event.play_by_play (ou proposed.event.last_scoring_play com tipo e tempo restante) e de um fato novo na linguagem. A regra acima é só a aproximação (vitória por até 3 pontos).",
+    "real_world_frequency": "estimativa própria: 15 a 25 field goals decisivos no último lance por temporada na liga profissional (recorde de 5 na mesma semana em 2023 e 6 numa semana em outra temporada), ou 6 a 9% dos jogos; para o time do torcedor, 0,5 a 0,8 por temporada (base: bleacherreport.com/articles/10097103-nfl-sets-record-with-5-walk-off-fgs-in-week-10-of-2023-regular-season; cbssports.com/nfl/news/nfl-sets-record-for-game-winning-fgs-as-time-expired-in-one-week-including-broncos-stunning-bills-on-mnf)",
+    "name": {
+      "pt": "Chute final",
+      "es": "Patada final",
+      "en": "Walk-Off Kick"
+    },
+    "description": {
+      "pt": "Esteja assistindo quando seu time vencer com um field goal no último lance.",
+      "es": "Mira en vivo cuando tu equipo gane con un gol de campo en la última jugada.",
+      "en": "Be watching when your team wins with a field goal on the final play."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 60,
+        "card_key": "american_football.moments.walk_off_field_goal.1"
+      }
+    ]
+  },
+  {
+    "id": "american_football.predictions.hit_streak",
+    "sport": "american-football",
+    "category": "hit",
+    "family": "predictions",
+    "collection": "american_football.sharp_eye",
+    "rule": {
+      "input": "prediction",
+      "correct": true,
+      "where": {
+        "sport": [
+          "american-football"
+        ]
+      },
+      "count": {
+        "mode": "streak",
+        "unit": "prediction"
+      }
+    },
+    "requires_data": [
+      "fan.prediction",
+      "event.sport"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria: o Palpite de vencedor acerta cerca de 55 a 60% das vezes (o mandante vence 53%); 5 seguidos sai 1 vez em 15 a 30 tentativas e 10 seguidos 1 em 300 a 1.000; um torcedor que palpita em 10 a 15 jogos por fim de semana chega a 10 numa temporada e a 25 em poucas (base: foxsports.com/stories/nfl/home-field-advantage-nfl-teams-cowboys-commanders-dolphins)",
+    "name": {
+      "pt": "Sequência certeira",
+      "es": "Racha certera",
+      "en": "Hot Streak"
+    },
+    "description": {
+      "pt": "Acerte Palpites de futebol americano seguidos, sem errar nenhum no meio.",
+      "es": "Acierta pronósticos de fútbol americano seguidos, sin fallar ninguno en el medio.",
+      "en": "Get football predictions right back to back, without a miss in between."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 2,
+        "bonus_points": 20,
+        "card_key": "american_football.predictions.hit_streak.1"
+      },
+      {
+        "step": 2,
+        "threshold": 5,
+        "bonus_points": 40,
+        "card_key": "american_football.predictions.hit_streak.2"
+      },
+      {
+        "step": 3,
+        "threshold": 10,
+        "bonus_points": 80,
+        "card_key": "american_football.predictions.hit_streak.3"
+      },
+      {
+        "step": 4,
+        "threshold": 25,
+        "bonus_points": 150,
+        "card_key": "american_football.predictions.hit_streak.4"
+      },
+      {
+        "step": 5,
+        "threshold": 50,
+        "bonus_points": 300,
+        "card_key": "american_football.predictions.hit_streak.5"
+      }
+    ]
+  },
+  {
+    "id": "american_football.predictions.playoff_winner",
+    "sport": "american-football",
+    "category": "hit",
+    "family": "predictions",
+    "collection": "american_football.postseason",
+    "rule": {
+      "input": "prediction",
+      "kind": "winner",
+      "correct": true,
+      "where": {
+        "sport": [
+          "american-football"
+        ],
+        "stage": [
+          "knockout"
+        ]
+      }
+    },
+    "requires_data": [
+      "fan.prediction",
+      "event.sport",
+      "event.stage.kind"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "13 jogos de playoff profissional e 11 do playoff universitário por temporada, mais as finais de conferência: um torcedor assíduo palpita em 20 a 30 jogos de mata-mata por temporada e acerta o vencedor em 55 a 60% (fonte: profootballrumors.com/2020/03/nfl-officially-expands-playoffs-to-14-teams; si.com/college/tcu/football/12-team-college-football-playoff-begins-2024)",
+    "name": {
+      "pt": "Leitor de playoff",
+      "es": "Lector de postemporada",
+      "en": "Playoff Reader"
+    },
+    "description": {
+      "pt": "Acerte o vencedor de jogos de playoff.",
+      "es": "Acierta el ganador de partidos de postemporada.",
+      "en": "Predict the winner of playoff games."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 20,
+        "card_key": "american_football.predictions.playoff_winner.1"
+      },
+      {
+        "step": 2,
+        "threshold": 3,
+        "bonus_points": 40,
+        "card_key": "american_football.predictions.playoff_winner.2"
+      },
+      {
+        "step": 3,
+        "threshold": 6,
+        "bonus_points": 80,
+        "card_key": "american_football.predictions.playoff_winner.3"
+      },
+      {
+        "step": 4,
+        "threshold": 15,
+        "bonus_points": 150,
+        "card_key": "american_football.predictions.playoff_winner.4"
+      },
+      {
+        "step": 5,
+        "threshold": 40,
+        "bonus_points": 300,
+        "card_key": "american_football.predictions.playoff_winner.5"
+      }
+    ]
+  },
+  {
+    "id": "american_football.predictions.rivalry_winner",
+    "sport": "american-football",
+    "category": "hit",
+    "family": "predictions",
+    "collection": "american_football.rivalry",
+    "rule": {
+      "input": "prediction",
+      "kind": "winner",
+      "correct": true,
+      "where": {
+        "sport": [
+          "american-football"
+        ],
+        "derby": true
+      }
+    },
+    "requires_data": [
+      "fan.prediction",
+      "event.sport",
+      "event.derby_id"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria sobre o calendário: 6 jogos de divisão do próprio time mais os clássicos de outras divisões e as rivalidades universitárias dão 10 a 15 Palpites em clássicos por temporada, com 55 a 60% de acerto (base: si.com/nfl/2021/01/09/nfl-expanded-playoffs-explained)",
+    "name": {
+      "pt": "Voz do clássico",
+      "es": "Voz del clásico",
+      "en": "Rivalry Call"
+    },
+    "description": {
+      "pt": "Acerte o vencedor de clássicos.",
+      "es": "Acierta el ganador de los clásicos.",
+      "en": "Predict the winner of rivalry games."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 20,
+        "card_key": "american_football.predictions.rivalry_winner.1"
+      },
+      {
+        "step": 2,
+        "threshold": 2,
+        "bonus_points": 40,
+        "card_key": "american_football.predictions.rivalry_winner.2"
+      },
+      {
+        "step": 3,
+        "threshold": 4,
+        "bonus_points": 80,
+        "card_key": "american_football.predictions.rivalry_winner.3"
+      },
+      {
+        "step": 4,
+        "threshold": 8,
+        "bonus_points": 150,
+        "card_key": "american_football.predictions.rivalry_winner.4"
+      },
+      {
+        "step": 5,
+        "threshold": 20,
+        "bonus_points": 300,
+        "card_key": "american_football.predictions.rivalry_winner.5"
+      }
+    ]
+  },
+  {
+    "id": "american_football.results.away_win",
+    "sport": "american-football",
+    "category": "moment",
+    "family": "results",
+    "collection": "american_football.faithful",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "side": "away",
+        "outcome": "win"
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "o visitante vence cerca de 47% dos jogos da liga profissional (mandantes 145-127 em 2024, 53,3%; 151-121 em 2023, 55,5%; 53% no período 2020-24); para o time do torcedor, 8 ou 9 jogos fora por temporada e cerca de 4 vitórias fora (fonte: foxsports.com/stories/nfl/home-field-advantage-nfl-teams-cowboys-commanders-dolphins; sharpfootballanalysis.com/betting/nfl-home-field-advantage-ranking-toughest-stadiums-2025/)",
+    "name": {
+      "pt": "Vitória fora de casa",
+      "es": "Victoria de visitante",
+      "en": "Road Win"
+    },
+    "description": {
+      "pt": "Assista a uma vitória do seu time jogando fora de casa.",
+      "es": "Mira una victoria de tu equipo jugando de visitante.",
+      "en": "Watch your team win on the road."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 25,
+        "card_key": "american_football.results.away_win.1"
+      }
+    ]
+  },
+  {
+    "id": "american_football.results.blowout_win",
+    "sport": "american-football",
+    "category": "moment",
+    "family": "results",
+    "collection": "american_football.dominance",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win",
+        "margin_min": 28
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "margens de 14 ou mais em 35% dos jogos da liga profissional e de 21 ou mais em 17,7% (7.276 jogos de 1999 a 2025); 28 ou mais fica em cerca de 8% (estimativa própria pela queda da série); para o time do torcedor, 0,6 a 0,8 goleadas aplicadas por temporada (fonte: deucescracked.com/blog/nfl-margin-of-victory-data-1999-2025)",
+    "name": {
+      "pt": "Massacre",
+      "es": "Paliza",
+      "en": "Blowout"
+    },
+    "description": {
+      "pt": "Assista a uma vitória do seu time por vinte e oito pontos ou mais de diferença.",
+      "es": "Mira una victoria de tu equipo por veintiocho puntos o más de diferencia.",
+      "en": "Watch your team win by twenty-eight points or more."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 60,
+        "card_key": "american_football.results.blowout_win.1"
+      }
+    ]
+  },
+  {
+    "id": "american_football.results.close_win",
+    "sport": "american-football",
+    "category": "moment",
+    "family": "results",
+    "collection": "american_football.clutch",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win",
+        "margin_max": 3
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "23,5% dos jogos da liga profissional são decididos por 3 pontos ou menos (1.713 de 7.276 jogos de 1999 a 2025); 2025 teve 73, recorde empatado com 2018 e 2022; para o time do torcedor, 4 jogos assim e 2 vitórias por temporada (fonte: deucescracked.com/blog/nfl-margin-of-victory-data-1999-2025; operations.nfl.com/stats-central/stats-articles)",
+    "name": {
+      "pt": "Vitória por um field goal",
+      "es": "Victoria por un gol de campo",
+      "en": "Field-Goal Win"
+    },
+    "description": {
+      "pt": "Assista a uma vitória do seu time por três pontos ou menos.",
+      "es": "Mira una victoria de tu equipo por tres puntos o menos.",
+      "en": "Watch your team win by three points or fewer."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 25,
+        "card_key": "american_football.results.close_win.1"
+      }
+    ]
+  },
+  {
+    "id": "american_football.results.final_win",
+    "sport": "american-football",
+    "category": "moment",
+    "family": "results",
+    "collection": "american_football.postseason",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win"
+      },
+      "presence": "game",
+      "where": {
+        "stage": [
+          "final"
+        ]
+      }
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id",
+      "event.stage.kind"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "uma final por temporada na liga profissional (32 times, 1 campeão: 0,03 por time e temporada) e uma no universitário (134 programas, mais as finais de conferência, 1 em 8 a 18); para a maioria dos torcedores passam décadas entre títulos (fonte: en.wikipedia.com/wiki/NCAA_FBS; profootballrumors.com/2020/03/nfl-officially-expands-playoffs-to-14-teams)",
+    "name": {
+      "pt": "Campeão",
+      "es": "Campeón",
+      "en": "Champion"
+    },
+    "description": {
+      "pt": "Assista à final em que seu time conquista o título.",
+      "es": "Mira la final en que tu equipo conquista el título.",
+      "en": "Watch the final where your team wins the title."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 200,
+        "card_key": "american_football.results.final_win.1"
+      }
+    ]
+  },
+  {
+    "id": "american_football.results.one_score_games",
+    "sport": "american-football",
+    "category": "moment",
+    "family": "results",
+    "collection": "american_football.clutch",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "margin_max": 8
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "50,7% dos jogos da liga profissional são decididos por 8 pontos ou menos (3.692 de 7.276 jogos de 1999 a 2025), e 2024 teve recorde de jogos apertados (114 por 7 ou menos em 14 semanas); para o time do torcedor, 9 a 11 por temporada com playoffs (fonte: deucescracked.com/blog/nfl-margin-of-victory-data-1999-2025; nfl.com/_amp/2024-nfl-season-week-14-what-we-learned-from-sunday-s-games)",
+    "name": {
+      "pt": "Jogo de uma posse",
+      "es": "Partido de una posesión",
+      "en": "One-Score Game"
+    },
+    "description": {
+      "pt": "Assista aos jogos do seu time decididos por oito pontos ou menos, ganhando ou perdendo.",
+      "es": "Mira los partidos de tu equipo decididos por ocho puntos o menos, ganando o perdiendo.",
+      "en": "Watch your team’s games decided by eight points or fewer, win or lose."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 10,
+        "card_key": "american_football.results.one_score_games.1"
+      },
+      {
+        "step": 2,
+        "threshold": 2,
+        "bonus_points": 20,
+        "card_key": "american_football.results.one_score_games.2"
+      },
+      {
+        "step": 3,
+        "threshold": 5,
+        "bonus_points": 40,
+        "card_key": "american_football.results.one_score_games.3"
+      },
+      {
+        "step": 4,
+        "threshold": 10,
+        "bonus_points": 75,
+        "card_key": "american_football.results.one_score_games.4"
+      },
+      {
+        "step": 5,
+        "threshold": 25,
+        "bonus_points": 150,
+        "card_key": "american_football.results.one_score_games.5"
+      }
+    ]
+  },
+  {
+    "id": "american_football.results.playoff_win",
+    "sport": "american-football",
+    "category": "moment",
+    "family": "results",
+    "collection": "american_football.postseason",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win"
+      },
+      "presence": "game",
+      "where": {
+        "stage": [
+          "knockout"
+        ]
+      }
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id",
+      "event.stage.kind"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "13 jogos de playoff por temporada na liga profissional (14 classificados de 32) e 11 no playoff universitário de 12 times; 13 vencedores em 32 times = 0,4 vitória de playoff por time e temporada; a maioria dos times passa anos sem uma (fonte: profootballrumors.com/2020/03/nfl-officially-expands-playoffs-to-14-teams; si.com/college/tcu/football/12-team-college-football-playoff-begins-2024)",
+    "name": {
+      "pt": "Vitória nos playoffs",
+      "es": "Victoria en postemporada",
+      "en": "Playoff Win"
+    },
+    "description": {
+      "pt": "Assista a uma vitória do seu time em jogo de playoff.",
+      "es": "Mira una victoria de tu equipo en un partido de postemporada.",
+      "en": "Watch your team win a playoff game."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 120,
+        "card_key": "american_football.results.playoff_win.1"
+      }
+    ]
+  },
+  {
+    "id": "american_football.results.rivalry_win",
+    "sport": "american-football",
+    "category": "moment",
+    "family": "results",
+    "collection": "american_football.rivalry",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win"
+      },
+      "presence": "game",
+      "where": {
+        "derby": true
+      }
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id",
+      "event.derby_id"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria sobre o calendário: na liga profissional cada time joga 6 jogos de divisão por temporada (ida e volta contra 3 rivais) e vence metade, 3 por temporada; no universitário, 1 a 3 rivalidades históricas por ano; repetível por exceção declarada (fato de 3 a 5 por temporada muito reconhecido) com Platina em 8 = 2 ou 3 temporadas (fonte: operations.nfl.com/the-rules/nfl-overtime-rules para o formato de 17 jogos; si.com/nfl/2021/01/09/nfl-expanded-playoffs-explained)",
+    "name": {
+      "pt": "Vitória no clássico",
+      "es": "Victoria en el clásico",
+      "en": "Rivalry Win"
+    },
+    "description": {
+      "pt": "Assista aos clássicos em que seu time vence.",
+      "es": "Mira los clásicos que tu equipo gana.",
+      "en": "Watch the rivalry games your team wins."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 10,
+        "card_key": "american_football.results.rivalry_win.1"
+      },
+      {
+        "step": 2,
+        "threshold": 2,
+        "bonus_points": 20,
+        "card_key": "american_football.results.rivalry_win.2"
+      },
+      {
+        "step": 3,
+        "threshold": 4,
+        "bonus_points": 40,
+        "card_key": "american_football.results.rivalry_win.3"
+      },
+      {
+        "step": 4,
+        "threshold": 8,
+        "bonus_points": 75,
+        "card_key": "american_football.results.rivalry_win.4"
+      },
+      {
+        "step": 5,
+        "threshold": 20,
+        "bonus_points": 150,
+        "card_key": "american_football.results.rivalry_win.5"
+      }
+    ]
+  },
+  {
+    "id": "american_football.results.shutout_win",
+    "sport": "american-football",
+    "category": "moment",
+    "family": "results",
+    "collection": "american_football.defense",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win",
+        "shutout": true
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "2024 teve só 3 shutouts na liga profissional (o primeiro na semana 16, inédito), 2023 teve cerca de 8; mínimo histórico de 2 por temporada; 1 a 3% dos jogos; para a defesa do time do torcedor, 0,1 a 0,25 por temporada, uma a cada 4 a 10 temporadas (fonte: cbssports.com/nfl/news/packers-record-first-shutout-of-2024-vs-saints-ensuring-theres-still-never-been-an-nfl-season-without-one; nbcsports.com/nfl/profootballtalk/rumor-mill/news/nfl-has-had-no-shutouts-through-15-weeks-unprecedented-in-league-history; sports-central.org/sports/2024/12/03/where_have_all_the_shutouts_gone.php)",
+    "name": {
+      "pt": "Defesa de aço",
+      "es": "Defensa de acero",
+      "en": "Shutout"
+    },
+    "description": {
+      "pt": "Assista a uma vitória do seu time sem deixar o adversário marcar um ponto.",
+      "es": "Mira una victoria de tu equipo sin dejar que el rival anote un punto.",
+      "en": "Watch your team win without letting the opponent score a single point."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 120,
+        "card_key": "american_football.results.shutout_win.1"
+      }
+    ]
+  },
+  {
+    "id": "american_football.results.tie",
+    "sport": "american-football",
+    "category": "moment",
+    "family": "results",
+    "collection": "american_football.clutch",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "draw"
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "empates: 15 em 7.276 jogos da liga profissional de 1999 a 2025 (0,21% dos jogos, menos de 1 por temporada); a prorrogação acaba em empate só quando os dois lados não desempatam em dez minutos; no universitário o empate não existe desde 1996; para o time do torcedor, um a cada 30 temporadas (fonte: deucescracked.com/blog/nfl-margin-of-victory-data-1999-2025; en.wikipedia.com/wiki/List_of_NFL_tied_games)",
+    "name": {
+      "pt": "Empate",
+      "es": "Empate",
+      "en": "The Tie"
+    },
+    "description": {
+      "pt": "Assista ao raríssimo jogo em que seu time termina empatado depois da prorrogação.",
+      "es": "Mira el rarísimo partido en que tu equipo termina empatado tras el tiempo extra.",
+      "en": "Watch the rarest result of all: your team finishing level after overtime."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 200,
+        "card_key": "american_football.results.tie.1"
+      }
+    ]
+  }
+]

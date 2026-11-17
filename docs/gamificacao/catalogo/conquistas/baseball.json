@@ -1,0 +1,1641 @@
+[
+  {
+    "id": "baseball.explorer.competitions",
+    "sport": "baseball",
+    "category": "participation",
+    "family": "explorer",
+    "collection": "baseball.summer_to_winter",
+    "rule": {
+      "input": "prediction",
+      "where": {
+        "sport": [
+          "baseball"
+        ]
+      },
+      "count": {
+        "mode": "distinct",
+        "key": "competition"
+      }
+    },
+    "requires_data": [
+      "fan.prediction",
+      "event.sport",
+      "event.competition.id"
+    ],
+    "stepped": true,
+    "seasonal": false,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "a plataforma cobre 18 competições de beisebol (liga principal, ligas mexicanas de verão e inverno, ligas do Caribe, torneio do Caribe, torneio de seleções, torneios olímpico e pan-americano); um torcedor assíduo palpita em 4 a 7 por ano e só chega a todas em 2 ou 3 anos, porque o torneio de seleções e os olímpicos não acontecem todo ano (fonte: cobertura da plataforma, seção 6 da missão)",
+    "name": {
+      "pt": "Mapa do diamante",
+      "es": "Mapa del diamante",
+      "en": "Diamond Map"
+    },
+    "description": {
+      "pt": "Dê Palpites em competições de beisebol diferentes.",
+      "es": "Haz pronósticos en torneos de béisbol distintos.",
+      "en": "Make predictions across different baseball competitions."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 2,
+        "bonus_points": 0,
+        "card_key": "baseball.explorer.competitions.1"
+      },
+      {
+        "step": 2,
+        "threshold": 4,
+        "bonus_points": 0,
+        "card_key": "baseball.explorer.competitions.2"
+      },
+      {
+        "step": 3,
+        "threshold": 7,
+        "bonus_points": 0,
+        "card_key": "baseball.explorer.competitions.3"
+      },
+      {
+        "step": 4,
+        "threshold": 10,
+        "bonus_points": 0,
+        "card_key": "baseball.explorer.competitions.4"
+      },
+      {
+        "step": 5,
+        "threshold": 18,
+        "bonus_points": 0,
+        "card_key": "baseball.explorer.competitions.5"
+      }
+    ]
+  },
+  {
+    "id": "baseball.explorer.countries",
+    "sport": "baseball",
+    "category": "participation",
+    "family": "explorer",
+    "collection": "baseball.summer_to_winter",
+    "rule": {
+      "input": "participation",
+      "action": "watched",
+      "where": {
+        "sport": [
+          "baseball"
+        ]
+      },
+      "count": {
+        "mode": "distinct",
+        "key": "country"
+      }
+    },
+    "requires_data": [
+      "fan.participation",
+      "fan.presence",
+      "event.sport",
+      "event.competition.country"
+    ],
+    "stepped": true,
+    "seasonal": false,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "as 18 competições cobertas têm competição nacional em cerca de 9 países (Estados Unidos, México, República Dominicana, Venezuela, Porto Rico, Panamá, Cuba, Colômbia e Nicarágua, conforme a cobertura); as continentais e de seleções não contam país; 6 é alcance de um ano curioso e 9 pede 2 ou 3 anos (fonte: cobertura da plataforma, seção 6 da missão)",
+    "name": {
+      "pt": "Passaporte do beisebol",
+      "es": "Pasaporte del béisbol",
+      "en": "Baseball Passport"
+    },
+    "description": {
+      "pt": "Assista a beisebol de competições de países diferentes.",
+      "es": "Mira béisbol de torneos de países distintos.",
+      "en": "Watch baseball from competitions in different countries."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 0,
+        "card_key": "baseball.explorer.countries.1"
+      },
+      {
+        "step": 2,
+        "threshold": 2,
+        "bonus_points": 0,
+        "card_key": "baseball.explorer.countries.2"
+      },
+      {
+        "step": 3,
+        "threshold": 4,
+        "bonus_points": 0,
+        "card_key": "baseball.explorer.countries.3"
+      },
+      {
+        "step": 4,
+        "threshold": 6,
+        "bonus_points": 0,
+        "card_key": "baseball.explorer.countries.4"
+      },
+      {
+        "step": 5,
+        "threshold": 9,
+        "bonus_points": 0,
+        "card_key": "baseball.explorer.countries.5"
+      }
+    ]
+  },
+  {
+    "id": "baseball.explorer.months",
+    "sport": "baseball",
+    "category": "participation",
+    "family": "explorer",
+    "collection": "baseball.summer_to_winter",
+    "rule": {
+      "input": "participation",
+      "action": "watched",
+      "where": {
+        "sport": [
+          "baseball"
+        ]
+      },
+      "count": {
+        "mode": "distinct",
+        "key": "month"
+      }
+    },
+    "requires_data": [
+      "fan.participation",
+      "fan.presence",
+      "event.sport",
+      "event.starts_at",
+      "program.time_zone"
+    ],
+    "stepped": true,
+    "seasonal": false,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "o beisebol tem jogo o ano inteiro: liga principal e liga mexicana de verão de março/abril a setembro/outubro, playoffs em outubro, ligas de inverno de outubro a janeiro, torneio do Caribe em fevereiro e torneio de seleções em março; Platina = 12 meses, Lendário = 2 anos (fontes do calendário em pesquisa/baseball.md)",
+    "name": {
+      "pt": "Verão e inverno",
+      "es": "Verano e invierno",
+      "en": "Summer and Winter"
+    },
+    "description": {
+      "pt": "Assista a beisebol em meses diferentes, do verão ao inverno.",
+      "es": "Mira béisbol en meses distintos, del verano al invierno.",
+      "en": "Watch baseball in different months, from summer through winter."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 0,
+        "card_key": "baseball.explorer.months.1"
+      },
+      {
+        "step": 2,
+        "threshold": 3,
+        "bonus_points": 0,
+        "card_key": "baseball.explorer.months.2"
+      },
+      {
+        "step": 3,
+        "threshold": 6,
+        "bonus_points": 0,
+        "card_key": "baseball.explorer.months.3"
+      },
+      {
+        "step": 4,
+        "threshold": 12,
+        "bonus_points": 0,
+        "card_key": "baseball.explorer.months.4"
+      },
+      {
+        "step": 5,
+        "threshold": 24,
+        "bonus_points": 0,
+        "card_key": "baseball.explorer.months.5"
+      }
+    ]
+  },
+  {
+    "id": "baseball.loyalty.favorite_games",
+    "sport": "baseball",
+    "category": "participation",
+    "family": "loyalty",
+    "collection": "baseball.bleachers",
+    "rule": {
+      "input": "participation",
+      "action": "watched",
+      "where": {
+        "sport": [
+          "baseball"
+        ],
+        "favorite_playing": true
+      }
+    },
+    "requires_data": [
+      "fan.participation",
+      "fan.presence",
+      "fan.favorite_team_id",
+      "event.participants",
+      "event.sport"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "a liga principal tem 162 jogos por time (81 em casa); as ligas mexicanas 93 (verão) e 68 (inverno); as ligas de inverno do Caribe 40 a 56 mais round robin e final (até 79 no total); Platina = 81, a metade da temporada longa ou a temporada inteira de inverno com pós-temporada (fontes do calendário em pesquisa/baseball.md)",
+    "name": {
+      "pt": "Na arquibancada",
+      "es": "En la grada",
+      "en": "In the Bleachers"
+    },
+    "description": {
+      "pt": "Assista aos jogos do seu time do coração.",
+      "es": "Mira los partidos de tu equipo del corazón.",
+      "en": "Watch your favorite team’s games."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 0,
+        "card_key": "baseball.loyalty.favorite_games.1"
+      },
+      {
+        "step": 2,
+        "threshold": 8,
+        "bonus_points": 0,
+        "card_key": "baseball.loyalty.favorite_games.2"
+      },
+      {
+        "step": 3,
+        "threshold": 27,
+        "bonus_points": 0,
+        "card_key": "baseball.loyalty.favorite_games.3"
+      },
+      {
+        "step": 4,
+        "threshold": 81,
+        "bonus_points": 0,
+        "card_key": "baseball.loyalty.favorite_games.4"
+      },
+      {
+        "step": 5,
+        "threshold": 200,
+        "bonus_points": 0,
+        "card_key": "baseball.loyalty.favorite_games.5"
+      }
+    ]
+  },
+  {
+    "id": "baseball.loyalty.favorite_streak",
+    "sport": "baseball",
+    "category": "participation",
+    "family": "loyalty",
+    "collection": "baseball.bleachers",
+    "rule": {
+      "input": "participation",
+      "action": "watched",
+      "where": {
+        "sport": [
+          "baseball"
+        ],
+        "favorite_playing": true
+      },
+      "count": {
+        "mode": "streak",
+        "unit": "game"
+      }
+    },
+    "requires_data": [
+      "fan.participation",
+      "fan.presence",
+      "fan.favorite_team_id",
+      "event.participants",
+      "event.sport"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria: o beisebol tem jogo quase todo dia (6 por semana na liga principal, 5 a 6 nas ligas de inverno), então 20 seguidos é mais de três semanas sem falhar e 40 é mais de um mês e meio; nenhum torcedor assíduo chega a 40 sem organizar a vida em torno do time (fontes do calendário em pesquisa/baseball.md)",
+    "name": {
+      "pt": "Série sem faltar",
+      "es": "Racha sin faltar",
+      "en": "Never Miss a Game"
+    },
+    "description": {
+      "pt": "Assista a jogos seguidos do seu time, sem pular nenhum.",
+      "es": "Mira partidos seguidos de tu equipo, sin saltarte ninguno.",
+      "en": "Watch your team’s games back to back, without skipping one."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 2,
+        "bonus_points": 0,
+        "card_key": "baseball.loyalty.favorite_streak.1"
+      },
+      {
+        "step": 2,
+        "threshold": 5,
+        "bonus_points": 0,
+        "card_key": "baseball.loyalty.favorite_streak.2"
+      },
+      {
+        "step": 3,
+        "threshold": 10,
+        "bonus_points": 0,
+        "card_key": "baseball.loyalty.favorite_streak.3"
+      },
+      {
+        "step": 4,
+        "threshold": 20,
+        "bonus_points": 0,
+        "card_key": "baseball.loyalty.favorite_streak.4"
+      },
+      {
+        "step": 5,
+        "threshold": 40,
+        "bonus_points": 0,
+        "card_key": "baseball.loyalty.favorite_streak.5"
+      }
+    ]
+  },
+  {
+    "id": "baseball.loyalty.finals_watched",
+    "sport": "baseball",
+    "category": "participation",
+    "family": "loyalty",
+    "collection": "baseball.decision_nights",
+    "rule": {
+      "input": "participation",
+      "action": "watched",
+      "where": {
+        "sport": [
+          "baseball"
+        ],
+        "stage": [
+          "final"
+        ]
+      }
+    },
+    "requires_data": [
+      "fan.participation",
+      "fan.presence",
+      "event.sport",
+      "event.stage.kind"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria sobre o calendário: as finais são séries (até 7 jogos na liga principal e nas ligas mexicanas, até 9 em uma liga do Caribe), mais a final do torneio do Caribe e a do torneio de seleções; um torcedor assíduo encontra 10 a 20 jogos de final por ano (fontes do calendário em pesquisa/baseball.md)",
+    "name": {
+      "pt": "Noite de final",
+      "es": "Noche de final",
+      "en": "Final Night"
+    },
+    "description": {
+      "pt": "Assista a jogos de final de qualquer competição de beisebol.",
+      "es": "Mira partidos de final de cualquier torneo de béisbol.",
+      "en": "Watch final games from any baseball competition."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 0,
+        "card_key": "baseball.loyalty.finals_watched.1"
+      },
+      {
+        "step": 2,
+        "threshold": 2,
+        "bonus_points": 0,
+        "card_key": "baseball.loyalty.finals_watched.2"
+      },
+      {
+        "step": 3,
+        "threshold": 5,
+        "bonus_points": 0,
+        "card_key": "baseball.loyalty.finals_watched.3"
+      },
+      {
+        "step": 4,
+        "threshold": 10,
+        "bonus_points": 0,
+        "card_key": "baseball.loyalty.finals_watched.4"
+      },
+      {
+        "step": 5,
+        "threshold": 25,
+        "bonus_points": 0,
+        "card_key": "baseball.loyalty.finals_watched.5"
+      }
+    ]
+  },
+  {
+    "id": "baseball.moments.big_inning",
+    "sport": "baseball",
+    "category": "moment",
+    "family": "moments",
+    "collection": "baseball.big_bats",
+    "rule": {
+      "input": "moment",
+      "fact": "score.period",
+      "params": {
+        "team": "favorite",
+        "period": "any",
+        "points_min": 6
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.score.periods",
+      "event.score",
+      "event.status=finished",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria: uma entrada de seis ou mais corridas sai em cerca de 0,3% das meias-entradas, o que dá 4 a 5 por time e temporada de 162 jogos; a liga principal marca em média 4,3 a 4,5 corridas por time e jogo (fonte-base: retrosheet.org/Research/SmithD/bigbang.pdf, distribuição de corridas por jogo; mlb.com/news/mlb-most-runs-scored-in-each-inning)",
+    "name": {
+      "pt": "Entrada de seis",
+      "es": "Entrada de seis",
+      "en": "Six-Run Inning"
+    },
+    "description": {
+      "pt": "Assista ao seu time marcar seis corridas ou mais numa única entrada.",
+      "es": "Mira a tu equipo anotar seis carreras o más en una sola entrada.",
+      "en": "Watch your team score six or more runs in a single inning."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 25,
+        "card_key": "baseball.moments.big_inning.1"
+      }
+    ]
+  },
+  {
+    "id": "baseball.moments.comeback_five",
+    "sport": "baseball",
+    "category": "moment",
+    "family": "moments",
+    "collection": "baseball.comebacks",
+    "rule": {
+      "input": "moment",
+      "fact": "score.comeback",
+      "params": {
+        "team": "favorite",
+        "trailing_by_min": 5,
+        "at": "any"
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.score.periods",
+      "event.score",
+      "event.status=finished",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "o líder da liga principal em 2025 tinha 4 vitórias depois de estar cinco ou mais corridas atrás; estimativa própria para o time médio: 1 a 2 por temporada de 162 jogos (fonte: si.com/mlb/rockies/news/rockies-lead-mlb-in-this-stat-after-another-incredible-comeback-victory; champsorchumps.us/records/biggest-mlb-comebacks-in-2025)",
+    "name": {
+      "pt": "Virada de cinco",
+      "es": "Remontada de cinco",
+      "en": "Five-Run Comeback"
+    },
+    "description": {
+      "pt": "Assista ao jogo em que seu time vence depois de estar cinco corridas atrás.",
+      "es": "Mira el partido en que tu equipo gana tras estar cinco carreras abajo.",
+      "en": "Watch the game your team wins after trailing by five runs."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 60,
+        "card_key": "baseball.moments.comeback_five.1"
+      }
+    ]
+  },
+  {
+    "id": "baseball.moments.comeback_three",
+    "sport": "baseball",
+    "category": "moment",
+    "family": "moments",
+    "collection": "baseball.comebacks",
+    "rule": {
+      "input": "moment",
+      "fact": "score.comeback",
+      "params": {
+        "team": "favorite",
+        "trailing_by_min": 3,
+        "at": "any"
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.score.periods",
+      "event.score",
+      "event.status=finished",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria: um time fica três corridas atrás ao fim de alguma entrada em cerca de um terço dos jogos e vence cerca de um quinto deles, ou seja, 8 a 11 viradas de três por temporada de 162 jogos; o líder de viradas de qualquer tamanho teve 49 em 2025 (fonte-base: champsorchumps.us/records/most-mlb-comeback-wins-in-2025)",
+    "name": {
+      "pt": "Virada de três",
+      "es": "Remontada de tres",
+      "en": "Three-Run Comeback"
+    },
+    "description": {
+      "pt": "Assista aos jogos em que seu time vence depois de estar três corridas atrás.",
+      "es": "Mira los partidos en que tu equipo gana tras estar tres carreras abajo.",
+      "en": "Watch the games your team wins after trailing by three runs."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 10,
+        "card_key": "baseball.moments.comeback_three.1"
+      },
+      {
+        "step": 2,
+        "threshold": 2,
+        "bonus_points": 20,
+        "card_key": "baseball.moments.comeback_three.2"
+      },
+      {
+        "step": 3,
+        "threshold": 5,
+        "bonus_points": 40,
+        "card_key": "baseball.moments.comeback_three.3"
+      },
+      {
+        "step": 4,
+        "threshold": 10,
+        "bonus_points": 75,
+        "card_key": "baseball.moments.comeback_three.4"
+      },
+      {
+        "step": 5,
+        "threshold": 25,
+        "bonus_points": 150,
+        "card_key": "baseball.moments.comeback_three.5"
+      }
+    ]
+  },
+  {
+    "id": "baseball.moments.cycle",
+    "sport": "baseball",
+    "category": "moment",
+    "family": "moments",
+    "collection": "baseball.big_bats",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "total_min": 8
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "proposed.player_game_stats.singles",
+      "proposed.player_game_stats.doubles",
+      "proposed.player_game_stats.triples",
+      "proposed.player_game_stats.home_runs",
+      "event.status=finished",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": false,
+    "active": false,
+    "inactive_reason": "falta estatística de jogador por partida: o ciclo é um rebatedor com simples, dupla, tripla e home run no mesmo jogo, e o motor não recebe rebatidas por jogador nem por tipo. Precisa de proposed.player_game_stats.* e de um fato baseball.player_stat. A regra acima é só a aproximação (jogo com muitas corridas) e não pode ser ligada assim.",
+    "real_world_frequency": "menos de 400 ciclos desde 1882 em toda a liga principal, cerca de 2 a 3 por temporada de 2.430 jogos; para um time, um a cada 10 a 15 temporadas (fonte: theanalyst.com/articles/the-most-cycles-in-a-season-career-by-a-team-and-more-across-mlb-history; mlb.com/news/players-who-hit-for-the-cycle-c265552018)",
+    "name": {
+      "pt": "Ciclo completo",
+      "es": "Ciclo completo",
+      "en": "Hit for the Cycle"
+    },
+    "description": {
+      "pt": "Esteja assistindo quando um rebatedor do seu time fizer simples, dupla, tripla e home run no mesmo jogo.",
+      "es": "Mira en vivo cuando un bateador de tu equipo conecte sencillo, doble, triple y jonrón en el mismo partido.",
+      "en": "Be watching when a hitter on your team collects a single, double, triple and home run in one game."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 200,
+        "card_key": "baseball.moments.cycle.1"
+      }
+    ]
+  },
+  {
+    "id": "baseball.moments.extra_innings",
+    "sport": "baseball",
+    "category": "moment",
+    "family": "moments",
+    "collection": "baseball.close_calls",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "overtime": true
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "209 jogos com entradas extras em 2.430 na liga principal em 2025 (8,6%), 216 em 2024 (8,9%) e 223 em 2019 (9,2%); para o time do torcedor, cerca de 14 por temporada de 162 jogos (fonte: foxsports.com/articles/mlb/visiting-teams-have-slight-edge-in-extra-innings-since-ghost-runner-rule-adopted; sabr.org/journal/article/beyond-the-ninth-exploring-alternative-extra-inning-rules-in-college-and-mlb-baseball)",
+    "name": {
+      "pt": "Entradas extras",
+      "es": "Entradas extra",
+      "en": "Extra Innings"
+    },
+    "description": {
+      "pt": "Assista aos jogos do seu time que vão além da nona entrada.",
+      "es": "Mira los partidos de tu equipo que se van a entradas extra.",
+      "en": "Watch your team’s games that go past the ninth inning."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 10,
+        "card_key": "baseball.moments.extra_innings.1"
+      },
+      {
+        "step": 2,
+        "threshold": 3,
+        "bonus_points": 20,
+        "card_key": "baseball.moments.extra_innings.2"
+      },
+      {
+        "step": 3,
+        "threshold": 7,
+        "bonus_points": 40,
+        "card_key": "baseball.moments.extra_innings.3"
+      },
+      {
+        "step": 4,
+        "threshold": 14,
+        "bonus_points": 75,
+        "card_key": "baseball.moments.extra_innings.4"
+      },
+      {
+        "step": 5,
+        "threshold": 35,
+        "bonus_points": 150,
+        "card_key": "baseball.moments.extra_innings.5"
+      }
+    ]
+  },
+  {
+    "id": "baseball.moments.grand_slam",
+    "sport": "baseball",
+    "category": "moment",
+    "family": "moments",
+    "collection": "baseball.big_bats",
+    "rule": {
+      "input": "moment",
+      "fact": "score.period",
+      "params": {
+        "team": "favorite",
+        "period": "any",
+        "points_min": 4
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.score.periods",
+      "proposed.event.play_by_play",
+      "proposed.player_game_stats.grand_slams",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": false,
+    "inactive_reason": "o motor não recebe o lance a lance do beisebol: o placar por entrada diz que o time marcou 4 corridas, não que elas vieram de um único home run com as bases cheias. Falta proposed.event.play_by_play (ou proposed.player_game_stats.grand_slams) e um fato baseball.home_run com parâmetro runners. A regra acima é só a aproximação (entrada de 4 corridas ou mais) e não pode ser ligada assim.",
+    "real_world_frequency": "105 grand slams em 25 dos 30 times da liga principal em 2024 (cerca de 126 no total, 4,2 por time); o recorde individual é 6 numa temporada (fonte: statmuse.com/mlb/ask/grand-slams-for-each-mlb-team-in-2024; mlb.com/news/most-grand-slams-in-a-single-mlb-season-c271486320)",
+    "name": {
+      "pt": "Grand slam",
+      "es": "Grand slam",
+      "en": "Grand Slam"
+    },
+    "description": {
+      "pt": "Esteja assistindo quando seu time rebater um home run com as bases cheias.",
+      "es": "Mira en vivo cuando tu equipo conecte un jonrón con las bases llenas.",
+      "en": "Be watching when your team hits a home run with the bases loaded."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 25,
+        "card_key": "baseball.moments.grand_slam.1"
+      }
+    ]
+  },
+  {
+    "id": "baseball.moments.ninth_inning_rally",
+    "sport": "baseball",
+    "category": "moment",
+    "family": "moments",
+    "collection": "baseball.close_calls",
+    "rule": {
+      "input": "moment",
+      "fact": "score.period",
+      "params": {
+        "team": "favorite",
+        "period": "i9",
+        "points_min": 3
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.score.periods",
+      "event.score",
+      "event.status=finished",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria: três ou mais corridas numa meia-entrada saem em cerca de 4% delas; um time rebate na nona em pouco mais de metade dos jogos (o mandante que está na frente não rebate), o que dá 3 a 5 nonas de três corridas por temporada de 162 jogos (fonte-base: retrosheet.org/Research/SmithD/bigbang.pdf)",
+    "name": {
+      "pt": "Nona de fogo",
+      "es": "Novena de fuego",
+      "en": "Ninth-Inning Fire"
+    },
+    "description": {
+      "pt": "Assista ao seu time marcar três corridas ou mais na nona entrada.",
+      "es": "Mira a tu equipo anotar tres carreras o más en la novena entrada.",
+      "en": "Watch your team score three or more runs in the ninth inning."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 25,
+        "card_key": "baseball.moments.ninth_inning_rally.1"
+      }
+    ]
+  },
+  {
+    "id": "baseball.moments.no_hitter",
+    "sport": "baseball",
+    "category": "moment",
+    "family": "moments",
+    "collection": "baseball.mound",
+    "rule": {
+      "input": "moment",
+      "fact": "baseball.no_hitter",
+      "params": {
+        "team": "favorite"
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.score.breakdown.hits",
+      "event.status=finished",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "média de 3,7 jogos sem rebatida por temporada na liga principal entre 2006 e 2024 (4 em 2022, 2023 e 2024; 0 em 2025, a primeira temporada sem nenhum desde 2005; recorde de 9 em 2021); para o time do torcedor, cerca de 0,12 por temporada, um a cada 8 temporadas (fonte: mlb.com/news/mlb-no-hitter-drought-in-2025; cbssports.com/mlb/news/mlb-saw-no-no-hitters-in-2025-regular-season-for-first-time-since-2005; espn.com/mlb/history/nohitters)",
+    "name": {
+      "pt": "Sem rebatidas",
+      "es": "Sin hits",
+      "en": "No-Hitter"
+    },
+    "description": {
+      "pt": "Assista ao jogo em que a defesa do seu time não cede nenhuma rebatida ao adversário.",
+      "es": "Mira el partido en que el pitcheo de tu equipo no permite ni un hit al rival.",
+      "en": "Watch the game where your team’s pitching staff allows no hits at all."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 120,
+        "card_key": "baseball.moments.no_hitter.1"
+      }
+    ]
+  },
+  {
+    "id": "baseball.moments.perfect_game",
+    "sport": "baseball",
+    "category": "moment",
+    "family": "moments",
+    "collection": "baseball.mound",
+    "rule": {
+      "input": "moment",
+      "fact": "baseball.no_hitter",
+      "params": {
+        "team": "favorite"
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.score.breakdown.hits",
+      "proposed.event.score.breakdown.walks",
+      "proposed.event.play_by_play",
+      "event.status=finished",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": false,
+    "active": false,
+    "inactive_reason": "o jogo perfeito é um jogo sem rebatida em que nenhum adversário chega à base por nenhum motivo (walk, hit by pitch, erro); o motor recebe rebatidas e erros, mas não walks nem hit by pitch. Falta proposed.event.score.breakdown.walks (ou o lance a lance) e um parâmetro perfect no fato baseball.no_hitter. A regra acima é só a aproximação (jogo sem rebatida) e não pode ser ligada assim.",
+    "real_world_frequency": "24 jogos perfeitos em toda a história da liga principal (desde 1880), 8 desde 2000, o último em 2023; menos de 1 a cada 5 anos em todo o esporte e, para um time, algo que a maioria nunca viveu (fonte: foxsports.com/stories/mlb/what-last-10-instances-perfect-game-mlb-history; britannica.com/topic/list-of-Major-League-Baseball-perfect-games-2227073)",
+    "name": {
+      "pt": "Jogo perfeito",
+      "es": "Juego perfecto",
+      "en": "Perfect Game"
+    },
+    "description": {
+      "pt": "Assista ao jogo em que a defesa do seu time não deixa nenhum adversário chegar à base.",
+      "es": "Mira el partido en que el pitcheo de tu equipo no deja que ningún rival llegue a base.",
+      "en": "Watch the game where your team’s pitching lets no opponent reach base at all."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 200,
+        "card_key": "baseball.moments.perfect_game.1"
+      }
+    ]
+  },
+  {
+    "id": "baseball.moments.walk_off",
+    "sport": "baseball",
+    "category": "moment",
+    "family": "moments",
+    "collection": "baseball.close_calls",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "side": "home",
+        "outcome": "win",
+        "margin_max": 1
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.score.periods",
+      "event.score",
+      "event.status=finished",
+      "event.participants",
+      "proposed.rule.param.score.result.walk_off",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": false,
+    "inactive_reason": "o placar por entrada permite derivar o walk-off (o mandante vence, marcou na última entrada jogada e, antes dela, não estava na frente: corridas do mandante até a entrada anterior menores ou iguais às corridas totais do visitante), mas a linguagem não tem esse parâmetro. Falta walk_off (bool) no fato score.result, com essa derivação no motor. A regra acima é só a aproximação (vitória em casa por uma corrida) e não pode ser ligada assim; a versão nas entradas extras já está ativa em baseball.moments.walk_off_extra.",
+    "real_world_frequency": "202 vitórias de walk-off na liga principal em 2019 e 202 em 2026 (8,3% dos 2.430 jogos); para o time do torcedor, 6 a 7 por temporada de 162 jogos (fonte: mlb.com/news/walk-off-wins-for-all-30-teams-in-2019; legionreport.com/?p=39534)",
+    "name": {
+      "pt": "Decidido em casa",
+      "es": "Final en casa",
+      "en": "Walk-Off Win"
+    },
+    "description": {
+      "pt": "Assista ao seu time vencer em casa com a corrida decisiva na última entrada.",
+      "es": "Mira a tu equipo ganar en casa con la carrera decisiva en la última entrada.",
+      "en": "Watch your team win at home with the deciding run in the final inning."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 10,
+        "card_key": "baseball.moments.walk_off.1"
+      },
+      {
+        "step": 2,
+        "threshold": 2,
+        "bonus_points": 20,
+        "card_key": "baseball.moments.walk_off.2"
+      },
+      {
+        "step": 3,
+        "threshold": 4,
+        "bonus_points": 40,
+        "card_key": "baseball.moments.walk_off.3"
+      },
+      {
+        "step": 4,
+        "threshold": 7,
+        "bonus_points": 75,
+        "card_key": "baseball.moments.walk_off.4"
+      },
+      {
+        "step": 5,
+        "threshold": 18,
+        "bonus_points": 150,
+        "card_key": "baseball.moments.walk_off.5"
+      }
+    ]
+  },
+  {
+    "id": "baseball.moments.walk_off_extra",
+    "sport": "baseball",
+    "category": "moment",
+    "family": "moments",
+    "collection": "baseball.close_calls",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "side": "home",
+        "outcome": "win",
+        "overtime": true
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "derivação própria: cerca de 14 jogos com entradas extras por time e temporada (8,6 a 9,2% dos jogos), metade vencidos e metade em casa, ou seja, 3 a 4 vitórias caseiras em entradas extras por temporada; nas extras, toda vitória do mandante é um walk-off (fonte-base: foxsports.com/articles/mlb/visiting-teams-have-slight-edge-in-extra-innings-since-ghost-runner-rule-adopted)",
+    "name": {
+      "pt": "Fim de jogo em casa",
+      "es": "Dejar en el terreno",
+      "en": "Extra-Innings Walk-Off"
+    },
+    "description": {
+      "pt": "Assista ao seu time vencer em casa nas entradas extras, com a corrida da vitória na última entrada.",
+      "es": "Mira a tu equipo ganar en casa en entradas extra y dejar al rival en el terreno.",
+      "en": "Watch your team win at home in extra innings, walking it off in the final frame."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 25,
+        "card_key": "baseball.moments.walk_off_extra.1"
+      }
+    ]
+  },
+  {
+    "id": "baseball.predictions.exact_score",
+    "sport": "baseball",
+    "category": "hit",
+    "family": "predictions",
+    "collection": "baseball.scouts_eye",
+    "rule": {
+      "input": "prediction",
+      "kind": "exact_score",
+      "correct": true,
+      "where": {
+        "sport": [
+          "baseball"
+        ]
+      }
+    },
+    "requires_data": [
+      "fan.prediction",
+      "event.sport"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria: os placares mais comuns do beisebol (3 a 2, 4 a 3, 2 a 1, 5 a 4) somam cerca de 20% dos jogos e nenhum passa de 6%, então o placar exato sai em 3 a 5% dos Palpites; um torcedor que palpita em 150 jogos por temporada acerta 5 a 8",
+    "name": {
+      "pt": "Na mosca no diamante",
+      "es": "Exacto en el diamante",
+      "en": "Diamond on the Nose"
+    },
+    "description": {
+      "pt": "Acerte o placar exato de jogos de beisebol.",
+      "es": "Acierta el marcador exacto de partidos de béisbol.",
+      "en": "Predict the exact score of baseball games."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 20,
+        "card_key": "baseball.predictions.exact_score.1"
+      },
+      {
+        "step": 2,
+        "threshold": 2,
+        "bonus_points": 40,
+        "card_key": "baseball.predictions.exact_score.2"
+      },
+      {
+        "step": 3,
+        "threshold": 5,
+        "bonus_points": 80,
+        "card_key": "baseball.predictions.exact_score.3"
+      },
+      {
+        "step": 4,
+        "threshold": 10,
+        "bonus_points": 150,
+        "card_key": "baseball.predictions.exact_score.4"
+      },
+      {
+        "step": 5,
+        "threshold": 25,
+        "bonus_points": 300,
+        "card_key": "baseball.predictions.exact_score.5"
+      }
+    ]
+  },
+  {
+    "id": "baseball.predictions.hit_streak",
+    "sport": "baseball",
+    "category": "hit",
+    "family": "predictions",
+    "collection": "baseball.scouts_eye",
+    "rule": {
+      "input": "prediction",
+      "correct": true,
+      "where": {
+        "sport": [
+          "baseball"
+        ]
+      },
+      "count": {
+        "mode": "streak",
+        "unit": "prediction"
+      }
+    },
+    "requires_data": [
+      "fan.prediction",
+      "event.sport"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria: o Palpite de vencedor acerta pouco mais da metade das vezes no beisebol (o mandante vence 53% dos jogos entre 2022 e 2025), então 5 acertos seguidos saem para 1 em cerca de 30 tentativas e 10 para 1 em mil; um torcedor assíduo chega a 10 numa temporada e a 25 em poucas (fonte-base: si.com/mlb/mlb-playoffs-home-field-advantage-decrease-stats)",
+    "name": {
+      "pt": "Em série",
+      "es": "En racha",
+      "en": "On a Roll"
+    },
+    "description": {
+      "pt": "Acerte Palpites de beisebol seguidos, sem errar nenhum no meio.",
+      "es": "Acierta pronósticos de béisbol seguidos, sin fallar ninguno en el medio.",
+      "en": "Get baseball predictions right back to back, without a miss in between."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 2,
+        "bonus_points": 20,
+        "card_key": "baseball.predictions.hit_streak.1"
+      },
+      {
+        "step": 2,
+        "threshold": 5,
+        "bonus_points": 40,
+        "card_key": "baseball.predictions.hit_streak.2"
+      },
+      {
+        "step": 3,
+        "threshold": 10,
+        "bonus_points": 80,
+        "card_key": "baseball.predictions.hit_streak.3"
+      },
+      {
+        "step": 4,
+        "threshold": 25,
+        "bonus_points": 150,
+        "card_key": "baseball.predictions.hit_streak.4"
+      },
+      {
+        "step": 5,
+        "threshold": 50,
+        "bonus_points": 300,
+        "card_key": "baseball.predictions.hit_streak.5"
+      }
+    ]
+  },
+  {
+    "id": "baseball.predictions.playoff_winner",
+    "sport": "baseball",
+    "category": "hit",
+    "family": "predictions",
+    "collection": "baseball.decision_nights",
+    "rule": {
+      "input": "prediction",
+      "kind": "winner",
+      "correct": true,
+      "where": {
+        "sport": [
+          "baseball"
+        ],
+        "stage": [
+          "knockout"
+        ]
+      }
+    },
+    "requires_data": [
+      "fan.prediction",
+      "event.sport",
+      "event.stage.kind"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria sobre o calendário: os playoffs da liga principal têm até 40 jogos em outubro, as ligas mexicanas e de inverno somam 30 a 60 jogos de pós-temporada cada uma, e os torneios de seleções 7 a 10; um torcedor assíduo palpita em 40 a 80 jogos de mata-mata por ano e acerta o vencedor em pouco mais da metade (fontes do calendário em pesquisa/baseball.md)",
+    "name": {
+      "pt": "Dono dos playoffs",
+      "es": "Dueño de los playoffs",
+      "en": "Playoff Caller"
+    },
+    "description": {
+      "pt": "Acerte o vencedor de jogos de playoff e de mata-mata de beisebol.",
+      "es": "Acierta el ganador en partidos de playoffs y de eliminación directa de béisbol.",
+      "en": "Predict the winner of baseball playoff and knockout games."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 20,
+        "card_key": "baseball.predictions.playoff_winner.1"
+      },
+      {
+        "step": 2,
+        "threshold": 3,
+        "bonus_points": 40,
+        "card_key": "baseball.predictions.playoff_winner.2"
+      },
+      {
+        "step": 3,
+        "threshold": 8,
+        "bonus_points": 80,
+        "card_key": "baseball.predictions.playoff_winner.3"
+      },
+      {
+        "step": 4,
+        "threshold": 20,
+        "bonus_points": 150,
+        "card_key": "baseball.predictions.playoff_winner.4"
+      },
+      {
+        "step": 5,
+        "threshold": 50,
+        "bonus_points": 300,
+        "card_key": "baseball.predictions.playoff_winner.5"
+      }
+    ]
+  },
+  {
+    "id": "baseball.predictions.runs_quantity",
+    "sport": "baseball",
+    "category": "hit",
+    "family": "predictions",
+    "collection": "baseball.scouts_eye",
+    "rule": {
+      "input": "prediction",
+      "kind": "quantity",
+      "correct": true,
+      "where": {
+        "sport": [
+          "baseball"
+        ]
+      }
+    },
+    "requires_data": [
+      "fan.prediction",
+      "event.sport"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria: o Palpite de quantidade (\"pelo menos N corridas\") acerta cerca de metade das vezes; a liga principal tem 8,5 a 9 corridas somadas por jogo e as ligas de inverno ficam perto disso; um torcedor assíduo com 150 Palpites por temporada acerta cerca de 75 (fonte-base: retrosheet.org/Research/SmithD/bigbang.pdf)",
+    "name": {
+      "pt": "Contador de corridas",
+      "es": "Contador de carreras",
+      "en": "Run Counter"
+    },
+    "description": {
+      "pt": "Acerte quantas corridas um jogo de beisebol vai ter.",
+      "es": "Acierta cuántas carreras tendrá un partido de béisbol.",
+      "en": "Call how many runs a baseball game will have."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 3,
+        "bonus_points": 20,
+        "card_key": "baseball.predictions.runs_quantity.1"
+      },
+      {
+        "step": 2,
+        "threshold": 10,
+        "bonus_points": 40,
+        "card_key": "baseball.predictions.runs_quantity.2"
+      },
+      {
+        "step": 3,
+        "threshold": 30,
+        "bonus_points": 80,
+        "card_key": "baseball.predictions.runs_quantity.3"
+      },
+      {
+        "step": 4,
+        "threshold": 75,
+        "bonus_points": 150,
+        "card_key": "baseball.predictions.runs_quantity.4"
+      },
+      {
+        "step": 5,
+        "threshold": 200,
+        "bonus_points": 300,
+        "card_key": "baseball.predictions.runs_quantity.5"
+      }
+    ]
+  },
+  {
+    "id": "baseball.results.blowout",
+    "sport": "baseball",
+    "category": "moment",
+    "family": "results",
+    "collection": "baseball.big_bats",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win",
+        "margin_min": 10
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "71 jogos decididos por 10 ou mais corridas até o início de setembro de 2018 na liga principal, cerca de 3,5% dos jogos; para o time do torcedor, 5 a 6 por temporada, metade vencidos: 2 a 3 vitórias por dez ou mais (fonte: sabr.org/latest/rowley-an-incomplete-study-of-pitchers-in-blowout-games)",
+    "name": {
+      "pt": "Massacre",
+      "es": "Paliza",
+      "en": "Blowout"
+    },
+    "description": {
+      "pt": "Assista a uma vitória do seu time por dez corridas ou mais de diferença.",
+      "es": "Mira una victoria de tu equipo por diez carreras o más de diferencia.",
+      "en": "Watch your team win by ten runs or more."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 25,
+        "card_key": "baseball.results.blowout.1"
+      }
+    ]
+  },
+  {
+    "id": "baseball.results.derby_win",
+    "sport": "baseball",
+    "category": "moment",
+    "family": "results",
+    "collection": "baseball.rivalry",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win"
+      },
+      "presence": "game",
+      "where": {
+        "derby": true
+      }
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id",
+      "event.derby_id"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria sobre o calendário: rivais da mesma divisão jogam 13 vezes por temporada na liga principal e 8 a 12 nas ligas de inverno e mexicanas; vencendo metade, 5 a 6 vitórias no clássico por temporada (fontes do calendário em pesquisa/baseball.md; depende de quantos clássicos a plataforma marca, pergunta 2)",
+    "name": {
+      "pt": "Vitória no clássico",
+      "es": "Victoria en el clásico",
+      "en": "Rivalry Win"
+    },
+    "description": {
+      "pt": "Assista aos clássicos em que seu time vence.",
+      "es": "Mira los clásicos que gana tu equipo.",
+      "en": "Watch the rivalry games your team wins."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 10,
+        "card_key": "baseball.results.derby_win.1"
+      },
+      {
+        "step": 2,
+        "threshold": 2,
+        "bonus_points": 20,
+        "card_key": "baseball.results.derby_win.2"
+      },
+      {
+        "step": 3,
+        "threshold": 4,
+        "bonus_points": 40,
+        "card_key": "baseball.results.derby_win.3"
+      },
+      {
+        "step": 4,
+        "threshold": 8,
+        "bonus_points": 75,
+        "card_key": "baseball.results.derby_win.4"
+      },
+      {
+        "step": 5,
+        "threshold": 20,
+        "bonus_points": 150,
+        "card_key": "baseball.results.derby_win.5"
+      }
+    ]
+  },
+  {
+    "id": "baseball.results.final_win",
+    "sport": "baseball",
+    "category": "moment",
+    "family": "results",
+    "collection": "baseball.decision_nights",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win"
+      },
+      "presence": "game",
+      "where": {
+        "stage": [
+          "final"
+        ]
+      }
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id",
+      "event.stage.kind"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria sobre o calendário: a final das ligas de inverno e das ligas mexicanas é uma série melhor de 7 (ou de 9), e quem chega vence 3 a 5 jogos dela; 2 de 8 a 10 times chegam, o que dá cerca de 0,9 vitória em jogo de final por time e temporada; na liga principal, 2 de 30 chegam: 0,25 (fontes do calendário em pesquisa/baseball.md)",
+    "name": {
+      "pt": "Vitória em final",
+      "es": "Victoria en la final",
+      "en": "Final Won"
+    },
+    "description": {
+      "pt": "Assista a uma vitória do seu time em jogo de final.",
+      "es": "Mira una victoria de tu equipo en un partido de la final.",
+      "en": "Watch your team win a game of the final."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 60,
+        "card_key": "baseball.results.final_win.1"
+      }
+    ]
+  },
+  {
+    "id": "baseball.results.one_run_win",
+    "sport": "baseball",
+    "category": "moment",
+    "family": "results",
+    "collection": "baseball.close_calls",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win",
+        "margin_max": 1
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "um time joga em média 46 jogos decididos por uma corrida por temporada de 162 (2000 a 2024), cerca de 28% dos jogos; metade vencidos, ou seja, cerca de 23 vitórias por uma corrida por temporada (fonte: bravesjournal.com/2025/06/12/off-day-math-whats-up-with-all-these-1-run-games)",
+    "name": {
+      "pt": "Por uma corrida",
+      "es": "Por una carrera",
+      "en": "By One Run"
+    },
+    "description": {
+      "pt": "Assista às vitórias do seu time por uma corrida de diferença.",
+      "es": "Mira las victorias de tu equipo por una carrera de diferencia.",
+      "en": "Watch your team win by a single run."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 10,
+        "card_key": "baseball.results.one_run_win.1"
+      },
+      {
+        "step": 2,
+        "threshold": 4,
+        "bonus_points": 20,
+        "card_key": "baseball.results.one_run_win.2"
+      },
+      {
+        "step": 3,
+        "threshold": 10,
+        "bonus_points": 40,
+        "card_key": "baseball.results.one_run_win.3"
+      },
+      {
+        "step": 4,
+        "threshold": 23,
+        "bonus_points": 75,
+        "card_key": "baseball.results.one_run_win.4"
+      },
+      {
+        "step": 5,
+        "threshold": 60,
+        "bonus_points": 150,
+        "card_key": "baseball.results.one_run_win.5"
+      }
+    ]
+  },
+  {
+    "id": "baseball.results.shutout_win",
+    "sport": "baseball",
+    "category": "moment",
+    "family": "results",
+    "collection": "baseball.mound",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win",
+        "shutout": true
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "jogos em que um time não marca: 11,6% (liga americana) a 13,2% (liga nacional) dos jogos entre 1984 e 1991, 12,6 a 13,2% em 1991; só 16 foram arremessados por um único arremessador em 2024; para o time do torcedor, cerca de 10 vitórias sem sofrer corrida por temporada de 162 jogos (fonte: retrosheet.org/Research/SmithD/bigbang.pdf; kstp.com/associated-press/ap-national-sports/mlb-pitchers-threw-fewer-complete-games-but-dominated-batters-this-year)",
+    "name": {
+      "pt": "Adversário zerado",
+      "es": "Blanqueada",
+      "en": "Shutout"
+    },
+    "description": {
+      "pt": "Assista às vitórias do seu time sem sofrer nenhuma corrida.",
+      "es": "Mira las victorias de tu equipo sin permitir ni una carrera.",
+      "en": "Watch your team win without allowing a single run."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 10,
+        "card_key": "baseball.results.shutout_win.1"
+      },
+      {
+        "step": 2,
+        "threshold": 2,
+        "bonus_points": 20,
+        "card_key": "baseball.results.shutout_win.2"
+      },
+      {
+        "step": 3,
+        "threshold": 5,
+        "bonus_points": 40,
+        "card_key": "baseball.results.shutout_win.3"
+      },
+      {
+        "step": 4,
+        "threshold": 10,
+        "bonus_points": 75,
+        "card_key": "baseball.results.shutout_win.4"
+      },
+      {
+        "step": 5,
+        "threshold": 25,
+        "bonus_points": 150,
+        "card_key": "baseball.results.shutout_win.5"
+      }
+    ]
+  }
+]

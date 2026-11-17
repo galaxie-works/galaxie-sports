@@ -1,0 +1,1532 @@
+[
+  {
+    "card_key": "baseball.explorer.competitions.1",
+    "collection": "baseball.summer_to_winter",
+    "rarity": "common",
+    "name": {
+      "pt": "Dois torneios",
+      "es": "Dos torneos",
+      "en": "Two Competitions"
+    },
+    "flavor": {
+      "pt": "Um palpite no verão, outro no inverno, e o mapa começa.",
+      "es": "Un pronóstico en verano, otro en invierno, y empieza el mapa.",
+      "en": "One call in summer, another in winter, and the map begins."
+    },
+    "art_prompt": "A stylized paper map on a table with two glowing pin shapes and two tiny generic baseballs, a stylized fan’s hands placing the second pin, warm morning light, flat vector. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.explorer.competitions.2",
+    "collection": "baseball.summer_to_winter",
+    "rarity": "special",
+    "name": {
+      "pt": "Quatro torneios",
+      "es": "Cuatro torneos",
+      "en": "Four Competitions"
+    },
+    "flavor": {
+      "pt": "Liga grande, liga de inverno, copa de verão: tudo cabe no seu palpite.",
+      "es": "Liga grande, liga invernal, copa de verano: todo cabe en tu pronóstico.",
+      "en": "Big league, winter league, summer cup: your calls cover it all."
+    },
+    "art_prompt": "A stylized map spread wide with four glowing pins connected by thin lines, a stylized fan leaning over it with a generic phone with a blank screen, steel-blue afternoon light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.explorer.competitions.3",
+    "collection": "baseball.summer_to_winter",
+    "rarity": "special",
+    "name": {
+      "pt": "Sete torneios",
+      "es": "Siete torneos",
+      "en": "Seven Competitions"
+    },
+    "flavor": {
+      "pt": "Sete torneios e nenhum calendário te assusta.",
+      "es": "Siete torneos y ningún calendario te asusta.",
+      "en": "Seven tournaments and no calendar scares you."
+    },
+    "art_prompt": "A stylized globe on a desk with seven glowing pins forming a constellation across the Americas without borders, a stylized fan silhouette spinning it with one finger, night lamp light, steel-blue tones. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.explorer.competitions.4",
+    "collection": "baseball.summer_to_winter",
+    "rarity": "rare",
+    "name": {
+      "pt": "Atlas do beisebol",
+      "es": "Atlas del béisbol",
+      "en": "Baseball Atlas"
+    },
+    "flavor": {
+      "pt": "Dez competições na ponta da língua.",
+      "es": "Diez torneos en la punta de la lengua.",
+      "en": "Ten competitions at the tip of the tongue."
+    },
+    "art_prompt": "A stylized fan silhouette standing inside a planetarium-like dome where ten glowing pin-lights form a violet map across the ceiling shaped like a diamond, faceted violet glow. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.explorer.competitions.5",
+    "collection": "baseball.summer_to_winter",
+    "rarity": "historic",
+    "name": {
+      "pt": "Cartógrafo do diamante",
+      "es": "Cartógrafo del diamante",
+      "en": "Diamond Cartographer"
+    },
+    "flavor": {
+      "pt": "Não existe torneio de beisebol que você não tenha palpitado.",
+      "es": "No hay torneo de béisbol que no hayas pronosticado.",
+      "en": "There is no baseball tournament you have not called."
+    },
+    "art_prompt": "A stylized fan silhouette standing on a floating generic baseball-shaped planet covered in a network of prismatic light lines and eighteen glowing nodes, light rays and floating particles, deep space backdrop. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.explorer.countries.1",
+    "collection": "baseball.summer_to_winter",
+    "rarity": "common",
+    "name": {
+      "pt": "Primeiro carimbo",
+      "es": "Primer sello",
+      "en": "First Stamp"
+    },
+    "flavor": {
+      "pt": "O beisebol fala todas as línguas.",
+      "es": "El béisbol habla todos los idiomas.",
+      "en": "Baseball speaks every language."
+    },
+    "art_prompt": "A stylized fan watching a generic game on a tablet at an airport-like window with a plain plane silhouette outside, players in plain white and plain charcoal kits on the screen, daylight, flat vector. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.explorer.countries.2",
+    "collection": "baseball.summer_to_winter",
+    "rarity": "special",
+    "name": {
+      "pt": "Dois países",
+      "es": "Dos países",
+      "en": "Two Countries"
+    },
+    "flavor": {
+      "pt": "Dois sotaques de narrador, uma só emoção.",
+      "es": "Dos acentos de narrador, una sola emoción.",
+      "en": "Two commentators’ accents, the same thrill."
+    },
+    "art_prompt": "A stylized fan with headphones in front of two floating screens each showing a ballpark of different architecture, no flags or symbols, steel-blue tones, cozy interior. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.explorer.countries.3",
+    "collection": "baseball.summer_to_winter",
+    "rarity": "special",
+    "name": {
+      "pt": "Quatro países",
+      "es": "Cuatro países",
+      "en": "Four Countries"
+    },
+    "flavor": {
+      "pt": "Seu passaporte de torcedor já tem carimbo.",
+      "es": "Tu pasaporte de hincha ya tiene sellos.",
+      "en": "Your fan passport already has stamps."
+    },
+    "art_prompt": "A stylized plain passport-like booklet without text open on a table showing four abstract glowing stamp shapes of baseballs and diamonds, a stylized fan’s hand holding a generic phone beside it, warm lamp light, steel-blue tones. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.explorer.countries.4",
+    "collection": "baseball.summer_to_winter",
+    "rarity": "rare",
+    "name": {
+      "pt": "Cidadão do beisebol",
+      "es": "Ciudadano del béisbol",
+      "en": "Baseball Citizen"
+    },
+    "flavor": {
+      "pt": "Seis países, seis maneiras de gritar a corrida.",
+      "es": "Seis países, seis formas de gritar la carrera.",
+      "en": "Six countries, six ways to cheer a run."
+    },
+    "art_prompt": "A stylized fan silhouette standing at the center of a ring of six ballpark silhouettes of varied architecture glowing violet, night, faceted violet glow, no flags. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.explorer.countries.5",
+    "collection": "baseball.summer_to_winter",
+    "rarity": "historic",
+    "name": {
+      "pt": "Torcedor das Américas",
+      "es": "Hincha de las Américas",
+      "en": "Fan of the Americas"
+    },
+    "flavor": {
+      "pt": "Nove países, nenhum jogo estrangeiro.",
+      "es": "Nueve países, ningún partido extranjero.",
+      "en": "Nine countries, no game ever foreign."
+    },
+    "art_prompt": "A stylized fan silhouette standing on a stylized globe wrapped in amber light with nine glowing ballpark markers across the Americas without borders or flags, engraved laurel-like glow and soft outer glow. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.explorer.months.1",
+    "collection": "baseball.summer_to_winter",
+    "rarity": "common",
+    "name": {
+      "pt": "Primeiro mês",
+      "es": "Primer mes",
+      "en": "First Month"
+    },
+    "flavor": {
+      "pt": "O calendário começou a contar.",
+      "es": "El calendario empezó a contar.",
+      "en": "The calendar started counting."
+    },
+    "art_prompt": "A stylized wall calendar without numbers with one page glowing softly, a stylized fan beside it holding a generic baseball and a plain glove, morning light, flat vector interior. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.explorer.months.2",
+    "collection": "baseball.summer_to_winter",
+    "rarity": "special",
+    "name": {
+      "pt": "Três meses",
+      "es": "Tres meses",
+      "en": "Three Months"
+    },
+    "flavor": {
+      "pt": "Uma estação inteira de bola no ar.",
+      "es": "Una estación entera de pelota en el aire.",
+      "en": "A whole season of the year with the ball in the air."
+    },
+    "art_prompt": "Three stylized windows in a row showing the same generic diamond in sun, rain and dusk, a stylized fan silhouette walking past them, steel-blue tones. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.explorer.months.3",
+    "collection": "baseball.summer_to_winter",
+    "rarity": "special",
+    "name": {
+      "pt": "Meio ano",
+      "es": "Medio año",
+      "en": "Half a Year"
+    },
+    "flavor": {
+      "pt": "Seis meses, seis motivos para ligar a tela.",
+      "es": "Seis meses, seis motivos para encender la pantalla.",
+      "en": "Six months, six reasons to turn on the screen."
+    },
+    "art_prompt": "A stylized tree beside a generic diamond shown half in bloom and half in autumn leaves, a stylized fan seated beneath watching a tiny game, soft light, steel-blue tones. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.explorer.months.4",
+    "collection": "baseball.summer_to_winter",
+    "rarity": "rare",
+    "name": {
+      "pt": "Doze meses",
+      "es": "Doce meses",
+      "en": "Twelve Months"
+    },
+    "flavor": {
+      "pt": "Do verão ao inverno, sem férias do bastão.",
+      "es": "Del verano al invierno, sin vacaciones del bate.",
+      "en": "Summer through winter, no holiday from the bat."
+    },
+    "art_prompt": "A ring of twelve stylized moon phases glowing violet above a generic ballpark, a stylized fan silhouette standing on the mound looking up, faceted violet glow, night. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.explorer.months.5",
+    "collection": "baseball.summer_to_winter",
+    "rarity": "historic",
+    "name": {
+      "pt": "Dois anos de beisebol",
+      "es": "Dos años de béisbol",
+      "en": "Two Years of Baseball"
+    },
+    "flavor": {
+      "pt": "Vinte e quatro meses de jogo, nenhum sem bola.",
+      "es": "Veinticuatro meses de partidos, ninguno sin pelota.",
+      "en": "Twenty-four months of games, not one without a ball."
+    },
+    "art_prompt": "A stylized fan silhouette standing on a sundial-like generic diamond where two full rings of amber light orbit overhead with twenty-four glowing marks, engraved laurel-like glow, soft outer glow. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.loyalty.favorite_games.1",
+    "collection": "baseball.bleachers",
+    "rarity": "common",
+    "name": {
+      "pt": "Primeiro jogo",
+      "es": "Primer partido",
+      "en": "First Game"
+    },
+    "flavor": {
+      "pt": "Todo torcedor lembra do primeiro.",
+      "es": "Todo hincha recuerda el primero.",
+      "en": "Every fan remembers the first one."
+    },
+    "art_prompt": "A young stylized fan with a plain white cap sitting alone in a wide generic bleacher at a sunny afternoon game, players in plain white kits small on the diamond below, soft shadows. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.loyalty.favorite_games.2",
+    "collection": "baseball.bleachers",
+    "rarity": "special",
+    "name": {
+      "pt": "Oito jogos",
+      "es": "Ocho partidos",
+      "en": "Eight Games"
+    },
+    "flavor": {
+      "pt": "Já conhece a ordem de rebatedores de cor.",
+      "es": "Ya se sabe el orden al bate de memoria.",
+      "en": "Already knows the batting order by heart."
+    },
+    "art_prompt": "A stylized fan standing in a half-full generic bleacher with a few silhouetted friends, holding a plain white pennant without symbols overhead, a team in plain white kits taking the field, late-afternoon light, steel-blue tones. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.loyalty.favorite_games.3",
+    "collection": "baseball.bleachers",
+    "rarity": "special",
+    "name": {
+      "pt": "Vinte e sete jogos",
+      "es": "Veintisiete partidos",
+      "en": "Twenty-Seven Games"
+    },
+    "flavor": {
+      "pt": "Um jogo para cada out de um jogo perfeito.",
+      "es": "Un partido por cada out de un juego perfecto.",
+      "en": "One game for every out of a perfect game."
+    },
+    "art_prompt": "A stylized fan in the middle of a packed generic bleacher with arms wide, silhouetted fans of every age around, floodlights coming on at dusk, a team in plain white kits celebrating below, steel-blue tones. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.loyalty.favorite_games.4",
+    "collection": "baseball.bleachers",
+    "rarity": "rare",
+    "name": {
+      "pt": "Oitenta e um",
+      "es": "Ochenta y uno",
+      "en": "Eighty-One"
+    },
+    "flavor": {
+      "pt": "Cada jogo em casa de uma temporada inteira.",
+      "es": "Cada partido de local de una temporada entera.",
+      "en": "Every home game of a whole season."
+    },
+    "art_prompt": "A stylized fan standing at the front of a bleacher with a plain white flag without symbols, a sea of silhouetted fans behind in violet light, the diamond glowing under night floodlights, a faint calendar-like grid of light without numbers above, faceted violet glow. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.loyalty.favorite_games.5",
+    "collection": "baseball.bleachers",
+    "rarity": "historic",
+    "name": {
+      "pt": "Duzentos jogos",
+      "es": "Doscientos partidos",
+      "en": "Two Hundred Games"
+    },
+    "flavor": {
+      "pt": "Duzentos jogos depois, ainda é o mesmo frio na barriga.",
+      "es": "Doscientos partidos después, siguen los mismos nervios.",
+      "en": "Two hundred games later, same butterflies."
+    },
+    "art_prompt": "A stylized fan silhouette seen from behind at the top of a generic ballpark with amber light rays and an engraved laurel-like glow surrounding, a trail of two hundred faint seat shapes lighting up behind, night sky. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.loyalty.favorite_streak.1",
+    "collection": "baseball.bleachers",
+    "rarity": "common",
+    "name": {
+      "pt": "Duas noites",
+      "es": "Dos noches",
+      "en": "Two Nights"
+    },
+    "flavor": {
+      "pt": "Jogo sim, jogo sim.",
+      "es": "Partido sí, partido sí.",
+      "en": "Game after game."
+    },
+    "art_prompt": "Two stylized bleacher seats side by side with a stylized fan seated in the second one, the first seat glowing faintly as if just vacated, morning light, a generic diamond below. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.loyalty.favorite_streak.2",
+    "collection": "baseball.bleachers",
+    "rarity": "special",
+    "name": {
+      "pt": "Cinco noites",
+      "es": "Cinco noches",
+      "en": "Five Nights"
+    },
+    "flavor": {
+      "pt": "Cinco jogos, cinco presenças.",
+      "es": "Cinco partidos, cinco presencias.",
+      "en": "Five games, five appearances."
+    },
+    "art_prompt": "A row of five stylized bleacher seats each with a glowing outline, a stylized fan standing on the fifth with a plain white cap raised, afternoon light, scattered silhouetted fans, steel-blue tones. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.loyalty.favorite_streak.3",
+    "collection": "baseball.bleachers",
+    "rarity": "special",
+    "name": {
+      "pt": "Dez noites",
+      "es": "Diez noches",
+      "en": "Ten Nights"
+    },
+    "flavor": {
+      "pt": "Nem chuva, nem horário, nem cansaço.",
+      "es": "Ni lluvia, ni horario, ni cansancio.",
+      "en": "Not rain, not the hour, not fatigue."
+    },
+    "art_prompt": "A stylized fan walking through rain under a plain umbrella toward a glowing ballpark entrance, a trail of ten glowing footprints behind, night, steel-blue tones. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.loyalty.favorite_streak.4",
+    "collection": "baseball.bleachers",
+    "rarity": "rare",
+    "name": {
+      "pt": "Vinte noites",
+      "es": "Veinte noches",
+      "en": "Twenty Nights"
+    },
+    "flavor": {
+      "pt": "Três semanas sem piscar.",
+      "es": "Tres semanas sin pestañear.",
+      "en": "Three weeks without blinking."
+    },
+    "art_prompt": "A stylized fan standing alone at the center of an empty generic bleacher lit by a single violet spotlight, twenty glowing seat outlines arranged in a crescent behind, faceted violet glow, night sky. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.loyalty.favorite_streak.5",
+    "collection": "baseball.bleachers",
+    "rarity": "historic",
+    "name": {
+      "pt": "Quarenta noites",
+      "es": "Cuarenta noches",
+      "en": "Forty Nights"
+    },
+    "flavor": {
+      "pt": "Quarenta jogos seguidos, nenhum perdido.",
+      "es": "Cuarenta partidos seguidos, ninguno perdido.",
+      "en": "Forty games straight, not one missed."
+    },
+    "art_prompt": "A stylized fan silhouette standing at the summit of a generic ballpark with amber light rays and an engraved laurel-like glow, a long spiral of forty glowing seats winding down the stands below, night. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.loyalty.finals_watched.1",
+    "collection": "baseball.decision_nights",
+    "rarity": "common",
+    "name": {
+      "pt": "Primeira final",
+      "es": "Primera final",
+      "en": "First Final"
+    },
+    "flavor": {
+      "pt": "Tem jogo que vale uma temporada.",
+      "es": "Hay partidos que valen una temporada.",
+      "en": "Some games are worth a whole season."
+    },
+    "art_prompt": "A stylized fan watching a plain generic trophy being carried onto the field by silhouetted officials before a game, players in plain white and plain charcoal kits lined up on the foul lines, daylight, a generic stand. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.loyalty.finals_watched.2",
+    "collection": "baseball.decision_nights",
+    "rarity": "special",
+    "name": {
+      "pt": "Duas finais",
+      "es": "Dos finales",
+      "en": "Two Finals"
+    },
+    "flavor": {
+      "pt": "Duas finais, dois nós na garganta.",
+      "es": "Dos finales, dos nudos en la garganta.",
+      "en": "Two finals, two lumps in the throat."
+    },
+    "art_prompt": "Two stylized fans of different ages gripping each other’s arms in a bleacher, a generic trophy glowing on a stand by the dugout far below, dusk, steel-blue tones. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.loyalty.finals_watched.3",
+    "collection": "baseball.decision_nights",
+    "rarity": "special",
+    "name": {
+      "pt": "Cinco finais",
+      "es": "Cinco finales",
+      "en": "Five Finals"
+    },
+    "flavor": {
+      "pt": "Quando o troféu aparece, você já está na tela.",
+      "es": "Cuando aparece el trofeo, ya estás en la pantalla.",
+      "en": "When the trophy shows up, you are already watching."
+    },
+    "art_prompt": "A stylized fan at a crowded living-room watch party, five tiny floating generic trophy shapes above the television showing a generic diamond, friends of diverse ages cheering, night, steel-blue tones. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.loyalty.finals_watched.4",
+    "collection": "baseball.decision_nights",
+    "rarity": "rare",
+    "name": {
+      "pt": "Dez finais",
+      "es": "Diez finales",
+      "en": "Ten Finals"
+    },
+    "flavor": {
+      "pt": "Dez decisões vistas, nenhuma esquecida.",
+      "es": "Diez definiciones vistas, ninguna olvidada.",
+      "en": "Ten finals watched, none forgotten."
+    },
+    "art_prompt": "A stylized fan silhouette standing before a wall of ten glowing generic trophy outlines like a gallery, violet light, confetti frozen in the air, faceted violet glow. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.loyalty.finals_watched.5",
+    "collection": "baseball.decision_nights",
+    "rarity": "historic",
+    "name": {
+      "pt": "Vinte e cinco finais",
+      "es": "Veinticinco finales",
+      "en": "Twenty-Five Finals"
+    },
+    "flavor": {
+      "pt": "Vinte e cinco noites em que tudo estava em jogo.",
+      "es": "Veinticinco noches en que todo estaba en juego.",
+      "en": "Twenty-five nights when everything was on the line."
+    },
+    "art_prompt": "A stylized fan silhouette at the center of a circular hall of amber light where twenty-five generic trophy shapes float in a ring, engraved laurel-like glow, soft outer glow. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.moments.big_inning.1",
+    "collection": "baseball.big_bats",
+    "rarity": "special",
+    "name": {
+      "pt": "Carrossel",
+      "es": "Carrusel",
+      "en": "Merry-Go-Round"
+    },
+    "flavor": {
+      "pt": "A fila de rebatedores deu a volta inteira e ninguém quis sentar.",
+      "es": "La fila de bateadores dio la vuelta completa y nadie quiso sentarse.",
+      "en": "The lineup went all the way around and nobody wanted to sit."
+    },
+    "art_prompt": "A stylized overhead view of a generic diamond with six runners in plain white kits spread around the bases and crossing home plate in a glowing loop, the pitcher in a plain charcoal kit small and alone on the mound, afternoon sun, a cheering generic stand, steel-blue tones. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.moments.comeback_five.1",
+    "collection": "baseball.comebacks",
+    "rarity": "rare",
+    "name": {
+      "pt": "Do nada",
+      "es": "De la nada",
+      "en": "Out of Nowhere"
+    },
+    "flavor": {
+      "pt": "Cinco atrás e ninguém saiu. Ninguém se arrependeu.",
+      "es": "Cinco abajo y nadie se fue. Nadie se arrepintió.",
+      "en": "Five down and nobody left. Nobody regretted it."
+    },
+    "art_prompt": "A stylized batter in a plain white kit frozen at the end of a full swing with the generic ball soaring over a stylized outfield wall, five faint shadow-marks fading on a blank scoreboard silhouette, storm clouds parting into violet light, a generic stand on its feet, faceted glow. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.moments.comeback_three.1",
+    "collection": "baseball.comebacks",
+    "rarity": "common",
+    "name": {
+      "pt": "Primeira reação",
+      "es": "Primera reacción",
+      "en": "First Rally"
+    },
+    "flavor": {
+      "pt": "Três atrás e o banco ainda batia palma.",
+      "es": "Tres abajo y la banca seguía aplaudiendo.",
+      "en": "Three down and the dugout was still clapping."
+    },
+    "art_prompt": "A stylized batter in a plain white kit pointing the bat toward the outfield at midday, a blank scoreboard silhouette with three faint marks on the far side, a few silhouetted fans in a sunny generic stand, a generic infield diamond. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.moments.comeback_three.2",
+    "collection": "baseball.comebacks",
+    "rarity": "special",
+    "name": {
+      "pt": "Sem pânico",
+      "es": "Sin pánico",
+      "en": "No Panic"
+    },
+    "flavor": {
+      "pt": "Uma corrida de cada vez, até a frente.",
+      "es": "Una carrera a la vez, hasta pasar al frente.",
+      "en": "One run at a time, all the way to the lead."
+    },
+    "art_prompt": "Three stylized runners in plain white kits rounding the bases in sequence like a chain, a pitcher in a plain charcoal kit with hands on hips, dusk sky in orange and steel-blue, a half-full generic stand leaning forward. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.moments.comeback_three.3",
+    "collection": "baseball.comebacks",
+    "rarity": "special",
+    "name": {
+      "pt": "Entrada por entrada",
+      "es": "Entrada a entrada",
+      "en": "Inning by Inning"
+    },
+    "flavor": {
+      "pt": "Cinco viradas, nenhuma por acaso.",
+      "es": "Cinco remontadas, ninguna por casualidad.",
+      "en": "Five comebacks, none by chance."
+    },
+    "art_prompt": "A stylized team in plain white kits gathered at the top step of the dugout with fists raised, a blank scoreboard silhouette where a long row of marks climbs upward like a staircase, night floodlights, a packed generic stand, steel-blue tones. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.moments.comeback_three.4",
+    "collection": "baseball.comebacks",
+    "rarity": "rare",
+    "name": {
+      "pt": "Nunca acabou",
+      "es": "Nunca se acaba",
+      "en": "Never Over"
+    },
+    "flavor": {
+      "pt": "Dez vezes o jogo pareceu perdido. Dez vezes não era.",
+      "es": "Diez veces el partido parecía perdido. Diez veces no lo estaba.",
+      "en": "Ten times the game looked lost. Ten times it was not."
+    },
+    "art_prompt": "A stylized batter in a plain white kit silhouetted against a violet floodlit sky with the bat at the top of the swing, a glowing arc of light leaving the bat toward the outfield, a dark stand behind erupting, faceted violet glow. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.moments.comeback_three.5",
+    "collection": "baseball.comebacks",
+    "rarity": "legendary",
+    "name": {
+      "pt": "Lenda da virada",
+      "es": "Leyenda de la remontada",
+      "en": "Comeback Legend"
+    },
+    "flavor": {
+      "pt": "Vinte e cinco noites em que ninguém saiu antes do último out.",
+      "es": "Veinticinco noches en que nadie se fue antes del último out.",
+      "en": "Twenty-five nights when nobody left before the last out."
+    },
+    "art_prompt": "An epic low-angle view of a stylized team in plain white kits climbing a staircase of light from a dark pit toward a glowing home plate at the top, shadows of opponents in plain charcoal kits far below, prismatic rays and floating particles over a radiant crowd silhouette. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: iridescent prismatic border with light rays and floating particles.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.moments.cycle.1",
+    "collection": "baseball.big_bats",
+    "rarity": "legendary",
+    "name": {
+      "pt": "Quatro rebatidas",
+      "es": "Cuatro bases",
+      "en": "Four Ways Around"
+    },
+    "flavor": {
+      "pt": "Uma, duas, três bases e a volta inteira. Tudo no mesmo jogo.",
+      "es": "Una, dos, tres bases y la vuelta completa. Todo en el mismo partido.",
+      "en": "One base, two, three, then all the way around. All in one game."
+    },
+    "art_prompt": "A stylized batter in a plain white kit standing at home plate with four glowing trails of different lengths fanning out across a generic diamond, the longest arcing over the outfield wall, prismatic light rays and floating particles, a silhouetted crowd rising, night. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: iridescent prismatic border with light rays and floating particles.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.moments.extra_innings.1",
+    "collection": "baseball.close_calls",
+    "rarity": "common",
+    "name": {
+      "pt": "Décima entrada",
+      "es": "Décima entrada",
+      "en": "Tenth Inning"
+    },
+    "flavor": {
+      "pt": "O placar empatou na nona e ninguém foi para casa.",
+      "es": "El marcador se empató en la novena y nadie se fue a casa.",
+      "en": "Tied after nine, and nobody went home."
+    },
+    "art_prompt": "A stylized batter in a plain white kit and plain cap stepping into the box under late-afternoon light, a runner already standing on second base, a generic infield diamond with a half-empty stand behind, a blank scoreboard silhouette with ten empty slots. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.moments.extra_innings.2",
+    "collection": "baseball.close_calls",
+    "rarity": "special",
+    "name": {
+      "pt": "Noite longa",
+      "es": "Noche larga",
+      "en": "Long Night"
+    },
+    "flavor": {
+      "pt": "Café frio, luzes acesas, jogo sem fim.",
+      "es": "Café frío, luces encendidas, partido sin fin.",
+      "en": "Cold coffee, lights on, a game with no end."
+    },
+    "art_prompt": "A stylized fan of any gender wrapped in a plain blanket on a stadium seat at night, a generic diamond glowing under floodlights below, players in plain white and plain charcoal kits small on the field, a large blank clock shape above the stand, steel-blue tones. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.moments.extra_innings.3",
+    "collection": "baseball.close_calls",
+    "rarity": "special",
+    "name": {
+      "pt": "Sem hora para acabar",
+      "es": "Sin hora de terminar",
+      "en": "No Curfew"
+    },
+    "flavor": {
+      "pt": "Sete noites que o relógio desistiu de marcar.",
+      "es": "Siete noches en que el reloj dejó de contar.",
+      "en": "Seven nights the clock stopped bothering to count."
+    },
+    "art_prompt": "A generic ballpark seen from high behind home plate at midnight, both dugouts leaning on the rails, a pitcher in a plain charcoal kit mid-windup, a batter in a plain white kit waiting, a crescent moon over the outfield, silhouetted fans still packed in the stands. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.moments.extra_innings.4",
+    "collection": "baseball.close_calls",
+    "rarity": "rare",
+    "name": {
+      "pt": "Maratonista",
+      "es": "Maratonista",
+      "en": "Marathoner"
+    },
+    "flavor": {
+      "pt": "Uma temporada de entradas extras e nenhuma deixada pela metade.",
+      "es": "Una temporada de entradas extra y ninguna dejada a medias.",
+      "en": "A season of extra innings, not one left unfinished."
+    },
+    "art_prompt": "A stylized fan silhouette standing alone at the top of an empty generic ballpark under violet floodlights, fourteen faint glowing base-shaped marks trailing across the outfield grass, a faceted violet glow around the figure, deep night sky. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.moments.extra_innings.5",
+    "collection": "baseball.close_calls",
+    "rarity": "legendary",
+    "name": {
+      "pt": "Lenda das extras",
+      "es": "Leyenda de las extra",
+      "en": "Extra-Innings Legend"
+    },
+    "flavor": {
+      "pt": "Quando a nona acaba, você está só começando.",
+      "es": "Cuando termina la novena, recién estás empezando.",
+      "en": "When the ninth ends, you are just getting started."
+    },
+    "art_prompt": "An epic wide view of a generic diamond floating in a prismatic night sky, a colossal blank clock face dissolving into light particles over the outfield, a stylized batter in a plain white kit mid-swing at the center, light rays bursting from home plate, a sea of silhouetted fans. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: iridescent prismatic border with light rays and floating particles.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.moments.grand_slam.1",
+    "collection": "baseball.big_bats",
+    "rarity": "special",
+    "name": {
+      "pt": "Bases cheias",
+      "es": "Bases llenas",
+      "en": "Bases Loaded"
+    },
+    "flavor": {
+      "pt": "Três na base, um no bastão, quatro cruzando a casa.",
+      "es": "Tres en base, uno al bate, cuatro cruzando el plato.",
+      "en": "Three on, one at the plate, four crossing home."
+    },
+    "art_prompt": "A stylized batter in a plain white kit watching the generic ball sail high over a stylized outfield wall, three runners in plain white kits trotting around the bases in a glowing chain, a pitcher in a plain charcoal kit looking down, golden-hour light, a generic stand erupting, steel-blue tones. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.moments.ninth_inning_rally.1",
+    "collection": "baseball.close_calls",
+    "rarity": "special",
+    "name": {
+      "pt": "Reação na nona",
+      "es": "Reacción en la novena",
+      "en": "Ninth-Inning Rally"
+    },
+    "flavor": {
+      "pt": "Última chance, três corridas, e o jogo mudou de dono.",
+      "es": "Última chance, tres carreras, y el partido cambió de dueño.",
+      "en": "Last chance, three runs, and the game changed hands."
+    },
+    "art_prompt": "A stylized batter in a plain white kit sprinting toward first base with the bat flying from the hands, two runners ahead crossing home plate, a closer in a plain charcoal kit turning to watch the outfield, night floodlights, a packed generic stand with raised arms, steel-blue tones. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.moments.no_hitter.1",
+    "collection": "baseball.mound",
+    "rarity": "historic",
+    "name": {
+      "pt": "Zero no quadro",
+      "es": "Cero en la pizarra",
+      "en": "Zero on the Board"
+    },
+    "flavor": {
+      "pt": "Nove entradas, nenhuma rebatida. O estádio inteiro contou junto.",
+      "es": "Nueve entradas, ningún hit. Todo el estadio contó junto.",
+      "en": "Nine innings, not one hit. The whole ballpark counted along."
+    },
+    "art_prompt": "A stylized pitcher in a plain white kit and plain cap standing tall on the mound with both arms raised, a catcher in plain white gear sprinting toward the mound with the mask thrown aside, a tall blank scoreboard silhouette with a long row of empty slots behind, night floodlights over a generic ballpark, warm amber glow, silhouetted fans on their feet. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.moments.perfect_game.1",
+    "collection": "baseball.mound",
+    "rarity": "legendary",
+    "name": {
+      "pt": "Vinte e sete",
+      "es": "Veintisiete",
+      "en": "Twenty-Seven Up"
+    },
+    "flavor": {
+      "pt": "Vinte e sete subiram ao bastão. Vinte e sete voltaram para o banco.",
+      "es": "Veintisiete subieron al bate. Veintisiete volvieron a la banca.",
+      "en": "Twenty-seven came to the plate. Twenty-seven went back to the bench."
+    },
+    "art_prompt": "A stylized pitcher in a plain white kit on the mound bathed in prismatic light, twenty-seven faint ghost silhouettes of batters in plain charcoal kits fading in a long arc behind the backstop, a blank scoreboard silhouette with every slot empty, light rays and floating particles over a hushed generic ballpark at night. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: iridescent prismatic border with light rays and floating particles.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.moments.walk_off_extra.1",
+    "collection": "baseball.close_calls",
+    "rarity": "special",
+    "name": {
+      "pt": "Última corrida",
+      "es": "Dejados en el terreno",
+      "en": "Walked It Off"
+    },
+    "flavor": {
+      "pt": "A corrida cruzou a base e o banco inteiro invadiu o campo.",
+      "es": "La carrera cruzó el plato y toda la banca saltó al terreno.",
+      "en": "The run crossed the plate and the whole dugout spilled onto the field."
+    },
+    "art_prompt": "A stylized runner in a plain white kit sliding into home plate in a cloud of dust while a catcher in a plain charcoal kit reaches late, teammates of varied builds and genders pouring out of the dugout with arms up, night floodlights, a roaring generic stand, steel-blue tones. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.moments.walk_off.1",
+    "collection": "baseball.close_calls",
+    "rarity": "common",
+    "name": {
+      "pt": "Corrida final",
+      "es": "Carrera final",
+      "en": "Final Run"
+    },
+    "flavor": {
+      "pt": "A última corrida foi a nossa. Fim de jogo.",
+      "es": "La última carrera fue nuestra. Fin del partido.",
+      "en": "The last run was ours. Game over."
+    },
+    "art_prompt": "A stylized runner in a plain white kit stepping onto home plate with one foot while the umpire in plain grey signals safe, the catcher in a plain charcoal kit kneeling, late-afternoon light over a generic diamond, a few silhouetted fans standing. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.moments.walk_off.2",
+    "collection": "baseball.close_calls",
+    "rarity": "special",
+    "name": {
+      "pt": "Banco no campo",
+      "es": "Banca al terreno",
+      "en": "Dugout Empties"
+    },
+    "flavor": {
+      "pt": "Todo mundo correu para a mesma base ao mesmo tempo.",
+      "es": "Todos corrieron a la misma base al mismo tiempo.",
+      "en": "Everybody ran to the same base at the same time."
+    },
+    "art_prompt": "A stylized crowd of players in plain white kits of varied builds and genders mobbing a teammate at first base, plain caps flying in the air, dusk sky in orange and steel-blue, a generic stand cheering behind. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.moments.walk_off.3",
+    "collection": "baseball.close_calls",
+    "rarity": "special",
+    "name": {
+      "pt": "Noites de festa",
+      "es": "Noches de fiesta",
+      "en": "Party Nights"
+    },
+    "flavor": {
+      "pt": "Quatro vezes o visitante arrumou a mala sem a vitória.",
+      "es": "Cuatro veces la visita hizo la maleta sin la victoria.",
+      "en": "Four times the visitors packed up without the win."
+    },
+    "art_prompt": "A night scene of a stylized player in a plain white kit being lifted by teammates near home plate, a cooler of water splashing in a stylized arc, floodlights on, a packed generic stand with raised arms, steel-blue tones. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.moments.walk_off.4",
+    "collection": "baseball.close_calls",
+    "rarity": "rare",
+    "name": {
+      "pt": "Rei da última entrada",
+      "es": "Rey de la última entrada",
+      "en": "King of the Last Inning"
+    },
+    "flavor": {
+      "pt": "Quando chega a última entrada, o estádio já sabe o roteiro.",
+      "es": "Cuando llega la última entrada, el estadio ya conoce el guion.",
+      "en": "When the last inning comes, the ballpark knows the script."
+    },
+    "art_prompt": "A stylized batter in a plain white kit standing at home plate with a crown-shaped formation of violet light rays behind, a generic diamond glowing under floodlights, silhouetted fans forming a ring of light, faceted violet glow, night. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.moments.walk_off.5",
+    "collection": "baseball.close_calls",
+    "rarity": "legendary",
+    "name": {
+      "pt": "Lenda da última entrada",
+      "es": "Leyenda de la última entrada",
+      "en": "Last-Inning Legend"
+    },
+    "flavor": {
+      "pt": "Dezoito finais escritos pelo mandante.",
+      "es": "Dieciocho finales escritos por el local.",
+      "en": "Eighteen endings written by the home side."
+    },
+    "art_prompt": "A monumental stylized statue of a player in a plain white kit crossing home plate on a plaza, families of varied ages gathered at its base at golden hour, prismatic light rays and floating particles around the statue, a generic ballpark silhouette behind. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: iridescent prismatic border with light rays and floating particles.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.predictions.exact_score.1",
+    "collection": "baseball.scouts_eye",
+    "rarity": "common",
+    "name": {
+      "pt": "Primeiro exato",
+      "es": "Primer exacto",
+      "en": "First Exact Call"
+    },
+    "flavor": {
+      "pt": "Corrida por corrida, o placar que você escreveu.",
+      "es": "Carrera por carrera, el marcador que escribiste.",
+      "en": "Run for run, the score you wrote down."
+    },
+    "art_prompt": "A stylized fan seen from behind on a sofa holding a generic phone with a blank screen, a small television showing a tiny generic diamond with players in plain white and plain charcoal kits, morning light through a window, cozy flat vector interior. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.predictions.exact_score.2",
+    "collection": "baseball.scouts_eye",
+    "rarity": "special",
+    "name": {
+      "pt": "Duas na mosca",
+      "es": "Dos exactos",
+      "en": "Two on the Nose"
+    },
+    "flavor": {
+      "pt": "Duas vezes nove entradas previstas até a última corrida.",
+      "es": "Dos veces nueve entradas previstas hasta la última carrera.",
+      "en": "Twice, nine innings called down to the last run."
+    },
+    "art_prompt": "Two stylized fans of different ages and backgrounds high-fiving in a living room, a television glowing with a tiny generic ballpark, two faint target rings floating above them, warm evening light, steel-blue tones. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.predictions.exact_score.3",
+    "collection": "baseball.scouts_eye",
+    "rarity": "special",
+    "name": {
+      "pt": "Leitor de placar",
+      "es": "Lector de pizarra",
+      "en": "Scoreboard Reader"
+    },
+    "flavor": {
+      "pt": "Cinco placares exatos. O box score já não tem segredo.",
+      "es": "Cinco marcadores exactos. La pizarra ya no tiene secretos.",
+      "en": "Five exact scores. The box score holds no secrets now."
+    },
+    "art_prompt": "A stylized fan standing at a crowded living-room watch party with friends of diverse ages cheering, a blank scoreboard silhouette hovering over the television, a dart-board-like target glowing behind the fan, night lighting, steel-blue tones. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.predictions.exact_score.4",
+    "collection": "baseball.scouts_eye",
+    "rarity": "rare",
+    "name": {
+      "pt": "Oráculo do diamante",
+      "es": "Oráculo del diamante",
+      "en": "Diamond Oracle"
+    },
+    "flavor": {
+      "pt": "A arquibancada pergunta o placar antes do primeiro arremesso.",
+      "es": "La grada pregunta el marcador antes del primer lanzamiento.",
+      "en": "The bleachers ask for the score before the first pitch."
+    },
+    "art_prompt": "A stylized figure in a plain hooded cloak seated on a ballpark step gazing into a glowing crystal ball that shows a tiny generic diamond with players in plain white and plain charcoal kits, violet night sky, silhouetted fans leaning in, faceted violet glow. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.predictions.exact_score.5",
+    "collection": "baseball.scouts_eye",
+    "rarity": "legendary",
+    "name": {
+      "pt": "Vidente das nove",
+      "es": "Vidente de las nueve",
+      "en": "Nine-Inning Seer"
+    },
+    "flavor": {
+      "pt": "Vinte e cinco placares exatos. Ninguém acredita, e é verdade.",
+      "es": "Veinticinco marcadores exactos. Nadie lo cree, y es verdad.",
+      "en": "Twenty-five exact scores. Nobody believes it, and it is true."
+    },
+    "art_prompt": "A stylized figure with eyes closed floating above a generic diamond, hands open as prismatic light rays and floating particles form a giant abstract target over the infield, two silhouetted teams in plain white and plain charcoal kits below, night. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: iridescent prismatic border with light rays and floating particles.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.predictions.hit_streak.1",
+    "collection": "baseball.scouts_eye",
+    "rarity": "common",
+    "name": {
+      "pt": "Duas seguidas",
+      "es": "Dos seguidas",
+      "en": "Two Straight"
+    },
+    "flavor": {
+      "pt": "Um acerto é palpite. Dois seguidos já é leitura.",
+      "es": "Un acierto es un pronóstico. Dos seguidos ya es lectura.",
+      "en": "One hit is a call. Two in a row is reading the game."
+    },
+    "art_prompt": "Two generic baseballs resting in a row on the infield dirt each with a small glowing ring, a stylized fan silhouette kneeling to look at them, morning light on a quiet generic diamond. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.predictions.hit_streak.2",
+    "collection": "baseball.scouts_eye",
+    "rarity": "special",
+    "name": {
+      "pt": "Cinco seguidas",
+      "es": "Cinco seguidas",
+      "en": "Five Straight"
+    },
+    "flavor": {
+      "pt": "Cinco jogos, cinco acertos, zero dúvida.",
+      "es": "Cinco partidos, cinco aciertos, cero dudas.",
+      "en": "Five games, five hits, zero doubt."
+    },
+    "art_prompt": "Five generic baseballs in a diagonal line across the outfield grass each glowing a little brighter than the last, a stylized fan walking along them with a confident stride, steel-blue afternoon light, an empty generic stand. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.predictions.hit_streak.3",
+    "collection": "baseball.scouts_eye",
+    "rarity": "special",
+    "name": {
+      "pt": "Dez seguidas",
+      "es": "Diez seguidas",
+      "en": "Ten Straight"
+    },
+    "flavor": {
+      "pt": "A sequência virou assunto de arquibancada.",
+      "es": "La racha se volvió tema de grada.",
+      "en": "The streak became bleacher talk."
+    },
+    "art_prompt": "A chain of ten glowing generic baseballs forming an arc over a generic diamond like a bridge from home plate to the outfield wall, a stylized fan silhouette standing beneath with arms crossed, silhouetted fans pointing from the stands, dusk, steel-blue tones. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.predictions.hit_streak.4",
+    "collection": "baseball.scouts_eye",
+    "rarity": "rare",
+    "name": {
+      "pt": "Braço quente",
+      "es": "Brazo caliente",
+      "en": "Hot Arm"
+    },
+    "flavor": {
+      "pt": "Vinte e cinco seguidos. Nem o relógio de arremesso esfria essa mão.",
+      "es": "Veinticinco seguidos. Ni el reloj de lanzamiento enfría esa mano.",
+      "en": "Twenty-five straight. Not even the pitch clock cools that hand."
+    },
+    "art_prompt": "A stylized fan silhouette with a raised hand wrapped in violet flame-like light, a long trail of glowing generic baseballs spiraling into the night sky above a generic ballpark, faceted violet glow. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.predictions.hit_streak.5",
+    "collection": "baseball.scouts_eye",
+    "rarity": "legendary",
+    "name": {
+      "pt": "Sequência imortal",
+      "es": "Racha inmortal",
+      "en": "Immortal Streak"
+    },
+    "flavor": {
+      "pt": "Cinquenta jogos sem errar. Isso não é acaso, é leitura.",
+      "es": "Cincuenta partidos sin fallar. Eso no es casualidad, es lectura.",
+      "en": "Fifty straight without a miss. That is not chance, that is reading."
+    },
+    "art_prompt": "A comet made of countless glowing generic baseballs streaking across a prismatic sky over a stylized ballpark, a stylized fan silhouette standing on the roof edge watching, light rays and floating particles everywhere. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: iridescent prismatic border with light rays and floating particles.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.predictions.playoff_winner.1",
+    "collection": "baseball.decision_nights",
+    "rarity": "common",
+    "name": {
+      "pt": "Primeiro playoff",
+      "es": "Primer playoff",
+      "en": "First Playoff Call"
+    },
+    "flavor": {
+      "pt": "Jogo sem volta, palpite sem medo.",
+      "es": "Partido sin vuelta, pronóstico sin miedo.",
+      "en": "No second chances, no second-guessing."
+    },
+    "art_prompt": "A stylized bracket drawn as glowing lines on a chalkboard-like dark surface with one path lit up, a stylized fan silhouette tapping the lit path with a generic baseball resting on the table, soft daylight, no letters or numbers. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.predictions.playoff_winner.2",
+    "collection": "baseball.decision_nights",
+    "rarity": "special",
+    "name": {
+      "pt": "Série lida",
+      "es": "Serie leída",
+      "en": "Series Read"
+    },
+    "flavor": {
+      "pt": "Você lê a chave como quem lê a escalação.",
+      "es": "Lees la llave como quien lee la alineación.",
+      "en": "You read the bracket like a lineup card."
+    },
+    "art_prompt": "A stylized fan sitting cross-legged on a ballpark step studying a large floating glowing bracket of lines without labels, three paths lit in steel-blue, afternoon light, scattered silhouetted fans. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.predictions.playoff_winner.3",
+    "collection": "baseball.decision_nights",
+    "rarity": "special",
+    "name": {
+      "pt": "Chave aberta",
+      "es": "Llave abierta",
+      "en": "Bracket Open"
+    },
+    "flavor": {
+      "pt": "Uma série depois da outra, acerto a acerto, até a última noite.",
+      "es": "Una serie tras otra, acierto a acierto, hasta la última noche.",
+      "en": "Series by series, call by call, to the last night."
+    },
+    "art_prompt": "A glowing bracket shaped like a tree growing from home plate toward the night sky, many branches lit, a stylized fan standing at the trunk with arms raised, floodlights over a generic ballpark, steel-blue tones. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.predictions.playoff_winner.4",
+    "collection": "baseball.decision_nights",
+    "rarity": "rare",
+    "name": {
+      "pt": "Mestre dos playoffs",
+      "es": "Maestro de los playoffs",
+      "en": "Playoff Master"
+    },
+    "flavor": {
+      "pt": "Nas noites sem volta, a sua leitura é lei.",
+      "es": "En las noches sin vuelta, tu lectura es ley.",
+      "en": "On nights with no way back, your read is law."
+    },
+    "art_prompt": "A stylized fan silhouette standing on the mound of a generic ballpark with a violet glowing bracket wrapping around like a crown of light, silhouetted teams in plain white and plain charcoal kits on each foul line, faceted violet glow, night. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.predictions.playoff_winner.5",
+    "collection": "baseball.decision_nights",
+    "rarity": "legendary",
+    "name": {
+      "pt": "Lenda dos playoffs",
+      "es": "Leyenda de los playoffs",
+      "en": "Playoff Legend"
+    },
+    "flavor": {
+      "pt": "Cinquenta decisões lidas antes do primeiro arremesso.",
+      "es": "Cincuenta definiciones leídas antes del primer lanzamiento.",
+      "en": "Fifty deciders read before the first pitch."
+    },
+    "art_prompt": "A colossal prismatic bracket of light rays rising from a generic ballpark into the night sky with every path lit, a stylized fan silhouette at its base with floating particles swirling, epic wide composition. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: iridescent prismatic border with light rays and floating particles.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.predictions.runs_quantity.1",
+    "collection": "baseball.scouts_eye",
+    "rarity": "common",
+    "name": {
+      "pt": "Três na conta",
+      "es": "Tres en la cuenta",
+      "en": "Three on the Tally"
+    },
+    "flavor": {
+      "pt": "Três jogos, três contagens certas.",
+      "es": "Tres partidos, tres cuentas correctas.",
+      "en": "Three games, three tallies right."
+    },
+    "art_prompt": "A stylized fan holding a plain tally card without numbers with three glowing marks, a generic diamond behind at midday, a few silhouetted fans in a sunny stand, flat vector. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.predictions.runs_quantity.2",
+    "collection": "baseball.scouts_eye",
+    "rarity": "special",
+    "name": {
+      "pt": "Dez na conta",
+      "es": "Diez en la cuenta",
+      "en": "Ten on the Tally"
+    },
+    "flavor": {
+      "pt": "Você conta corridas antes do primeiro arremesso.",
+      "es": "Cuentas carreras antes del primer lanzamiento.",
+      "en": "You count runs before the first pitch."
+    },
+    "art_prompt": "A stylized fan standing in a half-full generic stand with an abacus-like row of ten glowing generic baseballs floating beside, dusk light in orange and steel-blue, the diamond below. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.predictions.runs_quantity.3",
+    "collection": "baseball.scouts_eye",
+    "rarity": "special",
+    "name": {
+      "pt": "Trinta na conta",
+      "es": "Treinta en la cuenta",
+      "en": "Thirty on the Tally"
+    },
+    "flavor": {
+      "pt": "Trinta contagens e o placar já não surpreende.",
+      "es": "Treinta cuentas y el marcador ya no sorprende.",
+      "en": "Thirty tallies and the score no longer surprises you."
+    },
+    "art_prompt": "A stylized fan seated in a packed night stand with a long glowing ribbon of thirty generic baseballs winding above the crowd, floodlights, steel-blue tones. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.predictions.runs_quantity.4",
+    "collection": "baseball.scouts_eye",
+    "rarity": "rare",
+    "name": {
+      "pt": "Contador mestre",
+      "es": "Contador maestro",
+      "en": "Master Tally"
+    },
+    "flavor": {
+      "pt": "Setenta e cinco placares contados antes de acontecer.",
+      "es": "Setenta y cinco marcadores contados antes de pasar.",
+      "en": "Seventy-five scores counted before they happened."
+    },
+    "art_prompt": "A stylized fan silhouette standing on a ballpark step with a violet glowing ring over each eye, a blank scoreboard silhouette below filled with evenly spaced violet dots, faceted violet glow, night. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.predictions.runs_quantity.5",
+    "collection": "baseball.scouts_eye",
+    "rarity": "legendary",
+    "name": {
+      "pt": "Lenda da conta",
+      "es": "Leyenda de la cuenta",
+      "en": "Tally Legend"
+    },
+    "flavor": {
+      "pt": "Duzentas contagens certas. O box score tem o seu nome.",
+      "es": "Doscientas cuentas correctas. La pizarra lleva tu nombre.",
+      "en": "Two hundred tallies right. The box score has your name on it."
+    },
+    "art_prompt": "A giant abstract scoreboard of prismatic light floating above a silent generic ballpark with two hundred glowing dots arranged in a spiral, a stylized fan silhouette at home plate, light rays and floating particles. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: iridescent prismatic border with light rays and floating particles.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.results.blowout.1",
+    "collection": "baseball.big_bats",
+    "rarity": "special",
+    "name": {
+      "pt": "Chuva de corridas",
+      "es": "Lluvia de carreras",
+      "en": "Run Shower"
+    },
+    "flavor": {
+      "pt": "Perdeu a conta das corridas, não do sorriso.",
+      "es": "Perdió la cuenta de las carreras, no de la sonrisa.",
+      "en": "Lost count of the runs, never of the smile."
+    },
+    "art_prompt": "A stylized team in plain white kits celebrating in a loose circle at home plate while ten generic balls rest beyond a stylized outfield wall, a pitcher in a plain charcoal kit sitting on the mound, bright festive daylight, a cheering generic stand, steel-blue tones. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.results.derby_win.1",
+    "collection": "baseball.rivalry",
+    "rarity": "common",
+    "name": {
+      "pt": "Clássico nosso",
+      "es": "Clásico nuestro",
+      "en": "Our Rivalry Game"
+    },
+    "flavor": {
+      "pt": "Clássico é outro jogo. E esse foi nosso.",
+      "es": "El clásico es otro partido. Y este fue nuestro.",
+      "en": "A rivalry game is a different game. This one was ours."
+    },
+    "art_prompt": "A stylized runner in a plain white kit sliding safely into second base under the tag of a fielder in a plain charcoal kit at midday, dust rising, a split generic stand behind with two blocks of silhouetted fans, bright daylight. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.results.derby_win.2",
+    "collection": "baseball.rivalry",
+    "rarity": "special",
+    "name": {
+      "pt": "Duas de clássico",
+      "es": "Dos de clásico",
+      "en": "Two Rivalry Wins"
+    },
+    "flavor": {
+      "pt": "A rua inteira sabia o resultado antes do rádio.",
+      "es": "La cuadra entera sabía el resultado antes que la radio.",
+      "en": "The whole street knew the score before the radio did."
+    },
+    "art_prompt": "A stylized city street at dusk with silhouetted neighbors of all ages leaning from balconies waving plain white pennants without symbols, a small generic television glowing in one window with a tiny diamond on screen, paper streamers between buildings, steel-blue tones. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.results.derby_win.3",
+    "collection": "baseball.rivalry",
+    "rarity": "special",
+    "name": {
+      "pt": "Série do clássico",
+      "es": "Serie de clásico",
+      "en": "Rivalry Series"
+    },
+    "flavor": {
+      "pt": "Sob os refletores, o clássico tem outro peso.",
+      "es": "Bajo los reflectores, el clásico pesa distinto.",
+      "en": "Under the floodlights, the rivalry weighs different."
+    },
+    "art_prompt": "A night rivalry game seen from behind home plate, a stylized pitcher in a plain white kit pumping a fist after a strikeout, the batter in a plain charcoal kit walking away, two halves of a generic ballpark glowing in cool and warm light, harmless colored smoke drifting. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.results.derby_win.4",
+    "collection": "baseball.rivalry",
+    "rarity": "rare",
+    "name": {
+      "pt": "Dono do clássico",
+      "es": "Dueño del clásico",
+      "en": "Rivalry Boss"
+    },
+    "flavor": {
+      "pt": "Quando o clássico chega, ele já sabe o caminho.",
+      "es": "Cuando llega el clásico, ya sabe el camino.",
+      "en": "When rivalry week comes, they already know the way."
+    },
+    "art_prompt": "A stylized captain in a plain white kit raising a fist on the mound with a crown-shaped formation of violet light rays behind, the stands split in two colors of light, confetti falling, faceted violet glow, late evening. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.results.derby_win.5",
+    "collection": "baseball.rivalry",
+    "rarity": "legendary",
+    "name": {
+      "pt": "Mito do clássico",
+      "es": "Mito del clásico",
+      "en": "Rivalry Myth"
+    },
+    "flavor": {
+      "pt": "Gerações contam esse clássico como quem conta um mito.",
+      "es": "Generaciones cuentan ese clásico como quien cuenta un mito.",
+      "en": "Generations tell this rivalry like they tell a myth."
+    },
+    "art_prompt": "A monumental stylized statue of a batter in a plain white kit at the end of a swing on a plaza, silhouetted families of varied ages gathered at its base at golden hour, prismatic light rays and floating particles around the statue, two generic ballpark silhouettes behind. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: iridescent prismatic border with light rays and floating particles.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.results.final_win.1",
+    "collection": "baseball.decision_nights",
+    "rarity": "rare",
+    "name": {
+      "pt": "Noite de título",
+      "es": "Noche de título",
+      "en": "Title Night"
+    },
+    "flavor": {
+      "pt": "Um jogo de final vencido. O troféu ficou mais perto.",
+      "es": "Un partido de final ganado. El trofeo quedó más cerca.",
+      "en": "One final won. The trophy just got closer."
+    },
+    "art_prompt": "A stylized team in plain white kits of varied builds and genders piling together near the mound under confetti, a plain generic trophy without engravings glowing on a stand by the dugout, violet floodlit night, a packed generic stand in silhouette, faceted violet glow. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.results.one_run_win.1",
+    "collection": "baseball.close_calls",
+    "rarity": "common",
+    "name": {
+      "pt": "Unhas roídas",
+      "es": "Uñas mordidas",
+      "en": "Nail-Biter"
+    },
+    "flavor": {
+      "pt": "Uma corrida de diferença e o último out demorou uma vida.",
+      "es": "Una carrera de diferencia y el último out tardó una vida.",
+      "en": "One run apart and the last out took a lifetime."
+    },
+    "art_prompt": "A stylized fan of any gender gripping a plain cap with both hands on the edge of a stadium seat, a generic diamond below with a closer in a plain white kit mid-pitch, late-afternoon light, a few silhouetted fans around. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.results.one_run_win.2",
+    "collection": "baseball.close_calls",
+    "rarity": "special",
+    "name": {
+      "pt": "No fio",
+      "es": "Al filo",
+      "en": "On the Edge"
+    },
+    "flavor": {
+      "pt": "Quatro jogos no fio da navalha, quatro do nosso lado.",
+      "es": "Cuatro partidos al filo, cuatro de nuestro lado.",
+      "en": "Four games on a knife-edge, four on our side."
+    },
+    "art_prompt": "A stylized catcher in a plain white kit squeezing the final strike in the glove while the batter in a plain charcoal kit drops the shoulders, the umpire in plain grey punching the air, dusk sky in orange and steel-blue, a tense generic stand. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.results.one_run_win.3",
+    "collection": "baseball.close_calls",
+    "rarity": "special",
+    "name": {
+      "pt": "Coração forte",
+      "es": "Corazón fuerte",
+      "en": "Strong Heart"
+    },
+    "flavor": {
+      "pt": "Dez vezes o placar apertado, dez vezes a respiração presa.",
+      "es": "Diez veces el marcador cerrado, diez veces la respiración contenida.",
+      "en": "Ten tight scores, ten held breaths."
+    },
+    "art_prompt": "A stylized team in plain white kits lined up on the foul line tipping plain caps to a packed generic stand at night, a blank scoreboard silhouette with two nearly equal columns of light, floodlights, steel-blue tones. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.results.one_run_win.4",
+    "collection": "baseball.close_calls",
+    "rarity": "rare",
+    "name": {
+      "pt": "Mestre do aperto",
+      "es": "Maestro del final cerrado",
+      "en": "Master of the Close Call"
+    },
+    "flavor": {
+      "pt": "Uma temporada inteira decidida por uma corrida, sempre a nossa.",
+      "es": "Una temporada entera decidida por una carrera, siempre la nuestra.",
+      "en": "A whole season decided by one run, always ours."
+    },
+    "art_prompt": "A stylized closer in a plain white kit standing on the mound with arms crossed inside a violet spotlight, a single glowing generic ball hovering above the glove, a dark generic stand with silhouetted fans, faceted violet glow, night. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.results.one_run_win.5",
+    "collection": "baseball.close_calls",
+    "rarity": "legendary",
+    "name": {
+      "pt": "Lenda de uma corrida",
+      "es": "Leyenda de una carrera",
+      "en": "One-Run Legend"
+    },
+    "flavor": {
+      "pt": "Sessenta jogos no limite, e nunca piscou.",
+      "es": "Sesenta partidos al límite, y nunca pestañeó.",
+      "en": "Sixty games on the brink, and never blinked."
+    },
+    "art_prompt": "A stylized fan silhouette standing at the top of a generic ballpark with prismatic light rays behind, sixty faint glowing seat shapes lighting up in a spiral below, a single generic ball glowing at home plate, floating particles, night sky. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: iridescent prismatic border with light rays and floating particles.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.results.shutout_win.1",
+    "collection": "baseball.mound",
+    "rarity": "common",
+    "name": {
+      "pt": "Nove zeros",
+      "es": "Nueve ceros",
+      "en": "Nine Zeros"
+    },
+    "flavor": {
+      "pt": "Nove entradas, nove zeros do outro lado.",
+      "es": "Nueve entradas, nueve ceros del otro lado.",
+      "en": "Nine innings, nine zeros on their side."
+    },
+    "art_prompt": "A stylized pitcher in a plain white kit and plain cap following through on a pitch at midday, a catcher crouched behind the plate, a blank scoreboard silhouette with one row of empty slots, a sunny generic ballpark with scattered silhouetted fans. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.results.shutout_win.2",
+    "collection": "baseball.mound",
+    "rarity": "special",
+    "name": {
+      "pt": "Luva fechada",
+      "es": "Guante cerrado",
+      "en": "Closed Glove"
+    },
+    "flavor": {
+      "pt": "Nada passou pela defesa. Nada mesmo.",
+      "es": "Nada pasó por la defensa. Nada de nada.",
+      "en": "Nothing got past the defense. Nothing at all."
+    },
+    "art_prompt": "A stylized infielder of athletic build in a plain white kit diving to glove a generic ball at the edge of the grass, a runner in a plain charcoal kit stopped halfway, afternoon light, a half-full generic stand, steel-blue tones. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.results.shutout_win.3",
+    "collection": "baseball.mound",
+    "rarity": "special",
+    "name": {
+      "pt": "Muro no montinho",
+      "es": "Muro en el montículo",
+      "en": "Wall on the Mound"
+    },
+    "flavor": {
+      "pt": "O adversário bateu, bateu, e voltou de mãos vazias.",
+      "es": "El rival golpeó y golpeó, y volvió con las manos vacías.",
+      "en": "They swung and swung, and went home empty-handed."
+    },
+    "art_prompt": "A stylized pitcher in a plain white kit standing on the mound with a giant abstract wall of light rising behind, five generic balls bouncing off it, the batter in a plain charcoal kit walking away, night floodlights, a packed generic stand. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.results.shutout_win.4",
+    "collection": "baseball.mound",
+    "rarity": "rare",
+    "name": {
+      "pt": "Dono do montinho",
+      "es": "Dueño del montículo",
+      "en": "Master of the Mound"
+    },
+    "flavor": {
+      "pt": "Dez noites inteiras sem uma corrida sofrida.",
+      "es": "Diez noches enteras sin una carrera en contra.",
+      "en": "Ten whole nights without a run allowed."
+    },
+    "art_prompt": "A stylized pitcher in a plain white kit alone on the mound under a violet spotlight, ten faint glowing zero-shaped rings floating above the outfield, a dark generic stand with silhouetted fans, faceted violet glow, night. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "baseball.results.shutout_win.5",
+    "collection": "baseball.mound",
+    "rarity": "legendary",
+    "name": {
+      "pt": "Lenda dos zeros",
+      "es": "Leyenda de los ceros",
+      "en": "Legend of Zeros"
+    },
+    "flavor": {
+      "pt": "Temporadas inteiras tentaram marcar. O placar não deixou.",
+      "es": "Temporadas enteras intentaron anotar. El marcador no lo permitió.",
+      "en": "Whole seasons tried to score. The board never allowed it."
+    },
+    "art_prompt": "An epic wide shot of a stylized pitcher in a plain white kit standing like a titan on the mound, dozens of generic balls shattering into light particles against an invisible shield around the diamond, prismatic rays over a roaring generic crowd, night. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: iridescent prismatic border with light rays and floating particles.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  }
+]
