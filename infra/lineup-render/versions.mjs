@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 /**
  * Confere que a versão do Playwright é uma só: a imagem base do Dockerfile, o package.json e o package-lock.json
- * daqui, o playwright-core do services/ai-agents (o cliente tem de falar o protocolo do servidor) e a tag da imagem
- * no compose da VPS. Subir a versão é mudar os cinco juntos (o lockfile com `npm install --package-lock-only`; o
+ * daqui, o playwright-core do services/ai-agents (o cliente tem de falar o protocolo do servidor), a tag da imagem
+ * no compose da VPS e o @playwright/test do tests/e2e (as referências visuais saem da imagem oficial na mesma versão,
+ * docs/qa/README.md). Subir a versão é mudar os seis juntos (o lockfile com `npm install --package-lock-only`; o
  * digest do FROM com `docker buildx imagetools inspect <tag>`). O FROM precisa do digest; se ele ainda é o da tag,
  * quem confere (só com aviso) é o job lineup-render do docker.yml, que tem rede.
  *
@@ -12,7 +13,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 /** Versão de cada lugar a partir do texto dos arquivos; null = não achou. */
-export function playwrightVersions({ dockerfile, pkg, lock, agentsPkg, compose }) {
+export function playwrightVersions({ dockerfile, pkg, lock, agentsPkg, compose, e2ePkg }) {
   const lockJson = JSON.parse(lock);
   return {
     'infra/lineup-render/Dockerfile (FROM)':
@@ -26,6 +27,8 @@ export function playwrightVersions({ dockerfile, pkg, lock, agentsPkg, compose }
       JSON.parse(agentsPkg).dependencies?.['playwright-core'] ?? null,
     'infra/vps-telemetry/compose.yml (lineup-render)':
       /-lineup-render:(\d+\.\d+\.\d+)\s*$/m.exec(compose)?.[1] ?? null,
+    'tests/e2e/package.json (@playwright/test)':
+      JSON.parse(e2ePkg).devDependencies?.['@playwright/test'] ?? null,
   };
 }
 
@@ -59,6 +62,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     lock: read('./package-lock.json'),
     agentsPkg: read('../../services/ai-agents/package.json'),
     compose: read('../vps-telemetry/compose.yml'),
+    e2ePkg: read('../../tests/e2e/package.json'),
   });
   const problems = versionProblems(versions);
   if (!fromHasDigest(read('./Dockerfile')))
@@ -67,7 +71,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     );
   if (problems.length) {
     for (const p of problems) console.error(`playwright: ${p}`);
-    console.error('Suba a versão nos cinco lugares juntos (ver infra/lineup-render/Dockerfile).');
+    console.error('Suba a versão nos seis lugares juntos (ver infra/lineup-render/Dockerfile).');
     process.exit(1);
   }
   console.log(`playwright ${Object.values(versions)[0]} em todos os lugares.`);

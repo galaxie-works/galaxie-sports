@@ -3,6 +3,7 @@ packages:
   - services/*
   - packages/*
   - tests/integration
+  - tests/e2e
 
 allowBuilds:
   # vem do @tensorflow/tfjs (triagem de imagem da Cosmos); o script de instalação só imprime um aviso

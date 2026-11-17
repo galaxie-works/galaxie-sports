@@ -14,11 +14,12 @@ const files = (v = {}) => ({
   }),
   agentsPkg: JSON.stringify({ dependencies: { 'playwright-core': v.agents ?? '1.64.0' } }),
   compose: `  lineup-render:\n    image: \${IMAGE_PREFIX:?defina IMAGE_PREFIX}-lineup-render:${v.compose ?? '1.64.0'}\n`,
+  e2ePkg: JSON.stringify({ devDependencies: { '@playwright/test': v.e2e ?? '1.64.0' } }),
 });
 
 test('tudo na mesma versão exata: sem problemas', () => {
   const versions = playwrightVersions(files());
-  assert.equal(Object.keys(versions).length, 6);
+  assert.equal(Object.keys(versions).length, 7);
   assert.deepEqual(versionProblems(versions), []);
 });
 
@@ -26,6 +27,12 @@ test('o cliente dos agents subiu sozinho (Dependabot): acusa a divergência', ()
   const problems = versionProblems(playwrightVersions(files({ agents: '1.65.0' })));
   assert.equal(problems.length, 1);
   assert.match(problems[0], /services\/ai-agents\/package\.json \(playwright-core\) = 1\.65\.0/);
+});
+
+test('o @playwright/test do E2E subiu sozinho: acusa a divergência', () => {
+  const problems = versionProblems(playwrightVersions(files({ e2e: '1.65.0' })));
+  assert.equal(problems.length, 1);
+  assert.match(problems[0], /tests\/e2e\/package\.json \(@playwright\/test\) = 1\.65\.0/);
 });
 
 test('imagem base ou tag do compose fora de sincronia', () => {

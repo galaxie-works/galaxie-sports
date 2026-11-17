@@ -32,6 +32,7 @@ describe('quais imagens mudam com cada caminho', () => {
     // issue #563: a api não depende do ingestor (os testes que cruzam os dois ficam em tests/integration)
     ['services/ingestor: só o ingestor', ['services/ingestor/src/x.ts'], ['ingestor']],
     ['tests/integration: nenhuma (nenhuma imagem depende dele)', ['tests/integration/test/x.ts'], []],
+    ['tests/e2e: nenhuma (nenhuma imagem depende dele)', ['tests/e2e/tests/ui/smoke.spec.ts'], []],
     ['packages/widgets: só a demo', ['packages/widgets/src/index.ts'], ['demo']],
     [
       'o selfheal copiado pelos Dockerfiles: as três',

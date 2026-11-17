@@ -1,0 +1,4 @@
+# sessões do projeto setup (cookies de login do banco descartável), relatório e resultados de cada execução
+.auth/
+playwright-report/
+test-results/

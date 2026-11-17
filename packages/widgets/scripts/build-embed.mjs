@@ -7,6 +7,7 @@
 //                              que a rota `/embed.js` da demo serve sem depender do disco em produção.
 import { createHash } from 'node:crypto';
 import { mkdirSync, writeFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
 import { build } from 'esbuild';
 
@@ -14,7 +15,7 @@ const root = new URL('../', import.meta.url);
 const out = (path) => new URL(path, root);
 
 const result = await build({
-  entryPoints: [new URL('src/embed/entry.ts', root).pathname],
+  entryPoints: [fileURLToPath(new URL('src/embed/entry.ts', root))],
   bundle: true,
   minify: true,
   format: 'iife',

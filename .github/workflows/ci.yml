@@ -239,6 +239,159 @@ jobs:
       - name: Testes de integração (Postgres)
         run: pnpm test:integration $AFFECTED
 
+  # E2E no navegador (docs/qa/README.md, onda 0 #1317): a API e a demo em build de produção (`next start`, APP_ROLE
+  # vazio) contra um banco descartável, login de verdade por código lido de um SMTP falso (Mailpit) e o Playwright com
+  # Chromium. No PR só roda quando a mudança alcança a API, a demo ou o próprio tests/e2e (o recorte do `turbo
+  # --affected`, que inclui os pacotes compartilhados de que elas dependem); na fila de merge e no push para a main,
+  # sempre. Não é check obrigatório por enquanto: a proposta do brief é informativo nas duas primeiras semanas.
+  e2e:
+    name: E2E (Playwright)
+    runs-on: ubuntu-latest
+    # tempo-alvo 12 min (brief); a folga cobre o cache frio do navegador e do turbo
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: galaxie
+          POSTGRES_PASSWORD: galaxie
+          POSTGRES_DB: galaxie_sports
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U galaxie -d galaxie_sports"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+      valkey:
+        image: valkey/valkey:8-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "valkey-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+      # SMTP falso (opção A do brief): a demo manda o código de acesso por ele; o teste lê pela API HTTP (porta 8025).
+      # Aceita qualquer usuário e senha, sem TLS: a demo só envia com SMTP_USER e SMTP_PASSWORD preenchidos.
+      mailpit:
+        image: axllent/mailpit:v1.32.0
+        env:
+          MP_SMTP_AUTH_ACCEPT_ANY: 1
+          MP_SMTP_AUTH_ALLOW_INSECURE: 1
+        ports:
+          - 1025:1025
+          - 8025:8025
+    env:
+      # o executor cria o banco galaxie_e2e_<hex> neste servidor e o apaga no fim
+      DATABASE_URL: postgres://galaxie:galaxie@localhost:5432/galaxie_sports
+      REDIS_URL: redis://localhost:6379
+      E2E_API_PORT: 8180
+      E2E_DEMO_PORT: 3100
+      NEXT_TELEMETRY_DISABLED: 1
+    steps:
+      # a base do --affected é o 1º pai do commit de merge (como no job checks)
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: ${{ github.event_name == 'pull_request' && 2 || 1 }}
+
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Roda quando o recorte do turbo (pacotes que mudaram e quem depende deles) tem a API, a demo ou o E2E. Sem base ou
+      # sem recorte, roda (melhor gastar o job do que deixar passar).
+      - name: Escopo (o PR alcança a API, a demo ou o E2E?)
+        id: scope
+        env:
+          EVENT: ${{ github.event_name }}
+        run: |
+          if [ "$EVENT" != pull_request ]; then
+            echo "Fila de merge ou push: o E2E roda."
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          base=$(git rev-parse --verify --quiet 'HEAD^1' || true)
+          if [ -z "$base" ]; then
+            echo "::warning::Commit base indisponível: o E2E roda."
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if ! TURBO_SCM_BASE="$base" pnpm exec turbo run build --affected --dry=json > "$RUNNER_TEMP/affected.json" 2> "$RUNNER_TEMP/affected.err" \
+            || grep -q "unable to detect git range" "$RUNNER_TEMP/affected.err"; then
+            cat "$RUNNER_TEMP/affected.err"
+            echo "::warning::O turbo não calculou os pacotes afetados: o E2E roda."
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          node -e '
+            const fs = require("fs");
+            const { packages } = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+            const hit = ["@galaxie/api", "@galaxie/demo", "@galaxie/e2e-tests"].filter((p) => packages.includes(p));
+            const text = hit.length ? `alcança ${hit.join(", ")}: o E2E roda` : "não alcança a API, a demo nem o E2E: o E2E fica de fora";
+            console.log(`O PR ${text}.`);
+            fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `**E2E:** o PR ${text}.\n`);
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, `run=${hit.length > 0}\n`);
+          ' "$RUNNER_TEMP/affected.json"
+
+      # O build que vai para o ar: a demo com `next build` (os NEXT_PUBLIC_* entram no build, apontados para as portas do
+      # teste) e a API compilada; o turbo constrói antes os pacotes de que elas e o seed dependem.
+      - name: Build de produção da API e da demo
+        if: steps.scope.outputs.run == 'true'
+        env:
+          NEXT_PUBLIC_GALAXIE_API_URL: http://localhost:8180
+          NEXT_PUBLIC_SITE_URL: http://localhost:3100
+        run: pnpm exec turbo run build --filter=@galaxie/api... --filter=@galaxie/demo... --filter=@galaxie/e2e-tests...
+
+      # Só o Chromium, com o navegador em cache por versão do Playwright (a mesma do lineup-render, versions.mjs); as
+      # bibliotecas do sistema vêm do apt a cada execução.
+      - name: Versão do Playwright
+        if: steps.scope.outputs.run == 'true'
+        id: playwright
+        run: echo "version=$(node -p 'require("./tests/e2e/package.json").devDependencies["@playwright/test"]')" >> "$GITHUB_OUTPUT"
+
+      - name: Cache do Chromium
+        if: steps.scope.outputs.run == 'true'
+        id: browsers
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+
+      - name: Chromium
+        if: steps.scope.outputs.run == 'true'
+        working-directory: tests/e2e
+        env:
+          CACHED: ${{ steps.browsers.outputs.cache-hit }}
+        run: |
+          if [ "$CACHED" = true ]; then
+            pnpm exec playwright install-deps chromium
+          else
+            pnpm exec playwright install --with-deps chromium
+          fi
+
+      # Banco descartável, migrations, seed, API e demo no ar, Playwright e o banco apagado no fim (tests/e2e/src/run.ts)
+      - name: E2E
+        if: steps.scope.outputs.run == 'true'
+        run: pnpm --filter @galaxie/e2e-tests e2e
+
+      # Relatório HTML e traces (DOM, rede, console) só quando falha; as chaves vêm do banco descartável, que já foi apagado
+      - name: Relatório do Playwright
+        if: failure() && steps.scope.outputs.run == 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: e2e-playwright-report
+          path: |
+            tests/e2e/playwright-report/
+            tests/e2e/test-results/
+          retention-days: 14
+          if-no-files-found: ignore
+
   secrets:
     name: Segredos (gitleaks)
     runs-on: ubuntu-latest
