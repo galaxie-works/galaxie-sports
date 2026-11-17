@@ -12,11 +12,24 @@ import { expect, vi } from 'vitest';
 /** Último código mandado para cada e-mail. */
 export const sentCodes = new Map<string, string>();
 
+/** E-mails montados mandados por `sendMail` (boas-vindas do provisionamento, F3), na ordem. */
+export const sentMails: { to: string[]; subject: string; text: string }[] = [];
+
 export const fakeEmailModule = {
   sendAccessEmail: async ({ to, code }: { to: string; code?: string }) => {
     if (code) sentCodes.set(to, code);
     return { delivered: true };
   },
+  sendMail: async (mail: { to: readonly string[]; subject: string; text: string; html: string }) => {
+    sentMails.push({ to: [...mail.to], subject: mail.subject, text: mail.text });
+    return { delivered: true };
+  },
+  // moldura mínima: os testes olham o assunto, os destinatários e o texto, não o HTML
+  renderNotice: (mail: { subject: string; paragraphs: string[]; steps?: string[] }) => ({
+    subject: mail.subject,
+    text: [...mail.paragraphs, ...(mail.steps ?? [])].join('\n'),
+    html: '',
+  }),
 };
 
 export interface AuthTestDb {

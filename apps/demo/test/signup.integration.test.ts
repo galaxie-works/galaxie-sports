@@ -2,7 +2,7 @@ import { loadCatalog } from '@galaxie/billing';
 import { createDb, closeDb, runMigrations, type Database } from '@galaxie/db';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
-import { createAuthTestDb, signInAs, type AuthTestDb } from './support/auth-db';
+import { createAuthTestDb, sentMails, signInAs, type AuthTestDb } from './support/auth-db';
 
 /*
  * Cadastro em autoatendimento (F2 c): o provisionamento cria organização, marca, Dono e chaves uma vez só, por mais
@@ -113,6 +113,13 @@ describe('provisionamento idempotente', () => {
     expect(first.keys.publishable).toMatch(/^gs_pk_live_/);
     expect(first.trialEndsAt!.getTime()).toBeGreaterThan(Date.now() + 29 * 86_400_000);
     expect(first.themeCreated).toBe(true);
+    // F3: o widget de exemplo segue o tema da marca, e as boas-vindas saem para o Dono, no idioma da organização
+    expect(first.sampleWidgetCreated).toBe(true);
+    expect(first.welcomeSent).toBe(true);
+    const welcome = sentMails.filter((m) => m.to.includes('dono@remo.test'));
+    expect(welcome).toHaveLength(1);
+    expect(welcome[0]!.subject).toBe('Bem-vindo(a) à Galaxie Sports: Remo está pronta');
+    expect(welcome[0]!.text).toContain('Primeira chamada');
 
     const again = await provision.provisionOrganization(db, input(owner));
     expect(again.organizationId).toBe(first.organizationId);
@@ -121,6 +128,9 @@ describe('provisionamento idempotente', () => {
     expect(again.tenantCreated).toBe(false);
     expect(again.keys).toEqual({ live: null, test: null, publishable: null });
     expect(again.themeCreated).toBe(false);
+    expect(again.sampleWidgetCreated).toBe(false);
+    expect(again.welcomeSent).toBe(false);
+    expect(sentMails.filter((m) => m.to.includes('dono@remo.test'))).toHaveLength(1);
 
     expect(await count(`billing.organization where slug = 'clube-do-remo'`)).toBe(1);
     expect(await count(`api.tenant where slug = 'clube-do-remo'`)).toBe(1);
@@ -132,6 +142,24 @@ describe('provisionamento idempotente', () => {
     expect(await count(`ops.publishable_key where tenant_id = $1`, [first.tenantId])).toBe(1);
     expect(await count(`api.api_key_event where tenant_id = $1`, [first.tenantId])).toBe(3);
     expect(await count(`ops.widget_theme where tenant_id = $1`, [first.tenantId])).toBe(1);
+    const widgets = await auth.sql.query<{
+      kind: string;
+      name: string;
+      config: { brandThemeId?: string; locale: string; market: string };
+    }>(`select kind, name, config from ops.widget where tenant_id = $1 and archived_at is null`, [
+      first.tenantId,
+    ]);
+    expect(widgets.rows).toHaveLength(1);
+    expect(widgets.rows[0]).toMatchObject({ kind: 'live_list', name: 'Placar do dia' });
+    expect(widgets.rows[0]!.config).toMatchObject({ locale: 'pt-BR', market: 'BR' });
+    expect(widgets.rows[0]!.config.brandThemeId).toMatch(/^[0-9a-f-]{36}$/);
+    const notified = await auth.sql.query<{ kind: string; recipients: string[]; sent_at: Date | null }>(
+      `select kind, recipients, sent_at from billing.tenant_notification where tenant_id = $1`,
+      [first.tenantId],
+    );
+    expect(notified.rows).toEqual([
+      { kind: 'welcome', recipients: ['dono@remo.test'], sent_at: expect.any(Date) },
+    ]);
     const feed = await auth.sql.query(
       `select payload from ops.change_feed where topic = 'tenant.provisioned' and entity_id = $1`,
       [first.tenantId],
@@ -234,6 +262,14 @@ describe('provisionamento idempotente', () => {
       await count(`billing.staff_action where organization_id = $1 and action = 'organization.issue_keys'`, [
         pending.organizationId,
       ]),
+    ).toBe(1);
+    // F3: a marca entrou em trial agora, e as boas-vindas saem na aprovação (não saíram no provisionamento em revisão)
+    expect(sentMails.filter((m) => m.to.includes('pessoa@gmail.com'))).toHaveLength(1);
+    expect(
+      await count(
+        `billing.tenant_notification where tenant_id = $1 and kind = 'welcome' and sent_at is not null`,
+        [pending.tenantId],
+      ),
     ).toBe(1);
     // aprovar de novo: nada mudou e nada a emitir
     const again = await staff.updateOrganizationAction({

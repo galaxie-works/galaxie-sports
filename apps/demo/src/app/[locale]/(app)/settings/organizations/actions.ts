@@ -39,6 +39,7 @@ import {
   type CapacityTier,
   type ReviewStatus,
 } from '@/lib/client/organizations-shared';
+import { sendWelcomeForOrganization } from '@/lib/client/welcome-email';
 import {
   issueMissingKeys,
   listOrganizationBrands,
@@ -172,6 +173,19 @@ async function decideReviewInTx(
 }
 
 /**
+ * Boas-vindas com o checklist (F3, decisão 11) para as marcas da organização que acabaram de entrar em `trial` pela
+ * aprovação da revisão (a que nasceu em `trial` já recebeu no provisionamento; o registro em
+ * `billing.tenant_notification` evita repetir). A falha do e-mail não desfaz a aprovação.
+ */
+async function welcomeOrganization(organizationId: string): Promise<void> {
+  try {
+    await sendWelcomeForOrganization(builderDb(), organizationId);
+  } catch (err) {
+    console.error('[organizações] e-mail de boas-vindas falhou', err);
+  }
+}
+
+/**
  * Emite as chaves que faltam nas marcas da organização (ao aprovar a revisão do cadastro, PL2): o cliente em revisão
  * nasceu sem nada de produção. Cada emissão fica em `billing.staff_action` (só o prefixo, nunca o segredo).
  */
@@ -243,8 +257,10 @@ export async function updateOrganizationAction(input: {
     if (
       decided === 'approved' &&
       (changed || brandsMoved || (await getOrganization(input.id))?.reviewStatus === 'approved')
-    )
+    ) {
       issued = await issueKeysForOrganization(input.id, me.id, reason);
+      await welcomeOrganization(input.id);
+    }
     if (!changed && !issued.length && !brandsMoved) return { ok: false, error: e.unchanged };
   } catch (err) {
     if (err instanceof TenantStateError) return { ok: false, error: e.transition };
@@ -323,9 +339,10 @@ export async function brandStateAction(input: BrandStateActionInput): Promise<Or
     // aprovada: as chaves nascem agora (idempotente, fora da transação), pelo mesmo caminho do cadastro; com
     // organização, também para as marcas irmãs que saíram da revisão. Aparecem uma vez
     if (input.action === 'approve') {
-      if (brand.organization_id)
+      if (brand.organization_id) {
         issued = await issueKeysForOrganization(brand.organization_id, me.id, reason);
-      else {
+        await welcomeOrganization(brand.organization_id);
+      } else {
         const keys = await issueMissingKeys(db, {
           tenantId: brand.id,
           actor,
