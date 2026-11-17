@@ -2045,6 +2045,18 @@ export default defineMessages(
           'Intervalo mínimo entre duas mensagens do mesmo torcedor. 0 desliga. O cliente e a moderação mudam por sala.',
         unit: 'segundos',
       },
+      CHAT_FLOOD_MAX_PER_MINUTE: {
+        label: 'Chat: limite anti-flood',
+        description:
+          'Quantas mensagens o mesmo torcedor manda em 60 segundos antes do bloqueio. A mesma mensagem três vezes também bloqueia. O cliente pode mudar.',
+        unit: 'mensagens',
+      },
+      CHAT_FLOOD_BLOCK_SECONDS: {
+        label: 'Chat: bloqueio anti-flood',
+        description:
+          'Quanto tempo o torcedor fica sem enviar depois de passar do limite. O cliente pode mudar.',
+        unit: 'segundos',
+      },
       CHAT_MESSAGE_MAX_CHARS: {
         label: 'Chat: tamanho da mensagem',
         description: 'Máximo de caracteres por mensagem. Vale para todos os clientes.',
@@ -4093,6 +4105,17 @@ export default defineMessages(
           label: 'Chat: default slow mode',
           description:
             'Minimum interval between two messages from the same fan. 0 turns it off. The client and moderators change it per room.',
+          unit: 'seconds',
+        },
+        CHAT_FLOOD_MAX_PER_MINUTE: {
+          label: 'Chat: anti-flood limit',
+          description:
+            'How many messages the same fan can send in 60 seconds before being blocked. Sending the same message three times also blocks. The client can change it.',
+          unit: 'messages',
+        },
+        CHAT_FLOOD_BLOCK_SECONDS: {
+          label: 'Chat: anti-flood block',
+          description: 'How long the fan cannot send after crossing the limit. The client can change it.',
           unit: 'seconds',
         },
         CHAT_MESSAGE_MAX_CHARS: {
@@ -6168,6 +6191,18 @@ export default defineMessages(
           label: 'Chat: modo lento por defecto',
           description:
             'Intervalo mínimo entre dos mensajes del mismo hincha. 0 lo desactiva. El cliente y la moderación lo cambian por sala.',
+          unit: 'segundos',
+        },
+        CHAT_FLOOD_MAX_PER_MINUTE: {
+          label: 'Chat: límite anti-flood',
+          description:
+            'Cuántos mensajes envía el mismo hincha en 60 segundos antes del bloqueo. El mismo mensaje tres veces también bloquea. El cliente puede cambiarlo.',
+          unit: 'mensajes',
+        },
+        CHAT_FLOOD_BLOCK_SECONDS: {
+          label: 'Chat: bloqueo anti-flood',
+          description:
+            'Cuánto tiempo el hincha queda sin enviar después de pasar el límite. El cliente puede cambiarlo.',
           unit: 'segundos',
         },
         CHAT_MESSAGE_MAX_CHARS: {
