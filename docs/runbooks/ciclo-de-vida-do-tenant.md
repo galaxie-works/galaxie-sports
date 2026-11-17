@@ -80,8 +80,8 @@ Nunca número fixo no código (PL15): os prazos moram em `ops.runtime_setting`, 
 | `TENANT_PAST_DUE_DAYS` | 7 | `past_due` há mais de N dias → `suspended` (a graça: o cliente nunca descobre a falha do cartão pelo site fora do ar) |
 | `TENANT_SUSPENDED_DAYS` | 30 | `suspended` há mais de N dias → `cancelled` |
 | `TENANT_CANCELLED_RETENTION_DAYS` | 90 | Guarda depois de `cancelled`. Vencida, o job só avisa: **o produto não apaga nada** sem decisão do dono |
-| `TRIAL_REMINDER_DAYS` | `23,29` | Dias do trial em que o e-mail de lembrete sai (PR c) |
-| `MODULE_TRIAL_REMINDER_DAYS_BEFORE` | 2 | Dias antes do fim do teste de um módulo para o lembrete (PR c) |
+| `TRIAL_REMINDER_DAYS` | `23,29` | Dias do trial em que o [e-mail de lembrete](#os-e-mails-do-ciclo-de-vida) sai (contados da entrada em `trial`) |
+| `MODULE_TRIAL_REMINDER_DAYS_BEFORE` | 2 | Dias antes do fim do teste de um módulo para o lembrete |
 
 Os dias contam a partir de `state_since`. Mudar um prazo no painel vale na próxima rodada do job.
 
@@ -97,12 +97,13 @@ tem o "Rodar agora" (Ajustes › Sistema › Agenda dos jobs). Numa rodada ela:
    `clock`, ator `job:tenant.lifecycle`, o prazo e os dias no `payload`); a transição que a máquina recusa (outro
    processo mudou o tenant no meio) fica no log, sem derrubar a tarefa;
 3. conta os `cancelled` com a guarda vencida (aviso; nada é apagado);
-4. reenfileira `tenant.verify_domain` (`dedupe_key` = id do domínio) para cada domínio comprovado conferido há mais de
+4. manda os [e-mails do ciclo de vida](#os-e-mails-do-ciclo-de-vida) devidos (quem acabou de vencer nesta rodada já
+   recebe o aviso);
+5. reenfileira `tenant.verify_domain` (`dedupe_key` = id do domínio) para cada domínio comprovado conferido há mais de
    24 h: se o TXT sumiu, `verified_at` fica e `last_error` registra (nenhuma origem sai sem decisão do dono).
 
-Idempotente: a segunda rodada do dia não encontra nada a mudar. Ensaio na mão:
-`pnpm --filter @galaxie/ingestor tenant:lifecycle --agora 2026-11-16T04:15:00Z`. Os e-mails de lembrete, trial vencido,
-suspensão e cancelamento entram nesta tarefa no PR (c) da F3.
+Idempotente: a segunda rodada do dia não encontra nada a mudar nem a enviar. Ensaio na mão:
+`pnpm --filter @galaxie/ingestor tenant:lifecycle --agora 2026-11-16T04:15:00Z`.
 
 ## O console por estado
 
@@ -209,10 +210,67 @@ fim do trial: nenhum vai a `cancelled` na primeira madrugada depois do deploy.
 Só expande: `billing.module_trial` (índice único por organização e módulo, índice por marca e prazo, CHECK `ends_at >
 started_at`). Os direitos do teste são `tenant_override` (tabela que já existia).
 
+## A primeira sessão: o checklist
+
+Decisão 10 do brief (doc 02 §Primeira sessão: o checklist). Sem tabela própria: os quatro passos são derivados do que já
+existe (`apps/demo/src/lib/client/checklist-shared.ts`, a parte pura; `checklist.ts` lê o banco) e cada um traz a
+própria prova:
+
+| Passo | Prova | Leva a |
+| --- | --- | --- |
+| 1. Primeira chamada | alguma chave secreta `test` ativa da marca com `last_used_at` | o `curl` pronto, com o **prefixo** da chave `test` e um marcador no lugar do resto (o texto inteiro só apareceu uma vez, no provisionamento) |
+| 2. Um widget no ar | alguma chave publicável ativa com `last_used_at` | o embed do widget de exemplo (abaixo) com o prefixo da chave publicável; sem widget, o Builder |
+| 3. Convide alguém | alguma pessoa com cargo aceito, na marca ou na organização, além de quem criou a marca (o primeiro cargo gravado nela) | Usuários e cargos |
+| 4. Escolha o plano | `state = 'active'` | Planos e módulos |
+
+Mora no topo da visão geral (`/client`) enquanto algum passo falta e a conta está em `trial` ou `active`; a dispensa
+("Ocultar") fica no `localStorage` do navegador, por marca (`galaxie-checklist:<id>`), nada vai ao banco. Noutro estado
+o checklist não aparece. Textos em `client.checklist` nos três idiomas.
+
+## O widget de exemplo
+
+Passo 5 do provisionamento (`ensureSampleWidget` em `apps/demo/src/lib/client/provision.ts`): um widget **"Placar do
+dia"** do tipo `live_list` (jogos do dia com placar; é o tipo de placar sem parâmetro obrigatório, ao contrário do
+`match_card`, que pede um jogo), no idioma da organização e no mercado do país dela, seguindo o tema da marca criado
+com a cor do cadastro (`config.brandThemeId`) quando há. Idempotente: pula se a marca já tem widget no Builder. Nasce
+também com a revisão pendente: sem chave, o widget não alcança dado nenhum, e o checklist mostra o embed dele assim que
+a equipe aprovar.
+
+## Os e-mails do ciclo de vida
+
+Decisão 11 do brief. Saem para os **Donos e o Financeiro da organização** (`billing.organization_member`, cargos `owner` e
+`billing`, com o e-mail do Better Auth), um e-mail por pessoa, no idioma da organização (`locale`; en, es neutro e
+pt-BR). Todo envio fica registrado em `billing.tenant_notification` (migration 0187): a linha é gravada **antes** do
+envio (`insert ... on conflict do nothing` no índice único por tenant, `kind` e `ref`), e por isso a segunda rodada não
+envia de novo; depois do envio `sent_at` e `recipients` são preenchidos. Se o transporte falhou para todos, a linha é
+apagada e a próxima rodada tenta de novo. Sem SMTP (`SMTP_*` vazias) ou sem destinatário, a linha fica sem `sent_at`
+(registrado sem entrega) e o log avisa; o produto segue.
+
+| `kind` | `ref` | Quando | Quem manda |
+| --- | --- | --- | --- |
+| `welcome` | vazio | A marca entra em `trial`: no provisionamento (cadastro e criação assistida) ou na aprovação da revisão do cadastro. Traz o checklist | Console (`apps/demo/src/lib/client/welcome-email.ts`) |
+| `trial_reminder` | o dia (`23`, `29`) | Dia N do trial, contado da entrada em `trial` (`state_since`; dia 1 = o dia da entrada), para cada N de `TRIAL_REMINDER_DAYS`, enquanto o trial não venceu. Sai na primeira rodada em que o dia atual ≥ N; se mais de um está devido de uma vez (a primeira rodada depois do deploy, um dia sem rodada), só o mais tardio é enviado e os outros ficam registrados sem envio. Estender o trial não reinicia a conta dos dias | Worker |
+| `trial_expired` | vazio | `trial → trial_expired`, na mesma rodada do relógio | Worker |
+| `module_trial_ending` | o módulo | `billing.module_trial` com `ends_at` em até `MODULE_TRIAL_REMINDER_DAYS_BEFORE` dias, em marca com acesso (`trial`, `active`, `past_due`) | Worker |
+| `suspended` | `state_since` ISO | A marca foi suspensa (pelo relógio ou pela equipe) | Worker |
+| `cancelled` | `state_since` ISO | A marca foi cancelada | Worker |
+
+Os avisos de estado (`trial_expired`, `suspended`, `cancelled`) só saem quando a mudança tem até 3 dias
+(`STATE_MAIL_WINDOW_DAYS`): quem já estava no estado antes desta versão não recebe um aviso atrasado. Os textos do
+worker ficam em `services/ingestor/src/mail/texts.ts`; o botão leva a Planos e módulos (`UPGRADE_URL_BASE`, a mesma
+variável do `upgrade_url` da API) ou ao console (`CONSOLE_URL`; sem ela, a origem de `UPGRADE_URL_BASE` + `/client`);
+sem nenhuma, o e-mail sai sem link. O transporte é o nodemailer com as mesmas `SMTP_*` do console (compose: serviço
+`worker`). Parte pura e testável: `dueLifecycleNotifications` e `recipientEmails`
+(`services/ingestor/src/mail/lifecycle-notifications.ts`).
+
+## A migration 0187
+
+Só expande: `billing.tenant_notification` (`tenant_id`, `kind`, `ref` com padrão vazio, `sent_at`, `recipients text[]`,
+`created_at`; índice único por tenant, `kind` e `ref`; índice por tenant). `kind` fica sem CHECK para um e-mail novo não
+pedir migration. Só cresce.
+
 ## O que ficou de fora
 
-- **PR (c) `plataforma/f3-checklist`:** o checklist da primeira sessão, o widget de exemplo, os e-mails do worker e do
-  console (`billing.tenant_notification`, migration 0187; decisões 10 e 11).
 - **F4:** as transições de pagamento (`trial → active`, `past_due`, reativação por pagamento), o Stripe, o cancelamento
   pelo cliente no fim do ciclo (`request`) e a exportação de dados.
 - **Sem decisão do dono:** o expurgo depois da guarda de `cancelled` (o job só avisa), remover origem de domínio cujo
