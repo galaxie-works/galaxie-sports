@@ -480,6 +480,9 @@ export const SETTINGS: readonly SettingDef[] = [
   ),
   // ligado/desligado é literal: off = nenhuma chamada ao LLM (os tetos abaixo só limitam)
   agents('ai', { key: 'AI_STATUS', type: 'enum', options: AI_STATUSES, default: 'on', critical: true }),
+  // validade do carimbo do insumo do Resumo (recap-run): passado isso, o jogo monta os fatos de novo mesmo sem mudança
+  // no que o carimbo enxerga (títulos, regulamento e perfil do time ficam de fora dele). ai-agents › recap/input-stamp
+  agents('ai', { key: 'RECAP_INPUT_MAX_AGE_HOURS', type: 'int', min: 1, max: 72, default: '6' }),
   // desliga agentes com a IA ligada (agente=on e vazio seguem o AI_STATUS, que é a chave geral)
   agents('ai', {
     key: 'AI_AGENT_STATUS',

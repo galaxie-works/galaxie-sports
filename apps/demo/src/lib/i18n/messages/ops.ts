@@ -1607,6 +1607,12 @@ export default defineMessages(
         description:
           'Chave geral: ligada ou desligada para todos os agentes. Desligada, nenhuma chamada sai para o provedor (nem a dos agentes com agente=on) e os agentes seguem só com texto determinístico.',
       },
+      RECAP_INPUT_MAX_AGE_HOURS: {
+        label: 'Revisão completa do resumo',
+        description:
+          'O resumo pós-jogo pula o jogo cujos dados não mudaram desde a última conferência. Passadas estas horas, confere tudo de novo mesmo sem mudança.',
+        unit: 'h',
+      },
       AI_AGENT_STATUS: {
         label: 'IA por agente',
         description:
@@ -3611,6 +3617,12 @@ export default defineMessages(
           label: 'AI',
           description:
             'Master switch: on or off for every agent. Off, no call goes to the provider (not even for agents set to agent=on) and agents fall back to deterministic text.',
+        },
+        RECAP_INPUT_MAX_AGE_HOURS: {
+          label: 'Full recap recheck',
+          description:
+            'The post-match recap skips a game whose data has not changed since the last check. After this many hours it rechecks everything even without changes.',
+          unit: 'h',
         },
         AI_AGENT_STATUS: {
           label: 'AI per agent',
@@ -5638,6 +5650,12 @@ export default defineMessages(
           label: 'IA',
           description:
             'Interruptor general: encendida o apagada para todos los agentes. Apagada, ninguna llamada va al proveedor (ni la de los agentes con agente=on) y los agentes siguen solo con texto determinístico.',
+        },
+        RECAP_INPUT_MAX_AGE_HOURS: {
+          label: 'Revisión completa del resumen',
+          description:
+            'El resumen pospartido omite el partido cuyos datos no cambiaron desde la última verificación. Pasadas estas horas, verifica todo de nuevo aunque no haya cambios.',
+          unit: 'h',
         },
         AI_AGENT_STATUS: {
           label: 'IA por agente',

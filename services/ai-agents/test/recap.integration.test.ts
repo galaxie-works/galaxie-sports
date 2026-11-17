@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { desc, eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { changeFeed, event, eventContext, eventStateLog, sport, type Database } from '@galaxie/db';
 import { readEventContext } from '../src/context/store.js';
@@ -199,5 +199,54 @@ describe('Agente Resumo (integração)', () => {
       (await runRecapAgent(db, { now: NOW, llm, force: true, locales: ['pt-BR'] })).unchanged,
     ).toBeUndefined();
     expect(llm.calls).toBe(1);
+  });
+
+  it('carimbo igual, mas o texto caiu no determinístico por falha do LLM: o jogo volta à fila e tenta o LLM', async () => {
+    const locales = ['pt-BR'] as const;
+    const up = new FakeLlmClient(responder(GOOD));
+    await runRecapAgent(db, { now: NOW, llm: up, locales });
+    expect((await runRecapAgent(db, { now: NOW, llm: up, locales })).unchanged).toBe(1);
+    // --forcar com o LLM fora do ar grava o determinístico com fallbackReason llm_error (e não mexe no carimbo)
+    const down = new FakeLlmClient(() => new Error('openai: 500'));
+    await runRecapAgent(db, { now: NOW, llm: down, force: true, locales });
+    const [fallback] = await readEventContext(db, eventId, { kinds: ['recap'], locales: ['pt-BR'] });
+    expect(fallback!.content).toMatchObject({ origin: 'fallback', fallbackReason: 'llm_error' });
+    // o insumo é o mesmo, mas o texto é para refazer: nada de descarte
+    const retry = new FakeLlmClient(responder(GOOD));
+    const report = await runRecapAgent(db, { now: NOW, llm: retry, locales });
+    expect(report.unchanged ?? 0).toBe(0);
+    expect(report.items).toEqual([expect.objectContaining({ eventId, action: 'generated' })]);
+    expect(retry.calls).toBe(1);
+    expect((await runRecapAgent(db, { now: NOW, llm: retry, locales })).unchanged).toBe(1);
+  });
+
+  it('carimbo igual, mas o texto é o determinístico por orçamento: o jogo volta aos itens para a regra do orçamento', async () => {
+    const locales = ['pt-BR'] as const;
+    const llm = new FakeLlmClient(responder(GOOD));
+    await runRecapAgent(db, { now: NOW, llm, locales });
+    expect((await runRecapAgent(db, { now: NOW, llm, locales })).unchanged).toBe(1);
+    // linha mais nova do pt-BR: o determinístico que o orçamento recusou, no mesmo dia de orçamento do NOW
+    const [latest] = await db
+      .select()
+      .from(eventContext)
+      .where(eq(eventContext.eventId, eventId))
+      .orderBy(desc(eventContext.createdAt))
+      .limit(1);
+    await db.insert(eventContext).values({
+      ...latest!,
+      locale: 'pt-BR',
+      kind: 'recap',
+      content: {
+        ...(latest!.content as Record<string, unknown>),
+        origin: 'fallback',
+        fallbackReason: 'budget',
+        generatedAt: NOW.toISOString(),
+      },
+      createdAt: new Date(Date.now() + 1_000),
+    });
+    const report = await runRecapAgent(db, { now: NOW, llm, locales });
+    // o descarte não decide pelo orçamento: o caminho inteiro (latestFactsHashes) aplica a regra do dia e do saldo
+    expect(report.unchanged ?? 0).toBe(0);
+    expect(report.items).toEqual([expect.objectContaining({ eventId })]);
   });
 });

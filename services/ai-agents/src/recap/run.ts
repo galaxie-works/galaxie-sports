@@ -31,7 +31,12 @@ import {
   loadRecapLeague,
   loadStatistics,
 } from './facts.js';
-import { recapInputStates, saveRecapInputStamps } from './input-stamp.js';
+import {
+  DEFAULT_RECAP_INPUT_MAX_AGE_HOURS,
+  pruneRecapInputStamps,
+  recapInputStates,
+  saveRecapInputStamps,
+} from './input-stamp.js';
 import {
   RECAP_PROMPT_VERSION,
   recapFactSheet,
@@ -65,6 +70,8 @@ export interface RecapRunOptions {
   priorityOf?: PriorityResolver;
   /** Virada do dia de orçamento: o determinístico por orçamento só volta a tentar o LLM depois dela. */
   budgetDay?: BudgetDay;
+  /** Validade do carimbo do insumo (RECAP_INPUT_MAX_AGE_HOURS, `recapInputMaxAgeMs`; padrão 6 h). */
+  inputMaxAgeMs?: number;
 }
 
 /** Eventos encerrados na janela, por prioridade (P0 → P1 → resto) e, dentro dela, do mais recente. */
@@ -111,12 +118,13 @@ export async function runRecapAgent(db: Database, opts: RecapRunOptions): Promis
       });
   // descarte antes do caminho caro: jogo com o insumo igual ao da última montagem dos fatos sai da fila sem consulta
   // própria (com --forcar, todos passam). Os carimbos novos são gravados de uma vez no fim
+  const maxAgeMs = opts.inputMaxAgeMs ?? DEFAULT_RECAP_INPUT_MAX_AGE_HOURS * 3_600_000;
   const inputs = opts.force
     ? new Map<string, { stamp: string; unchanged: boolean }>()
     : await recapInputStates(
         db,
         queue.map((q) => q.id),
-        { now, locales, version: RECAP_PROMPT_VERSION },
+        { now, locales, version: RECAP_PROMPT_VERSION, maxAgeMs },
       );
   const stamped: { eventId: string; stamp: string; noFacts?: boolean }[] = [];
   const stamp = (eventId: string, noFacts = false) => {
@@ -252,6 +260,7 @@ export async function runRecapAgent(db: Database, opts: RecapRunOptions): Promis
     }
   }
   await saveRecapInputStamps(db, stamped, now);
+  if (!opts.plan && !opts.eventId) await pruneRecapInputStamps(db, now, maxAgeMs);
   return report;
 }
 
