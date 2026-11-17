@@ -9,17 +9,17 @@ de 10/11 (PL15, PL17) e o brief da F3 (`.fila-merge/briefs/plataforma-f3.md`).
 
 ## Os estados
 
-| Estado | Quando | API (chave secreta e publicável) | Console (PR b) |
+| Estado | Quando | API (chave secreta e publicável) | Console |
 | --- | --- | --- | --- |
-| `draft` | Cadastro gravado, provisionando (dura a transação do provisionamento) | 401 `TENANT_PENDING_REVIEW` | tela de progresso |
+| `draft` | Cadastro gravado, provisionando (dura a transação do provisionamento) | 401 `TENANT_PENDING_REVIEW` | só a tela do estado |
 | `pending_review` | Caiu numa regra antiabuso (e-mail grátis, limite por IP, faixa C3/C4): espera a equipe | 401 `TENANT_PENDING_REVIEW` | só a tela de espera |
 | `rejected` | A equipe recusou o cadastro. Final | 401 `TENANT_REJECTED` | aviso e contato |
-| `trial` | Provisionado; `trial_ends_at` é o prazo | sim, nos limites do teste; SSE sim, webhooks não | tudo, com o prazo no cabeçalho |
-| `trial_expired` | Prazo do trial venceu sem contratação | 401 `TRIAL_EXPIRED` com `upgrade_url` | só Planos e módulos, Cobrança e Chaves |
+| `trial` | Provisionado; `trial_ends_at` é o prazo | sim, nos [limites do teste](#os-limites-do-trial); SSE com 5 conexões, webhooks não | tudo, com o prazo no cabeçalho |
+| `trial_expired` | Prazo do trial venceu sem contratação | 401 `TRIAL_EXPIRED` com `upgrade_url` | só Planos e módulos e Chaves (Cobrança, quando existir), com faixa |
 | `active` | Pagou um módulo, ou contrato (jornada assistida) | sim | tudo |
 | `past_due` | A cobrança falhou (F4); 7 dias de graça | sim, como `active` | tudo, com faixa de aviso |
-| `suspended` | Sem pagamento depois da graça, ou a equipe suspendeu | 402 `SUBSCRIPTION_SUSPENDED` com `upgrade_url` | só Cobrança e Chaves |
-| `cancelled` | Pedido do cliente, ou prazo vencido em `trial_expired`/`suspended`. Final; os dados ficam pelo prazo de guarda | 401 `TENANT_CANCELLED` | aviso de guarda |
+| `suspended` | Sem pagamento depois da graça, ou a equipe suspendeu | 402 `SUBSCRIPTION_SUSPENDED` com `upgrade_url` | só Chaves e Planos e módulos (Cobrança, quando existir), com faixa |
+| `cancelled` | Pedido do cliente, ou prazo vencido em `trial_expired`/`suspended`. Final; os dados ficam pelo prazo de guarda | 401 `TENANT_CANCELLED` | só o aviso de guarda (exportar e apagar ficam para depois) |
 
 Os estados sem acesso (`STATES_WITHOUT_ACCESS` em `@galaxie/billing`): `draft`, `pending_review`, `rejected`,
 `trial_expired`, `suspended`, `cancelled`. Neles os direitos (`entitlements()`) não têm módulo nenhum. Webhooks só são
@@ -104,6 +104,71 @@ Idempotente: a segunda rodada do dia não encontra nada a mudar. Ensaio na mão:
 `pnpm --filter @galaxie/ingestor tenant:lifecycle --agora 2026-11-16T04:15:00Z`. Os e-mails de lembrete, trial vencido,
 suspensão e cancelamento entram nesta tarefa no PR (c) da F3.
 
+## O console por estado
+
+A moldura do painel do cliente (`apps/demo/src/components/client/client-area.tsx`) lê `state` do tenant em foco
+(`TenantInfo.state`, `stateSince`, `trialEndsAt`) e decide o que aparece (decisão 8 do brief; `sectionsForState` em
+`client-nav.tsx`):
+
+| Estado | Menu | Conteúdo |
+| --- | --- | --- |
+| `trial` | tudo que o cargo e os módulos abrem | tudo; o cabeçalho mostra "Teste até {data}" ao lado do crachá |
+| `active` | tudo | tudo |
+| `past_due` | tudo | tudo, com a faixa de aviso (nada é cortado na graça) |
+| `trial_expired` | só Planos e módulos e Chaves | a faixa de aviso com o link para a loja; outra área pedida mostra "Área fechada pelo estado da conta" |
+| `suspended` | só Chaves e Planos e módulos | idem, com a faixa de conta suspensa |
+| `draft`, `pending_review` | só Visão geral | só a tela do estado (espera da revisão); nada da página renderiza |
+| `rejected` | só Visão geral | só o aviso de recusa, com o contato |
+| `cancelled` | só Visão geral | só o aviso de guarda (exportar e apagar ficam para depois) |
+
+O crachá de status da moldura mostra o estado (os 9 valores, nos três idiomas: `client.tenant.states`). A equipe
+Galaxie num tenant de cliente vê a mesma restrição, com o aviso de que aquele é o estado do cliente e o link para
+Ajustes › Organizações e marcas, onde ela age. Cobrança entra no menu dos estados sem acesso quando a tela existir (F4).
+
+## Os limites do trial
+
+Decisão 14 do brief (doc 02 §O trial): o cadastro provisiona a marca com o plano Fan Experience e copia os limites
+dele para as colunas do tenant, mas, enquanto a conta está em `trial`, valem os limites do teste. A regra mora em
+`entitlements()` (`packages/billing/src/entitlements/resolve.ts`), não nas colunas:
+
+- `limits` é o **menor** entre o do tenant e o do modelo `trial` de `config/catalog/plans.yaml` (60 por minuto, 5 mil
+  por dia): o modelo fica no catálogo justamente como a tabela dos limites do teste (cabeçalho do yaml);
+- a feature `realtime.webhooks` sai de `features` (o worker já não entrega em `trial`);
+- a faixa `core_data.sse_connections` (nova em `modules.yaml`, padrão 100 = `SSE_MAX_CONNECTIONS_PER_TENANT`) vira 5,
+  pelo `tiers` do modelo `trial`.
+
+A API lê tudo isso dos direitos, não das colunas: `withEntitlements` (`apps/api/src/auth/authenticator.ts`) põe
+`limits` em `rateLimitPerMinute`/`dailyRequestQuota` do contexto (a cota e o rate limit do `server.ts` usam o contexto),
+`tiers` entra no contexto e o `/v1/stream` aplica o menor entre `SSE_MAX_CONNECTIONS_PER_TENANT` e
+`core_data.sse_connections`; `/v1/account` e `/v1/account/usage` devolvem os limites efetivos. O cache de direitos
+(60 s, nunca além de `trial_ends_at`) é o atraso máximo entre a saída do trial e os limites cheios. Os tenants legados de
+plano `trial` já têm esses valores nas colunas e seguem como estão (decisão 13).
+
+## O teste por módulo pela loja
+
+Decisão 9 do brief (doc 01 §A loja de features; PL3): em Planos e módulos, o cartão `available` de um módulo com
+`trialDays` ganha "Ativar teste de N dias" para quem contrata (`canContractModules`: Dono, Admin com `settings.manage`,
+equipe Galaxie com motivo; nunca Desenvolvedor, Financeiro nem moderação). A ação (`startModuleTrialAction` em
+`apps/demo/src/app/[locale]/(app)/client/plans/actions.ts`) exige a conta com acesso (nem `pending_review` nem os estados
+sem acesso) e só o que a loja oferece; a gravação é de `startModuleTrial` (`packages/billing/src/module-trial/start.ts`),
+numa transação com advisory lock por organização e módulo:
+
+1. `billing.module_trial` (migration 0186: organização, marca, módulo, `started_at`, `ends_at`, `started_by`; **único
+   por organização e módulo**: é o "uma vez por módulo e organização", e vale para todas as marcas da organização);
+2. `tenant_override` `module_grant` do módulo, `valid_until = ends_at`, `reason = 'module_trial'`, `granted_by =
+   'panel:<usuário>'` (ou `galaxie:<usuário>` para a equipe);
+3. um `tenant_override` `tier` por faixa do módulo com o **mínimo** da faixa no catálogo (`tiers[].min`), mesma validade;
+4. `tenant.module_trial_started` no `ops.change_feed`.
+
+Duas ativações ao mesmo tempo para a mesma organização e módulo: uma passa, a outra recebe "já testado nesta
+organização"; o override nunca duplica. No fim o override vence sozinho: o módulo sai dos direitos e o resto continua,
+sem job (o TTL do cache respeita `valid_until`). Os direitos trazem `moduleTrials` (módulo → fim do teste) e a loja
+distingue a conta em `trial` (todos os cartões em teste, com o prazo da conta) do **módulo em teste** (o cartão com o
+prazo dele e "Contratar antes do fim", que abre o contato com a Galaxie até o checkout da F4). Um módulo cujo teste a
+organização já usou não oferece "Ativar teste" de novo (`trialsUsed` em `storeView`). A demo não tem o cache de direitos
+do Valkey: a API vê o módulo novo em até 60 s. Hoje os módulos de engajamento estão `soon` no catálogo: o botão aparece
+quando um deles virar `available`.
+
 ## Como a equipe age (Ajustes › Clientes › Organizações e marcas)
 
 Na ficha da organização, cada marca mostra o estado, desde quando e o fim do trial, e só as ações que cabem no estado
@@ -137,10 +202,13 @@ idempotente: só tenants sem evento) deriva o estado inicial: `status = 'suspend
 em revisão também nasce com `trial_ends_at`); `trial_ends_at <= now()` → `trial_expired`; `trial_ends_at > now()` ou
 plano `trial` → `trial`; o resto → `active`. Cada tenant ganha um evento `migration` com o que foi lido.
 
+## A migration 0186
+
+Só expande: `billing.module_trial` (índice único por organização e módulo, índice por marca e prazo, CHECK `ends_at >
+started_at`). Os direitos do teste são `tenant_override` (tabela que já existia).
+
 ## O que ficou de fora
 
-- **PR (b) `plataforma/f3-loja`:** o console por estado (menu, faixas de aviso, crachá; decisão 8), o teste por módulo
-  pela loja (`billing.module_trial`, migration 0186; decisão 9).
 - **PR (c) `plataforma/f3-checklist`:** o checklist da primeira sessão, o widget de exemplo, os e-mails do worker e do
   console (`billing.tenant_notification`, migration 0187; decisões 10 e 11).
 - **F4:** as transições de pagamento (`trial → active`, `past_due`, reativação por pagamento), o Stripe, o cancelamento
