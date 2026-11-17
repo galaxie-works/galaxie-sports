@@ -276,6 +276,28 @@ tests:
           - labels: 'slo:backup:ok'
             value: 0
 
+  # dump diário na réplica do NAS (job nas-dump, pelo recibo) e semanal na VPS: vale o mais recente dos dois
+  - name: backup bom com o dump do NAS recente e o da VPS velho
+    interval: 1m
+    input_series:
+      - series: 'galaxie_job_last_success_timestamp_seconds{job="galaxie-api",job_name="pg-backup"}'
+        values: '0x3300'
+      - series: 'galaxie_job_last_success_timestamp_seconds{job="galaxie-api",job_name="nas-dump"}'
+        values: '93600x3300'
+      - series: 'galaxie_job_consecutive_failures{job="galaxie-api",job_name="backup-check"}'
+        values: '0x3300'
+    promql_expr_test:
+      - expr: slo:backup:ok
+        eval_time: 27h
+        exp_samples:
+          - labels: 'slo:backup:ok'
+            value: 1
+      - expr: slo:backup:ok
+        eval_time: 54h
+        exp_samples:
+          - labels: 'slo:backup:ok'
+            value: 0
+
   - name: sync diário parado por horas esgota o orçamento do frescor
     interval: 1m
     input_series:

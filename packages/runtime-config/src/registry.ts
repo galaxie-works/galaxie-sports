@@ -158,7 +158,8 @@ export const SCHEDULED_JOBS: readonly ScheduledJobDef[] = [
   { name: 'context-run', service: 'agents', cron: '10 * * * *', runNow: true },
   { name: 'wtw-run', service: 'agents', cron: '*/5 * * * *', runNow: false },
   { name: 'wtw-channel', service: 'agents', cron: '*/10 * * * *', runNow: false },
-  { name: 'related-run', service: 'agents', cron: '*/3 * * * *', runNow: false },
+  // a cada 10 min (decisão do dono, 17/11/2026: vídeos relacionados até 10 min depois do fim do jogo; antes */3)
+  { name: 'related-run', service: 'agents', cron: '*/10 * * * *', runNow: false },
   { name: 'wtw-rights', service: 'agents', cron: '40 5,17 * * *', runNow: false },
   { name: 'review-suggestions', service: 'agents', cron: '*/15 * * * *', runNow: true },
   { name: 'lineups-revisit', service: 'agents', cron: '50 4 * * 1', runNow: false },
@@ -446,6 +447,18 @@ export const SETTINGS: readonly SettingDef[] = [
     max: 90,
     default: '7',
   },
+  // freio do explore-summary: mudança de jogo não refaz o resumo da home antes disso desde a última conta (0 = sem
+  // freio; o recálculo de 10 min não depende dele). @galaxie/explore › exploreMinIntervalMs
+  {
+    key: 'EXPLORE_MIN_INTERVAL_SEC',
+    section: 'schedule',
+    type: 'int',
+    services: ['ingestor'],
+    apply: 'next-run',
+    min: 0,
+    max: 600,
+    default: '180',
+  },
 
   // ── IA e orçamento ──────────────────────────────────────────────────────────────────────────
   agents('ai', {
@@ -467,6 +480,9 @@ export const SETTINGS: readonly SettingDef[] = [
   ),
   // ligado/desligado é literal: off = nenhuma chamada ao LLM (os tetos abaixo só limitam)
   agents('ai', { key: 'AI_STATUS', type: 'enum', options: AI_STATUSES, default: 'on', critical: true }),
+  // validade do carimbo do insumo do Resumo (recap-run): passado isso, o jogo monta os fatos de novo mesmo sem mudança
+  // no que o carimbo enxerga (títulos, regulamento e perfil do time ficam de fora dele). ai-agents › recap/input-stamp
+  agents('ai', { key: 'RECAP_INPUT_MAX_AGE_HOURS', type: 'int', min: 1, max: 72, default: '6' }),
   // desliga agentes com a IA ligada (agente=on e vazio seguem o AI_STATUS, que é a chave geral)
   agents('ai', {
     key: 'AI_AGENT_STATUS',
@@ -710,7 +726,8 @@ export const SETTINGS: readonly SettingDef[] = [
     default: 'BR:1,AR:0.6,MX:0.6,CO:0.45,CL:0.4,PE:0.35,UY:0.35,EC:0.35',
   }),
   agents('related', { key: 'RELATED_MAX_SEARCHES_PER_EVENT', type: 'int', min: 0, max: 16, default: '4' }),
-  agents('related', { key: 'RELATED_MAX_SEARCHES_PER_RUN', type: 'int', min: 0, max: 16, default: '2' }),
+  // 6 por execução (decisão do dono em 17/11/2026, com o related-run a cada 10 min: mantém ~36 buscas por hora; antes 2)
+  agents('related', { key: 'RELATED_MAX_SEARCHES_PER_RUN', type: 'int', min: 0, max: 16, default: '6' }),
   agents('related', { key: 'RELATED_CHANNEL_ENOUGH', type: 'int', min: 1, max: 50, default: '4' }),
   agents('related', {
     key: 'RELATED_CHANNEL_REFRESH_MINUTES',

@@ -887,7 +887,14 @@
     {
       "idx": 126,
       "version": "7",
-      "when": 1794883811511,
+      "when": 1794917589745,
+      "tag": "0183_indices_jobs_por_minuto",
+      "breakpoints": true
+    },
+    {
+      "idx": 127,
+      "version": "7",
+      "when": 1794928595645,
       "tag": "0188_chat_antiflood",
       "breakpoints": true
     }

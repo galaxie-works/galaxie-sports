@@ -455,7 +455,8 @@ describe('resumo pré-calculado (job explore-summary, #596)', () => {
     const rows = await db.select().from(exploreSummary);
     expect(rows.find((r) => r.sport === '*' && r.market === '*')?.generatedAt).toEqual(NOW);
     expect(new Set(rows.map((r) => r.generatedAt.getTime()))).toEqual(new Set([NOW.getTime()]));
-    expect((await refreshExploreSummary(db, geo, { now: NOW })).reason).toBeNull();
+    // sem freio: o null vem de não haver mudança, não do freio
+    expect((await refreshExploreSummary(db, geo, { now: NOW, minIntervalMs: 0 })).reason).toBeNull();
     // uma rodada que começou antes (conta mais velha) e terminou depois não sobrescreve a mais nova
     const older = await refreshExploreSummary(db, geo, {
       now: new Date(NOW.getTime() - 60_000),
@@ -507,13 +508,15 @@ describe('resumo pré-calculado (job explore-summary, #596)', () => {
       .insert(event)
       .values({ ...values, startsAt: hours(24 * 30), endsAtExpected: hours(24 * 30 + 2) })
       .returning();
-    expect((await refreshExploreSummary(db, geo, { now: NOW })).reason).toBeNull();
+    expect((await refreshExploreSummary(db, geo, { now: NOW, minIntervalMs: 0 })).reason).toBeNull();
     await db.delete(event).where(eq(event.id, later!.id));
     const [soon] = await db
       .insert(event)
       .values({ ...values, startsAt: hours(41), endsAtExpected: hours(43) })
       .returning();
-    expect((await refreshExploreSummary(db, geo, { now: NOW })).reason).toBe('1 jogo(s) novo(s)');
+    expect((await refreshExploreSummary(db, geo, { now: NOW, minIntervalMs: 0 })).reason).toBe(
+      '1 jogo(s) novo(s)',
+    );
     await db.delete(event).where(eq(event.id, soon!.id));
     await refreshExploreSummary(db, geo, { now: NOW, force: true });
     // já entra ao vivo: começou antes da janela, mas a conta lê os jogos em andamento
@@ -521,24 +524,42 @@ describe('resumo pré-calculado (job explore-summary, #596)', () => {
       .insert(event)
       .values({ ...values, startsAt: hours(-1), endsAtExpected: hours(1), status: 'live' })
       .returning();
-    expect((await refreshExploreSummary(db, geo, { now: NOW })).reason).toBe('1 jogo(s) novo(s)');
+    expect((await refreshExploreSummary(db, geo, { now: NOW, minIntervalMs: 0 })).reason).toBe(
+      '1 jogo(s) novo(s)',
+    );
     await db.delete(event).where(eq(event.id, live!.id));
     await refreshExploreSummary(db, geo, { now: NOW, force: true });
   });
 
   it('mudança de status de jogo no change feed faz o job refazer no minuto seguinte', async () => {
     await refreshExploreSummary(db, geo, { now: NOW, force: true });
-    expect((await refreshExploreSummary(db, geo, { now: NOW })).reason).toBeNull();
+    expect((await refreshExploreSummary(db, geo, { now: NOW, minIntervalMs: 0 })).reason).toBeNull();
     // o change feed grava com o relógio do banco (depois de NOW); o job olha o que veio depois da última conta.
     // Só o relógio (minuto do jogo) não muda o resumo
     await db
       .update(event)
       .set({ clock: { minute: 10, extra: null, period: '1H' } })
       .where(eq(event.id, ids.extra!));
-    expect((await refreshExploreSummary(db, geo, { now: NOW })).reason).toBeNull();
+    expect((await refreshExploreSummary(db, geo, { now: NOW, minIntervalMs: 0 })).reason).toBeNull();
     await db.update(event).set({ status: 'postponed' }).where(eq(event.id, ids.extra!));
-    expect((await refreshExploreSummary(db, geo, { now: NOW })).reason).toBe(
+    expect((await refreshExploreSummary(db, geo, { now: NOW, minIntervalMs: 0 })).reason).toBe(
       '1 mudança(s) de jogo no change feed',
     );
+  });
+
+  it('freio: mudança dentro de EXPLORE_MIN_INTERVAL_SEC da última conta espera; passado o freio, refaz', async () => {
+    await refreshExploreSummary(db, geo, { now: NOW, force: true });
+    await db.update(event).set({ status: 'cancelled' }).where(eq(event.id, ids.extra!));
+    // a conta é de NOW: 179 s depois a mudança ainda espera, 180 s depois entra (o change feed é lido desde a conta)
+    const at = (s: number) => new Date(NOW.getTime() + s * 1000);
+    expect(
+      (await refreshExploreSummary(db, geo, { now: at(179), minIntervalMs: 180_000 })).reason,
+    ).toBeNull();
+    expect((await refreshExploreSummary(db, geo, { now: at(180), minIntervalMs: 180_000 })).reason).toMatch(
+      /mudança\(s\) de jogo no change feed$/,
+    );
+    // a conta gravada agora é a de 180 s; o refreshMs (10 min depois dela) não depende do freio
+    const stale = await refreshExploreSummary(db, geo, { now: at(780), minIntervalMs: 600_000 });
+    expect(stale.reason).toMatch(/^resumo com \d+ s$/);
   });
 });

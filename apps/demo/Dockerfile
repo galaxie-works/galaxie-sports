@@ -34,7 +34,7 @@ ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000 HOSTNAME=0.0.0.0 WTW
     CATALOG_DIR=/srv/config/catalog
 WORKDIR /srv
 COPY --from=build --chown=node:node /out ./
-COPY infra/healthcheck/selfheal.mjs /usr/local/lib/galaxie/selfheal.mjs
+COPY infra/healthcheck/selfheal.mjs infra/healthcheck/selfheal.sh /usr/local/lib/galaxie/
 # O hash da entrada da imagem (tag in-<hash>), passado pelo docker.yml. Nunca o SHA do commit: a imagem é reaproveitada
 # entre commits, e o mesmo conteúdo tem de dar a mesma imagem. /version e build_info leem daqui.
 ARG IMAGE_HASH=dev
@@ -44,7 +44,7 @@ EXPOSE 3000
 # Vivacidade sem depender da API (/robots.txt sai do próprio Next); travado, o processo é encerrado e o Docker
 # sobe outro (infra/healthcheck/selfheal.mjs).
 HEALTHCHECK --interval=15s --timeout=6s --start-period=20s --retries=3 \
-  CMD node /usr/local/lib/galaxie/selfheal.mjs http "http://127.0.0.1:${PORT:-3000}/robots.txt"
+  CMD sh /usr/local/lib/galaxie/selfheal.sh http "http://127.0.0.1:${PORT:-3000}/robots.txt"
 ENTRYPOINT ["/sbin/tini", "--"]
 # Heap fixo para caber no mem_limit de 512m (velho 320 + novo 3 × 16 + ~50 do processo), como a API
 CMD ["node", "--max-old-space-size=320", "--max-semi-space-size=16", "apps/demo/server.js"]

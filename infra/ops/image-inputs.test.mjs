@@ -38,6 +38,12 @@ describe('quais imagens mudam com cada caminho', () => {
       ['infra/healthcheck/selfheal.mjs'],
       ['api', 'demo', 'ingestor'],
     ],
+    [
+      'o caminho rápido do selfheal (selfheal.sh): as três',
+      ['infra/healthcheck/selfheal.sh'],
+      ['api', 'demo', 'ingestor'],
+    ],
+    ['o teste do selfheal: nenhuma', ['infra/healthcheck/selfheal.test.sh'], []],
     ['lockfile: as três', ['pnpm-lock.yaml'], ['api', 'demo', 'ingestor']],
     ['o Dockerfile da demo: só a demo', ['apps/demo/Dockerfile'], ['demo']],
     ['docs: nenhuma', ['docs/runbooks/deploy-pelo-github.md'], []],
