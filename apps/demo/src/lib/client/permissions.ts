@@ -49,6 +49,18 @@ export const placeOf = (item: { room: string | null; community: string | null })
 });
 
 /**
+ * Quem contrata pela loja (plataforma comercial F3, decisão 9: "Ativar teste" e, na F4, o checkout): a equipe Galaxie
+ * (com motivo, pelo `withStaffAudit`) e, na marca, o Dono ou o Admin com `settings.manage` (o Dono pode ter subido o
+ * piso dessa ação). Nunca o Desenvolvedor, o Financeiro nem a moderação, mesmo que o Dono tenha dado `settings.manage`
+ * a um cargo da Escada abaixo do Admin: contratar é compromisso da conta, não configuração.
+ */
+export const canContractModules = (
+  ctx: PermissionContext & { role: string; memberRole: string | null },
+): boolean =>
+  (isStaffRole(ctx.role) || ctx.memberRole === 'owner' || ctx.memberRole === 'admin') &&
+  can(ctx, 'settings.manage');
+
+/**
  * Quem cuida dos cargos da organização (Dono e Financeiro, que valem em todas as marcas, #1136): o Dono **da
  * organização** (`billing.organization_member`, que aparece como Dono em cada marca) e a equipe Galaxie. Dono só de
  * uma marca (`api.tenant_member`) e Admin da marca não alcançam a organização.
