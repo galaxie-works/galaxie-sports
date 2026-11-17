@@ -320,7 +320,9 @@ describe('chaves publicáveis', () => {
     expect(JSON.stringify(events)).not.toContain(created.key);
   });
 
-  it('trial encerrado invalida a chave publicável', async () => {
+  // estado do tenant (plataforma comercial F3): a verificação devolve a chave com `tenant.state` e `trialEndsAt`; quem
+  // recusa é a API (`tenantStateProblem`: TRIAL_EXPIRED, SUBSCRIPTION_SUSPENDED…), testado em apps/api
+  it('trial: a chave volta com o estado e o prazo do trial, inclusive vencido', async () => {
     const [t] = await db
       .insert(tenant)
       .values({
@@ -328,6 +330,7 @@ describe('chaves publicáveis', () => {
         name: 'T',
         plan: 'trial',
         modules: ['core_data'],
+        state: 'trial',
         trialEndsAt: new Date(Date.now() + 60_000),
       })
       .returning();
@@ -336,23 +339,27 @@ describe('chaves publicáveis', () => {
       name: 'x',
       allowedOrigins: ['https://t.test'],
     });
-    expect(await verifyPublishableKey(db, created.key)).not.toBeNull();
-    await db
-      .update(tenant)
-      .set({ trialEndsAt: new Date(Date.now() - 1) })
-      .where(eq(tenant.id, t!.id));
-    expect(await verifyPublishableKey(db, created.key)).toBeNull();
+    const before = await verifyPublishableKey(db, created.key);
+    expect(before?.tenant).toMatchObject({ state: 'trial', trialEndsAt: t!.trialEndsAt });
+    const past = new Date(Date.now() - 1000);
+    await db.update(tenant).set({ trialEndsAt: past }).where(eq(tenant.id, t!.id));
+    const after = await verifyPublishableKey(db, created.key);
+    expect(after?.tenant).toMatchObject({ state: 'trial', trialEndsAt: past });
+    await db.update(tenant).set({ state: 'trial_expired' }).where(eq(tenant.id, t!.id));
+    expect((await verifyPublishableKey(db, created.key))?.tenant.state).toBe('trial_expired');
   });
 
-  it('tenant suspenso invalida a chave', async () => {
+  it('tenant suspenso: a chave volta com state = suspended (a API responde 402)', async () => {
     const created = await createPublishableKey(db, {
       tenantId: tenantB,
       name: 'B',
       allowedOrigins: ['https://b.test'],
     });
-    expect(await verifyPublishableKey(db, created.key)).not.toBeNull();
-    await db.update(tenant).set({ status: 'suspended' }).where(eq(tenant.id, tenantB));
-    expect(await verifyPublishableKey(db, created.key)).toBeNull();
+    expect((await verifyPublishableKey(db, created.key))?.tenant.state).toBe('active');
+    await db.update(tenant).set({ status: 'suspended', state: 'suspended' }).where(eq(tenant.id, tenantB));
+    expect((await verifyPublishableKey(db, created.key))?.tenant.state).toBe('suspended');
+    // revogada continua null: não há o que responder por estado
+    await db.update(tenant).set({ status: 'active', state: 'active' }).where(eq(tenant.id, tenantB));
   });
 });
 

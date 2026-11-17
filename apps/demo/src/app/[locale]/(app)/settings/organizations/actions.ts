@@ -2,11 +2,26 @@
 
 /**
  * Ações da equipe Galaxie em Ajustes › Organizações e marcas (#1136, F2): faixa de capacidade, revisão do cadastro e
- * cliente zero, sempre com motivo, registradas em `billing.staff_action` com o antes e o depois; e a criação
- * assistida de uma organização (PR c), pelo mesmo provisionamento do cadastro. Só a equipe (`requireStaff`: admin e
- * support). Nada de preço.
+ * cliente zero, sempre com motivo, registradas em `billing.staff_action` com o antes e o depois; a criação assistida
+ * de uma organização (PR c), pelo mesmo provisionamento do cadastro; e, desde a F3 (decisão 7), as ações sobre o
+ * estado de cada marca (aprovar, recusar, suspender, reativar, cancelar, estender o trial), todas por
+ * `transitionTenantState`/`extendTenantTrial` (que gravam o evento) e com o motivo em `billing.staff_action`. Só a
+ * equipe (`requireStaff`: admin e support). Nada de preço.
+ *
+ * O motivo aqui vem do diálogo da própria tela, não do cookie do painel do cliente (`withStaffAudit`, que embrulha as
+ * ações de `/client/**` com o tenant em foco): o registro em `billing.staff_action` é o mesmo.
  */
 import { revalidatePath } from 'next/cache';
+
+import {
+  extendTenantTrial,
+  TenantStateError,
+  transitionTenantState,
+  type TenantState,
+  type TenantStateExecutor,
+} from '@galaxie/billing';
+import { organization, platformStaffAction, tenant } from '@galaxie/db/schema';
+import { and, eq } from 'drizzle-orm';
 
 import { requireStaff } from '@/lib/auth/admin';
 import { pool } from '@/lib/auth/db';
@@ -16,11 +31,15 @@ import { builderDb } from '@/lib/builder/store';
 import { catalog } from '@/lib/client/entitlements';
 import { getOrganization, updateOrganization } from '@/lib/client/organizations';
 import {
+  BRAND_STATE_ACTION_NAMES,
+  BRAND_STATE_ACTIONS,
   CAPACITY_TIERS,
   REVIEW_STATUSES,
+  type BrandStateAction,
   type CapacityTier,
   type ReviewStatus,
 } from '@/lib/client/organizations-shared';
+import { sendWelcomeForOrganization } from '@/lib/client/welcome-email';
 import {
   issueMissingKeys,
   listOrganizationBrands,
@@ -62,8 +81,9 @@ const PATH = '/settings/organizations';
 
 const hasKeys = (k: ProvisionedKeys) => Boolean(k.live || k.test || k.publishable);
 
+/** Registro em `billing.staff_action` (o CHECK pede organização ou marca; a marca sem organização grava só o tenant). */
 async function recordStaffAction(input: {
-  organizationId: string;
+  organizationId: string | null;
   tenantId?: string | null;
   actor: string;
   action: string;
@@ -75,6 +95,94 @@ async function recordStaffAction(input: {
      values ($1, $2, $3, $4, $5, $6)`,
     [input.organizationId, input.tenantId ?? null, input.actor, input.action, input.reason, input.payload],
   );
+}
+
+/** Uma marca com o estado, para as ações da equipe (F3). */
+async function brandOf(tenantId: string) {
+  const { rows } = await pool.query<{
+    id: string;
+    name: string;
+    slug: string;
+    organization_id: string | null;
+    state: TenantState;
+    trial_ends_at: Date | null;
+  }>(
+    'select id::text, name, slug, organization_id::text, state, trial_ends_at from api.tenant where id = $1',
+    [tenantId],
+  );
+  return rows[0] ?? null;
+}
+
+/**
+ * A revisão do cadastro decidida (PL2) muda o estado das marcas da organização que a esperavam (F3, decisão 7):
+ * aprovada → `pending_review → trial`; recusada → `pending_review → rejected`. Marcas noutro estado ficam como estão.
+ * Roda no banco ou numa transação aberta. Devolve quantas mudaram.
+ */
+async function applyReviewToBrands(
+  exec: TenantStateExecutor,
+  organizationId: string,
+  decision: 'approved' | 'rejected',
+  actor: string,
+  reason: string,
+): Promise<number> {
+  const rows = await exec
+    .select({ id: tenant.id })
+    .from(tenant)
+    .where(and(eq(tenant.organizationId, organizationId), eq(tenant.state, 'pending_review')))
+    .orderBy(tenant.name, tenant.slug);
+  for (const brand of rows)
+    await transitionTenantState(exec, brand.id, decision === 'approved' ? 'trial' : 'rejected', {
+      cause: 'review',
+      actor: `galaxie:${actor}`,
+      reason,
+    });
+  return rows.length;
+}
+
+/**
+ * Decide a revisão do cadastro da organização dentro da transação da ação da marca (o mesmo que `updateOrganization`
+ * grava, pelo Drizzle em vez do pool do auth): `review_status`, o `organization.update` em `billing.staff_action` com o
+ * antes e o depois, e as marcas irmãs em `pending_review` (a revisão é da organização). Nada muda se já estava decidida.
+ */
+async function decideReviewInTx(
+  tx: TenantStateExecutor,
+  organizationId: string,
+  decision: 'approved' | 'rejected',
+  actor: string,
+  reason: string,
+): Promise<void> {
+  const [org] = await tx
+    .select({ reviewStatus: organization.reviewStatus })
+    .from(organization)
+    .where(eq(organization.id, organizationId))
+    .for('update');
+  if (org && org.reviewStatus !== decision) {
+    await tx
+      .update(organization)
+      .set({ reviewStatus: decision, updatedAt: new Date() })
+      .where(eq(organization.id, organizationId));
+    await tx.insert(platformStaffAction).values({
+      organizationId,
+      actor,
+      action: 'organization.update',
+      reason,
+      payload: { before: { reviewStatus: org.reviewStatus }, after: { reviewStatus: decision } },
+    });
+  }
+  await applyReviewToBrands(tx, organizationId, decision, actor, reason);
+}
+
+/**
+ * Boas-vindas com o checklist (F3, decisão 11) para as marcas da organização que acabaram de entrar em `trial` pela
+ * aprovação da revisão (a que nasceu em `trial` já recebeu no provisionamento; o registro em
+ * `billing.tenant_notification` evita repetir). A falha do e-mail não desfaz a aprovação.
+ */
+async function welcomeOrganization(organizationId: string): Promise<void> {
+  try {
+    await sendWelcomeForOrganization(builderDb(), organizationId);
+  } catch (err) {
+    console.error('[organizações] e-mail de boas-vindas falhou', err);
+  }
 }
 
 /**
@@ -137,20 +245,119 @@ export async function updateOrganizationAction(input: {
   let issued: IssuedBrandKeys[] = [];
   try {
     const changed = await updateOrganization({ id: input.id, patch, actor: me.id, reason });
-    // aprovou a revisão (PL2): as chaves nascem agora, pelo mesmo caminho do cadastro. Também quando nada mudou e a
-    // organização já estava aprovada: a aprovação pode ter sido gravada numa tentativa em que a emissão falhou
+    const decided =
+      patch.reviewStatus === 'approved' || patch.reviewStatus === 'rejected' ? patch.reviewStatus : null;
+    // a decisão da revisão (PL2) muda o estado das marcas que a esperavam (F3). Também quando nada mudou na
+    // organização: a decisão pode ter sido gravada numa tentativa em que este passo falhou
+    const brandsMoved =
+      decided && (changed || (await getOrganization(input.id))?.reviewStatus === decided)
+        ? await applyReviewToBrands(builderDb(), input.id, decided, me.id, reason)
+        : 0;
+    // aprovou a revisão: as chaves nascem agora, pelo mesmo caminho do cadastro
     if (
-      patch.reviewStatus === 'approved' &&
-      (changed || (await getOrganization(input.id))?.reviewStatus === 'approved')
-    )
+      decided === 'approved' &&
+      (changed || brandsMoved || (await getOrganization(input.id))?.reviewStatus === 'approved')
+    ) {
       issued = await issueKeysForOrganization(input.id, me.id, reason);
-    if (!changed && !issued.length) return { ok: false, error: e.unchanged };
+      await welcomeOrganization(input.id);
+    }
+    if (!changed && !issued.length && !brandsMoved) return { ok: false, error: e.unchanged };
   } catch (err) {
+    if (err instanceof TenantStateError) return { ok: false, error: e.transition };
     console.error('[organizações] ação da equipe falhou', err);
     return { ok: false, error: e.generic };
   }
   revalidatePath(PATH);
   revalidatePath(`${PATH}/${input.id}`);
+  return { ok: true, issued };
+}
+
+export interface BrandStateActionInput {
+  tenantId: string;
+  action: BrandStateAction;
+  reason: string;
+  /** Só em `extend_trial`: o novo fim do trial (ISO 8601, no futuro). */
+  trialEndsAt?: string;
+}
+
+/**
+ * Ações da equipe sobre o estado de uma marca (F3, decisão 7), com motivo: aprovar (`pending_review → trial`, com a
+ * revisão da organização aprovada, as marcas irmãs em revisão movidas e as chaves emitidas como hoje), recusar
+ * (`→ rejected`, revisão recusada), suspender (`trial`|`active`|`past_due → suspended`), reativar (`suspended →
+ * active`), cancelar (`→ cancelled`) e estender o trial (muda `trial_ends_at`, evento `admin` sem mudar o estado).
+ * Transição, decisão da revisão e `billing.staff_action` entram numa transação só: falhou qualquer parte, o estado não
+ * muda sem o motivo gravado. Só a emissão de chaves (idempotente) fica fora, depois do commit. A transição fora do
+ * diagrama volta como erro, sem gravar nada.
+ */
+export async function brandStateAction(input: BrandStateActionInput): Promise<OrganizationActionResult> {
+  const me = await requireStaff();
+  const e = getDictionary(await getRequestLocale()).platformStaff.errors;
+  if (!isUuid(input?.tenantId)) return { ok: false, error: e.notFound };
+  if (!BRAND_STATE_ACTION_NAMES.includes(input.action)) return { ok: false, error: e.invalid };
+  const reason = normalizeStaffReason(input.reason);
+  if (!reason) return { ok: false, error: e.reason };
+  const brand = await brandOf(input.tenantId);
+  if (!brand) return { ok: false, error: e.notFound };
+  const actor = `galaxie:${me.id}`;
+  const db = builderDb();
+  let issued: IssuedBrandKeys[] = [];
+  const until = input.action === 'extend_trial' ? new Date(String(input.trialEndsAt ?? '')) : null;
+  if (until && (Number.isNaN(until.getTime()) || until.getTime() <= Date.now()))
+    return { ok: false, error: e.date };
+  try {
+    await db.transaction(async (tx) => {
+      let payload: Record<string, unknown>;
+      if (until) {
+        const r = await extendTenantTrial(tx, brand.id, until, { actor, reason });
+        payload = {
+          trial_ends_at: { before: r.before?.toISOString() ?? null, after: r.after.toISOString() },
+        };
+      } else {
+        const to = BRAND_STATE_ACTIONS[input.action].to;
+        const r = await transitionTenantState(tx, brand.id, to, { cause: 'admin', actor, reason });
+        payload = { from: r.from, to: r.to };
+        // aprovar e recusar decidem também a revisão do cadastro da organização (PL2) e movem as marcas irmãs
+        if ((input.action === 'approve' || input.action === 'reject') && brand.organization_id)
+          await decideReviewInTx(
+            tx,
+            brand.organization_id,
+            input.action === 'approve' ? 'approved' : 'rejected',
+            me.id,
+            reason,
+          );
+      }
+      // o CHECK pede organização ou marca: a marca sem organização grava só o tenant
+      await tx.insert(platformStaffAction).values({
+        organizationId: brand.organization_id,
+        tenantId: brand.id,
+        actor: me.id,
+        action: `brand.${input.action}`,
+        reason,
+        payload,
+      });
+    });
+    // aprovada: as chaves nascem agora (idempotente, fora da transação), pelo mesmo caminho do cadastro; com
+    // organização, também para as marcas irmãs que saíram da revisão. Aparecem uma vez
+    if (input.action === 'approve') {
+      if (brand.organization_id) {
+        issued = await issueKeysForOrganization(brand.organization_id, me.id, reason);
+        await welcomeOrganization(brand.organization_id);
+      } else {
+        const keys = await issueMissingKeys(db, {
+          tenantId: brand.id,
+          actor,
+          defaultOrigin: defaultBrandOrigin(brand.slug, SITE_HOST),
+        });
+        if (hasKeys(keys)) issued = [{ tenantId: brand.id, brand: brand.name, keys }];
+      }
+    }
+  } catch (err) {
+    if (err instanceof TenantStateError) return { ok: false, error: e.transition };
+    console.error('[organizações] ação sobre o estado da marca falhou', err);
+    return { ok: false, error: e.generic };
+  }
+  revalidatePath(PATH);
+  if (brand.organization_id) revalidatePath(`${PATH}/${brand.organization_id}`);
   return { ok: true, issued };
 }
 

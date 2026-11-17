@@ -158,6 +158,7 @@ describe('token do torcedor no navegador (widget, embed; #1020)', () => {
               sports: ['football'],
               rateLimitPerMinute: 120,
               dailyRequestQuota: null,
+              state: 'active',
             },
             allowedOrigins: [site],
             widgetId,

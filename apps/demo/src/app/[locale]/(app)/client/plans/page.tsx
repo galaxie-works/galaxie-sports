@@ -15,7 +15,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 async function Plans() {
   const { t } = await getI18n();
-  return <ClientArea section="plans">{({ tenant }) => <PlansPanel tenant={tenant} t={t} />}</ClientArea>;
+  return <ClientArea section="plans">{(ctx) => <PlansPanel ctx={ctx} t={t} />}</ClientArea>;
 }
 
 /** Planos e módulos do tenant: a loja de features (plataforma comercial, #1137). */

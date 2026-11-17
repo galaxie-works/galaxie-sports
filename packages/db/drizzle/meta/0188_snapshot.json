@@ -1,6 +1,6 @@
 {
-  "id": "8a12293b-d4d4-45f6-a14e-e9606f91b74e",
-  "prevId": "4edf43bd-960f-4c51-8708-1df3e71995e2",
+  "id": "b7dbcecd-4774-4a71-b0cc-025c44305845",
+  "prevId": "deddccde-5ec9-48b5-a3b8-d6706baa1e16",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -15873,6 +15873,20 @@
           "notNull": true,
           "default": "'active'"
         },
+        "state": {
+          "name": "state",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'active'"
+        },
+        "state_since": {
+          "name": "state_since",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
         "operator_platform_id": {
           "name": "operator_platform_id",
           "type": "uuid",
@@ -15941,6 +15955,27 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "tenant_state_idx": {
+          "name": "tenant_state_idx",
+          "columns": [
+            {
+              "expression": "state",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "state_since",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
@@ -15988,6 +16023,10 @@
         "tenant_capacity_tier": {
           "name": "tenant_capacity_tier",
           "value": "\"api\".\"tenant\".\"capacity_tier\" is null or \"api\".\"tenant\".\"capacity_tier\" in ('C1', 'C2', 'C3', 'C4')"
+        },
+        "tenant_state": {
+          "name": "tenant_state",
+          "value": "\"api\".\"tenant\".\"state\" in ('draft', 'pending_review', 'rejected', 'trial', 'trial_expired', 'active', 'past_due', 'suspended', 'cancelled')"
         }
       },
       "isRLSEnabled": false
@@ -24613,6 +24652,147 @@
       },
       "isRLSEnabled": false
     },
+    "billing.module_trial": {
+      "name": "module_trial",
+      "schema": "billing",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "public.uuid_generate_v7()"
+        },
+        "organization_id": {
+          "name": "organization_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "module": {
+          "name": "module",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "started_at": {
+          "name": "started_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "ends_at": {
+          "name": "ends_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "started_by": {
+          "name": "started_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "module_trial_organization_module_uq": {
+          "name": "module_trial_organization_module_uq",
+          "columns": [
+            {
+              "expression": "organization_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "module",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "module_trial_tenant_idx": {
+          "name": "module_trial_tenant_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "ends_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "module_trial_organization_id_organization_id_fk": {
+          "name": "module_trial_organization_id_organization_id_fk",
+          "tableFrom": "module_trial",
+          "tableTo": "organization",
+          "schemaTo": "billing",
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "module_trial_tenant_id_tenant_id_fk": {
+          "name": "module_trial_tenant_id_tenant_id_fk",
+          "tableFrom": "module_trial",
+          "tableTo": "tenant",
+          "schemaTo": "api",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "module_trial_period": {
+          "name": "module_trial_period",
+          "value": "\"billing\".\"module_trial\".\"ends_at\" > \"billing\".\"module_trial\".\"started_at\""
+        }
+      },
+      "isRLSEnabled": false
+    },
     "billing.organization": {
       "name": "organization",
       "schema": "billing",
@@ -25297,6 +25477,129 @@
       },
       "isRLSEnabled": false
     },
+    "billing.tenant_notification": {
+      "name": "tenant_notification",
+      "schema": "billing",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "public.uuid_generate_v7()"
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ref": {
+          "name": "ref",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "sent_at": {
+          "name": "sent_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "recipients": {
+          "name": "recipients",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::text[]"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "tenant_notification_tenant_kind_ref_uq": {
+          "name": "tenant_notification_tenant_kind_ref_uq",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "kind",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "ref",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "tenant_notification_tenant_idx": {
+          "name": "tenant_notification_tenant_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "tenant_notification_tenant_id_tenant_id_fk": {
+          "name": "tenant_notification_tenant_id_tenant_id_fk",
+          "tableFrom": "tenant_notification",
+          "tableTo": "tenant",
+          "schemaTo": "api",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "billing.tenant_override": {
       "name": "tenant_override",
       "schema": "billing",
@@ -25428,6 +25731,125 @@
         "tenant_override_revoked": {
           "name": "tenant_override_revoked",
           "value": "(\"billing\".\"tenant_override\".\"revoked_at\" is null) = (\"billing\".\"tenant_override\".\"revoked_by\" is null)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "billing.tenant_state_event": {
+      "name": "tenant_state_event",
+      "schema": "billing",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "public.uuid_generate_v7()"
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "from_state": {
+          "name": "from_state",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "to_state": {
+          "name": "to_state",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cause": {
+          "name": "cause",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reason": {
+          "name": "reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "actor": {
+          "name": "actor",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "payload": {
+          "name": "payload",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "tenant_state_event_tenant_idx": {
+          "name": "tenant_state_event_tenant_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "tenant_state_event_tenant_id_tenant_id_fk": {
+          "name": "tenant_state_event_tenant_id_tenant_id_fk",
+          "tableFrom": "tenant_state_event",
+          "tableTo": "tenant",
+          "schemaTo": "api",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "tenant_state_event_from": {
+          "name": "tenant_state_event_from",
+          "value": "\"billing\".\"tenant_state_event\".\"from_state\" is null or \"billing\".\"tenant_state_event\".\"from_state\" in ('draft', 'pending_review', 'rejected', 'trial', 'trial_expired', 'active', 'past_due', 'suspended', 'cancelled')"
+        },
+        "tenant_state_event_to": {
+          "name": "tenant_state_event_to",
+          "value": "\"billing\".\"tenant_state_event\".\"to_state\" in ('draft', 'pending_review', 'rejected', 'trial', 'trial_expired', 'active', 'past_due', 'suspended', 'cancelled')"
+        },
+        "tenant_state_event_cause": {
+          "name": "tenant_state_event_cause",
+          "value": "\"billing\".\"tenant_state_event\".\"cause\" in ('signup', 'provision', 'review', 'payment', 'clock', 'admin', 'request', 'migration')"
         }
       },
       "isRLSEnabled": false

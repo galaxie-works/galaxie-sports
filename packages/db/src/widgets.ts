@@ -17,6 +17,7 @@ import {
   widgetTheme,
   type ApiModule,
   type ApiPlan,
+  type TenantState,
   type WidgetConfig,
   type WidgetKind,
   type WidgetTheme,
@@ -717,6 +718,10 @@ export interface VerifiedPublishableKey {
     rateLimitPerMinute: number;
     /** Cota diária de produção; null = sem cota. */
     dailyRequestQuota: number | null;
+    /** Estado do ciclo de vida (F3): quem decide a recusa por estado é a API (`tenantStateProblem`). */
+    state: TenantState;
+    /** Prazo do estado `trial`; a API o usa como fallback até o job `tenant.lifecycle` rodar. */
+    trialEndsAt?: Date | null;
   };
   allowedOrigins: string[];
   /** Widget a que a chave está presa (null = qualquer). */
@@ -726,8 +731,8 @@ export interface VerifiedPublishableKey {
 }
 
 /**
- * Verifica a chave pelo sha256. null se o formato é inválido, a chave não existe ou foi revogada,
- * o tenant está suspenso ou o widget a que ela está presa foi arquivado.
+ * Verifica a chave pelo sha256. null se o formato é inválido, a chave não existe ou foi revogada, ou o widget a que
+ * ela está presa foi arquivado. O estado do tenant vem no resultado: a API responde por ele (F3), com o código certo.
  */
 export async function verifyPublishableKey(
   db: Database,
@@ -752,9 +757,7 @@ export async function verifyPublishableKey(
     .leftJoin(widget, eq(widget.id, publishableKey.widgetId))
     .where(eq(publishableKey.keyHash, hashPublishableKey(key)))
     .limit(1);
-  if (!row || row.revokedAt || row.tenant.status !== 'active') return null;
-  // trial encerrado: nenhuma chave do tenant vale
-  if (row.tenant.trialEndsAt && row.tenant.trialEndsAt <= new Date()) return null;
+  if (!row || row.revokedAt) return null;
   // o prefixo vale: o ambiente gravado precisa ser o do prefixo
   if (row.env !== publishableKeyEnv(key)) return null;
   if (row.widgetId && (row.widgetArchivedAt || row.widgetTenantId !== row.tenant.id)) return null;
@@ -772,6 +775,8 @@ export async function verifyPublishableKey(
       sports: row.tenant.sports,
       rateLimitPerMinute: row.tenant.rateLimitPerMinute,
       dailyRequestQuota: row.tenant.dailyRequestQuota,
+      state: row.tenant.state,
+      trialEndsAt: row.tenant.trialEndsAt,
     },
     allowedOrigins: row.allowedOrigins,
     widgetId: row.widgetId,

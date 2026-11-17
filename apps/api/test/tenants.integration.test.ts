@@ -4,11 +4,25 @@ import type { FastifyInstance } from 'fastify';
 import { Redis } from 'ioredis';
 import postgres from 'postgres';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { apiKey, closeDb, createDb, runMigrations, tenant, usageDaily, type Database } from '@galaxie/db';
+import {
+  apiKey,
+  closeDb,
+  createDb,
+  runMigrations,
+  tenant,
+  tenantStateEvent,
+  usageDaily,
+  type Database,
+} from '@galaxie/db';
 import { generateAdminKey, hashAdminKey } from '../src/admin/guard.js';
 import { loadPlans } from '../src/admin/plans.js';
 import { applyKeyMigration, KeyMigrationError, planKeyMigration } from '../src/admin/key-migration.js';
-import { KeyPolicyError, resolveTenantValues, upsertTenantWithKey } from '../src/admin/tenants.js';
+import {
+  KeyPolicyError,
+  resolveTenantValues,
+  trialEndsFor,
+  upsertTenantWithKey,
+} from '../src/admin/tenants.js';
 import { formatApiKey, parseApiKey } from '../src/auth/keys.js';
 import { buildServer } from '../src/server.js';
 import { withRandomSecret } from '../src/test-helpers.js';
@@ -233,9 +247,13 @@ describe('onboarding de tenant', () => {
     ).toBe(404);
 
     const suspended = await adminReq('PATCH', `/internal/admin/tenants/${tenantId}`, { status: 'suspended' });
-    expect(suspended.json().tenant.status).toBe('suspended');
-    expect((await tenantReq(firstKey, 'GET', '/v1/sports')).statusCode).toBe(401);
-    await adminReq('PATCH', `/internal/admin/tenants/${tenantId}`, { status: 'active' });
+    expect(suspended.json().tenant).toMatchObject({ status: 'suspended', state: 'suspended' });
+    // suspenso pela máquina de estados (F3): 402 SUBSCRIPTION_SUSPENDED depois de provar a chave
+    const denied = await tenantReq(firstKey, 'GET', '/v1/sports');
+    expect(denied.statusCode).toBe(402);
+    expect(denied.json().code).toBe('SUBSCRIPTION_SUSPENDED');
+    const reactivated = await adminReq('PATCH', `/internal/admin/tenants/${tenantId}`, { status: 'active' });
+    expect(reactivated.json().tenant).toMatchObject({ status: 'active', state: 'active' });
     expect((await tenantReq(firstKey, 'GET', '/v1/sports')).statusCode).toBe(200);
   });
 
@@ -737,6 +755,58 @@ describe('tenant:create no teto de chaves (upsertTenantWithKey)', () => {
     expect(test.key.key).toMatch(/^gs_test_/);
     const [updated] = await db.select().from(tenant).where(eq(tenant.slug, 'cli-teto'));
     expect(updated).toMatchObject({ name: 'Trocado', plan: 'enterprise' });
+    // plano pago sem prazo: nasce active pela máquina de estados
+    expect(updated).toMatchObject({ state: 'active', status: 'active' });
+  });
+
+  it('plano trial pela CLI: nasce em trial pela máquina de estados (draft → trial, cli:tenant-create); rodar de novo não mexe no estado', async () => {
+    const input = () => ({
+      slug: 'cli-trial',
+      name: 'Avaliação pela CLI',
+      ...resolveTenantValues(plans, { plan: 'trial' }),
+      trialEndsAt: trialEndsFor(plans, 'trial'),
+    });
+    const first = await upsertTenantWithKey(db, input(), { env: 'live' }, new Date(), 'cli:tenant-create');
+    expect(first.tenant.created).toBe(true);
+    const [row] = await db.select().from(tenant).where(eq(tenant.id, first.tenant.id));
+    expect(row).toMatchObject({ state: 'trial', status: 'active' });
+    expect(row!.trialEndsAt).not.toBeNull();
+    const events = await db
+      .select({
+        from: tenantStateEvent.fromState,
+        to: tenantStateEvent.toState,
+        actor: tenantStateEvent.actor,
+      })
+      .from(tenantStateEvent)
+      .where(eq(tenantStateEvent.tenantId, first.tenant.id))
+      .orderBy(tenantStateEvent.createdAt, tenantStateEvent.id);
+    expect(events).toEqual([
+      { from: null, to: 'draft', actor: 'cli:tenant-create' },
+      { from: 'draft', to: 'trial', actor: 'cli:tenant-create' },
+    ]);
+    expect((await tenantReq(first.key.key, 'GET', '/v1/sports')).statusCode).toBe(200);
+
+    // o prazo vencido vale no estado trial, mesmo antes do tenant.lifecycle
+    await db
+      .update(tenant)
+      .set({ trialEndsAt: new Date(Date.now() - 1000) })
+      .where(eq(tenant.id, first.tenant.id));
+    const expired = await tenantReq(first.key.key, 'GET', '/v1/sports');
+    expect(expired.statusCode).toBe(401);
+    expect(expired.json().code).toBe('TRIAL_EXPIRED');
+
+    // rodar a CLI de novo atualiza o tenant (prazo novo) sem gravar estado nem evento a mais
+    const again = await upsertTenantWithKey(db, input(), { env: 'test' }, new Date(), 'cli:tenant-create');
+    expect(again.tenant.created).toBe(false);
+    const [after] = await db.select().from(tenant).where(eq(tenant.id, first.tenant.id));
+    expect(after!.state).toBe('trial');
+    expect(after!.trialEndsAt!.getTime()).toBeGreaterThan(Date.now());
+    const count = await db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(tenantStateEvent)
+      .where(eq(tenantStateEvent.tenantId, first.tenant.id));
+    expect(count[0]!.n).toBe(2);
+    expect((await tenantReq(first.key.key, 'GET', '/v1/sports')).statusCode).toBe(200);
   });
 });
 
@@ -766,7 +836,16 @@ describe('trial e auditoria (docs/politica-de-chaves.md §3 e §5)', () => {
 
     const upgraded = await adminReq('PATCH', `/internal/admin/tenants/${t.id}`, { plan: 'core_data' });
     expect(upgraded.json().tenant.trialEndsAt).toBeNull();
+    expect(upgraded.json().tenant.state).toBe('active');
     expect((await tenantReq(key, 'GET', '/v1/sports')).statusCode).toBe(200);
+    // de volta ao plano com prazo fora de trial/draft: 409 (o prazo nunca valeria em active)
+    const back = await adminReq('PATCH', `/internal/admin/tenants/${t.id}`, { plan: 'trial' });
+    expect(back.statusCode).toBe(409);
+    expect(back.json().code).toBe('CONFLICT');
+    expect((await adminReq('GET', `/internal/admin/tenants/${t.id}`)).json().tenant).toMatchObject({
+      plan: 'core_data',
+      state: 'active',
+    });
   });
 
   it('cota depois de o Valkey perder o hash do dia: o uso já consolidado continua contando', async () => {

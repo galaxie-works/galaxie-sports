@@ -12,7 +12,12 @@ import {
   type VerifiedPublishableKey,
 } from '@galaxie/db';
 import { problems } from '../errors.js';
-import { withoutClosedModules, type AuthAttempt, type TenantContext } from './authenticator.js';
+import {
+  tenantStateProblem,
+  withoutClosedModules,
+  type AuthAttempt,
+  type TenantContext,
+} from './authenticator.js';
 import { ipBucket, type AuthThrottle } from './throttle.js';
 
 /** Header da chave publicável (a que vai no código do navegador). */
@@ -102,6 +107,21 @@ export class PublishableAuthenticator {
     }
     const key = entry.value;
     if (!key) throw problems.invalidKey('Chave publicável inválida ou revogada.');
+    // estado do tenant (F3): a chave publicável é pública, então a recusa já diz o motivo (o widget mostra o aviso)
+    const stateProblem = tenantStateProblem(key.tenant, now);
+    if (stateProblem) {
+      try {
+        this.options.onDenied?.({
+          tenantId: key.tenant.id,
+          reason: 'tenant_inactive',
+          keyPrefix: key.prefix ?? '',
+          detail: stateProblem.code,
+        });
+      } catch {
+        // diagnóstico nunca derruba a autenticação
+      }
+      throw stateProblem;
+    }
     if (!isOriginAllowed(origin, key.allowedOrigins)) {
       try {
         this.options.onDenied?.({
