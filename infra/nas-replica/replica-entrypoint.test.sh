@@ -32,8 +32,9 @@ while [ $# -gt 0 ]; do case "$1" in -D) d="$2"; shift 2 ;; *) shift ;; esac; don
 mkdir -p "$d" && echo 17 >"$d/PG_VERSION" && : >"$d/standby.signal"
 FAKE
 printf '#!/bin/sh\necho "docker-entrypoint.sh $*" >>"$CALLS"\n' >"$work/bin/docker-entrypoint.sh"
-# rodando como root (contêiner, por exemplo): su-exec e chown falsos, já que não há o usuário postgres aqui
-printf '#!/bin/sh\nshift\nexec "$@"\n' >"$work/bin/su-exec"
+# rodando como root (contêiner, por exemplo): gosu (o da imagem postgres:17-alpine) e chown falsos, já que não há o
+# usuário postgres aqui; o entrypoint só cai no su-exec se não houver gosu
+printf '#!/bin/sh\nshift\nexec "$@"\n' >"$work/bin/gosu"
 printf '#!/bin/sh\nexit 0\n' >"$work/bin/chown"
 chmod +x "$work/bin/"*
 export PATH="$work/bin:$PATH" CALLS="$work/calls.log" PGDATA="$work/vol/pgdata" REPLICATOR_PASSWORD=segredo123
