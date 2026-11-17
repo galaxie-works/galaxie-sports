@@ -298,7 +298,46 @@ tests:
               job_name: pg-backup
             exp_annotations:
               summary: 'Último backup do Postgres com sucesso há 1d 3h 0m 0s'
-              description: 'O serviço backup deveria gerar um dump por dia. Veja os logs do container backup.'
+              description: 'O serviço backup deveria gerar um dump por dia (ou o dump do NAS, com BACKUP_DUMP_SOURCE=nas, deixar o recibo). Veja os logs do container backup e, no NAS, o last_dump.txt da stack nas-replica.'
+
+  # Dump diário na réplica do NAS e semanal na VPS (docs/runbooks/replica-no-nas.md): o pg-backup de 27 h não alerta
+  # enquanto houver um nas-dump de 1 h; quando os dois envelhecem, BackupStale e NasDumpStale disparam
+  - name: backup pela réplica do NAS cala o BackupStale enquanto o recibo é recente
+    interval: 1m
+    input_series:
+      - series: 'galaxie_job_last_success_timestamp_seconds{job_name="pg-backup"}'
+        values: '0x3300'
+      # o dump do NAS de 93600 s (= 26 h após o zero): com 1 h de idade na avaliação de 27 h
+      - series: 'galaxie_job_last_success_timestamp_seconds{job_name="nas-dump"}'
+        values: '93600x3300'
+    alert_rule_test:
+      - eval_time: 27h
+        alertname: BackupStale
+        exp_alerts: []
+      - eval_time: 27h
+        alertname: NasDumpStale
+        exp_alerts: []
+      # 54 h: o nas-dump tem 28 h e o pg-backup 54 h: os dois alertam
+      - eval_time: 54h
+        alertname: NasDumpStale
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              sinal: backup-disco
+              job_name: nas-dump
+            exp_annotations:
+              summary: 'Dump na réplica do NAS sem recibo novo há 1d 4h 0m 0s'
+              description: 'O dump.sh da stack nas-replica não deixou recibo (.nas_last_dump) na VPS. Veja no Portainer do NAS o last_dump.txt e os logs dos serviços dumper, postgres e tunnel (docs/runbooks/replica-no-nas.md › Paradas).'
+      - eval_time: 54h
+        alertname: BackupStale
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              sinal: backup-disco
+              job_name: pg-backup
+            exp_annotations:
+              summary: 'Último backup do Postgres com sucesso há 2d 6h 0m 0s'
+              description: 'O serviço backup deveria gerar um dump por dia (ou o dump do NAS, com BACKUP_DUMP_SOURCE=nas, deixar o recibo). Veja os logs do container backup e, no NAS, o last_dump.txt da stack nas-replica.'
 
   - name: raw do futebol parado há mais de 26 horas
     interval: 1m

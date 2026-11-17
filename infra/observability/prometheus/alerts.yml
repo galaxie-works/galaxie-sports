@@ -64,15 +64,34 @@ groups:
           summary: 'Scheduler {{ $labels.component }} sem sinal de vida há {{ $value | humanizeDuration }}'
           description: 'Nenhum relato em ops.runtime_env. Veja docker compose ps {{ $labels.component }} e os logs; o healthcheck reinicia o contêiner travado (infra/healthcheck/selfheal.mjs).'
 
+      # O dump na VPS (pg-backup) parado há mais de 26 h. Com o diário vindo da réplica do NAS
+      # (docs/runbooks/replica-no-nas.md: o da VPS vira semanal e o backup-check.sh registra cada recibo .nas_last_dump
+      # como job nas-dump, com a hora real do dump), um nas-dump com menos de 26 h cala este alerta: a prova de backup
+      # existe, só mudou de lugar. Sem nenhum dos dois recente, dispara como sempre.
       - alert: BackupStale
-        expr: time() - galaxie_job_last_success_timestamp_seconds{job_name="pg-backup"} > 26 * 3600
+        expr: >-
+          (time() - galaxie_job_last_success_timestamp_seconds{job_name="pg-backup"} > 26 * 3600)
+          unless on() (time() - galaxie_job_last_success_timestamp_seconds{job_name="nas-dump"} <= 26 * 3600)
         for: 10m
         labels:
           severity: critical
           sinal: backup-disco
         annotations:
           summary: 'Último backup do Postgres com sucesso há {{ $value | humanizeDuration }}'
-          description: 'O serviço backup deveria gerar um dump por dia. Veja os logs do container backup.'
+          description: 'O serviço backup deveria gerar um dump por dia (ou o dump do NAS, com BACKUP_DUMP_SOURCE=nas, deixar o recibo). Veja os logs do container backup e, no NAS, o last_dump.txt da stack nas-replica.'
+
+      # Só existe depois do primeiro recibo do NAS (BACKUP_DUMP_SOURCE=nas): o dump da réplica parou (túnel, réplica
+      # atrasada ou promovida, slot perdido, disco do NAS cheio, chave de recibo). O semanal da VPS continua existindo;
+      # este alerta é para ir ao NAS antes que o semanal seja a única cópia.
+      - alert: NasDumpStale
+        expr: time() - galaxie_job_last_success_timestamp_seconds{job_name="nas-dump"} > 26 * 3600
+        for: 10m
+        labels:
+          severity: critical
+          sinal: backup-disco
+        annotations:
+          summary: 'Dump na réplica do NAS sem recibo novo há {{ $value | humanizeDuration }}'
+          description: 'O dump.sh da stack nas-replica não deixou recibo (.nas_last_dump) na VPS. Veja no Portainer do NAS o last_dump.txt e os logs dos serviços dumper, postgres e tunnel (docs/runbooks/replica-no-nas.md › Paradas).'
 
   # Política de backup e DR: docs/runbooks/exercicio-dr.md.
   - name: galaxie-backup
