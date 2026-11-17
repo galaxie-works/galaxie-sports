@@ -25,7 +25,7 @@ export const DEFAULT_CHANNEL_REFRESH_MINUTES = 60;
 export const DEFAULT_REVALIDATE_MINUTES = 120;
 /** Estatísticas da vitrine mais velhas que isto são lidas de novo, em qualquer jogo (política do YouTube, III.E.4). */
 export const STATS_REFRESH_HOURS = 24;
-/** Vídeos atualizados por execução: 20 unidades do balde geral a cada 3 min, no máximo. */
+/** Vídeos atualizados por execução (o job roda a cada 10 min): 20 unidades do balde geral, no máximo. */
 export const STATS_REFRESH_MAX_VIDEOS = 1_000;
 /** Teto da reserva de buscas para os jogos que ainda vão acontecer no dia de cota (% do balde de busca). */
 export const DEFAULT_RESERVE_MAX_PERCENT = 60;
@@ -158,7 +158,7 @@ export function fullSearchDue(input: {
 export type RelatedMode = 'full' | 'channels' | 'revalidate';
 
 /**
- * O que fazer com o jogo nesta execução do cron (a cada 3 min): busca completa quando devida e com consulta
+ * O que fazer com o jogo nesta execução do cron (a cada 10 min): busca completa quando devida e com consulta
  * disponível; senão reler os canais conhecidos (`channelRefreshMs`), senão revalidar os guardados
  * (`revalidateMs`); senão nada (null) — a execução sem trabalho não chama o YouTube.
  */

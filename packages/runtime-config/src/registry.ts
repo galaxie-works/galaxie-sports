@@ -158,7 +158,8 @@ export const SCHEDULED_JOBS: readonly ScheduledJobDef[] = [
   { name: 'context-run', service: 'agents', cron: '10 * * * *', runNow: true },
   { name: 'wtw-run', service: 'agents', cron: '*/5 * * * *', runNow: false },
   { name: 'wtw-channel', service: 'agents', cron: '*/10 * * * *', runNow: false },
-  { name: 'related-run', service: 'agents', cron: '*/3 * * * *', runNow: false },
+  // a cada 10 min (decisão do dono, 17/11/2026: vídeos relacionados até 10 min depois do fim do jogo; antes */3)
+  { name: 'related-run', service: 'agents', cron: '*/10 * * * *', runNow: false },
   { name: 'wtw-rights', service: 'agents', cron: '40 5,17 * * *', runNow: false },
   { name: 'review-suggestions', service: 'agents', cron: '*/15 * * * *', runNow: true },
   { name: 'lineups-revisit', service: 'agents', cron: '50 4 * * 1', runNow: false },

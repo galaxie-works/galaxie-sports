@@ -542,7 +542,7 @@ Uma consulta presa, o Valkey cheio ou um job vazando memória não podem derruba
 | Postgres (servidor) | `idle_in_transaction_session_timeout` 30 min; log de consulta acima de 5 s e de espera por trava | Rede de segurança para o `psql` à mão; os da aplicação vêm por pool. |
 | Valkey (ioredis da API) | `commandTimeout` 1 s (`REDIS_COMMAND_TIMEOUT_MS`) | Cache, rate limit e cota já falham abertos; sem o teto, um Valkey lento segurava a requisição. A conexão do `SUBSCRIBE` do SSE fica sem teto (espera o Valkey voltar). |
 | api-sports | prioridade LIVE 30 s (`APISPORTS_LIVE_TIMEOUT_MS`); as outras 180 s | O ao vivo repete a cada poucos segundos: esperar 3 min por uma chamada segurava o tick inteiro. |
-| YouTube Data API | 20 s | O `related-run` (a cada 3 min) não fica pendurado. |
+| YouTube Data API | 20 s | O `related-run` (a cada 10 min) não fica pendurado. |
 | Download do F1DB | 5 min | O zip tem dezenas de MB. |
 | S3 (ingestor e upload da demo) | conexão 5 s, 30 s sem dado no socket | Sem isso o SDK esperava para sempre; o espelho de assets ficava preso até o teto de 90 min do job. |
 
