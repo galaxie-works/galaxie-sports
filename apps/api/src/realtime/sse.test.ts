@@ -126,6 +126,47 @@ describe('GET /v1/stream — plano trial', () => {
   });
 });
 
+describe('GET /v1/stream — teto de conexões do tenant pelos direitos (F3, decisão 14)', () => {
+  function limitSpy() {
+    const limits: number[] = [];
+    const limiter: ConnectionLimiter = {
+      acquire: async (_t, _c, limit) => {
+        limits.push(limit);
+        return false;
+      },
+      renew: async () => {},
+      release: async () => {},
+    };
+    return { limiter, limits };
+  }
+
+  it('a faixa core_data.sse_connections dos direitos vale quando é menor que o teto da API', async () => {
+    const { limiter, limits } = limitSpy();
+    const url = await harness({ limiter, tenant: { ...ctx, tiers: { 'core_data.sse_connections': 5 } } });
+    const c = connect(url);
+    await expect.poll(() => c.ended()).toBe(true);
+    expect(c.res()!.statusCode).toBe(429);
+    expect(c.body()).toContain('Máximo de 5 conexões');
+    expect(limits).toEqual([5]);
+  });
+
+  it('sem faixa nos direitos fica o teto da API', async () => {
+    const { limiter, limits } = limitSpy();
+    const url = await harness({ limiter });
+    const a = connect(url);
+    await expect.poll(() => a.ended()).toBe(true);
+    expect(limits).toEqual([100]);
+  });
+
+  it('faixa acima do teto da API não o estica', async () => {
+    const { limiter, limits } = limitSpy();
+    const url = await harness({ limiter, tenant: { ...ctx, tiers: { 'core_data.sse_connections': 1000 } } });
+    const b = connect(url);
+    await expect.poll(() => b.ended()).toBe(true);
+    expect(limits).toEqual([100]);
+  });
+});
+
 describe('GET /v1/stream — teto de conexões do processo', () => {
   function recordingMetrics() {
     const seen = { open: [] as number[], rejected: [] as string[] };

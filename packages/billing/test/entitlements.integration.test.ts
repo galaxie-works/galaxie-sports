@@ -173,7 +173,7 @@ describe('entitlements() com o banco', () => {
   });
 
   it('cache fora do ar: responde pelo banco', async () => {
-    const id = await newTenant('ent-d', { status: 'suspended' });
+    const id = await newTenant('ent-d', { status: 'suspended', state: 'suspended' });
     const broken: EntitlementsCacheStore = {
       get: () => Promise.reject(new Error('fora')),
       set: () => Promise.reject(new Error('fora')),

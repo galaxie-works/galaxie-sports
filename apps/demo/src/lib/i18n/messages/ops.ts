@@ -83,7 +83,7 @@ export default defineMessages(
       site: 'Site da Galaxie',
       messaging: 'WhatsApp e Telegram',
       subscriptions: 'Assinaturas e carteiras',
-      signups: 'Cadastros e trials',
+      signups: 'Cadastros, trials e ciclo de vida',
       domains: 'Domínios',
       organizations: 'Organizações e marcas',
       users: 'Usuários e equipe',
@@ -272,7 +272,7 @@ export default defineMessages(
       cosmos: 'Crédito, teste e teto de segurança da Cosmos AI.',
       fanIdentity: 'Validade do token do torcedor. O segredo que assina o token fica em Credenciais.',
       signups:
-        'O cadastro em autoatendimento (/signup): liga/desliga, versão dos termos aceita, limite por IP e prazo do trial.',
+        'O cadastro em autoatendimento (/signup): liga/desliga, versão dos termos aceita, limite por IP e prazo do trial. E os prazos do ciclo de vida do tenant (trial vencido, inadimplência, suspensão e guarda) que o job tenant-lifecycle aplica.',
       history: 'Quem mudou o quê no painel e os pedidos de "rodar agora".',
       refreshHint: 'O que você muda aqui sobrescreve o .env da VPS sem reiniciar os contêineres.',
     },
@@ -680,6 +680,11 @@ export default defineMessages(
           label: 'Retenção de dados',
           description:
             'Apaga o bruto do ao vivo com mais de 30 dias e o histórico antigo de operação (execuções, cota, IA agregada por dia).',
+        },
+        'tenant-lifecycle': {
+          label: 'Ciclo de vida dos tenants',
+          description:
+            'Aplica os prazos do ciclo de vida (trial vencido, inadimplência, suspensão e guarda) e reconfere os domínios comprovados. Não apaga nada.',
         },
         'fixture-people': {
           label: 'Jogadores por partida',
@@ -1900,6 +1905,34 @@ export default defineMessages(
         description:
           'Prazo do trial do Fan Experience para quem se cadastra ou é criado pela equipe. Vale para as organizações novas; as existentes mantêm o prazo gravado.',
       },
+      TENANT_TRIAL_EXPIRED_DAYS: {
+        label: 'Dias em trial vencido até cancelar',
+        description:
+          'Depois do fim do trial sem contratação, quantos dias a conta fica em trial vencido antes de o relógio (job tenant-lifecycle) cancelar. Nada é apagado.',
+      },
+      TENANT_PAST_DUE_DAYS: {
+        label: 'Dias de graça na inadimplência',
+        description:
+          'Quantos dias a conta segue funcionando com pagamento pendente antes de o relógio suspender. O cliente nunca descobre a falha do cartão pelo site fora do ar.',
+      },
+      TENANT_SUSPENDED_DAYS: {
+        label: 'Dias suspensa até cancelar',
+        description: 'Quantos dias a conta fica suspensa antes de o relógio cancelar. Nada é apagado.',
+      },
+      TENANT_CANCELLED_RETENTION_DAYS: {
+        label: 'Dias de guarda depois do cancelamento',
+        description:
+          'Por quantos dias os dados de uma conta cancelada ficam guardados. Vencido, o painel avisa; o expurgo depende de decisão do dono.',
+      },
+      TRIAL_REMINDER_DAYS: {
+        label: 'Dias do trial com e-mail de lembrete',
+        description:
+          'Dias do trial em que o lembrete sai para os Donos e o Financeiro (separados por vírgula).',
+      },
+      MODULE_TRIAL_REMINDER_DAYS_BEFORE: {
+        label: 'Aviso antes do fim do teste de um módulo',
+        description: 'Quantos dias antes do fim do teste de um módulo o lembrete sai.',
+      },
       STRIPE_SECRET_KEY: { label: 'Stripe: chave secreta' },
       STRIPE_WEBHOOK_SECRET: { label: 'Stripe: segredo do webhook' },
       DIDIT_API_KEY: { label: 'Didit: chave da API' },
@@ -2117,7 +2150,7 @@ export default defineMessages(
         site: 'Galaxie website',
         messaging: 'WhatsApp and Telegram',
         subscriptions: 'Subscriptions and wallets',
-        signups: 'Sign-ups and trials',
+        signups: 'Sign-ups, trials and lifecycle',
         domains: 'Domains',
         organizations: 'Organizations and brands',
         users: 'Users and team',
@@ -2306,7 +2339,7 @@ export default defineMessages(
         cosmos: 'Cosmos AI credit, trial and safety ceiling.',
         fanIdentity: 'How long the fan token lasts. The secret that signs it is in Credentials.',
         signups:
-          'Self-service sign-up (/signup): on/off, accepted terms version, per-IP limit and trial length.',
+          'Self-service sign-up (/signup): on/off, accepted terms version, per-IP limit and trial length. Plus the tenant lifecycle deadlines (expired trial, past due, suspension and retention) applied by the tenant-lifecycle job.',
         history: 'Who changed what in the panel and the "run now" requests.',
         refreshHint: 'Changes here override the VPS .env without restarting containers.',
       },
@@ -2695,6 +2728,11 @@ export default defineMessages(
             label: 'Data retention',
             description:
               'Deletes live raw responses older than 30 days and old operations history (runs, quota, AI usage rolled up by day).',
+          },
+          'tenant-lifecycle': {
+            label: 'Tenant lifecycle',
+            description:
+              'Applies the lifecycle deadlines (expired trial, past due, suspension and retention) and re-checks verified domains. Deletes nothing.',
           },
           'fixture-people': {
             label: 'Players per match',
@@ -3916,6 +3954,35 @@ export default defineMessages(
           description:
             'Length of the Fan Experience trial for self-service sign-ups and team-created customers. Applies to new organizations; existing ones keep the stored date.',
         },
+        TENANT_TRIAL_EXPIRED_DAYS: {
+          label: 'Days in expired trial before cancelling',
+          description:
+            'After the trial ends without a purchase, how many days the account stays in expired trial before the clock (tenant-lifecycle job) cancels it. Nothing is deleted.',
+        },
+        TENANT_PAST_DUE_DAYS: {
+          label: 'Grace days when past due',
+          description:
+            'How many days the account keeps working with a pending payment before the clock suspends it. The customer never learns about a failed card from a site that is down.',
+        },
+        TENANT_SUSPENDED_DAYS: {
+          label: 'Days suspended before cancelling',
+          description:
+            'How many days the account stays suspended before the clock cancels it. Nothing is deleted.',
+        },
+        TENANT_CANCELLED_RETENTION_DAYS: {
+          label: 'Retention days after cancellation',
+          description:
+            'How many days the data of a cancelled account is kept. Once over, the panel warns; purging depends on the owner’s decision.',
+        },
+        TRIAL_REMINDER_DAYS: {
+          label: 'Trial days with a reminder email',
+          description:
+            'Days of the trial on which the reminder goes to the Owners and Billing (comma-separated).',
+        },
+        MODULE_TRIAL_REMINDER_DAYS_BEFORE: {
+          label: 'Notice before a module trial ends',
+          description: 'How many days before a module trial ends the reminder goes out.',
+        },
         STRIPE_SECRET_KEY: { label: 'Stripe: secret key' },
         STRIPE_WEBHOOK_SECRET: { label: 'Stripe: webhook secret' },
         DIDIT_API_KEY: { label: 'Didit: API key' },
@@ -4133,7 +4200,7 @@ export default defineMessages(
         site: 'Sitio de Galaxie',
         messaging: 'WhatsApp y Telegram',
         subscriptions: 'Suscripciones y billeteras',
-        signups: 'Registros y pruebas',
+        signups: 'Registros, pruebas y ciclo de vida',
         domains: 'Dominios',
         organizations: 'Organizaciones y marcas',
         users: 'Usuarios y equipo',
@@ -4323,7 +4390,7 @@ export default defineMessages(
         cosmos: 'Crédito, prueba y tope de seguridad de Cosmos AI.',
         fanIdentity: 'Validez del token del hincha. El secreto que lo firma está en Credenciales.',
         signups:
-          'El registro en autoservicio (/signup): encendido/apagado, versión de los términos aceptada, límite por IP y plazo de la prueba.',
+          'El registro en autoservicio (/signup): encendido/apagado, versión de los términos aceptada, límite por IP y plazo de la prueba. Y los plazos del ciclo de vida del tenant (prueba vencida, mora, suspensión y retención) que aplica el job tenant-lifecycle.',
         history: 'Quién cambió qué en el panel y los pedidos de "ejecutar ahora".',
         refreshHint: 'Lo que cambie aquí sobrescribe el .env de la VPS sin reiniciar los contenedores.',
       },
@@ -4726,6 +4793,11 @@ export default defineMessages(
             label: 'Retención de datos',
             description:
               'Borra el bruto del en vivo con más de 30 días y el historial viejo de operación (ejecuciones, cuota, IA agregada por día).',
+          },
+          'tenant-lifecycle': {
+            label: 'Ciclo de vida de los tenants',
+            description:
+              'Aplica los plazos del ciclo de vida (prueba vencida, mora, suspensión y retención) y vuelve a comprobar los dominios verificados. No borra nada.',
           },
           'fixture-people': {
             label: 'Jugadores por partido',
@@ -5955,6 +6027,35 @@ export default defineMessages(
           label: 'Días de prueba',
           description:
             'Plazo de la prueba de Fan Experience para quien se registra o es creado por el equipo. Vale para las organizaciones nuevas; las existentes mantienen la fecha guardada.',
+        },
+        TENANT_TRIAL_EXPIRED_DAYS: {
+          label: 'Días en prueba vencida hasta cancelar',
+          description:
+            'Después del fin de la prueba sin contratación, cuántos días la cuenta queda en prueba vencida antes de que el reloj (job tenant-lifecycle) la cancele. No se borra nada.',
+        },
+        TENANT_PAST_DUE_DAYS: {
+          label: 'Días de gracia en mora',
+          description:
+            'Cuántos días la cuenta sigue funcionando con pago pendiente antes de que el reloj la suspenda. El cliente nunca se entera de la falla de la tarjeta por el sitio caído.',
+        },
+        TENANT_SUSPENDED_DAYS: {
+          label: 'Días suspendida hasta cancelar',
+          description:
+            'Cuántos días la cuenta queda suspendida antes de que el reloj la cancele. No se borra nada.',
+        },
+        TENANT_CANCELLED_RETENTION_DAYS: {
+          label: 'Días de retención después de la cancelación',
+          description:
+            'Por cuántos días se conservan los datos de una cuenta cancelada. Vencido, el panel avisa; la purga depende de la decisión del dueño.',
+        },
+        TRIAL_REMINDER_DAYS: {
+          label: 'Días de la prueba con e-mail de recordatorio',
+          description:
+            'Días de la prueba en que el recordatorio sale para los Dueños y Facturación (separados por coma).',
+        },
+        MODULE_TRIAL_REMINDER_DAYS_BEFORE: {
+          label: 'Aviso antes del fin de la prueba de un módulo',
+          description: 'Cuántos días antes del fin de la prueba de un módulo sale el recordatorio.',
         },
         STRIPE_SECRET_KEY: { label: 'Stripe: clave secreta' },
         STRIPE_WEBHOOK_SECRET: { label: 'Stripe: secreto del webhook' },

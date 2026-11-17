@@ -232,6 +232,14 @@ export default defineMessages(
         headWhen: 'Quando',
         invalidParams: 'Parâmetro inválido; errors traz [{ path, message }].',
         invalidKey: 'Chave ausente, inválida, expirada ou revogada.',
+        tenantPendingReview:
+          'Cadastro em provisionamento ou na fila de revisão da equipe; as chaves valem depois da aprovação.',
+        tenantRejected: 'Cadastro recusado pela equipe Galaxie.',
+        trialExpired: 'O período de teste acabou sem contratação; upgrade_url leva a Planos e módulos.',
+        subscriptionSuspended:
+          'Assinatura suspensa (cobrança ou equipe); upgrade_url leva a Planos e módulos.',
+        tenantCancelled:
+          'Conta cancelada: os dados ficam guardados pelo prazo de retenção, as chaves não autenticam.',
         moduleNotInPlan: 'A rota (ou o esporte) não está no seu contrato.',
         marketNotInPlan: 'O país pedido não está nos seus mercados.',
         notFound: 'Entidade ou rota inexistente.',
@@ -704,6 +712,14 @@ export default defineMessages(
           headWhen: 'When',
           invalidParams: 'Invalid parameter; errors contains [{ path, message }].',
           invalidKey: 'Missing, invalid, expired or revoked key.',
+          tenantPendingReview:
+            'Sign-up still being provisioned or waiting for team review; keys work after approval.',
+          tenantRejected: 'Sign-up rejected by the Galaxie team.',
+          trialExpired: 'The trial ended without a purchase; upgrade_url points to Plans and modules.',
+          subscriptionSuspended:
+            'Subscription suspended (billing or team); upgrade_url points to Plans and modules.',
+          tenantCancelled:
+            'Account cancelled: data is kept for the retention period, keys no longer authenticate.',
           moduleNotInPlan: 'The route (or the sport) is not in your contract.',
           marketNotInPlan: 'The requested country is not among your markets.',
           notFound: 'Entity or route does not exist.',
@@ -1180,6 +1196,15 @@ export default defineMessages(
           headWhen: 'Cuándo',
           invalidParams: 'Parámetro inválido; errors trae [{ path, message }].',
           invalidKey: 'Clave ausente, inválida, vencida o revocada.',
+          tenantPendingReview:
+            'Registro en aprovisionamiento o en la cola de revisión del equipo; las claves valen después de la aprobación.',
+          tenantRejected: 'Registro rechazado por el equipo de Galaxie.',
+          trialExpired:
+            'El período de prueba terminó sin contratación; upgrade_url lleva a Planes y módulos.',
+          subscriptionSuspended:
+            'Suscripción suspendida (cobro o equipo); upgrade_url lleva a Planes y módulos.',
+          tenantCancelled:
+            'Cuenta cancelada: los datos se conservan durante el plazo de retención, las claves ya no autentican.',
           moduleNotInPlan: 'La ruta (o el deporte) no está en tu contrato.',
           marketNotInPlan: 'El país pedido no está en tus mercados.',
           notFound: 'Entidad o ruta inexistente.',

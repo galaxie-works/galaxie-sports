@@ -165,7 +165,12 @@ export class ChatGameFeed {
     const [row] = await this.db
       .select({ ok: sql<boolean>`true` })
       .from(tenant)
-      .where(and(sql`'live_chat' = any(${tenant.modules})`, eq(tenant.status, 'active')))
+      .where(
+        and(
+          sql`'live_chat' = any(${tenant.modules})`,
+          sql`${tenant.state} in ('trial', 'active', 'past_due')`,
+        ),
+      )
       .limit(1);
     this.enabled = !!row;
     this.enabledAt = this.now();

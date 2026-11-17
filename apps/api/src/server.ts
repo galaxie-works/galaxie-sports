@@ -143,7 +143,13 @@ export interface ServerOptions {
    * catálogo de `config/catalog` e o banco, com cache no Valkey, quando há db; `false` desliga (os módulos vêm só das
    * colunas do tenant, como antes).
    */
-  entitlements?: ((tenantId: string) => Promise<Pick<Entitlements, 'modules' | 'features'> | null>) | false;
+  entitlements?:
+    | ((
+        tenantId: string,
+      ) => Promise<
+        (Pick<Entitlements, 'modules' | 'features'> & Partial<Pick<Entitlements, 'limits' | 'tiers'>>) | null
+      >)
+    | false;
   /** Chaves publicáveis (`x-galaxie-publishable-key`); padrão: Postgres, quando há db. */
   publishableStore?: PublishableStore;
   publishableAuthenticator?: PublishableAuthenticatorOptions;

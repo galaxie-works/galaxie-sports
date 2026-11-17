@@ -9,9 +9,9 @@ describe('Agenda dos jobs agrupada por área (#1075)', () => {
     expect(jobsWithArea().sort()).toEqual(SCHEDULED_JOBS.map((j) => j.name).sort());
   });
 
-  it('os mesmos 31 ajustes continuam na Agenda', () => {
+  it('os mesmos 32 ajustes continuam na Agenda (31 e o tenant-lifecycle da F3)', () => {
     const schedule = SETTINGS.filter((d) => settingPage(d.key)?.item === 'schedule');
-    expect(schedule).toHaveLength(31);
+    expect(schedule).toHaveLength(32);
     expect(schedule.filter((d) => d.job)).toHaveLength(SCHEDULED_JOBS.length);
   });
 

@@ -37,25 +37,69 @@ export class ProblemError extends Error {
 
 /**
  * Onde o cliente contrata o módulo (cartão em Planos e módulos do console, #1137): `UPGRADE_URL_BASE` com o módulo na
- * query. Sem a variável, a resposta sai sem o link (a tela ainda não existe em todo ambiente).
+ * query. Sem módulo (trial vencido, assinatura suspensa: F3), é o endereço da loja inteira. Sem a variável, a resposta
+ * sai sem o link (a tela ainda não existe em todo ambiente).
  */
-export function upgradeUrl(module: string): string | undefined {
+export function upgradeUrl(module?: string): string | undefined {
   const base = process.env.UPGRADE_URL_BASE?.trim();
-  if (!base || !/^[a-z_]+$/.test(module)) return undefined;
+  if (!base || (module !== undefined && !/^[a-z_]+$/.test(module))) return undefined;
   try {
     const url = new URL(base);
-    url.searchParams.set('module', module);
+    if (module !== undefined) url.searchParams.set('module', module);
     return url.toString();
   } catch {
     return undefined;
   }
 }
 
+const withUpgrade = () => {
+  const upgrade = upgradeUrl();
+  return upgrade ? { upgrade_url: upgrade } : {};
+};
+
 export const problems = {
   invalidParams: (errors: { path: string; message: string }[], detail?: string) =>
     new ProblemError(400, 'INVALID_PARAMS', 'Parâmetro inválido', detail, { errors }),
   invalidKey: (detail = 'Envie uma chave válida no header x-galaxie-key.') =>
     new ProblemError(401, 'INVALID_KEY', 'Chave de API ausente ou inválida', detail),
+  // estado do tenant (F3, decisão 3): a chave é válida, o tenant é que não tem acesso agora
+  tenantPendingReview: () =>
+    new ProblemError(
+      401,
+      'TENANT_PENDING_REVIEW',
+      'Cadastro em revisão',
+      'O cadastro ainda está em provisionamento ou na fila de revisão da equipe Galaxie. As chaves passam a valer quando ele for aprovado.',
+    ),
+  tenantRejected: () =>
+    new ProblemError(
+      401,
+      'TENANT_REJECTED',
+      'Cadastro recusado',
+      'O cadastro foi recusado pela equipe Galaxie. Fale com o suporte pelo console.',
+    ),
+  trialExpired: () =>
+    new ProblemError(
+      401,
+      'TRIAL_EXPIRED',
+      'O trial terminou',
+      'O período de teste acabou. Contrate um plano em Planos e módulos para as chaves voltarem a valer.',
+      withUpgrade(),
+    ),
+  subscriptionSuspended: () =>
+    new ProblemError(
+      402,
+      'SUBSCRIPTION_SUSPENDED',
+      'Assinatura suspensa',
+      'A assinatura está suspensa. Regularize a cobrança em Planos e módulos para as chaves voltarem a valer.',
+      withUpgrade(),
+    ),
+  tenantCancelled: () =>
+    new ProblemError(
+      401,
+      'TENANT_CANCELLED',
+      'Conta cancelada',
+      'A conta foi cancelada. Os dados ficam guardados pelo prazo de retenção; as chaves não autenticam mais.',
+    ),
   realtimeNotInPlan: (plan: string) =>
     new ProblemError(
       403,

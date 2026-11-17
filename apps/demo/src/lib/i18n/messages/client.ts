@@ -56,6 +56,55 @@ export default defineMessages(
       denyTitle: 'Área fora do seu cargo',
       denyBody: 'Seu cargo neste tenant não abre esta área. Fale com o Dono ou o Admin.',
       status: { active: 'Ativo', suspended: 'Suspenso' },
+      states: {
+        draft: 'Em criação',
+        pending_review: 'Em revisão',
+        rejected: 'Recusado',
+        trial: 'Em teste',
+        trial_expired: 'Teste encerrado',
+        active: 'Ativo',
+        past_due: 'Pagamento pendente',
+        suspended: 'Suspenso',
+        cancelled: 'Cancelado',
+      },
+      trialUntil: 'Teste até {date}',
+      stateDenyTitle: 'Área fechada pelo estado da conta',
+      stateDenyBody: 'Enquanto a conta está neste estado, só Planos e módulos e Chaves ficam abertos.',
+      stateNotice: {
+        draft: {
+          title: 'Conta em criação',
+          body: 'Estamos preparando a marca. Em instantes o painel abre com as chaves e o teste.',
+        },
+        pending_review: {
+          title: 'Cadastro em revisão',
+          body: 'Seu cadastro está na fila da equipe Galaxie. Você recebe um e-mail quando a revisão terminar; até lá as chaves não respondem e o painel fica em espera.',
+        },
+        rejected: {
+          title: 'Cadastro recusado',
+          body: 'A equipe Galaxie não aprovou este cadastro. Se acha que houve engano, escreva para {email}.',
+        },
+        trial_expired: {
+          title: 'Período de teste encerrado',
+          body: 'O teste acabou e as chaves pararam de responder. Contrate um plano em Planos e módulos para voltar; os widgets e as chaves ficam guardados.',
+        },
+        past_due: {
+          title: 'Pagamento pendente',
+          body: 'A última cobrança falhou. Nada foi cortado por enquanto; regularize em Planos e módulos para evitar a suspensão.',
+        },
+        suspended: {
+          title: 'Conta suspensa',
+          body: 'As chaves respondem 402 até a regularização. Veja Planos e módulos ou escreva para {email}.',
+        },
+        cancelled: {
+          title: 'Conta cancelada',
+          body: 'Esta conta foi cancelada. Os dados ficam guardados pelo prazo de guarda e nada é apagado sem pedido; exportar e apagar chegam em breve. Para reativar, escreva para {email}.',
+        },
+        openStore: 'Ver planos e módulos',
+        contact: 'Falar com a Galaxie',
+        staff:
+          'Este é o estado da conta do cliente: o painel mostra o que o cliente vê. A equipe age em Ajustes › Organizações e marcas.',
+        staffLink: 'Abrir Organizações e marcas',
+      },
     },
     cosmos: {
       button: 'Cosmos AI',
@@ -69,6 +118,21 @@ export default defineMessages(
       engage: 'Engajamento do torcedor',
       needsPlan: 'A partir do plano {plans}',
       trialDays: 'Teste de {days} dias',
+      trialHint: 'uma vez por módulo e organização; no fim o módulo desliga e o resto continua',
+      startTrial: 'Ativar teste de {days} dias',
+      trialStarted: 'Teste ativado até {date}.',
+      trialEnds: 'Teste até {date}',
+      contractBeforeEnd: 'Contratar antes do fim',
+      contractSubject: 'Contratar {module} para {tenant}',
+      errors: {
+        noAccess: 'A conta está sem acesso no momento: regularize antes de ativar um teste.',
+        noOrganization: 'A marca ainda não tem organização: fale com o time da Galaxie.',
+        notAvailable: 'Este módulo não está disponível para teste agora.',
+        already_used: 'Esta organização já testou este módulo.',
+        wrong_organization: 'A marca não é desta organização: recarregue a página e tente de novo.',
+        no_trial: 'Este módulo não tem teste por dias.',
+        unknown_module: 'Módulo desconhecido.',
+      },
       states: {
         included: 'Incluído',
         trial: 'Em teste',
@@ -82,6 +146,39 @@ export default defineMessages(
       unavailable: 'Não foi possível ler os direitos do tenant agora. Tente de novo em instantes.',
       blockedNotice:
         'Este tenant está sem acesso no momento (suspenso ou com o teste encerrado). Fale com o time da Galaxie para regularizar.',
+    },
+    checklist: {
+      title: 'Primeira sessão',
+      intro: '{done} de {total} passos feitos. Cada passo se marca sozinho quando acontece.',
+      dismiss: 'Ocultar',
+      done: 'Feito',
+      pending: 'Pendente',
+      secretPlaceholder: 'RESTO_DA_CHAVE',
+      sampleWidgetName: 'Placar do dia',
+      steps: {
+        call: {
+          title: 'Primeira chamada',
+          body: 'Rode o curl com a sua chave de teste: o prefixo já está preenchido; o resto da chave apareceu uma única vez, no fim do cadastro.',
+          noKey: 'A marca não tem chave de teste ativa. Gere uma pela API ou fale com o time da Galaxie.',
+          action: 'Ver chaves',
+        },
+        widget: {
+          title: 'Um widget no ar',
+          body: 'Cole o embed do widget de exemplo numa página da origem cadastrada, com a sua chave publicável. O passo se marca na primeira requisição do widget.',
+          noWidget: 'Monte um widget no Builder e instale o embed numa página da origem cadastrada.',
+          action: 'Abrir o Builder',
+        },
+        invite: {
+          title: 'Convide alguém',
+          body: 'Convide uma pessoa da sua equipe em Usuários e cargos. O passo se marca quando ela aceitar o convite.',
+          action: 'Convidar',
+        },
+        plan: {
+          title: 'Escolha o plano',
+          body: 'Planos e módulos mostra o preço previsto e os módulos para testar. O passo se marca quando a conta sai do teste.',
+          action: 'Ver planos',
+        },
+      },
     },
     overview: {
       plan: 'Plano',
@@ -1046,6 +1143,55 @@ export default defineMessages(
         denyTitle: 'Outside your role',
         denyBody: 'Your role in this tenant does not open this area. Talk to the Owner or an Admin.',
         status: { active: 'Active', suspended: 'Suspended' },
+        states: {
+          draft: 'Being created',
+          pending_review: 'Under review',
+          rejected: 'Rejected',
+          trial: 'On trial',
+          trial_expired: 'Trial ended',
+          active: 'Active',
+          past_due: 'Payment past due',
+          suspended: 'Suspended',
+          cancelled: 'Cancelled',
+        },
+        trialUntil: 'Trial until {date}',
+        stateDenyTitle: 'Area closed by the account state',
+        stateDenyBody: 'While the account is in this state, only Plans and modules and Keys stay open.',
+        stateNotice: {
+          draft: {
+            title: 'Account being created',
+            body: 'We are setting up the brand. In a moment the panel opens with the keys and the trial.',
+          },
+          pending_review: {
+            title: 'Signup under review',
+            body: "Your signup is in the Galaxie team's queue. You get an email when the review ends; until then the keys do not respond and the panel waits.",
+          },
+          rejected: {
+            title: 'Signup rejected',
+            body: 'The Galaxie team did not approve this signup. If you think this is a mistake, write to {email}.',
+          },
+          trial_expired: {
+            title: 'Trial period ended',
+            body: 'The trial is over and the keys stopped responding. Subscribe to a plan in Plans and modules to come back; widgets and keys are kept.',
+          },
+          past_due: {
+            title: 'Payment past due',
+            body: 'The last charge failed. Nothing has been cut off yet; sort it out in Plans and modules to avoid suspension.',
+          },
+          suspended: {
+            title: 'Account suspended',
+            body: 'The keys respond 402 until the account is sorted out. See Plans and modules or write to {email}.',
+          },
+          cancelled: {
+            title: 'Account cancelled',
+            body: 'This account was cancelled. Data is kept for the retention period and nothing is deleted without a request; export and delete are coming soon. To reactivate, write to {email}.',
+          },
+          openStore: 'See plans and modules',
+          contact: 'Talk to Galaxie',
+          staff:
+            "This is the customer's account state: the panel shows what the customer sees. The team acts in Settings › Organizations and brands.",
+          staffLink: 'Open Organizations and brands',
+        },
       },
       cosmos: {
         button: 'Cosmos AI',
@@ -1059,6 +1205,22 @@ export default defineMessages(
         engage: 'Fan engagement',
         needsPlan: 'From the {plans} plan',
         trialDays: '{days}-day trial',
+        trialHint: 'once per module and organization; at the end the module turns off and the rest continues',
+        startTrial: 'Start {days}-day trial',
+        trialStarted: 'Trial started until {date}.',
+        trialEnds: 'Trial until {date}',
+        contractBeforeEnd: 'Subscribe before it ends',
+        contractSubject: 'Subscribe to {module} for {tenant}',
+        errors: {
+          noAccess: 'The account has no access right now: sort it out before starting a trial.',
+          noOrganization: 'The brand has no organization yet: talk to the Galaxie team.',
+          notAvailable: 'This module is not available for a trial right now.',
+          already_used: 'This organization has already tried this module.',
+          wrong_organization:
+            'The brand does not belong to this organization: reload the page and try again.',
+          no_trial: 'This module has no day-based trial.',
+          unknown_module: 'Unknown module.',
+        },
         states: {
           included: 'Included',
           trial: 'On trial',
@@ -1072,6 +1234,41 @@ export default defineMessages(
         unavailable: "We could not read this tenant's entitlements right now. Try again in a moment.",
         blockedNotice:
           'This tenant has no access right now (suspended or trial ended). Talk to the Galaxie team to sort it out.',
+      },
+      checklist: {
+        title: 'First session',
+        intro: '{done} of {total} steps done. Each step is checked off on its own when it happens.',
+        dismiss: 'Hide',
+        done: 'Done',
+        pending: 'Pending',
+        secretPlaceholder: 'REST_OF_KEY',
+        sampleWidgetName: "Today's scores",
+        steps: {
+          call: {
+            title: 'First call',
+            body: 'Run the curl with your test key: the prefix is filled in; the rest of the key was shown only once, at the end of sign-up.',
+            noKey:
+              'This brand has no active test key. Issue one through the API or contact the Galaxie team.',
+            action: 'See keys',
+          },
+          widget: {
+            title: 'A widget live',
+            body: "Paste the sample widget embed on a page of the registered origin, with your publishable key. The step is checked off on the widget's first request.",
+            noWidget:
+              'Build a widget in the Builder and install the embed on a page of the registered origin.',
+            action: 'Open the Builder',
+          },
+          invite: {
+            title: 'Invite someone',
+            body: 'Invite a teammate in Users and roles. The step is checked off when they accept the invitation.',
+            action: 'Invite',
+          },
+          plan: {
+            title: 'Choose your plan',
+            body: 'Plans and modules shows the expected price and the modules you can try. The step is checked off when the account leaves the trial.',
+            action: 'See plans',
+          },
+        },
       },
       overview: {
         plan: 'Plan',
@@ -2042,6 +2239,56 @@ export default defineMessages(
         denyTitle: 'Área fuera de tu rol',
         denyBody: 'Tu rol en este tenant no abre esta área. Hablá con el Dueño o un Admin.',
         status: { active: 'Activo', suspended: 'Suspendido' },
+        states: {
+          draft: 'En creación',
+          pending_review: 'En revisión',
+          rejected: 'Rechazado',
+          trial: 'En prueba',
+          trial_expired: 'Prueba terminada',
+          active: 'Activo',
+          past_due: 'Pago pendiente',
+          suspended: 'Suspendido',
+          cancelled: 'Cancelado',
+        },
+        trialUntil: 'Prueba hasta el {date}',
+        stateDenyTitle: 'Área cerrada por el estado de la cuenta',
+        stateDenyBody:
+          'Mientras la cuenta esté en este estado, solo Planes y módulos y Claves quedan abiertos.',
+        stateNotice: {
+          draft: {
+            title: 'Cuenta en creación',
+            body: 'Estamos preparando la marca. En un momento el panel abre con las claves y la prueba.',
+          },
+          pending_review: {
+            title: 'Registro en revisión',
+            body: 'Tu registro está en la fila del equipo de Galaxie. Recibís un correo cuando termine la revisión; hasta entonces las claves no responden y el panel queda en espera.',
+          },
+          rejected: {
+            title: 'Registro rechazado',
+            body: 'El equipo de Galaxie no aprobó este registro. Si creés que hubo un error, escribí a {email}.',
+          },
+          trial_expired: {
+            title: 'Período de prueba terminado',
+            body: 'La prueba terminó y las claves dejaron de responder. Contratá un plan en Planes y módulos para volver; los widgets y las claves quedan guardados.',
+          },
+          past_due: {
+            title: 'Pago pendiente',
+            body: 'El último cobro falló. Por ahora no se cortó nada; regularizá en Planes y módulos para evitar la suspensión.',
+          },
+          suspended: {
+            title: 'Cuenta suspendida',
+            body: 'Las claves responden 402 hasta la regularización. Mirá Planes y módulos o escribí a {email}.',
+          },
+          cancelled: {
+            title: 'Cuenta cancelada',
+            body: 'Esta cuenta fue cancelada. Los datos quedan guardados por el plazo de retención y nada se borra sin pedido; exportar y borrar llegan pronto. Para reactivar, escribí a {email}.',
+          },
+          openStore: 'Ver planes y módulos',
+          contact: 'Hablar con Galaxie',
+          staff:
+            'Este es el estado de la cuenta del cliente: el panel muestra lo que el cliente ve. El equipo actúa en Ajustes › Organizaciones y marcas.',
+          staffLink: 'Abrir Organizaciones y marcas',
+        },
       },
       cosmos: {
         button: 'Cosmos AI',
@@ -2055,6 +2302,21 @@ export default defineMessages(
         engage: 'Interacción con la afición',
         needsPlan: 'Desde el plan {plans}',
         trialDays: 'Prueba de {days} días',
+        trialHint: 'una vez por módulo y organización; al final el módulo se apaga y el resto sigue',
+        startTrial: 'Activar prueba de {days} días',
+        trialStarted: 'Prueba activada hasta el {date}.',
+        trialEnds: 'Prueba hasta el {date}',
+        contractBeforeEnd: 'Contratar antes del fin',
+        contractSubject: 'Contratar {module} para {tenant}',
+        errors: {
+          noAccess: 'La cuenta no tiene acceso por ahora: regularizá antes de activar una prueba.',
+          noOrganization: 'La marca todavía no tiene organización: hablá con el equipo de Galaxie.',
+          notAvailable: 'Este módulo no está disponible para prueba ahora.',
+          already_used: 'Esta organización ya probó este módulo.',
+          wrong_organization: 'La marca no es de esta organización: recargá la página y probá de nuevo.',
+          no_trial: 'Este módulo no tiene prueba por días.',
+          unknown_module: 'Módulo desconocido.',
+        },
         states: {
           included: 'Incluido',
           trial: 'En prueba',
@@ -2068,6 +2330,40 @@ export default defineMessages(
         unavailable: 'No pudimos leer los derechos del tenant ahora. Probá de nuevo en un momento.',
         blockedNotice:
           'Este tenant no tiene acceso por ahora (suspendido o con la prueba terminada). Hablá con el equipo de Galaxie para regularizarlo.',
+      },
+      checklist: {
+        title: 'Primera sesión',
+        intro: '{done} de {total} pasos hechos. Cada paso se marca solo cuando ocurre.',
+        dismiss: 'Ocultar',
+        done: 'Hecho',
+        pending: 'Pendiente',
+        secretPlaceholder: 'RESTO_DE_LA_CLAVE',
+        sampleWidgetName: 'Marcador del día',
+        steps: {
+          call: {
+            title: 'Primera llamada',
+            body: 'Ejecuta el curl con tu clave de prueba: el prefijo ya está completo; el resto de la clave apareció una sola vez, al final del registro.',
+            noKey:
+              'La marca no tiene clave de prueba activa. Genera una por la API o habla con el equipo de Galaxie.',
+            action: 'Ver claves',
+          },
+          widget: {
+            title: 'Un widget en el aire',
+            body: 'Pega el embed del widget de ejemplo en una página del origen registrado, con tu clave publicable. El paso se marca con la primera solicitud del widget.',
+            noWidget: 'Arma un widget en el Builder e instala el embed en una página del origen registrado.',
+            action: 'Abrir el Builder',
+          },
+          invite: {
+            title: 'Invita a alguien',
+            body: 'Invita a una persona de tu equipo en Usuarios y roles. El paso se marca cuando acepte la invitación.',
+            action: 'Invitar',
+          },
+          plan: {
+            title: 'Elige el plan',
+            body: 'Planes y módulos muestra el precio previsto y los módulos para probar. El paso se marca cuando la cuenta sale de la prueba.',
+            action: 'Ver planes',
+          },
+        },
       },
       overview: {
         plan: 'Plan',

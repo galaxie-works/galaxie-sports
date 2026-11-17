@@ -146,7 +146,8 @@ describe('papéis por serviço', () => {
         ...(g.update ?? []),
       ];
       for (const scope of scopes) {
-        if (!scope.includes('.') || pending.has(scope)) continue;
+        // as tabelas do demo_auth são da demo (criadas na subida dela), fora das migrations
+        if (!scope.includes('.') || pending.has(scope) || scope.startsWith(`${DEMO_AUTH_SCHEMA}.`)) continue;
         const [r] = await owner<{ ok: boolean }[]>`select to_regclass(${scope}) is not null as ok`;
         if (!r!.ok) missing.push(`${service}: ${scope}`);
       }

@@ -149,6 +149,8 @@ export const SCHEDULED_JOBS: readonly ScheduledJobDef[] = [
   { name: 'assets-palette', service: 'ingestor', cron: '10 3 * * *', runNow: true },
   { name: 'change-feed-prune', service: 'ingestor', cron: '45 2 * * *', runNow: true },
   { name: 'data-retention', service: 'ingestor', cron: '20 3 * * *', runNow: true },
+  // relógio da máquina de estados do tenant (F3): transições por prazo e reconferência diária dos domínios comprovados
+  { name: 'tenant-lifecycle', service: 'ingestor', cron: '15 4 * * *', runNow: true },
   { name: 'fixture-people', service: 'ingestor', cron: '25 4 * * *', runNow: true },
   { name: 'quota-status', service: 'ingestor', cron: '5 * * * *', runNow: true },
   { name: 'data-quality', service: 'ingestor', cron: '40 4 * * *', runNow: true },
@@ -1225,6 +1227,81 @@ export const SETTINGS: readonly SettingDef[] = [
     services: ['demo'],
     apply: 'refresh',
     default: '30',
+  },
+  // ── Ciclo de vida do tenant (plataforma comercial F3, doc 02 §Máquina de estados; PL15) ───────
+  // Prazos que o job tenant.lifecycle (worker, perfil do ingestor) aplica uma vez por dia e que o console mostra. Nunca
+  // número fixo no código: o advogado confirma nos termos. O expurgo depois de cancelled NÃO é automático: o job só
+  // avisa que o prazo de guarda venceu.
+  // trial_expired há mais de N dias → cancelled
+  {
+    key: 'TENANT_TRIAL_EXPIRED_DAYS',
+    section: 'signup',
+    type: 'int',
+    min: 1,
+    max: 3650,
+    services: ['ingestor', 'demo'],
+    apply: 'next-run',
+    applyIn: { demo: 'refresh' },
+    default: '60',
+  },
+  // past_due há mais de N dias → suspended (os 7 dias de graça: o cliente nunca descobre a falha do cartão pelo site fora do ar)
+  {
+    key: 'TENANT_PAST_DUE_DAYS',
+    section: 'signup',
+    type: 'int',
+    min: 1,
+    max: 365,
+    services: ['ingestor', 'demo'],
+    apply: 'next-run',
+    applyIn: { demo: 'refresh' },
+    default: '7',
+  },
+  // suspended há mais de N dias → cancelled
+  {
+    key: 'TENANT_SUSPENDED_DAYS',
+    section: 'signup',
+    type: 'int',
+    min: 1,
+    max: 3650,
+    services: ['ingestor', 'demo'],
+    apply: 'next-run',
+    applyIn: { demo: 'refresh' },
+    default: '30',
+  },
+  // guarda depois de cancelled: vencida, o painel avisa; nada é apagado sem decisão do dono
+  {
+    key: 'TENANT_CANCELLED_RETENTION_DAYS',
+    section: 'signup',
+    type: 'int',
+    min: 1,
+    max: 3650,
+    services: ['ingestor', 'demo'],
+    apply: 'next-run',
+    applyIn: { demo: 'refresh' },
+    default: '90',
+  },
+  // dias do trial em que o e-mail de lembrete sai (PR c da F3), separados por vírgula
+  {
+    key: 'TRIAL_REMINDER_DAYS',
+    section: 'signup',
+    type: 'text',
+    pattern: /^\d{1,3}(,\d{1,3})*$/,
+    services: ['ingestor', 'demo'],
+    apply: 'next-run',
+    applyIn: { demo: 'refresh' },
+    default: '23,29',
+  },
+  // quantos dias antes do fim do teste de um módulo o lembrete sai (PR c da F3)
+  {
+    key: 'MODULE_TRIAL_REMINDER_DAYS_BEFORE',
+    section: 'signup',
+    type: 'int',
+    min: 0,
+    max: 60,
+    services: ['ingestor', 'demo'],
+    apply: 'next-run',
+    applyIn: { demo: 'refresh' },
+    default: '2',
   },
 
   // ── Credenciais ─────────────────────────────────────────────────────────────────────────────
