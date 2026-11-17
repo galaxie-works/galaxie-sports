@@ -71,20 +71,22 @@ export function communitySummary(c: CommunityRow, view: CommunityFanView | undef
   };
 }
 
-export async function communityRoutes(app: FastifyInstance, deps: CommunityRoutesDeps): Promise<void> {
-  const now = () => deps.now?.() ?? new Date();
-  const db = () => {
-    if (!deps.db) throw problems.degraded('Banco de dados não configurado.');
-    return deps.db;
-  };
+/** Módulo do cliente (guardado por 10 s: ligar e desligar vale em até 10 s) e a Comunidade ativa. */
+export class CommunityGate {
+  private readonly modules = new Map<string, { at: number; value: Promise<boolean> }>();
+  constructor(private readonly database: Database | undefined) {}
 
-  // Módulo do cliente, guardado por 10 s (ligar e desligar o módulo vale em até 10 s)
-  const modules = new Map<string, { at: number; value: Promise<boolean> }>();
-  async function requireCommunities(tenantId: string): Promise<void> {
-    const hit = modules.get(tenantId);
+  db(): Database {
+    if (!this.database) throw problems.degraded('Banco de dados não configurado.');
+    return this.database;
+  }
+
+  async requireModule(tenantId: string): Promise<void> {
+    const hit = this.modules.get(tenantId);
     let value = hit && Date.now() - hit.at < 10_000 ? hit.value : undefined;
     if (!value) {
-      value = db()
+      value = this.db()
+        // módulo ligado e tenant em estado com acesso (F3, máquina de estados): trial, active e past_due
         .select({
           ok: sql<boolean>`'communities' = any(${tenant.modules}) and ${tenant.state} in ('trial', 'active', 'past_due')`,
         })
@@ -92,19 +94,32 @@ export async function communityRoutes(app: FastifyInstance, deps: CommunityRoute
         .where(eq(tenant.id, tenantId))
         .limit(1)
         .then(([row]) => row?.ok === true);
-      value.catch(() => modules.delete(tenantId));
-      if (modules.size > 10_000) modules.clear();
-      modules.set(tenantId, { at: Date.now(), value });
+      value.catch(() => this.modules.delete(tenantId));
+      if (this.modules.size > 10_000) this.modules.clear();
+      this.modules.set(tenantId, { at: Date.now(), value });
     }
     if (!(await value)) throw problems.moduleNotInPlan('communities');
   }
 
   /** A Comunidade ativa do cliente, senão 404 (arquivada e suspensa não aparecem). */
-  async function activeCommunity(tenantId: string, id: string, locale: string): Promise<CommunityRow> {
-    const c = await readCommunity(db(), tenantId, id, locale);
+  async activeCommunity(tenantId: string, id: string, locale: string): Promise<CommunityRow> {
+    const c = await readCommunity(this.db(), tenantId, id, locale);
     if (!c || c.state !== 'active') throw problems.notFound('Comunidade');
     return c;
   }
+}
+
+export async function communityRoutes(app: FastifyInstance, deps: CommunityRoutesDeps): Promise<void> {
+  const now = () => deps.now?.() ?? new Date();
+  const db = () => {
+    if (!deps.db) throw problems.degraded('Banco de dados não configurado.');
+    return deps.db;
+  };
+
+  const gate = new CommunityGate(deps.db);
+  const requireCommunities = (tenantId: string) => gate.requireModule(tenantId);
+  const activeCommunity = (tenantId: string, id: string, locale: string) =>
+    gate.activeCommunity(tenantId, id, locale);
 
   const noIndex = (reply: FastifyReply) => reply.header('x-robots-tag', 'noindex, nofollow');
 

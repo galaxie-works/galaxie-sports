@@ -1,0 +1,1702 @@
+[
+  {
+    "card_key": "nba.explorer.months.1",
+    "collection": "nba.explorer",
+    "rarity": "common",
+    "name": {
+      "pt": "Primeiro mês",
+      "es": "Primer mes",
+      "en": "First Month"
+    },
+    "flavor": {
+      "pt": "O calendário começou a contar.",
+      "es": "El calendario empezó a contar.",
+      "en": "The calendar started counting."
+    },
+    "art_prompt": "A stylized wall calendar without numbers with one page glowing softly, a stylized fan beside it holding a generic orange ball, morning light, flat vector interior. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.explorer.months.2",
+    "collection": "nba.explorer",
+    "rarity": "special",
+    "name": {
+      "pt": "Mês seguinte",
+      "es": "Mes siguiente",
+      "en": "Next Month"
+    },
+    "flavor": {
+      "pt": "Virou a página, a bola continuou subindo.",
+      "es": "Pasó la página, la pelota siguió subiendo.",
+      "en": "The page turned, the ball kept going up."
+    },
+    "art_prompt": "Three stylized windows in a row showing the same generic court in sun, rain and wind, a stylized fan silhouette walking past them, steel-blue tones. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.explorer.months.3",
+    "collection": "nba.explorer",
+    "rarity": "special",
+    "name": {
+      "pt": "Meio calendário",
+      "es": "Medio calendario",
+      "en": "Half the Calendar"
+    },
+    "flavor": {
+      "pt": "Mês após mês, sempre um motivo para ligar a tela.",
+      "es": "Mes tras mes, siempre un motivo para encender la pantalla.",
+      "en": "Month after month, always a reason to turn on the screen."
+    },
+    "art_prompt": "A stylized tree beside a generic outdoor court shown half in bloom and half in autumn leaves, a stylized fan seated beneath watching a tiny game, soft light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.explorer.months.4",
+    "collection": "nba.explorer",
+    "rarity": "rare",
+    "name": {
+      "pt": "Calendário cheio",
+      "es": "Calendario lleno",
+      "en": "Full Calendar"
+    },
+    "flavor": {
+      "pt": "Da bola ao ar da estreia ao último apito.",
+      "es": "Del salto inicial del estreno al último silbato.",
+      "en": "From the opening tip to the last whistle."
+    },
+    "art_prompt": "A ring of stylized moon phases glowing violet above a generic arena, a stylized fan silhouette standing at center court looking up, night, faceted violet glow. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.explorer.months.5",
+    "collection": "nba.explorer",
+    "rarity": "historic",
+    "name": {
+      "pt": "Dois anos de bola",
+      "es": "Dos años de pelota",
+      "en": "Two Years of Hoops"
+    },
+    "flavor": {
+      "pt": "Duas temporadas inteiras, nenhum mês sem jogo.",
+      "es": "Dos temporadas enteras, ningún mes sin partido.",
+      "en": "Two whole seasons, not a month without a game."
+    },
+    "art_prompt": "A stylized fan silhouette standing on a sundial-like generic court where two full rings of amber light orbit overhead with glowing marks, engraved laurel-like glow, soft outer glow. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.explorer.teams.1",
+    "collection": "nba.explorer",
+    "rarity": "common",
+    "name": {
+      "pt": "Primeiro time",
+      "es": "Primer equipo",
+      "en": "First Team"
+    },
+    "flavor": {
+      "pt": "Um time, uma cidade, uma noite.",
+      "es": "Un equipo, una ciudad, una noche.",
+      "en": "One team, one city, one night."
+    },
+    "art_prompt": "A stylized fan watching a television with a team in plain white kit, a small generic city skyline silhouette on a poster without text on the wall, morning light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.explorer.teams.2",
+    "collection": "nba.explorer",
+    "rarity": "special",
+    "name": {
+      "pt": "Rival da semana",
+      "es": "Rival de la semana",
+      "en": "Rival of the Week"
+    },
+    "flavor": {
+      "pt": "Cada adversário tem um jeito de jogar.",
+      "es": "Cada rival tiene su manera de jugar.",
+      "en": "Every opponent has its own way to play."
+    },
+    "art_prompt": "Two stylized arenas of different architecture side by side glowing softly, a fan silhouette between them holding a tablet, steel-blue tones, no flags or symbols. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.explorer.teams.3",
+    "collection": "nba.explorer",
+    "rarity": "special",
+    "name": {
+      "pt": "Metade da liga",
+      "es": "Media liga",
+      "en": "Half the League"
+    },
+    "flavor": {
+      "pt": "Você já conhece metade da liga de cor.",
+      "es": "Ya conoces a media liga de memoria.",
+      "en": "You know half the league by heart."
+    },
+    "art_prompt": "A stylized map of a continent without borders with many glowing arena markers, a fan silhouette leaning over it, night lamp light, no flags. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.explorer.teams.4",
+    "collection": "nba.explorer",
+    "rarity": "rare",
+    "name": {
+      "pt": "Doze cidades",
+      "es": "Doce ciudades",
+      "en": "Twelve Cities"
+    },
+    "flavor": {
+      "pt": "Doze estilos, doze arenas, uma só paixão.",
+      "es": "Doce estilos, doce estadios, una sola pasión.",
+      "en": "Twelve styles, twelve arenas, one passion."
+    },
+    "art_prompt": "A ring of twelve stylized arena silhouettes of varied architecture glowing violet around a fan silhouette at the center, night, faceted violet glow. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.explorer.teams.5",
+    "collection": "nba.explorer",
+    "rarity": "historic",
+    "name": {
+      "pt": "Liga inteira",
+      "es": "Liga entera",
+      "en": "Whole League"
+    },
+    "flavor": {
+      "pt": "Trinta times, nenhum estranho.",
+      "es": "Treinta equipos, ningún extraño.",
+      "en": "Thirty teams, none a stranger."
+    },
+    "art_prompt": "A stylized fan silhouette standing on a floating generic ball-shaped planet covered in a prismatic network of thirty glowing nodes, light rays and floating particles, deep space backdrop. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.loyalty.favorite_games.1",
+    "collection": "nba.faithful",
+    "rarity": "common",
+    "name": {
+      "pt": "Primeiro jogo",
+      "es": "Primer partido",
+      "en": "First Game"
+    },
+    "flavor": {
+      "pt": "Todo torcedor lembra do primeiro.",
+      "es": "Todo hincha recuerda el primero.",
+      "en": "Every fan remembers the first one."
+    },
+    "art_prompt": "A young stylized fan with a plain white scarf without symbols sitting alone in a wide arena stand at a sunny afternoon game, players in plain white kit small on the court below, soft shadows. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.loyalty.favorite_games.2",
+    "collection": "nba.faithful",
+    "rarity": "special",
+    "name": {
+      "pt": "Lugar cativo",
+      "es": "Lugar fijo",
+      "en": "Regular Seat"
+    },
+    "flavor": {
+      "pt": "Já conhece o quinteto titular de cor.",
+      "es": "Ya se sabe el quinteto inicial de memoria.",
+      "en": "Already knows the starting five by heart."
+    },
+    "art_prompt": "A stylized fan standing in a half-full arena stand with a few silhouetted friends, holding a plain white scarf overhead, a team in plain white kit lining up for the tip-off, late afternoon light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.loyalty.favorite_games.3",
+    "collection": "nba.faithful",
+    "rarity": "special",
+    "name": {
+      "pt": "Metade da temporada",
+      "es": "Mitad de temporada",
+      "en": "Half a Season"
+    },
+    "flavor": {
+      "pt": "Meio caminho, nenhum jogo perdido.",
+      "es": "Mitad de camino, ningún partido perdido.",
+      "en": "Halfway there, not a game missed."
+    },
+    "art_prompt": "A stylized fan in the middle of a packed arena stand with arms wide, silhouetted fans of every age around, floodlights coming on at dusk, a team in plain white kit celebrating below. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.loyalty.favorite_games.4",
+    "collection": "nba.faithful",
+    "rarity": "rare",
+    "name": {
+      "pt": "Temporada inteira",
+      "es": "Temporada completa",
+      "en": "Whole Season"
+    },
+    "flavor": {
+      "pt": "Todos os jogos, uma só torcida.",
+      "es": "Todos los partidos, una sola hinchada.",
+      "en": "Every game, one unwavering fan."
+    },
+    "art_prompt": "A stylized fan standing at the very front of a stand with a plain white flag without symbols, a sea of silhouetted fans behind in violet light, the court glowing under night floodlights, a faint calendar-like grid of light without numbers above. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.loyalty.favorite_games.5",
+    "collection": "nba.faithful",
+    "rarity": "historic",
+    "name": {
+      "pt": "Sexto jogador",
+      "es": "Sexto jugador",
+      "en": "Sixth Player"
+    },
+    "flavor": {
+      "pt": "Tantos jogos depois, o mesmo frio na barriga.",
+      "es": "Tantos partidos después, los mismos nervios.",
+      "en": "So many games later, same butterflies."
+    },
+    "art_prompt": "A stylized fan silhouette seen from behind at the top of an arena with amber light rays and an engraved laurel-like glow surrounding, a long trail of faint seat shapes lighting up behind, night sky. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.loyalty.favorite_streak.1",
+    "collection": "nba.faithful",
+    "rarity": "common",
+    "name": {
+      "pt": "Dois jogos seguidos",
+      "es": "Dos partidos seguidos",
+      "en": "Two Games Straight"
+    },
+    "flavor": {
+      "pt": "Jogo sim, jogo sim.",
+      "es": "Partido sí, partido sí.",
+      "en": "Game after game."
+    },
+    "art_prompt": "Two stylized arena seats side by side with a stylized fan seated in the second one, the first seat glowing faintly as if just vacated, morning light, generic stand. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.loyalty.favorite_streak.2",
+    "collection": "nba.faithful",
+    "rarity": "special",
+    "name": {
+      "pt": "Cinco jogos seguidos",
+      "es": "Cinco partidos seguidos",
+      "en": "Five Games Straight"
+    },
+    "flavor": {
+      "pt": "Cinco jogos, cinco presenças.",
+      "es": "Cinco partidos, cinco presencias.",
+      "en": "Five games, five appearances."
+    },
+    "art_prompt": "A row of five stylized arena seats each with a glowing outline, a stylized fan standing on the fifth with a plain white scarf raised, afternoon light, scattered silhouetted fans. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.loyalty.favorite_streak.3",
+    "collection": "nba.faithful",
+    "rarity": "special",
+    "name": {
+      "pt": "Dez jogos seguidos",
+      "es": "Diez partidos seguidos",
+      "en": "Ten Games Straight"
+    },
+    "flavor": {
+      "pt": "Nem jogo tarde, nem dia útil, nem cansaço.",
+      "es": "Ni partido tarde, ni día de semana, ni cansancio.",
+      "en": "Not the late tip-off, not the weekday, not fatigue."
+    },
+    "art_prompt": "A stylized fan walking at night under a plain umbrella toward a glowing arena entrance, a trail of ten glowing footprints behind, steel-blue tones. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.loyalty.favorite_streak.4",
+    "collection": "nba.faithful",
+    "rarity": "rare",
+    "name": {
+      "pt": "Vinte seguidos",
+      "es": "Veinte seguidos",
+      "en": "Twenty Straight"
+    },
+    "flavor": {
+      "pt": "Meia temporada sem piscar.",
+      "es": "Media temporada sin pestañear.",
+      "en": "Half a season without blinking."
+    },
+    "art_prompt": "A stylized fan standing alone at the center of an empty arena stand lit by a single violet spotlight, twenty glowing seat outlines arranged in a crescent behind, night. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.loyalty.favorite_streak.5",
+    "collection": "nba.faithful",
+    "rarity": "historic",
+    "name": {
+      "pt": "Quarenta seguidos",
+      "es": "Cuarenta seguidos",
+      "en": "Forty Straight"
+    },
+    "flavor": {
+      "pt": "Jogo após jogo, sem faltar uma vez.",
+      "es": "Partido tras partido, sin faltar ni una vez.",
+      "en": "Game after game, not a single absence."
+    },
+    "art_prompt": "A stylized fan silhouette standing at the summit of an arena with amber light rays and an engraved laurel-like glow, a long spiral of forty glowing seats winding down the stands below, night. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.loyalty.playoff_games.1",
+    "collection": "nba.playoffs",
+    "rarity": "common",
+    "name": {
+      "pt": "Primeiro playoff",
+      "es": "Primer playoff",
+      "en": "First Playoff Game"
+    },
+    "flavor": {
+      "pt": "Tem jogo que vale uma temporada.",
+      "es": "Hay partidos que valen una temporada.",
+      "en": "Some games are worth a whole season."
+    },
+    "art_prompt": "A stylized fan watching a television where two teams in plain white and plain charcoal kits walk onto a court under a blank banner without text, daylight, cozy interior. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.loyalty.playoff_games.2",
+    "collection": "nba.playoffs",
+    "rarity": "special",
+    "name": {
+      "pt": "Fim de semana de série",
+      "es": "Fin de semana de serie",
+      "en": "Series Weekend"
+    },
+    "flavor": {
+      "pt": "Dois jogos, dois nós na garganta.",
+      "es": "Dos partidos, dos nudos en la garganta.",
+      "en": "Two games, two lumps in the throat."
+    },
+    "art_prompt": "Two stylized fans of different ages gripping each other’s arms on a sofa, a television glowing with a court, dusk, steel-blue tones. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.loyalty.playoff_games.3",
+    "collection": "nba.playoffs",
+    "rarity": "special",
+    "name": {
+      "pt": "Maratona",
+      "es": "Maratón",
+      "en": "Marathon"
+    },
+    "flavor": {
+      "pt": "Toda noite tem jogo, e você está em todas.",
+      "es": "Cada noche hay partido, y estás en todos.",
+      "en": "Every night there is a game, and you are at all of them."
+    },
+    "art_prompt": "A stylized fan at a crowded living-room watch party, five tiny floating television shapes each showing a tiny court, friends of diverse ages cheering, night. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.loyalty.playoff_games.4",
+    "collection": "nba.playoffs",
+    "rarity": "rare",
+    "name": {
+      "pt": "Colecionador de séries",
+      "es": "Coleccionista de series",
+      "en": "Series Collector"
+    },
+    "flavor": {
+      "pt": "Tantas séries vistas, nenhuma esquecida.",
+      "es": "Tantas series vistas, ninguna olvidada.",
+      "en": "So many series watched, none forgotten."
+    },
+    "art_prompt": "A stylized fan silhouette standing before a wall of glowing bracket outlines like a gallery, violet light, confetti frozen in the air. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.loyalty.playoff_games.5",
+    "collection": "nba.playoffs",
+    "rarity": "historic",
+    "name": {
+      "pt": "Guardião dos playoffs",
+      "es": "Guardián de los playoffs",
+      "en": "Keeper of the Playoffs"
+    },
+    "flavor": {
+      "pt": "Noites em que tudo estava em jogo, todas vistas.",
+      "es": "Noches en que todo estaba en juego, todas vistas.",
+      "en": "Nights when everything was on the line, all watched."
+    },
+    "art_prompt": "A stylized fan silhouette at the center of a circular hall of amber light where plain generic trophy shapes float in a ring, engraved laurel-like glow, soft outer glow. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.moments.big_quarter.1",
+    "collection": "nba.scoreboard",
+    "rarity": "common",
+    "name": {
+      "pt": "Explosão",
+      "es": "Explosión",
+      "en": "Eruption"
+    },
+    "flavor": {
+      "pt": "Um quarto e a cesta não parou de balançar.",
+      "es": "Un cuarto y la red no dejó de moverse.",
+      "en": "One quarter and the net never stopped moving."
+    },
+    "art_prompt": "A stylized player in a plain white kit releasing a jump shot, three faint arcs of previous shots glowing toward the hoop, daylight through high arena windows, a scattered silhouetted crowd. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.moments.big_quarter.2",
+    "collection": "nba.scoreboard",
+    "rarity": "special",
+    "name": {
+      "pt": "Chuva de três",
+      "es": "Lluvia de triples",
+      "en": "Raining Threes"
+    },
+    "flavor": {
+      "pt": "Cada arremesso parecia um ensaio.",
+      "es": "Cada tiro parecía un ensayo.",
+      "en": "Every shot looked rehearsed."
+    },
+    "art_prompt": "Three stylized players of varied builds in plain white kit each mid-release from beyond the arc, glowing arcs converging on the hoop, defenders in plain charcoal kit a step late, dusk tones, generic stands. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.moments.big_quarter.3",
+    "collection": "nba.scoreboard",
+    "rarity": "special",
+    "name": {
+      "pt": "Fogo na quadra",
+      "es": "Fuego en la cancha",
+      "en": "Court on Fire"
+    },
+    "flavor": {
+      "pt": "O placar correu mais que o relógio.",
+      "es": "El marcador corrió más que el reloj.",
+      "en": "The scoreboard ran faster than the clock."
+    },
+    "art_prompt": "A stylized fast break seen from behind the hoop, a player in a plain white kit soaring for a dunk with a trail of warm light behind, packed silhouetted stands rising to their feet, night floodlights. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.moments.big_quarter.4",
+    "collection": "nba.scoreboard",
+    "rarity": "rare",
+    "name": {
+      "pt": "Avalanche",
+      "es": "Avalancha",
+      "en": "Avalanche"
+    },
+    "flavor": {
+      "pt": "Quando começa, não tem quem segure.",
+      "es": "Cuando empieza, no hay quien la frene.",
+      "en": "Once it starts, nothing can stop it."
+    },
+    "art_prompt": "A stylized team in plain white kit charging downcourt like a wave of violet light, defenders in plain charcoal kit swept aside, a giant blank scoreboard silhouette above, faceted violet glow. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.moments.big_quarter.5",
+    "collection": "nba.scoreboard",
+    "rarity": "legendary",
+    "name": {
+      "pt": "Lenda do quarto",
+      "es": "Leyenda del cuarto",
+      "en": "Quarter Legend"
+    },
+    "flavor": {
+      "pt": "Quartos inteiros que viraram lenda.",
+      "es": "Cuartos enteros que se volvieron leyenda.",
+      "en": "Whole quarters that became legend."
+    },
+    "art_prompt": "A colossal glowing hoop radiating prismatic light rays above a generic court, dozens of generic orange balls arcing through it, a stylized fan silhouette below with arms raised, floating particles. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: iridescent prismatic border with light rays and floating particles.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.moments.buzzer_beater.1",
+    "collection": "nba.star_night",
+    "rarity": "rare",
+    "name": {
+      "pt": "Zero no relógio",
+      "es": "Cero en el reloj",
+      "en": "Zero on the Clock"
+    },
+    "flavor": {
+      "pt": "A bola no ar, o relógio em zero, a arena em silêncio.",
+      "es": "La pelota en el aire, el reloj en cero, el estadio en silencio.",
+      "en": "Ball in the air, clock at zero, arena silent."
+    },
+    "art_prompt": "A stylized player in a plain white kit frozen in follow-through, a generic orange ball in mid-flight toward the hoop, a blank clock shape gone dark, every silhouette in the arena standing still, dramatic side light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.moments.comeback_15.1",
+    "collection": "nba.comebacks",
+    "rarity": "special",
+    "name": {
+      "pt": "Maré virou",
+      "es": "Cambió la marea",
+      "en": "Tide Turned"
+    },
+    "flavor": {
+      "pt": "A onda veio da arquibancada e levou o placar.",
+      "es": "La ola vino de la tribuna y se llevó el marcador.",
+      "en": "The wave came from the stands and took the scoreboard."
+    },
+    "art_prompt": "A stylized player in a plain white kit sprinting on a fast break with a generic orange ball, a wave-shaped surge of light rolling from the stands behind, opponents in plain charcoal kit turning around too late, evening arena light, a blank scoreboard silhouette. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.moments.comeback_20.1",
+    "collection": "nba.comebacks",
+    "rarity": "rare",
+    "name": {
+      "pt": "Montanha escalada",
+      "es": "Montaña escalada",
+      "en": "Mountain Climbed"
+    },
+    "flavor": {
+      "pt": "Vinte atrás. Ninguém saiu da quadra.",
+      "es": "Veinte abajo. Nadie se fue de la cancha.",
+      "en": "Twenty down. Nobody left the court."
+    },
+    "art_prompt": "Stylized basketball players of varied builds in plain white kit climbing a staircase of light up a steep dark slope toward a glowing hoop at the summit, opponents in plain charcoal kit small at the bottom, a tall blank scoreboard silhouette with no digits, a roaring silhouetted crowd. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.moments.double_overtime.1",
+    "collection": "nba.overtime",
+    "rarity": "historic",
+    "name": {
+      "pt": "Noite sem fim",
+      "es": "Noche sin fin",
+      "en": "Endless Night"
+    },
+    "flavor": {
+      "pt": "Dez minutos a mais e nenhum bocejo.",
+      "es": "Diez minutos más y ni un bostezo.",
+      "en": "Ten extra minutes and not a single yawn."
+    },
+    "art_prompt": "Two blank clock shapes stacked above a generic court, stylized players of both kits slumped on the bench with towels on their shoulders while two others still battle for a rebound under the hoop, deep night arena, warm amber glow, silhouetted fans still standing. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.moments.fifty_points.1",
+    "collection": "nba.star_night",
+    "rarity": "rare",
+    "name": {
+      "pt": "Noite de cinquenta",
+      "es": "Noche de cincuenta",
+      "en": "Fifty-Point Night"
+    },
+    "flavor": {
+      "pt": "Um jogador. Metade do placar.",
+      "es": "Un jugador. La mitad del marcador.",
+      "en": "One player. Half the scoreboard."
+    },
+    "art_prompt": "A stylized player of any gender in a plain white kit alone under a spotlight at center court, a blank scoreboard glowing above, dozens of glowing shot arcs converging on the hoop, teammates applauding from the bench, silhouetted fans standing. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.moments.fourth_quarter_comeback.1",
+    "collection": "nba.comebacks",
+    "rarity": "special",
+    "name": {
+      "pt": "Doze minutos",
+      "es": "Doce minutos",
+      "en": "Twelve Minutes"
+    },
+    "flavor": {
+      "pt": "Faltava um quarto. Foi o suficiente.",
+      "es": "Quedaba un cuarto. Fue suficiente.",
+      "en": "One quarter left. It was enough."
+    },
+    "art_prompt": "A stylized team of diverse builds and genders in plain white kit huddled at the bench before the final quarter, a coach silhouette drawing on a blank clipboard, a blank game clock shape glowing above the court, dramatic arena spotlight, silhouetted fans leaning in. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.moments.overtime.1",
+    "collection": "nba.overtime",
+    "rarity": "common",
+    "name": {
+      "pt": "Cinco minutos a mais",
+      "es": "Cinco minutos más",
+      "en": "Five More Minutes"
+    },
+    "flavor": {
+      "pt": "O relógio zerou e o jogo continuou.",
+      "es": "El reloj llegó a cero y el partido siguió.",
+      "en": "The clock hit zero and the game kept going."
+    },
+    "art_prompt": "A blank game clock shape showing nothing above a generic court, two tired stylized players in plain white and plain charcoal kits with hands on knees at center court, afternoon arena light, half-full generic stands. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.moments.overtime.2",
+    "collection": "nba.overtime",
+    "rarity": "special",
+    "name": {
+      "pt": "Empate no estouro",
+      "es": "Empate sobre la chicharra",
+      "en": "Tied at the Buzzer"
+    },
+    "flavor": {
+      "pt": "Ninguém quis ir embora.",
+      "es": "Nadie quiso irse.",
+      "en": "Nobody wanted to go home."
+    },
+    "art_prompt": "Two stylized players in plain white and plain charcoal kits standing at the free-throw line looking up at a blank scoreboard, a referee signaling with raised arms, dusk tones, a silhouetted crowd leaning forward, a generic orange ball on the floor. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.moments.overtime.3",
+    "collection": "nba.overtime",
+    "rarity": "special",
+    "name": {
+      "pt": "Noite longa",
+      "es": "Noche larga",
+      "en": "Long Night"
+    },
+    "flavor": {
+      "pt": "A prorrogação é onde o jogo mostra quem é.",
+      "es": "El tiempo extra es donde el partido muestra quién es.",
+      "en": "Overtime is where the game shows who it really is."
+    },
+    "art_prompt": "A stylized arena seen from high above with both teams in tight huddles at each bench, one in plain white kit and one in plain charcoal kit, floodlights on, a packed silhouetted crowd, steel-blue night tones. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.moments.overtime.4",
+    "collection": "nba.overtime",
+    "rarity": "rare",
+    "name": {
+      "pt": "Coração de ferro",
+      "es": "Corazón de hierro",
+      "en": "Iron Heart"
+    },
+    "flavor": {
+      "pt": "Oito prorrogações vistas até o último segundo.",
+      "es": "Ocho tiempos extra vistos hasta el último segundo.",
+      "en": "Eight overtimes watched to the very last second."
+    },
+    "art_prompt": "A stylized fan silhouette standing in the stands with a violet glowing clock shape floating above, players in plain white and plain charcoal kits frozen mid jump ball below, faceted violet glow, night arena. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.moments.overtime.5",
+    "collection": "nba.overtime",
+    "rarity": "legendary",
+    "name": {
+      "pt": "Guardião do relógio",
+      "es": "Guardián del reloj",
+      "en": "Keeper of the Clock"
+    },
+    "flavor": {
+      "pt": "Vinte vezes o tempo acabou e você ficou.",
+      "es": "Veinte veces se acabó el tiempo y te quedaste.",
+      "en": "Twenty times the clock ran out and you stayed."
+    },
+    "art_prompt": "A colossal prismatic clock face dissolving into light particles over a generic court, a stylized fan silhouette standing at center court with arms open, light rays, a sea of silhouetted fans. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: iridescent prismatic border with light rays and floating particles.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.moments.period_sweep.1",
+    "collection": "nba.scoreboard",
+    "rarity": "special",
+    "name": {
+      "pt": "Varrida",
+      "es": "Barrida",
+      "en": "Clean Sweep"
+    },
+    "flavor": {
+      "pt": "Do primeiro ao último minuto, só um time na quadra.",
+      "es": "Del primer al último minuto, un solo equipo en la cancha.",
+      "en": "From the first minute to the last, only one team on the court."
+    },
+    "art_prompt": "Four stylized hoops in a row each with a generic orange ball dropping through the net, a team in plain white kit walking confidently along them, opponents in plain charcoal kit seated on the bench, bright arena light, generic stands. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.moments.ten_threes.1",
+    "collection": "nba.star_night",
+    "rarity": "historic",
+    "name": {
+      "pt": "Chuva de longe",
+      "es": "Lluvia desde lejos",
+      "en": "Rain from Deep"
+    },
+    "flavor": {
+      "pt": "De tão longe que parecia outra quadra.",
+      "es": "Desde tan lejos que parecía otra cancha.",
+      "en": "From so far it looked like another court."
+    },
+    "art_prompt": "A stylized player in a plain white kit releasing from well beyond the arc, ten glowing arcs tracing into the hoop one after another, defenders in plain charcoal kit with hands on their heads, night floodlights, packed silhouetted stands. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.moments.triple_double.1",
+    "collection": "nba.star_night",
+    "rarity": "common",
+    "name": {
+      "pt": "Dez, dez e dez",
+      "es": "Diez, diez y diez",
+      "en": "Ten, Ten and Ten"
+    },
+    "flavor": {
+      "pt": "Pontos, rebotes, assistências: fez de tudo.",
+      "es": "Puntos, rebotes, asistencias: hizo de todo.",
+      "en": "Points, rebounds, assists: did it all."
+    },
+    "art_prompt": "A stylized player of any gender in a plain white kit at center court with three glowing orbs orbiting: a generic ball, a backboard shape and an outstretched hand shape, daylight arena, scattered silhouetted fans. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.moments.triple_double.2",
+    "collection": "nba.star_night",
+    "rarity": "special",
+    "name": {
+      "pt": "Faz-tudo",
+      "es": "Todoterreno",
+      "en": "Do-It-All"
+    },
+    "flavor": {
+      "pt": "Não tem estatística que escape.",
+      "es": "No hay estadística que se le escape.",
+      "en": "No column of the stat sheet escapes."
+    },
+    "art_prompt": "A stylized player in a plain white kit grabbing a rebound above opponents in plain charcoal kit while a glowing trail shows a previous pass, dusk tones, generic stands. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.moments.triple_double.3",
+    "collection": "nba.star_night",
+    "rarity": "special",
+    "name": {
+      "pt": "Maestro",
+      "es": "Maestro",
+      "en": "Maestro"
+    },
+    "flavor": {
+      "pt": "Rege o jogo inteiro com as duas mãos.",
+      "es": "Dirige todo el partido con las dos manos.",
+      "en": "Conducts the whole game with both hands."
+    },
+    "art_prompt": "A stylized player in a plain white kit with arms raised like a conductor, teammates moving along glowing lines across the court, night floodlights, packed silhouetted stands. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.moments.triple_double.4",
+    "collection": "nba.star_night",
+    "rarity": "rare",
+    "name": {
+      "pt": "Mestre do triplo",
+      "es": "Maestro del triple-doble",
+      "en": "Triple-Double Master"
+    },
+    "flavor": {
+      "pt": "Dez noites completas em todas as colunas.",
+      "es": "Diez noches completas en todas las columnas.",
+      "en": "Ten complete nights in every column."
+    },
+    "art_prompt": "A stylized player in a plain white kit under a violet spotlight with three faceted crystals of light hovering around, faceted violet glow, night arena. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.moments.triple_double.5",
+    "collection": "nba.star_night",
+    "rarity": "legendary",
+    "name": {
+      "pt": "Lenda completa",
+      "es": "Leyenda completa",
+      "en": "Complete Legend"
+    },
+    "flavor": {
+      "pt": "Tudo que o jogo pede, uma noite atrás da outra.",
+      "es": "Todo lo que pide el juego, noche tras noche.",
+      "en": "Everything the game asks for, night after night."
+    },
+    "art_prompt": "A stylized player in a plain white kit at the center of a prismatic triangle of light rays, generic balls, backboard shapes and hand shapes drifting as floating particles, a sea of silhouetted fans. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: iridescent prismatic border with light rays and floating particles.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.predictions.favorite_winner.1",
+    "collection": "nba.sharp_eye",
+    "rarity": "common",
+    "name": {
+      "pt": "Primeiro acerto",
+      "es": "Primer acierto",
+      "en": "First Call"
+    },
+    "flavor": {
+      "pt": "Você conhece seu time. O placar confirmou.",
+      "es": "Conoces a tu equipo. El marcador lo confirmó.",
+      "en": "You know your team. The score agreed."
+    },
+    "art_prompt": "A stylized fan holding a generic phone with a blank screen in front of a television showing a team in plain white kit celebrating, morning light, cozy flat vector interior. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.predictions.favorite_winner.2",
+    "collection": "nba.sharp_eye",
+    "rarity": "special",
+    "name": {
+      "pt": "Olho de torcedor",
+      "es": "Ojo de hincha",
+      "en": "Fan’s Eye"
+    },
+    "flavor": {
+      "pt": "Quem assiste a todo jogo sabe antes.",
+      "es": "Quien mira todos los partidos sabe antes.",
+      "en": "Whoever watches every game knows first."
+    },
+    "art_prompt": "A stylized fan with a plain white scarf without symbols nodding at a tablet showing a court, a faint target ring glowing over the screen, steel-blue afternoon light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.predictions.favorite_winner.3",
+    "collection": "nba.sharp_eye",
+    "rarity": "special",
+    "name": {
+      "pt": "Termômetro",
+      "es": "Termómetro",
+      "en": "Thermometer"
+    },
+    "flavor": {
+      "pt": "Você sente quando o time vai jogar bem.",
+      "es": "Sientes cuándo el equipo va a jugar bien.",
+      "en": "You can feel when the team is about to play well."
+    },
+    "art_prompt": "A stylized fan standing in a living room full of silhouetted friends of diverse ages pointing at the screen, a glowing checkmark-shaped light above the fan, night. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.predictions.favorite_winner.4",
+    "collection": "nba.sharp_eye",
+    "rarity": "rare",
+    "name": {
+      "pt": "Vidente da casa",
+      "es": "Vidente de la casa",
+      "en": "House Seer"
+    },
+    "flavor": {
+      "pt": "Antes do aquecimento, você já sabia.",
+      "es": "Antes del calentamiento, ya lo sabías.",
+      "en": "Before warm-ups, you already knew."
+    },
+    "art_prompt": "A stylized fan silhouette seated courtside with a violet glowing ring over each eye, teams in plain white and plain charcoal kits warming up on the court below, faceted violet glow. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.predictions.favorite_winner.5",
+    "collection": "nba.sharp_eye",
+    "rarity": "legendary",
+    "name": {
+      "pt": "Alma do time",
+      "es": "Alma del equipo",
+      "en": "Soul of the Team"
+    },
+    "flavor": {
+      "pt": "Ninguém lê esse time como você.",
+      "es": "Nadie lee a este equipo como tú.",
+      "en": "Nobody reads this team like you do."
+    },
+    "art_prompt": "A stylized fan silhouette floating above a generic court inside a prismatic halo, a team in plain white kit below looking up, light rays and floating particles, night arena. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: iridescent prismatic border with light rays and floating particles.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.predictions.final_winner.1",
+    "collection": "nba.playoffs",
+    "rarity": "common",
+    "name": {
+      "pt": "Primeira final",
+      "es": "Primera final",
+      "en": "First Final"
+    },
+    "flavor": {
+      "pt": "Na decisão, você escolheu o lado certo.",
+      "es": "En la definición, elegiste el lado correcto.",
+      "en": "On the big day, you picked the right side."
+    },
+    "art_prompt": "A stylized fan holding a generic phone in front of a sunlit arena entrance, a plain trophy silhouette on a blank banner above the gate, a light crowd of silhouettes walking in, morning light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.predictions.final_winner.2",
+    "collection": "nba.playoffs",
+    "rarity": "special",
+    "name": {
+      "pt": "Duas decisões",
+      "es": "Dos definiciones",
+      "en": "Two Deciders"
+    },
+    "flavor": {
+      "pt": "Final é outra pressão. Você acertou de novo.",
+      "es": "La final es otra presión. Acertaste de nuevo.",
+      "en": "Finals bring a different pressure. You called it again."
+    },
+    "art_prompt": "Two plain generic trophies side by side on a pedestal glowing softly, a stylized fan in the foreground with a raised fist, a generic arena behind at dusk, steel-blue tones. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.predictions.final_winner.3",
+    "collection": "nba.playoffs",
+    "rarity": "special",
+    "name": {
+      "pt": "Noite de taça",
+      "es": "Noche de copa",
+      "en": "Cup Night"
+    },
+    "flavor": {
+      "pt": "Quando o troféu está na mesa, seu palpite também.",
+      "es": "Cuando el trofeo está en la mesa, tu pronóstico también.",
+      "en": "When the trophy is on the line, so is your call."
+    },
+    "art_prompt": "A team in plain white kit lifting a plain generic trophy at center court, a stylized fan in the stands pointing at the court with a glowing checkmark-shaped light above the head, confetti and floodlights. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.predictions.final_winner.4",
+    "collection": "nba.playoffs",
+    "rarity": "rare",
+    "name": {
+      "pt": "Voz da final",
+      "es": "Voz de la final",
+      "en": "Voice of the Final"
+    },
+    "flavor": {
+      "pt": "Antes da bola subir, todo mundo quer a sua.",
+      "es": "Antes del salto inicial, todos quieren la tuya.",
+      "en": "Before the tip-off, everyone wants your pick."
+    },
+    "art_prompt": "A stylized fan standing on an arena step surrounded by silhouetted friends holding up blank signs, a violet spotlight on the fan, a plain trophy glowing at center court far below, night. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.predictions.final_winner.5",
+    "collection": "nba.playoffs",
+    "rarity": "legendary",
+    "name": {
+      "pt": "Lenda das finais",
+      "es": "Leyenda de las finales",
+      "en": "Legend of Finals"
+    },
+    "flavor": {
+      "pt": "Toda final tem um vencedor. Você sempre soube qual.",
+      "es": "Toda final tiene un ganador. Siempre supiste cuál.",
+      "en": "Every final has a winner. You always knew which."
+    },
+    "art_prompt": "A towering plain generic trophy radiating prismatic light rays at center court, a stylized fan silhouette standing on top of it with arms open, floating particles over a sea of silhouetted fans. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: iridescent prismatic border with light rays and floating particles.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.predictions.hit_streak.1",
+    "collection": "nba.sharp_eye",
+    "rarity": "common",
+    "name": {
+      "pt": "Dois seguidos",
+      "es": "Dos seguidos",
+      "en": "Two in a Row"
+    },
+    "flavor": {
+      "pt": "Um acerto é palpite. Dois seguidos é leitura.",
+      "es": "Un acierto es pronóstico. Dos seguidos es lectura.",
+      "en": "One hit is a call. Two in a row is reading the game."
+    },
+    "art_prompt": "Two generic orange balls resting in a row on a court line each with a small glowing ring, a stylized fan silhouette kneeling to look at them, morning light in an empty generic gym. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.predictions.hit_streak.2",
+    "collection": "nba.sharp_eye",
+    "rarity": "special",
+    "name": {
+      "pt": "Cinco seguidos",
+      "es": "Cinco seguidos",
+      "en": "Five in a Row"
+    },
+    "flavor": {
+      "pt": "Cinco jogos, cinco acertos, zero dúvida.",
+      "es": "Cinco partidos, cinco aciertos, cero dudas.",
+      "en": "Five games, five hits, zero doubt."
+    },
+    "art_prompt": "Five generic orange balls in a diagonal line each glowing a little brighter than the last, a stylized fan walking along them with a confident stride, steel-blue arena light, empty stands. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.predictions.hit_streak.3",
+    "collection": "nba.sharp_eye",
+    "rarity": "special",
+    "name": {
+      "pt": "Dez seguidos",
+      "es": "Diez seguidos",
+      "en": "Ten in a Row"
+    },
+    "flavor": {
+      "pt": "A sequência virou assunto de arquibancada.",
+      "es": "La racha se volvió tema de tribuna.",
+      "en": "The streak became arena talk."
+    },
+    "art_prompt": "A chain of ten glowing generic balls forming an arc over a court like a bridge, a stylized fan silhouette standing beneath with arms crossed, silhouetted fans pointing from the stands, dusk. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.predictions.hit_streak.4",
+    "collection": "nba.sharp_eye",
+    "rarity": "rare",
+    "name": {
+      "pt": "Mão quente",
+      "es": "Mano caliente",
+      "en": "Hot Hand"
+    },
+    "flavor": {
+      "pt": "Quando a mão esquenta, nem o placar esfria.",
+      "es": "Cuando la mano se calienta, ni el marcador la enfría.",
+      "en": "When the hand is hot, not even the score cools it."
+    },
+    "art_prompt": "A stylized fan silhouette with a raised hand wrapped in violet flame-like light, a long spiral of glowing generic balls rising into the arena rafters, faceted violet glow. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.predictions.hit_streak.5",
+    "collection": "nba.sharp_eye",
+    "rarity": "legendary",
+    "name": {
+      "pt": "Sequência lendária",
+      "es": "Racha legendaria",
+      "en": "Legendary Streak"
+    },
+    "flavor": {
+      "pt": "Cinquenta sem errar. Ninguém acredita, e é verdade.",
+      "es": "Cincuenta sin fallar. Nadie lo cree, y es verdad.",
+      "en": "Fifty straight without a miss. Nobody believes it, and it is true."
+    },
+    "art_prompt": "A comet made of countless glowing generic balls streaking across a prismatic sky above a generic arena, a stylized fan silhouette standing on the roof edge watching, light rays and floating particles. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: iridescent prismatic border with light rays and floating particles.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.predictions.playoff_winner.1",
+    "collection": "nba.playoffs",
+    "rarity": "common",
+    "name": {
+      "pt": "Primeira chave",
+      "es": "Primera llave",
+      "en": "First Bracket Pick"
+    },
+    "flavor": {
+      "pt": "Jogo sem amanhã, palpite sem medo.",
+      "es": "Partido sin mañana, pronóstico sin miedo.",
+      "en": "No tomorrow for them, no fear for you."
+    },
+    "art_prompt": "A glowing bracket drawn on a dark court floor with one path lit, a stylized fan’s hand tapping it, a generic orange ball resting nearby, soft daylight, no letters or numbers. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.predictions.playoff_winner.2",
+    "collection": "nba.playoffs",
+    "rarity": "special",
+    "name": {
+      "pt": "Leitor de série",
+      "es": "Lector de series",
+      "en": "Series Reader"
+    },
+    "flavor": {
+      "pt": "Você vê a série antes do primeiro jogo.",
+      "es": "Ves la serie antes del primer partido.",
+      "en": "You see the series before game one."
+    },
+    "art_prompt": "A stylized fan sitting courtside studying a large floating glowing bracket of lines without labels, three paths lit in steel-blue, afternoon arena light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.predictions.playoff_winner.3",
+    "collection": "nba.playoffs",
+    "rarity": "special",
+    "name": {
+      "pt": "Chave por chave",
+      "es": "Llave por llave",
+      "en": "Round by Round"
+    },
+    "flavor": {
+      "pt": "Da primeira rodada à final, acerto a acerto.",
+      "es": "De la primera ronda a la final, acierto a acierto.",
+      "en": "From round one to the final, call by call."
+    },
+    "art_prompt": "A glowing bracket shaped like a tree growing from center court toward the rafters, many branches lit, a stylized fan standing at the trunk with arms raised, dusk light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.predictions.playoff_winner.4",
+    "collection": "nba.playoffs",
+    "rarity": "rare",
+    "name": {
+      "pt": "Mestre dos playoffs",
+      "es": "Maestro de los playoffs",
+      "en": "Playoff Master"
+    },
+    "flavor": {
+      "pt": "Nas noites decisivas, sua leitura é lei.",
+      "es": "En las noches decisivas, tu lectura es ley.",
+      "en": "On the big nights, your read is law."
+    },
+    "art_prompt": "A stylized fan silhouette standing at center court with a violet glowing bracket wrapping around like a crown of light, teams in plain white and plain charcoal kits on each side, night. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.predictions.playoff_winner.5",
+    "collection": "nba.playoffs",
+    "rarity": "legendary",
+    "name": {
+      "pt": "Lenda dos playoffs",
+      "es": "Leyenda de los playoffs",
+      "en": "Playoff Legend"
+    },
+    "flavor": {
+      "pt": "Toda série tem um fim. Você sempre soube qual.",
+      "es": "Toda serie tiene un final. Siempre supiste cuál.",
+      "en": "Every series has an ending. You always knew which."
+    },
+    "art_prompt": "A colossal prismatic bracket of light rays rising from a generic court into the night sky with every path lit, a stylized fan silhouette at its base, floating particles swirling. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: iridescent prismatic border with light rays and floating particles.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.results.away_win.1",
+    "collection": "nba.faithful",
+    "rarity": "common",
+    "name": {
+      "pt": "Primeira viagem",
+      "es": "Primer viaje",
+      "en": "First Trip"
+    },
+    "flavor": {
+      "pt": "Quadra alheia, vitória nossa.",
+      "es": "Cancha ajena, victoria nuestra.",
+      "en": "Their court, our win."
+    },
+    "art_prompt": "A stylized team in plain white kit stepping off a plain bus silhouette in front of a generic arena at dusk, a small group of silhouetted traveling fans with plain white scarves without symbols, soft evening light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.results.away_win.2",
+    "collection": "nba.faithful",
+    "rarity": "special",
+    "name": {
+      "pt": "Silêncio na casa deles",
+      "es": "Silencio en su casa",
+      "en": "Silencing the House"
+    },
+    "flavor": {
+      "pt": "A arena inteira calada. Menos um canto.",
+      "es": "Todo el estadio callado. Menos un rincón.",
+      "en": "The whole arena silent. Except one corner."
+    },
+    "art_prompt": "A stylized player in a plain white kit with a finger to the lips at center court, a hostile crowd of silhouettes seated and quiet, one small corner of standing fans with raised arms, steel-blue tones. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.results.away_win.3",
+    "collection": "nba.faithful",
+    "rarity": "special",
+    "name": {
+      "pt": "Estrada",
+      "es": "Carretera",
+      "en": "The Road"
+    },
+    "flavor": {
+      "pt": "Cidade após cidade, a mala cheia de vitórias.",
+      "es": "Ciudad tras ciudad, la maleta llena de victorias.",
+      "en": "City after city, a suitcase full of wins."
+    },
+    "art_prompt": "A stylized map road winding between generic arena silhouettes of varied architecture, a plain bus traveling along it, glowing marks at each stop, night sky with stars, no borders or flags. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.results.away_win.4",
+    "collection": "nba.faithful",
+    "rarity": "rare",
+    "name": {
+      "pt": "Dono da estrada",
+      "es": "Dueño de la carretera",
+      "en": "Road Warrior"
+    },
+    "flavor": {
+      "pt": "Longe de casa, o time joga como em casa.",
+      "es": "Lejos de casa, el equipo juega como en casa.",
+      "en": "Far from home, the team plays like it is home."
+    },
+    "art_prompt": "A stylized player in a plain white kit raising a fist in an opponent’s arena under violet light, players in plain charcoal kit with heads down, faceted violet glow, silhouetted crowd. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.results.away_win.5",
+    "collection": "nba.faithful",
+    "rarity": "legendary",
+    "name": {
+      "pt": "Lenda viajante",
+      "es": "Leyenda viajera",
+      "en": "Traveling Legend"
+    },
+    "flavor": {
+      "pt": "Nenhuma quadra do mapa resistiu.",
+      "es": "Ninguna cancha del mapa resistió.",
+      "en": "No court on the map could hold out."
+    },
+    "art_prompt": "A stylized globe-like map of glowing arena markers all lit in prismatic light, a team in plain white kit standing on top of it, light rays and floating particles, deep night backdrop, no borders or flags. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: iridescent prismatic border with light rays and floating particles.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.results.big_win.1",
+    "collection": "nba.scoreboard",
+    "rarity": "common",
+    "name": {
+      "pt": "Folga no placar",
+      "es": "Ventaja holgada",
+      "en": "Breathing Room"
+    },
+    "flavor": {
+      "pt": "Dava para relaxar no último quarto.",
+      "es": "Se podía relajar en el último cuarto.",
+      "en": "You could relax in the fourth quarter."
+    },
+    "art_prompt": "A stylized bench of players in plain white kit laughing with towels on their shoulders, reserves checking in at the scorer’s table, a blank scoreboard silhouette, afternoon arena light, scattered silhouetted fans. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.results.big_win.2",
+    "collection": "nba.scoreboard",
+    "rarity": "special",
+    "name": {
+      "pt": "Passeio",
+      "es": "Paseo",
+      "en": "Stroll"
+    },
+    "flavor": {
+      "pt": "Jogo resolvido antes do intervalo.",
+      "es": "Partido resuelto antes del descanso.",
+      "en": "Game settled before halftime."
+    },
+    "art_prompt": "A stylized player in a plain white kit walking to the bench with a wide smile, teammates of varied builds applauding, opponents in plain charcoal kit in a timeout huddle, dusk tones, generic stands. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.results.big_win.3",
+    "collection": "nba.scoreboard",
+    "rarity": "special",
+    "name": {
+      "pt": "Show na quadra",
+      "es": "Show en la cancha",
+      "en": "Showtime"
+    },
+    "flavor": {
+      "pt": "Enterrada atrás de enterrada, e a torcida pedindo mais.",
+      "es": "Clavada tras clavada, y la hinchada pidiendo más.",
+      "en": "Dunk after dunk, and the crowd asking for more."
+    },
+    "art_prompt": "A stylized player in a plain white kit catching a lob above the rim for a dunk, a packed silhouetted crowd on its feet, night floodlights, confetti-like streaks of light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.results.big_win.4",
+    "collection": "nba.scoreboard",
+    "rarity": "rare",
+    "name": {
+      "pt": "Rolo compressor",
+      "es": "Aplanadora",
+      "en": "Steamroller"
+    },
+    "flavor": {
+      "pt": "Temporada de vitórias largas, sem relaxar.",
+      "es": "Temporada de victorias amplias, sin aflojar.",
+      "en": "A season of wide margins, never easing up."
+    },
+    "art_prompt": "A stylized team in plain white kit marching in a V formation across a court bathed in violet light, opponents in plain charcoal kit fading into the background, faceted violet glow, night. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.results.big_win.5",
+    "collection": "nba.scoreboard",
+    "rarity": "legendary",
+    "name": {
+      "pt": "Dinastia",
+      "es": "Dinastía",
+      "en": "Dynasty"
+    },
+    "flavor": {
+      "pt": "Vitória larga vira hábito. Hábito vira lenda.",
+      "es": "La victoria amplia se hace hábito. El hábito, leyenda.",
+      "en": "Wide wins become habit. Habit becomes legend."
+    },
+    "art_prompt": "A stylized team of diverse builds and genders in plain white kit on a podium of light with a plain generic trophy without engravings, prismatic light rays, floating particles, a sea of silhouetted fans. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: iridescent prismatic border with light rays and floating particles.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.results.blowout.1",
+    "collection": "nba.scoreboard",
+    "rarity": "special",
+    "name": {
+      "pt": "Dia de festa",
+      "es": "Día de fiesta",
+      "en": "Party Day"
+    },
+    "flavor": {
+      "pt": "Até o último reserva saiu aplaudido.",
+      "es": "Hasta el último suplente salió aplaudido.",
+      "en": "Even the last reserve left to applause."
+    },
+    "art_prompt": "A stylized reserve player of slight build in a plain white kit hitting a shot late in the game while the whole bench stands cheering, opponents in plain charcoal kit seated and quiet, bright festive arena, confetti-like streaks of light, generic stands. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.results.close_win.1",
+    "collection": "nba.overtime",
+    "rarity": "common",
+    "name": {
+      "pt": "Ponta do sofá",
+      "es": "Punta del sillón",
+      "en": "Edge of the Seat"
+    },
+    "flavor": {
+      "pt": "Três pontos. Um suspiro.",
+      "es": "Tres puntos. Un suspiro.",
+      "en": "Three points. One breath."
+    },
+    "art_prompt": "A stylized fan of any gender perched on the edge of a sofa gripping a cushion, a television showing two silhouetted teams in plain white and plain charcoal kits and a blank scoreboard, morning light, cozy flat vector interior. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.results.close_win.2",
+    "collection": "nba.overtime",
+    "rarity": "special",
+    "name": {
+      "pt": "Lance livre final",
+      "es": "Tiro libre final",
+      "en": "Final Free Throw"
+    },
+    "flavor": {
+      "pt": "Silêncio na arena. Depois, o grito.",
+      "es": "Silencio en el estadio. Después, el grito.",
+      "en": "Silence in the arena. Then the roar."
+    },
+    "art_prompt": "A stylized player in a plain white kit at the free-throw line with the generic orange ball in the air, every other player in white and charcoal kits frozen along the lane, a referee with one arm raised, dusk arena light, a silhouetted crowd holding its breath. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.results.close_win.3",
+    "collection": "nba.overtime",
+    "rarity": "special",
+    "name": {
+      "pt": "Mãos frias",
+      "es": "Manos frías",
+      "en": "Ice in the Veins"
+    },
+    "flavor": {
+      "pt": "No final apertado, o pulso não tremeu.",
+      "es": "En el final ajustado, el pulso no tembló.",
+      "en": "In the tight finish, the hand never shook."
+    },
+    "art_prompt": "A stylized player in a plain white kit calmly holding the ball at the top of the key with seconds left, a defender in plain charcoal kit crouched in front, a blank shot clock shape glowing, night floodlights, packed silhouetted stands. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.results.close_win.4",
+    "collection": "nba.overtime",
+    "rarity": "rare",
+    "name": {
+      "pt": "Nervos de aço",
+      "es": "Nervios de acero",
+      "en": "Steel Nerves"
+    },
+    "flavor": {
+      "pt": "Oito finais no fio da navalha, todos de pé.",
+      "es": "Ocho finales al filo, todos de pie.",
+      "en": "Eight razor-thin finishes, everyone on their feet."
+    },
+    "art_prompt": "A stylized fan silhouette in a packed stand with a violet glowing ring over the chest, two teams in plain white and plain charcoal kits locked in a final possession on the court below, faceted violet glow, night. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.results.close_win.5",
+    "collection": "nba.overtime",
+    "rarity": "legendary",
+    "name": {
+      "pt": "Dono dos finais",
+      "es": "Dueño de los finales",
+      "en": "Master of Finishes"
+    },
+    "flavor": {
+      "pt": "Quando o jogo aperta, é quando você sorri.",
+      "es": "Cuando el partido se aprieta, es cuando sonríes.",
+      "en": "When the game tightens, that is when you smile."
+    },
+    "art_prompt": "A prismatic hourglass of light floating over center court with a generic orange ball suspended inside, teams in plain white and plain charcoal kits below with arms raised, light rays and floating particles, a sea of silhouetted fans. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: iridescent prismatic border with light rays and floating particles.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.results.final_win.1",
+    "collection": "nba.playoffs",
+    "rarity": "historic",
+    "name": {
+      "pt": "Noite de troféu",
+      "es": "Noche de trofeo",
+      "en": "Trophy Night"
+    },
+    "flavor": {
+      "pt": "O jogo que a cidade vai contar por anos.",
+      "es": "El partido que la ciudad contará por años.",
+      "en": "The game the city will talk about for years."
+    },
+    "art_prompt": "A stylized captain of any gender in a plain white kit holding a plain generic trophy without engravings aloft under warm amber light, teammates of diverse builds around, confetti falling, packed silhouetted stands, soft outer glow. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.results.high_scoring.1",
+    "collection": "nba.scoreboard",
+    "rarity": "common",
+    "name": {
+      "pt": "Placar cheio",
+      "es": "Marcador lleno",
+      "en": "Full Scoreboard"
+    },
+    "flavor": {
+      "pt": "Os dígitos quase não couberam no painel.",
+      "es": "Los dígitos casi no cupieron en el tablero.",
+      "en": "The digits barely fit on the board."
+    },
+    "art_prompt": "A giant blank scoreboard silhouette glowing warm above a generic court, stylized players in plain white and plain charcoal kits racing end to end, daylight through arena windows, scattered silhouetted fans. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.results.high_scoring.2",
+    "collection": "nba.scoreboard",
+    "rarity": "special",
+    "name": {
+      "pt": "Corre-corre",
+      "es": "Ida y vuelta",
+      "en": "End to End"
+    },
+    "flavor": {
+      "pt": "Ninguém defendeu, ninguém reclamou.",
+      "es": "Nadie defendió, nadie se quejó.",
+      "en": "Nobody played defense, nobody complained."
+    },
+    "art_prompt": "A top-down view of a generic court with glowing trails crisscrossing from hoop to hoop, tiny stylized players in plain white and plain charcoal kits, steel-blue tones, generic stands around. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.results.high_scoring.3",
+    "collection": "nba.scoreboard",
+    "rarity": "special",
+    "name": {
+      "pt": "Festival de cestas",
+      "es": "Festival de canastas",
+      "en": "Basket Festival"
+    },
+    "flavor": {
+      "pt": "Cesta atrás de cesta, até perder a conta.",
+      "es": "Canasta tras canasta, hasta perder la cuenta.",
+      "en": "Basket after basket, until you lose count."
+    },
+    "art_prompt": "Two stylized hoops facing each other across a generic court with dozens of generic orange balls arcing between them like fireworks, players in plain white and plain charcoal kits racing end to end, night arena, packed silhouetted stands. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.results.high_scoring.4",
+    "collection": "nba.scoreboard",
+    "rarity": "rare",
+    "name": {
+      "pt": "Noite de recorde",
+      "es": "Noche de récord",
+      "en": "Record Night"
+    },
+    "flavor": {
+      "pt": "Placar assim vira assunto por semanas.",
+      "es": "Un marcador así da que hablar por semanas.",
+      "en": "A score like this gets talked about for weeks."
+    },
+    "art_prompt": "A stylized fan silhouette holding a generic phone with a blank screen in a buzzing arena, a violet glowing scoreboard shape without digits floating above, faceted violet glow, night. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.results.high_scoring.5",
+    "collection": "nba.scoreboard",
+    "rarity": "legendary",
+    "name": {
+      "pt": "Mestre do placar",
+      "es": "Maestro del marcador",
+      "en": "Scoreboard Master"
+    },
+    "flavor": {
+      "pt": "Vinte noites em que o placar não teve teto.",
+      "es": "Veinte noches en que el marcador no tuvo techo.",
+      "en": "Twenty nights when the scoreboard had no ceiling."
+    },
+    "art_prompt": "A prismatic scoreboard shape bursting with light rays over a generic court, generic orange balls floating upward like particles, a stylized fan silhouette standing at center court, a sea of silhouetted fans. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: iridescent prismatic border with light rays and floating particles.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.results.playoff_win.1",
+    "collection": "nba.playoffs",
+    "rarity": "common",
+    "name": {
+      "pt": "Primeira do mata-mata",
+      "es": "Primera de la postemporada",
+      "en": "First of the Postseason"
+    },
+    "flavor": {
+      "pt": "A temporada de verdade começa agora.",
+      "es": "La temporada de verdad empieza ahora.",
+      "en": "The real season starts now."
+    },
+    "art_prompt": "A stylized team in plain white kit walking out of a tunnel into a bright arena, a blank banner without text hanging above, a crowd of silhouettes standing, daylight through the roof. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.results.playoff_win.2",
+    "collection": "nba.playoffs",
+    "rarity": "special",
+    "name": {
+      "pt": "Série aberta",
+      "es": "Serie abierta",
+      "en": "Series On"
+    },
+    "flavor": {
+      "pt": "Uma vitória e a série já tem outro cheiro.",
+      "es": "Una victoria y la serie ya huele distinto.",
+      "en": "One win and the series smells different."
+    },
+    "art_prompt": "Two stylized players in plain white and plain charcoal kits battling for a loose ball on the floor, a bracket of glowing lines faint in the background, dusk tones, generic stands. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.results.playoff_win.3",
+    "collection": "nba.playoffs",
+    "rarity": "special",
+    "name": {
+      "pt": "Fechou a série",
+      "es": "Cerró la serie",
+      "en": "Series Closed"
+    },
+    "flavor": {
+      "pt": "A série acabou. O adversário foi para casa.",
+      "es": "La serie terminó. El rival se fue a casa.",
+      "en": "Series over. The opponent went home."
+    },
+    "art_prompt": "A stylized team in plain white kit celebrating at center court while opponents in plain charcoal kit walk toward the tunnel, floodlights, packed silhouetted stands, confetti-like streaks of light. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.results.playoff_win.4",
+    "collection": "nba.playoffs",
+    "rarity": "rare",
+    "name": {
+      "pt": "Noites de playoff",
+      "es": "Noches de playoffs",
+      "en": "Playoff Nights"
+    },
+    "flavor": {
+      "pt": "Cada jogo pesa uma temporada.",
+      "es": "Cada partido pesa una temporada.",
+      "en": "Every game weighs a season."
+    },
+    "art_prompt": "A stylized fan silhouette standing in a sea of raised arms under violet arena light, a glowing bracket of lines wrapping around the court below, faceted violet glow. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.results.playoff_win.5",
+    "collection": "nba.playoffs",
+    "rarity": "legendary",
+    "name": {
+      "pt": "Caminho do título",
+      "es": "Camino al título",
+      "en": "Road to the Title"
+    },
+    "flavor": {
+      "pt": "Dezesseis vitórias de playoff. Mais que um caminho até o título.",
+      "es": "Dieciséis victorias de playoffs. Más que un camino al título.",
+      "en": "Sixteen playoff wins. More than one road to the title."
+    },
+    "art_prompt": "A stylized team of diverse builds and genders in plain white kit lifting a plain generic trophy on a podium of prismatic light, a bracket of light fully lit behind, light rays, floating particles, a sea of silhouetted fans. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: iridescent prismatic border with light rays and floating particles.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.rhythm.night_owl.1",
+    "collection": "nba.explorer",
+    "rarity": "common",
+    "name": {
+      "pt": "Primeira madrugada",
+      "es": "Primera madrugada",
+      "en": "First Late Night"
+    },
+    "flavor": {
+      "pt": "O vizinho dormiu. Você ficou.",
+      "es": "El vecino se durmió. Tú te quedaste.",
+      "en": "The neighbor fell asleep. You stayed up."
+    },
+    "art_prompt": "A stylized fan on a sofa in a dark living room lit only by a television showing a court, a plain mug on the table, a cat silhouette curled nearby, a moon through the window. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: plain slate-grey border, matte finish.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.rhythm.night_owl.2",
+    "collection": "nba.explorer",
+    "rarity": "special",
+    "name": {
+      "pt": "Três madrugadas",
+      "es": "Tres madrugadas",
+      "en": "Three Late Nights"
+    },
+    "flavor": {
+      "pt": "O café virou companheiro de jogo.",
+      "es": "El café se volvió compañero de partido.",
+      "en": "Coffee became a game-day companion."
+    },
+    "art_prompt": "A stylized fan with headphones at a desk, a tablet showing a court, a steaming plain mug, city lights outside the window, steel-blue tones. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.rhythm.night_owl.3",
+    "collection": "nba.explorer",
+    "rarity": "special",
+    "name": {
+      "pt": "Turno da noite",
+      "es": "Turno de noche",
+      "en": "Night Shift"
+    },
+    "flavor": {
+      "pt": "Enquanto a cidade dorme, a bola sobe.",
+      "es": "Mientras la ciudad duerme, sube la pelota.",
+      "en": "While the city sleeps, the ball goes up."
+    },
+    "art_prompt": "A stylized city skyline at night with a single window glowing, inside a fan silhouette with arms raised, a tiny court on the screen, stars above. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: brushed steel-blue border with a thin inner line.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.rhythm.night_owl.4",
+    "collection": "nba.explorer",
+    "rarity": "rare",
+    "name": {
+      "pt": "Lua cheia",
+      "es": "Luna llena",
+      "en": "Full Moon"
+    },
+    "flavor": {
+      "pt": "A madrugada inteira é hora de jogo.",
+      "es": "Toda la madrugada es hora de partido.",
+      "en": "The whole night is game time."
+    },
+    "art_prompt": "A stylized fan silhouette on a rooftop under a huge violet moon, a glowing hoop shape drawn in the night sky, faceted violet glow, city lights below. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: deep violet border with faceted corners and a faint glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  },
+  {
+    "card_key": "nba.rhythm.night_owl.5",
+    "collection": "nba.explorer",
+    "rarity": "historic",
+    "name": {
+      "pt": "Guardião da madrugada",
+      "es": "Guardián de la madrugada",
+      "en": "Keeper of the Small Hours"
+    },
+    "flavor": {
+      "pt": "Sessenta madrugadas, nenhuma bola perdida.",
+      "es": "Sesenta madrugadas, ninguna pelota perdida.",
+      "en": "Sixty late nights, not a ball missed."
+    },
+    "art_prompt": "A stylized fan silhouette at the center of an amber clock face with the small hours glowing, a generic orange ball hanging in the sky like a moon, engraved laurel-like glow, soft outer glow. Vertical trading card, 3:4, subject centered, calm area at the bottom third for the title plate. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size. Card frame: warm amber border with an engraved laurel pattern and a soft outer glow.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands"
+  }
+]

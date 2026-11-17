@@ -165,7 +165,12 @@ export const ROLE_GRANTS: Record<RoleService, RoleGrants> = {
       'community.membership',
     ],
     // painel do Chat ao vivo (#973): tirar do ar e devolver mensagem (a visibilidade); a mensagem nunca é apagada aqui
-    update: ['chat.message'],
+    update: [
+      'chat.message',
+      // Feed das Comunidades (#946): fixar, tirar do ar e devolver post e comentário; nada é apagado aqui
+      'community.post',
+      'community.comment',
+    ],
     // o que foi escrito não muda: extrato, alertas de saldo, ações da equipe e o histórico da moderação
     append: [
       'cosmos.ledger',
