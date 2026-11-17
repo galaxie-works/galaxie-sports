@@ -836,7 +836,16 @@ describe('trial e auditoria (docs/politica-de-chaves.md §3 e §5)', () => {
 
     const upgraded = await adminReq('PATCH', `/internal/admin/tenants/${t.id}`, { plan: 'core_data' });
     expect(upgraded.json().tenant.trialEndsAt).toBeNull();
+    expect(upgraded.json().tenant.state).toBe('active');
     expect((await tenantReq(key, 'GET', '/v1/sports')).statusCode).toBe(200);
+    // de volta ao plano com prazo fora de trial/draft: 409 (o prazo nunca valeria em active)
+    const back = await adminReq('PATCH', `/internal/admin/tenants/${t.id}`, { plan: 'trial' });
+    expect(back.statusCode).toBe(409);
+    expect(back.json().code).toBe('CONFLICT');
+    expect((await adminReq('GET', `/internal/admin/tenants/${t.id}`)).json().tenant).toMatchObject({
+      plan: 'core_data',
+      state: 'active',
+    });
   });
 
   it('cota depois de o Valkey perder o hash do dia: o uso já consolidado continua contando', async () => {

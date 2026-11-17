@@ -73,7 +73,8 @@ anômalo (§5).
     já antes do job `tenant.lifecycle` gravar `trial_expired`. Em `pending_review`, `rejected`, `suspended` (402
     `SUBSCRIPTION_SUSPENDED`) e `cancelled` a resposta também diz o motivo, só para quem provou ter a chave.
   - Trocar um plano com prazo por um pago (`PATCH /internal/admin/tenants/{id}` com `plan`) tira o prazo e leva o
-    tenant a `active`; voltar para `trial` dá 30 dias de novo.
+    tenant a `active`. O plano `trial` legado (decisão 13 do brief da F3: fica até os tenants que o têm migrarem) só
+    entra em tenant em `trial` ou `draft`; fora disso o `PATCH` responde 409 `CONFLICT`, porque o prazo nunca valeria.
   - Sem tempo real (`PLANS_WITHOUT_REALTIME`): `/v1/stream` responde 403 `MODULE_NOT_IN_PLAN`, o cadastro de webhook é
     recusado e o worker não enfileira entregas do tenant.
   - Webhooks só em `active` e `past_due` (`TENANT_STATES_WITH_WEBHOOKS`): no estado `trial` o SSE funciona, mas o worker

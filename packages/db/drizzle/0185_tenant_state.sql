@@ -28,9 +28,11 @@ ALTER TABLE "api"."tenant" ADD CONSTRAINT "tenant_state" CHECK ("api"."tenant"."
 -- Migration de dados, idempotente: só os tenants que ainda não têm nenhuma linha em billing.tenant_state_event. Ordem
 -- das regras: suspenso → suspended; revisão do cadastro pendente → pending_review, recusada → rejected (antes do
 -- prazo do trial, porque o cadastro em revisão também nasce com trial_ends_at); trial vencido → trial_expired;
--- trial em curso ou plano trial → trial; o resto → active. state_since: o fim do trial no vencido, a criação no trial
--- e no active, agora nos demais. Cada tenant ganha um evento `migration` com o que foi lido. Os testes de integração
--- executam este bloco pelo marcador.
+-- trial em curso ou plano trial → trial; o resto → active. state_since: a criação no trial e no active, agora nos
+-- demais, inclusive no trial vencido: os prazos do job tenant.lifecycle (TENANT_TRIAL_EXPIRED_DAYS) contam da
+-- migration, não do fim do trial, para nenhum tenant legado ir a cancelled (estado final) na primeira madrugada.
+-- Cada tenant ganha um evento `migration` com o que foi lido. Os testes de integração executam este bloco pelo
+-- marcador.
 WITH computed AS (
 	SELECT
 		t."id",
@@ -48,7 +50,7 @@ WITH computed AS (
 		CASE
 			WHEN t."status" = 'suspended' THEN now()
 			WHEN o."review_status" IN ('pending', 'rejected') THEN now()
-			WHEN t."trial_ends_at" IS NOT NULL AND t."trial_ends_at" <= now() THEN t."trial_ends_at"
+			WHEN t."trial_ends_at" IS NOT NULL AND t."trial_ends_at" <= now() THEN now()
 			ELSE t."created_at"
 		END AS "since"
 	FROM "api"."tenant" t
