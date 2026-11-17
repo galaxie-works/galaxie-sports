@@ -1,0 +1,1769 @@
+[
+  {
+    "id": "basketball.explorer.competitions",
+    "sport": "basketball",
+    "category": "participation",
+    "family": "explorer",
+    "collection": "basketball.explorer",
+    "rule": {
+      "input": "prediction",
+      "where": {
+        "sport": [
+          "basketball"
+        ]
+      },
+      "count": {
+        "mode": "distinct",
+        "key": "competition"
+      }
+    },
+    "requires_data": [
+      "fan.prediction",
+      "event.sport",
+      "event.competition.id"
+    ],
+    "stepped": true,
+    "seasonal": false,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "a plataforma cobre 33 competições de basquete (ligas nacionais, continental de clubes, seleções, femininas); um torcedor assíduo palpita em 6 a 12 por temporada e 25 é alcance de 2 ou 3 temporadas (fonte: cobertura da plataforma, seção 6 da missão)",
+    "name": {
+      "pt": "Mapa das competições",
+      "es": "Mapa de torneos",
+      "en": "Competition Map"
+    },
+    "description": {
+      "pt": "Dê Palpites em competições de basquete diferentes.",
+      "es": "Haz pronósticos en torneos de básquet distintos.",
+      "en": "Make predictions across different basketball competitions."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 0,
+        "card_key": "basketball.explorer.competitions.1"
+      },
+      {
+        "step": 2,
+        "threshold": 3,
+        "bonus_points": 0,
+        "card_key": "basketball.explorer.competitions.2"
+      },
+      {
+        "step": 3,
+        "threshold": 6,
+        "bonus_points": 0,
+        "card_key": "basketball.explorer.competitions.3"
+      },
+      {
+        "step": 4,
+        "threshold": 12,
+        "bonus_points": 0,
+        "card_key": "basketball.explorer.competitions.4"
+      },
+      {
+        "step": 5,
+        "threshold": 25,
+        "bonus_points": 0,
+        "card_key": "basketball.explorer.competitions.5"
+      }
+    ]
+  },
+  {
+    "id": "basketball.explorer.countries",
+    "sport": "basketball",
+    "category": "participation",
+    "family": "explorer",
+    "collection": "basketball.explorer",
+    "rule": {
+      "input": "participation",
+      "action": "watched",
+      "where": {
+        "sport": [
+          "basketball"
+        ]
+      },
+      "count": {
+        "mode": "distinct",
+        "key": "country"
+      }
+    },
+    "requires_data": [
+      "fan.participation",
+      "fan.presence",
+      "event.sport",
+      "event.competition.country"
+    ],
+    "stepped": true,
+    "seasonal": false,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "a plataforma cobre ligas nacionais de cerca de 10 países das Américas (as continentais e de seleções não têm país); o universo é pequeno, por isso os Degraus crescem menos de 2x: 6 países é uma temporada curiosa e 10 só em 2 ou 3 (fonte: cobertura da plataforma, seção 6 da missão)",
+    "name": {
+      "pt": "Volta ao continente",
+      "es": "Vuelta al continente",
+      "en": "Around the Continent"
+    },
+    "description": {
+      "pt": "Assista a basquete de ligas de países diferentes.",
+      "es": "Mira básquet de ligas de países distintos.",
+      "en": "Watch basketball from leagues in different countries."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 0,
+        "card_key": "basketball.explorer.countries.1"
+      },
+      {
+        "step": 2,
+        "threshold": 2,
+        "bonus_points": 0,
+        "card_key": "basketball.explorer.countries.2"
+      },
+      {
+        "step": 3,
+        "threshold": 4,
+        "bonus_points": 0,
+        "card_key": "basketball.explorer.countries.3"
+      },
+      {
+        "step": 4,
+        "threshold": 6,
+        "bonus_points": 0,
+        "card_key": "basketball.explorer.countries.4"
+      },
+      {
+        "step": 5,
+        "threshold": 10,
+        "bonus_points": 0,
+        "card_key": "basketball.explorer.countries.5"
+      }
+    ]
+  },
+  {
+    "id": "basketball.explorer.months",
+    "sport": "basketball",
+    "category": "participation",
+    "family": "explorer",
+    "collection": "basketball.explorer",
+    "rule": {
+      "input": "participation",
+      "action": "watched",
+      "where": {
+        "sport": [
+          "basketball"
+        ]
+      },
+      "count": {
+        "mode": "distinct",
+        "key": "month"
+      }
+    },
+    "requires_data": [
+      "fan.participation",
+      "fan.presence",
+      "event.sport",
+      "event.starts_at",
+      "program.time_zone"
+    ],
+    "stepped": true,
+    "seasonal": false,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "o basquete tem jogo em todos os meses quando se somam as ligas (outubro a junho no NBB e na Argentina), a Champions League das Américas (dezembro a abril) e os torneios de seleções (julho a setembro); Platina = 12 meses, Lendário = 2 anos (fontes do calendário em pesquisa/basketball.md)",
+    "name": {
+      "pt": "Mês a mês",
+      "es": "Mes a mes",
+      "en": "Month by Month"
+    },
+    "description": {
+      "pt": "Assista a basquete em meses diferentes do calendário.",
+      "es": "Mira básquet en meses distintos del calendario.",
+      "en": "Watch basketball in different months of the calendar."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 0,
+        "card_key": "basketball.explorer.months.1"
+      },
+      {
+        "step": 2,
+        "threshold": 3,
+        "bonus_points": 0,
+        "card_key": "basketball.explorer.months.2"
+      },
+      {
+        "step": 3,
+        "threshold": 6,
+        "bonus_points": 0,
+        "card_key": "basketball.explorer.months.3"
+      },
+      {
+        "step": 4,
+        "threshold": 12,
+        "bonus_points": 0,
+        "card_key": "basketball.explorer.months.4"
+      },
+      {
+        "step": 5,
+        "threshold": 24,
+        "bonus_points": 0,
+        "card_key": "basketball.explorer.months.5"
+      }
+    ]
+  },
+  {
+    "id": "basketball.loyalty.favorite_games",
+    "sport": "basketball",
+    "category": "participation",
+    "family": "loyalty",
+    "collection": "basketball.faithful",
+    "rule": {
+      "input": "participation",
+      "action": "watched",
+      "where": {
+        "sport": [
+          "basketball"
+        ],
+        "favorite_playing": true
+      }
+    },
+    "requires_data": [
+      "fan.participation",
+      "fan.presence",
+      "fan.favorite_team_id",
+      "event.participants",
+      "event.sport"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "38 jogos por time na temporada regular do NBB 2025-26 (20 clubes, turno e returno) e 36 na Liga Nacional argentina; com playoffs, até 61 e 56; Platina = os 38 da liga (fonte: gazetaesportiva.com/campeonatos/nbb-novo-basquete-brasil/nbb-tera-o-numero-recorde-de-equipes-na-temporada-2025-26/; elgrafico.com.ar/articulo/basquetbol/91967/asi-se-jugara-la-liga-nacional-de-basquet-202526)",
+    "name": {
+      "pt": "Fiel ao time",
+      "es": "Fiel al equipo",
+      "en": "True to the Team"
+    },
+    "description": {
+      "pt": "Assista aos jogos do seu time do coração.",
+      "es": "Mira los partidos de tu equipo del corazón.",
+      "en": "Watch your favorite team’s games."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 0,
+        "card_key": "basketball.loyalty.favorite_games.1"
+      },
+      {
+        "step": 2,
+        "threshold": 5,
+        "bonus_points": 0,
+        "card_key": "basketball.loyalty.favorite_games.2"
+      },
+      {
+        "step": 3,
+        "threshold": 15,
+        "bonus_points": 0,
+        "card_key": "basketball.loyalty.favorite_games.3"
+      },
+      {
+        "step": 4,
+        "threshold": 38,
+        "bonus_points": 0,
+        "card_key": "basketball.loyalty.favorite_games.4"
+      },
+      {
+        "step": 5,
+        "threshold": 100,
+        "bonus_points": 0,
+        "card_key": "basketball.loyalty.favorite_games.5"
+      }
+    ]
+  },
+  {
+    "id": "basketball.loyalty.favorite_streak",
+    "sport": "basketball",
+    "category": "participation",
+    "family": "loyalty",
+    "collection": "basketball.faithful",
+    "rule": {
+      "input": "participation",
+      "action": "watched",
+      "where": {
+        "sport": [
+          "basketball"
+        ],
+        "favorite_playing": true
+      },
+      "count": {
+        "mode": "streak",
+        "unit": "game"
+      }
+    },
+    "requires_data": [
+      "fan.participation",
+      "fan.presence",
+      "fan.favorite_team_id",
+      "event.participants",
+      "event.sport"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria: um torcedor assíduo assiste a 70 a 80% dos jogos do time; 20 seguidos é meia temporada do NBB sem falhar e 40 é a temporada inteira com playoffs (base: 38 jogos por time, fontes do calendário em pesquisa/basketball.md)",
+    "name": {
+      "pt": "Sem perder um jogo",
+      "es": "Sin perderse un partido",
+      "en": "Never Miss a Game"
+    },
+    "description": {
+      "pt": "Assista a jogos seguidos do seu time, sem pular nenhum.",
+      "es": "Mira partidos seguidos de tu equipo, sin saltarte ninguno.",
+      "en": "Watch your team’s games back to back, without skipping one."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 2,
+        "bonus_points": 0,
+        "card_key": "basketball.loyalty.favorite_streak.1"
+      },
+      {
+        "step": 2,
+        "threshold": 5,
+        "bonus_points": 0,
+        "card_key": "basketball.loyalty.favorite_streak.2"
+      },
+      {
+        "step": 3,
+        "threshold": 10,
+        "bonus_points": 0,
+        "card_key": "basketball.loyalty.favorite_streak.3"
+      },
+      {
+        "step": 4,
+        "threshold": 20,
+        "bonus_points": 0,
+        "card_key": "basketball.loyalty.favorite_streak.4"
+      },
+      {
+        "step": 5,
+        "threshold": 40,
+        "bonus_points": 0,
+        "card_key": "basketball.loyalty.favorite_streak.5"
+      }
+    ]
+  },
+  {
+    "id": "basketball.loyalty.playoff_games",
+    "sport": "basketball",
+    "category": "participation",
+    "family": "loyalty",
+    "collection": "basketball.playoffs",
+    "rule": {
+      "input": "participation",
+      "action": "watched",
+      "where": {
+        "sport": [
+          "basketball"
+        ],
+        "stage": [
+          "knockout"
+        ]
+      }
+    },
+    "requires_data": [
+      "fan.participation",
+      "fan.presence",
+      "event.sport",
+      "event.stage.kind"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria sobre o calendário: cerca de 50 jogos de playoff por temporada no NBB (séries melhor de 5 das oitavas à final), mais Liga Nacional argentina, Champions League das Américas e seleções; um torcedor assíduo assiste a 12 (fontes do calendário em pesquisa/basketball.md)",
+    "name": {
+      "pt": "Presença nos playoffs",
+      "es": "Presente en los playoffs",
+      "en": "Playoff Regular"
+    },
+    "description": {
+      "pt": "Assista a jogos de playoff de qualquer time.",
+      "es": "Mira partidos de playoffs de cualquier equipo.",
+      "en": "Watch playoff games from any team."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 0,
+        "card_key": "basketball.loyalty.playoff_games.1"
+      },
+      {
+        "step": 2,
+        "threshold": 2,
+        "bonus_points": 0,
+        "card_key": "basketball.loyalty.playoff_games.2"
+      },
+      {
+        "step": 3,
+        "threshold": 5,
+        "bonus_points": 0,
+        "card_key": "basketball.loyalty.playoff_games.3"
+      },
+      {
+        "step": 4,
+        "threshold": 12,
+        "bonus_points": 0,
+        "card_key": "basketball.loyalty.playoff_games.4"
+      },
+      {
+        "step": 5,
+        "threshold": 30,
+        "bonus_points": 0,
+        "card_key": "basketball.loyalty.playoff_games.5"
+      }
+    ]
+  },
+  {
+    "id": "basketball.moments.big_quarter",
+    "sport": "basketball",
+    "category": "moment",
+    "family": "moments",
+    "collection": "basketball.scoreboard",
+    "rule": {
+      "input": "moment",
+      "fact": "score.period",
+      "params": {
+        "team": "favorite",
+        "period": "any",
+        "points_min": 30
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria: nas ligas sul-americanas o quarto médio fica perto de 20 pontos; 30+ está a dois desvios, cerca de 3% dos quartos de um time e 12% dos seus jogos, 4 a 5 por temporada de 38 jogos; o Platina (8) vale por quase duas temporadas (sem fonte estatística pública)",
+    "name": {
+      "pt": "Quarto avassalador",
+      "es": "Cuarto arrollador",
+      "en": "Monster Quarter"
+    },
+    "description": {
+      "pt": "Assista a um quarto em que seu time marca trinta pontos ou mais.",
+      "es": "Mira un cuarto en que tu equipo anota treinta puntos o más.",
+      "en": "Watch your team score thirty or more points in a single quarter."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 10,
+        "card_key": "basketball.moments.big_quarter.1"
+      },
+      {
+        "step": 2,
+        "threshold": 2,
+        "bonus_points": 20,
+        "card_key": "basketball.moments.big_quarter.2"
+      },
+      {
+        "step": 3,
+        "threshold": 4,
+        "bonus_points": 40,
+        "card_key": "basketball.moments.big_quarter.3"
+      },
+      {
+        "step": 4,
+        "threshold": 8,
+        "bonus_points": 75,
+        "card_key": "basketball.moments.big_quarter.4"
+      },
+      {
+        "step": 5,
+        "threshold": 20,
+        "bonus_points": 150,
+        "card_key": "basketball.moments.big_quarter.5"
+      }
+    ]
+  },
+  {
+    "id": "basketball.moments.buzzer_beater",
+    "sport": "basketball",
+    "category": "moment",
+    "family": "moments",
+    "collection": "basketball.star_night",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win",
+        "margin_max": 3
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "proposed.event.play_by_play",
+      "event.status=finished",
+      "event.score",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": false,
+    "inactive_reason": "sem lance a lance no basquete: não há como saber que a cesta decisiva saiu no estouro do cronômetro (proposed.event.play_by_play com o instante e o placar de cada cesta). A regra acima é só a aproximação (vitória por até 3) e não pode ser ligada assim, porque pega jogos decididos muito antes do fim.",
+    "real_world_frequency": "estimativa própria: cerca de 5 cestas da vitória no estouro por temporada numa liga de 20 clubes, 0,25 por time (base NBA de 16,5 por temporada; fonte-base: martj42.github.io/post/game-winning-buzzer-beaters-in-the-nba)",
+    "name": {
+      "pt": "No estouro",
+      "es": "Sobre la chicharra",
+      "en": "At the Buzzer"
+    },
+    "description": {
+      "pt": "Esteja assistindo quando seu time vencer com uma cesta no estouro do cronômetro.",
+      "es": "Mira en vivo cuando tu equipo gane con una canasta sobre la chicharra.",
+      "en": "Be watching when your team wins on a shot at the buzzer."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 120,
+        "card_key": "basketball.moments.buzzer_beater.1"
+      }
+    ]
+  },
+  {
+    "id": "basketball.moments.comeback_15",
+    "sport": "basketball",
+    "category": "moment",
+    "family": "moments",
+    "collection": "basketball.comebacks",
+    "rule": {
+      "input": "moment",
+      "fact": "score.comeback",
+      "params": {
+        "team": "favorite",
+        "trailing_by_min": 15,
+        "at": "any"
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria sobre a base NBA (12,8% dos jogos com um time voltando de 15+, pela desvantagem máxima): ao fim de quarto e com placares de 80 pontos, cerca de 0,8 vitória assim por time numa temporada de 38 jogos (fonte-base: nba-comeback-dashboard.github.io/analysis/20_is_new_18.html)",
+    "name": {
+      "pt": "Virada de quinze",
+      "es": "Remontada de quince",
+      "en": "Fifteen-Point Comeback"
+    },
+    "description": {
+      "pt": "Assista ao jogo em que seu time vence depois de estar quinze pontos atrás ao fim de um quarto.",
+      "es": "Mira el partido en que tu equipo gana tras estar quince puntos abajo al final de un cuarto.",
+      "en": "Watch your team win after trailing by fifteen at the end of a quarter."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 60,
+        "card_key": "basketball.moments.comeback_15.1"
+      }
+    ]
+  },
+  {
+    "id": "basketball.moments.comeback_20",
+    "sport": "basketball",
+    "category": "moment",
+    "family": "moments",
+    "collection": "basketball.comebacks",
+    "rule": {
+      "input": "moment",
+      "fact": "score.comeback",
+      "params": {
+        "team": "favorite",
+        "trailing_by_min": 20,
+        "at": "any"
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria: nas ligas sul-americanas (80 a 85 pontos por jogo) a virada de 20 ao fim de um quarto sai para o time de um torcedor uma vez a cada 6 ou 7 temporadas de 38 jogos; base NBA de 38 viradas de 20+ em 2023-24 (fonte: ksat.com/sports/2024/04/14/inside-the-nba-numbers-lots-of-comebacks-no-home-court-edge-3s-went-up-scoring-went-down/)",
+    "name": {
+      "pt": "Virada de vinte",
+      "es": "Remontada de veinte",
+      "en": "Twenty-Point Comeback"
+    },
+    "description": {
+      "pt": "Assista ao jogo em que seu time vence depois de estar vinte pontos atrás ao fim de um quarto.",
+      "es": "Mira el partido en que tu equipo gana tras estar veinte puntos abajo al final de un cuarto.",
+      "en": "Watch your team win after trailing by twenty at the end of a quarter."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 120,
+        "card_key": "basketball.moments.comeback_20.1"
+      }
+    ]
+  },
+  {
+    "id": "basketball.moments.double_overtime",
+    "sport": "basketball",
+    "category": "moment",
+    "family": "moments",
+    "collection": "basketball.overtime",
+    "rule": {
+      "input": "moment",
+      "fact": "score.period",
+      "params": {
+        "team": "any",
+        "period": "ot2",
+        "points_min": 1
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.score",
+      "event.score.periods",
+      "fan.presence"
+    ],
+    "stepped": false,
+    "seasonal": false,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria sobre a base NBA (17% das prorrogações passam da primeira, 0,4 a 1% dos jogos): cerca de 0,15 por time numa temporada de 38 jogos, uma a cada 6 temporadas (fonte-base: v9-albert.jturnerresearch.com/?p=14876)",
+    "name": {
+      "pt": "Dupla prorrogação",
+      "es": "Doble tiempo extra",
+      "en": "Double Overtime"
+    },
+    "description": {
+      "pt": "Assista a um jogo que vai para a segunda prorrogação.",
+      "es": "Mira un partido que se va al segundo tiempo extra.",
+      "en": "Watch a game that goes to a second overtime."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 120,
+        "card_key": "basketball.moments.double_overtime.1"
+      }
+    ]
+  },
+  {
+    "id": "basketball.moments.fifty_points",
+    "sport": "basketball",
+    "category": "moment",
+    "family": "moments",
+    "collection": "basketball.star_night",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win"
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "proposed.player_game_stats.points",
+      "event.status=finished",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": false,
+    "inactive_reason": "falta estatística de jogador por partida: os pontos de cada jogador não chegam ao motor (proposed.player_game_stats.points). Precisa de um fato player_stat na linguagem (stat points, min 50). A regra acima é só a aproximação (vitória do seu time) e não pode ser ligada assim.",
+    "real_world_frequency": "estimativa própria: nas ligas sul-americanas (80 a 85 pontos por time) um jogador passa de 50 uma vez em muitos anos (base NBA: 18 jogos de 50+ em 2024-25; fonte-base: landofbasketball.com/year_by_year_points/2025_50_point_games_rs.htm)",
+    "name": {
+      "pt": "Cinquenta pontos",
+      "es": "Cincuenta puntos",
+      "en": "Fifty Points"
+    },
+    "description": {
+      "pt": "Assista ao jogo em que um jogador do seu time marca cinquenta pontos ou mais.",
+      "es": "Mira el partido en que un jugador de tu equipo anota cincuenta puntos o más.",
+      "en": "Watch one of your team’s players score fifty or more points."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 200,
+        "card_key": "basketball.moments.fifty_points.1"
+      }
+    ]
+  },
+  {
+    "id": "basketball.moments.fourth_quarter_comeback",
+    "sport": "basketball",
+    "category": "moment",
+    "family": "moments",
+    "collection": "basketball.comebacks",
+    "rule": {
+      "input": "moment",
+      "fact": "score.comeback",
+      "params": {
+        "team": "favorite",
+        "trailing_by_min": 10,
+        "at": "last_regular"
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria: desvantagem de 10+ ao fim do 3º quarto em cerca de 25% dos jogos de um time, revertida em 15 a 20% das vezes; 1,2 por time numa temporada de 38 jogos (fonte-base: basketballinsiders.com/?p=44706)",
+    "name": {
+      "pt": "Virada no último quarto",
+      "es": "Remontada en el último cuarto",
+      "en": "Fourth-Quarter Comeback"
+    },
+    "description": {
+      "pt": "Assista ao jogo em que seu time vira no último quarto depois de estar dez ou mais pontos atrás.",
+      "es": "Mira el partido en que tu equipo remonta en el último cuarto tras estar diez o más puntos abajo.",
+      "en": "Watch your team come back in the fourth quarter after trailing by ten or more."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 60,
+        "card_key": "basketball.moments.fourth_quarter_comeback.1"
+      }
+    ]
+  },
+  {
+    "id": "basketball.moments.overtime",
+    "sport": "basketball",
+    "category": "moment",
+    "family": "moments",
+    "collection": "basketball.overtime",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "any",
+        "overtime": true
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.score.periods",
+      "fan.presence"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "cerca de 6% dos jogos vão à prorrogação (taxa parecida com a da NBA, estimativa própria para as ligas FIBA); quem assiste a 60 jogos por temporada vê 3 ou 4 (fonte-base: v9-albert.jturnerresearch.com/?p=14876)",
+    "name": {
+      "pt": "Prorrogação",
+      "es": "Tiempo extra",
+      "en": "Overtime"
+    },
+    "description": {
+      "pt": "Assista a jogos que vão para a prorrogação.",
+      "es": "Mira partidos que se van a tiempo extra.",
+      "en": "Watch games that go to overtime."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 25,
+        "card_key": "basketball.moments.overtime.1"
+      }
+    ]
+  },
+  {
+    "id": "basketball.moments.period_sweep",
+    "sport": "basketball",
+    "category": "moment",
+    "family": "moments",
+    "collection": "basketball.scoreboard",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win",
+        "period_sweep": true
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria: um time vence os quatro quartos (sem empate) em cerca de 10% dos jogos; 2 por temporada de 38 jogos; base: nas finais da NBA desde 2000 o vencedor leva 61% dos quartos (fonte-base: bleacherreport.com/articles/1221754-thunder-vs-heat-winning-finals-games-by-winning-the-quarters)",
+    "name": {
+      "pt": "Quatro de quatro",
+      "es": "Cuatro de cuatro",
+      "en": "Four for Four"
+    },
+    "description": {
+      "pt": "Assista ao jogo em que seu time vence os quatro quartos.",
+      "es": "Mira el partido en que tu equipo gana los cuatro cuartos.",
+      "en": "Watch your team win all four quarters."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 25,
+        "card_key": "basketball.moments.period_sweep.1"
+      }
+    ]
+  },
+  {
+    "id": "basketball.moments.ten_threes",
+    "sport": "basketball",
+    "category": "moment",
+    "family": "moments",
+    "collection": "basketball.star_night",
+    "rule": {
+      "input": "moment",
+      "fact": "score.period",
+      "params": {
+        "team": "favorite",
+        "period": "any",
+        "points_min": 30
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "proposed.player_game_stats.three_pointers",
+      "event.status=finished",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": false,
+    "inactive_reason": "falta estatística de jogador por partida: as bolas de três de cada jogador não chegam ao motor (proposed.player_game_stats.three_pointers). Precisa de um fato player_stat na linguagem (stat three_pointers, min 10). A regra acima é só a aproximação (quarto de muitos pontos do seu time) e não pode ser ligada assim.",
+    "real_world_frequency": "estimativa própria: dez bolas de três de um jogador quase não acontece nas ligas sul-americanas, anos entre ocorrências (sem fonte estatística pública)",
+    "name": {
+      "pt": "Dez bolas de três",
+      "es": "Diez triples",
+      "en": "Ten Threes"
+    },
+    "description": {
+      "pt": "Assista ao jogo em que um jogador do seu time acerta dez bolas de três ou mais.",
+      "es": "Mira el partido en que un jugador de tu equipo anota diez triples o más.",
+      "en": "Watch one of your team’s players hit ten or more three-pointers."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 200,
+        "card_key": "basketball.moments.ten_threes.1"
+      }
+    ]
+  },
+  {
+    "id": "basketball.moments.triple_double",
+    "sport": "basketball",
+    "category": "moment",
+    "family": "moments",
+    "collection": "basketball.star_night",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win"
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "proposed.player_game_stats.points",
+      "proposed.player_game_stats.rebounds",
+      "proposed.player_game_stats.assists",
+      "event.status=finished",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": false,
+    "inactive_reason": "falta estatística de jogador por partida: o motor recebe só o placar por quarto, sem pontos, rebotes e assistências de cada jogador (proposed.player_game_stats.*). Precisa também de um fato player_stat na linguagem (stat, min, por jogador). A regra acima é só a aproximação (vitória do seu time) e não pode ser ligada assim.",
+    "real_world_frequency": "estimativa própria: nas ligas sul-americanas o triple-double é raro, menos de um por time e temporada (base NBA: 149 na temporada 2024-25; fonte-base: landofbasketball.com/year_by_year_stats/2024_2025_triple_doubles_rs.htm)",
+    "name": {
+      "pt": "Triple-double",
+      "es": "Triple-doble",
+      "en": "Triple-Double"
+    },
+    "description": {
+      "pt": "Assista ao jogo em que um jogador do seu time faz um triple-double.",
+      "es": "Mira el partido en que un jugador de tu equipo logra un triple-doble.",
+      "en": "Watch one of your team’s players record a triple-double."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 120,
+        "card_key": "basketball.moments.triple_double.1"
+      }
+    ]
+  },
+  {
+    "id": "basketball.predictions.favorite_winner",
+    "sport": "basketball",
+    "category": "hit",
+    "family": "predictions",
+    "collection": "basketball.sharp_eye",
+    "rule": {
+      "input": "prediction",
+      "kind": "winner",
+      "correct": true,
+      "where": {
+        "sport": [
+          "basketball"
+        ],
+        "favorite_playing": true
+      }
+    },
+    "requires_data": [
+      "fan.prediction",
+      "event.sport",
+      "fan.favorite_team_id",
+      "event.participants"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria: 38 jogos do time por temporada, Palpite de vencedor certo em cerca de 55% (o torcedor conhece o time): 20 acertos por temporada (fontes do calendário em pesquisa/basketball.md)",
+    "name": {
+      "pt": "Leitura do seu time",
+      "es": "Lectura de tu equipo",
+      "en": "Know Your Team"
+    },
+    "description": {
+      "pt": "Acerte o vencedor dos jogos do seu time do coração.",
+      "es": "Acierta el ganador en los partidos de tu equipo del corazón.",
+      "en": "Predict the winner of your favorite team’s games."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 20,
+        "card_key": "basketball.predictions.favorite_winner.1"
+      },
+      {
+        "step": 2,
+        "threshold": 3,
+        "bonus_points": 40,
+        "card_key": "basketball.predictions.favorite_winner.2"
+      },
+      {
+        "step": 3,
+        "threshold": 8,
+        "bonus_points": 80,
+        "card_key": "basketball.predictions.favorite_winner.3"
+      },
+      {
+        "step": 4,
+        "threshold": 20,
+        "bonus_points": 150,
+        "card_key": "basketball.predictions.favorite_winner.4"
+      },
+      {
+        "step": 5,
+        "threshold": 50,
+        "bonus_points": 300,
+        "card_key": "basketball.predictions.favorite_winner.5"
+      }
+    ]
+  },
+  {
+    "id": "basketball.predictions.final_winner",
+    "sport": "basketball",
+    "category": "hit",
+    "family": "predictions",
+    "collection": "basketball.playoffs",
+    "rule": {
+      "input": "prediction",
+      "kind": "winner",
+      "correct": true,
+      "where": {
+        "sport": [
+          "basketball"
+        ],
+        "stage": [
+          "final"
+        ]
+      }
+    },
+    "requires_data": [
+      "fan.prediction",
+      "event.sport",
+      "event.stage.kind"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria sobre o calendário: finais em série de até 5 nas ligas, mais finais de Champions League das Américas, copas e seleções; um torcedor assíduo palpita em 8 a 12 jogos de final por temporada e acerta metade (fontes do calendário em pesquisa/basketball.md)",
+    "name": {
+      "pt": "Palpite de final",
+      "es": "Pronóstico de final",
+      "en": "Final Call"
+    },
+    "description": {
+      "pt": "Acerte o vencedor em jogos de final.",
+      "es": "Acierta el ganador en partidos de final.",
+      "en": "Predict the winner of games in the final."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 20,
+        "card_key": "basketball.predictions.final_winner.1"
+      },
+      {
+        "step": 2,
+        "threshold": 2,
+        "bonus_points": 40,
+        "card_key": "basketball.predictions.final_winner.2"
+      },
+      {
+        "step": 3,
+        "threshold": 4,
+        "bonus_points": 80,
+        "card_key": "basketball.predictions.final_winner.3"
+      },
+      {
+        "step": 4,
+        "threshold": 8,
+        "bonus_points": 150,
+        "card_key": "basketball.predictions.final_winner.4"
+      },
+      {
+        "step": 5,
+        "threshold": 20,
+        "bonus_points": 300,
+        "card_key": "basketball.predictions.final_winner.5"
+      }
+    ]
+  },
+  {
+    "id": "basketball.predictions.hit_streak",
+    "sport": "basketball",
+    "category": "hit",
+    "family": "predictions",
+    "collection": "basketball.sharp_eye",
+    "rule": {
+      "input": "prediction",
+      "correct": true,
+      "where": {
+        "sport": [
+          "basketball"
+        ]
+      },
+      "count": {
+        "mode": "streak",
+        "unit": "prediction"
+      }
+    },
+    "requires_data": [
+      "fan.prediction",
+      "event.sport"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria: palpite de vencedor acerta cerca de 55% das vezes no basquete (o favorito vence mais que no futebol), então 5 seguidos sai para 1 em 20 tentativas e 10 para 1 em 400; um torcedor assíduo chega a 10 numa temporada e a 25 em poucas",
+    "name": {
+      "pt": "Sequência certeira",
+      "es": "Racha certera",
+      "en": "Hot Streak"
+    },
+    "description": {
+      "pt": "Acerte Palpites seguidos, sem errar nenhum no meio.",
+      "es": "Acierta pronósticos seguidos, sin fallar ninguno en el medio.",
+      "en": "Get predictions right back to back, without a miss in between."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 2,
+        "bonus_points": 20,
+        "card_key": "basketball.predictions.hit_streak.1"
+      },
+      {
+        "step": 2,
+        "threshold": 5,
+        "bonus_points": 40,
+        "card_key": "basketball.predictions.hit_streak.2"
+      },
+      {
+        "step": 3,
+        "threshold": 10,
+        "bonus_points": 80,
+        "card_key": "basketball.predictions.hit_streak.3"
+      },
+      {
+        "step": 4,
+        "threshold": 25,
+        "bonus_points": 150,
+        "card_key": "basketball.predictions.hit_streak.4"
+      },
+      {
+        "step": 5,
+        "threshold": 50,
+        "bonus_points": 300,
+        "card_key": "basketball.predictions.hit_streak.5"
+      }
+    ]
+  },
+  {
+    "id": "basketball.predictions.playoff_winner",
+    "sport": "basketball",
+    "category": "hit",
+    "family": "predictions",
+    "collection": "basketball.playoffs",
+    "rule": {
+      "input": "prediction",
+      "kind": "winner",
+      "correct": true,
+      "where": {
+        "sport": [
+          "basketball"
+        ],
+        "stage": [
+          "knockout"
+        ]
+      }
+    },
+    "requires_data": [
+      "fan.prediction",
+      "event.sport",
+      "event.stage.kind"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria sobre o calendário: cerca de 50 jogos de playoff por temporada no NBB, mais a Liga Nacional argentina, a Champions League das Américas e os mata-matas das seleções; um torcedor assíduo palpita em 25 e acerta metade (fontes do calendário em pesquisa/basketball.md)",
+    "name": {
+      "pt": "Quem avança",
+      "es": "Quién avanza",
+      "en": "Who Advances"
+    },
+    "description": {
+      "pt": "Acerte o vencedor em jogos de playoff.",
+      "es": "Acierta el ganador en partidos de playoffs.",
+      "en": "Predict the winner of playoff games."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 20,
+        "card_key": "basketball.predictions.playoff_winner.1"
+      },
+      {
+        "step": 2,
+        "threshold": 2,
+        "bonus_points": 40,
+        "card_key": "basketball.predictions.playoff_winner.2"
+      },
+      {
+        "step": 3,
+        "threshold": 5,
+        "bonus_points": 80,
+        "card_key": "basketball.predictions.playoff_winner.3"
+      },
+      {
+        "step": 4,
+        "threshold": 12,
+        "bonus_points": 150,
+        "card_key": "basketball.predictions.playoff_winner.4"
+      },
+      {
+        "step": 5,
+        "threshold": 30,
+        "bonus_points": 300,
+        "card_key": "basketball.predictions.playoff_winner.5"
+      }
+    ]
+  },
+  {
+    "id": "basketball.results.away_win",
+    "sport": "basketball",
+    "category": "moment",
+    "family": "results",
+    "collection": "basketball.faithful",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "side": "away",
+        "outcome": "win"
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria: nas ligas FIBA o visitante vence cerca de 40% dos jogos; 7 a 8 vitórias fora por time numa temporada de 19 jogos fora (base NBA em ksat.com/sports/2024/04/14/inside-the-nba-numbers-lots-of-comebacks-no-home-court-edge-3s-went-up-scoring-went-down/)",
+    "name": {
+      "pt": "Vitória fora",
+      "es": "Victoria de visitante",
+      "en": "Road Win"
+    },
+    "description": {
+      "pt": "Assista às vitórias do seu time jogando fora de casa.",
+      "es": "Mira las victorias de tu equipo jugando de visitante.",
+      "en": "Watch your team win on the road."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 10,
+        "card_key": "basketball.results.away_win.1"
+      },
+      {
+        "step": 2,
+        "threshold": 2,
+        "bonus_points": 20,
+        "card_key": "basketball.results.away_win.2"
+      },
+      {
+        "step": 3,
+        "threshold": 4,
+        "bonus_points": 40,
+        "card_key": "basketball.results.away_win.3"
+      },
+      {
+        "step": 4,
+        "threshold": 8,
+        "bonus_points": 75,
+        "card_key": "basketball.results.away_win.4"
+      },
+      {
+        "step": 5,
+        "threshold": 20,
+        "bonus_points": 150,
+        "card_key": "basketball.results.away_win.5"
+      }
+    ]
+  },
+  {
+    "id": "basketball.results.big_win",
+    "sport": "basketball",
+    "category": "moment",
+    "family": "results",
+    "collection": "basketball.scoreboard",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win",
+        "margin_min": 15
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria: nas ligas sul-americanas cerca de 25% dos jogos são decididos por 15 ou mais (contra 33,5% na NBA, com mais pontos por jogo); 5 vitórias por 15+ por time numa temporada de 38 jogos; o Platina (8) vale por temporada e meia (fonte-base: neilpaine.substack.com/p/the-2025-26-nba-is-warped-beyond)",
+    "name": {
+      "pt": "Vitória larga",
+      "es": "Victoria amplia",
+      "en": "Comfortable Win"
+    },
+    "description": {
+      "pt": "Assista às vitórias do seu time por quinze pontos ou mais.",
+      "es": "Mira las victorias de tu equipo por quince puntos o más.",
+      "en": "Watch your team win by fifteen points or more."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 10,
+        "card_key": "basketball.results.big_win.1"
+      },
+      {
+        "step": 2,
+        "threshold": 2,
+        "bonus_points": 20,
+        "card_key": "basketball.results.big_win.2"
+      },
+      {
+        "step": 3,
+        "threshold": 4,
+        "bonus_points": 40,
+        "card_key": "basketball.results.big_win.3"
+      },
+      {
+        "step": 4,
+        "threshold": 8,
+        "bonus_points": 75,
+        "card_key": "basketball.results.big_win.4"
+      },
+      {
+        "step": 5,
+        "threshold": 20,
+        "bonus_points": 150,
+        "card_key": "basketball.results.big_win.5"
+      }
+    ]
+  },
+  {
+    "id": "basketball.results.blowout",
+    "sport": "basketball",
+    "category": "moment",
+    "family": "results",
+    "collection": "basketball.scoreboard",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win",
+        "margin_min": 25
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria: vitória por 25+ em cerca de 8% dos jogos das ligas sul-americanas, 1,5 por time numa temporada de 38 jogos (base NBA: 6 a 7% dos jogos decididos por 30+; fonte-base: click2houston.com/news/2025/04/12/blowout-friday-nba-breaks-record-with-5-games-decided-by-30-or-more-points-on-the-same-day/)",
+    "name": {
+      "pt": "Massacre",
+      "es": "Paliza",
+      "en": "Blowout"
+    },
+    "description": {
+      "pt": "Assista a uma vitória do seu time por vinte e cinco pontos ou mais.",
+      "es": "Mira una victoria de tu equipo por veinticinco puntos o más.",
+      "en": "Watch your team win by twenty-five points or more."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 60,
+        "card_key": "basketball.results.blowout.1"
+      }
+    ]
+  },
+  {
+    "id": "basketball.results.close_win",
+    "sport": "basketball",
+    "category": "moment",
+    "family": "results",
+    "collection": "basketball.overtime",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win",
+        "margin_max": 3
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria: jogos FIBA são mais apertados que os da NBA (cerca de 18% decididos por até 3 pontos, contra 13,6%); 3 a 4 vitórias assim por time numa temporada de 38 jogos (fonte-base: celticslife.com/2022/04/the-nba-is-fantastic-maybe-hyperbolic.html)",
+    "name": {
+      "pt": "Por uma posse",
+      "es": "Por una posesión",
+      "en": "One Possession"
+    },
+    "description": {
+      "pt": "Assista às vitórias do seu time por até três pontos.",
+      "es": "Mira las victorias de tu equipo por tres puntos o menos.",
+      "en": "Watch your team win by three points or fewer."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 25,
+        "card_key": "basketball.results.close_win.1"
+      }
+    ]
+  },
+  {
+    "id": "basketball.results.final_win",
+    "sport": "basketball",
+    "category": "moment",
+    "family": "results",
+    "collection": "basketball.playoffs",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win"
+      },
+      "presence": "game",
+      "where": {
+        "stage": [
+          "final"
+        ]
+      }
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id",
+      "event.stage.kind"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria sobre o calendário: uma final por temporada numa liga de 19 ou 20 clubes, em série melhor de 5; um time chega à final uma vez a cada 10 anos em média e vence 2 ou 3 jogos nela, 0,2 a 0,3 por temporada; nos torneios de seleções, uma final a cada 2 a 4 anos (fontes do calendário em pesquisa/basketball.md)",
+    "name": {
+      "pt": "Vitória na final",
+      "es": "Victoria en la final",
+      "en": "Final Won"
+    },
+    "description": {
+      "pt": "Assista a uma vitória do seu time em jogo de final.",
+      "es": "Mira una victoria de tu equipo en un partido de final.",
+      "en": "Watch your team win a game in the final."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 120,
+        "card_key": "basketball.results.final_win.1"
+      }
+    ]
+  },
+  {
+    "id": "basketball.results.high_scoring",
+    "sport": "basketball",
+    "category": "moment",
+    "family": "results",
+    "collection": "basketball.scoreboard",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "total_min": 180
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria: as ligas sul-americanas somam 160 a 170 pontos por jogo; 180+ sai em cerca de 10% dos jogos, 4 por time numa temporada de 38 jogos (sem fonte estatística pública; a referência de 130+ por time na NBA está em nba.com/news/nba-teams-scoring-record-140-points-5-teams)",
+    "name": {
+      "pt": "Placar estourado",
+      "es": "Marcador desbordado",
+      "en": "Scoreboard Overload"
+    },
+    "description": {
+      "pt": "Assista a um jogo do seu time com 180 pontos somados ou mais.",
+      "es": "Mira un partido de tu equipo con 180 puntos sumados o más.",
+      "en": "Watch a game of your team with 180 or more combined points."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 25,
+        "card_key": "basketball.results.high_scoring.1"
+      }
+    ]
+  },
+  {
+    "id": "basketball.results.playoff_win",
+    "sport": "basketball",
+    "category": "moment",
+    "family": "results",
+    "collection": "basketball.playoffs",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win"
+      },
+      "presence": "game",
+      "where": {
+        "stage": [
+          "knockout"
+        ]
+      }
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id",
+      "event.stage.kind"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "séries melhor de 5 das oitavas à final no NBB (16 classificados) e na Liga Nacional argentina (12): o campeão vence 12 jogos; a maioria dos times vence 0 a 4 por temporada; exceção declarada à régua (repetível com Platina 8) por ser o fato mais reconhecido do esporte (fonte: gazetaesportiva.com/campeonatos/nbb-novo-basquete-brasil/nbb-tera-o-numero-recorde-de-equipes-na-temporada-2025-26/; elgrafico.com.ar/articulo/basquetbol/91967/asi-se-jugara-la-liga-nacional-de-basquet-202526)",
+    "name": {
+      "pt": "Vitória nos playoffs",
+      "es": "Victoria en playoffs",
+      "en": "Playoff Win"
+    },
+    "description": {
+      "pt": "Assista às vitórias do seu time em jogos de playoff.",
+      "es": "Mira las victorias de tu equipo en partidos de playoffs.",
+      "en": "Watch your team win playoff games."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 10,
+        "card_key": "basketball.results.playoff_win.1"
+      },
+      {
+        "step": 2,
+        "threshold": 2,
+        "bonus_points": 20,
+        "card_key": "basketball.results.playoff_win.2"
+      },
+      {
+        "step": 3,
+        "threshold": 4,
+        "bonus_points": 40,
+        "card_key": "basketball.results.playoff_win.3"
+      },
+      {
+        "step": 4,
+        "threshold": 8,
+        "bonus_points": 75,
+        "card_key": "basketball.results.playoff_win.4"
+      },
+      {
+        "step": 5,
+        "threshold": 16,
+        "bonus_points": 150,
+        "card_key": "basketball.results.playoff_win.5"
+      }
+    ]
+  },
+  {
+    "id": "basketball.rhythm.morning_game",
+    "sport": "basketball",
+    "category": "participation",
+    "family": "rhythm",
+    "collection": "basketball.explorer",
+    "rule": {
+      "input": "participation",
+      "action": "watched",
+      "where": {
+        "sport": [
+          "basketball"
+        ],
+        "local_hour": {
+          "from": "06:00",
+          "to": "12:00"
+        }
+      }
+    },
+    "requires_data": [
+      "fan.participation",
+      "fan.presence",
+      "event.sport",
+      "event.starts_at",
+      "program.time_zone"
+    ],
+    "stepped": true,
+    "seasonal": false,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria sobre os fusos: nos torneios de seleções fora das Américas (Copa do Mundo 2027 no Catar, torneios na Europa e na Ásia) os jogos caem entre 6h e 13h para a América do Sul; 5 a 10 por edição, a cada 2 a 4 anos; por isso conta vitalício",
+    "name": {
+      "pt": "Jogo com café",
+      "es": "Partido con café",
+      "en": "Breakfast Game"
+    },
+    "description": {
+      "pt": "Assista a jogos que começam de manhã no seu horário, como nos torneios do outro lado do mundo.",
+      "es": "Mira partidos que empiezan de mañana en tu horario, como en los torneos del otro lado del mundo.",
+      "en": "Watch games that tip off in the morning, your time, like tournaments on the other side of the world."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 0,
+        "card_key": "basketball.rhythm.morning_game.1"
+      },
+      {
+        "step": 2,
+        "threshold": 2,
+        "bonus_points": 0,
+        "card_key": "basketball.rhythm.morning_game.2"
+      },
+      {
+        "step": 3,
+        "threshold": 4,
+        "bonus_points": 0,
+        "card_key": "basketball.rhythm.morning_game.3"
+      },
+      {
+        "step": 4,
+        "threshold": 8,
+        "bonus_points": 0,
+        "card_key": "basketball.rhythm.morning_game.4"
+      },
+      {
+        "step": 5,
+        "threshold": 20,
+        "bonus_points": 0,
+        "card_key": "basketball.rhythm.morning_game.5"
+      }
+    ]
+  }
+]

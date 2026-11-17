@@ -1,0 +1,641 @@
+[
+  {
+    "id": "title.a_game_a_day",
+    "name": {
+      "pt": "Jogo todo dia",
+      "es": "Partido cada día",
+      "en": "A Game a Day"
+    },
+    "unlock": {
+      "achievement": "common.loyalty.day_streak",
+      "step": 5
+    },
+    "animated": false
+  },
+  {
+    "id": "title.all_hours",
+    "name": {
+      "pt": "Qualquer hora",
+      "es": "A cualquier hora",
+      "en": "Any Hour"
+    },
+    "unlock": {
+      "collection": "common.rhythm"
+    },
+    "animated": false
+  },
+  {
+    "id": "title.always_in",
+    "name": {
+      "pt": "Sempre no jogo",
+      "es": "Siempre en juego",
+      "en": "Always In"
+    },
+    "unlock": {
+      "collection": "common.prediction_habit"
+    },
+    "animated": false
+  },
+  {
+    "id": "title.beyond_the_clock",
+    "name": {
+      "pt": "Além do relógio",
+      "es": "Más allá del reloj",
+      "en": "Beyond the Clock"
+    },
+    "unlock": {
+      "achievement": "common.moments.overtime_win",
+      "step": 5
+    },
+    "animated": false
+  },
+  {
+    "id": "title.bleacher_regular",
+    "name": {
+      "pt": "Da arquibancada",
+      "es": "De la grada",
+      "en": "Bleacher Regular"
+    },
+    "unlock": {
+      "collection": "baseball.bleachers"
+    },
+    "animated": false
+  },
+  {
+    "id": "title.borderless",
+    "name": {
+      "pt": "Sem fronteiras",
+      "es": "Sin fronteras",
+      "en": "Borderless"
+    },
+    "unlock": {
+      "achievement": "common.explorer.countries",
+      "step": 5
+    },
+    "animated": false
+  },
+  {
+    "id": "title.charger",
+    "name": {
+      "pt": "Escalada",
+      "es": "Escalada",
+      "en": "Through the Pack"
+    },
+    "unlock": {
+      "collection": "formula_1.charge"
+    },
+    "animated": false
+  },
+  {
+    "id": "title.court_faithful",
+    "name": {
+      "pt": "Fiel à quadra",
+      "es": "Fiel a la cancha",
+      "en": "Court Faithful"
+    },
+    "unlock": {
+      "collection": "volleyball.faithful"
+    },
+    "animated": false
+  },
+  {
+    "id": "title.court_reader",
+    "name": {
+      "pt": "Leitura de quadra",
+      "es": "Lectura de cancha",
+      "en": "Court Reader"
+    },
+    "unlock": {
+      "collection": "handball.sharp_eye"
+    },
+    "animated": false
+  },
+  {
+    "id": "title.courtside",
+    "name": {
+      "pt": "Beira da quadra",
+      "es": "A pie de cancha",
+      "en": "Courtside"
+    },
+    "unlock": {
+      "collection": "nba.faithful"
+    },
+    "animated": false
+  },
+  {
+    "id": "title.dawn_watcher",
+    "name": {
+      "pt": "Vigia do amanhecer",
+      "es": "Vigía del amanecer",
+      "en": "Dawn Watcher"
+    },
+    "unlock": {
+      "collection": "afl.dawn_patrol"
+    },
+    "animated": false
+  },
+  {
+    "id": "title.die_hard",
+    "name": {
+      "pt": "Fiel até o fim",
+      "es": "Fiel hasta el final",
+      "en": "Die-Hard"
+    },
+    "unlock": {
+      "collection": "american_football.faithful"
+    },
+    "animated": false
+  },
+  {
+    "id": "title.early_bird",
+    "name": {
+      "pt": "Madrugador",
+      "es": "Madrugador",
+      "en": "Early Bird"
+    },
+    "unlock": {
+      "achievement": "common.rhythm.early_bird",
+      "step": 5
+    },
+    "animated": false
+  },
+  {
+    "id": "title.ever_present",
+    "name": {
+      "pt": "Sempre presente",
+      "es": "Siempre presente",
+      "en": "Ever Present"
+    },
+    "unlock": {
+      "achievement": "loyalty.watched",
+      "step": 5
+    },
+    "animated": false
+  },
+  {
+    "id": "title.exact_score_king",
+    "name": {
+      "pt": "Rei do placar exato",
+      "es": "Rey del marcador exacto",
+      "en": "Exact Score King"
+    },
+    "unlock": {
+      "achievement": "predictions.exact_score",
+      "step": 5
+    },
+    "animated": false
+  },
+  {
+    "id": "title.faithful",
+    "name": {
+      "pt": "Fiel",
+      "es": "Fiel",
+      "en": "Faithful"
+    },
+    "unlock": {
+      "collection": "football.faithful"
+    },
+    "animated": false
+  },
+  {
+    "id": "title.fifth_set",
+    "name": {
+      "pt": "Do quinto set",
+      "es": "Del quinto set",
+      "en": "Fifth-Set Fan"
+    },
+    "unlock": {
+      "achievement": "volleyball.moments.tie_break",
+      "step": 5
+    },
+    "animated": false
+  },
+  {
+    "id": "title.fight_reader",
+    "name": {
+      "pt": "Leitura de luta",
+      "es": "Lectura de pelea",
+      "en": "Fight Reader"
+    },
+    "unlock": {
+      "collection": "mma.oracle"
+    },
+    "animated": false
+  },
+  {
+    "id": "title.fightback",
+    "name": {
+      "pt": "Reação",
+      "es": "Reacción",
+      "en": "Fightback"
+    },
+    "unlock": {
+      "collection": "volleyball.comebacks"
+    },
+    "animated": false
+  },
+  {
+    "id": "title.fourth_quarter",
+    "name": {
+      "pt": "Último quarto",
+      "es": "Último cuarto",
+      "en": "Fourth Quarter"
+    },
+    "unlock": {
+      "collection": "american_football.comebacks"
+    },
+    "animated": false
+  },
+  {
+    "id": "title.fourth_quarter_closer",
+    "name": {
+      "pt": "Decide no fim",
+      "es": "Decide al final",
+      "en": "Fourth-Quarter Closer"
+    },
+    "unlock": {
+      "collection": "nba.comebacks"
+    },
+    "animated": false
+  },
+  {
+    "id": "title.full_hit",
+    "name": {
+      "pt": "Acerto em cheio",
+      "es": "Acierto total",
+      "en": "Full Hit"
+    },
+    "unlock": {
+      "achievement": "common.predictions.full_hit",
+      "step": 5
+    },
+    "animated": false
+  },
+  {
+    "id": "title.game_reader",
+    "name": {
+      "pt": "Leitura de jogo",
+      "es": "Lectura de juego",
+      "en": "Game Reader"
+    },
+    "unlock": {
+      "collection": "basketball.sharp_eye"
+    },
+    "animated": false
+  },
+  {
+    "id": "title.hot_hand",
+    "name": {
+      "pt": "Mão quente",
+      "es": "Mano caliente",
+      "en": "Hot Hand"
+    },
+    "unlock": {
+      "achievement": "common.predictions.streak",
+      "step": 5
+    },
+    "animated": false
+  },
+  {
+    "id": "title.ice_faithful",
+    "name": {
+      "pt": "Fiel no gelo",
+      "es": "Fiel en el hielo",
+      "en": "Ice Faithful"
+    },
+    "unlock": {
+      "collection": "hockey.faithful"
+    },
+    "animated": false
+  },
+  {
+    "id": "title.ice_reader",
+    "name": {
+      "pt": "Olho de lince",
+      "es": "Ojo de lince",
+      "en": "Ice Reader"
+    },
+    "unlock": {
+      "collection": "hockey.sharp_eye"
+    },
+    "animated": false
+  },
+  {
+    "id": "title.insider",
+    "name": {
+      "pt": "Por dentro",
+      "es": "Al tanto",
+      "en": "Insider"
+    },
+    "unlock": {
+      "collection": "common.community"
+    },
+    "animated": false
+  },
+  {
+    "id": "title.knockout_night",
+    "name": {
+      "pt": "Noite de nocaute",
+      "es": "Noche de nocaut",
+      "en": "Knockout Night"
+    },
+    "unlock": {
+      "achievement": "mma.moments.knockout",
+      "step": 5
+    },
+    "animated": false
+  },
+  {
+    "id": "title.last_quarter_hero",
+    "name": {
+      "pt": "Virada no fim",
+      "es": "Remontada final",
+      "en": "Last-Quarter Hero"
+    },
+    "unlock": {
+      "collection": "afl.comebacks"
+    },
+    "animated": false
+  },
+  {
+    "id": "title.late_rally",
+    "name": {
+      "pt": "Virada na nona",
+      "es": "Remontada tardía",
+      "en": "Late Rally"
+    },
+    "unlock": {
+      "collection": "baseball.comebacks"
+    },
+    "animated": false
+  },
+  {
+    "id": "title.margin_reader",
+    "name": {
+      "pt": "Leitura oval",
+      "es": "Lectura oval",
+      "en": "Margin Reader"
+    },
+    "unlock": {
+      "collection": "afl.reader"
+    },
+    "animated": false
+  },
+  {
+    "id": "title.multi_sport",
+    "name": {
+      "pt": "Multiesportivo",
+      "es": "Multideporte",
+      "en": "Multi-Sport"
+    },
+    "unlock": {
+      "achievement": "common.explorer.sports",
+      "step": 5
+    },
+    "animated": false
+  },
+  {
+    "id": "title.never_fold",
+    "name": {
+      "pt": "Nunca desiste",
+      "es": "Nunca se rinde",
+      "en": "Never Fold"
+    },
+    "unlock": {
+      "collection": "basketball.comebacks"
+    },
+    "animated": false
+  },
+  {
+    "id": "title.never_give_up",
+    "name": {
+      "pt": "Nunca se entrega",
+      "es": "Nunca se entrega",
+      "en": "Never Give Up"
+    },
+    "unlock": {
+      "collection": "football.comebacks"
+    },
+    "animated": false
+  },
+  {
+    "id": "title.never_say_die",
+    "name": {
+      "pt": "Até o apito final",
+      "es": "Hasta el silbato",
+      "en": "Never Say Die"
+    },
+    "unlock": {
+      "collection": "rugby.comebacks"
+    },
+    "animated": false
+  },
+  {
+    "id": "title.night_owl",
+    "name": {
+      "pt": "Coruja",
+      "es": "Búho nocturno",
+      "en": "Night Owl"
+    },
+    "unlock": {
+      "achievement": "common.rhythm.night_owl",
+      "step": 5
+    },
+    "animated": false
+  },
+  {
+    "id": "title.night_shift",
+    "name": {
+      "pt": "Turno da madrugada",
+      "es": "Turno de madrugada",
+      "en": "Night Shift"
+    },
+    "unlock": {
+      "collection": "formula_1.night_shift"
+    },
+    "animated": false
+  },
+  {
+    "id": "title.oval_eye",
+    "name": {
+      "pt": "Olho oval",
+      "es": "Ojo oval",
+      "en": "Oval Eye"
+    },
+    "unlock": {
+      "collection": "rugby.sharp_eye"
+    },
+    "animated": false
+  },
+  {
+    "id": "title.oval_faithful",
+    "name": {
+      "pt": "Fiel ao rugby",
+      "es": "Fiel al rugby",
+      "en": "Oval Faithful"
+    },
+    "unlock": {
+      "collection": "rugby.faithful"
+    },
+    "animated": false
+  },
+  {
+    "id": "title.playcaller",
+    "name": {
+      "pt": "Chama a jogada",
+      "es": "Canta la jugada",
+      "en": "Playcaller"
+    },
+    "unlock": {
+      "collection": "american_football.sharp_eye"
+    },
+    "animated": false
+  },
+  {
+    "id": "title.pole_to_flag",
+    "name": {
+      "pt": "Pole à bandeirada",
+      "es": "De pole a bandera",
+      "en": "Pole to Flag"
+    },
+    "unlock": {
+      "achievement": "formula_1.moments.pole_to_win",
+      "step": 5
+    },
+    "animated": false
+  },
+  {
+    "id": "title.race_reader",
+    "name": {
+      "pt": "Leitura de corrida",
+      "es": "Lectura de carrera",
+      "en": "Race Reader"
+    },
+    "unlock": {
+      "collection": "formula_1.race_reader"
+    },
+    "animated": false
+  },
+  {
+    "id": "title.scorekeeper",
+    "name": {
+      "pt": "Súmula na mão",
+      "es": "Planilla en mano",
+      "en": "Scorekeeper"
+    },
+    "unlock": {
+      "collection": "baseball.scouts_eye"
+    },
+    "animated": false
+  },
+  {
+    "id": "title.second_half",
+    "name": {
+      "pt": "Segundo tempo",
+      "es": "Segundo tiempo",
+      "en": "Second Half"
+    },
+    "unlock": {
+      "collection": "handball.comebacks"
+    },
+    "animated": false
+  },
+  {
+    "id": "title.setter_eye",
+    "name": {
+      "pt": "Leitura de set",
+      "es": "Lectura de set",
+      "en": "Setter’s Eye"
+    },
+    "unlock": {
+      "collection": "volleyball.sharp_eye"
+    },
+    "animated": false
+  },
+  {
+    "id": "title.sharp_eye",
+    "name": {
+      "pt": "Olho afiado",
+      "es": "Ojo afilado",
+      "en": "Sharp Eye"
+    },
+    "unlock": {
+      "collection": "football.sharp_eye"
+    },
+    "animated": false
+  },
+  {
+    "id": "title.sharpshooter",
+    "name": {
+      "pt": "Mira certeira",
+      "es": "Puntería fina",
+      "en": "Sharpshooter"
+    },
+    "unlock": {
+      "collection": "nba.sharp_eye"
+    },
+    "animated": false
+  },
+  {
+    "id": "title.sixth_player",
+    "name": {
+      "pt": "Sexto em quadra",
+      "es": "Sexto en cancha",
+      "en": "Sixth Player"
+    },
+    "unlock": {
+      "collection": "basketball.faithful"
+    },
+    "animated": false
+  },
+  {
+    "id": "title.sixty_minutes",
+    "name": {
+      "pt": "Sessenta minutos",
+      "es": "Sesenta minutos",
+      "en": "Sixty Minutes"
+    },
+    "unlock": {
+      "collection": "handball.faithful"
+    },
+    "animated": false
+  },
+  {
+    "id": "title.stoppage_time",
+    "name": {
+      "pt": "Dos acréscimos",
+      "es": "Del descuento",
+      "en": "Stoppage Time"
+    },
+    "unlock": {
+      "achievement": "football.moments.stoppage_time_goal",
+      "step": 5
+    },
+    "animated": false
+  },
+  {
+    "id": "title.third_period",
+    "name": {
+      "pt": "Terceiro período",
+      "es": "Tercer periodo",
+      "en": "Third Period"
+    },
+    "unlock": {
+      "collection": "hockey.comebacks"
+    },
+    "animated": false
+  },
+  {
+    "id": "title.winner_instinct",
+    "name": {
+      "pt": "Faro de vencedor",
+      "es": "Olfato ganador",
+      "en": "Winner’s Instinct"
+    },
+    "unlock": {
+      "achievement": "predictions.winner",
+      "step": 5
+    },
+    "animated": false
+  }
+]

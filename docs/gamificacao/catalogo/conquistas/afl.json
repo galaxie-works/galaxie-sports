@@ -1,0 +1,1571 @@
+[
+  {
+    "id": "afl.explorer.all_teams",
+    "sport": "afl",
+    "category": "participation",
+    "family": "explorer",
+    "collection": "afl.explorer",
+    "rule": {
+      "input": "participation",
+      "action": "watched",
+      "where": {
+        "sport": [
+          "afl"
+        ]
+      },
+      "count": {
+        "mode": "distinct",
+        "key": "team"
+      }
+    },
+    "requires_data": [
+      "fan.participation",
+      "fan.presence",
+      "event.sport",
+      "event.participants"
+    ],
+    "stepped": true,
+    "seasonal": false,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "a liga tem 18 clubes (e 18 na feminina, os mesmos); cada jogo assistido soma 2 clubes, então 9 é alcance de uma temporada curiosa e 18 é o conjunto inteiro, o teto natural do Lendário (fonte: afl.com.au/news/1255536)",
+    "name": {
+      "pt": "Todos os clubes",
+      "es": "Todos los clubes",
+      "en": "Every Club"
+    },
+    "description": {
+      "pt": "Assista a jogos de clubes diferentes da liga, até conhecer todos.",
+      "es": "Mira partidos de clubes distintos de la liga, hasta conocerlos a todos.",
+      "en": "Watch different clubs play, until you have seen them all."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 2,
+        "bonus_points": 0,
+        "card_key": "afl.explorer.all_teams.1"
+      },
+      {
+        "step": 2,
+        "threshold": 5,
+        "bonus_points": 0,
+        "card_key": "afl.explorer.all_teams.2"
+      },
+      {
+        "step": 3,
+        "threshold": 9,
+        "bonus_points": 0,
+        "card_key": "afl.explorer.all_teams.3"
+      },
+      {
+        "step": 4,
+        "threshold": 14,
+        "bonus_points": 0,
+        "card_key": "afl.explorer.all_teams.4"
+      },
+      {
+        "step": 5,
+        "threshold": 18,
+        "bonus_points": 0,
+        "card_key": "afl.explorer.all_teams.5"
+      }
+    ]
+  },
+  {
+    "id": "afl.explorer.months",
+    "sport": "afl",
+    "category": "participation",
+    "family": "explorer",
+    "collection": "afl.explorer",
+    "rule": {
+      "input": "participation",
+      "action": "watched",
+      "where": {
+        "sport": [
+          "afl"
+        ]
+      },
+      "count": {
+        "mode": "distinct",
+        "key": "month"
+      }
+    },
+    "requires_data": [
+      "fan.participation",
+      "fan.presence",
+      "event.sport",
+      "event.starts_at",
+      "program.time_zone"
+    ],
+    "stepped": true,
+    "seasonal": false,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "a temporada masculina vai de março a setembro e a feminina de agosto a novembro: 9 meses com jogo por ano; Platina 8 = quase o ano inteiro, Lendário 16 = 2 anos (fonte: afl.com.au/news/1255536; afl.com.au/aflw/news/1256667)",
+    "name": {
+      "pt": "Ano do oval",
+      "es": "Año del óvalo",
+      "en": "Oval Calendar"
+    },
+    "description": {
+      "pt": "Assista a futebol australiano em meses diferentes, da primeira rodada às finais femininas.",
+      "es": "Mira fútbol australiano en meses distintos, de la primera fecha a las finales femeninas.",
+      "en": "Watch Australian football in different months, from the first bounce to the women’s finals."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 0,
+        "card_key": "afl.explorer.months.1"
+      },
+      {
+        "step": 2,
+        "threshold": 2,
+        "bonus_points": 0,
+        "card_key": "afl.explorer.months.2"
+      },
+      {
+        "step": 3,
+        "threshold": 4,
+        "bonus_points": 0,
+        "card_key": "afl.explorer.months.3"
+      },
+      {
+        "step": 4,
+        "threshold": 8,
+        "bonus_points": 0,
+        "card_key": "afl.explorer.months.4"
+      },
+      {
+        "step": 5,
+        "threshold": 16,
+        "bonus_points": 0,
+        "card_key": "afl.explorer.months.5"
+      }
+    ]
+  },
+  {
+    "id": "afl.loyalty.dawn_games",
+    "sport": "afl",
+    "category": "participation",
+    "family": "loyalty",
+    "collection": "afl.dawn_patrol",
+    "rule": {
+      "input": "participation",
+      "action": "watched",
+      "where": {
+        "sport": [
+          "afl"
+        ],
+        "local_hour": {
+          "from": "00:00",
+          "to": "07:00"
+        }
+      }
+    },
+    "requires_data": [
+      "fan.participation",
+      "fan.presence",
+      "event.sport",
+      "event.starts_at",
+      "program.time_zone"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "um jogo às 19h30 de Melbourne começa às 6h30 em Brasília e 5h30 em Bogotá; um de sábado às 13h45 começa 0h45 em Brasília: para o Brasil e a América hispânica quase todos os 23 jogos do time caem entre 0h e 8h locais; Platina 20 = quase uma temporada de madrugadas (fuso UTC+10/+11; calendário em pesquisa/afl.md)",
+    "name": {
+      "pt": "Sol nascendo",
+      "es": "Sale el sol",
+      "en": "Sunrise Siren"
+    },
+    "description": {
+      "pt": "Assista a jogos que começam de madrugada no seu horário, entre meia-noite e sete da manhã.",
+      "es": "Mira partidos que empiezan de madrugada en tu horario, entre medianoche y las siete.",
+      "en": "Watch matches that start in your small hours, between midnight and seven in the morning."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 0,
+        "card_key": "afl.loyalty.dawn_games.1"
+      },
+      {
+        "step": 2,
+        "threshold": 3,
+        "bonus_points": 0,
+        "card_key": "afl.loyalty.dawn_games.2"
+      },
+      {
+        "step": 3,
+        "threshold": 8,
+        "bonus_points": 0,
+        "card_key": "afl.loyalty.dawn_games.3"
+      },
+      {
+        "step": 4,
+        "threshold": 20,
+        "bonus_points": 0,
+        "card_key": "afl.loyalty.dawn_games.4"
+      },
+      {
+        "step": 5,
+        "threshold": 50,
+        "bonus_points": 0,
+        "card_key": "afl.loyalty.dawn_games.5"
+      }
+    ]
+  },
+  {
+    "id": "afl.loyalty.favorite_games",
+    "sport": "afl",
+    "category": "participation",
+    "family": "loyalty",
+    "collection": "afl.faithful",
+    "rule": {
+      "input": "participation",
+      "action": "watched",
+      "where": {
+        "sport": [
+          "afl"
+        ],
+        "favorite_playing": true
+      }
+    },
+    "requires_data": [
+      "fan.participation",
+      "fan.presence",
+      "event.sport",
+      "fan.favorite_team_id",
+      "event.participants"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "23 jogos por time na temporada regular masculina (18 clubes, 24 rodadas), mais 1 a 4 de finais; Platina = os 23 da temporada regular, Lendário = 2,5 temporadas (fonte: afl.com.au/news/1255536/how-the-fixture-is-made-five-day-breaks-super-saturday-the-weighted-rule)",
+    "name": {
+      "pt": "Fiel ao oval",
+      "es": "Fiel al óvalo",
+      "en": "True to the Oval"
+    },
+    "description": {
+      "pt": "Assista aos jogos do seu time do coração.",
+      "es": "Mira los partidos de tu equipo del corazón.",
+      "en": "Watch your favorite team’s matches."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 0,
+        "card_key": "afl.loyalty.favorite_games.1"
+      },
+      {
+        "step": 2,
+        "threshold": 3,
+        "bonus_points": 0,
+        "card_key": "afl.loyalty.favorite_games.2"
+      },
+      {
+        "step": 3,
+        "threshold": 9,
+        "bonus_points": 0,
+        "card_key": "afl.loyalty.favorite_games.3"
+      },
+      {
+        "step": 4,
+        "threshold": 23,
+        "bonus_points": 0,
+        "card_key": "afl.loyalty.favorite_games.4"
+      },
+      {
+        "step": 5,
+        "threshold": 60,
+        "bonus_points": 0,
+        "card_key": "afl.loyalty.favorite_games.5"
+      }
+    ]
+  },
+  {
+    "id": "afl.loyalty.favorite_streak",
+    "sport": "afl",
+    "category": "participation",
+    "family": "loyalty",
+    "collection": "afl.faithful",
+    "rule": {
+      "input": "participation",
+      "action": "watched",
+      "where": {
+        "sport": [
+          "afl"
+        ],
+        "favorite_playing": true
+      },
+      "count": {
+        "mode": "streak",
+        "unit": "game"
+      }
+    },
+    "requires_data": [
+      "fan.participation",
+      "fan.presence",
+      "event.sport",
+      "fan.favorite_team_id",
+      "event.participants"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria: um torcedor assíduo assiste a 70 a 80% dos jogos do time; 23 seguidos é a temporada regular inteira sem falhar e 46 são duas (base: 23 jogos por time, afl.com.au/news/1255536)",
+    "name": {
+      "pt": "Sem perder um jogo",
+      "es": "Sin perderse un partido",
+      "en": "Never Miss a Match"
+    },
+    "description": {
+      "pt": "Assista a jogos seguidos do seu time, sem pular nenhum.",
+      "es": "Mira partidos seguidos de tu equipo, sin saltarte ninguno.",
+      "en": "Watch your team’s matches back to back, without skipping one."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 2,
+        "bonus_points": 0,
+        "card_key": "afl.loyalty.favorite_streak.1"
+      },
+      {
+        "step": 2,
+        "threshold": 5,
+        "bonus_points": 0,
+        "card_key": "afl.loyalty.favorite_streak.2"
+      },
+      {
+        "step": 3,
+        "threshold": 10,
+        "bonus_points": 0,
+        "card_key": "afl.loyalty.favorite_streak.3"
+      },
+      {
+        "step": 4,
+        "threshold": 23,
+        "bonus_points": 0,
+        "card_key": "afl.loyalty.favorite_streak.4"
+      },
+      {
+        "step": 5,
+        "threshold": 46,
+        "bonus_points": 0,
+        "card_key": "afl.loyalty.favorite_streak.5"
+      }
+    ]
+  },
+  {
+    "id": "afl.loyalty.finals_watched",
+    "sport": "afl",
+    "category": "participation",
+    "family": "loyalty",
+    "collection": "afl.september",
+    "rule": {
+      "input": "participation",
+      "action": "watched",
+      "where": {
+        "sport": [
+          "afl"
+        ],
+        "stage": [
+          "knockout"
+        ]
+      }
+    },
+    "requires_data": [
+      "fan.participation",
+      "fan.presence",
+      "event.sport",
+      "event.stage.kind"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "9 jogos de finais por temporada masculina (8 clubes, 4 semanas) e 9 na feminina; Platina 9 = todas as finais masculinas de um ano (fonte: afl.com.au/news/1255536; afl.com.au/aflw/news/1331679)",
+    "name": {
+      "pt": "Noites de setembro",
+      "es": "Noches de septiembre",
+      "en": "September Nights"
+    },
+    "description": {
+      "pt": "Assista a jogos da fase final da temporada, do seu time ou de qualquer outro.",
+      "es": "Mira partidos de la fase final de la temporada, de tu equipo o de cualquier otro.",
+      "en": "Watch finals matches, your team’s or anyone else’s."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 0,
+        "card_key": "afl.loyalty.finals_watched.1"
+      },
+      {
+        "step": 2,
+        "threshold": 2,
+        "bonus_points": 0,
+        "card_key": "afl.loyalty.finals_watched.2"
+      },
+      {
+        "step": 3,
+        "threshold": 4,
+        "bonus_points": 0,
+        "card_key": "afl.loyalty.finals_watched.3"
+      },
+      {
+        "step": 4,
+        "threshold": 9,
+        "bonus_points": 0,
+        "card_key": "afl.loyalty.finals_watched.4"
+      },
+      {
+        "step": 5,
+        "threshold": 25,
+        "bonus_points": 0,
+        "card_key": "afl.loyalty.finals_watched.5"
+      }
+    ]
+  },
+  {
+    "id": "afl.moments.bag_of_five",
+    "sport": "afl",
+    "category": "moment",
+    "family": "moments",
+    "collection": "afl.highlights",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win"
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "proposed.player_game_stats.goals",
+      "event.status=finished",
+      "event.score",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": false,
+    "inactive_reason": "falta estatística de jogador por partida: o contrato não traz goals por jogador neste esporte (proposed.player_game_stats.goals) e a linguagem não tem fato de jogador fora do futebol. A regra acima é só a aproximação (vitória do seu time) e não pode ser ligada assim.",
+    "real_world_frequency": "estimativa própria: um jogador com 5 ou mais goals acontece 15 a 25 vezes por temporada na liga, cerca de 1 por temporada para o time do torcedor (sem fonte estatística consolidada)",
+    "name": {
+      "pt": "Cinco de um só",
+      "es": "Cinco del mismo",
+      "en": "Bag of Five"
+    },
+    "description": {
+      "pt": "Assista ao jogo em que um jogador do seu time marca cinco gols de seis pontos.",
+      "es": "Mira el partido en que un jugador de tu equipo anota cinco goles de seis puntos.",
+      "en": "Watch one of your team’s players kick five goals in a match."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 60,
+        "card_key": "afl.moments.bag_of_five.1"
+      }
+    ]
+  },
+  {
+    "id": "afl.moments.comeback_five_goals",
+    "sport": "afl",
+    "category": "moment",
+    "family": "moments",
+    "collection": "afl.comebacks",
+    "rule": {
+      "input": "moment",
+      "fact": "score.comeback",
+      "params": {
+        "team": "favorite",
+        "trailing_by_min": 30,
+        "at": "any"
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "10 das 18 viradas de 24+ pontos de 2025 partiram de 30 ou mais (2024 teve 25 viradas de 24+, recorde); 0,55 por time em 2025, média longa abaixo de 0,5, e menos ainda medida só ao fim dos quartos, que é o que o motor vê (fonte: afl.com.au/news/1382205/your-clubs-record-in-come-from-behind-wins; afl.com.au/news/1444456)",
+    "name": {
+      "pt": "Virada de cinco gols",
+      "es": "Remontada de cinco goles",
+      "en": "Five-Goal Comeback"
+    },
+    "description": {
+      "pt": "Assista ao jogo em que seu time vence depois de estar 30 pontos atrás no fim de um quarto.",
+      "es": "Mira el partido en que tu equipo gana tras estar 30 puntos abajo al final de un cuarto.",
+      "en": "Watch the match where your team wins after trailing by 30 points at a break."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 120,
+        "card_key": "afl.moments.comeback_five_goals.1"
+      }
+    ]
+  },
+  {
+    "id": "afl.moments.comeback_last_quarter",
+    "sport": "afl",
+    "category": "moment",
+    "family": "moments",
+    "collection": "afl.comebacks",
+    "rule": {
+      "input": "moment",
+      "fact": "score.comeback",
+      "params": {
+        "team": "favorite",
+        "trailing_by_min": 1,
+        "at": "last_regular"
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "29 vitórias de quem perdia no último intervalo em 2024 e 25 em 2025 (12 a 13% dos 216 jogos da liga); para o time do torcedor, 1,4 a 1,6 por temporada (fonte: afl.com.au/news/1382205/your-clubs-record-in-come-from-behind-wins)",
+    "name": {
+      "pt": "Virada no último quarto",
+      "es": "Remontada en el último cuarto",
+      "en": "Last-Quarter Comeback"
+    },
+    "description": {
+      "pt": "Assista ao jogo em que seu time perdia no fim do terceiro quarto e venceu.",
+      "es": "Mira el partido en que tu equipo perdía al final del tercer cuarto y ganó.",
+      "en": "Watch the match where your team trailed at the last break and won."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 60,
+        "card_key": "afl.moments.comeback_last_quarter.1"
+      }
+    ]
+  },
+  {
+    "id": "afl.moments.comeback_seven_goals",
+    "sport": "afl",
+    "category": "moment",
+    "family": "moments",
+    "collection": "afl.comebacks",
+    "rule": {
+      "input": "moment",
+      "fact": "score.comeback",
+      "params": {
+        "team": "favorite",
+        "trailing_by_min": 42,
+        "at": "any"
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": false,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "duas viradas de 42+ em 2025 (46 e 41 pontos, a primeira a maior virada de último quarto da história da liga), nenhuma na maior parte das temporadas; medida ao fim de um quarto, menos de uma por década para um clube (fonte: afl.com.au/news/1434692; afl.com.au/news/1382205/your-clubs-record-in-come-from-behind-wins)",
+    "name": {
+      "pt": "Virada impossível",
+      "es": "Remontada imposible",
+      "en": "Impossible Comeback"
+    },
+    "description": {
+      "pt": "Assista ao jogo em que seu time vence depois de estar 42 pontos atrás no fim de um quarto.",
+      "es": "Mira el partido en que tu equipo gana tras estar 42 puntos abajo al final de un cuarto.",
+      "en": "Watch the match where your team wins after trailing by 42 points at a break."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 200,
+        "card_key": "afl.moments.comeback_seven_goals.1"
+      }
+    ]
+  },
+  {
+    "id": "afl.moments.draw",
+    "sport": "afl",
+    "category": "moment",
+    "family": "moments",
+    "collection": "afl.final_siren",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "draw"
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "média histórica de 1,13 empates por temporada na liga australiana, um a cada 116 jogos (0,86%); em 2 das 6 temporadas até 2022 não houve nenhum; para o time do torcedor, um a cada 8 temporadas (fonte: afl.com.au/news/471382/stats-watch; theroar.com.au/2022/04/15/afl-top-100-round-5-selection-highlights)",
+    "name": {
+      "pt": "Empate na sirene",
+      "es": "Empate al final",
+      "en": "Dead Heat"
+    },
+    "description": {
+      "pt": "Assista a um jogo do seu time que termina empatado, sem vencedor.",
+      "es": "Mira un partido de tu equipo que termina empatado, sin ganador.",
+      "en": "Watch your team play a match that ends level, with no winner."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 120,
+        "card_key": "afl.moments.draw.1"
+      }
+    ]
+  },
+  {
+    "id": "afl.moments.extra_time_final",
+    "sport": "afl",
+    "category": "moment",
+    "family": "moments",
+    "collection": "afl.final_siren",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "overtime": true
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": false,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "só as finais têm prorrogação (desde 1991; a grande final só desde 2016, com períodos de 2 × 3 minutos desde 2019); aconteceu em 1994 e 2007, nunca na grande final: décadas entre ocorrências para um clube (fonte: afl.com.au/news/345380/afl-statement; thenewdaily.com.au/sport/afl/2016/04/19/afl-scraps-grand-final-replay-extra-time)",
+    "name": {
+      "pt": "Prorrogação",
+      "es": "Tiempo extra",
+      "en": "Extra Time"
+    },
+    "description": {
+      "pt": "Assista a um jogo do seu time que vai para a prorrogação.",
+      "es": "Mira un partido de tu equipo que se va a tiempo extra.",
+      "en": "Watch your team play a match that goes to extra time."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 200,
+        "card_key": "afl.moments.extra_time_final.1"
+      }
+    ]
+  },
+  {
+    "id": "afl.moments.fifty_point_quarter",
+    "sport": "afl",
+    "category": "moment",
+    "family": "moments",
+    "collection": "afl.quarters",
+    "rule": {
+      "input": "moment",
+      "fact": "score.period",
+      "params": {
+        "team": "favorite",
+        "period": "any",
+        "points_min": 50
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "um quarto de 75 pontos em 2025 ficou em 7º lugar empatado entre os maiores desde 1990; a média por quarto fica entre 20 e 23 pontos; estimativa própria: 1 a 2% dos quartos de um time, cerca de 1 por temporada (fonte: afl.com.au/news/1474918; lions.com.au/news/248438/a-scoring-blitz-for-the-books)",
+    "name": {
+      "pt": "Quarto de 50 pontos",
+      "es": "Cuarto de 50 puntos",
+      "en": "Fifty-Point Quarter"
+    },
+    "description": {
+      "pt": "Assista a um quarto em que seu time marca 50 pontos ou mais.",
+      "es": "Mira un cuarto en que tu equipo anota 50 puntos o más.",
+      "en": "Watch your team score fifty points or more in a single quarter."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 60,
+        "card_key": "afl.moments.fifty_point_quarter.1"
+      }
+    ]
+  },
+  {
+    "id": "afl.moments.high_scoring",
+    "sport": "afl",
+    "category": "moment",
+    "family": "moments",
+    "collection": "afl.scoreboard",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "any",
+        "total_min": 200
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.score",
+      "fan.presence"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "média por time em 2024 entre 65 e 97,5 pontos (total perto de 170); em 2025 só 5 jogos da temporada regular tiveram os dois times acima de 100; em 2026 a média subiu a 91,2 por time; estimativa própria: 10 a 15% dos jogos passam de 200 somados, 2 a 3 por temporada para o time do torcedor (fonte: aflmstats.com/season/2024; espn.com/afl/story/_/id/48699690)",
+    "name": {
+      "pt": "Festival de pontos",
+      "es": "Festival de puntos",
+      "en": "Point Festival"
+    },
+    "description": {
+      "pt": "Assista a um jogo com 200 pontos ou mais somando os dois times.",
+      "es": "Mira un partido con 200 puntos o más sumando los dos equipos.",
+      "en": "Watch a match with two hundred points or more between both teams."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 25,
+        "card_key": "afl.moments.high_scoring.1"
+      }
+    ]
+  },
+  {
+    "id": "afl.moments.one_goal_win",
+    "sport": "afl",
+    "category": "moment",
+    "family": "moments",
+    "collection": "afl.final_siren",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win",
+        "margin_max": 6
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "jogos decididos por até um goal (6 pontos): 14 de 206 em 2015 (6,8%), 20 em 2008, 17,4% nas 15 primeiras rodadas de 2017; faixa típica 7 a 12% dos jogos; vitórias por até 6 para o time do torcedor, 0,8 a 1,4 por temporada (fonte: matterofstats.com/mafl-stats-journal/2009/3/8/less-than-a-goal-in-it.html; mafl-online.squarespace.com/mafl-stats-journal/2017/8/10/how-close-has-the-2017-season-been)",
+    "name": {
+      "pt": "Vitória por um gol",
+      "es": "Victoria por un gol",
+      "en": "One-Goal Win"
+    },
+    "description": {
+      "pt": "Assista a uma vitória do seu time por até seis pontos, um gol de diferença.",
+      "es": "Mira una victoria de tu equipo por seis puntos o menos, un gol de diferencia.",
+      "en": "Watch your team win by six points or fewer, a single goal."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 60,
+        "card_key": "afl.moments.one_goal_win.1"
+      }
+    ]
+  },
+  {
+    "id": "afl.moments.quarter_sweep",
+    "sport": "afl",
+    "category": "moment",
+    "family": "moments",
+    "collection": "afl.quarters",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win",
+        "period_sweep": true
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "a parcela de jogos em que o vencedor leva os quatro quartos sobe desde os anos 1930; estimativa própria: 20 a 25% dos jogos, 2 a 3 por temporada sobre as 11 a 12 vitórias de um time (fonte: mafl-online.squarespace.com/mafl-stats-journal/2009/2/25/which-quarter-do-winners-win.html)",
+    "name": {
+      "pt": "Quatro de quatro",
+      "es": "Cuatro de cuatro",
+      "en": "Four for Four"
+    },
+    "description": {
+      "pt": "Assista a uma vitória do seu time vencendo os quatro quartos do jogo.",
+      "es": "Mira una victoria de tu equipo ganando los cuatro cuartos del partido.",
+      "en": "Watch your team win all four quarters of a match."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 25,
+        "card_key": "afl.moments.quarter_sweep.1"
+      }
+    ]
+  },
+  {
+    "id": "afl.moments.shutout_quarter",
+    "sport": "afl",
+    "category": "moment",
+    "family": "moments",
+    "collection": "afl.quarters",
+    "rule": {
+      "input": "moment",
+      "fact": "score.period",
+      "params": {
+        "team": "favorite",
+        "period": "any",
+        "shutout": true
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "quarto sem goal já era raro em 2009 (um caso por temporada nas duas anteriores); quarto sem ponto nenhum é mais raro: em 2024 um clube foi o primeiro desde 1974 a não pontuar no 1º quarto de uma final; estimativa própria: 1 a 3 por temporada em toda a liga, 0,05 a 0,15 para o adversário do time do torcedor (fonte: afl.com.au/news/616712/collingwood-scoring-droughts; thenightly.com.au/sport/afl/afl-finals-2024-carlton-narrowly-avoid-unwanted-record-in-wretched-first-half-against-brisbane-c-15977901; footyinfo.com/stats/match/quarters/scoreless-quarters)",
+    "name": {
+      "pt": "Quarto em branco",
+      "es": "Cuarto en blanco",
+      "en": "Scoreless Quarter"
+    },
+    "description": {
+      "pt": "Assista a um quarto em que o adversário do seu time não marca nem um ponto.",
+      "es": "Mira un cuarto en que el rival de tu equipo no anota ni un punto.",
+      "en": "Watch your team hold the opponent scoreless for an entire quarter."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 120,
+        "card_key": "afl.moments.shutout_quarter.1"
+      }
+    ]
+  },
+  {
+    "id": "afl.moments.spectacular_mark",
+    "sport": "afl",
+    "category": "moment",
+    "family": "moments",
+    "collection": "afl.highlights",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite"
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "proposed.event.incidents.mark",
+      "event.status=finished",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": false,
+    "inactive_reason": "sem lance a lance neste esporte: o contrato não traz as pegadas (marks) nem o instante delas (proposed.event.incidents.mark), e a linguagem não tem fato para isso. A regra acima é só a aproximação (jogo do seu time assistido) e não pode ser ligada assim.",
+    "real_world_frequency": "estimativa própria: a liga premia a melhor pegada do ano entre dezenas de candidatas por temporada; cerca de 2 por temporada para o time do torcedor (sem fonte estatística consolidada)",
+    "name": {
+      "pt": "Pegada no céu",
+      "es": "Atrapada en el cielo",
+      "en": "Sky-High Mark"
+    },
+    "description": {
+      "pt": "Esteja assistindo quando um jogador do seu time pegar a bola no ar por cima do adversário.",
+      "es": "Mira en vivo cuando un jugador de tu equipo atrape la pelota en el aire sobre el rival.",
+      "en": "Be watching when one of your team’s players takes a mark high over an opponent."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 25,
+        "card_key": "afl.moments.spectacular_mark.1"
+      }
+    ]
+  },
+  {
+    "id": "afl.moments.straight_kicking",
+    "sport": "afl",
+    "category": "moment",
+    "family": "moments",
+    "collection": "afl.scoreboard",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win"
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.score.breakdown.goals",
+      "event.score.breakdown.behinds",
+      "event.status=finished",
+      "event.score",
+      "event.participants",
+      "proposed.rule.fact.afl.breakdown",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": false,
+    "inactive_reason": "sem fato na linguagem para event.score.breakdown: goals e behinds por time existem no contrato, mas nenhum fato compara os dois. Precisa de um fato afl.breakdown com stat goals, behinds e um parâmetro de comparação. A regra acima é só a aproximação (vitória do seu time) e não pode ser ligada assim.",
+    "real_world_frequency": "26,9% dos placares de 2003 a 2012 tiveram mais goals que behinds; a média de aproveitamento da liga passou de 50% só duas vezes em 16 temporadas; vitórias com mais goals que behinds, 3 a 4 por temporada para o time do torcedor (fonte: bigfooty.com/forum/threads/stats-questions.982511/page-80; afl.com.au/news/1345689; mafl-online.squarespace.com/mafl-stats-journal/2010/4/12/goalkicking-accuracy-across-the-seasons.html)",
+    "name": {
+      "pt": "Pontaria certeira",
+      "es": "Puntería fina",
+      "en": "Straight Shooting"
+    },
+    "description": {
+      "pt": "Assista a uma vitória do seu time com mais gols de seis pontos do que pontos simples.",
+      "es": "Mira una victoria de tu equipo con más goles de seis puntos que puntos simples.",
+      "en": "Watch your team win while kicking more goals than behinds."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 25,
+        "card_key": "afl.moments.straight_kicking.1"
+      }
+    ]
+  },
+  {
+    "id": "afl.moments.twenty_goals",
+    "sport": "afl",
+    "category": "moment",
+    "family": "moments",
+    "collection": "afl.scoreboard",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win",
+        "margin_min": 60
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.score.breakdown.goals",
+      "event.status=finished",
+      "event.score",
+      "event.participants",
+      "proposed.rule.fact.afl.breakdown",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": false,
+    "inactive_reason": "sem fato na linguagem para event.score.breakdown: o dado goals por time existe no contrato, mas nenhum fato o lê. Precisa de um fato afl.breakdown (ou score.breakdown) com stat, min e team. A regra acima é só a aproximação (vitória por 60 ou mais) e não pode ser ligada assim.",
+    "real_world_frequency": "na rodada 20 de 2025 dois clubes chegaram a 20 goals no mesmo fim de semana, e um deles não sofria 20 goals desde 2018; estimativa própria: 5 a 10 por temporada na liga, 0,3 a 0,5 para o time do torcedor (fonte: flashscore.com/news/rugby-league-afl-afl-round-20-review-brisbane-steam-rowelled-in-weekend-of-weird-derbies/rsN0R6tn)",
+    "name": {
+      "pt": "Vinte gols",
+      "es": "Veinte goles",
+      "en": "Twenty Goals"
+    },
+    "description": {
+      "pt": "Assista a um jogo em que seu time marca vinte gols de seis pontos ou mais.",
+      "es": "Mira un partido en que tu equipo anota veinte goles de seis puntos o más.",
+      "en": "Watch your team kick twenty goals or more in one match."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 120,
+        "card_key": "afl.moments.twenty_goals.1"
+      }
+    ]
+  },
+  {
+    "id": "afl.predictions.finals_winner",
+    "sport": "afl",
+    "category": "hit",
+    "family": "predictions",
+    "collection": "afl.september",
+    "rule": {
+      "input": "prediction",
+      "kind": "winner",
+      "correct": true,
+      "where": {
+        "sport": [
+          "afl"
+        ],
+        "stage": [
+          "knockout"
+        ]
+      }
+    },
+    "requires_data": [
+      "fan.prediction",
+      "event.sport",
+      "event.stage.kind"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "9 jogos de finais por temporada masculina e 9 na feminina; o mandante vence 70% das finais contra interestaduais desde 1994, então um torcedor atento acerta mais da metade: Platina 9 = todas as finais masculinas de um ano (fonte: afl.com.au/news/1409314; afl.com.au/news/1255536)",
+    "name": {
+      "pt": "Leitor das finais",
+      "es": "Lector de finales",
+      "en": "Finals Reader"
+    },
+    "description": {
+      "pt": "Acerte o vencedor de jogos da fase final da temporada.",
+      "es": "Acierta el ganador en partidos de la fase final de la temporada.",
+      "en": "Predict the winner of finals matches."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 20,
+        "card_key": "afl.predictions.finals_winner.1"
+      },
+      {
+        "step": 2,
+        "threshold": 2,
+        "bonus_points": 40,
+        "card_key": "afl.predictions.finals_winner.2"
+      },
+      {
+        "step": 3,
+        "threshold": 4,
+        "bonus_points": 80,
+        "card_key": "afl.predictions.finals_winner.3"
+      },
+      {
+        "step": 4,
+        "threshold": 9,
+        "bonus_points": 150,
+        "card_key": "afl.predictions.finals_winner.4"
+      },
+      {
+        "step": 5,
+        "threshold": 25,
+        "bonus_points": 300,
+        "card_key": "afl.predictions.finals_winner.5"
+      }
+    ]
+  },
+  {
+    "id": "afl.predictions.hit_streak",
+    "sport": "afl",
+    "category": "hit",
+    "family": "predictions",
+    "collection": "afl.reader",
+    "rule": {
+      "input": "prediction",
+      "correct": true,
+      "where": {
+        "sport": [
+          "afl"
+        ]
+      },
+      "count": {
+        "mode": "streak",
+        "unit": "prediction"
+      }
+    },
+    "requires_data": [
+      "fan.prediction",
+      "event.sport"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria: o palpite de vencedor acerta cerca de 55% das vezes (o mandante vence 55 a 65%); 5 seguidos sai para 1 em 20 tentativas e 10 para 1 em 400; com 9 jogos por rodada, um torcedor assíduo chega a 20 numa temporada e a 40 em poucas (fonte-base: admin.bigfooty.com/?p=416313)",
+    "name": {
+      "pt": "Sequência certeira",
+      "es": "Racha certera",
+      "en": "Hot Streak"
+    },
+    "description": {
+      "pt": "Acerte Palpites de futebol australiano seguidos, sem errar nenhum no meio.",
+      "es": "Acierta pronósticos de fútbol australiano seguidos, sin fallar ninguno en el medio.",
+      "en": "Get Australian-football predictions right back to back, with no miss in between."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 2,
+        "bonus_points": 20,
+        "card_key": "afl.predictions.hit_streak.1"
+      },
+      {
+        "step": 2,
+        "threshold": 5,
+        "bonus_points": 40,
+        "card_key": "afl.predictions.hit_streak.2"
+      },
+      {
+        "step": 3,
+        "threshold": 10,
+        "bonus_points": 80,
+        "card_key": "afl.predictions.hit_streak.3"
+      },
+      {
+        "step": 4,
+        "threshold": 20,
+        "bonus_points": 150,
+        "card_key": "afl.predictions.hit_streak.4"
+      },
+      {
+        "step": 5,
+        "threshold": 40,
+        "bonus_points": 300,
+        "card_key": "afl.predictions.hit_streak.5"
+      }
+    ]
+  },
+  {
+    "id": "afl.results.away_win",
+    "sport": "afl",
+    "category": "moment",
+    "family": "results",
+    "collection": "afl.faithful",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "side": "away",
+        "outcome": "win"
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "o mandante vence 55 a 65% nos esportes profissionais e 70% das finais contra interestaduais na liga desde 1994; clubes têm 33 a 44% de vitórias fora contra 63 a 69% em casa; estimativa própria: 40 a 45% das 11 partidas fora, 4 a 5 vitórias por temporada (fonte: afl.com.au/news/1409314; admin.bigfooty.com/?p=416313)",
+    "name": {
+      "pt": "Vitória fora de casa",
+      "es": "Victoria de visitante",
+      "en": "Away Win"
+    },
+    "description": {
+      "pt": "Assista às vitórias do seu time jogando fora de casa.",
+      "es": "Mira las victorias de tu equipo jugando de visitante.",
+      "en": "Watch your team win on the road."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 10,
+        "card_key": "afl.results.away_win.1"
+      },
+      {
+        "step": 2,
+        "threshold": 2,
+        "bonus_points": 20,
+        "card_key": "afl.results.away_win.2"
+      },
+      {
+        "step": 3,
+        "threshold": 4,
+        "bonus_points": 40,
+        "card_key": "afl.results.away_win.3"
+      },
+      {
+        "step": 4,
+        "threshold": 8,
+        "bonus_points": 75,
+        "card_key": "afl.results.away_win.4"
+      },
+      {
+        "step": 5,
+        "threshold": 20,
+        "bonus_points": 150,
+        "card_key": "afl.results.away_win.5"
+      }
+    ]
+  },
+  {
+    "id": "afl.results.big_win",
+    "sport": "afl",
+    "category": "moment",
+    "family": "results",
+    "collection": "afl.scoreboard",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win",
+        "margin_min": 60
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "margens de 51 a 80 pontos em 17,2% dos jogos de 2024 e acima de 81 em 4,7% (3,9 a 5,6% desde 2021); 60 ou mais em cerca de 12 a 14% dos jogos (estimativa própria), 1,5 a 1,7 vitórias por temporada para o time do torcedor (fonte: lincolntracy.substack.com/p/thrillers-and-blowouts)",
+    "name": {
+      "pt": "Goleada de dez gols",
+      "es": "Paliza de diez goles",
+      "en": "Ten-Goal Rout"
+    },
+    "description": {
+      "pt": "Assista a uma vitória do seu time por 60 pontos ou mais de diferença.",
+      "es": "Mira una victoria de tu equipo por 60 puntos o más de diferencia.",
+      "en": "Watch your team win by sixty points or more."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 60,
+        "card_key": "afl.results.big_win.1"
+      }
+    ]
+  },
+  {
+    "id": "afl.results.finals_win",
+    "sport": "afl",
+    "category": "moment",
+    "family": "results",
+    "collection": "afl.september",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win"
+      },
+      "presence": "game",
+      "where": {
+        "stage": [
+          "knockout"
+        ]
+      }
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id",
+      "event.stage.kind"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "9 jogos de finais por temporada masculina (8 clubes, 4 semanas), 9 vitórias para 18 clubes: 0,5 por temporada para o time do torcedor, 1,5 a 3 para quem chega às finais (fonte: afl.com.au/news/1255536/how-the-fixture-is-made-five-day-breaks-super-saturday-the-weighted-rule)",
+    "name": {
+      "pt": "Vitória nas finais",
+      "es": "Victoria en las finales",
+      "en": "Finals Win"
+    },
+    "description": {
+      "pt": "Assista a uma vitória do seu time na fase final da temporada.",
+      "es": "Mira una victoria de tu equipo en la fase final de la temporada.",
+      "en": "Watch your team win a finals match."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 60,
+        "card_key": "afl.results.finals_win.1"
+      }
+    ]
+  },
+  {
+    "id": "afl.results.grand_final_win",
+    "sport": "afl",
+    "category": "moment",
+    "family": "results",
+    "collection": "afl.september",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win"
+      },
+      "presence": "game",
+      "where": {
+        "stage": [
+          "final"
+        ]
+      }
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id",
+      "event.stage.kind"
+    ],
+    "stepped": false,
+    "seasonal": false,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "uma grande final por temporada para 18 clubes: uma a cada 18 temporadas para o time do torcedor; o campeão de 2024 esperou 21 anos pelo título anterior (fonte: afl.com.au/news/1255536/how-the-fixture-is-made-five-day-breaks-super-saturday-the-weighted-rule)",
+    "name": {
+      "pt": "Dia de título",
+      "es": "Día de título",
+      "en": "Title Day"
+    },
+    "description": {
+      "pt": "Assista à vitória do seu time na grande final da temporada.",
+      "es": "Mira la victoria de tu equipo en la gran final de la temporada.",
+      "en": "Watch your team win the season’s big final."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 200,
+        "card_key": "afl.results.grand_final_win.1"
+      }
+    ]
+  },
+  {
+    "id": "afl.results.hundred_point_win",
+    "sport": "afl",
+    "category": "moment",
+    "family": "results",
+    "collection": "afl.scoreboard",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win",
+        "margin_min": 100
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "recorde de 190 pontos (1979) e 186 (2011); margens acima de 81 são 4,7% dos jogos e 100+ fica em 1 a 2% (2 a 4 por temporada na liga, estimativa própria), 0,1 a 0,2 por temporada para o time do torcedor (fonte: theroar.com.au/2022/09/24/what-is-the-biggest-winning-margin-in-afl-history; sen.com.au/news/2019/12/05/the-biggest-wins-of-the-decade; lincolntracy.substack.com/p/thrillers-and-blowouts)",
+    "name": {
+      "pt": "Cem pontos de diferença",
+      "es": "Cien puntos de diferencia",
+      "en": "Hundred-Point Win"
+    },
+    "description": {
+      "pt": "Assista a uma vitória do seu time por 100 pontos ou mais de diferença.",
+      "es": "Mira una victoria de tu equipo por 100 puntos o más de diferencia.",
+      "en": "Watch your team win by one hundred points or more."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 120,
+        "card_key": "afl.results.hundred_point_win.1"
+      }
+    ]
+  },
+  {
+    "id": "afl.results.low_score_grind",
+    "sport": "afl",
+    "category": "moment",
+    "family": "results",
+    "collection": "afl.scoreboard",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win",
+        "margin_max": 12
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id",
+      "proposed.rule.params.score.result.total_max"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": false,
+    "inactive_reason": "score.result tem total_min, mas não total_max: a linguagem não sabe dizer \"menos de 120 pontos somados\". Precisa do parâmetro total_max no fato score.result (serve também ao basquete e ao handebol). A regra acima é só a aproximação (vitória apertada) e não pode ser ligada assim.",
+    "real_world_frequency": "menor placar de 2025 foi 33 pontos (5.3); jogos com menos de 120 pontos somados são 3 a 5% (estimativa própria sobre a média de 170 por jogo), 0,7 a 1 por temporada para o time do torcedor (fonte: footywire.com/afl/footy/ft_season_records; aflmstats.com/season/2024)",
+    "name": {
+      "pt": "Jogo travado",
+      "es": "Partido trabado",
+      "en": "Arm Wrestle"
+    },
+    "description": {
+      "pt": "Assista a uma vitória do seu time em jogo com menos de 120 pontos somados.",
+      "es": "Mira una victoria de tu equipo en un partido con menos de 120 puntos sumados.",
+      "en": "Watch your team win a match with fewer than 120 points scored in total."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 60,
+        "card_key": "afl.results.low_score_grind.1"
+      }
+    ]
+  }
+]
