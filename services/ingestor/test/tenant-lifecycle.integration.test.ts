@@ -8,6 +8,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { eq, sql } from 'drizzle-orm';
 import {
+  claimTenantNotification,
   domain,
   jobRequest,
   moduleTrial,
@@ -138,8 +139,10 @@ describe('tenant.lifecycle com o banco', () => {
     expect(report.notifications.registered.map((n) => `${n.tenant}: ${n.kind}`).sort()).toEqual([
       'lc-expirado: cancelled',
       'lc-past-due: suspended',
+      'lc-trial-em-curso: welcome',
       'lc-trial-vencido: trial_expired',
     ]);
+    expect(report.mailError).toBeNull();
   });
 
   it('manda os e-mails do ciclo de vida aos Donos e ao Financeiro uma vez só; a falha do envio volta à fila', async () => {
@@ -162,9 +165,27 @@ describe('tenant.lifecycle com o banco', () => {
         createdBy: 'teste',
       })
       .returning({ id: organization.id });
+    await db.execute(
+      sql`insert into demo_auth."user" (id, email, name) values ('u-vencido', 'vencido@exemplo.test', 'Dé')`,
+    );
     await db.insert(organizationMember).values([
       { organizationId: org!.id, userId: 'u-dono', role: 'owner', invitedBy: 'teste', acceptedAt: NOW },
-      { organizationId: org!.id, userId: 'u-fin', role: 'billing', invitedBy: 'teste' },
+      // convite pendente dentro do prazo: recebe
+      {
+        organizationId: org!.id,
+        userId: 'u-fin',
+        role: 'billing',
+        invitedBy: 'teste',
+        expiresAt: daysAgo(-3),
+      },
+      // convite vencido sem aceite: não recebe
+      {
+        organizationId: org!.id,
+        userId: 'u-vencido',
+        role: 'billing',
+        invitedBy: 'teste',
+        expiresAt: daysAgo(1),
+      },
     ]);
     // dia 23 do trial (state_since há 22 dias), prazo em 8 dias
     const dia23 = await newTenant('mail-dia-23', {
@@ -194,6 +215,13 @@ describe('tenant.lifecycle com o banco', () => {
       endsAt: daysAgo(-1),
       startedBy: 'teste',
     });
+    // entrou em trial ontem e o console não conseguiu mandar as boas-vindas: o relógio manda
+    const novo = await newTenant('mail-novo', {
+      organizationId: org!.id,
+      state: 'trial',
+      stateSince: daysAgo(1),
+      trialEndsAt: daysAgo(-29),
+    });
     // suspenso há muito tempo: aviso fora da janela, nada sai
     await newTenant('mail-suspenso-antigo', {
       organizationId: org!.id,
@@ -203,34 +231,46 @@ describe('tenant.lifecycle com o banco', () => {
     });
 
     const sent: OutgoingMail[] = [];
-    let fail = false;
+    let mode: 'ok' | 'fail' | 'no-smtp' = 'ok';
     const deps = {
       ...pgLifecycleDeps,
       notifications: {
         ...pgNotificationDeps(null),
         links: { console: 'https://console.example/client', store: 'https://console.example/client/plans' },
         send: async (mail: OutgoingMail) => {
-          if (fail) return { delivered: false, error: 'conexão recusada' };
+          if (mode === 'fail') return { delivered: false, error: 'conexão recusada' };
+          if (mode === 'no-smtp') return { delivered: false, error: 'SMTP not configured' };
           sent.push(mail);
           return { delivered: true };
         },
       },
     };
-
-    fail = true;
-    const r1 = await runTenantLifecycle(db, deps, NOW);
-    expect(r1.transitions).toEqual([{ tenant: 'mail-vence', from: 'trial', to: 'trial_expired' }]);
-    expect(r1.notifications.sent).toEqual([]);
-    expect(r1.notifications.failed.map((n) => `${n.tenant}: ${n.kind}`).sort()).toEqual([
+    const expectedFailed = [
       'mail-ativo: module_trial_ending',
       'mail-dia-23: trial_reminder',
+      'mail-novo: welcome',
       'mail-vence: trial_expired',
-    ]);
-    // nada registrado: a próxima rodada tenta de novo
-    const afterFail = await db.select().from(tenantNotification);
-    expect(afterFail.filter((n) => [dia23, vence, ativo].includes(n.tenantId))).toEqual([]);
+    ];
 
-    fail = false;
+    mode = 'fail';
+    const r1 = await runTenantLifecycle(db, deps, NOW);
+    expect(r1.transitions).toEqual([{ tenant: 'mail-vence', from: 'trial', to: 'trial_expired' }]);
+    expect(r1.mailError).toBeNull();
+    expect(r1.notifications.sent).toEqual([]);
+    expect(r1.notifications.failed.map((n) => `${n.tenant}: ${n.kind}`).sort()).toEqual(expectedFailed);
+    // nada registrado: a próxima rodada tenta de novo
+    const mine = (rows: { tenantId: string }[]) =>
+      rows.filter((n) => [dia23, vence, ativo, novo].includes(n.tenantId));
+    expect(mine(await db.select().from(tenantNotification))).toEqual([]);
+
+    // sem SMTP é falha também (o registro sai), não "registrado sem entrega"
+    mode = 'no-smtp';
+    const r1b = await runTenantLifecycle(db, deps, NOW);
+    expect(r1b.notifications.failed.map((n) => `${n.tenant}: ${n.kind}`).sort()).toEqual(expectedFailed);
+    expect(r1b.notifications.failed.every((n) => n.error === 'SMTP not configured')).toBe(true);
+    expect(mine(await db.select().from(tenantNotification))).toEqual([]);
+
+    mode = 'ok';
     const r2 = await runTenantLifecycle(db, deps, NOW);
     expect(r2.notifications.failed).toEqual([]);
     expect(
@@ -238,18 +278,16 @@ describe('tenant.lifecycle com o banco', () => {
     ).toEqual([
       'mail-ativo: module_trial_ending live_chat → 2',
       'mail-dia-23: trial_reminder 23 → 2',
+      'mail-novo: welcome  → 2',
       'mail-vence: trial_expired  → 2',
     ]);
-    // um e-mail por pessoa, Dono e Financeiro, em inglês (locale da organização), com os links
+    // um e-mail por pessoa, Dono e Financeiro (convite vencido não recebe), em inglês (locale da organização)
     const to = sent.flatMap((m) => m.to).sort();
     expect(to).toEqual([
-      'dono@exemplo.test',
-      'dono@exemplo.test',
-      'dono@exemplo.test',
-      'fin@exemplo.test',
-      'fin@exemplo.test',
-      'fin@exemplo.test',
+      ...Array<string>(4).fill('dono@exemplo.test'),
+      ...Array<string>(4).fill('fin@exemplo.test'),
     ]);
+    expect(sent.find((m) => m.subject.startsWith('Welcome'))?.text).toContain('1. First call');
     const reminder = sent.find((m) => m.subject.includes("mail-dia-23's trial ends"));
     expect(reminder?.subject).toBe("mail-dia-23's trial ends in 8 days");
     expect(reminder?.text).toContain('day 23');
@@ -280,7 +318,14 @@ describe('tenant.lifecycle com o banco', () => {
     // a terceira rodada não repete nada
     const r3 = await runTenantLifecycle(db, deps, NOW);
     expect(r3.notifications).toEqual({ sent: [], registered: [], failed: [] });
-    expect(sent).toHaveLength(6);
+    expect(sent).toHaveLength(8);
+
+    // dois claims ao mesmo tempo da mesma chave: um passa, o outro recebe null
+    const claims = await Promise.all([
+      claimTenantNotification(db, { tenantId: novo, kind: 'trial_reminder', ref: '99' }),
+      claimTenantNotification(db, { tenantId: novo, kind: 'trial_reminder', ref: '99' }),
+    ]);
+    expect(claims.filter((c) => c !== null)).toHaveLength(1);
 
     // seis dias depois (dia 29) sai o lembrete 29, e só ele
     const r4 = await runTenantLifecycle(db, deps, new Date(NOW.getTime() + 6 * 86_400_000));

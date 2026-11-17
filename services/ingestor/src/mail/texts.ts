@@ -21,13 +21,17 @@ export function fill(template: string, vars: Record<string, string | number> = {
   return template.replace(/\{(\w+)\}/g, (match, name: string) => (name in vars ? String(vars[name]) : match));
 }
 
-/** Um e-mail do ciclo de vida: assunto (singular e plural quando há `{days}`), parágrafos e o botão. */
+/** Um e-mail do ciclo de vida: assunto (singular e plural quando há `{days}`), parágrafos, passos e o botão. */
 export interface LifecycleMailText {
   subject: string;
   /** Assunto quando `{days}` é 1 (ausente = o mesmo). */
   subjectOne?: string;
   intro: string;
+  /** Abertura sem a data (quando o prazo não existe); ausente = `intro`. */
+  introNoDate?: string;
   body: string;
+  /** Passos numerados depois do corpo (o checklist das boas-vindas). */
+  steps?: string[];
   /** Rótulo do botão principal; `store` leva à loja, `console` ao console. */
   action: 'store' | 'console';
 }
@@ -37,6 +41,7 @@ export interface MailTexts {
   greetingNoName: string;
   signature: string;
   actions: { console: string; store: string };
+  welcome: LifecycleMailText;
   trial_reminder: LifecycleMailText;
   trial_expired: LifecycleMailText;
   module_trial_ending: LifecycleMailText;
@@ -50,6 +55,22 @@ export const MAIL_TEXTS: Record<MailLocale, MailTexts> = {
     greetingNoName: 'Olá!',
     signature: 'Galaxie Works',
     actions: { console: 'Abrir o console', store: 'Ver planos e módulos' },
+    // o mesmo conteúdo das boas-vindas do console (apps/demo/src/lib/i18n/messages/email.ts › welcome)
+    welcome: {
+      subject: 'Bem-vindo(a) à Galaxie Sports: {brand} está pronta',
+      intro:
+        'A marca {brand} está provisionada em modo de teste até {date}, com os módulos do Fan Experience e dado de produção.',
+      introNoDate:
+        'A marca {brand} está provisionada em modo de teste, com os módulos do Fan Experience e dado de produção.',
+      body: 'Os quatro passos da primeira sessão estão no topo do console; cada um se marca sozinho quando acontece:',
+      steps: [
+        'Primeira chamada: rode o curl pronto com a sua chave de teste.',
+        'Um widget no ar: instale o embed do widget de exemplo numa página do seu site.',
+        'Convide alguém: a pessoa aceita o convite por e-mail.',
+        'Escolha o plano: Planos e módulos mostra o preço previsto e os módulos para testar.',
+      ],
+      action: 'console',
+    },
     trial_reminder: {
       subject: 'O teste da marca {brand} termina em {days} dias',
       subjectOne: 'O teste da marca {brand} termina amanhã',
@@ -91,6 +112,21 @@ export const MAIL_TEXTS: Record<MailLocale, MailTexts> = {
     greetingNoName: 'Hi!',
     signature: 'Galaxie Works',
     actions: { console: 'Open the console', store: 'See plans and modules' },
+    welcome: {
+      subject: 'Welcome to Galaxie Sports: {brand} is ready',
+      intro:
+        '{brand} is provisioned in trial mode until {date}, with the Fan Experience modules and production data.',
+      introNoDate:
+        '{brand} is provisioned in trial mode, with the Fan Experience modules and production data.',
+      body: 'The four first-session steps are at the top of the console; each one is checked off on its own when it happens:',
+      steps: [
+        'First call: run the ready-made curl with your test key.',
+        'A widget live: install the sample widget embed on a page of your site.',
+        'Invite someone: they accept the invitation by email.',
+        'Choose your plan: Plans and modules shows the expected price and the modules you can try.',
+      ],
+      action: 'console',
+    },
     trial_reminder: {
       subject: "{brand}'s trial ends in {days} days",
       subjectOne: "{brand}'s trial ends tomorrow",
@@ -132,6 +168,21 @@ export const MAIL_TEXTS: Record<MailLocale, MailTexts> = {
     greetingNoName: '¡Hola!',
     signature: 'Galaxie Works',
     actions: { console: 'Abrir la consola', store: 'Ver planes y módulos' },
+    welcome: {
+      subject: 'Bienvenido(a) a Galaxie Sports: {brand} está lista',
+      intro:
+        'La marca {brand} está provisionada en modo de prueba hasta el {date}, con los módulos de Fan Experience y datos de producción.',
+      introNoDate:
+        'La marca {brand} está provisionada en modo de prueba, con los módulos de Fan Experience y datos de producción.',
+      body: 'Los cuatro pasos de la primera sesión están en la parte superior de la consola; cada uno se marca solo cuando ocurre:',
+      steps: [
+        'Primera llamada: ejecuta el curl listo con tu clave de prueba.',
+        'Un widget en el aire: instala el embed del widget de ejemplo en una página de tu sitio.',
+        'Invita a alguien: la persona acepta la invitación por e-mail.',
+        'Elige el plan: Planes y módulos muestra el precio previsto y los módulos para probar.',
+      ],
+      action: 'console',
+    },
     trial_reminder: {
       subject: 'La prueba de la marca {brand} termina en {days} días',
       subjectOne: 'La prueba de la marca {brand} termina mañana',

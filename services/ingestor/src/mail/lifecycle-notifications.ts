@@ -6,6 +6,8 @@
  * Donos e ao Financeiro da organização, no idioma dela.
  *
  * Regras:
+ * - **Boas-vindas** (`welcome`, `ref = ''`): o console manda no provisionamento; o relógio cobre a falha dele, para
+ *   toda marca em `trial` há até `STATE_MAIL_WINDOW_DAYS` dias que ainda não tem o registro.
  * - **Lembrete do trial** (`trial_reminder`, `ref = '<dia>'`): o dia N do trial conta da entrada em `trial`
  *   (`state_since`; dia 1 = o dia da entrada), não de `trial_ends_at - TRIAL_DAYS`, porque a equipe pode estender o
  *   prazo. O lembrete do dia N sai na primeira rodada em que o dia atual ≥ N e o trial ainda não venceu; quando mais
@@ -18,12 +20,13 @@
  *   agora e agora + `MODULE_TRIAL_REMINDER_DAYS_BEFORE` dias, em tenant com acesso (`trial`, `active`, `past_due`).
  *
  * Idempotência e falha: `claimTenantNotification` grava a linha e devolve null quando já havia (nada a enviar); depois
- * do envio, `markTenantNotificationSent` preenche `sent_at` e os destinatários. Se o transporte falhou para todos,
- * a linha é apagada (`releaseTenantNotification`) e a próxima rodada tenta de novo. Sem SMTP ou sem destinatário, a
- * linha fica sem `sent_at` (registrado sem entrega) e o log avisa.
+ * do envio, `markTenantNotificationSent` preenche `sent_at` e **só quem recebeu**. Se ninguém recebeu (transporte
+ * falhou ou SMTP não configurado), a linha é apagada (`releaseTenantNotification`) e a próxima rodada tenta de novo.
+ * Só "sem destinatário" (organização sem Dono nem Financeiro com e-mail) e o lembrete superado por outro ficam
+ * registrados sem entrega.
  */
 import { and, eq, gt, inArray, lte } from 'drizzle-orm';
-import type { Catalog } from '@galaxie/billing';
+import { loadCatalog, type Catalog } from '@galaxie/billing';
 import {
   claimTenantNotification,
   markTenantNotificationSent,
@@ -36,13 +39,14 @@ import {
   type TenantNotificationKind,
   type TenantState,
 } from '@galaxie/db';
+import { logger } from '../logger.js';
 import { renderMail } from './render.js';
 import { fill, longDate, MAIL_TEXTS, mailLocale, type MailLocale } from './texts.js';
 import { mailLinks, sendMail, type MailLinks, type MailSender } from './transport.js';
 
 const DAY_MS = 86_400_000;
 
-/** O aviso de mudança de estado só sai se a mudança tem até este tanto de dias. */
+/** O aviso de mudança de estado (e as boas-vindas que o console não mandou) só sai se a mudança tem até este tanto de dias. */
 export const STATE_MAIL_WINDOW_DAYS = 3;
 
 /** Estados com acesso: só neles o teste de um módulo está valendo e o lembrete dele faz sentido. */
@@ -75,8 +79,8 @@ export interface DueNotification {
   ref: string;
   /** false = só registrar (lembrete superado por outro mais tardio), sem enviar. */
   send: boolean;
-  /** O que o texto precisa: dia do trial, dias até o prazo, a data e o módulo. */
-  vars: { day?: number; days?: number; date: Date; module?: string };
+  /** O que o texto precisa: dia do trial, dias até o prazo, a data (`noDate` = texto sem data) e o módulo. */
+  vars: { day?: number; days?: number; date: Date; noDate?: boolean; module?: string };
 }
 
 /** Dias inteiros entre dois instantes, arredondando para baixo. */
@@ -105,6 +109,15 @@ export function dueLifecycleNotifications(
   const recent = daysBetween(t.stateSince, now) <= STATE_MAIL_WINDOW_DAYS;
   switch (t.state) {
     case 'trial': {
+      // boas-vindas que o console não conseguiu mandar (o claim recusa quando já há registro)
+      if (recent)
+        due.push({
+          tenantId: t.id,
+          kind: 'welcome',
+          ref: '',
+          send: true,
+          vars: t.trialEndsAt ? { date: t.trialEndsAt } : { date: t.stateSince, noDate: true },
+        });
       if (!t.trialEndsAt || t.trialEndsAt.getTime() <= now.getTime()) break;
       const day = daysBetween(t.stateSince, now) + 1;
       const reached = settings.trialReminderDays.filter((n) => day >= n).sort((a, b) => a - b);
@@ -189,7 +202,7 @@ export function composeLifecycleMail(
   moduleName: string | null,
 ) {
   const t = MAIL_TEXTS[locale];
-  const text = t[due.kind as Exclude<TenantNotificationKind, 'welcome'>];
+  const text = t[due.kind];
   const vars = {
     brand: audience.tenantName,
     date: longDate(locale, due.vars.date),
@@ -198,6 +211,7 @@ export function composeLifecycleMail(
     module: moduleName ?? due.vars.module ?? '',
   };
   const subject = fill(due.vars.days === 1 && text.subjectOne ? text.subjectOne : text.subject, vars);
+  const intro = due.vars.noDate && text.introNoDate ? text.introNoDate : text.intro;
   // o botão leva à loja quando o texto pede e ela está configurada; senão ao console; sem nenhum, sem botão
   const toStore = text.action === 'store' && Boolean(links.store);
   const url = toStore ? links.store : links.console;
@@ -205,7 +219,8 @@ export function composeLifecycleMail(
     locale,
     name: person.name ?? '',
     subject,
-    paragraphs: [fill(text.intro, vars), fill(text.body, vars)],
+    paragraphs: [fill(intro, vars), fill(text.body, vars)],
+    steps: text.steps ?? [],
     action: url ? { label: toStore ? t.actions.store : t.actions.console, url } : null,
   });
 }
@@ -219,11 +234,29 @@ export interface NotificationDeps {
   release: typeof releaseTenantNotification;
   send: MailSender;
   links: MailLinks;
-  /** Catálogo para o nome do módulo; null = a chave do módulo no texto. */
-  catalog: Pick<Catalog, 'modules'> | null;
+  /** Catálogo para o nome comercial do módulo, resolvido na hora do uso; null = a chave do módulo no texto. */
+  catalog: () => Pick<Catalog, 'modules'> | null;
 }
 
-export const pgNotificationDeps = (catalog: Pick<Catalog, 'modules'> | null = null): NotificationDeps => ({
+/** O catálogo de `config/catalog`, lido uma vez e só quando um e-mail de módulo precisa; sem ele, a chave do módulo. */
+function lazyCatalog(): () => Pick<Catalog, 'modules'> | null {
+  let loaded: Pick<Catalog, 'modules'> | null | undefined;
+  return () => {
+    if (loaded === undefined) {
+      try {
+        loaded = loadCatalog();
+      } catch (err) {
+        logger.warn({ err }, 'catálogo indisponível: o e-mail do teste de módulo sai com a chave do módulo');
+        loaded = null;
+      }
+    }
+    return loaded;
+  };
+}
+
+export const pgNotificationDeps = (
+  catalog: (() => Pick<Catalog, 'modules'> | null) | Pick<Catalog, 'modules'> | null = lazyCatalog(),
+): NotificationDeps => ({
   async moduleTrials(db, now, until) {
     const rows = await db
       .select({
@@ -250,22 +283,23 @@ export const pgNotificationDeps = (catalog: Pick<Catalog, 'modules'> | null = nu
   release: releaseTenantNotification,
   send: (mail) => sendMail(mail),
   links: mailLinks(),
-  catalog,
+  catalog: typeof catalog === 'function' ? catalog : () => catalog,
 });
 
 export interface NotificationOutcome {
   tenant: string;
   kind: TenantNotificationKind;
   ref: string;
+  /** Quantos receberam (em `sent`) ou quantos deveriam receber (nos demais). */
   recipients: number;
 }
 
 export interface NotificationReport {
-  /** Enviados agora (ao menos um destinatário recebeu). */
+  /** Enviados agora (ao menos um destinatário recebeu; só quem recebeu fica no registro). */
   sent: NotificationOutcome[];
-  /** Registrados sem entrega: sem SMTP, sem destinatário, ou lembrete superado por outro. */
+  /** Registrados sem entrega: sem destinatário, ou lembrete superado por outro. */
   registered: NotificationOutcome[];
-  /** O transporte falhou: registro apagado, a próxima rodada tenta de novo. */
+  /** Ninguém recebeu (transporte falhou ou SMTP não configurado): registro apagado, a próxima rodada tenta de novo. */
   failed: (NotificationOutcome & { error: string })[];
 }
 
@@ -317,24 +351,25 @@ export async function sendLifecycleNotifications(
         continue;
       }
       const locale = mailLocale(audience.locale);
-      const moduleName = d.vars.module ? moduleLabel(deps.catalog, d.vars.module) : null;
-      let delivered = false;
-      let smtpMissing = false;
+      const moduleName = d.vars.module ? moduleLabel(deps.catalog(), d.vars.module) : null;
+      const deliveredTo: string[] = [];
       let lastError = '';
       for (const person of people) {
-        if (!recipients.includes(person.email)) continue;
+        if (!recipients.includes(person.email) || deliveredTo.includes(person.email)) continue;
         const mail = composeLifecycleMail(d, audience, person, locale, deps.links, moduleName);
         const r = await deps.send({ to: [person.email], ...mail });
-        if (r.delivered) delivered = true;
-        else if (r.error === 'SMTP not configured') smtpMissing = true;
+        if (r.delivered) deliveredTo.push(person.email);
         else lastError = r.error ?? 'erro desconhecido';
       }
-      if (delivered) {
-        await deps.markSent(db, id, { recipients, delivered: true, at: now });
-        report.sent.push(outcome);
-      } else if (smtpMissing) {
-        await deps.markSent(db, id, { recipients, delivered: false });
-        report.registered.push(outcome);
+      if (deliveredTo.length) {
+        // só quem recebeu fica no registro; quem falhou no meio aparece no log (não há segunda tentativa parcial)
+        if (deliveredTo.length < recipients.length)
+          logger.warn(
+            { tenant: t.slug, kind: d.kind, ref: d.ref, missing: recipients.length - deliveredTo.length },
+            'e-mail do ciclo de vida entregue só a parte dos destinatários',
+          );
+        await deps.markSent(db, id, { recipients: deliveredTo, delivered: true, at: now });
+        report.sent.push({ ...outcome, recipients: deliveredTo.length });
       } else {
         await deps.release(db, id);
         report.failed.push({ ...outcome, error: lastError });

@@ -52,9 +52,35 @@ describe('quem recebe o quê no ciclo de vida (F3, decisão 11)', () => {
     expect(due[1]!.vars.days).toBe(1);
   });
 
+  it('marca recém-entrada em trial sem registro de boas-vindas recebe as boas-vindas pelo relógio', () => {
+    const due = dueLifecycleNotifications(trial(1, 29), NOW, settings);
+    expect(due).toEqual([
+      { tenantId: 't1', kind: 'welcome', ref: '', send: true, vars: { date: daysAgo(-29) } },
+    ]);
+    // sem prazo: o texto sem data
+    expect(dueLifecycleNotifications({ ...trial(0, 0), trialEndsAt: null }, NOW, settings)[0]!.vars).toEqual({
+      date: NOW,
+      noDate: true,
+    });
+    const links = { console: 'https://console.example/client', store: null };
+    const mail = composeLifecycleMail(
+      due[0]!,
+      { tenantName: 'Marca' },
+      { email: 'a@b.test', name: 'Ana' },
+      'pt-BR',
+      links,
+      null,
+    );
+    expect(mail.subject).toBe('Bem-vindo(a) à Galaxie Sports: Marca está pronta');
+    expect(mail.text).toContain('1. Primeira chamada');
+    expect(mail.text).toContain('Abrir o console: https://console.example/client');
+  });
+
   it('trial sem prazo ou já vencido não manda lembrete (o vencido vira trial_expired pelo relógio)', () => {
     expect(dueLifecycleNotifications({ ...trial(25, 1), trialEndsAt: null }, NOW, settings)).toEqual([]);
     expect(dueLifecycleNotifications(trial(31, -1), NOW, settings)).toEqual([]);
+    // entrou em trial há mais de 3 dias: as boas-vindas não saem atrasadas pelo relógio
+    expect(dueLifecycleNotifications(trial(10, 20), NOW, settings)).toEqual([]);
   });
 
   it('trial vencido, suspensão e cancelamento avisam só quando a mudança é recente', () => {

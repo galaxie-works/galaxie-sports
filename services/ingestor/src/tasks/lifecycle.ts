@@ -23,6 +23,7 @@ import { domain, readRuntimeOverrides, tenant, type Database, type TenantState }
 import { enqueue } from '@galaxie/db/queue';
 import { TENANT_VERIFY_DOMAIN } from '@galaxie/db/queue-types';
 import { resolveSetting, settingDef } from '@galaxie/runtime-config';
+import { logger } from '../logger.js';
 import {
   parseReminderDays,
   pgNotificationDeps,
@@ -240,6 +241,8 @@ export interface LifecycleReport {
   domainsRechecked: number;
   /** E-mails desta rodada (decisão 11). */
   notifications: NotificationReport;
+  /** Os e-mails falharam em bloco (banco, transporte): registrado, e a rodada seguiu para os domínios. */
+  mailError: string | null;
 }
 
 /** Uma rodada do relógio (a CLI e a tarefa da fila chamam esta função). */
@@ -260,6 +263,7 @@ export async function runTenantLifecycle(
     retentionExpired: [],
     domainsRechecked: 0,
     notifications: { sent: [], registered: [], failed: [] },
+    mailError: null,
   };
   for (const t of tenants) {
     if (retentionExpired(t, at, settings)) report.retentionExpired.push(t.slug);
@@ -276,8 +280,14 @@ export async function runTenantLifecycle(
       report.refused.push({ tenant: t.slug, error: err.message });
     }
   }
+  // os e-mails não derrubam a rodada: a reconferência dos domínios vem depois e tem de rodar
   if (deps.notifications)
-    report.notifications = await sendLifecycleNotifications(db, tenants, at, settings, deps.notifications);
+    try {
+      report.notifications = await sendLifecycleNotifications(db, tenants, at, settings, deps.notifications);
+    } catch (err) {
+      report.mailError = err instanceof Error ? err.message : String(err);
+      logger.error({ err }, 'tenant.lifecycle: e-mails do ciclo de vida falharam; a rodada seguiu');
+    }
   for (const d of await deps.staleDomains(db, new Date(at.getTime() - DOMAIN_RECHECK_MS))) {
     const r = await deps.enqueueVerify(db, d.id);
     if (r.created) report.domainsRechecked += 1;
@@ -303,6 +313,7 @@ export function tenantLifecycle(deps: LifecycleDeps = pgLifecycleDeps): TaskHand
         (n) => `${n.tenant}: ${n.kind}${n.ref ? ` ${n.ref}` : ''} → ${n.recipients}`,
       ),
       ...report.notifications.failed.map((n) => `${n.tenant}: ${n.kind} falhou (${n.error})`),
+      ...(report.mailError ? [`e-mails interrompidos: ${report.mailError}`] : []),
     ];
     await checkpoint({ log, progresso: { feitos: report.examined, total: report.examined } });
     return {
@@ -316,6 +327,7 @@ export function tenantLifecycle(deps: LifecycleDeps = pgLifecycleDeps): TaskHand
         emailsEnviados: report.notifications.sent.length,
         emailsRegistrados: report.notifications.registered.length,
         emailsComFalha: report.notifications.failed.length,
+        ...(report.mailError ? { emailsErro: report.mailError } : {}),
       },
     };
   };
