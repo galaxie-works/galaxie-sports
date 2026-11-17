@@ -272,6 +272,29 @@ describe('Chat ao vivo: salas (#959)', () => {
     expect((await send(f.token, fixture, 'sem modo lento')).statusCode).toBe(201);
   });
 
+  it('anti-flood: passou do limite do cliente em 60 s, fica sem enviar (429 com retry-after)', async () => {
+    clock = Date.now();
+    const t = await tenantKey('chat-flood', ['core_data', 'live_chat']);
+    const fixture = await game(5);
+    const cfg = await app.inject({
+      method: 'PUT',
+      url: '/v1/chat/config',
+      headers: { 'x-galaxie-key': t.key },
+      payload: { slowModeSeconds: 0, floodMaxPerMinute: 3, floodBlockSeconds: 60 },
+    });
+    expect(cfg.json().data).toMatchObject({ flood_max_per_minute: 3, flood_block_seconds: 60 });
+    const f = await fan(t.key, 1);
+    for (const body of ['um', 'dois', 'três'])
+      expect((await send(f.token, fixture, body)).statusCode).toBe(201);
+    const blocked = await send(f.token, fixture, 'quatro');
+    expect(blocked.statusCode).toBe(429);
+    expect(blocked.headers['retry-after']).toBe('60');
+    expect(blocked.json().errors[0].message).toBe('flood');
+    // outro torcedor segue escrevendo
+    const g = await fan(t.key, 2);
+    expect((await send(g.token, fixture, 'oi')).statusCode).toBe(201);
+  });
+
   it('filtro e punição: link recusa e Silenciar na sala recusa o envio', async () => {
     clock = Date.now();
     const t = await tenantKey('chat-mod', ['core_data', 'live_chat']);
