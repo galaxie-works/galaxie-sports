@@ -455,12 +455,13 @@ services:
       migrate:
         condition: service_completed_successfully
     # O da imagem (batimento do scheduler, como no ingestor), com a primeira checagem em 2 s: a troca espera a cópia
-    # nova ficar healthy antes de parar a antiga
+    # nova ficar healthy antes de parar a antiga. O selfheal.sh confere em shell e só sobe o Node na falha; imagem
+    # anterior a ele (volta do deploy) usa o selfheal.mjs direto
     healthcheck:
       test:
         [
           'CMD-SHELL',
-          'node /usr/local/lib/galaxie/selfheal.mjs heartbeat "$$SCHEDULER_HEARTBEAT_FILE" 120000',
+          'if [ -f /usr/local/lib/galaxie/selfheal.sh ]; then exec sh /usr/local/lib/galaxie/selfheal.sh heartbeat "$$SCHEDULER_HEARTBEAT_FILE" 120000; fi; exec node /usr/local/lib/galaxie/selfheal.mjs heartbeat "$$SCHEDULER_HEARTBEAT_FILE" 120000',
         ]
       interval: 30s
       timeout: 6s
@@ -480,8 +481,10 @@ services:
     restart: unless-stopped
     # scheduler + SCHEDULER_MAX_JOBS jobs, cada um com heap fixo: a soma no pior caso é 352 MB; pico medido 331 (#533) × 1,5 = 497.
     # O ao vivo está no `live` e o trabalho longo no `worker` (QUEUE_MODE=enqueue). Teto de CPU: ingestor, worker e agents somam
-    # 1,0 das 2 vCPU, o resto fica para Postgres, API e ao vivo (README › Memória dos jobs)
+    # 1,0 das 2 vCPU, o resto fica para Postgres, API e ao vivo (README › Memória dos jobs). Peso de CPU baixo (padrão 1024):
+    # com a CPU disputada (a Hostinger limita a VPS em 30%), Postgres, API, site e ao vivo passam na frente; com folga, nada muda
     cpus: 0.4
+    cpu_shares: 256
     mem_limit: 512m
     environment:
       <<: *node-env
@@ -540,6 +543,8 @@ services:
     restart: unless-stopped
     command: ['node', '--max-old-space-size=64', '--max-semi-space-size=8', 'dist/cli/worker.js']
     cpus: 0.2
+    # peso de CPU baixo, como ingestor e agents: na disputa, Postgres, API, site e ao vivo passam na frente
+    cpu_shares: 256
     # pai 64 + WORKER_TASK_SLOTS 1 × (heap do filho 160 + 64) = 288 MB; pico medido 172 com o espelho de assets (README › Memória dos jobs)
     mem_limit: 384m
     environment:
@@ -561,7 +566,11 @@ services:
       WORKER_CONCURRENCY_BACKFILL_TABELAS: ${WORKER_CONCURRENCY_BACKFILL_TABELAS:-1}
       WORKER_CONCURRENCY_EXEMPLO_ECO: ${WORKER_CONCURRENCY_EXEMPLO_ECO:-1}
     healthcheck:
-      test: ['CMD', 'node', '/usr/local/lib/galaxie/selfheal.mjs', 'http', 'http://127.0.0.1:8080/health']
+      test:
+        [
+          'CMD-SHELL',
+          'if [ -f /usr/local/lib/galaxie/selfheal.sh ]; then exec sh /usr/local/lib/galaxie/selfheal.sh http http://127.0.0.1:8080/health; fi; exec node /usr/local/lib/galaxie/selfheal.mjs http http://127.0.0.1:8080/health',
+        ]
       interval: 15s
       timeout: 6s
       start_period: 20s
@@ -584,8 +593,10 @@ services:
     pull_policy: ${PULL_POLICY:-always}
     restart: unless-stopped
     # scheduler + AGENTS_MAX_JOBS jobs de 128 MB de heap: ~690 MB se todos enchessem o heap; pico medido 314 (#533), sem job de IA provocado
-    # (README › Memória dos jobs)
+    # (README › Memória dos jobs). Peso de CPU baixo, como ingestor e worker: na disputa, Postgres, API, site e ao vivo
+    # passam na frente
     cpus: 0.4
+    cpu_shares: 256
     mem_limit: 448m
     environment:
       <<: *node-env
