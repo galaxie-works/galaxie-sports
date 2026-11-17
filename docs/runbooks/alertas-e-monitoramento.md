@@ -411,7 +411,7 @@ somavam mais de 60 s de trabalho por minuto:
 | `explore-summary` | 9 a 49 s | contava jogo novo por `core.event.created_at` sem índice; com jogo ao vivo, refazia a conta inteira quase todo minuto |
 | `postgame-close` | 11 a 43 s | quase todo o tempo era o Node carregando cliente do fornecedor, logger e normalização (~1,4 s de CPU de 2,3 s) antes de saber que não havia lista na vez |
 
-O que mudou (PR "Perf: jobs por minuto e gameFacts sem varrer core.event", migration 0190):
+O que mudou (PR "Perf: jobs por minuto e gameFacts sem varrer core.event", migration 0183):
 
 - **Índices** (`-- galaxie:concurrently`, criados sem travar a escrita): `event_created_at_idx` e o parcial
   `event_open_starts_idx` (`starts_at` só dos jogos `scheduled`/`starting`/`live`/`break`/`suspended`).
