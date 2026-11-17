@@ -85,7 +85,7 @@ Na base de dev (NAS, 23/10/2026), com a api-sports de 2024 já carregada:
 ```bash
 ssh root@145.223.94.149
 cd /docker/galaxie-sports
-# 1. backup do banco antes (o mesmo serviço do dump diário)
+# 1. backup do banco antes (serviço backup da VPS; o diário nasce no NAS, docs/16)
 docker compose -f compose.dados.yml exec -T backup backup.sh
 # 2. o volume do release tem de ser do usuário do container (uid 1000); só na primeira vez
 docker compose run --rm --no-deps --user root -v galaxie-f1db:/data/f1db --entrypoint chown ingestor \

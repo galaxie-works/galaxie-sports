@@ -94,8 +94,21 @@ pull && r=0 || r=$?
 confere "prefixo que o s3-sync.sh da VPS ainda não criou falha e deixa o recibo sem tocar" \
   '[ "$r" != 0 ] && [ ! -f "$vps/.nas_last_pull" ] && grep -q "ausente" "$nas/last_run.txt"'
 
+# dumps pela réplica (stack nas-replica): nada de rsync dos dumps, só os assets, e o recibo sai mesmo sem dump em daily/
+limpa
+unset RSYNC_FAIL
+export NAS_S3_PREFIXES="broadcasters" NAS_DUMPS_FROM_REPLICA=1
+pull
+confere "NAS_DUMPS_FROM_REPLICA=1: não lista nem copia dumps da VPS" '! grep -q -- "--list-only" "$CALLS" && ! grep -q "$dump" "$CALLS" && [ ! -f "$nas/daily/$dump" ]'
+confere "NAS_DUMPS_FROM_REPLICA=1: assets copiados e recibo tocado" '[ -f "$nas/s3/broadcasters/a.svg" ] && [ -f "$vps/.nas_last_pull" ] && grep -q "dumps pela réplica" "$nas/last_run.txt"'
+# a rotação de daily/ fica com o dump.sh: um dump antigo em daily/ não é tocado aqui
+mkdir -p "$nas/daily" && echo velho >"$nas/daily/galaxie_sports_20250101T033000Z.dump" && : >"$nas/daily/galaxie_sports_20250101T033000Z.dump.sha256"
+pull
+confere "NAS_DUMPS_FROM_REPLICA=1: daily/ fica como está" '[ -f "$nas/daily/galaxie_sports_20250101T033000Z.dump" ]'
+unset NAS_DUMPS_FROM_REPLICA
+
 if [ "$fails" -gt 0 ]; then
   echo "$fails falha(s)" >&2
   exit 1
 fi
-echo "OK: nas-pull.sh com assets do S3"
+echo "OK: nas-pull.sh com assets do S3 e dumps pela réplica"

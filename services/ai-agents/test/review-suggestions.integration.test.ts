@@ -18,7 +18,12 @@ import {
   type KnowledgeBase,
 } from '@galaxie/knowledge';
 import { FakeLlmClient } from '../src/llm/fake.js';
-import { pendingSuggestions, reviewPurpose, SuggestionReviewer } from '../src/review/run.js';
+import {
+  hasPendingSuggestions,
+  pendingSuggestions,
+  reviewPurpose,
+  SuggestionReviewer,
+} from '../src/review/run.js';
 import type { ReviewModelOutput } from '../src/review/schema.js';
 import { disposableDb } from './helpers.js';
 
@@ -112,6 +117,8 @@ describe('review-suggestions', () => {
     expect((await pendingSuggestions(db)).map((p) => p.id).sort()).toEqual(
       [EDITED, TERM, BROKEN, REJECTED].sort(),
     );
+    // a consulta do scheduler (idleCheck) vê o mesmo que a fila do job
+    expect(await hasPendingSuggestions(db)).toBe(true);
     const reviewer = new SuggestionReviewer({ db, llm, knowledge: kb });
     const outcomes = await reviewer.run();
     const by = Object.fromEntries(outcomes.map((o) => [o.itemId, o]));
@@ -122,6 +129,7 @@ describe('review-suggestions', () => {
     expect(by[REJECTED]!.outcome).toBe('rejected');
     // nada mais em aberto para avaliar (a recusa não volta para a fila sozinha)
     expect(await pendingSuggestions(db)).toEqual([]);
+    expect(await hasPendingSuggestions(db)).toBe(false);
   });
 
   it('aceita: a edição vai para as tabelas da API, aprovada, com auditoria e change feed', async () => {
@@ -198,6 +206,7 @@ describe('review-suggestions', () => {
   it('uma sugestão nova do admin (veredito apagado) volta para a fila', async () => {
     await suggest(REJECTED, 'Só trocar "joga hoje" por "entra em campo hoje".', null);
     expect((await pendingSuggestions(db)).map((p) => p.id)).toEqual([REJECTED]);
+    expect(await hasPendingSuggestions(db)).toBe(true);
   });
 
   it('o próximo deploy (seed) não desfaz a edição aprovada', async () => {

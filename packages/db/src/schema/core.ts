@@ -828,6 +828,13 @@ export const event = core.table(
     // jogos de uma temporada e de uma fase (times, contexto, chaveamento); criados sem travar (migration 0060)
     index('event_season_idx').on(t.seasonId),
     index('event_stage_idx').on(t.stageId),
+    // jogo novo desde a última conta do resumo da home (`exploreRefreshReason`), sem varrer a tabela (migration 0190)
+    index('event_created_at_idx').on(t.createdAt),
+    // só os jogos ainda abertos (alguns milhares de 1,7 milhão): o relógio dos eventos (`advanceEventClock`) e o
+    // "em andamento" (`IN_PLAY`) leem por `starts_at` sem passar pelos encerrados (migration 0190)
+    index('event_open_starts_idx')
+      .on(t.startsAt)
+      .where(sql`${t.status} in ('scheduled', 'starting', 'live', 'break', 'suspended')`),
   ],
 );
 

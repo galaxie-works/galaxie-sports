@@ -65,21 +65,29 @@ export async function loadChannelEvents(
   const conds = [tierCondition(opts.tiers ?? DEFAULT_AGENT_TIERS)];
   if (f?.competition) conds.push(eq(competition.slug, f.competition));
   if (f?.season) conds.push(eq(season.year, f.season));
-  if (!f?.competition)
+  if (!f?.competition) {
+    const from = new Date(opts.now.getTime() - CHANNEL_POST_CLOSES_MS);
+    const until = new Date(opts.now.getTime() + opts.horizonMs);
+    // A faixa única cobre as duas janelas abaixo e não muda o resultado (cada janela fica dentro dela). Com ela, o
+    // Postgres percorre o índice (competition_id, starts_at) só das competições dos tiers ligados, em vez de juntar o
+    // índice de status (todo jogo agendado do banco) com o de starts_at e ler os jogos de todos os tiers: o EXPLAIN
+    // na produção caiu de custo 7.337 para 3.451, sem a varredura do índice de status
+    conds.push(gte(event.startsAt, from), lte(event.startsAt, until));
     conds.push(
       or(
         and(
           inArray(event.status, ['scheduled', 'starting']),
           gte(event.startsAt, opts.now),
-          lte(event.startsAt, new Date(opts.now.getTime() + opts.horizonMs)),
+          lte(event.startsAt, until),
         )!,
         and(
           inArray(event.status, ['finished', 'abandoned']),
-          gte(event.startsAt, new Date(opts.now.getTime() - CHANNEL_POST_CLOSES_MS)),
+          gte(event.startsAt, from),
           lte(event.startsAt, opts.now),
         )!,
       )!,
     );
+  }
   const rows = await db
     .select({
       id: event.id,

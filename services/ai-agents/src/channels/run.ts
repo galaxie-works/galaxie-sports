@@ -6,7 +6,7 @@
  * `CHANNEL_LIST_MAX_BATCHES` pedidos por rodada: o resto fica para a próxima (a lista segue
  * `pending`, com as decisões já feitas gravadas e reaproveitadas).
  */
-import { listChannelListsForAi, saveChannelListAi, type Database, type TenantChannelList } from '@galaxie/db';
+import { saveChannelListAi, type Database, type TenantChannelList } from '@galaxie/db';
 import {
   CHANNEL_MATCH_PROMPT_VERSION,
   CHANNEL_MATCH_SCHEMA_NAME,
@@ -27,6 +27,9 @@ import {
   type WtwCountry,
 } from '@galaxie/where-to-watch';
 import type { LlmClient } from '../llm/types.js';
+import { pendingChannelLists } from './pending.js';
+
+export { hasPendingChannelLists, pendingChannelLists } from './pending.js';
 
 export interface ChannelListOutcome {
   tenantId: string;
@@ -57,21 +60,6 @@ export interface ChannelListRunOptions {
 
 /** Pedidos ao modelo por lista numa rodada (lista enorme não come a rodada nem o orçamento do dia). */
 export const CHANNEL_LIST_MAX_BATCHES = 6;
-
-/**
- * Listas que o job pegaria (sem chamar o modelo). Com `--tenant`, a falha volta na hora (sem o
- * intervalo mínimo entre tentativas do job agendado).
- */
-export function pendingChannelLists(
-  db: Database,
-  opts: Pick<ChannelListRunOptions, 'max' | 'tenantIds' | 'retryFailed'> = {},
-): Promise<TenantChannelList[]> {
-  return listChannelListsForAi(db, {
-    limit: opts.max ?? 10,
-    retryFailed: opts.retryFailed ?? false,
-    ...(opts.tenantIds?.length ? { tenantIds: opts.tenantIds, failedRetryAfterMs: 0 } : {}),
-  });
-}
 
 const isCountry = (config: WtwConfig, c: string | null): c is WtwCountry => !!c && config.has(c);
 

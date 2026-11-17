@@ -209,10 +209,12 @@ groups:
         expr: min(time() - galaxie_job_last_success_timestamp_seconds{job_name="sync-daily"} <= bool 26 * 3600)
 
       # Backup: dump do Postgres com sucesso há no máximo 26 h e o verificador (backup-check, a cada 6 h) sem falha.
+      # pg-backup (dump na VPS) ou nas-dump (dump na réplica do NAS, registrado pelo backup-check.sh a partir do recibo;
+      # docs/runbooks/replica-no-nas.md): vale o mais recente dos dois
       - record: slo:backup:ok
         expr: >-
           min(
-            (time() - galaxie_job_last_success_timestamp_seconds{job_name="pg-backup"} <= bool 26 * 3600)
+            (time() - max(galaxie_job_last_success_timestamp_seconds{job_name=~"pg-backup|nas-dump"}) <= bool 26 * 3600)
             or (galaxie_job_consecutive_failures{job_name="backup-check"} == bool 0)
           )
 

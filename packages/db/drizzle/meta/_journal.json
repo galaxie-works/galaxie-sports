@@ -887,14 +887,21 @@
     {
       "idx": 126,
       "version": "7",
-      "when": 1794915166059,
-      "tag": "0185_tenant_state",
+      "when": 1794917589745,
+      "tag": "0183_indices_jobs_por_minuto",
       "breakpoints": true
     },
     {
       "idx": 127,
       "version": "7",
-      "when": 1794915374505,
+      "when": 1794928494911,
+      "tag": "0185_tenant_state",
+      "breakpoints": true
+    },
+    {
+      "idx": 128,
+      "version": "7",
+      "when": 1794928640567,
       "tag": "0186_module_trial",
       "breakpoints": true
     }

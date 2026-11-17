@@ -1,6 +1,6 @@
 {
-  "id": "0eb1c7d6-562b-4a26-b770-e8b684bf4649",
-  "prevId": "a80c90f0-324f-4cf6-a942-33c3d3c0b2b4",
+  "id": "10e3ab46-53de-49c8-b334-0bc746cc2403",
+  "prevId": "4edf43bd-960f-4c51-8708-1df3e71995e2",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -1319,6 +1319,37 @@
             }
           ],
           "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "event_created_at_idx": {
+          "name": "event_created_at_idx",
+          "columns": [
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "event_open_starts_idx": {
+          "name": "event_open_starts_idx",
+          "columns": [
+            {
+              "expression": "starts_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"core\".\"event\".\"status\" in ('scheduled', 'starting', 'live', 'break', 'suspended')",
           "concurrently": false,
           "method": "btree",
           "with": {}
