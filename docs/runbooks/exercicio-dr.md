@@ -21,6 +21,7 @@ Três cópias, em dois lugares diferentes, uma fora da VPS:
 |---|---|---|---|---|
 | 1 | Volume `backups` da VPS | Dump diário (`pg_dump -Fc`, zstd; cifrado com age, `.dump.age`, com `BACKUP_AGE_RECIPIENTS`) + `.sha256` | 3 dumps diários (`BACKUP_KEEP_DAILY=3`, por contagem: com o backup parado, nada some) | serviço `backup` |
 | 2 | NAS do dono (fora da VPS) | Cópia dos dumps (cifrados: o NAS nunca tem a chave) e `.sha256` | 7 diários + 4 semanais + 6 mensais | stack `galaxie-sports-backup-nas` no NAS (abaixo) |
+| 1 e 2, com a réplica no NAS ([replica-no-nas.md](replica-no-nas.md)) | O dump diário passa a ser feito **no NAS**, a partir da réplica física (stack `nas-replica`), direto em `daily/` com a mesma rotação; a VPS fica com um dump **semanal** (`BACKUP_DAYS=0`, 4 guardados) para o pior caso, e o NAS deixa o recibo `.nas_last_dump` na VPS | idem | `dump.sh` da stack `nas-replica`; `nas-pull.sh` com `NAS_DUMPS_FROM_REPLICA=1` só copia os assets |
 | 3 | Provedor da VPS | Backup semanal da VPS inteira (a API da Hostinger mostrou 2 pontos em 04/11/2026; não há snapshot) | a do provedor | provedor da VPS |
 
 A cópia para um S3 externo (`BACKUP_S3_*`) continua opcional e pode somar uma camada. O bucket remoto guarda tudo: sem regra de
@@ -77,6 +78,10 @@ pelo `ssh/known_hosts` (`StrictHostKeyChecking=yes`). Se a VPS for recriada, atu
   reinicie o container.
 - Desligar a cópia: pare a stack no NAS e ponha `BACKUP_NAS_RECEIPT=false` no `.env` da VPS. Senão, o alerta dispara em
   26 h.
+- Com os dumps feitos no NAS a partir da réplica ([replica-no-nas.md](replica-no-nas.md)): `NAS_DUMPS_FROM_REPLICA=1`
+  na stack e a `nas-lib.sh` (rotação 7/4/6, compartilhada com o `dump.sh` da réplica) ao lado do `nas-pull.sh` na pasta.
+  O script deixa de puxar dumps e continua com os assets do S3 e o recibo `.nas_last_pull`; a chave de recibo passa a
+  rodar o `galaxie-nas-receipt` da VPS (instalado pelo `preparar-replica.sh`), que aceita `pull` e `dump …`.
 
 ### Assets do S3
 
@@ -213,9 +218,10 @@ O serviço `backup` (`infra/backup/entrypoint.sh`) agenda, em UTC:
 
 | Quando | Script | O que faz | Registro (`ops.job_run`) e alerta |
 |---|---|---|---|
-| Diário, `BACKUP_TIME` (03:30) e na partida | `backup.sh` | Dump, `pg_restore --list`, `.sha256`, cópia S3 opcional, mantém os 7 mais recentes | `pg-backup` → `BackupStale` (sem sucesso há 26 h) |
+| Diário, `BACKUP_TIME` (03:30) e na partida; só nos dias de `BACKUP_DAYS`, se definida (o semanal da VPS com a réplica no NAS) | `backup.sh` | Dump, `pg_restore --list`, `.sha256`, cópia S3 opcional, mantém os 7 mais recentes | `pg-backup` → `BackupStale` (sem sucesso há 26 h, nem `pg-backup` nem `nas-dump`) |
+| Diário no NAS, a partir da réplica (`DUMP_CRON`, 03:30) e sob demanda ([replica-no-nas.md](replica-no-nas.md)) | `dump.sh` da stack `nas-replica` | O mesmo dump, em `daily/` do NAS, com recibo `.nas_last_dump` na VPS; o `backup-check.sh` (`BACKUP_DUMP_SOURCE=nas`) registra cada recibo como `nas-dump` | `nas-dump` → `NasDumpStale` (sem recibo novo há 26 h) |
 | Depois de cada dump, com `BACKUP_S3_SYNC_PREFIXES` (e na partida, se o recibo estiver velho) | `s3-sync.sh` | Assets do RustFS → volume (`s3/`) → bucket remoto (`assets/`), sem apagar | `s3-sync` → `BackupCheckFailed` (recibo velho) e `JobFailingRepeatedly` (3 falhas) |
-| A cada `BACKUP_CHECK_INTERVAL_H` (6 h) e depois de cada dump | `backup-check.sh` | Último dump com no máximo 26 h; com `BACKUP_NAS_RECEIPT=true`, recibo do NAS com no máximo 26 h; com o sync dos assets ligado, o recibo `.s3_last_sync` com no máximo 26 h | `backup-check` → `BackupCheckFailed` (1ª falha) |
+| A cada `BACKUP_CHECK_INTERVAL_H` (6 h) e depois de cada dump | `backup-check.sh` | Último dump com no máximo 26 h (com `BACKUP_DUMP_SOURCE=nas`: o recibo `.nas_last_dump` do NAS ou o dump local, o mais novo, com até 26 h, e o dump local com até `BACKUP_LOCAL_MAX_AGE_H`, 8 dias); com `BACKUP_NAS_RECEIPT=true`, recibo do NAS com no máximo 26 h; com o sync dos assets ligado, o recibo `.s3_last_sync` com no máximo 26 h | `backup-check` → `BackupCheckFailed` (1ª falha) |
 | Dia `RESTORE_DRILL_DAY` (1) de cada mês, depois do dump | `restore-drill.sh` | Restaura o dump mais recente em `<banco>_drill_<data>` (nunca o de produção), confere e apaga | `pg-restore-drill` → `RestoreDrillFailed` (1ª falha), `RestoreDrillStale` (sem sucesso há 35 dias) |
 
 O ensaio confere: dump com no máximo 26 h e `.sha256` certo; espaço livre de pelo menos 2x o tamanho do banco no disco

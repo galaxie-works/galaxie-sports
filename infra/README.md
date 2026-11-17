@@ -11,7 +11,8 @@ observabilidade e os scripts de operação.
 | [`cloudflare/`](cloudflare/README.md) | O que roda na Cloudflare: o Worker de cache de borda da API (`api-edge-cache`, deploy à mão com wrangler) | Cloudflare |
 | [`ops/`](ops/README.md) | Plano B de operação a partir da máquina de dev (deploy, trem de merge, portão do Codex, issue de alerta) | dev (Git Bash) |
 | [`backup/`](backup/README.md) | Imagem do backup diário do Postgres (dump validado, retenção, S3 opcional, ensaio de restauração) | VPS (`backup`) |
-| `nas-backup/` | Cópia dos dumps da VPS para o NAS (camada 2 do 3-2-1) | NAS |
+| `nas-backup/` | Cópia dos dumps da VPS para o NAS (camada 2 do 3-2-1) e a `nas-lib.sh` da rotação 7/4/6; com `NAS_DUMPS_FROM_REPLICA=1`, só os assets do S3 | NAS |
+| [`nas-replica/`](nas-replica/README.md) | Stack `nas-replica` do NAS: réplica física em streaming do Postgres de produção (túnel SSH só de porta, hot standby) e os dumps diário e pré-deploy feitos a partir dela, com recibo na VPS e cópia fora de casa opcional ([runbook](../docs/runbooks/replica-no-nas.md)) | NAS |
 | [`nas-dev/`](nas-dev/compose.yml) | Stack `galaxie-sports-dev` do NAS: Postgres, Valkey e RustFS do **desenvolvimento**, mais ingestor e agents no perfil `workers`, que nascem com tudo que gasta cota desligado, e o `espelho` semanal produção → dev a partir dos dumps do NAS ([ambiente de dev](../docs/runbooks/ambiente-de-dev.md)) | NAS |
 | `observability/` | Imagens do Prometheus (alertas, SLOs, testes de regra) e do Grafana (painéis de cota e SLO, alertas → issues) | VPS |
 | `lineup-render/` | Servidor do Playwright para renderizar páginas de grade com JavaScript. Fora do workspace pnpm (tem `package-lock.json` próprio) | VPS (`lineup-render`) |
@@ -25,7 +26,8 @@ observabilidade e os scripts de operação.
 
 Passo a passo: [docs/runbooks/deploy-pelo-github.md](../docs/runbooks/deploy-pelo-github.md) · Subir uma VPS do zero:
 [docs/runbooks/bootstrap-vps.md](../docs/runbooks/bootstrap-vps.md) · Backup e DR:
-[docs/runbooks/exercicio-dr.md](../docs/runbooks/exercicio-dr.md) · Alertas:
+[docs/runbooks/exercicio-dr.md](../docs/runbooks/exercicio-dr.md) · Réplica e dumps no NAS:
+[docs/runbooks/replica-no-nas.md](../docs/runbooks/replica-no-nas.md) · Alertas:
 [docs/runbooks/alertas-e-monitoramento.md](../docs/runbooks/alertas-e-monitoramento.md).
 
 ## Stack única

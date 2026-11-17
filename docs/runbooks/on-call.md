@@ -109,6 +109,10 @@ A queima do SLO `ao-vivo` não manda push: ela chega no resumo diário e diz se 
 
   O `error` do job em Ajustes → Plataforma → Status dos serviços (jobs `pg-backup` e `backup-check`) diz qual parte falhou: dump, conferência
   ou recibo do NAS. Recibo do NAS atrasado: a stack `galaxie-sports-backup-nas` no Portainer do NAS parou.
+- **`NasDumpStale`** (ou `BackupCheckFailed` com "sem prova de backup recente"): o dump feito na réplica do NAS parou.
+  No Portainer do NAS, `NAS_BACKUP_PATH/last_dump.txt` e os logs de `nas-replica-dumper-1`, `-postgres-1` e `-tunnel-1`;
+  na VPS, `preparar-replica.sh --status` (slot, conexão, recibos). Cada parada e o que fazer:
+  [replica-no-nas.md › Paradas](replica-no-nas.md#paradas). O semanal da VPS continua existindo enquanto isso.
 - **`RestoreDrillFailed`**: o dump mais recente não restaurou. É sério, mas não urgente de madrugada: siga o
   [runbook de DR](exercicio-dr.md) no dia seguinte e confira se o dump de antes restaura.
 - **`DiskAlmostFull`** (acima de 85%):

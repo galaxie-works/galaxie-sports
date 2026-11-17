@@ -98,7 +98,9 @@ o que faltar.
    job) diz: `plano: api: troca (in-abc1234 → in-def5678) · ingestor: igual, fica · agents: troca (config mudou) · …`. Serviço que saiu do compose aparece como
    `<serviço>: sai` (a demo, quando virou `site` e `console`): sai depois que os da mesma imagem trocaram
    (`rolling-swap.sh --retire`), e a volta do grupo o sobe de novo antes de tirar os novos.
-7. Migration nova: dump do banco. `migrate` com saída 0 **antes de qualquer troca**, só se a imagem ou a configuração
+7. Migration nova: dump do banco (`pre-migrate-dump.sh` na VPS; com a variável do repositório `DUMP_MODE=nas`, a prova
+   de um dump feito na réplica do NAS ou de um dump local recente, sem `pg_dump` na VPS:
+   [replica-no-nas.md › Deploy sem dump local](replica-no-nas.md#deploy-sem-dump-local)). `migrate` com saída 0 **antes de qualquer troca**, só se a imagem ou a configuração
    dele mudou, se há migration nova ou com `force=1`. Com a API, o site ou o console na lista, o **smoke roda na versão nova
    antes da troca**, nos candidatos sem tráfego (`site-candidate` e `console-candidate`, cada um no papel dele); reprovado, nada troca
    ([README da stack › Candidato e troca sem manutenção](../../infra/vps-telemetry/README.md)).

@@ -29,7 +29,7 @@ Só alerta `severity: critical` vira push. Cada um tem o rótulo `sinal`, que ap
 | `ao-vivo` | `LiveTickGap` | Há jogo em andamento (janela do plano aberta) e o último tick do `live-run`, de qualquer cópia, passou de 60 s (ou de 2 intervalos do plano, quando o plano espaça mais) por 1 min. Meio-tempo, orçamento do dia e espera depois de erro da fonte não contam. Olha o runner parado, antes de o jogo ficar atrasado: deploy do `live` que não passou o bastão aparece aqui |
 | `ia` | `AiCreditExhausted` | A checagem horária do crédito voltou `fail`: conta sem crédito (402, cota/billing) ou chave recusada (401/403) |
 | `ia` | `AiSpendNearDailyBudget` | Gasto do dia de orçamento em 80% ou mais do `AI_DAILY_USD_BUDGET` efetivo |
-| `backup-disco` | `BackupStale`, `BackupCheckFailed`, `RestoreDrillFailed`, `DiskAlmostFull` | Backup atrasado, verificação ou ensaio falhando, disco acima de 85% |
+| `backup-disco` | `BackupStale`, `NasDumpStale`, `BackupCheckFailed`, `RestoreDrillFailed`, `DiskAlmostFull` | Backup atrasado (nem na VPS nem no NAS há 26 h), dump da réplica do NAS sem recibo novo há 26 h ([replica-no-nas.md](replica-no-nas.md)), verificação ou ensaio falhando, disco acima de 85% |
 | `deploy` | Passo "Aviso por push" do `deploy.yml` | Deploy falhou, foi cancelado ou estourou o teto de 45 min |
 | (alertador cego) | `DatasourceError` do Grafana | O Grafana não consegue consultar o Prometheus |
 
