@@ -170,4 +170,34 @@ describe('Agente Resumo (integração)', () => {
     await onEventFinished(db, eventId, again, { locales: ['pt-BR'] });
     expect(again.calls).toBe(0);
   });
+
+  it('insumo igual ao da última montagem: o jogo sai da fila sem consulta própria; mudou, só ele volta', async () => {
+    const llm = new FakeLlmClient(responder(GOOD));
+    // a primeira rodada monta os fatos (ou já acha o carimbo) e deixa o carimbo do insumo gravado
+    await runRecapAgent(db, { now: NOW, llm });
+    const idle = await runRecapAgent(db, { now: NOW, llm });
+    expect(idle.unchanged).toBe(1);
+    expect(idle.items).toEqual([]);
+    // mudou o jogo (a correção do fornecedor atualiza a linha): volta à fila, monta os fatos e confere o hash
+    await db.update(event).set({ updatedAt: new Date() }).where(eq(event.id, eventId));
+    const changed = await runRecapAgent(db, { now: NOW, llm });
+    expect(changed.unchanged ?? 0).toBe(0);
+    expect(changed.items).toEqual([
+      expect.objectContaining({
+        eventId,
+        action: 'skipped',
+        reason: 'fatos inalterados desde a última geração',
+      }),
+    ]);
+    // o carimbo novo foi gravado: a rodada seguinte descarta de novo
+    expect((await runRecapAgent(db, { now: NOW, llm })).unchanged).toBe(1);
+    // passada a validade do carimbo (títulos e regulamento não entram nele), o caminho inteiro roda de novo
+    const later = new Date(NOW.getTime() + 7 * 3_600_000);
+    expect((await runRecapAgent(db, { now: later, llm, eventId })).items).toHaveLength(1);
+    // --forcar ignora o carimbo
+    expect(
+      (await runRecapAgent(db, { now: NOW, llm, force: true, locales: ['pt-BR'] })).unchanged,
+    ).toBeUndefined();
+    expect(llm.calls).toBe(1);
+  });
 });

@@ -170,7 +170,11 @@ export function printAgentReport(report: AgentRunReport, plan: boolean): void {
     llm: i.origins ? `${i.origins.llm}/${i.origins.llm + i.origins.fallback}` : '',
   }));
   if (rows.length) console.table(rows);
-  else console.log('Nenhum evento candidato na janela.');
+  else if (!report.unchanged) console.log('Nenhum evento candidato na janela.');
+  if (report.unchanged)
+    console.log(
+      `${report.unchanged} evento(s) com o insumo igual ao da última montagem dos fatos: fora da fila.`,
+    );
   if (plan) {
     console.log(
       `Plano (${report.agent}): ${report.items.filter((i) => i.action === 'planned').length} evento(s) seriam gerados. Nada foi gravado.`,
