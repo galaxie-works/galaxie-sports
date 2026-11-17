@@ -279,8 +279,9 @@ A matriz de `packages/db/src/roles.ts` ([runbook dos papéis](papeis-do-banco.md
 a troca de papéis continua desligada. `galaxie_ingestor` (o worker da fila roda com ele): UPDATE em `api.tenant` e
 `billing.domain`, acréscimo em `billing.tenant_state_event`, escrita em `billing.tenant_notification`, leitura de
 `demo_auth."user"` (os destinatários; `billing.organization_member`, `module_trial` e `domain` já entravam pela leitura
-larga de `billing`). `galaxie_demo`: escrita em `billing.tenant_notification`, acréscimo em `billing.tenant_state_event`
-e `billing.module_trial`. A tabela do `demo_auth` que ainda não existe (antes da primeira subida da demo) é pulada e
+larga de `billing`). `galaxie_demo`: escrita em `billing.tenant_notification`, `billing.organization`, `billing.organization_member` e
+`billing.domain` (o provisionamento e as telas da F2), acréscimo em `billing.tenant_state_event`, `billing.module_trial`
+e `billing.staff_action`. A tabela do `demo_auth` que ainda não existe (antes da primeira subida da demo) é pulada e
 ganha o GRANT na rodada seguinte do `migrate`.
 
 ## O que ficou de fora

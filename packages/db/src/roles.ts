@@ -130,6 +130,11 @@ export const ROLE_GRANTS: Record<RoleService, RoleGrants> = {
       'cosmos.moderation_config',
       // cota da carteira por sala e produto (#1116): tirar a cota de uma sala apaga a linha
       'cosmos.wallet_quota',
+      // plataforma comercial F2 (provisionamento, Ajustes › Organizações e marcas, Usuários e cargos, Domínios): a
+      // organização e os cargos dela (upsert, convite, remoção) e o domínio comprovado por TXT (apagar remove a linha)
+      'billing.organization',
+      'billing.organization_member',
+      'billing.domain',
     ],
     // Cosmos AI (#1064): tabela por tabela e operação por operação, pelo que as funções de @galaxie/cosmos que a
     // demo chama gravam. Sem DELETE em nada da Cosmos (exceto apagar a exceção de moderação de uma sala e a cota de uma
@@ -180,6 +185,8 @@ export const ROLE_GRANTS: Record<RoleService, RoleGrants> = {
       // (startModuleTrial): linha nova, nunca alterada
       'billing.tenant_state_event',
       'billing.module_trial',
+      // toda ação da equipe Galaxie sobre organização ou marca (PL17): só cresce
+      'billing.staff_action',
       // vetores da base de conhecimento do assistente (#1118; sem a tabela, o GRANT é pulado)
       'cosmos.doc_embedding',
     ],
