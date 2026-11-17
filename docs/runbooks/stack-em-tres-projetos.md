@@ -51,7 +51,7 @@ gh variable delete DEPLOY_AUTO
 Da máquina de dev, num checkout da `main`:
 
 ```bash
-VPS=root@145.223.94.149
+VPS=$(gh variable get VPS_SSH_TARGET --env producao)   # usuario@host da produção
 D=/docker/galaxie-sports
 scp infra/vps-telemetry/compose.dados.yml infra/vps-telemetry/compose.obs.yml "$VPS:$D/"
 scp infra/vps-telemetry/compose.yml "$VPS:$D/compose.yml.new"

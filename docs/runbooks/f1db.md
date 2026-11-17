@@ -83,7 +83,8 @@ Na base de dev (NAS, 23/10/2026), com a api-sports de 2024 já carregada:
 - cerca de 30 s de importação.
 
 ```bash
-ssh root@145.223.94.149
+# $VPS = usuario@host da produção (gh variable get VPS_SSH_TARGET --env producao); o IP não fica no repositório
+ssh "$VPS"
 cd /docker/galaxie-sports
 # 1. backup do banco antes (o mesmo serviço do dump diário)
 docker compose -f compose.dados.yml exec -T backup backup.sh

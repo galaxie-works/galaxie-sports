@@ -2,7 +2,7 @@
 # Rodada NAS → produção: exporta core/multisport do NAS, monta sync_* na produção, reaponta ids, aplica (com backup antes),
 # limpa órfãos, copia objetos do S3 e limpa o cache. Mesmas regras do sync-upsert.sql (curadoria e resultados da produção prevalecem).
 set -e
-S="$(dirname "$0")"; VPS=root@145.223.94.149; SSHO="-o ServerAliveInterval=30"
+S="$(dirname "$0")"; VPS="${VPS:?defina VPS (usuario@host da produção)}"; SSHO="-o ServerAliveInterval=30"
 scp -q "$S/sync-upsert.sql" "$S/sync-apply.sql" "$S/sync-remap.sql" "$S/sync-orphans.sql" $VPS:/tmp/
 echo "== exporta do NAS"; bash "$S/nas-export.sh"
 ssh $SSHO $VPS 'cd /docker/galaxie-sports && P="docker compose -f compose.dados.yml exec -T postgres"; C=$(docker compose -f compose.dados.yml ps -q postgres)

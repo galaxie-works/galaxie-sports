@@ -301,6 +301,7 @@ pnpm --filter @galaxie/ingestor assets:mirror --descobrir-raw
 | — | [On-call](docs/runbooks/on-call.md) | Recebi um push: o primeiro passo de cada alerta grave |
 | — | [Postmortems](docs/postmortems/README.md) | Incidentes de produção, sem culpados, com linha do tempo e ações |
 | — | [Exercício de DR](docs/runbooks/exercicio-dr.md) | Backup → ensaio → restauração, com o registro do último exercício |
+| — | [Migração da produção para CPU dedicada](docs/runbooks/migracao-producao-cpu-dedicada.md) | Réplica física do Postgres, corte com janela curta, DNS, SSH do Actions e do NAS, volta atrás e encerramento |
 | — | [Testes de carga](tests/load/README.md) | Cenários k6, metas p95 e modelo de relatório |
 
 Pesquisas de apoio (com fontes): [api-sports futebol](docs/research/api-sports-football.md) · [demais esportes](docs/research/api-sports-outros-esportes.md) · [catálogo de competições](docs/research/catalogo-competicoes.md) · [onde assistir](docs/research/onde-assistir.md) · [Olimpíadas e Pan](docs/research/olimpiadas-e-panamericano.md) · [Sportmonks](docs/research/sportmonks.md).

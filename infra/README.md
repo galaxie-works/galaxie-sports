@@ -24,7 +24,8 @@ observabilidade e os scripts de operação.
    candidatas, troca, smoke test e volta ao SHA anterior se algo falhar.
 
 Passo a passo: [docs/runbooks/deploy-pelo-github.md](../docs/runbooks/deploy-pelo-github.md) · Subir uma VPS do zero:
-[docs/runbooks/bootstrap-vps.md](../docs/runbooks/bootstrap-vps.md) · Backup e DR:
+[docs/runbooks/bootstrap-vps.md](../docs/runbooks/bootstrap-vps.md) · Migrar a produção de máquina:
+[docs/runbooks/migracao-producao-cpu-dedicada.md](../docs/runbooks/migracao-producao-cpu-dedicada.md) · Backup e DR:
 [docs/runbooks/exercicio-dr.md](../docs/runbooks/exercicio-dr.md) · Alertas:
 [docs/runbooks/alertas-e-monitoramento.md](../docs/runbooks/alertas-e-monitoramento.md).
 

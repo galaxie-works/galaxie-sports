@@ -11,6 +11,9 @@ services:
       TZ: UTC
       VPS_HOST: ${VPS_HOST:?defina VPS_HOST}
       VPS_USER: ${VPS_USER:-root}
+      # porta do SSH da máquina de produção (o nas-pull.sh usa 22 sem ela); host e porta são só variáveis da stack no Portainer,
+      # nunca valores fixos: trocar de máquina é editar VPS_HOST (docs/runbooks/migracao-producao-cpu-dedicada.md)
+      VPS_PORT: ${VPS_PORT:-22}
       NAS_KEEP_DAILY: ${NAS_KEEP_DAILY:-7}
       NAS_KEEP_WEEKLY: ${NAS_KEEP_WEEKLY:-4}
       NAS_KEEP_MONTHLY: ${NAS_KEEP_MONTHLY:-6}

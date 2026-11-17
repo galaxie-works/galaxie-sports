@@ -43,7 +43,8 @@
 # Falha depois do passo 6 deixa a versão nova no ar e imprime o comando para voltar à anterior.
 set -euo pipefail
 
-VPS="${VPS:-root@145.223.94.149}"
+# alvo SSH da produção (usuario@host): sem padrão no repositório; o mesmo valor de vars.VPS_SSH_TARGET do Actions
+VPS="${VPS:?defina VPS (usuario@host da produção, ex.: VPS=$(gh variable get VPS_SSH_TARGET --env producao))}"
 DIR="${VPS_DIR:-/docker/galaxie-sports}"
 REG="ghcr.io/galaxie-works/galaxie-sports"
 ROOT="$(git rev-parse --show-toplevel)"

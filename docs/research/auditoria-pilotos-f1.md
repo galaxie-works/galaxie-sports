@@ -173,7 +173,8 @@ Depois do merge e do deploy normal da `main` (API, ingestor e demo; a migration 
 deploy, como as outras), na VPS:
 
 ```bash
-ssh root@145.223.94.149
+# $VPS = usuario@host da produção (gh variable get VPS_SSH_TARGET --env producao); o IP não fica no repositório
+ssh "$VPS"
 cd /docker/galaxie-sports
 # 1. backup
 docker compose exec -T backup backup.sh

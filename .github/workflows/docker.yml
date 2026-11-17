@@ -448,7 +448,8 @@ jobs:
             infra/vps-telemetry/candidate.sh infra/vps-telemetry/maintenance.sh infra/vps-telemetry/migrar-para-tres-projetos.sh infra/vps-telemetry/rolling-swap.sh infra/vps-telemetry/rolling-swap.test.sh infra/vps-telemetry/ligar-webhooks.sh \
             infra/vps-telemetry/prune-images.sh infra/vps-telemetry/prune-images.test.sh infra/ops/vps-stats/*.sh \
             infra/ops/migrate-dev.sh infra/ops/migrate-dev.test.sh \
-            infra/vps-telemetry/ensure-secrets.sh infra/vps-telemetry/ensure-secrets.test.sh
+            infra/vps-telemetry/ensure-secrets.sh infra/vps-telemetry/ensure-secrets.test.sh \
+            infra/ops/conferir-pos-corte.sh infra/ops/conferir-pos-corte.test.sh
 
       - name: Segredos internos gerados no deploy (ensure-secrets.sh, só o que falta, nunca troca, sem mostrar valor)
         run: bash infra/vps-telemetry/ensure-secrets.test.sh
@@ -486,6 +487,9 @@ jobs:
 
       - name: Espelho produção → dev (mirror-prod-to-dev.sh com psql, pg_restore, age e aws falsos)
         run: bash infra/ops/mirror-prod-to-dev.test.sh
+
+      - name: Conferência pós-corte da migração (conferir-pos-corte.sh com curl e docker falsos; só leitura)
+        run: bash infra/ops/conferir-pos-corte.test.sh
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:

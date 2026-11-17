@@ -136,8 +136,9 @@ rota do painel de Operação (protegida e sem valor de credencial) e a proteçã
 aparece no relatório. Serviço por serviço, o deploy termina conferindo a versão no ar (`deploy-verify.sh`; runbook › A versão que cada serviço roda). Para rodar só o smoke test:
 
 ```bash
-ssh root@145.223.94.149 'cd /docker/galaxie-sports && docker compose exec -T site node -' < infra/vps-telemetry/smoke.mjs
-ssh root@145.223.94.149 'cd /docker/galaxie-sports && docker compose exec -T console node -' < infra/vps-telemetry/smoke.mjs
+# $VPS = usuario@host da produção (gh variable get VPS_SSH_TARGET --env producao); o IP não fica no repositório
+ssh "$VPS" 'cd /docker/galaxie-sports && docker compose exec -T site node -' < infra/vps-telemetry/smoke.mjs
+ssh "$VPS" 'cd /docker/galaxie-sports && docker compose exec -T console node -' < infra/vps-telemetry/smoke.mjs
 ```
 
 ### Candidato e troca sem manutenção
@@ -215,9 +216,9 @@ Com o rótulo novo, o próximo deploy recria só o `maintenance` (cerca de 1 s, 
 (`http://maintenance:8080` e `:8081`). Os routers do Traefik se conferem de fora, numa janela combinada:
 
 ```bash
-ssh root@145.223.94.149 'cd /docker/galaxie-sports && docker compose stop site'
+ssh "$VPS" 'cd /docker/galaxie-sports && docker compose stop site'
 curl -sS -D - -o /dev/null https://$DEMO_DOMAIN/competicoes/brasileirao-serie-a   # 503, Retry-After: 30, text/html
-ssh root@145.223.94.149 'cd /docker/galaxie-sports && docker compose start site'
+ssh "$VPS" 'cd /docker/galaxie-sports && docker compose start site'
 curl -sS -o /dev/null -w '%{http_code}\n' https://$DEMO_DOMAIN/                     # de volta: 307 → /login
 ```
 
@@ -225,8 +226,8 @@ curl -sS -o /dev/null -w '%{http_code}\n' https://$DEMO_DOMAIN/                 
 `MAINTENANCE_PRIORITY` no `.env` e recria só esse serviço (os routers passam a ganhar dos de verdade nos dois hosts):
 
 ```bash
-ssh root@145.223.94.149 'cd /docker/galaxie-sports && bash -s -- up' < infra/vps-telemetry/maintenance.sh
-ssh root@145.223.94.149 'cd /docker/galaxie-sports && bash -s -- down' < infra/vps-telemetry/maintenance.sh
+ssh "$VPS" 'cd /docker/galaxie-sports && bash -s -- up' < infra/vps-telemetry/maintenance.sh
+ssh "$VPS" 'cd /docker/galaxie-sports && bash -s -- down' < infra/vps-telemetry/maintenance.sh
 ```
 
 Enquanto forçada, ninguém
@@ -270,10 +271,10 @@ novo e só então tira os dois. Voltar para um SHA de antes da divisão faz o ca
 ```bash
 curl -sS -o /dev/null -w '%{http_code}\n' https://$DEMO_DOMAIN/cliente        # 307 → /login (console)
 curl -sS https://$DEMO_DOMAIN/api/version                                     # "service":"site"
-ssh root@145.223.94.149 'cd /docker/galaxie-sports && docker compose stop console'
+ssh "$VPS" 'cd /docker/galaxie-sports && docker compose stop console'
 curl -sS -o /dev/null -w '%{http_code}\n' https://$DEMO_DOMAIN/cliente        # 503 (manutenção)
 curl -sS -o /dev/null -w '%{http_code}\n' https://$DEMO_DOMAIN/sobre          # 200: o site segue
-ssh root@145.223.94.149 'cd /docker/galaxie-sports && docker compose start console'
+ssh "$VPS" 'cd /docker/galaxie-sports && docker compose start console'
 ```
 
 ## Painel de Operação (flags sem editar o `.env`)

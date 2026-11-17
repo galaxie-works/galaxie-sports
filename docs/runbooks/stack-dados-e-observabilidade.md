@@ -38,7 +38,8 @@ terceiros. **Nada disso sai sozinho num merge.** Quem mexe traz o arquivo da `ma
 validação antes:
 
 ```bash
-scp infra/vps-telemetry/compose.dados.yml root@145.223.94.149:/docker/galaxie-sports/compose.dados.yml.new
+# $VPS = usuario@host da produção (gh variable get VPS_SSH_TARGET --env producao); o IP não fica no repositório
+scp infra/vps-telemetry/compose.dados.yml "$VPS":/docker/galaxie-sports/compose.dados.yml.new
 ```
 
 Na VPS:
@@ -99,8 +100,8 @@ Depois, o que ficou em `tasks/` do bucket de assets vai para o privado (cópia c
 público; idempotente). Da máquina de dev, prévia primeiro:
 
 ```bash
-ssh root@145.223.94.149 'cd /docker/galaxie-sports && bash -s -- --plan' < infra/ops/mover-tasks-para-bucket-privado.sh
-ssh root@145.223.94.149 'cd /docker/galaxie-sports && bash -s' < infra/ops/mover-tasks-para-bucket-privado.sh
+ssh "$VPS" 'cd /docker/galaxie-sports && bash -s -- --plan' < infra/ops/mover-tasks-para-bucket-privado.sh
+ssh "$VPS" 'cd /docker/galaxie-sports && bash -s' < infra/ops/mover-tasks-para-bucket-privado.sh
 ```
 
 Saída `3`: há tarefa viva (`pending`/`running`) com o pacote no bucket de assets; a cópia foi feita, a remoção não.
@@ -117,8 +118,8 @@ Espere ela terminar e rode de novo (ou `--forcar`). Saída `4`: a mesma chave j�
 depois ([README da stack › Página de manutenção](../../infra/vps-telemetry/README.md)):
 
 ```bash
-ssh root@145.223.94.149 'cd /docker/galaxie-sports && bash -s -- up' < infra/vps-telemetry/maintenance.sh
-ssh root@145.223.94.149 'cd /docker/galaxie-sports && bash -s -- down' < infra/vps-telemetry/maintenance.sh
+ssh "$VPS" 'cd /docker/galaxie-sports && bash -s -- up' < infra/vps-telemetry/maintenance.sh
+ssh "$VPS" 'cd /docker/galaxie-sports && bash -s -- down' < infra/vps-telemetry/maintenance.sh
 ```
 
 ## Rede e volumes

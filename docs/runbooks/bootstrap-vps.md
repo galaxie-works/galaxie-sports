@@ -1,7 +1,8 @@
 # Recriar a VPS de produção do zero
 
 Para o caso "VPS perdida" sem o snapshot do provedor ([exercicio-dr.md › Cenários](exercicio-dr.md)), ou para mudar
-de VPS. O estado de 29/10/2026 foi lido por SSH (só leitura) e está descrito aqui; o que é segredo fica no cofre de
+de VPS (a troca planejada, com réplica do banco e janela curta, está em
+[migracao-producao-cpu-dedicada.md](migracao-producao-cpu-dedicada.md), que usa este como base). O estado de 29/10/2026 foi lido por SSH (só leitura) e está descrito aqui; o que é segredo fica no cofre de
 senhas do Wagner, nunca neste repositório. Meta: a API de volta em até 2 h.
 
 ## O que precisa estar à mão antes
