@@ -883,6 +883,13 @@
       "when": 1794863710951,
       "tag": "0182_comunidades_feed",
       "breakpoints": true
+    },
+    {
+      "idx": 126,
+      "version": "7",
+      "when": 1794917589745,
+      "tag": "0190_indices_jobs_por_minuto",
+      "breakpoints": true
     }
   ]
 }
