@@ -1586,6 +1586,12 @@ export default defineMessages(
         description: 'Por quantos dias as mudanças ficam no feed antes da limpeza.',
         unit: 'dias',
       },
+      EXPLORE_MIN_INTERVAL_SEC: {
+        label: 'Intervalo mínimo do resumo da home',
+        description:
+          'Mudança de jogo só refaz o resumo do Explorar depois disso desde a última conta. 0 = sem freio; a conta de 10 em 10 min continua.',
+        unit: 's',
+      },
       AI_PROVIDER: {
         label: 'Provedor de IA',
         description: 'Quem escreve os textos dos agentes. Trocar exige a chave do novo provedor configurada.',
@@ -1600,6 +1606,12 @@ export default defineMessages(
         label: 'IA',
         description:
           'Chave geral: ligada ou desligada para todos os agentes. Desligada, nenhuma chamada sai para o provedor (nem a dos agentes com agente=on) e os agentes seguem só com texto determinístico.',
+      },
+      RECAP_INPUT_MAX_AGE_HOURS: {
+        label: 'Revisão completa do resumo',
+        description:
+          'O resumo pós-jogo pula o jogo cujos dados não mudaram desde a última conferência. Passadas estas horas, confere tudo de novo mesmo sem mudança.',
+        unit: 'h',
       },
       AI_AGENT_STATUS: {
         label: 'IA por agente',
@@ -3582,6 +3594,12 @@ export default defineMessages(
           description: 'How many days changes stay in the feed before cleanup.',
           unit: 'days',
         },
+        EXPLORE_MIN_INTERVAL_SEC: {
+          label: 'Home summary minimum interval',
+          description:
+            'A game change only rebuilds the Explore summary this long after the last build. 0 = no brake; the 10-minute rebuild still runs.',
+          unit: 's',
+        },
         AI_PROVIDER: {
           label: 'AI provider',
           description: "Who writes the agents' texts. Switching requires the new provider's key to be set.",
@@ -3599,6 +3617,12 @@ export default defineMessages(
           label: 'AI',
           description:
             'Master switch: on or off for every agent. Off, no call goes to the provider (not even for agents set to agent=on) and agents fall back to deterministic text.',
+        },
+        RECAP_INPUT_MAX_AGE_HOURS: {
+          label: 'Full recap recheck',
+          description:
+            'The post-match recap skips a game whose data has not changed since the last check. After this many hours it rechecks everything even without changes.',
+          unit: 'h',
         },
         AI_AGENT_STATUS: {
           label: 'AI per agent',
@@ -5602,6 +5626,12 @@ export default defineMessages(
           description: 'Cuántos días quedan los cambios en el feed antes de la limpieza.',
           unit: 'días',
         },
+        EXPLORE_MIN_INTERVAL_SEC: {
+          label: 'Intervalo mínimo del resumen de inicio',
+          description:
+            'Un cambio de partido solo rehace el resumen de Explorar pasado este tiempo desde el último cálculo. 0 = sin freno; el cálculo cada 10 min sigue.',
+          unit: 's',
+        },
         AI_PROVIDER: {
           label: 'Proveedor de IA',
           description:
@@ -5620,6 +5650,12 @@ export default defineMessages(
           label: 'IA',
           description:
             'Interruptor general: encendida o apagada para todos los agentes. Apagada, ninguna llamada va al proveedor (ni la de los agentes con agente=on) y los agentes siguen solo con texto determinístico.',
+        },
+        RECAP_INPUT_MAX_AGE_HOURS: {
+          label: 'Revisión completa del resumen',
+          description:
+            'El resumen pospartido omite el partido cuyos datos no cambiaron desde la última verificación. Pasadas estas horas, verifica todo de nuevo aunque no haya cambios.',
+          unit: 'h',
         },
         AI_AGENT_STATUS: {
           label: 'IA por agente',

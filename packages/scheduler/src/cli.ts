@@ -33,6 +33,7 @@ import { closeDb, createDb, tryJobLock, type Database } from '@galaxie/db';
 import { startOpsServer, versionInfo, type Logger, type OpsServerOptions } from '@galaxie/observability';
 import { checkAiCredit } from './ai-credit.js';
 import { closeOrphans, lastJobStarts, missedSlots } from './catch-up.js';
+import { IdleGate } from './idle-gate.js';
 import { enqueueJob, queueMode } from './queue-mode.js';
 import { PgRunRecorder, runJob, runExitCode, schedulerInstance } from './runner.js';
 import type { ScheduledJob } from './schedule.js';
@@ -119,6 +120,9 @@ export async function runScheduler(options: SchedulerCliOptions): Promise<void> 
         })
     : undefined;
 
+  // "há trabalho?" antes de subir o processo do job (idle-gate.ts): só nos jobs com `idleCheck`; sem banco, roda sempre
+  const idleGate = db ? new IdleGate({ db, recorder, logger: log }) : undefined;
+
   const service = new SchedulerService({
     profile,
     jobs: definitions,
@@ -128,9 +132,11 @@ export async function runScheduler(options: SchedulerCliOptions): Promise<void> 
     refreshMs: Number(process.env.SCHEDULER_REFRESH_SECONDS ?? 30) * 1000 || 30_000,
     creditCheck: profile === 'agents' ? (env) => checkAiCredit(env) : undefined,
     maxJobs,
-    run: (job, { trigger, env, signal }) =>
+    run: async (job, { trigger, env, signal }) => {
+      const idle = await idleGate?.check(job, trigger);
+      if (idle) return idle;
       // QUEUE_MODE=enqueue: o job pesado vira tarefa da fila e o worker executa (sem banco, roda como sempre)
-      job.task && db && queueMode(env) === 'enqueue'
+      return job.task && db && queueMode(env) === 'enqueue'
         ? enqueueJob(db, job, { trigger, recorder, logger: log })
         : runJob(job, {
             cwd: packageRoot,
@@ -145,7 +151,8 @@ export async function runScheduler(options: SchedulerCliOptions): Promise<void> 
             // não dobram o ao vivo (trava de sessão: some sozinha se este processo cair)
             lock: jobLock,
             instance,
-          }),
+          });
+    },
   });
 
   if (process.argv.includes('--list') || arg('--run') !== undefined) {

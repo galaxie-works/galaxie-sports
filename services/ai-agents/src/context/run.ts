@@ -57,6 +57,11 @@ export interface AgentRunReport {
   usage: { inputTokens: number; outputTokens: number; costUsd: number };
   /** Eventos que ficaram com o texto determinístico porque o orçamento recusou (status `budget_skipped`). */
   budgetSkipped: number;
+  /**
+   * Eventos da fila descartados antes de montar os fatos: o insumo é o mesmo da última montagem (Resumo,
+   * recap/input-stamp.ts). Não entram em `items`.
+   */
+  unchanged?: number;
 }
 
 export interface ScenarioRunOptions {

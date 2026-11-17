@@ -135,7 +135,9 @@ instalados na partida, como o `backup-nas` faz com o `rsync`), pelo `crond`, com
 [infra/ops/mirror-prod-to-dev.sql](../../infra/ops/mirror-prod-to-dev.sql) copiados para a pasta da stack
 (`NAS_DEV_PATH`). A cada execução:
 
-1. **Dump.** O mais recente de `daily/` da pasta da stack `galaxie-sports-backup-nas` (`NAS_BACKUP_PATH`, montada só
+1. **Dump.** O mais recente de `daily/` da pasta da stack `galaxie-sports-backup-nas` (com a réplica no NAS,
+   [docs/16](../16-implantacao.md), os dumps passam a vir do `dumper` da stack `nas-replica`; a pasta segue o PR da
+   réplica, #1307) (`NAS_BACKUP_PATH`, montada só
    leitura em `/backups`), com o `.sha256` conferido e, sendo `.dump.age`, decifrado com a **chave privada do ensaio**
    (`BACKUP_AGE_IDENTITY`, a mesma do `.env` da VPS; [exercício de DR › Dumps cifrados](exercicio-dr.md#dumps-cifrados-age))
    numa cópia apagada ao sair.

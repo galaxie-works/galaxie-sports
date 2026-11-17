@@ -22,9 +22,12 @@ services:
       # Duas tentativas por dia (UTC): depois do dump das 03:30 e uma de reserva. Uma cópia em dia não baixa de novo.
       NAS_PULL_CRON: ${NAS_PULL_CRON:-15 5,17 * * *}
       NAS_PULL_ON_START: ${NAS_PULL_ON_START:-true}
+      # 1 = os dumps nascem no NAS, da réplica (stack nas-replica, docs/runbooks/replica-no-nas.md): aqui só os assets
+      # do S3 e o recibo .nas_last_pull; a rotação de daily/ fica com o dump.sh. Precisa da nas-lib.sh na pasta
+      NAS_DUMPS_FROM_REPLICA: ${NAS_DUMPS_FROM_REPLICA:-0}
     volumes:
       - ${NAS_BACKUP_PATH:?defina NAS_BACKUP_PATH}:/data
-    # O script vem da própria pasta (cópia de infra/nas-backup/nas-pull.sh); a saída do crond vai para o log do container.
+    # O script vem da própria pasta (cópias de infra/nas-backup/nas-pull.sh e nas-lib.sh); a saída do crond vai para o log do container.
     entrypoint:
       - /bin/sh
       - -c

@@ -37,6 +37,30 @@ export const DB_TIMEOUTS: Readonly<Record<DbProfile, Readonly<DbTimeouts>>> = {
   migrate: { statementMs: 0, lockMs: 5_000, idleInTransactionMs: 0 },
 };
 
+/**
+ * `max_parallel_workers_per_gather` de cada perfil (null = o do servidor). Jobs e ao vivo rodam sem workers paralelos:
+ * numa VPS de 2 vCPU, uma consulta pesada de job com 2 workers ocupava os dois núcleos (17/11/2026, `gameFacts` do
+ * related-run) e o ao vivo e a API ficavam esperando CPU. Sem paralelismo a consulta do job demora um pouco mais, mas
+ * deixa um núcleo livre. A API e a demo seguem com o do servidor. `DB_MAX_PARALLEL_WORKERS_PER_GATHER` no env troca
+ * (ex.: uma CLI pesada rodada à mão fora do horário).
+ */
+export const DB_PARALLEL_WORKERS: Readonly<Record<DbProfile, number | null>> = {
+  api: null,
+  job: 0,
+  live: 0,
+  migrate: null,
+};
+
+/** Workers paralelos efetivos de um pool: perfil < env (inteiro ≥ 0; inválido fica o do perfil). */
+export function resolveParallelWorkers(
+  profile: DbProfile,
+  env: NodeJS.ProcessEnv = process.env,
+): number | null {
+  const raw = env.DB_MAX_PARALLEL_WORKERS_PER_GATHER?.trim();
+  const n = raw ? Number(raw) : NaN;
+  return Number.isInteger(n) && n >= 0 ? n : DB_PARALLEL_WORKERS[profile];
+}
+
 /** Pool padrão de cada perfil (a soma de todos tem de caber no max_connections; ver infra/vps-telemetry/README.md). */
 export const DB_POOL_MAX: Readonly<Record<DbProfile, number>> = { api: 10, job: 4, live: 4, migrate: 1 };
 
@@ -77,9 +101,17 @@ export function resolveDbTimeouts(
   return out;
 }
 
-/** Parâmetros de partida da sessão (o Postgres aceita qualquer GUC de sessão no startup; 0 não é enviado). */
-export function sessionParams(timeouts: DbTimeouts, applicationName?: string): Record<string, string> {
+/**
+ * Parâmetros de partida da sessão (o Postgres aceita qualquer GUC de sessão no startup; tempo 0 não é enviado).
+ * `parallelWorkers` null não é enviado (vale o do servidor).
+ */
+export function sessionParams(
+  timeouts: DbTimeouts,
+  applicationName?: string,
+  parallelWorkers: number | null = null,
+): Record<string, string> {
   const params: Record<string, string> = {};
+  if (parallelWorkers !== null) params.max_parallel_workers_per_gather = String(parallelWorkers);
   if (applicationName) params.application_name = applicationName;
   if (timeouts.statementMs > 0) params.statement_timeout = String(timeouts.statementMs);
   if (timeouts.lockMs > 0) params.lock_timeout = String(timeouts.lockMs);
@@ -94,7 +126,7 @@ export function createDb(url: string, options: CreateDbOptions = {}): Database {
   const client = postgres(url, {
     max: options.max ?? DB_POOL_MAX[profile],
     onnotice: () => {},
-    connection: sessionParams(timeouts, options.applicationName),
+    connection: sessionParams(timeouts, options.applicationName, resolveParallelWorkers(profile)),
   });
   return drizzle(client, { schema }) as Database;
 }
