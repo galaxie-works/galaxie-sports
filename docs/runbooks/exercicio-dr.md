@@ -4,23 +4,41 @@ Política de backup do Postgres, o que roda sozinho (verificador, ensaio mensal 
 o roteiro do exercício completo, com o registro dos exercícios feitos. O procedimento operacional (restore real e
 rollback) está em [infra/backup/README.md](../../infra/backup/README.md).
 
+> **Desenho novo desde 17/11/2026** ([docs/16 · Implantação](../16-implantacao.md), épico #1304): o Postgres de
+> produção tem uma réplica física em streaming no NAS, e o dump diário e o de pré-deploy nascem no NAS, a partir da
+> réplica; na VPS fica um dump semanal. A operação da réplica (primeira sincronização, falhas, volta atrás) fica no
+> runbook `replica-no-nas.md`, que vem do #1311. Até a execução (#1312), o dump diário ainda roda na VPS como
+> transição; o que este runbook descreve desse fluxo está marcado como **histórico (até 11/2026)**.
+
 ## Objetivos
 
 | Métrica | Alvo | Observação |
 |---|---|---|
-| RPO (perda máxima de dados) | 24 h | Dump diário (`BACKUP_TIME`, 03:30 UTC). O `raw` perdido pode ser rebuscado no fornecedor, mas custa cota |
+| RPO (perda máxima de dados) | 24 h | Dump diário (no NAS, a partir da réplica; até 11/2026, `BACKUP_TIME` 03:30 UTC na VPS). Perdida só a VPS, a réplica no NAS fica segundos atrás; o RPO de 24 h vale para erro que a réplica copia (um `DELETE` errado). O `raw` perdido pode ser rebuscado no fornecedor, mas custa cota |
 | RTO (tempo até a API voltar) | 2 h | Do incidente declarado à API respondendo `/health/db` com o banco restaurado (inclui baixar o dump do NAS ou subir uma VPS nova) |
 | Ensaio de restauração | Mensal, automático | `restore-drill.sh` no dia 1 (abaixo); o CI roda o ciclo completo em banco descartável (`infra/backup/e2e-test.sh`) |
 | Exercício completo | Trimestral, manual | Roteiro abaixo, com a API subindo sobre o banco restaurado |
 
 ## Política de retenção (3-2-1, avô-pai-filho)
 
-Três cópias, em dois lugares diferentes, uma fora da VPS:
+Desenho novo ([docs/16](../16-implantacao.md); nomes e valores conforme o PR da réplica, #1307 a #1310):
+
+| Camada | Onde | O que | Quem mantém |
+|---|---|---|---|
+| 1 | NAS da Galaxie (fora da VPS) | Réplica física em streaming do Postgres (hot standby) e os dumps diários e de pré-deploy feitos a partir dela, com a rotação 7 diários + 4 semanais + 6 mensais e o recibo `.nas_last_dump` na VPS | stack `nas-replica` |
+| 2 | Volume `backups` da VPS | Dump semanal (pior caso: NAS e disco da VPS perdidos na mesma semana) e os prefixos do S3 que o NAS copia | serviço `backup` |
+| 3 | Provedor da VPS | Backup da VPS inteira | provedor da VPS |
+| opcional | Fora de casa (S3 compatível, por rclone) | Cópia dos dumps do NAS, desligada por padrão (#1310) | stack `nas-replica` |
+
+### Histórico (até 11/2026)
+
+Três cópias, em dois lugares diferentes, uma fora da VPS, com o dump nascendo na VPS:
 
 | Camada | Onde | O que | Retenção | Quem mantém |
 |---|---|---|---|---|
 | 1 | Volume `backups` da VPS | Dump diário (`pg_dump -Fc`, zstd; cifrado com age, `.dump.age`, com `BACKUP_AGE_RECIPIENTS`) + `.sha256` | 3 dumps diários (`BACKUP_KEEP_DAILY=3`, por contagem: com o backup parado, nada some) | serviço `backup` |
 | 2 | NAS do dono (fora da VPS) | Cópia dos dumps (cifrados: o NAS nunca tem a chave) e `.sha256` | 7 diários + 4 semanais + 6 mensais | stack `galaxie-sports-backup-nas` no NAS (abaixo) |
+| 1 e 2, com a réplica no NAS ([replica-no-nas.md](replica-no-nas.md)) | O dump diário passa a ser feito **no NAS**, a partir da réplica física (stack `nas-replica`), direto em `daily/` com a mesma rotação; a VPS fica com um dump **semanal** (`BACKUP_DAYS=0`, 3 guardados) para o pior caso, e o NAS deixa o recibo `.nas_last_dump` na VPS | idem | `dump.sh` da stack `nas-replica`; `nas-pull.sh` com `NAS_DUMPS_FROM_REPLICA=1` (ligado junto com a stack) só copia os assets |
 | 3 | Provedor da VPS | Backup semanal da VPS inteira (a API da Hostinger mostrou 2 pontos em 04/11/2026; não há snapshot) | a do provedor | provedor da VPS |
 
 A cópia para um S3 externo (`BACKUP_S3_*`) continua opcional e pode somar uma camada. O bucket remoto guarda tudo: sem regra de
@@ -29,6 +47,9 @@ parte, nos mesmos dois lugares: [Assets do S3](#assets-do-s3). O backup do prove
 disco, sem conferência de que o banco nele está íntegro.
 
 ### Cópia no NAS
+
+> No desenho novo, o `nas-pull` deixa de copiar dumps (eles já nascem no NAS) e fica com os prefixos do S3 e o recibo
+> `.nas_last_pull` (#1309). Os passos de dump abaixo valem até a execução da réplica (#1312).
 
 Roda no NAS desde 26/10/2026, na stack `galaxie-sports-backup-nas` do Portainer do NAS (ambiente `local`), com o
 compose [infra/nas-backup/compose.yml](../../infra/nas-backup/compose.yml) e o script
@@ -77,6 +98,10 @@ pelo `ssh/known_hosts` (`StrictHostKeyChecking=yes`). Se a VPS for recriada, atu
   reinicie o container.
 - Desligar a cópia: pare a stack no NAS e ponha `BACKUP_NAS_RECEIPT=false` no `.env` da VPS. Senão, o alerta dispara em
   26 h.
+- Com os dumps feitos no NAS a partir da réplica ([replica-no-nas.md](replica-no-nas.md)): `NAS_DUMPS_FROM_REPLICA=1`
+  na stack e a `nas-lib.sh` (rotação 7/4/6, compartilhada com o `dump.sh` da réplica) ao lado do `nas-pull.sh` na pasta.
+  O script deixa de puxar dumps e continua com os assets do S3 e o recibo `.nas_last_pull`; a chave de recibo passa a
+  rodar o `galaxie-nas-receipt` da VPS (instalado pelo `preparar-replica.sh`), que aceita `pull` e `dump …`.
 
 ### Assets do S3
 
@@ -213,9 +238,10 @@ O serviço `backup` (`infra/backup/entrypoint.sh`) agenda, em UTC:
 
 | Quando | Script | O que faz | Registro (`ops.job_run`) e alerta |
 |---|---|---|---|
-| Diário, `BACKUP_TIME` (03:30) e na partida | `backup.sh` | Dump, `pg_restore --list`, `.sha256`, cópia S3 opcional, mantém os 7 mais recentes | `pg-backup` → `BackupStale` (sem sucesso há 26 h) |
+| Diário, `BACKUP_TIME` (03:30) e na partida; só nos dias de `BACKUP_DAYS`, se definida (o semanal da VPS com a réplica no NAS) | `backup.sh` | Dump, `pg_restore --list`, `.sha256`, cópia S3 opcional, mantém os 7 mais recentes | `pg-backup` → `BackupStale` (sem sucesso há 26 h, nem `pg-backup` nem `nas-dump`) |
+| Diário no NAS, a partir da réplica (`DUMP_CRON`, 03:30) e sob demanda ([replica-no-nas.md](replica-no-nas.md)) | `dump.sh` da stack `nas-replica` | O mesmo dump, em `daily/` do NAS, com recibo `.nas_last_dump` na VPS; o `backup-check.sh` (`BACKUP_DUMP_SOURCE=nas`) registra cada recibo como `nas-dump` | `nas-dump` → `NasDumpStale` (sem recibo novo há 26 h) |
 | Depois de cada dump, com `BACKUP_S3_SYNC_PREFIXES` (e na partida, se o recibo estiver velho) | `s3-sync.sh` | Assets do RustFS → volume (`s3/`) → bucket remoto (`assets/`), sem apagar | `s3-sync` → `BackupCheckFailed` (recibo velho) e `JobFailingRepeatedly` (3 falhas) |
-| A cada `BACKUP_CHECK_INTERVAL_H` (6 h) e depois de cada dump | `backup-check.sh` | Último dump com no máximo 26 h; com `BACKUP_NAS_RECEIPT=true`, recibo do NAS com no máximo 26 h; com o sync dos assets ligado, o recibo `.s3_last_sync` com no máximo 26 h | `backup-check` → `BackupCheckFailed` (1ª falha) |
+| A cada `BACKUP_CHECK_INTERVAL_H` (6 h) e depois de cada dump | `backup-check.sh` | Último dump com no máximo 26 h (com `BACKUP_DUMP_SOURCE=nas`: o recibo `.nas_last_dump` do NAS ou o dump local, o mais novo, com até 26 h, e o dump local com até `BACKUP_LOCAL_MAX_AGE_H`, 8 dias); com `BACKUP_NAS_RECEIPT=true`, recibo do NAS com no máximo 26 h; com o sync dos assets ligado, o recibo `.s3_last_sync` com no máximo 26 h | `backup-check` → `BackupCheckFailed` (1ª falha) |
 | Dia `RESTORE_DRILL_DAY` (1) de cada mês, depois do dump | `restore-drill.sh` | Restaura o dump mais recente em `<banco>_drill_<data>` (nunca o de produção), confere e apaga | `pg-restore-drill` → `RestoreDrillFailed` (1ª falha), `RestoreDrillStale` (sem sucesso há 35 dias) |
 
 O ensaio confere: dump com no máximo 26 h e `.sha256` certo; espaço livre de pelo menos 2x o tamanho do banco no disco
@@ -286,7 +312,7 @@ Nunca use `restore.sh --yes` com `PGDATABASE` apontando para o banco real fora d
 | Cenário | Resposta |
 |---|---|
 | Banco corrompido / `DROP` acidental | Pare API e ingestor → `restore.sh --yes latest` → confira → suba os serviços. Perda: desde o último dump |
-| VPS perdida | Primeiro, o backup semanal do provedor da VPS (volta a VPS inteira de até uma semana antes). Sem ele: nova VPS → stack → copie o dump mais recente do NAS (com o `.sha256`) para o volume `backups` e rode `restore.sh --yes <dump>` (ou, com S3, `restore.sh --yes s3://...`; ele baixa e confere o `.sha256` e para sem ele, salvo `--no-checksum`) → DNS. Segredos vêm do secret store, não do disco perdido. Passo a passo (SSH, Docker, firewall, Traefik, stack): [bootstrap-vps.md](bootstrap-vps.md) |
+| VPS perdida | Com a réplica no NAS em dia ([docs/16](../16-implantacao.md)), o banco perde só os segundos de atraso dela: o passo a passo de usá-la para subir a produção de novo fica no `replica-no-nas.md` (#1311). Sem a réplica: primeiro, o backup semanal do provedor da VPS (volta a VPS inteira de até uma semana antes). Sem ele: nova VPS → stack → copie o dump mais recente do NAS (com o `.sha256`) para o volume `backups` e rode `restore.sh --yes <dump>` (ou, com S3, `restore.sh --yes s3://...`; ele baixa e confere o `.sha256` e para sem ele, salvo `--no-checksum`) → DNS. Segredos vêm do secret store, não do disco perdido. Passo a passo (SSH, Docker, firewall, Traefik, stack): [bootstrap-vps.md](bootstrap-vps.md) |
 | Valkey perdido | Sem restauração: cache e rate limit se reconstroem; contadores de uso do dia corrente voltam a partir do último consolidado em `api.usage_daily` (o flush usa `greatest`, nada regride) |
 | Bucket de assets perdido | Primeiro, os prefixos com cópia ([Assets do S3](#assets-do-s3)): `broadcasters`, `platforms`, `acervo` e os demais da lista voltam do bucket remoto ou do NAS. O que ficou de fora se reconstitui: `assets:mirror` rebaixa a mídia da CDN (fora da cota), `assets:commons` as fotos da Commons e `assets:acervo` reimporta o pacote; `core.asset` guarda as URLs de origem |
 | Vazamento de segredo | [SECURITY.md §Rotação de segredos](../../SECURITY.md#rotação-de-segredos) |

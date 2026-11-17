@@ -35,7 +35,7 @@ COPY --from=build /repo/config /srv/config
 COPY --from=build /repo/data/knowledge /srv/data/knowledge
 ENV GEO_CONFIG_DIR=/srv/config/geo RULES_CONFIG_DIR=/srv/config/rules WTW_CONFIG_DIR=/srv/config \
     CATALOG_DIR=/srv/config/catalog MEDIA_DENYLIST_PATH=/srv/config/assets/denylist.yaml KNOWLEDGE_DIR=/srv/data/knowledge
-COPY infra/healthcheck/selfheal.mjs /usr/local/lib/galaxie/selfheal.mjs
+COPY infra/healthcheck/selfheal.mjs infra/healthcheck/selfheal.sh /usr/local/lib/galaxie/
 # O hash da entrada da imagem (tag in-<hash>), passado pelo docker.yml. Nunca o SHA do commit: a imagem é reaproveitada
 # entre commits, e o mesmo conteúdo tem de dar a mesma imagem. /version e build_info leem daqui.
 ARG IMAGE_HASH=dev
@@ -46,7 +46,7 @@ EXPOSE 8080
 # reinicia o contêiner). Travado, o processo é encerrado e o Docker sobe outro (infra/healthcheck/selfheal.mjs).
 # A prontidão com Postgres e Valkey fica no /health/ready, para o monitor externo.
 HEALTHCHECK --interval=15s --timeout=6s --start-period=20s --retries=3 \
-  CMD node /usr/local/lib/galaxie/selfheal.mjs http "http://127.0.0.1:${API_PORT:-8080}/health"
+  CMD sh /usr/local/lib/galaxie/selfheal.sh http "http://127.0.0.1:${API_PORT:-8080}/health"
 ENTRYPOINT ["/sbin/tini", "--"]
 # Heap fixo para caber no mem_limit de 512m (velho 320 + novo 3 × 16 + ~50 do processo): sem o flag, o V8 dimensiona
 # pela máquina e um vazamento vira OOM do contêiner em vez de "heap out of memory" no log. O migrate (mesma imagem)

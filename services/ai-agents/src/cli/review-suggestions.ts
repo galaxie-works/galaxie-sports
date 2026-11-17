@@ -14,14 +14,14 @@
  */
 import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
-import { closeDb } from '@galaxie/db';
-import { DEFAULT_KNOWLEDGE_DIR, loadKnowledge } from '@galaxie/knowledge';
-import { reviewLlmEnv } from '../llm/config.js';
-import { FakeLlmClient } from '../llm/fake.js';
+import { closeDb } from '@galaxie/db/client';
 import type { LlmClient } from '../llm/types.js';
-import { pendingSuggestions, SuggestionReviewer, type SuggestionOutcome } from '../review/run.js';
+// só o necessário para saber se há sugestão em aberto; o modelo, a base semântica e o revisor vêm depois (import
+// dinâmico), e a execução sem trabalho sai sem carregá-los
+import { pendingSuggestions } from '../review/pending.js';
+import type { SuggestionOutcome } from '../review/run.js';
 import type { ReviewModelOutput } from '../review/schema.js';
-import { createAgentLlm, dbFromEnv, intFlag } from './common.js';
+import { dbFromEnv, intFlag } from './light.js';
 
 const LABEL: Record<SuggestionOutcome['outcome'], string> = {
   accepted: 'aprovada',
@@ -32,7 +32,8 @@ const LABEL: Record<SuggestionOutcome['outcome'], string> = {
 };
 
 /** Provedor falso do dev: aceita a edição proposta como veio; sem edição, recusa. */
-function fakeReviewer(): LlmClient {
+async function fakeReviewer(): Promise<LlmClient> {
+  const { FakeLlmClient } = await import('../llm/fake.js');
   return new FakeLlmClient((req) => {
     const noEdit = req.messages[0]?.content.includes('Edição proposta: nenhuma');
     const data: ReviewModelOutput = noEdit
@@ -90,12 +91,20 @@ async function main(): Promise<void> {
     }
     if (!pending.length) return;
 
+    const [{ DEFAULT_KNOWLEDGE_DIR, loadKnowledge }, { SuggestionReviewer }] = await Promise.all([
+      import('@galaxie/knowledge'),
+      import('../review/run.js'),
+    ]);
     let llm: LlmClient;
     if (values.falso) {
-      llm = fakeReviewer();
+      llm = await fakeReviewer();
       console.log('Modelo: provedor falso (dev).');
     } else {
       try {
+        const [{ createAgentLlm }, { reviewLlmEnv }] = await Promise.all([
+          import('./common.js'),
+          import('../llm/config.js'),
+        ]);
         const rt = await createAgentLlm(db, 'review', reviewLlmEnv);
         llm = rt.client;
         console.log(`Modelo: ${rt.settings.provider} · ${rt.settings.models.standard}`);

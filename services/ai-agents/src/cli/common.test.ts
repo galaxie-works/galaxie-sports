@@ -44,3 +44,46 @@ describe('runtimeEnv com chaves do painel', () => {
     }
   });
 });
+
+describe('runtimeEnv lido uma vez por execução', () => {
+  const countingDb = (rows: { key: string; value: string }[]) => {
+    const counter = { reads: 0 };
+    const db = {
+      select: () => ({
+        from: async () => {
+          counter.reads++;
+          return rows;
+        },
+      }),
+    } as unknown as Database;
+    return { db, counter };
+  };
+
+  it('com o env do processo, a segunda chamada no mesmo banco não lê o painel de novo', async () => {
+    const { db, counter } = countingDb([{ key: 'AI_STATUS', value: 'off' }]);
+    const [a, b] = await Promise.all([runtimeEnv(db), runtimeEnv(db)]);
+    const c = await runtimeEnv(db);
+    expect(counter.reads).toBe(1);
+    expect(a.AI_STATUS).toBe('off');
+    expect(b).toBe(a);
+    expect(c).toBe(a);
+  });
+
+  it('outro banco ou env explícito leem de novo', async () => {
+    const first = countingDb([]);
+    const second = countingDb([]);
+    await runtimeEnv(first.db);
+    await runtimeEnv(second.db);
+    await runtimeEnv(first.db, { AI_STATUS: 'on' });
+    await runtimeEnv(first.db, { AI_STATUS: 'on' });
+    expect(first.counter.reads).toBe(3);
+    expect(second.counter.reads).toBe(1);
+  });
+});
+
+describe('pool de conexões do job', () => {
+  it('no máximo 2 conexões por execução', async () => {
+    const { JOB_DB_POOL_MAX } = await import('./light.js');
+    expect(JOB_DB_POOL_MAX).toBe(2);
+  });
+});

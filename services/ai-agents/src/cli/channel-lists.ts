@@ -10,21 +10,17 @@
  * `sem_canal_na_lista` para todo direito: serve para conferir o fluxo e o portal no dev.
  */
 import { parseArgs } from 'node:util';
-import { closeDb } from '@galaxie/db';
-import {
-  ChannelDictionary,
-  loadWtwConfig,
-  processChannelList,
-  type ChannelMatchOutput,
-} from '@galaxie/where-to-watch';
-import { pendingChannelLists, processInputOf, runChannelLists } from '../channels/run.js';
-import { channelsLlmEnv } from '../llm/config.js';
-import { FakeLlmClient } from '../llm/fake.js';
+import { closeDb } from '@galaxie/db/client';
+import type { ChannelMatchOutput } from '@galaxie/where-to-watch';
+// só o necessário para saber se há lista pendente; o Onde Assistir, o modelo e o casamento vêm depois (import
+// dinâmico), e a execução sem trabalho sai sem carregá-los
+import { pendingChannelLists } from '../channels/pending.js';
 import type { LlmClient } from '../llm/types.js';
-import { createAgentLlm, dbFromEnv, intFlag } from './common.js';
+import { dbFromEnv, intFlag } from './light.js';
 
 /** Provedor falso do dev: nenhum canal para as sobras (o que o validador sempre aceita). */
-function fakeMatcher(): LlmClient {
+async function fakeMatcher(): Promise<LlmClient> {
+  const { FakeLlmClient } = await import('../llm/fake.js');
   return new FakeLlmClient((req) => {
     // direitos numerados da mensagem ("0: país ... | plataforma_id ...")
     const count = req.messages[0]!.content.match(/^\d+: país /gm)?.length ?? 0;
@@ -58,9 +54,12 @@ async function main(): Promise<void> {
   };
   const db = dbFromEnv();
   try {
-    const config = loadWtwConfig();
     const pending = await pendingChannelLists(db, opts);
     console.log(`Listas de canais com sobras para a IA: ${pending.length} (até ${opts.max}).`);
+    if (!pending.length && !values.plan) return;
+    const [{ ChannelDictionary, loadWtwConfig, processChannelList }, { processInputOf, runChannelLists }] =
+      await Promise.all([import('@galaxie/where-to-watch'), import('../channels/run.js')]);
+    const config = loadWtwConfig();
     if (values.plan) {
       const dict = new ChannelDictionary(config);
       for (const row of pending) {
@@ -75,14 +74,16 @@ async function main(): Promise<void> {
       console.log('PRÉVIA: nada chamado, nada gravado.');
       return;
     }
-    if (!pending.length) return;
-
     let llm: LlmClient;
     if (values.falso) {
-      llm = fakeMatcher();
+      llm = await fakeMatcher();
       console.log('Modelo: provedor falso (dev).');
     } else {
       try {
+        const [{ createAgentLlm }, { channelsLlmEnv }] = await Promise.all([
+          import('./common.js'),
+          import('../llm/config.js'),
+        ]);
         const rt = await createAgentLlm(db, 'channels', channelsLlmEnv);
         llm = rt.client;
         console.log(`Modelo: ${rt.settings.provider} · ${rt.settings.models.standard}`);

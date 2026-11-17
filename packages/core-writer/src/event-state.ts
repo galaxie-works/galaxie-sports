@@ -3,7 +3,7 @@
  * `core.event`, aplica a lógica pura de `@galaxie/providers` e grava o novo estado e as transições
  * em `core.event_state_log`.
  */
-import { and, eq, inArray, lte, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, lte, sql } from 'drizzle-orm';
 import { EVENT_STATUSES as DB_EVENT_STATUSES, event, eventStateLog, type Database } from '@galaxie/db';
 import {
   applyObservation,
@@ -120,36 +120,58 @@ export async function applyProviderFailure(
 }
 
 const CLOCK_STATUSES: EventStatus[] = ['scheduled', 'starting', 'live', 'break'];
+/** Candidatos do relógio por página (e por transação), padrão da opção `pageSize`. */
+export const CLOCK_PAGE = 500;
 
 /**
  * Relógio dos eventos (regras 2 e 3 de docs/04 §3.1): `scheduled → starting` em T-10, e — sem dado
  * fresco da fonte — `starting → live` no apito e `live → finished` em `ends_at_expected`.
  * Roda periodicamente (ex.: a cada minuto) e é idempotente para o mesmo `now`.
+ *
+ * Os candidatos saem em páginas por `(starts_at, id)`, do mais antigo ao horizonte: com `order by` e `limit` o
+ * Postgres lê pelo índice parcial dos jogos abertos (`event_open_starts_idx`, migration 0190), que só tem alguns
+ * milhares de linhas. Sem isso ele não sabe que quase todos os `scheduled` estão no futuro (a estatística de
+ * `starts_at` é da tabela inteira, de jogos encerrados) e lia os 48 mil `scheduled` pelo índice de status para
+ * descartar quase todos no filtro, a cada minuto.
  */
 export async function advanceEventClock(
   db: Database,
   now: Date,
-  options: MachineOptions & { sport?: string } = {},
+  options: MachineOptions & { sport?: string; pageSize?: number } = {},
 ): Promise<{ examined: number; changed: number; transitions: number }> {
   const horizon = new Date(now.getTime() + STARTING_WINDOW_MS);
-  const conditions = [inArray(event.status, CLOCK_STATUSES), lte(event.startsAt, horizon)];
-  if (options.sport) conditions.push(eq(event.sport, options.sport));
-  const candidates = await db
-    .select({ id: event.id })
-    .from(event)
-    .where(and(...conditions));
-
+  const pageSize = options.pageSize ?? CLOCK_PAGE;
+  let examined = 0;
   let changed = 0;
   let transitions = 0;
-  for (const chunk of chunks(
-    candidates.map((c) => c.id),
-    500,
-  )) {
+  // fim da página anterior; `starts_at` em texto para a comparação não perder os microssegundos do Postgres
+  let after: { at: string; id: string } | null = null;
+  for (;;) {
+    const conditions = [inArray(event.status, CLOCK_STATUSES), lte(event.startsAt, horizon)];
+    if (options.sport) conditions.push(eq(event.sport, options.sport));
+    if (after)
+      conditions.push(sql`(${event.startsAt}, ${event.id}) > (${after.at}::timestamptz, ${after.id}::uuid)`);
+    const page: { id: string; at: string }[] = await db
+      .select({ id: event.id, at: sql<string>`${event.startsAt}::text` })
+      .from(event)
+      .where(and(...conditions))
+      .orderBy(asc(event.startsAt), asc(event.id))
+      .limit(pageSize);
+    if (!page.length) break;
+    examined += page.length;
     await db.transaction(async (tx) => {
       const rows = await tx
         .select()
         .from(event)
-        .where(and(inArray(event.id, chunk), inArray(event.status, CLOCK_STATUSES)))
+        .where(
+          and(
+            inArray(
+              event.id,
+              page.map((c) => c.id),
+            ),
+            inArray(event.status, CLOCK_STATUSES),
+          ),
+        )
         .for('update');
       const changes = [];
       for (const row of rows) {
@@ -160,8 +182,10 @@ export async function advanceEventClock(
       changed += changes.length;
       transitions += changes.reduce((n, c) => n + c.transitions.length, 0);
     });
+    if (page.length < pageSize) break;
+    after = page[page.length - 1]!;
   }
-  return { examined: candidates.length, changed, transitions };
+  return { examined, changed, transitions };
 }
 
 /** Conta transições por motivo (relatórios e testes). */

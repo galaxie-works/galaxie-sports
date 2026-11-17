@@ -5,12 +5,17 @@
  *   pnpm --filter @galaxie/ingestor postgame:close --plan   # o que está pendente e o que seria buscado
  *   pnpm --filter @galaxie/ingestor postgame:close
  * Opções: --forcar (busca todas as datas pendentes agora, ignorando o intervalo; respeita o teto do dia)
+ *
+ * Custo quando não há nada na vez (a maior parte dos minutos): uma consulta dos pendentes e uma leitura de cursores
+ * (dezenas de ms de banco). O resto era o Node carregando o que só serve para buscar: o logger com a observabilidade
+ * (~650 ms), a normalização (~730 ms) e o contexto do fornecedor. Esses três só são carregados depois de saber que há
+ * lista na vez; o runner vem junto com o job-cli e é leve (docs/runbooks/alertas-e-monitoramento.md › CPU dos jobs por
+ * minuto).
  */
-import { closeDb } from '@galaxie/db';
-import { jobContextFromEnv } from '../context.js';
-import { plannedRequest, type JobSpec } from '../jobs/runtime/runner.js';
-import { logger } from '../logger.js';
-import { normalizeAfterFetch } from '../normalize/after-fetch.js';
+import { closeDb, createDb } from '@galaxie/db';
+import { dbProfileFromEnv } from '../db-profile.js';
+import { PgCursorStore } from '../jobs/runtime/cursor-store.js';
+import { plannedRequest } from '../jobs/runtime/runner.js';
 import {
   dueLists,
   holdSport,
@@ -29,21 +34,32 @@ await runCli(async () => {
   const { values } = parseCli({});
   const sports = postgameSports();
   if (!sports.length) return;
-  const ctx = jobContextFromEnv();
+  const url = process.env.DATABASE_URL;
+  if (!url) throw new Error('Defina DATABASE_URL (.env).');
+  // o mesmo perfil de tempos do contexto, sem carregar o contexto
+  const profile = dbProfileFromEnv();
+  const db = createDb(url, profile ? { profile } : {});
   try {
-    const now = ctx.now();
-    const pending = await pendingDays(ctx.db, sports, now, process.env.LIVE_MIN_PRIORITY?.trim() || 'medium');
+    const now = new Date();
+    const cursors = new PgCursorStore(db);
+    const pending = await pendingDays(db, sports, now, process.env.LIVE_MIN_PRIORITY?.trim() || 'medium');
     const forced = values.forcar ?? false;
     const intervals = forced ? sports.map((s) => ({ ...s, intervalMin: 0 })) : sports;
     const { due, capped, held, exhausted } = await dueLists(
-      ctx.cursors,
+      cursors,
       intervals,
       pending,
       now,
       maxCallsPerDay(),
     );
-    for (const sport of capped)
-      logger.warn({ sport, max: maxCallsPerDay() }, 'fechamento pós-jogo: teto de chamadas do dia atingido');
+    if (capped.length) {
+      const { logger } = await import('../logger.js');
+      for (const sport of capped)
+        logger.warn(
+          { sport, max: maxCallsPerDay() },
+          'fechamento pós-jogo: teto de chamadas do dia atingido',
+        );
+    }
     if (values.plan) {
       console.log(
         `Pendentes: ${pending.map((p) => `${p.sport} ${p.date} (${p.pending})`).join(', ') || 'nenhum'}`,
@@ -58,6 +74,13 @@ await runCli(async () => {
       return;
     }
     if (!due.length) return;
+    // há lista na vez: só agora o contexto do fornecedor (cliente, Governor), o logger e a normalização
+    const [{ jobContextFromEnv }, { logger }, { normalizeAfterFetch }] = await Promise.all([
+      import('../context.js'),
+      import('../logger.js'),
+      import('../normalize/after-fetch.js'),
+    ]);
+    const ctx = jobContextFromEnv(process.env, { db });
     const normalize = normalizeAfterFetch(ctx.db, {
       // os outros esportes vão ao core já aqui, sem esperar o normalize-sports de hora em hora
       otherSports: true,
@@ -68,9 +91,9 @@ await runCli(async () => {
     const bySport = new Map<string, DueList[]>();
     for (const d of due) bySport.set(d.sport, [...(bySport.get(d.sport) ?? []), d]);
     for (const [sport, lists] of bySport) {
-      const spec: JobSpec = {
+      const spec = {
         job: 'postgame:close',
-        priority: 'ADHOC',
+        priority: 'ADHOC' as const,
         phases: [
           {
             name: `listas do dia (${sport})`,
@@ -121,6 +144,6 @@ await runCli(async () => {
       `Fechamento pós-jogo: ${due.length} lista(s) (${due.map((d) => `${d.sport} ${d.date}`).join(', ')}) · ${n.stats.events.updated} jogo(s) atualizados.`,
     );
   } finally {
-    await closeDb(ctx.db);
+    await closeDb(db);
   }
 });
