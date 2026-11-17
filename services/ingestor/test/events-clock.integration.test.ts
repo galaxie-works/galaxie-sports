@@ -1,5 +1,5 @@
 /**
- * Relógio dos eventos em páginas (`advanceEventClock`, migration 0190): os candidatos saem por `(starts_at, id)` com
+ * Relógio dos eventos em páginas (`advanceEventClock`, migration 0183): os candidatos saem por `(starts_at, id)` com
  * `limit`; jogos com o mesmo `starts_at` na borda entre duas páginas não podem ser pulados nem repetidos.
  */
 import { eq, inArray } from 'drizzle-orm';
