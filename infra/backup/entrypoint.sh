@@ -4,7 +4,10 @@
 #     destino remoto funcionam) quando o último bem-sucedido tem mais de BACKUP_ON_START_MIN_AGE_H horas (padrão 20;
 #     BACKUP_ON_START=always faz sempre). Todo deploy recria este serviço (a imagem leva a tag do deploy): o dump
 #     completo, com o COPY do raw, disputava disco e cache com o pós-deploy e o smoke, e vários deploys num dia
-#     giravam os 7 diários;
+#     giravam os 7 diários. Com BACKUP_DAYS (dias da semana, 0 = domingo … 6, vírgula entre eles), o dump só sai nesses
+#     dias: é o dump semanal da VPS quando o diário vem da réplica do NAS (docs/runbooks/replica-no-nas.md), o pior caso
+#     de NAS e disco da VPS perdidos na mesma semana. Nesse modo o dump de partida só sai com o último mais velho que
+#     BACKUP_LOCAL_MAX_AGE_H (padrão 192 h), e não que BACKUP_ON_START_MIN_AGE_H: senão cada deploy faria um dump completo;
 #   - com BACKUP_S3_SYNC_PREFIXES ou BACKUP_S3_SYNC_TASKS_BUCKET=true, o sync do S3 (s3-sync.sh) logo depois de cada
 #     dump e, se o recibo estiver velho, na partida;
 #   - o verificador (backup-check.sh) a cada BACKUP_CHECK_INTERVAL_H horas (padrão 6) e depois de cada dump;
@@ -14,9 +17,25 @@ set -eu
 # shellcheck source=infra/backup/lib.sh
 . "${BACKUP_LIB:-/usr/local/lib/galaxie-backup/lib.sh}"
 : "${BACKUP_TIME:=03:30}"
+: "${BACKUP_DAYS:=}"
+: "${BACKUP_LOCAL_MAX_AGE_H:=192}"
 : "${BACKUP_ON_START:=true}"
 : "${BACKUP_ON_START_MIN_AGE_H:=20}"
 [ "$BACKUP_ON_START_MIN_AGE_H" -ge 0 ] 2>/dev/null || BACKUP_ON_START_MIN_AGE_H=20
+# semanal (BACKUP_DAYS): a partida só dumpa com o último mais velho que a idade máxima do dump local
+if [ -n "$BACKUP_DAYS" ]; then
+  printf '%s' "$BACKUP_DAYS" | grep -Eq '^[0-6](,[0-6])*$' || { echo "BACKUP_DAYS='$BACKUP_DAYS' inválido: dias da semana 0-6 separados por vírgula" >&2; exit 1; }
+  [ "$BACKUP_LOCAL_MAX_AGE_H" -ge 1 ] 2>/dev/null || BACKUP_LOCAL_MAX_AGE_H=192
+  BACKUP_ON_START_MIN_AGE_H="$BACKUP_LOCAL_MAX_AGE_H"
+  # o ensaio mensal restaura o dump local mais novo, que pode ter até uma semana (restore-drill.sh)
+  export RESTORE_DRILL_MAX_DUMP_AGE_H="${RESTORE_DRILL_MAX_DUMP_AGE_H:-$BACKUP_LOCAL_MAX_AGE_H}"
+fi
+# hoje é dia de dump? (sem BACKUP_DAYS, sempre)
+backup_day() {
+  [ -n "$BACKUP_DAYS" ] || return 0
+  case ",$BACKUP_DAYS," in *",$(date -u +%w),"*) return 0 ;; esac
+  return 1
+}
 : "${BACKUP_CHECK_INTERVAL_H:=6}"
 : "${RESTORE_DRILL_DAY:=1}"
 # intervalo inválido ou 0 viraria um laço sem espera
@@ -41,13 +60,19 @@ done
 
 drill_info="ensaio de restauração no dia $RESTORE_DRILL_DAY de cada mês"
 [ "$RESTORE_DRILL_DAY" = off ] && drill_info="ensaio de restauração desligado"
-log info "agendador iniciado: backup diário às $BACKUP_TIME UTC, $BACKUP_KEEP_DAILY dumps na VPS, verificação a cada ${BACKUP_CHECK_INTERVAL_H} h, $drill_info"
+when_info="diário"
+[ -z "$BACKUP_DAYS" ] || when_info="nos dias $BACKUP_DAYS da semana (0 = domingo)"
+log info "agendador iniciado: backup $when_info às $BACKUP_TIME UTC, $BACKUP_KEEP_DAILY dumps na VPS, verificação a cada ${BACKUP_CHECK_INTERVAL_H} h, $drill_info"
 
 # antes de qualquer backup: o dump em claro de uma execução morta (contêiner derrubado no meio) não fica no volume
 clean_plaintext
 
 daily() {
-  backup.sh || log error "backup falhou"
+  if backup_day; then
+    backup.sh || log error "backup falhou"
+  else
+    log info "sem dump hoje (BACKUP_DAYS=$BACKUP_DAYS, hoje é $(date -u +%w)); o diário vem da réplica do NAS"
+  fi
   backup-check.sh || true
   # dia do mês sem zero à esquerda (busybox date não tem %-d)
   if [ "$RESTORE_DRILL_DAY" != off ] && [ "$(date -u +%d | sed 's/^0//')" = "$RESTORE_DRILL_DAY" ]; then
@@ -83,6 +108,7 @@ while true; do
   }
   now=$(date -u +%s)
   if [ "$now" -ge "$next_backup" ]; then
+    # o ensaio mensal fica no dia do dump; sem dump hoje (BACKUP_DAYS), a hora do dump vira só uma verificação
     daily
     next_check=$((now + BACKUP_CHECK_INTERVAL_H * 3600))
   elif [ "$now" -ge "$next_check" ]; then

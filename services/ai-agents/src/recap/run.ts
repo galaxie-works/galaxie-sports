@@ -32,6 +32,12 @@ import {
   loadStatistics,
 } from './facts.js';
 import {
+  DEFAULT_RECAP_INPUT_MAX_AGE_HOURS,
+  pruneRecapInputStamps,
+  recapInputStates,
+  saveRecapInputStamps,
+} from './input-stamp.js';
+import {
   RECAP_PROMPT_VERSION,
   recapFactSheet,
   recapFallback,
@@ -42,7 +48,9 @@ import {
 /**
  * Execução do Agente Resumo: eventos encerrados nas últimas horas (ou um evento no gatilho de FT),
  * redação validada e gravação em enrich.event_context (kind = recap). Regenera quando a timeline
- * ou o placar mudam (correções do provedor).
+ * ou o placar mudam (correções do provedor). Antes de montar os fatos de cada jogo, uma consulta só descarta os jogos
+ * cujo insumo não mudou desde a última montagem (`recapInputStates`, input-stamp.ts): sem isso, a cada 5 min os ~100
+ * jogos da janela de 36 h refaziam umas 7 consultas e a conta da tabela para descobrir que nada mudou.
  */
 
 export interface RecapRunOptions {
@@ -62,6 +70,8 @@ export interface RecapRunOptions {
   priorityOf?: PriorityResolver;
   /** Virada do dia de orçamento: o determinístico por orçamento só volta a tentar o LLM depois dela. */
   budgetDay?: BudgetDay;
+  /** Validade do carimbo do insumo (RECAP_INPUT_MAX_AGE_HOURS, `recapInputMaxAgeMs`; padrão 6 h). */
+  inputMaxAgeMs?: number;
 }
 
 /** Eventos encerrados na janela, por prioridade (P0 → P1 → resto) e, dentro dela, do mais recente. */
@@ -106,8 +116,27 @@ export async function runRecapAgent(db: Database, opts: RecapRunOptions): Promis
         limit: opts.limit ?? 200,
         ...(opts.priorityOf ? { priorityOf: opts.priorityOf } : {}),
       });
+  // descarte antes do caminho caro: jogo com o insumo igual ao da última montagem dos fatos sai da fila sem consulta
+  // própria (com --forcar, todos passam). Os carimbos novos são gravados de uma vez no fim
+  const maxAgeMs = opts.inputMaxAgeMs ?? DEFAULT_RECAP_INPUT_MAX_AGE_HOURS * 3_600_000;
+  const inputs = opts.force
+    ? new Map<string, { stamp: string; unchanged: boolean }>()
+    : await recapInputStates(
+        db,
+        queue.map((q) => q.id),
+        { now, locales, version: RECAP_PROMPT_VERSION, maxAgeMs },
+      );
+  const stamped: { eventId: string; stamp: string; noFacts?: boolean }[] = [];
+  const stamp = (eventId: string, noFacts = false) => {
+    const s = inputs.get(eventId);
+    if (s && !opts.plan) stamped.push({ eventId, stamp: s.stamp, ...(noFacts ? { noFacts } : {}) });
+  };
 
   for (const { id, priority: queued } of queue) {
+    if (inputs.get(id)?.unchanged) {
+      report.unchanged = (report.unchanged ?? 0) + 1;
+      continue;
+    }
     const core = await loadEventCore(db, id);
     if (!core) {
       report.items.push({
@@ -144,6 +173,7 @@ export async function runRecapAgent(db: Database, opts: RecapRunOptions): Promis
       );
       if (!facts) {
         item.reason = 'evento encerrado sem placar';
+        stamp(id, true);
         continue;
       }
       item.summary = `${facts.final_score.home}-${facts.final_score.away}`;
@@ -161,6 +191,7 @@ export async function runRecapAgent(db: Database, opts: RecapRunOptions): Promis
         pending = locales.filter((l) => !hashes.isFresh(l, previous.get(l)));
         if (!pending.length) {
           item.reason = 'fatos inalterados desde a última geração';
+          stamp(id);
           continue;
         }
       }
@@ -222,11 +253,14 @@ export async function runRecapAgent(db: Database, opts: RecapRunOptions): Promis
         },
       });
       countWritten(report, item, written);
+      stamp(id);
     } catch (err) {
       item.action = 'error';
       item.reason = err instanceof Error ? err.message : String(err);
     }
   }
+  await saveRecapInputStamps(db, stamped, now);
+  if (!opts.plan && !opts.eventId) await pruneRecapInputStamps(db, now, maxAgeMs);
   return report;
 }
 

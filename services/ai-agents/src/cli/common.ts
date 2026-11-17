@@ -1,5 +1,5 @@
 /** Utilitários das CLIs dos agentes: banco, cliente LLM opcional, flags e relatório. */
-import { createDb, readRuntimeOverrides, type Database } from '@galaxie/db';
+import { readRuntimeOverrides, type Database } from '@galaxie/db';
 import { DEFAULT_P0_MIN_AUDIENCE, ledgerSettingsFromEnv } from '@galaxie/ai-ledger';
 import {
   DEFAULT_BUDGET_DAY,
@@ -16,24 +16,34 @@ import { createLlmClient, createLlmClientFromEnv, type LlmRuntime } from '../llm
 import { priorityResolver, type PriorityResolver } from '../llm/priority.js';
 import type { LlmClient } from '../llm/types.js';
 
-export function dbFromEnv(): Database {
-  const url = process.env.DATABASE_URL;
-  if (!url) throw new Error('DATABASE_URL não definida (veja .env.example).');
-  return createDb(url, { max: 4 });
-}
+export { dbFromEnv, intFlag, JOB_DB_POOL_MAX } from './light.js';
 
 type Env = Record<string, string | undefined>;
+
+/**
+ * Env do painel já lido neste processo, por banco: o job chama `runtimeEnv` várias vezes (LLM, prioridade, virada do
+ * dia de orçamento, tiers), e cada leitura era uma consulta a ops.runtime_setting mais a abertura dos segredos. O job
+ * dura minutos e o scheduler já relê o painel a cada 30 s para o próximo; uma leitura por execução basta.
+ */
+const runtimeEnvCache = new WeakMap<Database, Promise<NodeJS.ProcessEnv>>();
 
 /**
  * Env do processo com as sobrescritas do painel por cima (ops.runtime_setting), o mesmo que o scheduler
  * entrega aos jobs: uma CLI rodada à mão respeita, por exemplo, o AI_STATUS=off gravado no painel.
  * Sobrescrita antiga convertida (ex.: AI_DAILY_USD_BUDGET=0 → AI_STATUS=off) sai no log. Sem a tabela
- * (banco antigo, testes), segue com o env.
+ * (banco antigo, testes), segue com o env. Com o env do processo (o padrão), lê uma vez por banco e reaproveita.
  */
-export async function runtimeEnv(
-  db: Database,
-  env: NodeJS.ProcessEnv = process.env,
-): Promise<NodeJS.ProcessEnv> {
+export function runtimeEnv(db: Database, env: NodeJS.ProcessEnv = process.env): Promise<NodeJS.ProcessEnv> {
+  if (env !== process.env) return readRuntimeEnv(db, env);
+  let cached = runtimeEnvCache.get(db);
+  if (!cached) {
+    cached = readRuntimeEnv(db, env);
+    runtimeEnvCache.set(db, cached);
+  }
+  return cached;
+}
+
+async function readRuntimeEnv(db: Database, env: NodeJS.ProcessEnv): Promise<NodeJS.ProcessEnv> {
   try {
     // chaves de IA e do YouTube trocadas no painel (#1087), abertas com a SETTINGS_KEK do contêiner
     const applied = applyOverrides(env, await readRuntimeOverrides(db), {
@@ -136,14 +146,6 @@ export async function budgetDayFor(db: Database): Promise<BudgetDay> {
   }
 }
 
-export function intFlag(value: unknown, flag: string): number | undefined {
-  if (value === undefined) return undefined;
-  const n = Number(value);
-  if (!Number.isInteger(n) || n < 0)
-    throw new Error(`--${flag} precisa ser um inteiro ≥ 0 (recebido: ${String(value)}).`);
-  return n;
-}
-
 export function localesFlag(value: unknown): AgentLocale[] | undefined {
   if (typeof value !== 'string' || !value.trim()) return undefined;
   const list = value.split(',').map((v) => v.trim());
@@ -170,7 +172,11 @@ export function printAgentReport(report: AgentRunReport, plan: boolean): void {
     llm: i.origins ? `${i.origins.llm}/${i.origins.llm + i.origins.fallback}` : '',
   }));
   if (rows.length) console.table(rows);
-  else console.log('Nenhum evento candidato na janela.');
+  else if (!report.unchanged) console.log('Nenhum evento candidato na janela.');
+  if (report.unchanged)
+    console.log(
+      `${report.unchanged} evento(s) com o insumo igual ao da última montagem dos fatos: fora da fila.`,
+    );
   if (plan) {
     console.log(
       `Plano (${report.agent}): ${report.items.filter((i) => i.action === 'planned').length} evento(s) seriam gerados. Nada foi gravado.`,
