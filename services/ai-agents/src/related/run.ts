@@ -208,7 +208,13 @@ interface FactsOptions {
   foreignLast: boolean;
 }
 
-/** Fatos dos jogos (relevância e prioridade por mercado, histórico de execuções, canais conhecidos). */
+/**
+ * Fatos dos jogos (relevância e prioridade por mercado, histórico de execuções, canais conhecidos). Uma passada por
+ * tabela e por jogo (`left join lateral`): os participantes (países e ids, que também servem aos canais de clube), as
+ * execuções do agente (contagem e datas com `filter`, numa leitura só de `enrich.related_run`), os vídeos vivos e os
+ * canais. Antes eram sete subconsultas por jogo, quatro delas sobre `related_run`, e `event_participant` lido duas
+ * vezes; o resultado é o mesmo, campo a campo.
+ */
 async function gameFacts(db: Database, opts: FactsOptions): Promise<RelatedCandidate[]> {
   const rows = await db
     .select({
@@ -219,30 +225,53 @@ async function gameFacts(db: Database, opts: FactsOptions): Promise<RelatedCandi
       sport: competition.sport,
       slug: competition.slug,
       countryCode: competition.countryCode,
-      participantCountries: sql<(string | null)[]>`coalesce((
-        select array_agg(p.country_code) from core.event_participant ep
-          join core.participant p on p.id = ep.participant_id
-         where ep.event_id = ${event.id}), '{}')`,
-      fullRuns: sql<number>`(select count(*)::int from enrich.related_run r
-         where r.event_id = ${event.id} and r.mode = 'full' and r.status = 'done')`,
-      lastFull: sql<Date | null>`(select max(r.started_at) from enrich.related_run r
-         where r.event_id = ${event.id} and r.mode = 'full' and r.status = 'done')`,
-      lastChannels: sql<Date | null>`(select max(r.started_at) from enrich.related_run r
-         where r.event_id = ${event.id} and r.mode in ('full', 'channels') and r.status = 'done')`,
-      lastAny: sql<Date | null>`(select max(r.started_at) from enrich.related_run r
-         where r.event_id = ${event.id} and r.status = 'done')`,
-      searchesSoFar: sql<number>`(select coalesce(sum(r.searches), 0)::int from enrich.related_run r
-         where r.event_id = ${event.id})`,
-      alive: sql<number>`(select count(*)::int from enrich.related_content rc
-         where rc.event_id = ${event.id} and rc.superseded_by is null
-           and rc.status not in ('retracted', 'expired'))`,
-      channelLinks: sql<number>`(select count(*)::int from enrich.related_channel ch
-         where ch.active and ((ch.kind = 'competition' and ch.competition_id = ${event.competitionId})
-            or (ch.kind = 'club' and ch.participant_id in (
-                  select ep.participant_id from core.event_participant ep where ep.event_id = ${event.id}))))`,
+      participantCountries: sql<(string | null)[]>`coalesce(gp.countries, '{}')`,
+      fullRuns: sql<number>`coalesce(gr.full_runs, 0)`,
+      lastFull: sql<Date | null>`gr.last_full`,
+      lastChannels: sql<Date | null>`gr.last_channels`,
+      lastAny: sql<Date | null>`gr.last_any`,
+      searchesSoFar: sql<number>`coalesce(gr.searches, 0)`,
+      alive: sql<number>`coalesce(gc.alive, 0)`,
+      channelLinks: sql<number>`coalesce(gch.links, 0)`,
     })
     .from(event)
     .innerJoin(competition, eq(competition.id, event.competitionId))
+    .leftJoin(
+      sql`lateral (
+        select array_agg(p.country_code) as countries, array_agg(ep.participant_id) as ids
+          from core.event_participant ep
+          join core.participant p on p.id = ep.participant_id
+         where ep.event_id = ${event.id}) gp`,
+      sql`true`,
+    )
+    .leftJoin(
+      sql`lateral (
+        select (count(*) filter (where r.mode = 'full' and r.status = 'done'))::int as full_runs,
+               max(r.started_at) filter (where r.mode = 'full' and r.status = 'done') as last_full,
+               max(r.started_at) filter (where r.mode in ('full', 'channels') and r.status = 'done') as last_channels,
+               max(r.started_at) filter (where r.status = 'done') as last_any,
+               coalesce(sum(r.searches), 0)::int as searches
+          from enrich.related_run r
+         where r.event_id = ${event.id}) gr`,
+      sql`true`,
+    )
+    .leftJoin(
+      sql`lateral (
+        select count(*)::int as alive
+          from enrich.related_content rc
+         where rc.event_id = ${event.id} and rc.superseded_by is null
+           and rc.status not in ('retracted', 'expired')) gc`,
+      sql`true`,
+    )
+    .leftJoin(
+      sql`lateral (
+        select count(*)::int as links
+          from enrich.related_channel ch
+         where ch.active
+           and ((ch.kind = 'competition' and ch.competition_id = ${event.competitionId})
+             or (ch.kind = 'club' and ch.participant_id = any(coalesce(gp.ids, '{}'))))) gch`,
+      sql`true`,
+    )
     .where(and(...opts.conds));
   const date = (d: unknown) => (d ? new Date(d as string) : null);
   return rows.map((r) => {

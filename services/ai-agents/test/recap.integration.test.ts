@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { desc, eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { changeFeed, event, eventContext, eventStateLog, sport, type Database } from '@galaxie/db';
 import { readEventContext } from '../src/context/store.js';
@@ -169,5 +169,84 @@ describe('Agente Resumo (integração)', () => {
     const again = new FakeLlmClient(responder(GOOD));
     await onEventFinished(db, eventId, again, { locales: ['pt-BR'] });
     expect(again.calls).toBe(0);
+  });
+
+  it('insumo igual ao da última montagem: o jogo sai da fila sem consulta própria; mudou, só ele volta', async () => {
+    const llm = new FakeLlmClient(responder(GOOD));
+    // a primeira rodada monta os fatos (ou já acha o carimbo) e deixa o carimbo do insumo gravado
+    await runRecapAgent(db, { now: NOW, llm });
+    const idle = await runRecapAgent(db, { now: NOW, llm });
+    expect(idle.unchanged).toBe(1);
+    expect(idle.items).toEqual([]);
+    // mudou o jogo (a correção do fornecedor atualiza a linha): volta à fila, monta os fatos e confere o hash
+    await db.update(event).set({ updatedAt: new Date() }).where(eq(event.id, eventId));
+    const changed = await runRecapAgent(db, { now: NOW, llm });
+    expect(changed.unchanged ?? 0).toBe(0);
+    expect(changed.items).toEqual([
+      expect.objectContaining({
+        eventId,
+        action: 'skipped',
+        reason: 'fatos inalterados desde a última geração',
+      }),
+    ]);
+    // o carimbo novo foi gravado: a rodada seguinte descarta de novo
+    expect((await runRecapAgent(db, { now: NOW, llm })).unchanged).toBe(1);
+    // passada a validade do carimbo (títulos e regulamento não entram nele), o caminho inteiro roda de novo
+    const later = new Date(NOW.getTime() + 7 * 3_600_000);
+    expect((await runRecapAgent(db, { now: later, llm, eventId })).items).toHaveLength(1);
+    // --forcar ignora o carimbo
+    expect(
+      (await runRecapAgent(db, { now: NOW, llm, force: true, locales: ['pt-BR'] })).unchanged,
+    ).toBeUndefined();
+    expect(llm.calls).toBe(1);
+  });
+
+  it('carimbo igual, mas o texto caiu no determinístico por falha do LLM: o jogo volta à fila e tenta o LLM', async () => {
+    const locales = ['pt-BR'] as const;
+    const up = new FakeLlmClient(responder(GOOD));
+    await runRecapAgent(db, { now: NOW, llm: up, locales });
+    expect((await runRecapAgent(db, { now: NOW, llm: up, locales })).unchanged).toBe(1);
+    // --forcar com o LLM fora do ar grava o determinístico com fallbackReason llm_error (e não mexe no carimbo)
+    const down = new FakeLlmClient(() => new Error('openai: 500'));
+    await runRecapAgent(db, { now: NOW, llm: down, force: true, locales });
+    const [fallback] = await readEventContext(db, eventId, { kinds: ['recap'], locales: ['pt-BR'] });
+    expect(fallback!.content).toMatchObject({ origin: 'fallback', fallbackReason: 'llm_error' });
+    // o insumo é o mesmo, mas o texto é para refazer: nada de descarte
+    const retry = new FakeLlmClient(responder(GOOD));
+    const report = await runRecapAgent(db, { now: NOW, llm: retry, locales });
+    expect(report.unchanged ?? 0).toBe(0);
+    expect(report.items).toEqual([expect.objectContaining({ eventId, action: 'generated' })]);
+    expect(retry.calls).toBe(1);
+    expect((await runRecapAgent(db, { now: NOW, llm: retry, locales })).unchanged).toBe(1);
+  });
+
+  it('carimbo igual, mas o texto é o determinístico por orçamento: o jogo volta aos itens para a regra do orçamento', async () => {
+    const locales = ['pt-BR'] as const;
+    const llm = new FakeLlmClient(responder(GOOD));
+    await runRecapAgent(db, { now: NOW, llm, locales });
+    expect((await runRecapAgent(db, { now: NOW, llm, locales })).unchanged).toBe(1);
+    // linha mais nova do pt-BR: o determinístico que o orçamento recusou, no mesmo dia de orçamento do NOW
+    const [latest] = await db
+      .select()
+      .from(eventContext)
+      .where(eq(eventContext.eventId, eventId))
+      .orderBy(desc(eventContext.createdAt))
+      .limit(1);
+    await db.insert(eventContext).values({
+      ...latest!,
+      locale: 'pt-BR',
+      kind: 'recap',
+      content: {
+        ...(latest!.content as Record<string, unknown>),
+        origin: 'fallback',
+        fallbackReason: 'budget',
+        generatedAt: NOW.toISOString(),
+      },
+      createdAt: new Date(Date.now() + 1_000),
+    });
+    const report = await runRecapAgent(db, { now: NOW, llm, locales });
+    // o descarte não decide pelo orçamento: o caminho inteiro (latestFactsHashes) aplica a regra do dia e do saldo
+    expect(report.unchanged ?? 0).toBe(0);
+    expect(report.items).toEqual([expect.objectContaining({ eventId })]);
   });
 });

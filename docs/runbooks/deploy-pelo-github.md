@@ -3,6 +3,10 @@
 Build, merge e deploy rodam no GitHub (Actions e GHCR), sem Docker Desktop na máquina de dev. Os scripts antigos
 (`infra/ops/merge-train.sh`, `infra/ops/deploy-safe.sh` → `infra/vps-telemetry/deploy.sh`) ficam como **plano B**.
 
+> **Regra em vigor desde 17/11/2026** ([docs/16 §5](../16-implantacao.md#5-regras-operacionais)): `DEPLOY_AUTO=off`, um
+> deploy por dia, de madrugada, disparado à mão, com as migrations do dia num lote e a carga pausada. O caminho
+> automático abaixo continua pronto para quando a variável voltar a `on`.
+
 ## Como fica
 
 ```text
@@ -98,7 +102,10 @@ o que faltar.
    job) diz: `plano: api: troca (in-abc1234 → in-def5678) · ingestor: igual, fica · agents: troca (config mudou) · …`. Serviço que saiu do compose aparece como
    `<serviço>: sai` (a demo, quando virou `site` e `console`): sai depois que os da mesma imagem trocaram
    (`rolling-swap.sh --retire`), e a volta do grupo o sobe de novo antes de tirar os novos.
-7. Migration nova: dump do banco. `migrate` com saída 0 **antes de qualquer troca**, só se a imagem ou a configuração
+7. Migration nova: dump do banco (`pre-migrate-dump.sh` na VPS; com a variável do repositório `DUMP_MODE=nas`, a prova
+   de um dump feito na réplica do NAS ou de um dump local recente, sem `pg_dump` na VPS; sem prova, o deploy deixa o
+   pedido de dump na VPS e espera o NAS atender, até `NAS_DUMP_WAIT_MIN` min:
+   [replica-no-nas.md › Deploy sem dump local](replica-no-nas.md#deploy-sem-dump-local); regras em [docs/16 §5](../16-implantacao.md#5-regras-operacionais)). `migrate` com saída 0 **antes de qualquer troca**, só se a imagem ou a configuração
    dele mudou, se há migration nova ou com `force=1`. Com a API, o site ou o console na lista, o **smoke roda na versão nova
    antes da troca**, nos candidatos sem tráfego (`site-candidate` e `console-candidate`, cada um no papel dele); reprovado, nada troca
    ([README da stack › Candidato e troca sem manutenção](../../infra/vps-telemetry/README.md)).
@@ -235,6 +242,20 @@ compara de novo: se o SHA dele ainda pedir a imagem nova, ele troca.
 existe para todo commit). O compose dele tem o Postgres e os outros dados, e subir isso daria dois Postgres no mesmo volume:
 o deploy publica as **imagens** do SHA com o `compose.yml` de apps deste checkout, e o smoke do SHA. Um SHA anterior ao
 `/health` do worker deixa os webhooks como estão (com `WARN`).
+
+### Serviços parados antes do deploy
+
+O deploy recria só os serviços que o `rolling-swap` e o `post-deploy` conhecem e que estão **de pé**: um serviço parado à
+mão antes (por exemplo, `ingestor` e `live` desligados para aliviar a CPU durante a troca, como em 17/11) fica `Exited`
+com a imagem antiga e não volta sozinho. Depois do deploy, suba-os com a imagem nova e religue o que mais tiver parado:
+
+```bash
+cd /docker/galaxie-sports && docker compose up -d --no-deps ingestor live
+docker compose -f compose.dados.yml up -d --no-deps backup
+docker compose -f compose.obs.yml up -d
+```
+
+Confira com `docker compose ps` que nenhum serviço ficou `Exited` e que as tags batem com a ponta publicada.
 
 ### Dados e observabilidade
 

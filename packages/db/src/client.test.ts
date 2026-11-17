@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DB_TIMEOUTS, resolveDbTimeouts, sessionParams } from './client.js';
+import { DB_TIMEOUTS, resolveDbTimeouts, resolveParallelWorkers, sessionParams } from './client.js';
 import { isLockTimeout } from './migrate.js';
 
 describe('resolveDbTimeouts', () => {
@@ -57,6 +57,28 @@ describe('sessionParams', () => {
       lock_timeout: String(DB_TIMEOUTS.api.lockMs),
       idle_in_transaction_session_timeout: String(DB_TIMEOUTS.api.idleInTransactionMs),
     });
+  });
+});
+
+describe('workers paralelos por perfil', () => {
+  it('jobs e ao vivo sem paralelismo; API, demo e migrate com o do servidor', () => {
+    expect(resolveParallelWorkers('job', {})).toBe(0);
+    expect(resolveParallelWorkers('live', {})).toBe(0);
+    expect(resolveParallelWorkers('api', {})).toBeNull();
+    expect(resolveParallelWorkers('migrate', {})).toBeNull();
+    expect(sessionParams(DB_TIMEOUTS.job, undefined, 0)).toMatchObject({
+      max_parallel_workers_per_gather: '0',
+    });
+    expect(sessionParams(DB_TIMEOUTS.api, undefined, null)).not.toHaveProperty(
+      'max_parallel_workers_per_gather',
+    );
+  });
+
+  it('o env troca o do perfil; valor inválido fica o do perfil', () => {
+    expect(resolveParallelWorkers('job', { DB_MAX_PARALLEL_WORKERS_PER_GATHER: '2' })).toBe(2);
+    expect(resolveParallelWorkers('api', { DB_MAX_PARALLEL_WORKERS_PER_GATHER: '1' })).toBe(1);
+    expect(resolveParallelWorkers('job', { DB_MAX_PARALLEL_WORKERS_PER_GATHER: '-1' })).toBe(0);
+    expect(resolveParallelWorkers('job', { DB_MAX_PARALLEL_WORKERS_PER_GATHER: 'x' })).toBe(0);
   });
 });
 

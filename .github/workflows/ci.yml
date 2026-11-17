@@ -22,7 +22,9 @@ jobs:
   checks:
     name: checks (Postgres ${{ matrix.postgres }}, Valkey ${{ matrix.valkey }})
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    # 35 min: em 17/11 a suíte de integração chegou a ~25 min (Postgres 18 passou em 24:45; o 17 estourou duas vezes
+    # sem nenhum teste falhar), e o teto de 25 (#1174) passou a cancelar por tempo, não por erro
+    timeout-minutes: 35
     # ler os rótulos do PR (passo da migration destrutiva); continua sem escrever em nada
     permissions:
       contents: read
