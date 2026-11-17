@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import type { Database } from '@galaxie/db';
 import { SCHEDULED_JOBS, scheduleKey } from '@galaxie/runtime-config';
 import { envKey, scheduleFromEnv as scheduleJobs } from '@galaxie/scheduler';
 import { describe, expect, it } from 'vitest';
@@ -56,6 +57,17 @@ describe('agenda dos agentes de IA', () => {
       script: 'dist/cli/channel-lists.js',
       args: ['--max', '10', '--repetir-falhas'],
     });
+  });
+
+  it('só a revisão de sugestões e as listas de canais pulam a subida sem trabalho (idleCheck)', async () => {
+    const gated = AGENT_JOBS.filter((j) => j.idleCheck).map((j) => j.name);
+    expect(gated).toEqual(['review-suggestions', 'channel-lists']);
+    // a consulta usa a mesma fila da CLI: com o banco respondendo "nada", não há trabalho
+    const none = { execute: async () => [{ found: false }] } as unknown as Database;
+    const review = AGENT_JOBS.find((j) => j.name === 'review-suggestions')!;
+    expect(await review.idleCheck!.hasWork(none)).toBe(false);
+    const some = { execute: async () => [{ found: true }] } as unknown as Database;
+    expect(await review.idleCheck!.hasWork(some)).toBe(true);
   });
 
   it('cada job aponta para um CLI que existe no pacote (dist/cli/x.js ← src/cli/x.ts)', () => {

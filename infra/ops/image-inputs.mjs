@@ -29,7 +29,8 @@ const ROOT_FILES = [
   'turbo.json',
 ];
 
-const SELFHEAL = 'infra/healthcheck/selfheal.mjs';
+/** O healthcheck copiado pelas três imagens: o selfheal.sh (caminho rápido em shell) e o selfheal.mjs; o teste não entra. */
+const SELFHEAL = ['infra/healthcheck/selfheal.mjs', 'infra/healthcheck/selfheal.sh'];
 
 /**
  * roots = os pacotes que o Dockerfile constrói (--filter "x..."); external = o que ele copia de fora do grafo.
@@ -37,14 +38,14 @@ const SELFHEAL = 'infra/healthcheck/selfheal.mjs';
  * config/ inteiro, e por isso qualquer mudança nele reconstrói as duas.
  */
 export const IMAGES = {
-  api: { roots: ['@galaxie/api'], external: ['config', 'data/knowledge', SELFHEAL] },
+  api: { roots: ['@galaxie/api'], external: ['config', 'data/knowledge', ...SELFHEAL] },
   demo: {
     roots: ['@galaxie/demo'],
-    external: ['config/broadcast-rights', 'config/broadcasters', 'config/catalog', SELFHEAL],
+    external: ['config/broadcast-rights', 'config/broadcasters', 'config/catalog', ...SELFHEAL],
   },
   ingestor: {
     roots: ['@galaxie/ingestor', '@galaxie/ai-agents'],
-    external: ['config', 'data/knowledge', SELFHEAL],
+    external: ['config', 'data/knowledge', ...SELFHEAL],
   },
 };
 

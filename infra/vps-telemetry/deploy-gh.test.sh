@@ -22,6 +22,8 @@
 #   - um SHA anterior aos três projetos continua publicável, sem subir um segundo Postgres no mesmo volume
 #   - a demo vira site e console (issue #546): os dois sobem lado a lado, a demo sai depois, o candidato e o smoke rodam
 #     nos dois; só a configuração do console muda → troca só ele; volta para um SHA com a demo e de novo para a frente
+#   - DUMP_MODE=nas (docs/runbooks/replica-no-nas.md): com migration nova e sem recibo do dump do NAS, deixa o pedido,
+#     espera e para sem tocar em nada; com o recibo, segue sem pg_dump na VPS; DUMP_MODE inválido é recusado
 #
 #   bash infra/vps-telemetry/deploy-gh.test.sh
 set -euo pipefail
@@ -105,12 +107,12 @@ mkdir -p "$REPO_T/config/broadcasters" "$REPO_T/config/broadcast-rights" "$REPO_
   "$REPO_T/infra/ops" "$REPO_T/infra/vps-telemetry" "$REPO_T/packages/db/drizzle/meta"
 echo x | tee "$REPO_T/config/broadcasters/a" "$REPO_T/config/broadcast-rights/a" "$REPO_T/config/catalog/a" \
   "$REPO_T/data/knowledge/a" \
-  "$REPO_T/infra/healthcheck/selfheal.mjs" "$REPO_T/infra/backup/a" "$REPO_T/infra/observability/prometheus/a" \
+  "$REPO_T/infra/healthcheck/selfheal.mjs" "$REPO_T/infra/healthcheck/selfheal.sh" "$REPO_T/infra/backup/a" "$REPO_T/infra/observability/prometheus/a" \
   "$REPO_T/infra/observability/grafana/a" >/dev/null
 printf '{"entries":[{"idx":0}]}\n' | sed 's/{"idx"/\n{"idx"/' > "$REPO_T/packages/db/drizzle/meta/_journal.json"
 cp "$REPO/infra/ops/image-inputs.mjs" "$REPO/infra/ops/image-hash.sh" "$REPO_T/infra/ops/"
 for f in deploy-gh.sh deploy-plan.sh deploy-verify.sh maintenance.sh migrar-para-tres-projetos.sh rolling-swap.sh candidate.sh \
-  pre-migrate-dump.sh prune-images.sh ensure-secrets.sh; do
+  pre-migrate-dump.sh nas-dump-check.sh prune-images.sh ensure-secrets.sh; do
   cp "$HERE/$f" "$REPO_T/infra/vps-telemetry/"
 done
 # pós-deploy e smoke de faz de conta. O node do contêiner é um sh: o smoke.mjs daqui é shell.
@@ -923,5 +925,41 @@ expect_log '^SKIP  nada a publicar'
 expect_eq "nenhum contêiner da demo" "$(running demo)" 0
 expect_recreated "$before" demo
 
-[ "$fail" = 0 ] && echo "PASS  deploy só do que mudou, transição para três projetos e a divisão em site e console"
+echo "── DUMP_MODE=nas: migration nova e nenhuma prova de backup: para antes de tocar em qualquer coisa"
+printf '{"entries":[{"idx":0},{"idx":1}]}\n' | sed 's/{"idx"/\n{"idx"/g' > "$REPO_T/packages/db/drizzle/meta/_journal.json"
+echo n >> "$REPO_T/apps/api/x"
+C15="$(commit "c15: migration nova")"
+publish
+before="$(created)"
+# o volume de backups da VPS de faz de conta (o nas-dump-check.sh lê NAS_BACKUPS_DIR; o ssh falso roda aqui, com este
+# ambiente); sem recibo ele deixa o pedido ao NAS e espera: aqui, 2 s (o NAS de faz de conta nunca responde)
+export NAS_BACKUPS_DIR="$WORK/backups-nas" NAS_DUMP_WAIT_S=2 NAS_DUMP_POLL_S=1
+mkdir -p "$NAS_BACKUPS_DIR"
+deploy "$C15" DUMP_MODE=nas
+expect_rc 1
+expect_log 'Pedido de dump deixado para o NAS \(rótulo gha-'
+expect_log '^FAIL  o NAS não atendeu o pedido de dump em'
+expect_log '^FAIL  sem prova de backup para o migrate \(DUMP_MODE=nas\)'
+expect_eq "pedido retirado" "$(find "$NAS_BACKUPS_DIR" -mindepth 1 | wc -l | tr -d ' ')" 0
+expect_eq "DEPLOY_SHA não mudou" "$(env_of DEPLOY_SHA)" "$C14"
+expect_recreated "$before"
+
+echo "── DUMP_MODE=nas: o recibo do dump feito no NAS é a prova; o deploy segue com o migrate"
+printf '%s 4500000000 galaxie_sports_20260101T033000Z.dump\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$NAS_BACKUPS_DIR/.nas_last_dump"
+deploy "$C15" DUMP_MODE=nas
+expect_rc 0
+expect_log '^prova de backup antes do migrate \(DUMP_MODE=nas\): galaxie_sports_20260101T033000Z.dump \(NAS, há 0 min, 4291 MB'
+expect_log '^migrate da .* \(1 migration\(s\) nova\(s\)\)'
+expect_log '^PASS  '
+expect_eq "DEPLOY_SHA gravado" "$(env_of DEPLOY_SHA)" "$C15"
+unset NAS_BACKUPS_DIR NAS_DUMP_WAIT_S NAS_DUMP_POLL_S
+
+echo "── DUMP_MODE inválido é recusado antes de tocar na VPS"
+before="$(created)"
+deploy "$C15" DUMP_MODE=fita FORCE=1
+expect_rc 1
+expect_log "^FAIL  DUMP_MODE='fita' inválido"
+expect_recreated "$before"
+
+[ "$fail" = 0 ] && echo "PASS  deploy só do que mudou, transição para três projetos, a divisão em site e console e o DUMP_MODE=nas"
 exit "$fail"

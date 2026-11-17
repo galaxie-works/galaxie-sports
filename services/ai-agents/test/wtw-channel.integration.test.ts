@@ -32,7 +32,7 @@ import {
 import { FakeLlmClient } from '../src/llm/fake.js';
 import type { LlmJsonRequest } from '../src/llm/types.js';
 import { channelBaseline } from '../src/wtw/channel/baseline.js';
-import { planChannelResearch } from '../src/wtw/channel/plan.js';
+import { loadChannelEvents, planChannelResearch } from '../src/wtw/channel/plan.js';
 import { MatchChannelRunner } from '../src/wtw/channel/runner.js';
 import type { ChannelAssignmentOutput } from '../src/wtw/channel/schema.js';
 import { channelScheduleFromEnv } from '../src/wtw/channel/windows.js';
@@ -692,5 +692,57 @@ describe('canal do jogo: teto diário por mercado', () => {
     expect(later.calls[0]!.messages[0]!.content).not.toMatch(/- BR \(Brasil\)/);
     const third = await second.run(groups, { maxCalls: 3, importSaved: false });
     expect(third.groups[0]!.status).toBe('already_researched');
+  });
+});
+
+describe('jogos candidatos do canal do jogo (loadChannelEvents)', () => {
+  it('pega só os agendados no horizonte e os encerrados das últimas 72 h, dos tiers ligados', async () => {
+    const now = new Date('2026-12-01T12:00:00Z');
+    const horizonMs = 10 * 24 * H;
+    const comp = async (slug: string, tier: number) =>
+      (
+        await db
+          .insert(competition)
+          .values({ sport: 'football', slug, name: slug, type: 'league', tier, countryCode: null })
+          .returning()
+      )[0]!;
+    const main = await comp('janela-tier-1', 1);
+    const low = await comp('janela-tier-3', 3);
+    const cases = [
+      ['agendado dentro do horizonte', main.id, 'scheduled', now.getTime() + horizonMs - 60_000, true],
+      ['agendado depois do horizonte', main.id, 'scheduled', now.getTime() + horizonMs + 60_000, false],
+      ['começando agora', main.id, 'starting', now.getTime() + 60_000, true],
+      ['agendado no passado', main.id, 'scheduled', now.getTime() - 60_000, false],
+      ['encerrado há 71 h', main.id, 'finished', now.getTime() - 71 * H, true],
+      ['encerrado há 73 h', main.id, 'finished', now.getTime() - 73 * H, false],
+      ['abandonado ontem', main.id, 'abandoned', now.getTime() - 24 * H, true],
+      ['adiado no horizonte', main.id, 'postponed', now.getTime() + 24 * H, false],
+      ['tier 3 no horizonte', low.id, 'scheduled', now.getTime() + 24 * H, false],
+    ] as const;
+    const byId = new Map<string, string>();
+    for (const [label, competitionId, status, at, _want] of cases) {
+      const [ev] = await db
+        .insert(event)
+        .values({
+          sport: 'football',
+          competitionId,
+          status,
+          startsAt: new Date(at),
+          endsAtExpected: new Date(at + 2 * H),
+          importance: 50,
+        })
+        .returning();
+      byId.set(ev!.id, label);
+    }
+    const found = (await loadChannelEvents(db, { now, horizonMs, tiers: [1, 2] }))
+      .map((e) => byId.get(e.id))
+      .filter(Boolean)
+      .sort();
+    expect(found).toEqual(
+      cases
+        .filter(([, , , , want]) => want)
+        .map(([label]) => label)
+        .sort(),
+    );
   });
 });
