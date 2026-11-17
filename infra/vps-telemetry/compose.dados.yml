@@ -62,22 +62,22 @@ services:
 
   # Porta local para o túnel SSH da réplica do NAS (docs/runbooks/replica-no-nas.md): publica o Postgres da stack só em
   # 127.0.0.1 da VPS (REPLICA_PROXY_BIND) por um socat avulso, sem recriar o postgres (publicar a porta nele exigiria
-  # parar o banco). O túnel do NAS chega com permitopen="127.0.0.1:5432" e o Postgres vê a conexão vindo do IP deste
-  # contêiner (rede da stack, 172.30.50.0/24), que é o que o pg_hba liberado pelo preparar-replica.sh aceita para o papel
-  # replicador. Sem a stack do NAS o serviço é inofensivo: só loopback da VPS, e o papel exige senha. Subir:
+  # parar o banco). O túnel do NAS chega com permitopen="127.0.0.1:5432" e o Postgres vê a conexão vindo do IP FIXO deste
+  # contêiner na rede da stack (REPLICA_PROXY_IP), o único que o pg_hba liberado pelo preparar-replica.sh aceita para o
+  # papel replicador (/32). Sem a stack do NAS o serviço é inofensivo: só loopback da VPS, e o papel exige senha. Subir:
   # preparar-replica.sh (ou docker compose -f compose.dados.yml up -d --no-deps replica-proxy).
   replica-proxy:
-    image: alpine:3.22
+    image: alpine/socat:1.8.0.3
     restart: unless-stopped
     mem_limit: 32m
     ports:
       - ${REPLICA_PROXY_BIND:-127.0.0.1:5432}:5432
+    networks:
+      default:
+        ipv4_address: ${REPLICA_PROXY_IP:-172.30.50.250}
     depends_on:
       - postgres
-    entrypoint:
-      - /bin/sh
-      - -c
-      - apk add --no-cache -q socat && exec socat -d TCP-LISTEN:5432,fork,reuseaddr TCP:postgres:5432
+    command: ['-d', 'TCP-LISTEN:5432,fork,reuseaddr', 'TCP:postgres:5432']
     logging: *logging
 
   valkey:
@@ -174,6 +174,12 @@ services:
       # troca, o dono. A restauração real (restore.sh) roda com o dono: README › Papéis do banco
       DB_URL_BACKUP: ${DB_URL_BACKUP:-postgres://${POSTGRES_USER:-galaxie}:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-galaxie_sports}}
       BACKUP_TIME: ${BACKUP_TIME:-03:30}
+      # dias da semana do dump (vazio = todo dia; 0 = só domingo, o semanal da VPS quando o diário vem da réplica do NAS),
+      # de onde vem a prova de backup que o verificador cobra (vps | nas) e a idade máxima do dump local nesse modo
+      # (docs/runbooks/replica-no-nas.md)
+      BACKUP_DAYS: ${BACKUP_DAYS:-}
+      BACKUP_DUMP_SOURCE: ${BACKUP_DUMP_SOURCE:-vps}
+      BACKUP_LOCAL_MAX_AGE_H: ${BACKUP_LOCAL_MAX_AGE_H:-192}
       BACKUP_KEEP_DAILY: ${BACKUP_KEEP_DAILY:-3}
       BACKUP_CHECK_INTERVAL_H: ${BACKUP_CHECK_INTERVAL_H:-6}
       BACKUP_NAS_RECEIPT: ${BACKUP_NAS_RECEIPT:-true}

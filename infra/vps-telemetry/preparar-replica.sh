@@ -13,7 +13,8 @@
 #      max_wal_senders=10, max_replication_slots=10): se não forem, para e diz o que acrescentar ao compose.dados.yml;
 #   3. aplica com ALTER SYSTEM + reload (parâmetros de contexto sighup, sem restart; ficam no postgresql.auto.conf do
 #      volume pgdata, então sobrevivem a recriar o contêiner) o que vem do .env: wal_keep_size
-#      (REPLICA_WAL_KEEP_SIZE, padrão 2GB: WAL que fica mesmo sem slot, para o link do NAS cair sem perder a réplica) e
+#      (REPLICA_WAL_KEEP_SIZE, padrão 512MB: WAL que fica mesmo sem slot, o bastante para uma queda curta do link; a
+#      retenção longa é do slot, com teto) e
 #      max_slot_wal_keep_size (REPLICA_MAX_SLOT_WAL_KEEP_SIZE, padrão 4GB: teto do slot nas_replica; com o NAS fora por
 #      muito tempo o slot é invalidado em vez de encher o disco da VPS, e a réplica se refaz com pg_basebackup).
 #      Divergência do padrão do repo (que passa -c no comando do compose): -c exigiria recriar o postgres (API e ao vivo
@@ -22,13 +23,14 @@
 #   4. papel `replicador` (REPLICATION, LOGIN) com a senha REPLICATOR_PASSWORD do .env (gerada aqui se faltar, como o
 #      ensure-secrets.sh: openssl rand -hex 32, nunca impressa; a senha vai para o Postgres pela stdin, não na linha de
 #      comando). Rodar de novo reaplica a senha do .env;
-#   5. pg_hba.conf: `host replication replicador <REPLICA_HBA_CIDR> scram-sha-256` (padrão 172.30.50.0/24, a rede da
-#      stack: o túnel chega pelo serviço replica-proxy, e o Postgres vê o IP desse contêiner, não 127.0.0.1) + reload;
+#   5. pg_hba.conf: `host replication replicador <REPLICA_HBA_CIDR> scram-sha-256` (padrão 172.30.50.250/32: o IP fixo
+#      do serviço replica-proxy na rede da stack; o túnel chega por ele, e o Postgres vê esse IP, não 127.0.0.1) + reload;
 #   6. sobe o serviço replica-proxy do compose.dados.yml (socat em 127.0.0.1:5432 da VPS → postgres:5432), o alvo do
 #      permitopen do túnel. Precisa do compose.dados.yml da main na pasta (scp; o deploy automático não o traz);
 #   7. instala /usr/local/bin/galaxie-nas-receipt (cópia de infra/vps-telemetry/galaxie-nas-receipt.sh, embutida abaixo)
 #      e troca o comando forçado da chave `galaxie-nas-receipt` no authorized_keys para ele: a mesma chave passa a
-#      gravar também o recibo .nas_last_dump. --receipt-key acrescenta a chave se a linha ainda não existir;
+#      gravar também o recibo .nas_last_dump e a ler o pedido de dump do deploy. --receipt-key acrescenta a chave se a
+#      linha ainda não existir. Backups do authorized_keys: só os 3 mais novos ficam;
 #   8. com --tunnel-key, grava a chave `galaxie-nas-tunnel` com command="/bin/false",restrict,port-forwarding,
 #      permitopen="127.0.0.1:5432": só encaminha porta para o proxy, sem shell nem outro destino.
 # --status não muda nada: mostra parâmetros, pg_stat_replication, slots, LSN atual (para medir o WAL/dia, #1305),
@@ -64,7 +66,7 @@ WAL_KEEP="${REPLICA_WAL_KEEP_SIZE:-$(env_of REPLICA_WAL_KEEP_SIZE)}"
 SLOT_KEEP="${REPLICA_MAX_SLOT_WAL_KEEP_SIZE:-$(env_of REPLICA_MAX_SLOT_WAL_KEEP_SIZE)}"
 HBA_CIDR="${REPLICA_HBA_CIDR:-$(env_of REPLICA_HBA_CIDR)}"
 PROXY_BIND="${REPLICA_PROXY_BIND:-$(env_of REPLICA_PROXY_BIND)}"
-: "${WAL_KEEP:=2GB}" "${SLOT_KEEP:=4GB}" "${HBA_CIDR:=172.30.50.0/24}" "${PROXY_BIND:=127.0.0.1:5432}"
+: "${WAL_KEEP:=512MB}" "${SLOT_KEEP:=4GB}" "${HBA_CIDR:=172.30.50.250/32}" "${PROXY_BIND:=127.0.0.1:5432}"
 BACKUPS_DIR="${NAS_BACKUPS_DIR:-/var/lib/docker/volumes/galaxie-sports_backups/_data}"
 
 [ -n "$("${DADOS[@]}" ps -q postgres </dev/null 2>/dev/null)" ] || fail "o serviço postgres do projeto dados não está no ar"
@@ -177,21 +179,29 @@ cat >"$RECEIPT_BIN.tmp" <<'RECEIPT'
 # Comando forçado da chave `galaxie-nas-receipt` no authorized_keys da VPS (instalado em /usr/local/bin/galaxie-nas-receipt
 # pelo preparar-replica.sh, que também troca a linha da chave). Por quê: a chave de recibo do NAS só podia rodar
 # `touch .nas_last_pull`; com os dumps feitos no NAS a partir da réplica (docs/runbooks/replica-no-nas.md), o NAS precisa
-# deixar um segundo recibo, com quando e quanto dumpou, e o comando forçado é o único lugar onde a VPS decide o que essa
-# chave pode fazer. Ela continua sem shell, sem outros comandos e só escreve estes dois arquivos no volume de backups:
+# deixar um segundo recibo, com quando e quanto dumpou, e ler o pedido de dump que o deploy deixa; o comando forçado é o
+# único lugar onde a VPS decide o que essa chave pode fazer. Ela continua sem shell, sem outros comandos e só mexe nestes
+# arquivos do volume de backups:
 #   (sem comando) ou "pull"            toca .nas_last_pull (nas-pull.sh: dumps e/ou assets copiados, como antes)
-#   "dump <quando> <bytes> <arquivo>"  grava .nas_last_dump com essa linha (dump.sh da stack nas-replica); é o que o
-#                                      deploy com DUMP_MODE=nas (nas-dump-check.sh) e o backup-check.sh conferem
-# Os três campos são validados (data ISO em UTC, inteiro, nome de arquivo simples); qualquer outra coisa é recusada.
-# Responde "recibo pull ok" / "recibo dump ok": o NAS confere a resposta para saber que a VPS gravou mesmo.
+#   "dump <quando> <bytes> <arquivo>"  grava .nas_last_dump com essa linha (dump.sh da stack nas-replica) e apaga o
+#                                      pedido atendido (.nas_dump_request); é o que o deploy com DUMP_MODE=nas
+#                                      (nas-dump-check.sh) e o backup-check.sh conferem
+#   "pedido"                           imprime o pedido de dump pendente (.nas_dump_request, "<quando> <rótulo>", que o
+#                                      nas-dump-check.sh grava com NAS_DUMP_REQUEST=1), ou nada; o dumper do NAS
+#                                      consulta a cada minuto (dump.sh --pedido)
+# Os campos são validados (data ISO em UTC, inteiro, nome de arquivo simples); qualquer outra coisa é recusada.
+# Responde "recibo <comando> ok": o NAS confere a resposta para saber que a VPS gravou mesmo.
 set -eu
 DIR="${BACKUPS_DIR:-/var/lib/docker/volumes/galaxie-sports_backups/_data}"
 [ -d "$DIR" ] || { echo "recibo: volume de backups não encontrado em $DIR" >&2; exit 1; }
 
+# set -f: a quebra em palavras é o parse do comando, sem expandir * nem ? do que o cliente mandar
+set -f
 # shellcheck disable=SC2086 # a quebra em palavras é o parse do comando
 set -- ${SSH_ORIGINAL_COMMAND:-pull}
 case "$1" in
   pull)
+    [ $# -eq 1 ] || { echo "recibo: pull não leva argumentos" >&2; exit 1; }
     touch "$DIR/.nas_last_pull"
     echo "recibo pull ok"
     ;;
@@ -203,7 +213,20 @@ case "$1" in
     # gravação atômica: quem lê nunca vê o arquivo pela metade
     printf '%s %s %s\n' "$2" "$3" "$4" >"$DIR/.nas_last_dump.tmp"
     mv "$DIR/.nas_last_dump.tmp" "$DIR/.nas_last_dump"
+    rm -f "$DIR/.nas_dump_request"
     echo "recibo dump ok"
+    ;;
+  pedido)
+    [ $# -eq 1 ] || { echo "recibo: pedido não leva argumentos" >&2; exit 1; }
+    if [ -f "$DIR/.nas_dump_request" ]; then
+      # só os dois campos, validados: o NAS não executa nada que venha daqui além do rótulo do dump
+      read -r quando rotulo <"$DIR/.nas_dump_request" || true
+      if printf '%s' "${quando:-}" | grep -Eq '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$' &&
+        printf '%s' "${rotulo:-}" | grep -Eq '^[A-Za-z0-9._-]{1,100}$'; then
+        printf 'pedido %s %s\n' "$quando" "$rotulo"
+      fi
+    fi
+    echo "recibo pedido ok"
     ;;
   *)
     echo "recibo: comando desconhecido" >&2
@@ -217,6 +240,8 @@ ok "$RECEIPT_BIN instalado"
 
 [ -f "$AUTH_KEYS" ] || fail "sem $AUTH_KEYS"
 cp "$AUTH_KEYS" "$AUTH_KEYS.bak-$(date -u +%Y%m%dT%H%M%SZ)"
+# só os 3 backups mais novos (o nome leva a data)
+ls -1 "$AUTH_KEYS".bak-* 2>/dev/null | sort | head -n -3 | while read -r old; do rm -f "$old"; done
 # a chave (tipo + base64) de uma linha do authorized_keys ou de uma chave pública passada
 key_of() { printf '%s\n' "$1" | grep -oE '(ssh-ed25519|ssh-rsa|ecdsa-sha2-nistp256) [A-Za-z0-9+/=]+' | head -n 1; }
 set_line() { # set_line <comentário> <linha nova>: troca a linha com esse comentário, ou acrescenta
