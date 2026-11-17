@@ -1,6 +1,7 @@
 /**
  * Resumo da home "Explorar" pré-calculado (#596): recalcula e grava em core.explore_summary quando precisa (sem
- * resumo, resumo com 10 min ou jogo que mudou de status); senão sai sem consultar o resto. Sem chamadas ao fornecedor.
+ * resumo, resumo com 10 min ou, passado o freio EXPLORE_MIN_INTERVAL_SEC, jogo que mudou de status ou jogo novo);
+ * senão sai sem consultar o resto (a configuração geográfica só é lida quando há conta). Sem chamadas ao fornecedor.
  *   pnpm --filter @galaxie/ingestor explore:summary            # o do scheduler (a cada minuto)
  *   pnpm --filter @galaxie/ingestor explore:summary --forcar   # recalcula agora
  */
@@ -16,13 +17,13 @@ await runCli(async () => {
   if (!url) throw new Error('Defina DATABASE_URL (.env).');
   const db = createDb(url, { max: 4 });
   try {
-    const result = await refreshExploreSummary(db, loadGeoConfig(), { force: values.forcar });
+    const result = await refreshExploreSummary(db, loadGeoConfig, { force: values.forcar });
     console.log(
       result.reason && !result.rows
         ? `Resumo do Explorar recalculado (${result.reason}), mas não gravado: outra rodada gravou uma conta mais nova`
         : result.reason
           ? `Resumo do Explorar recalculado (${result.reason}): ${result.rows} linhas em ${result.ms} ms`
-          : `Resumo do Explorar em dia (sem mudança de status desde a última conta): nada a fazer`,
+          : `Resumo do Explorar em dia (sem mudança desde a última conta, ou dentro do freio): nada a fazer`,
     );
   } finally {
     await closeDb(db);

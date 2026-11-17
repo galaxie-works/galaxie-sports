@@ -446,6 +446,18 @@ export const SETTINGS: readonly SettingDef[] = [
     max: 90,
     default: '7',
   },
+  // freio do explore-summary: mudança de jogo não refaz o resumo da home antes disso desde a última conta (0 = sem
+  // freio; o recálculo de 10 min não depende dele). @galaxie/explore › exploreMinIntervalMs
+  {
+    key: 'EXPLORE_MIN_INTERVAL_SEC',
+    section: 'schedule',
+    type: 'int',
+    services: ['ingestor'],
+    apply: 'next-run',
+    min: 0,
+    max: 600,
+    default: '180',
+  },
 
   // ── IA e orçamento ──────────────────────────────────────────────────────────────────────────
   agents('ai', {

@@ -1586,6 +1586,12 @@ export default defineMessages(
         description: 'Por quantos dias as mudanças ficam no feed antes da limpeza.',
         unit: 'dias',
       },
+      EXPLORE_MIN_INTERVAL_SEC: {
+        label: 'Intervalo mínimo do resumo da home',
+        description:
+          'Mudança de jogo só refaz o resumo do Explorar depois disso desde a última conta. 0 = sem freio; a conta de 10 em 10 min continua.',
+        unit: 's',
+      },
       AI_PROVIDER: {
         label: 'Provedor de IA',
         description: 'Quem escreve os textos dos agentes. Trocar exige a chave do novo provedor configurada.',
@@ -3581,6 +3587,12 @@ export default defineMessages(
           label: 'Change feed retention',
           description: 'How many days changes stay in the feed before cleanup.',
           unit: 'days',
+        },
+        EXPLORE_MIN_INTERVAL_SEC: {
+          label: 'Home summary minimum interval',
+          description:
+            'A game change only rebuilds the Explore summary this long after the last build. 0 = no brake; the 10-minute rebuild still runs.',
+          unit: 's',
         },
         AI_PROVIDER: {
           label: 'AI provider',
@@ -5601,6 +5613,12 @@ export default defineMessages(
           label: 'Retención del feed de cambios',
           description: 'Cuántos días quedan los cambios en el feed antes de la limpieza.',
           unit: 'días',
+        },
+        EXPLORE_MIN_INTERVAL_SEC: {
+          label: 'Intervalo mínimo del resumen de inicio',
+          description:
+            'Un cambio de partido solo rehace el resumen de Explorar pasado este tiempo desde el último cálculo. 0 = sin freno; el cálculo cada 10 min sigue.',
+          unit: 's',
         },
         AI_PROVIDER: {
           label: 'Proveedor de IA',
