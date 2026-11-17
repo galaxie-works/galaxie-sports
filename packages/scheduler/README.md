@@ -17,6 +17,10 @@ qual é o perfil, quais são os jobs e onde fica a raiz do seu pacote; o resto �
   rápida até 60 s). Não ocupa vaga do teto.
 - **Catch-up da partida**: o horário perdido com o scheduler fora do ar roda uma vez na volta; o `running` deixado por
   um processo que caiu é fechado.
+- **"Há trabalho?" antes de subir o job** (`idleCheck`, [`src/idle-gate.ts`](src/idle-gate.ts)): o job que tem a consulta faz
+  ela no processo do scheduler, no horário da agenda e no catch-up. Sem trabalho, nenhum processo sobe (a subida de um Node
+  com os imports custa de 2 a 4 s de CPU) e a execução fica em `ops.job_run` como `ok` com `stats.idle`. Roda completo na
+  partida, a cada `fullEveryMs` (padrão 6 h) e quando a consulta falha; painel e `--run` rodam sempre.
 - **Pedidos do painel** ("rodar agora", `ops.job_request`) e relato do env (`ops.runtime_env`).
 - **Crédito da conta de IA** (`checkAiCredit`), só no perfil `agents`.
 

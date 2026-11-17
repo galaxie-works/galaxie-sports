@@ -9,7 +9,7 @@ import {
 } from '@galaxie/where-to-watch';
 import { FakeLlmClient } from '../src/llm/fake.js';
 import type { LlmJsonRequest } from '../src/llm/types.js';
-import { runChannelLists } from '../src/channels/run.js';
+import { hasPendingChannelLists, runChannelLists } from '../src/channels/run.js';
 import { disposableDb } from './helpers.js';
 
 /*
@@ -79,6 +79,8 @@ afterAll(teardown);
 
 describe('runChannelLists', () => {
   it('para no teto de pedidos por lista e continua na rodada seguinte, sem repetir o que já decidiu', async () => {
+    // a consulta do scheduler (idleCheck) vê a lista pendente antes, e nada depois que ela fecha
+    expect(await hasPendingChannelLists(db)).toBe(true);
     const logs: string[] = [];
     const first = await runChannelLists({ db, llm, config, maxBatches: 1, log: (m) => logs.push(m) });
     expect(first).toEqual([
@@ -95,6 +97,7 @@ describe('runChannelLists', () => {
     expect(second).toEqual([expect.objectContaining({ tenantId, outcome: 'done', batches: 1, deferred: 0 })]);
     row = (await getChannelList(db, tenantId))!;
     expect(row.aiStatus).toBe('done');
+    expect(await hasPendingChannelLists(db)).toBe(false);
     // a decisão da primeira rodada continua, e a segunda decidiu o outro lote
     const all = row.proposed.filter((m) => m.origin === 'ia').map(rightKey);
     expect(all).toEqual(expect.arrayContaining([...decided]));
