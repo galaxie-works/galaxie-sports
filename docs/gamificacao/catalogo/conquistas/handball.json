@@ -1,0 +1,1656 @@
+[
+  {
+    "id": "handball.explorer.competitions",
+    "sport": "handball",
+    "category": "participation",
+    "family": "explorer",
+    "collection": "handball.world_tour",
+    "rule": {
+      "input": "prediction",
+      "where": {
+        "sport": [
+          "handball"
+        ]
+      },
+      "count": {
+        "mode": "distinct",
+        "key": "competition"
+      }
+    },
+    "requires_data": [
+      "fan.prediction",
+      "event.sport",
+      "event.competition.id"
+    ],
+    "stepped": true,
+    "seasonal": false,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "a plataforma cobre 38 competições de handebol (mundiais, continentais, olímpica, pan-americana e ligas europeias); um torcedor assíduo palpita em 8 a 12 delas por temporada e 16 é alcance de um ano e meio (fonte: cobertura da plataforma, seção 6 da missão)",
+    "name": {
+      "pt": "Mapa das competições",
+      "es": "Mapa de torneos",
+      "en": "Competition Map"
+    },
+    "description": {
+      "pt": "Dê Palpites em competições de handebol diferentes.",
+      "es": "Haz pronósticos en torneos de balonmano distintos.",
+      "en": "Make predictions across different handball competitions."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 2,
+        "bonus_points": 0,
+        "card_key": "handball.explorer.competitions.1"
+      },
+      {
+        "step": 2,
+        "threshold": 4,
+        "bonus_points": 0,
+        "card_key": "handball.explorer.competitions.2"
+      },
+      {
+        "step": 3,
+        "threshold": 8,
+        "bonus_points": 0,
+        "card_key": "handball.explorer.competitions.3"
+      },
+      {
+        "step": 4,
+        "threshold": 16,
+        "bonus_points": 0,
+        "card_key": "handball.explorer.competitions.4"
+      },
+      {
+        "step": 5,
+        "threshold": 32,
+        "bonus_points": 0,
+        "card_key": "handball.explorer.competitions.5"
+      }
+    ]
+  },
+  {
+    "id": "handball.explorer.months",
+    "sport": "handball",
+    "category": "participation",
+    "family": "explorer",
+    "collection": "handball.world_tour",
+    "rule": {
+      "input": "participation",
+      "action": "watched",
+      "where": {
+        "sport": [
+          "handball"
+        ]
+      },
+      "count": {
+        "mode": "distinct",
+        "key": "month"
+      }
+    },
+    "requires_data": [
+      "fan.participation",
+      "fan.presence",
+      "event.sport",
+      "event.starts_at",
+      "program.time_zone"
+    ],
+    "stepped": true,
+    "seasonal": false,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "as ligas europeias vão de setembro a junho e os torneios de seleção caem em janeiro (masculino) e dezembro (feminino), com Olimpíada em julho e agosto: há handebol em 11 ou 12 meses do ano; Platina = 12 meses, Lendário = 24 (fontes do calendário em pesquisa/handball.md)",
+    "name": {
+      "pt": "Ano inteiro de quadra",
+      "es": "Todo el año en la cancha",
+      "en": "Court All Year"
+    },
+    "description": {
+      "pt": "Assista a handebol em meses diferentes do ano.",
+      "es": "Mira balonmano en meses distintos del año.",
+      "en": "Watch handball in different months of the year."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 0,
+        "card_key": "handball.explorer.months.1"
+      },
+      {
+        "step": 2,
+        "threshold": 3,
+        "bonus_points": 0,
+        "card_key": "handball.explorer.months.2"
+      },
+      {
+        "step": 3,
+        "threshold": 6,
+        "bonus_points": 0,
+        "card_key": "handball.explorer.months.3"
+      },
+      {
+        "step": 4,
+        "threshold": 12,
+        "bonus_points": 0,
+        "card_key": "handball.explorer.months.4"
+      },
+      {
+        "step": 5,
+        "threshold": 24,
+        "bonus_points": 0,
+        "card_key": "handball.explorer.months.5"
+      }
+    ]
+  },
+  {
+    "id": "handball.loyalty.favorite_games",
+    "sport": "handball",
+    "category": "participation",
+    "family": "loyalty",
+    "collection": "handball.faithful",
+    "rule": {
+      "input": "participation",
+      "action": "watched",
+      "where": {
+        "sport": [
+          "handball"
+        ],
+        "favorite_playing": true
+      }
+    },
+    "requires_data": [
+      "fan.participation",
+      "fan.presence",
+      "fan.favorite_team_id",
+      "event.participants",
+      "event.sport"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "as ligas europeias têm 26 (feminina alemã), 30 (espanhola, francesa) ou 34 (alemã) jogos por time; uma seleção joga 9 num torneio grande mais 4 a 8 amistosos e qualificatórios por ano; Platina = 30, o meio das ligas (fontes do calendário em pesquisa/handball.md)",
+    "name": {
+      "pt": "Fiel ao time",
+      "es": "Fiel al equipo",
+      "en": "True to the Team"
+    },
+    "description": {
+      "pt": "Assista aos jogos do seu time do coração no handebol.",
+      "es": "Mira los partidos de balonmano de tu equipo del corazón.",
+      "en": "Watch your favorite handball team’s matches."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 0,
+        "card_key": "handball.loyalty.favorite_games.1"
+      },
+      {
+        "step": 2,
+        "threshold": 4,
+        "bonus_points": 0,
+        "card_key": "handball.loyalty.favorite_games.2"
+      },
+      {
+        "step": 3,
+        "threshold": 12,
+        "bonus_points": 0,
+        "card_key": "handball.loyalty.favorite_games.3"
+      },
+      {
+        "step": 4,
+        "threshold": 30,
+        "bonus_points": 0,
+        "card_key": "handball.loyalty.favorite_games.4"
+      },
+      {
+        "step": 5,
+        "threshold": 80,
+        "bonus_points": 0,
+        "card_key": "handball.loyalty.favorite_games.5"
+      }
+    ]
+  },
+  {
+    "id": "handball.loyalty.favorite_streak",
+    "sport": "handball",
+    "category": "participation",
+    "family": "loyalty",
+    "collection": "handball.faithful",
+    "rule": {
+      "input": "participation",
+      "action": "watched",
+      "where": {
+        "sport": [
+          "handball"
+        ],
+        "favorite_playing": true
+      },
+      "count": {
+        "mode": "streak",
+        "unit": "game"
+      }
+    },
+    "requires_data": [
+      "fan.participation",
+      "fan.presence",
+      "fan.favorite_team_id",
+      "event.participants",
+      "event.sport"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria: um torcedor de seleção acompanha os 9 jogos de um torneio em sequência com facilidade; 25 jogos seguidos de um clube é quase uma temporada de liga sem faltar; 50 seguidos é meta de menos de 1% (fontes do calendário em pesquisa/handball.md)",
+    "name": {
+      "pt": "Sem faltar",
+      "es": "Sin faltar",
+      "en": "Never Missed"
+    },
+    "description": {
+      "pt": "Assista a jogos seguidos do seu time, sem perder nenhum no meio.",
+      "es": "Mira partidos seguidos de tu equipo, sin perderte ninguno en el medio.",
+      "en": "Watch your team’s matches back to back, without missing one."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 2,
+        "bonus_points": 0,
+        "card_key": "handball.loyalty.favorite_streak.1"
+      },
+      {
+        "step": 2,
+        "threshold": 5,
+        "bonus_points": 0,
+        "card_key": "handball.loyalty.favorite_streak.2"
+      },
+      {
+        "step": 3,
+        "threshold": 10,
+        "bonus_points": 0,
+        "card_key": "handball.loyalty.favorite_streak.3"
+      },
+      {
+        "step": 4,
+        "threshold": 25,
+        "bonus_points": 0,
+        "card_key": "handball.loyalty.favorite_streak.4"
+      },
+      {
+        "step": 5,
+        "threshold": 50,
+        "bonus_points": 0,
+        "card_key": "handball.loyalty.favorite_streak.5"
+      }
+    ]
+  },
+  {
+    "id": "handball.loyalty.knockout_watched",
+    "sport": "handball",
+    "category": "participation",
+    "family": "loyalty",
+    "collection": "handball.big_stage",
+    "rule": {
+      "input": "participation",
+      "action": "watched",
+      "where": {
+        "sport": [
+          "handball"
+        ],
+        "stage": [
+          "knockout"
+        ]
+      }
+    },
+    "requires_data": [
+      "fan.participation",
+      "fan.presence",
+      "event.sport",
+      "event.stage.kind"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria sobre o calendário: 3 mata-matas por torneio de seleção, mais play-off, quartas e Final4 de clubes e as finais de copa nacional; um torcedor assíduo assiste a 8 a 12 por temporada (fontes do calendário em pesquisa/handball.md)",
+    "name": {
+      "pt": "Noites sem volta",
+      "es": "Noches sin vuelta",
+      "en": "Do-or-Die Nights"
+    },
+    "description": {
+      "pt": "Assista a jogos de mata-mata do handebol, do seu time ou de qualquer outro.",
+      "es": "Mira partidos de eliminación directa de balonmano, de tu equipo o de cualquier otro.",
+      "en": "Watch handball knockout matches, your team’s or anyone else’s."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 0,
+        "card_key": "handball.loyalty.knockout_watched.1"
+      },
+      {
+        "step": 2,
+        "threshold": 2,
+        "bonus_points": 0,
+        "card_key": "handball.loyalty.knockout_watched.2"
+      },
+      {
+        "step": 3,
+        "threshold": 5,
+        "bonus_points": 0,
+        "card_key": "handball.loyalty.knockout_watched.3"
+      },
+      {
+        "step": 4,
+        "threshold": 10,
+        "bonus_points": 0,
+        "card_key": "handball.loyalty.knockout_watched.4"
+      },
+      {
+        "step": 5,
+        "threshold": 25,
+        "bonus_points": 0,
+        "card_key": "handball.loyalty.knockout_watched.5"
+      }
+    ]
+  },
+  {
+    "id": "handball.loyalty.tournament_games",
+    "sport": "handball",
+    "category": "participation",
+    "family": "loyalty",
+    "collection": "handball.faithful",
+    "rule": {
+      "input": "participation",
+      "action": "watched",
+      "where": {
+        "sport": [
+          "handball"
+        ],
+        "competition_type": [
+          "tournament"
+        ]
+      }
+    },
+    "requires_data": [
+      "fan.participation",
+      "fan.presence",
+      "event.sport",
+      "event.competition.type"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "uma seleção joga até 9 jogos num Mundial (3 + 3 + quartas, semi e final) ou num Europeu (3 + 4 + semi e final) e 8 numa Olimpíada; um torcedor que acompanha a seleção masculina e a feminina vê 2 torneios por ano: Platina = 18 (fonte: ihf.info/media-center/news/draw-reveals-fantastic-groups-2025-ihf-mens-world-championship; old.eurohandball.com/article/049595)",
+    "name": {
+      "pt": "Torneio de seleções",
+      "es": "Torneo de selecciones",
+      "en": "National-Team Tournament"
+    },
+    "description": {
+      "pt": "Assista a jogos de torneios de seleções de handebol.",
+      "es": "Mira partidos de torneos de selecciones de balonmano.",
+      "en": "Watch handball national-team tournament matches."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 0,
+        "card_key": "handball.loyalty.tournament_games.1"
+      },
+      {
+        "step": 2,
+        "threshold": 3,
+        "bonus_points": 0,
+        "card_key": "handball.loyalty.tournament_games.2"
+      },
+      {
+        "step": 3,
+        "threshold": 9,
+        "bonus_points": 0,
+        "card_key": "handball.loyalty.tournament_games.3"
+      },
+      {
+        "step": 4,
+        "threshold": 18,
+        "bonus_points": 0,
+        "card_key": "handball.loyalty.tournament_games.4"
+      },
+      {
+        "step": 5,
+        "threshold": 45,
+        "bonus_points": 0,
+        "card_key": "handball.loyalty.tournament_games.5"
+      }
+    ]
+  },
+  {
+    "id": "handball.moments.big_win",
+    "sport": "handball",
+    "category": "moment",
+    "family": "moments",
+    "collection": "handball.goal_fest",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win",
+        "margin_min": 10
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria: diferença de 10 ou mais em 6 a 9% dos jogos de liga, metade a favor, 1 a 1,5 goleadas por temporada para o time do torcedor; o recorde do Europeu masculino é 17 gols de diferença (2026), antes disso o máximo era 11 (fonte: mezha.net/eng/bukvy/norway-s-record-victory-over-ukraine-at-euro-2026-handball-opener/; beach.eurohandball.com/news/en/fantastic-france-break-records-against-ukraine/)",
+    "name": {
+      "pt": "Goleada de dez",
+      "es": "Goleada de diez",
+      "en": "Ten-Goal Rout"
+    },
+    "description": {
+      "pt": "Assista a uma vitória do seu time por dez gols ou mais de diferença.",
+      "es": "Mira una victoria de tu equipo por diez goles o más de diferencia.",
+      "en": "Watch your team win by ten goals or more."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 60,
+        "card_key": "handball.moments.big_win.1"
+      }
+    ]
+  },
+  {
+    "id": "handball.moments.buzzer_beater",
+    "sport": "handball",
+    "category": "moment",
+    "family": "moments",
+    "collection": "handball.one_goal",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win",
+        "margin_max": 1
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id",
+      "proposed.event.play_by_play.goal.second"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": false,
+    "inactive_reason": "falta lance a lance no handebol: o motor não sabe o minuto nem o segundo de cada gol, então não distingue o gol da vitória no último segundo de qualquer vitória por 1 gol. Falta proposed.event.play_by_play.goal.second e um fato handball.goal com max_second. A regra acima é só a aproximação (vitória por 1 gol) e não pode ser ligada assim.",
+    "real_world_frequency": "estimativa própria: 2 a 4% dos jogos terminam com gol decisivo nos 10 segundos finais, 0,5 a 1 por temporada para o time do torcedor; nas quartas de final do Mundial masculino de 2025, duas das quatro foram decididas a 3 segundos do fim (fonte: inspiredbyhandball.com/?p=3183; ihf.info/media-center/news/we-have-try-inside-last-seconds-manic-quarter-final-between-france-and-egypt)",
+    "name": {
+      "pt": "Gol no último segundo",
+      "es": "Gol en el último segundo",
+      "en": "Last-Second Goal"
+    },
+    "description": {
+      "pt": "Esteja assistindo quando seu time marcar o gol da vitória no último segundo.",
+      "es": "Mira en vivo cuando tu equipo marque el gol del triunfo en el último segundo.",
+      "en": "Be watching when your team scores the winner with the clock at zero."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 60,
+        "card_key": "handball.moments.buzzer_beater.1"
+      }
+    ]
+  },
+  {
+    "id": "handball.moments.comeback_five",
+    "sport": "handball",
+    "category": "moment",
+    "family": "moments",
+    "collection": "handball.comebacks",
+    "rule": {
+      "input": "moment",
+      "fact": "score.comeback",
+      "params": {
+        "team": "favorite",
+        "trailing_by_min": 5,
+        "at": "any"
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria: 5 ou mais atrás no intervalo em cerca de 15% dos jogos e vitória em 8% desses, perto de 1% dos jogos; para o time do torcedor, 0,3 a 0,5 por temporada; os casos célebres (8 atrás a 13 minutos do fim numa final continental, 6 atrás numa final de Mundial) viram história (fonte: old.eurohandball.com/article/034439; ihf.info/member-federations/norway/127/news/83109)",
+    "name": {
+      "pt": "Virada de cinco gols",
+      "es": "Remontada de cinco goles",
+      "en": "Five-Goal Comeback"
+    },
+    "description": {
+      "pt": "Assista ao jogo em que seu time perde por cinco ou mais no intervalo e vence.",
+      "es": "Mira el partido en que tu equipo pierde por cinco o más al descanso y gana.",
+      "en": "Watch your team win after trailing by five or more at half-time."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 120,
+        "card_key": "handball.moments.comeback_five.1"
+      }
+    ]
+  },
+  {
+    "id": "handball.moments.draw",
+    "sport": "handball",
+    "category": "moment",
+    "family": "moments",
+    "collection": "handball.one_goal",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "draw"
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "8,8% dos jogos da liga alemã 2023-24 terminaram empatados (27 em 306); para o time do torcedor, cerca de 3 por temporada; no mata-mata de seleções não há empate (fonte: sport12x.com/en/statistics/handball/germany/bundesliga)",
+    "name": {
+      "pt": "Empate no apito",
+      "es": "Empate al silbato",
+      "en": "Level at the Buzzer"
+    },
+    "description": {
+      "pt": "Assista a um jogo do seu time que termina empatado.",
+      "es": "Mira un partido de tu equipo que termina empatado.",
+      "en": "Watch a match where your team finishes level."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 25,
+        "card_key": "handball.moments.draw.1"
+      }
+    ]
+  },
+  {
+    "id": "handball.moments.high_scoring",
+    "sport": "handball",
+    "category": "moment",
+    "family": "moments",
+    "collection": "handball.goal_fest",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "any",
+        "total_min": 70
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.score",
+      "event.participants",
+      "fan.presence"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "média de 58,9 gols por jogo na liga alemã 2023-24 e 60,4 em 2025-26, com jogos de 75 e 81 gols nas últimas temporadas; estimativa própria: 70 ou mais em 7 a 10% dos jogos, 2,5 a 3,5 por temporada para quem acompanha um time (fonte: sport12x.com/en/statistics/handball/germany/bundesliga; en.wikipedia.org/wiki/2025%E2%80%9326_Handball-Bundesliga; beach.eurohandball.com/news/en/veszprem-record-biggest-victory-over-kiel/)",
+    "name": {
+      "pt": "Setenta gols",
+      "es": "Setenta goles",
+      "en": "Seventy Goals"
+    },
+    "description": {
+      "pt": "Assista a um jogo de handebol com setenta gols ou mais no total.",
+      "es": "Mira un partido de balonmano con setenta goles o más en total.",
+      "en": "Watch a handball match with seventy goals or more in total."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 25,
+        "card_key": "handball.moments.high_scoring.1"
+      }
+    ]
+  },
+  {
+    "id": "handball.moments.keeper_wall",
+    "sport": "handball",
+    "category": "moment",
+    "family": "moments",
+    "collection": "handball.fortress",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win",
+        "margin_min": 5
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id",
+      "proposed.player_game_stats.saves"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": false,
+    "inactive_reason": "falta estatística de jogador por partida no handebol: o motor não recebe as defesas do goleiro. Falta proposed.player_game_stats.saves e um fato handball.player_stat com stat e min. A regra acima é só a aproximação (vitória por 5 ou mais) e não pode ser ligada assim.",
+    "real_world_frequency": "estimativa própria: goleiro com 15 ou mais defesas (perto de 40% dos arremessos) em 8 a 10% dos jogos de um time, cerca de 3 por temporada (sem fonte estatística pública consolidada)",
+    "name": {
+      "pt": "Muralha no gol",
+      "es": "Muralla en el arco",
+      "en": "Wall in Goal"
+    },
+    "description": {
+      "pt": "Assista ao jogo em que o goleiro do seu time faz quinze defesas ou mais.",
+      "es": "Mira el partido en que el arquero de tu equipo hace quince atajadas o más.",
+      "en": "Watch the match where your team’s keeper makes fifteen saves or more."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 25,
+        "card_key": "handball.moments.keeper_wall.1"
+      }
+    ]
+  },
+  {
+    "id": "handball.moments.one_goal_win",
+    "sport": "handball",
+    "category": "moment",
+    "family": "moments",
+    "collection": "handball.one_goal",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win",
+        "margin_max": 1
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria sobre a distribuição das margens calibrada pelos 8,8% de empate da liga alemã: 15 a 17% dos jogos decididos por 1 gol, metade a favor do time do torcedor, 2,5 a 3 vitórias por 1 gol por temporada (fonte-base: sport12x.com/en/statistics/handball/germany/bundesliga)",
+    "name": {
+      "pt": "Vitória por um gol",
+      "es": "Victoria por un gol",
+      "en": "One-Goal Win"
+    },
+    "description": {
+      "pt": "Assista a uma vitória do seu time por um gol de diferença.",
+      "es": "Mira una victoria de tu equipo por un gol de diferencia.",
+      "en": "Watch your team win by a single goal."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 25,
+        "card_key": "handball.moments.one_goal_win.1"
+      }
+    ]
+  },
+  {
+    "id": "handball.moments.overtime_win",
+    "sport": "handball",
+    "category": "moment",
+    "family": "moments",
+    "collection": "handball.one_goal",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win",
+        "overtime": true
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "prorrogação só em mata-mata: 1 das 4 quartas de final do Mundial masculino de 2025 foi à prorrogação; estimativa própria de 10 a 15% dos mata-matas, com vitória em metade; para o time do torcedor, 0,15 a 0,3 por temporada (fonte: inspiredbyhandball.com/?p=3183)",
+    "name": {
+      "pt": "Vitória na prorrogação",
+      "es": "Victoria en el tiempo extra",
+      "en": "Overtime Win"
+    },
+    "description": {
+      "pt": "Assista ao jogo em que seu time vence na prorrogação.",
+      "es": "Mira el partido en que tu equipo gana en el tiempo extra.",
+      "en": "Watch your team win in overtime."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 120,
+        "card_key": "handball.moments.overtime_win.1"
+      }
+    ]
+  },
+  {
+    "id": "handball.moments.period_sweep",
+    "sport": "handball",
+    "category": "moment",
+    "family": "moments",
+    "collection": "handball.fortress",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win",
+        "period_sweep": true
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria: um dos times vence os dois tempos em cerca de 35% dos jogos; para o time do torcedor, 10 a 13 por temporada de liga, mais em copa e torneio continental (fonte-base: sport12x.com/en/statistics/handball/germany/bundesliga)",
+    "name": {
+      "pt": "Dois tempos, dois vencidos",
+      "es": "Dos tiempos, dos ganados",
+      "en": "Both Halves Won"
+    },
+    "description": {
+      "pt": "Assista aos jogos em que seu time vence os dois tempos.",
+      "es": "Mira los partidos en que tu equipo gana los dos tiempos.",
+      "en": "Watch the matches where your team wins both halves."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 10,
+        "card_key": "handball.moments.period_sweep.1"
+      },
+      {
+        "step": 2,
+        "threshold": 3,
+        "bonus_points": 20,
+        "card_key": "handball.moments.period_sweep.2"
+      },
+      {
+        "step": 3,
+        "threshold": 6,
+        "bonus_points": 40,
+        "card_key": "handball.moments.period_sweep.3"
+      },
+      {
+        "step": 4,
+        "threshold": 12,
+        "bonus_points": 75,
+        "card_key": "handball.moments.period_sweep.4"
+      },
+      {
+        "step": 5,
+        "threshold": 30,
+        "bonus_points": 150,
+        "card_key": "handball.moments.period_sweep.5"
+      }
+    ]
+  },
+  {
+    "id": "handball.moments.player_ten_goals",
+    "sport": "handball",
+    "category": "moment",
+    "family": "moments",
+    "collection": "handball.goal_fest",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win",
+        "total_min": 60
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id",
+      "proposed.player_game_stats.goals"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": false,
+    "inactive_reason": "falta estatística de jogador por partida no handebol: o motor não recebe os gols de cada jogador. Falta proposed.player_game_stats.goals e um fato handball.player_stat com stat goals e min 10. A regra acima é só a aproximação (vitória num jogo de 60 ou mais gols) e não pode ser ligada assim.",
+    "real_world_frequency": "um jogador marcou 18 gols num jogo da liga alemã em 2024-25 e o recorde da liga é 21 (2008-09); estimativa própria: um jogador com 10 ou mais gols em 8 a 10% dos jogos, 1,5 a 2 por temporada para o time do torcedor (fonte: flashscore.com/news/handball-bundesliga-gidsel-scores-18-against-flensburg-to-become-top-goalscorer-in-german-bundesliga/SrGtWkvo/; dkb-handball-bundesliga.de)",
+    "name": {
+      "pt": "Dez gols de um só",
+      "es": "Diez goles del mismo",
+      "en": "Ten from One Player"
+    },
+    "description": {
+      "pt": "Assista ao jogo em que um jogador do seu time marca dez gols ou mais.",
+      "es": "Mira el partido en que un jugador de tu equipo marca diez goles o más.",
+      "en": "Watch the match where one of your team’s players scores ten goals or more."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 60,
+        "card_key": "handball.moments.player_ten_goals.1"
+      }
+    ]
+  },
+  {
+    "id": "handball.moments.second_half_turnaround",
+    "sport": "handball",
+    "category": "moment",
+    "family": "moments",
+    "collection": "handball.comebacks",
+    "rule": {
+      "input": "moment",
+      "fact": "score.comeback",
+      "params": {
+        "team": "favorite",
+        "trailing_by_min": 1,
+        "at": "any"
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria: um dos times perde no intervalo em cerca de 46% dos jogos e vira em 30% deles (13 a 15% dos jogos); quem está atrás acelera o ritmo de gols em 10 a 20%; para o time do torcedor, 4,5 por temporada de liga e 6 a 7 com copa e torneio continental (fonte-base: arxiv.org/html/2404.04213v1; sport12x.com/en/statistics/handball/germany/bundesliga)",
+    "name": {
+      "pt": "Virada no segundo tempo",
+      "es": "Remontada en el segundo tiempo",
+      "en": "Second-Half Turnaround"
+    },
+    "description": {
+      "pt": "Assista ao jogo em que seu time perde no intervalo e vence no fim.",
+      "es": "Mira el partido en que tu equipo pierde al descanso y gana al final.",
+      "en": "Watch your team trail at half-time and win the match."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 10,
+        "card_key": "handball.moments.second_half_turnaround.1"
+      },
+      {
+        "step": 2,
+        "threshold": 2,
+        "bonus_points": 20,
+        "card_key": "handball.moments.second_half_turnaround.2"
+      },
+      {
+        "step": 3,
+        "threshold": 4,
+        "bonus_points": 40,
+        "card_key": "handball.moments.second_half_turnaround.3"
+      },
+      {
+        "step": 4,
+        "threshold": 8,
+        "bonus_points": 75,
+        "card_key": "handball.moments.second_half_turnaround.4"
+      },
+      {
+        "step": 5,
+        "threshold": 20,
+        "bonus_points": 150,
+        "card_key": "handball.moments.second_half_turnaround.5"
+      }
+    ]
+  },
+  {
+    "id": "handball.moments.second_half_twenty",
+    "sport": "handball",
+    "category": "moment",
+    "family": "moments",
+    "collection": "handball.goal_fest",
+    "rule": {
+      "input": "moment",
+      "fact": "score.period",
+      "params": {
+        "team": "favorite",
+        "period": "h2",
+        "points_min": 20
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "cada time marca em média 15 gols por tempo (29,9 no 2º tempo somando os dois); estimativa própria: 20 ou mais num 2º tempo em 6 a 7% dos tempos de um time, 2 a 2,5 por temporada para o time do torcedor (fonte-base: sport12x.com/en/statistics/handball/germany/bundesliga)",
+    "name": {
+      "pt": "Segundo tempo de vinte",
+      "es": "Segundo tiempo de veinte",
+      "en": "Twenty in the Second Half"
+    },
+    "description": {
+      "pt": "Assista ao jogo em que seu time marca vinte gols ou mais só no segundo tempo.",
+      "es": "Mira el partido en que tu equipo marca veinte goles o más solo en el segundo tiempo.",
+      "en": "Watch your team score twenty or more goals in the second half alone."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 25,
+        "card_key": "handball.moments.second_half_twenty.1"
+      }
+    ]
+  },
+  {
+    "id": "handball.moments.seven_metre_saved",
+    "sport": "handball",
+    "category": "moment",
+    "family": "moments",
+    "collection": "handball.fortress",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win",
+        "margin_max": 2
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id",
+      "proposed.event.play_by_play.seven_metre"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": false,
+    "inactive_reason": "falta lance a lance no handebol: o motor não recebe as cobranças de sete metros nem o resultado de cada uma. Falta proposed.event.play_by_play.seven_metre e um fato handball.seven_metre com saved e min. A regra acima é só a aproximação (vitória apertada) e não pode ser ligada assim.",
+    "real_world_frequency": "estimativa própria: a conversão de sete metros fica em 75 a 80% e cada time cobra cerca de 4 por jogo, o que dá 1 defesa por jogo; três defesas no mesmo jogo em 3 a 5% dos jogos, 1 a 1,5 por temporada para o time do torcedor (sem fonte estatística pública consolidada)",
+    "name": {
+      "pt": "Três de sete metros",
+      "es": "Tres de siete metros",
+      "en": "Three from Seven Metres"
+    },
+    "description": {
+      "pt": "Esteja assistindo quando o goleiro do seu time defender três sete metros no mesmo jogo.",
+      "es": "Mira en vivo cuando el arquero de tu equipo ataje tres lanzamientos de siete metros en el mismo partido.",
+      "en": "Be watching when your team’s keeper saves three seven-metre throws in one match."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 60,
+        "card_key": "handball.moments.seven_metre_saved.1"
+      }
+    ]
+  },
+  {
+    "id": "handball.moments.shootout_win",
+    "sport": "handball",
+    "category": "moment",
+    "family": "moments",
+    "collection": "handball.one_goal",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win",
+        "shootout": true
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id",
+      "proposed.event.score.periods.so"
+    ],
+    "stepped": false,
+    "seasonal": false,
+    "active": false,
+    "inactive_reason": "o normalizador do handebol grava só h1, h2 e ot no placar por período: não existe a chave so (desempate por 7 metros), então shootout: true nunca casa. Falta proposed.event.score.periods.so. A regra acima é a forma certa e só pode ser ligada quando o período so for gravado.",
+    "real_world_frequency": "decisão por 7 metros só depois de duas prorrogações em mata-mata: a final continental de clubes de 2016 (32:32), uma quartas de final de Mundial em 2013 e uma final de Mundial juvenil em 2025 são os casos lembrados; poucas por década no alto nível (fonte: fcbarcelona.com/en/handball/first-team/news/2649714; thenationalnews.com/sport/other-sport/valiant-defeats-no-longer-enough-for-egypt-after-handball-world-championship-near-miss-1.1157892; ihf.info/member-federations/egypt/135/news/207657)",
+    "name": {
+      "pt": "Vitória nos sete metros",
+      "es": "Victoria en los siete metros",
+      "en": "Seven-Metre Shootout Win"
+    },
+    "description": {
+      "pt": "Assista ao jogo em que seu time vence na disputa de sete metros.",
+      "es": "Mira el partido en que tu equipo gana en la tanda de siete metros.",
+      "en": "Watch your team win a seven-metre shootout."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 200,
+        "card_key": "handball.moments.shootout_win.1"
+      }
+    ]
+  },
+  {
+    "id": "handball.predictions.final_winner",
+    "sport": "handball",
+    "category": "hit",
+    "family": "predictions",
+    "collection": "handball.big_stage",
+    "rule": {
+      "input": "prediction",
+      "kind": "winner",
+      "correct": true,
+      "where": {
+        "sport": [
+          "handball"
+        ],
+        "stage": [
+          "final"
+        ]
+      }
+    },
+    "requires_data": [
+      "fan.prediction",
+      "event.sport",
+      "event.stage.kind"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria sobre o calendário: um torcedor assíduo encontra 6 a 8 finais de handebol por temporada (Mundial ou Europeu masculino e feminino, torneio continental de clubes, copas nacionais, Olimpíada e Pan no ano deles) e acerta o vencedor em cerca de metade (fontes do calendário em pesquisa/handball.md)",
+    "name": {
+      "pt": "Dia de final",
+      "es": "Día de final",
+      "en": "Final Call"
+    },
+    "description": {
+      "pt": "Acerte o vencedor em finais de handebol.",
+      "es": "Acierta el ganador en finales de balonmano.",
+      "en": "Predict the winner of handball finals."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 20,
+        "card_key": "handball.predictions.final_winner.1"
+      },
+      {
+        "step": 2,
+        "threshold": 2,
+        "bonus_points": 40,
+        "card_key": "handball.predictions.final_winner.2"
+      },
+      {
+        "step": 3,
+        "threshold": 4,
+        "bonus_points": 80,
+        "card_key": "handball.predictions.final_winner.3"
+      },
+      {
+        "step": 4,
+        "threshold": 8,
+        "bonus_points": 150,
+        "card_key": "handball.predictions.final_winner.4"
+      },
+      {
+        "step": 5,
+        "threshold": 20,
+        "bonus_points": 300,
+        "card_key": "handball.predictions.final_winner.5"
+      }
+    ]
+  },
+  {
+    "id": "handball.predictions.hit_streak",
+    "sport": "handball",
+    "category": "hit",
+    "family": "predictions",
+    "collection": "handball.sharp_eye",
+    "rule": {
+      "input": "prediction",
+      "correct": true,
+      "where": {
+        "sport": [
+          "handball"
+        ]
+      },
+      "count": {
+        "mode": "streak",
+        "unit": "prediction"
+      }
+    },
+    "requires_data": [
+      "fan.prediction",
+      "event.sport"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria: no handebol o favorito vence com mais frequência que no futebol (57% de vitórias do mandante e só 8,8% de empates), então o Palpite de vencedor acerta perto de 60% e uma sequência de 5 sai para 1 em 13 tentativas, uma de 10 para 1 em 165; um torcedor assíduo chega a 10 numa temporada e a 25 em poucas (fonte-base: sport12x.com/en/statistics/handball/germany/bundesliga)",
+    "name": {
+      "pt": "Sequência certeira",
+      "es": "Racha certera",
+      "en": "Hot Streak"
+    },
+    "description": {
+      "pt": "Acerte Palpites de handebol seguidos, sem errar nenhum no meio.",
+      "es": "Acierta pronósticos de balonmano seguidos, sin fallar ninguno en el medio.",
+      "en": "Get handball predictions right back to back, without a miss in between."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 2,
+        "bonus_points": 20,
+        "card_key": "handball.predictions.hit_streak.1"
+      },
+      {
+        "step": 2,
+        "threshold": 5,
+        "bonus_points": 40,
+        "card_key": "handball.predictions.hit_streak.2"
+      },
+      {
+        "step": 3,
+        "threshold": 10,
+        "bonus_points": 80,
+        "card_key": "handball.predictions.hit_streak.3"
+      },
+      {
+        "step": 4,
+        "threshold": 25,
+        "bonus_points": 150,
+        "card_key": "handball.predictions.hit_streak.4"
+      },
+      {
+        "step": 5,
+        "threshold": 50,
+        "bonus_points": 300,
+        "card_key": "handball.predictions.hit_streak.5"
+      }
+    ]
+  },
+  {
+    "id": "handball.predictions.knockout_winner",
+    "sport": "handball",
+    "category": "hit",
+    "family": "predictions",
+    "collection": "handball.big_stage",
+    "rule": {
+      "input": "prediction",
+      "kind": "winner",
+      "correct": true,
+      "where": {
+        "sport": [
+          "handball"
+        ],
+        "stage": [
+          "knockout"
+        ]
+      }
+    },
+    "requires_data": [
+      "fan.prediction",
+      "event.sport",
+      "event.stage.kind"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria sobre o calendário: um torcedor assíduo encontra 12 a 20 jogos de mata-mata por temporada (quartas, semi e final de Mundial, Europeu, Olimpíada e Pan, play-off e Final4 de clubes) e acerta o vencedor em cerca de metade (fontes do calendário em pesquisa/handball.md)",
+    "name": {
+      "pt": "Quem passa",
+      "es": "Quién avanza",
+      "en": "Who Goes Through"
+    },
+    "description": {
+      "pt": "Acerte o vencedor de jogos de mata-mata do handebol.",
+      "es": "Acierta el ganador en partidos de eliminación directa de balonmano.",
+      "en": "Predict the winner of handball knockout matches."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 20,
+        "card_key": "handball.predictions.knockout_winner.1"
+      },
+      {
+        "step": 2,
+        "threshold": 2,
+        "bonus_points": 40,
+        "card_key": "handball.predictions.knockout_winner.2"
+      },
+      {
+        "step": 3,
+        "threshold": 4,
+        "bonus_points": 80,
+        "card_key": "handball.predictions.knockout_winner.3"
+      },
+      {
+        "step": 4,
+        "threshold": 8,
+        "bonus_points": 150,
+        "card_key": "handball.predictions.knockout_winner.4"
+      },
+      {
+        "step": 5,
+        "threshold": 20,
+        "bonus_points": 300,
+        "card_key": "handball.predictions.knockout_winner.5"
+      }
+    ]
+  },
+  {
+    "id": "handball.predictions.quantity",
+    "sport": "handball",
+    "category": "hit",
+    "family": "predictions",
+    "collection": "handball.sharp_eye",
+    "rule": {
+      "input": "prediction",
+      "kind": "quantity",
+      "correct": true,
+      "where": {
+        "sport": [
+          "handball"
+        ]
+      }
+    },
+    "requires_data": [
+      "fan.prediction",
+      "event.sport"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria: com 59 a 60 gols por jogo e desvio de 7, o Palpite de quantidade (\"pelo menos N gols\") acerta em cerca de metade das vezes; um torcedor assíduo palpita em 40 a 60 jogos de handebol por temporada e acerta 20 a 30 (fonte-base: sport12x.com/en/statistics/handball/germany/bundesliga)",
+    "name": {
+      "pt": "Conta de gols",
+      "es": "Cuenta de goles",
+      "en": "Goal Count"
+    },
+    "description": {
+      "pt": "Acerte Palpites de quantidade de gols em jogos de handebol.",
+      "es": "Acierta pronósticos de cantidad de goles en partidos de balonmano.",
+      "en": "Get the goal-count prediction right in handball matches."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 20,
+        "card_key": "handball.predictions.quantity.1"
+      },
+      {
+        "step": 2,
+        "threshold": 3,
+        "bonus_points": 40,
+        "card_key": "handball.predictions.quantity.2"
+      },
+      {
+        "step": 3,
+        "threshold": 8,
+        "bonus_points": 80,
+        "card_key": "handball.predictions.quantity.3"
+      },
+      {
+        "step": 4,
+        "threshold": 20,
+        "bonus_points": 150,
+        "card_key": "handball.predictions.quantity.4"
+      },
+      {
+        "step": 5,
+        "threshold": 50,
+        "bonus_points": 300,
+        "card_key": "handball.predictions.quantity.5"
+      }
+    ]
+  },
+  {
+    "id": "handball.results.away_win",
+    "sport": "handball",
+    "category": "moment",
+    "family": "results",
+    "collection": "handball.faithful",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win",
+        "side": "away"
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "34% dos jogos da liga alemã 2023-24 foram vitórias do visitante (57,2% do mandante, 8,8% empates); com 17 jogos fora por temporada, 5 a 7 vitórias fora para o time do torcedor; em torneio de seleções o lado é só a ordem de listagem (fonte: sport12x.com/en/statistics/handball/germany/bundesliga)",
+    "name": {
+      "pt": "Vitória fora de casa",
+      "es": "Victoria de visitante",
+      "en": "Away Win"
+    },
+    "description": {
+      "pt": "Assista às vitórias do seu time jogando fora de casa.",
+      "es": "Mira las victorias de tu equipo jugando de visitante.",
+      "en": "Watch your team win on the road."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 10,
+        "card_key": "handball.results.away_win.1"
+      },
+      {
+        "step": 2,
+        "threshold": 2,
+        "bonus_points": 20,
+        "card_key": "handball.results.away_win.2"
+      },
+      {
+        "step": 3,
+        "threshold": 4,
+        "bonus_points": 40,
+        "card_key": "handball.results.away_win.3"
+      },
+      {
+        "step": 4,
+        "threshold": 8,
+        "bonus_points": 75,
+        "card_key": "handball.results.away_win.4"
+      },
+      {
+        "step": 5,
+        "threshold": 20,
+        "bonus_points": 150,
+        "card_key": "handball.results.away_win.5"
+      }
+    ]
+  },
+  {
+    "id": "handball.results.final_win",
+    "sport": "handball",
+    "category": "moment",
+    "family": "results",
+    "collection": "handball.big_stage",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win"
+      },
+      "presence": "game",
+      "where": {
+        "stage": [
+          "final"
+        ]
+      }
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id",
+      "event.stage.kind"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria sobre o calendário: um clube grande disputa 1 ou 2 finais por ano (copa nacional, torneio continental) e uma seleção 1 a cada 1 ou 2 anos; vence metade, 0,3 a 0,7 por temporada (fontes do calendário em pesquisa/handball.md)",
+    "name": {
+      "pt": "Vitória em final",
+      "es": "Victoria en una final",
+      "en": "Final Won"
+    },
+    "description": {
+      "pt": "Assista a uma vitória do seu time em jogo de final.",
+      "es": "Mira una victoria de tu equipo en un partido de final.",
+      "en": "Watch your team win a final."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 120,
+        "card_key": "handball.results.final_win.1"
+      }
+    ]
+  },
+  {
+    "id": "handball.results.knockout_win",
+    "sport": "handball",
+    "category": "moment",
+    "family": "results",
+    "collection": "handball.big_stage",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win"
+      },
+      "presence": "game",
+      "where": {
+        "stage": [
+          "knockout"
+        ]
+      }
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id",
+      "event.stage.kind"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria sobre o calendário: uma seleção joga até 3 mata-matas por torneio e um clube de torneio continental joga play-off, quartas e Final4 (até 6) mais 3 a 5 de copa nacional; vitórias, 4 a 7 por temporada (fontes do calendário em pesquisa/handball.md)",
+    "name": {
+      "pt": "Jogo sem volta",
+      "es": "Partido sin vuelta",
+      "en": "No Way Back"
+    },
+    "description": {
+      "pt": "Assista às vitórias do seu time em jogos de mata-mata.",
+      "es": "Mira las victorias de tu equipo en partidos de eliminación directa.",
+      "en": "Watch your team win knockout matches."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 10,
+        "card_key": "handball.results.knockout_win.1"
+      },
+      {
+        "step": 2,
+        "threshold": 2,
+        "bonus_points": 20,
+        "card_key": "handball.results.knockout_win.2"
+      },
+      {
+        "step": 3,
+        "threshold": 4,
+        "bonus_points": 40,
+        "card_key": "handball.results.knockout_win.3"
+      },
+      {
+        "step": 4,
+        "threshold": 8,
+        "bonus_points": 75,
+        "card_key": "handball.results.knockout_win.4"
+      },
+      {
+        "step": 5,
+        "threshold": 20,
+        "bonus_points": 150,
+        "card_key": "handball.results.knockout_win.5"
+      }
+    ]
+  }
+]

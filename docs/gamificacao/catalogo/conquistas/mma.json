@@ -1,0 +1,1634 @@
+[
+  {
+    "id": "mma.explorer.countries",
+    "sport": "mma",
+    "category": "participation",
+    "family": "explorer",
+    "collection": "mma.world_tour",
+    "rule": {
+      "input": "participation",
+      "action": "watched",
+      "where": {
+        "sport": [
+          "mma"
+        ]
+      },
+      "count": {
+        "mode": "distinct",
+        "key": "country"
+      }
+    },
+    "requires_data": [
+      "fan.participation",
+      "fan.presence",
+      "event.sport",
+      "event.competition.country"
+    ],
+    "stepped": true,
+    "seasonal": false,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "a organização principal fez eventos em 10 países em 2024 (41 nos Estados Unidos, 2 nos Emirados, 2 no Canadá, 1 em México, Austrália, Arábia Saudita, Reino Unido, China, Brasil e França); um torcedor assíduo vê lutas em 6 a 8 países por ano e 16 só em 2 ou 3 temporadas (fonte: ufcalendar.com/stats/2024?org=ufc)",
+    "name": {
+      "pt": "Gaiola sem fronteira",
+      "es": "Jaula sin fronteras",
+      "en": "Cage Without Borders"
+    },
+    "description": {
+      "pt": "Assista a lutas de MMA realizadas em países diferentes.",
+      "es": "Mira peleas de MMA disputadas en países distintos.",
+      "en": "Watch MMA fights held in different countries."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 0,
+        "card_key": "mma.explorer.countries.1"
+      },
+      {
+        "step": 2,
+        "threshold": 2,
+        "bonus_points": 0,
+        "card_key": "mma.explorer.countries.2"
+      },
+      {
+        "step": 3,
+        "threshold": 4,
+        "bonus_points": 0,
+        "card_key": "mma.explorer.countries.3"
+      },
+      {
+        "step": 4,
+        "threshold": 8,
+        "bonus_points": 0,
+        "card_key": "mma.explorer.countries.4"
+      },
+      {
+        "step": 5,
+        "threshold": 16,
+        "bonus_points": 0,
+        "card_key": "mma.explorer.countries.5"
+      }
+    ]
+  },
+  {
+    "id": "mma.explorer.months",
+    "sport": "mma",
+    "category": "participation",
+    "family": "explorer",
+    "collection": "mma.world_tour",
+    "rule": {
+      "input": "participation",
+      "action": "watched",
+      "where": {
+        "sport": [
+          "mma"
+        ]
+      },
+      "count": {
+        "mode": "distinct",
+        "key": "month"
+      }
+    },
+    "requires_data": [
+      "fan.participation",
+      "fan.presence",
+      "event.sport",
+      "event.starts_at",
+      "program.time_zone"
+    ],
+    "stepped": true,
+    "seasonal": false,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "a organização principal faz 42 eventos por ano, quase um por semana, com lutas em todos os meses; Platina = 12 meses, Lendário = 2 anos (fonte: sherdog.com/news/articles/Fight-Facts-UFC-2024-a-Year-in-Review-195800)",
+    "name": {
+      "pt": "Ano inteiro de luta",
+      "es": "Todo el año de pelea",
+      "en": "Fights All Year"
+    },
+    "description": {
+      "pt": "Assista a lutas de MMA em meses diferentes, sem deixar o calendário esfriar.",
+      "es": "Mira peleas de MMA en meses distintos, sin dejar que el calendario se enfríe.",
+      "en": "Watch MMA fights in different months, never letting the calendar go cold."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 0,
+        "card_key": "mma.explorer.months.1"
+      },
+      {
+        "step": 2,
+        "threshold": 3,
+        "bonus_points": 0,
+        "card_key": "mma.explorer.months.2"
+      },
+      {
+        "step": 3,
+        "threshold": 6,
+        "bonus_points": 0,
+        "card_key": "mma.explorer.months.3"
+      },
+      {
+        "step": 4,
+        "threshold": 12,
+        "bonus_points": 0,
+        "card_key": "mma.explorer.months.4"
+      },
+      {
+        "step": 5,
+        "threshold": 24,
+        "bonus_points": 0,
+        "card_key": "mma.explorer.months.5"
+      }
+    ]
+  },
+  {
+    "id": "mma.explorer.months_predicted",
+    "sport": "mma",
+    "category": "participation",
+    "family": "explorer",
+    "collection": "mma.world_tour",
+    "rule": {
+      "input": "prediction",
+      "where": {
+        "sport": [
+          "mma"
+        ]
+      },
+      "count": {
+        "mode": "distinct",
+        "key": "month"
+      }
+    },
+    "requires_data": [
+      "fan.prediction",
+      "event.sport",
+      "event.starts_at",
+      "program.time_zone"
+    ],
+    "stepped": true,
+    "seasonal": false,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "eventos em todos os meses do ano na organização principal (42 por ano); Platina = 12 meses palpitando, Lendário = 2 anos (fonte: sherdog.com/news/articles/Fight-Facts-UFC-2024-a-Year-in-Review-195800)",
+    "name": {
+      "pt": "Palpite o ano inteiro",
+      "es": "Pronóstico todo el año",
+      "en": "Picks All Year"
+    },
+    "description": {
+      "pt": "Dê Palpites em lutas de MMA em meses diferentes.",
+      "es": "Haz pronósticos en peleas de MMA en meses distintos.",
+      "en": "Make MMA predictions in different months of the year."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 0,
+        "card_key": "mma.explorer.months_predicted.1"
+      },
+      {
+        "step": 2,
+        "threshold": 3,
+        "bonus_points": 0,
+        "card_key": "mma.explorer.months_predicted.2"
+      },
+      {
+        "step": 3,
+        "threshold": 6,
+        "bonus_points": 0,
+        "card_key": "mma.explorer.months_predicted.3"
+      },
+      {
+        "step": 4,
+        "threshold": 12,
+        "bonus_points": 0,
+        "card_key": "mma.explorer.months_predicted.4"
+      },
+      {
+        "step": 5,
+        "threshold": 24,
+        "bonus_points": 0,
+        "card_key": "mma.explorer.months_predicted.5"
+      }
+    ]
+  },
+  {
+    "id": "mma.loyalty.fights_watched",
+    "sport": "mma",
+    "category": "participation",
+    "family": "loyalty",
+    "collection": "mma.cageside",
+    "rule": {
+      "input": "participation",
+      "action": "watched",
+      "where": {
+        "sport": [
+          "mma"
+        ]
+      }
+    },
+    "requires_data": [
+      "fan.participation",
+      "fan.presence",
+      "event.sport"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "42 eventos e 517 lutas por ano na organização principal (12,3 por card); um torcedor assíduo assiste ao card principal (5 ou 6 lutas) de uns 30 eventos mais algumas preliminares, 150 a 180 lutas por temporada; Platina = 150 (fonte: sherdog.com/news/articles/Fight-Facts-UFC-2024-a-Year-in-Review-195800)",
+    "name": {
+      "pt": "Fiel da grade",
+      "es": "Fiel de la reja",
+      "en": "Cageside Faithful"
+    },
+    "description": {
+      "pt": "Assista a lutas de MMA do início ao fim.",
+      "es": "Mira peleas de MMA de principio a fin.",
+      "en": "Watch MMA fights from start to finish."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 0,
+        "card_key": "mma.loyalty.fights_watched.1"
+      },
+      {
+        "step": 2,
+        "threshold": 10,
+        "bonus_points": 0,
+        "card_key": "mma.loyalty.fights_watched.2"
+      },
+      {
+        "step": 3,
+        "threshold": 40,
+        "bonus_points": 0,
+        "card_key": "mma.loyalty.fights_watched.3"
+      },
+      {
+        "step": 4,
+        "threshold": 150,
+        "bonus_points": 0,
+        "card_key": "mma.loyalty.fights_watched.4"
+      },
+      {
+        "step": 5,
+        "threshold": 400,
+        "bonus_points": 0,
+        "card_key": "mma.loyalty.fights_watched.5"
+      }
+    ]
+  },
+  {
+    "id": "mma.loyalty.saturday_nights",
+    "sport": "mma",
+    "category": "participation",
+    "family": "loyalty",
+    "collection": "mma.cageside",
+    "rule": {
+      "input": "participation",
+      "action": "watched",
+      "where": {
+        "sport": [
+          "mma"
+        ],
+        "weekday": [
+          "sat"
+        ]
+      }
+    },
+    "requires_data": [
+      "fan.participation",
+      "fan.presence",
+      "event.sport",
+      "event.starts_at",
+      "program.time_zone"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "quase todos os 42 eventos anuais da organização principal caem no sábado (os da Ásia e da Oceania viram domingo de manhã na América); um torcedor assíduo assiste a 5 ou 6 lutas em uns 30 sábados por ano, 150 a 180 lutas; Platina = 80 para quem vê metade dos sábados (fonte: sherdog.com/news/articles/Fight-Facts-UFC-2024-a-Year-in-Review-195800)",
+    "name": {
+      "pt": "Sábado de luta",
+      "es": "Sábado de pelea",
+      "en": "Fight Saturday"
+    },
+    "description": {
+      "pt": "Assista a lutas de MMA que acontecem no sábado, no seu horário.",
+      "es": "Mira peleas de MMA que se disputan en sábado, en tu horario.",
+      "en": "Watch MMA fights that take place on a Saturday, your local time."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 0,
+        "card_key": "mma.loyalty.saturday_nights.1"
+      },
+      {
+        "step": 2,
+        "threshold": 8,
+        "bonus_points": 0,
+        "card_key": "mma.loyalty.saturday_nights.2"
+      },
+      {
+        "step": 3,
+        "threshold": 25,
+        "bonus_points": 0,
+        "card_key": "mma.loyalty.saturday_nights.3"
+      },
+      {
+        "step": 4,
+        "threshold": 80,
+        "bonus_points": 0,
+        "card_key": "mma.loyalty.saturday_nights.4"
+      },
+      {
+        "step": 5,
+        "threshold": 200,
+        "bonus_points": 0,
+        "card_key": "mma.loyalty.saturday_nights.5"
+      }
+    ]
+  },
+  {
+    "id": "mma.loyalty.title_fights",
+    "sport": "mma",
+    "category": "participation",
+    "family": "loyalty",
+    "collection": "mma.cageside",
+    "rule": {
+      "input": "participation",
+      "action": "watched",
+      "where": {
+        "sport": [
+          "mma"
+        ]
+      }
+    },
+    "requires_data": [
+      "fan.participation",
+      "fan.presence",
+      "event.sport",
+      "proposed.fight.detail.is_title_fight"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": false,
+    "inactive_reason": "o detalhe da luta não diz se é disputa de cinturão nem a posição no card (luta principal): falta proposed.fight.detail.is_title_fight (e card_position) e um filtro where correspondente. A regra acima é só a aproximação (qualquer luta assistida) e não pode ser ligada assim.",
+    "real_world_frequency": "21 lutas de cinturão por ano na organização principal em 2024; um torcedor assíduo assiste a quase todas (fonte: ufcalendar.com/stats/2024?org=ufc)",
+    "name": {
+      "pt": "Noite de cinturão",
+      "es": "Noche de cinturón",
+      "en": "Title Night"
+    },
+    "description": {
+      "pt": "Assista a lutas que valem cinturão.",
+      "es": "Mira peleas que valen cinturón.",
+      "en": "Watch fights with a title on the line."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 0,
+        "card_key": "mma.loyalty.title_fights.1"
+      },
+      {
+        "step": 2,
+        "threshold": 3,
+        "bonus_points": 0,
+        "card_key": "mma.loyalty.title_fights.2"
+      },
+      {
+        "step": 3,
+        "threshold": 8,
+        "bonus_points": 0,
+        "card_key": "mma.loyalty.title_fights.3"
+      },
+      {
+        "step": 4,
+        "threshold": 20,
+        "bonus_points": 0,
+        "card_key": "mma.loyalty.title_fights.4"
+      },
+      {
+        "step": 5,
+        "threshold": 50,
+        "bonus_points": 0,
+        "card_key": "mma.loyalty.title_fights.5"
+      }
+    ]
+  },
+  {
+    "id": "mma.moments.card_night",
+    "sport": "mma",
+    "category": "moment",
+    "family": "moments",
+    "collection": "mma.first_bell",
+    "rule": {
+      "input": "moment",
+      "fact": "fight.result",
+      "params": {
+        "round_max": 1
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "fight.detail.result.won_type",
+      "fight.detail.result.round",
+      "event.status=finished",
+      "fan.presence",
+      "proposed.event.card_id",
+      "proposed.count.distinct.key=card"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": false,
+    "inactive_reason": "cada luta é um evento no modelo e a linguagem não agrupa por noite de lutas: contar \"três fins no 1º round no mesmo card\" precisa de proposed.event.card_id e de um count por card (ou um limiar por chave). A regra acima conta cada fim no 1º round separadamente e não pode ser ligada assim.",
+    "real_world_frequency": "com 25% das lutas acabando no 1º round e 12 lutas por card, uma noite com 3 ou mais fins no 1º round acontece em cerca de 60% dos cards (estimativa própria por binomial sobre 25,4% e 12 lutas; fonte-base: agentmma.com/mma-lab/ufc-finishes-by-round; sherdog.com/news/articles/Fight-Facts-UFC-2024-a-Year-in-Review-195800)",
+    "name": {
+      "pt": "Noite de sinos curtos",
+      "es": "Noche de campanas cortas",
+      "en": "Short-Bell Night"
+    },
+    "description": {
+      "pt": "Assista a uma noite de lutas em que três ou mais lutas terminam no primeiro round.",
+      "es": "Mira una noche de peleas en la que tres o más terminan en el primer asalto.",
+      "en": "Watch a fight night where three or more fights end in the first round."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 10,
+        "card_key": "mma.moments.card_night.1"
+      },
+      {
+        "step": 2,
+        "threshold": 3,
+        "bonus_points": 20,
+        "card_key": "mma.moments.card_night.2"
+      },
+      {
+        "step": 3,
+        "threshold": 8,
+        "bonus_points": 40,
+        "card_key": "mma.moments.card_night.3"
+      },
+      {
+        "step": 4,
+        "threshold": 18,
+        "bonus_points": 75,
+        "card_key": "mma.moments.card_night.4"
+      },
+      {
+        "step": 5,
+        "threshold": 45,
+        "bonus_points": 150,
+        "card_key": "mma.moments.card_night.5"
+      }
+    ]
+  },
+  {
+    "id": "mma.moments.decision",
+    "sport": "mma",
+    "category": "moment",
+    "family": "moments",
+    "collection": "mma.cageside",
+    "rule": {
+      "input": "moment",
+      "fact": "fight.result",
+      "params": {
+        "won_type": "decision"
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "fight.detail.result.won_type",
+      "event.status=finished",
+      "fan.presence"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "53% das lutas da organização principal foram à decisão em 2024 (299 de 563), a taxa de fins mais baixa entre as grandes organizações (44,8%); para quem assiste 180 lutas por ano, 90 a 95 (fonte: ufcalendar.com/stats/2024?org=ufc; bloodyelbow.com/2025/01/06/mma-study-reveals-the-ufc-ranks-last-in-several-major-categories-compared-to-rival-promotions)",
+    "name": {
+      "pt": "Até o último sino",
+      "es": "Hasta la última campana",
+      "en": "To the Final Bell"
+    },
+    "description": {
+      "pt": "Assista a lutas inteiras que vão até a decisão dos jurados.",
+      "es": "Mira peleas completas que llegan a la decisión de los jueces.",
+      "en": "Watch full fights that go all the way to the judges."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 10,
+        "card_key": "mma.moments.decision.1"
+      },
+      {
+        "step": 2,
+        "threshold": 8,
+        "bonus_points": 20,
+        "card_key": "mma.moments.decision.2"
+      },
+      {
+        "step": 3,
+        "threshold": 25,
+        "bonus_points": 40,
+        "card_key": "mma.moments.decision.3"
+      },
+      {
+        "step": 4,
+        "threshold": 90,
+        "bonus_points": 75,
+        "card_key": "mma.moments.decision.4"
+      },
+      {
+        "step": 5,
+        "threshold": 220,
+        "bonus_points": 150,
+        "card_key": "mma.moments.decision.5"
+      }
+    ]
+  },
+  {
+    "id": "mma.moments.favorite_fighter_win",
+    "sport": "mma",
+    "category": "moment",
+    "family": "moments",
+    "collection": "mma.cageside",
+    "rule": {
+      "input": "moment",
+      "fact": "fight.result",
+      "params": {},
+      "presence": "game"
+    },
+    "requires_data": [
+      "fight.detail.result.winner_participant_id",
+      "event.status=finished",
+      "fan.presence",
+      "proposed.fan.favorite_person_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": false,
+    "inactive_reason": "não há lutador do coração no Perfil (falta proposed.fan.favorite_person_id) e o fato fight.result não tem parâmetro de vencedor (\"favorite\"). A regra acima é só a aproximação (qualquer luta terminada) e não pode ser ligada assim.",
+    "real_world_frequency": "estimativa própria: um lutador ativo da organização principal luta 2 ou 3 vezes por ano e vence cerca de metade, então o torcedor vê 1 a 2 vitórias do seu lutador por temporada",
+    "name": {
+      "pt": "Vitória do seu lutador",
+      "es": "Victoria de tu peleador",
+      "en": "Your Fighter Wins"
+    },
+    "description": {
+      "pt": "Assista a uma vitória do seu lutador do coração.",
+      "es": "Mira una victoria de tu peleador favorito.",
+      "en": "Watch your favorite fighter win."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 60,
+        "card_key": "mma.moments.favorite_fighter_win.1"
+      }
+    ]
+  },
+  {
+    "id": "mma.moments.fifth_round_finish",
+    "sport": "mma",
+    "category": "moment",
+    "family": "moments",
+    "collection": "mma.finishers",
+    "rule": {
+      "input": "moment",
+      "fact": "fight.result",
+      "params": {
+        "round_max": 5
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "fight.detail.result.won_type",
+      "fight.detail.result.round",
+      "event.status=finished",
+      "fan.presence",
+      "proposed.fight.detail.scheduled_rounds",
+      "proposed.rule.fact.fight.result.round_min"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": false,
+    "inactive_reason": "precisa de round_min 5 (a linguagem só tem round_max, que inclui os rounds 1 a 4) e de saber que a luta era de 5 rounds (proposed.fight.detail.scheduled_rounds). A regra acima é só a aproximação e não pode ser ligada assim.",
+    "real_world_frequency": "4,8% das lutas de 5 rounds acabam no 5º round (25 de 523 entre 2016 e 2026, 2 ou 3 por ano em toda a organização principal); para quem assiste as 25 lutas de 5 rounds do ano, cerca de 1 (fonte: agentmma.com/mma-lab/ufc-finishes-by-round; ufc.com/news/numbers-fifth-round-finishes)",
+    "name": {
+      "pt": "Fim no quinto round",
+      "es": "Final en el quinto asalto",
+      "en": "Fifth-Round Finish"
+    },
+    "description": {
+      "pt": "Assista a uma luta de cinco rounds que termina antes do limite só no quinto.",
+      "es": "Mira una pelea de cinco asaltos que termina antes del límite recién en el quinto.",
+      "en": "Watch a five-round fight that ends before the limit only in the fifth."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 60,
+        "card_key": "mma.moments.fifth_round_finish.1"
+      }
+    ]
+  },
+  {
+    "id": "mma.moments.final_round_finish",
+    "sport": "mma",
+    "category": "moment",
+    "family": "moments",
+    "collection": "mma.finishers",
+    "rule": {
+      "input": "moment",
+      "fact": "fight.result",
+      "params": {
+        "round_max": 3
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "fight.detail.result.won_type",
+      "fight.detail.result.round",
+      "event.status=finished",
+      "fan.presence",
+      "proposed.fight.detail.scheduled_rounds",
+      "proposed.rule.fact.fight.result.round_min"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": false,
+    "inactive_reason": "a linguagem só tem round_max no fato fight.result, não round_min nem \"último round programado\"; falta proposed.fight.detail.scheduled_rounds (3 ou 5) e um parâmetro round_min (ou last_round: true). A regra acima é só a aproximação (qualquer fim até o 3º round, o que inclui decisões) e não pode ser ligada assim.",
+    "real_world_frequency": "8,1% das lutas de 3 rounds acabam no 3º round (391 de 4.824 entre 2016 e 2026) e 4,8% das de 5 rounds acabam no 5º; para quem assiste 180 lutas por ano, 14 a 15 fins no último round (fonte: agentmma.com/mma-lab/ufc-finishes-by-round)",
+    "name": {
+      "pt": "Fim no último round",
+      "es": "Final en el último asalto",
+      "en": "Last-Round Finish"
+    },
+    "description": {
+      "pt": "Assista a lutas que terminam antes do limite, mas só no último round programado.",
+      "es": "Mira peleas que terminan antes del límite, pero recién en el último asalto programado.",
+      "en": "Watch fights that end before the limit, but only in the final scheduled round."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 10,
+        "card_key": "mma.moments.final_round_finish.1"
+      },
+      {
+        "step": 2,
+        "threshold": 2,
+        "bonus_points": 20,
+        "card_key": "mma.moments.final_round_finish.2"
+      },
+      {
+        "step": 3,
+        "threshold": 5,
+        "bonus_points": 40,
+        "card_key": "mma.moments.final_round_finish.3"
+      },
+      {
+        "step": 4,
+        "threshold": 14,
+        "bonus_points": 75,
+        "card_key": "mma.moments.final_round_finish.4"
+      },
+      {
+        "step": 5,
+        "threshold": 35,
+        "bonus_points": 150,
+        "card_key": "mma.moments.final_round_finish.5"
+      }
+    ]
+  },
+  {
+    "id": "mma.moments.first_round_ko",
+    "sport": "mma",
+    "category": "moment",
+    "family": "moments",
+    "collection": "mma.first_bell",
+    "rule": {
+      "input": "moment",
+      "fact": "fight.result",
+      "params": {
+        "won_type": "ko_tko",
+        "round_max": 1
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "fight.detail.result.won_type",
+      "fight.detail.result.round",
+      "event.status=finished",
+      "fan.presence"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "nocaute ou interrupção em 30% das lutas da organização principal em 2024 (169 de 563) e cerca de metade dos fins acontece no 1º round (25% de todas as lutas de 3 rounds acabam no 1º): perto de 15% das lutas; para quem assiste 180 lutas por ano, 25 a 27 (fonte: ufcalendar.com/stats/2024?org=ufc; agentmma.com/mma-lab/ufc-finishes-by-round)",
+    "name": {
+      "pt": "Nocaute no primeiro",
+      "es": "Nocaut en el primero",
+      "en": "First-Round Knockout"
+    },
+    "description": {
+      "pt": "Assista a lutas que terminam por nocaute ou interrupção ainda no primeiro round.",
+      "es": "Mira peleas que terminan por nocaut o detención del árbitro en el primer asalto.",
+      "en": "Watch fights that end by knockout or stoppage in the very first round."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 10,
+        "card_key": "mma.moments.first_round_ko.1"
+      },
+      {
+        "step": 2,
+        "threshold": 3,
+        "bonus_points": 20,
+        "card_key": "mma.moments.first_round_ko.2"
+      },
+      {
+        "step": 3,
+        "threshold": 8,
+        "bonus_points": 40,
+        "card_key": "mma.moments.first_round_ko.3"
+      },
+      {
+        "step": 4,
+        "threshold": 25,
+        "bonus_points": 75,
+        "card_key": "mma.moments.first_round_ko.4"
+      },
+      {
+        "step": 5,
+        "threshold": 60,
+        "bonus_points": 150,
+        "card_key": "mma.moments.first_round_ko.5"
+      }
+    ]
+  },
+  {
+    "id": "mma.moments.first_round_submission",
+    "sport": "mma",
+    "category": "moment",
+    "family": "moments",
+    "collection": "mma.first_bell",
+    "rule": {
+      "input": "moment",
+      "fact": "fight.result",
+      "params": {
+        "won_type": "submission",
+        "round_max": 1
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "fight.detail.result.won_type",
+      "fight.detail.result.round",
+      "event.status=finished",
+      "fan.presence"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "finalização em 17% das lutas da organização principal em 2024 (93 de 563) e 48,6% das finalizações saem no 1º round (793 de 1.631 numa amostra de 8.621 lutas): cerca de 8% das lutas; para quem assiste 180 lutas por ano, 14 a 15 (fonte: ufcalendar.com/stats/2024?org=ufc; agentmma.com/mma-lab/ufc-finishes-by-round)",
+    "name": {
+      "pt": "Finalização no primeiro",
+      "es": "Sumisión en el primero",
+      "en": "First-Round Submission"
+    },
+    "description": {
+      "pt": "Assista a lutas que terminam por finalização ainda no primeiro round.",
+      "es": "Mira peleas que terminan por sumisión en el primer asalto.",
+      "en": "Watch fights that end by submission in the first round."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 10,
+        "card_key": "mma.moments.first_round_submission.1"
+      },
+      {
+        "step": 2,
+        "threshold": 2,
+        "bonus_points": 20,
+        "card_key": "mma.moments.first_round_submission.2"
+      },
+      {
+        "step": 3,
+        "threshold": 5,
+        "bonus_points": 40,
+        "card_key": "mma.moments.first_round_submission.3"
+      },
+      {
+        "step": 4,
+        "threshold": 15,
+        "bonus_points": 75,
+        "card_key": "mma.moments.first_round_submission.4"
+      },
+      {
+        "step": 5,
+        "threshold": 40,
+        "bonus_points": 150,
+        "card_key": "mma.moments.first_round_submission.5"
+      }
+    ]
+  },
+  {
+    "id": "mma.moments.flash_finish",
+    "sport": "mma",
+    "category": "moment",
+    "family": "moments",
+    "collection": "mma.first_bell",
+    "rule": {
+      "input": "moment",
+      "fact": "fight.result",
+      "params": {
+        "round_max": 1,
+        "minute_max": "0:30"
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "fight.detail.result.won_type",
+      "fight.detail.result.round",
+      "event.status=finished",
+      "fan.presence",
+      "fight.detail.result.minute"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "5 lutas da organização principal acabaram em menos de 30 segundos em 2024 (a mais rápida aos 12 segundos), cerca de 1% das lutas; para quem assiste 180 lutas por ano, 1 a 2 (fonte: ufcalendar.com/stats/2024?org=ufc)",
+    "name": {
+      "pt": "Meio minuto",
+      "es": "Medio minuto",
+      "en": "Half a Minute"
+    },
+    "description": {
+      "pt": "Assista a uma luta que termina nos primeiros trinta segundos.",
+      "es": "Mira una pelea que termina en los primeros treinta segundos.",
+      "en": "Watch a fight that ends inside the first thirty seconds."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 60,
+        "card_key": "mma.moments.flash_finish.1"
+      }
+    ]
+  },
+  {
+    "id": "mma.moments.knockout",
+    "sport": "mma",
+    "category": "moment",
+    "family": "moments",
+    "collection": "mma.finishers",
+    "rule": {
+      "input": "moment",
+      "fact": "fight.result",
+      "params": {
+        "won_type": "ko_tko"
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "fight.detail.result.won_type",
+      "event.status=finished",
+      "fan.presence"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "nocaute ou interrupção em 30% das lutas da organização principal em 2024 (169 de 563; 53% das lutas vão à decisão); para quem assiste 180 lutas por ano, 50 a 55 (fonte: ufcalendar.com/stats/2024?org=ufc; si.com/fannation/mma/news/ufc-wrapped-2024-stats-knockouts-submissions-title-fights)",
+    "name": {
+      "pt": "Noite de nocaute",
+      "es": "Noche de nocaut",
+      "en": "Knockout Night"
+    },
+    "description": {
+      "pt": "Assista a lutas que terminam por nocaute ou interrupção do árbitro, em qualquer round.",
+      "es": "Mira peleas que terminan por nocaut o detención del árbitro, en cualquier asalto.",
+      "en": "Watch fights that end by knockout or referee stoppage, in any round."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 10,
+        "card_key": "mma.moments.knockout.1"
+      },
+      {
+        "step": 2,
+        "threshold": 5,
+        "bonus_points": 20,
+        "card_key": "mma.moments.knockout.2"
+      },
+      {
+        "step": 3,
+        "threshold": 15,
+        "bonus_points": 40,
+        "card_key": "mma.moments.knockout.3"
+      },
+      {
+        "step": 4,
+        "threshold": 50,
+        "bonus_points": 75,
+        "card_key": "mma.moments.knockout.4"
+      },
+      {
+        "step": 5,
+        "threshold": 120,
+        "bonus_points": 150,
+        "card_key": "mma.moments.knockout.5"
+      }
+    ]
+  },
+  {
+    "id": "mma.moments.lightning_finish",
+    "sport": "mma",
+    "category": "moment",
+    "family": "moments",
+    "collection": "mma.first_bell",
+    "rule": {
+      "input": "moment",
+      "fact": "fight.result",
+      "params": {
+        "round_max": 1,
+        "minute_max": "1:00"
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "fight.detail.result.won_type",
+      "fight.detail.result.round",
+      "event.status=finished",
+      "fan.presence",
+      "fight.detail.result.minute"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "8 lutas da organização principal acabaram em menos de 1 minuto em 2024 (de 517 a 563, cerca de 1,5%); para quem assiste 180 lutas por ano, 2 a 3 (fonte: ufcalendar.com/stats/2024?org=ufc; sherdog.com/news/articles/Fight-Facts-UFC-2024-a-Year-in-Review-195800)",
+    "name": {
+      "pt": "Menos de um minuto",
+      "es": "Menos de un minuto",
+      "en": "Under a Minute"
+    },
+    "description": {
+      "pt": "Assista a uma luta que termina antes de completar o primeiro minuto.",
+      "es": "Mira una pelea que termina antes de cumplirse el primer minuto.",
+      "en": "Watch a fight that ends before the first minute is over."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 25,
+        "card_key": "mma.moments.lightning_finish.1"
+      }
+    ]
+  },
+  {
+    "id": "mma.moments.lightning_submission",
+    "sport": "mma",
+    "category": "moment",
+    "family": "moments",
+    "collection": "mma.first_bell",
+    "rule": {
+      "input": "moment",
+      "fact": "fight.result",
+      "params": {
+        "won_type": "submission",
+        "round_max": 1,
+        "minute_max": "1:00"
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "fight.detail.result.won_type",
+      "fight.detail.result.round",
+      "event.status=finished",
+      "fan.presence",
+      "fight.detail.result.minute"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "das 8 lutas que acabaram em menos de 1 minuto em 2024 na organização principal, só 1 foi por finalização (0,2% das lutas); para quem assiste 180 lutas por ano, uma a cada 3 temporadas (fonte: ufcalendar.com/stats/2024?org=ufc)",
+    "name": {
+      "pt": "Finalização relâmpago",
+      "es": "Sumisión relámpago",
+      "en": "Lightning Submission"
+    },
+    "description": {
+      "pt": "Assista a uma luta que termina por finalização antes do primeiro minuto.",
+      "es": "Mira una pelea que termina por sumisión antes del primer minuto.",
+      "en": "Watch a fight end by submission before the first minute is up."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 120,
+        "card_key": "mma.moments.lightning_submission.1"
+      }
+    ]
+  },
+  {
+    "id": "mma.moments.submission",
+    "sport": "mma",
+    "category": "moment",
+    "family": "moments",
+    "collection": "mma.finishers",
+    "rule": {
+      "input": "moment",
+      "fact": "fight.result",
+      "params": {
+        "won_type": "submission"
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "fight.detail.result.won_type",
+      "event.status=finished",
+      "fan.presence"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "finalização em 17% das lutas da organização principal em 2024 (93 de 563), com variação por categoria (24% no peso-galo feminino, 11% no meio-médio); para quem assiste 180 lutas por ano, cerca de 30 (fonte: ufcalendar.com/stats/2024?org=ufc)",
+    "name": {
+      "pt": "Noite de finalização",
+      "es": "Noche de sumisión",
+      "en": "Submission Night"
+    },
+    "description": {
+      "pt": "Assista a lutas que terminam por finalização, em qualquer round.",
+      "es": "Mira peleas que terminan por sumisión, en cualquier asalto.",
+      "en": "Watch fights that end by submission, in any round."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 10,
+        "card_key": "mma.moments.submission.1"
+      },
+      {
+        "step": 2,
+        "threshold": 3,
+        "bonus_points": 20,
+        "card_key": "mma.moments.submission.2"
+      },
+      {
+        "step": 3,
+        "threshold": 10,
+        "bonus_points": 40,
+        "card_key": "mma.moments.submission.3"
+      },
+      {
+        "step": 4,
+        "threshold": 30,
+        "bonus_points": 75,
+        "card_key": "mma.moments.submission.4"
+      },
+      {
+        "step": 5,
+        "threshold": 75,
+        "bonus_points": 150,
+        "card_key": "mma.moments.submission.5"
+      }
+    ]
+  },
+  {
+    "id": "mma.predictions.finish_pick",
+    "sport": "mma",
+    "category": "hit",
+    "family": "predictions",
+    "collection": "mma.oracle",
+    "rule": {
+      "input": "prediction",
+      "kind": "winner",
+      "correct": true,
+      "where": {
+        "sport": [
+          "mma"
+        ]
+      }
+    },
+    "requires_data": [
+      "fan.prediction",
+      "event.sport",
+      "fight.detail.result.won_type",
+      "proposed.rule.where.fight_result"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": false,
+    "inactive_reason": "a entrada prediction não filtra pelo resultado da luta (fight.result): falta um filtro where.fight_result (won_type ko_tko ou submission) na linguagem. A regra acima é só a aproximação (qualquer vencedor certo) e não pode ser ligada assim.",
+    "real_world_frequency": "47% das lutas da organização principal acabam antes do limite (30% nocaute, 17% finalização); um torcedor que acerta 80 a 100 vencedores por temporada acerta 35 a 45 em lutas que acabaram antes do limite (fonte: ufcalendar.com/stats/2024?org=ufc)",
+    "name": {
+      "pt": "Acerto antes do limite",
+      "es": "Acierto antes del límite",
+      "en": "Finish Called"
+    },
+    "description": {
+      "pt": "Acerte o vencedor em lutas que terminam por nocaute ou finalização.",
+      "es": "Acierta el ganador en peleas que terminan por nocaut o sumisión.",
+      "en": "Call the winner in fights that end by knockout or submission."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 20,
+        "card_key": "mma.predictions.finish_pick.1"
+      },
+      {
+        "step": 2,
+        "threshold": 3,
+        "bonus_points": 40,
+        "card_key": "mma.predictions.finish_pick.2"
+      },
+      {
+        "step": 3,
+        "threshold": 8,
+        "bonus_points": 80,
+        "card_key": "mma.predictions.finish_pick.3"
+      },
+      {
+        "step": 4,
+        "threshold": 20,
+        "bonus_points": 150,
+        "card_key": "mma.predictions.finish_pick.4"
+      },
+      {
+        "step": 5,
+        "threshold": 50,
+        "bonus_points": 300,
+        "card_key": "mma.predictions.finish_pick.5"
+      }
+    ]
+  },
+  {
+    "id": "mma.predictions.hit_streak",
+    "sport": "mma",
+    "category": "hit",
+    "family": "predictions",
+    "collection": "mma.oracle",
+    "rule": {
+      "input": "prediction",
+      "correct": true,
+      "where": {
+        "sport": [
+          "mma"
+        ]
+      },
+      "count": {
+        "mode": "streak",
+        "unit": "prediction"
+      }
+    },
+    "requires_data": [
+      "fan.prediction",
+      "event.sport"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria: com 55% de acerto por luta, uma sequência de 5 acertos seguidos sai para 1 em 20 tentativas e uma de 10 para 1 em 400; um torcedor assíduo chega a 10 numa temporada e a 20 em poucas",
+    "name": {
+      "pt": "Sequência certeira",
+      "es": "Racha certera",
+      "en": "Hot Streak"
+    },
+    "description": {
+      "pt": "Acerte Palpites de MMA seguidos, sem errar nenhum no meio.",
+      "es": "Acierta pronósticos de MMA seguidos, sin fallar ninguno en el medio.",
+      "en": "Get MMA predictions right back to back, without a miss in between."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 2,
+        "bonus_points": 20,
+        "card_key": "mma.predictions.hit_streak.1"
+      },
+      {
+        "step": 2,
+        "threshold": 5,
+        "bonus_points": 40,
+        "card_key": "mma.predictions.hit_streak.2"
+      },
+      {
+        "step": 3,
+        "threshold": 10,
+        "bonus_points": 80,
+        "card_key": "mma.predictions.hit_streak.3"
+      },
+      {
+        "step": 4,
+        "threshold": 20,
+        "bonus_points": 150,
+        "card_key": "mma.predictions.hit_streak.4"
+      },
+      {
+        "step": 5,
+        "threshold": 40,
+        "bonus_points": 300,
+        "card_key": "mma.predictions.hit_streak.5"
+      }
+    ]
+  },
+  {
+    "id": "mma.predictions.night_winner",
+    "sport": "mma",
+    "category": "hit",
+    "family": "predictions",
+    "collection": "mma.night_shift",
+    "rule": {
+      "input": "prediction",
+      "kind": "winner",
+      "correct": true,
+      "where": {
+        "sport": [
+          "mma"
+        ],
+        "local_hour": {
+          "from": "00:00",
+          "to": "06:00"
+        }
+      }
+    },
+    "requires_data": [
+      "fan.prediction",
+      "event.sport",
+      "event.starts_at",
+      "program.time_zone"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria sobre o calendário: os cards principais dos eventos nos Estados Unidos começam às 22h no horário do leste, ou seja, 23h ou 0h em Brasília e Buenos Aires, e as lutas principais entram depois da meia-noite; são 30 a 40 lutas por ano depois da meia-noite para o torcedor da América do Sul, metade delas acertadas",
+    "name": {
+      "pt": "Vidente da madrugada",
+      "es": "Vidente de madrugada",
+      "en": "Night-Shift Seer"
+    },
+    "description": {
+      "pt": "Acerte o vencedor de lutas que começam de madrugada no seu horário.",
+      "es": "Acierta el ganador de peleas que empiezan de madrugada en tu horario.",
+      "en": "Call the winner of fights that start in the small hours, your local time."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 20,
+        "card_key": "mma.predictions.night_winner.1"
+      },
+      {
+        "step": 2,
+        "threshold": 2,
+        "bonus_points": 40,
+        "card_key": "mma.predictions.night_winner.2"
+      },
+      {
+        "step": 3,
+        "threshold": 5,
+        "bonus_points": 80,
+        "card_key": "mma.predictions.night_winner.3"
+      },
+      {
+        "step": 4,
+        "threshold": 12,
+        "bonus_points": 150,
+        "card_key": "mma.predictions.night_winner.4"
+      },
+      {
+        "step": 5,
+        "threshold": 30,
+        "bonus_points": 300,
+        "card_key": "mma.predictions.night_winner.5"
+      }
+    ]
+  },
+  {
+    "id": "mma.predictions.placed",
+    "sport": "mma",
+    "category": "participation",
+    "family": "predictions",
+    "collection": "mma.oracle",
+    "rule": {
+      "input": "prediction",
+      "where": {
+        "sport": [
+          "mma"
+        ]
+      }
+    },
+    "requires_data": [
+      "fan.prediction",
+      "event.sport"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "42 eventos e 517 lutas por ano na organização principal (12 por card); um torcedor assíduo palpita nos cards principais de uns 30 eventos, 150 a 180 lutas por temporada (fonte: sherdog.com/news/articles/Fight-Facts-UFC-2024-a-Year-in-Review-195800)",
+    "name": {
+      "pt": "Palpiteiro da gaiola",
+      "es": "Pronosticador de la jaula",
+      "en": "Cage Forecaster"
+    },
+    "description": {
+      "pt": "Dê Palpites em lutas de MMA.",
+      "es": "Haz pronósticos en peleas de MMA.",
+      "en": "Make predictions on MMA fights."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 0,
+        "card_key": "mma.predictions.placed.1"
+      },
+      {
+        "step": 2,
+        "threshold": 10,
+        "bonus_points": 0,
+        "card_key": "mma.predictions.placed.2"
+      },
+      {
+        "step": 3,
+        "threshold": 40,
+        "bonus_points": 0,
+        "card_key": "mma.predictions.placed.3"
+      },
+      {
+        "step": 4,
+        "threshold": 150,
+        "bonus_points": 0,
+        "card_key": "mma.predictions.placed.4"
+      },
+      {
+        "step": 5,
+        "threshold": 400,
+        "bonus_points": 0,
+        "card_key": "mma.predictions.placed.5"
+      }
+    ]
+  },
+  {
+    "id": "mma.predictions.winner",
+    "sport": "mma",
+    "category": "hit",
+    "family": "predictions",
+    "collection": "mma.oracle",
+    "rule": {
+      "input": "prediction",
+      "kind": "winner",
+      "correct": true,
+      "where": {
+        "sport": [
+          "mma"
+        ]
+      }
+    },
+    "requires_data": [
+      "fan.prediction",
+      "event.sport"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria: em luta de dois, o vencedor sai certo em cerca de 55% dos Palpites; um torcedor que palpita nos cards principais de 30 eventos (150 a 180 lutas) acerta 80 a 100 por temporada; Platina = 40 para cobrir também quem palpita só nas lutas principais",
+    "name": {
+      "pt": "Olho de matchmaker",
+      "es": "Ojo de matchmaker",
+      "en": "Matchmaker’s Eye"
+    },
+    "description": {
+      "pt": "Acerte quem vence a luta.",
+      "es": "Acierta quién gana la pelea.",
+      "en": "Call the winner of the fight."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 20,
+        "card_key": "mma.predictions.winner.1"
+      },
+      {
+        "step": 2,
+        "threshold": 5,
+        "bonus_points": 40,
+        "card_key": "mma.predictions.winner.2"
+      },
+      {
+        "step": 3,
+        "threshold": 15,
+        "bonus_points": 80,
+        "card_key": "mma.predictions.winner.3"
+      },
+      {
+        "step": 4,
+        "threshold": 40,
+        "bonus_points": 150,
+        "card_key": "mma.predictions.winner.4"
+      },
+      {
+        "step": 5,
+        "threshold": 100,
+        "bonus_points": 300,
+        "card_key": "mma.predictions.winner.5"
+      }
+    ]
+  },
+  {
+    "id": "mma.rhythm.early_bird",
+    "sport": "mma",
+    "category": "participation",
+    "family": "rhythm",
+    "collection": "mma.night_shift",
+    "rule": {
+      "input": "participation",
+      "action": "watched",
+      "where": {
+        "sport": [
+          "mma"
+        ],
+        "local_hour": {
+          "from": "06:00",
+          "to": "12:00"
+        }
+      }
+    },
+    "requires_data": [
+      "fan.participation",
+      "fan.presence",
+      "event.sport",
+      "event.starts_at",
+      "program.time_zone"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria sobre o calendário: os eventos nos Emirados, na Arábia Saudita, na China e na Austrália (5 em 2024) caem de manhã na América (card principal de Xangai às 7h de Brasília; Abu Dhabi às 11h); 25 a 30 lutas por ano, 12 vistas por um torcedor assíduo; Platina = 12 (fonte: lance.com.br/lutas/ufc-xangai-nao-e-sabado-a-noite-saiba-horario-e-card-do-evento.html; ufcalendar.com/stats/2024?org=ufc)",
+    "name": {
+      "pt": "Luta no café da manhã",
+      "es": "Pelea en el desayuno",
+      "en": "Breakfast Fight"
+    },
+    "description": {
+      "pt": "Assista a lutas que começam de manhã no seu horário.",
+      "es": "Mira peleas que empiezan por la mañana en tu horario.",
+      "en": "Watch fights that start in the morning, your local time."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 0,
+        "card_key": "mma.rhythm.early_bird.1"
+      },
+      {
+        "step": 2,
+        "threshold": 2,
+        "bonus_points": 0,
+        "card_key": "mma.rhythm.early_bird.2"
+      },
+      {
+        "step": 3,
+        "threshold": 5,
+        "bonus_points": 0,
+        "card_key": "mma.rhythm.early_bird.3"
+      },
+      {
+        "step": 4,
+        "threshold": 12,
+        "bonus_points": 0,
+        "card_key": "mma.rhythm.early_bird.4"
+      },
+      {
+        "step": 5,
+        "threshold": 30,
+        "bonus_points": 0,
+        "card_key": "mma.rhythm.early_bird.5"
+      }
+    ]
+  },
+  {
+    "id": "mma.rhythm.night_owl",
+    "sport": "mma",
+    "category": "participation",
+    "family": "rhythm",
+    "collection": "mma.night_shift",
+    "rule": {
+      "input": "participation",
+      "action": "watched",
+      "where": {
+        "sport": [
+          "mma"
+        ],
+        "local_hour": {
+          "from": "00:00",
+          "to": "06:00"
+        }
+      }
+    },
+    "requires_data": [
+      "fan.participation",
+      "fan.presence",
+      "event.sport",
+      "event.starts_at",
+      "program.time_zone"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria sobre o calendário: os cards principais nos Estados Unidos começam às 22h no horário do leste (23h ou 0h em Brasília e Buenos Aires) e as lutas principais entram depois da meia-noite; 30 a 40 lutas por ano começam de madrugada para o torcedor da América do Sul; Platina = 20",
+    "name": {
+      "pt": "Coruja da gaiola",
+      "es": "Búho de la jaula",
+      "en": "Cage Night Owl"
+    },
+    "description": {
+      "pt": "Assista a lutas que começam de madrugada no seu horário.",
+      "es": "Mira peleas que empiezan de madrugada en tu horario.",
+      "en": "Watch fights that start in the small hours, your local time."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 0,
+        "card_key": "mma.rhythm.night_owl.1"
+      },
+      {
+        "step": 2,
+        "threshold": 3,
+        "bonus_points": 0,
+        "card_key": "mma.rhythm.night_owl.2"
+      },
+      {
+        "step": 3,
+        "threshold": 8,
+        "bonus_points": 0,
+        "card_key": "mma.rhythm.night_owl.3"
+      },
+      {
+        "step": 4,
+        "threshold": 20,
+        "bonus_points": 0,
+        "card_key": "mma.rhythm.night_owl.4"
+      },
+      {
+        "step": 5,
+        "threshold": 50,
+        "bonus_points": 0,
+        "card_key": "mma.rhythm.night_owl.5"
+      }
+    ]
+  }
+]

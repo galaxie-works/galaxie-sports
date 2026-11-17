@@ -1,0 +1,3245 @@
+[
+  {
+    "id": "afl.comebacks",
+    "sport": "afl",
+    "name": {
+      "pt": "Viradas",
+      "es": "Remontadas",
+      "en": "Comebacks"
+    },
+    "description": {
+      "pt": "Perdia no último intervalo, cinco gols atrás, sete gols atrás: quem não desiste merece uma Carta.",
+      "es": "Perdía en el último descanso, cinco goles abajo, siete goles abajo: quien no se rinde merece una Carta.",
+      "en": "Trailing at the last break, five goals down, seven goals down: those who never give up earn a Card."
+    },
+    "cards": [
+      "afl.moments.comeback_five_goals.1",
+      "afl.moments.comeback_last_quarter.1",
+      "afl.moments.comeback_seven_goals.1"
+    ],
+    "unlock": {
+      "title": "title.last_quarter_hero"
+    }
+  },
+  {
+    "id": "afl.dawn_patrol",
+    "sport": "afl",
+    "name": {
+      "pt": "Patrulha do amanhecer",
+      "es": "Patrulla del amanecer",
+      "en": "Dawn Patrol"
+    },
+    "description": {
+      "pt": "Jogos que começam de madrugada no seu fuso: a Coleção de quem acorda antes do sol pela bola oval.",
+      "es": "Partidos que empiezan de madrugada en tu horario: la Colección de quien madruga por la pelota ovalada.",
+      "en": "Matches that start in your small hours: the Collection of those who rise before the sun for the oval ball."
+    },
+    "cards": [
+      "afl.loyalty.dawn_games.1",
+      "afl.loyalty.dawn_games.2",
+      "afl.loyalty.dawn_games.3",
+      "afl.loyalty.dawn_games.4",
+      "afl.loyalty.dawn_games.5"
+    ],
+    "unlock": {
+      "title": "title.dawn_watcher"
+    }
+  },
+  {
+    "id": "afl.explorer",
+    "sport": "afl",
+    "name": {
+      "pt": "Liga inteira",
+      "es": "Liga entera",
+      "en": "Whole League"
+    },
+    "description": {
+      "pt": "Clubes diferentes e meses diferentes: o futebol australiano inteiro, o ano inteiro.",
+      "es": "Clubes distintos y meses distintos: todo el fútbol australiano, todo el año.",
+      "en": "Different clubs and different months: all of Australian football, all year long."
+    },
+    "cards": [
+      "afl.explorer.all_teams.1",
+      "afl.explorer.all_teams.2",
+      "afl.explorer.all_teams.3",
+      "afl.explorer.all_teams.4",
+      "afl.explorer.all_teams.5",
+      "afl.explorer.months.1",
+      "afl.explorer.months.2",
+      "afl.explorer.months.3",
+      "afl.explorer.months.4",
+      "afl.explorer.months.5"
+    ],
+    "unlock": {
+      "background": "background.afl.explorer"
+    }
+  },
+  {
+    "id": "afl.faithful",
+    "sport": "afl",
+    "name": {
+      "pt": "Fiel ao oval",
+      "es": "Fiel al óvalo",
+      "en": "Oval Faithful"
+    },
+    "description": {
+      "pt": "Jogo após jogo do seu time, em casa e na estrada: a Coleção de quem está sempre lá.",
+      "es": "Partido tras partido de tu equipo, en casa y de visitante: la Colección de quien siempre está.",
+      "en": "Match after match of your team, at home and on the road: the Collection of those who are always there."
+    },
+    "cards": [
+      "afl.loyalty.favorite_games.1",
+      "afl.loyalty.favorite_games.2",
+      "afl.loyalty.favorite_games.3",
+      "afl.loyalty.favorite_games.4",
+      "afl.loyalty.favorite_games.5",
+      "afl.loyalty.favorite_streak.1",
+      "afl.loyalty.favorite_streak.2",
+      "afl.loyalty.favorite_streak.3",
+      "afl.loyalty.favorite_streak.4",
+      "afl.loyalty.favorite_streak.5",
+      "afl.results.away_win.1",
+      "afl.results.away_win.2",
+      "afl.results.away_win.3",
+      "afl.results.away_win.4",
+      "afl.results.away_win.5"
+    ],
+    "unlock": {
+      "frame": "frame.oval"
+    }
+  },
+  {
+    "id": "afl.final_siren",
+    "sport": "afl",
+    "name": {
+      "pt": "Sirene final",
+      "es": "Sirena final",
+      "en": "Final Siren"
+    },
+    "description": {
+      "pt": "Empate, vitória por um gol e prorrogação: os jogos decididos no último segundo.",
+      "es": "Empate, victoria por un gol y tiempo extra: los partidos que se deciden en el último segundo.",
+      "en": "Draws, one-goal wins and extra time: the matches decided at the very last second."
+    },
+    "cards": [
+      "afl.moments.draw.1",
+      "afl.moments.extra_time_final.1",
+      "afl.moments.one_goal_win.1"
+    ],
+    "unlock": {
+      "frame": "frame.siren"
+    }
+  },
+  {
+    "id": "afl.highlights",
+    "sport": "afl",
+    "name": {
+      "pt": "Melhores momentos",
+      "es": "Mejores momentos",
+      "en": "Highlights"
+    },
+    "description": {
+      "pt": "A pegada no céu e o dia de cinco gols: os lances que viram vídeo antes da sirene.",
+      "es": "La atrapada en el cielo y el día de cinco goles: las jugadas que se vuelven video antes de la sirena.",
+      "en": "The sky-high mark and the five-goal day: the plays that become a clip before the siren."
+    },
+    "cards": [
+      "afl.moments.bag_of_five.1",
+      "afl.moments.spectacular_mark.1"
+    ],
+    "unlock": {
+      "background": "background.afl.highlights"
+    }
+  },
+  {
+    "id": "afl.quarters",
+    "sport": "afl",
+    "name": {
+      "pt": "Quarto a quarto",
+      "es": "Cuarto a cuarto",
+      "en": "Quarter by Quarter"
+    },
+    "description": {
+      "pt": "Um quarto de 50 pontos, um quarto em branco para o adversário e os quatro quartos vencidos.",
+      "es": "Un cuarto de 50 puntos, un cuarto en blanco para el rival y los cuatro cuartos ganados.",
+      "en": "A fifty-point quarter, a scoreless quarter for the opponent and all four quarters won."
+    },
+    "cards": [
+      "afl.moments.fifty_point_quarter.1",
+      "afl.moments.quarter_sweep.1",
+      "afl.moments.shutout_quarter.1"
+    ],
+    "unlock": {
+      "background": "background.afl.quarters"
+    }
+  },
+  {
+    "id": "afl.reader",
+    "sport": "afl",
+    "name": {
+      "pt": "Leitor do oval",
+      "es": "Lector del óvalo",
+      "en": "Oval Reader"
+    },
+    "description": {
+      "pt": "Sequências de acertos no futebol australiano: a Coleção de quem lê o jogo antes da sirene.",
+      "es": "Rachas de aciertos en el fútbol australiano: la Colección de quien lee el partido antes de la sirena.",
+      "en": "Hit streaks in Australian football: the Collection of those who read the game before the siren."
+    },
+    "cards": [
+      "afl.predictions.hit_streak.1",
+      "afl.predictions.hit_streak.2",
+      "afl.predictions.hit_streak.3",
+      "afl.predictions.hit_streak.4",
+      "afl.predictions.hit_streak.5"
+    ],
+    "unlock": {
+      "title": "title.margin_reader"
+    }
+  },
+  {
+    "id": "afl.scoreboard",
+    "sport": "afl",
+    "name": {
+      "pt": "Placar",
+      "es": "Marcador",
+      "en": "Scoreboard"
+    },
+    "description": {
+      "pt": "Festival de pontos, goleadas, vinte gols, pontaria e jogo travado: tudo que o placar conta no fim.",
+      "es": "Festival de puntos, palizas, veinte goles, puntería y partido trabado: todo lo que cuenta el marcador al final.",
+      "en": "Point festivals, routs, twenty goals, straight kicking and arm wrestles: everything the scoreboard tells at the end."
+    },
+    "cards": [
+      "afl.moments.high_scoring.1",
+      "afl.moments.straight_kicking.1",
+      "afl.moments.twenty_goals.1",
+      "afl.results.big_win.1",
+      "afl.results.hundred_point_win.1",
+      "afl.results.low_score_grind.1"
+    ],
+    "unlock": {
+      "background": "background.afl.scoreboard"
+    }
+  },
+  {
+    "id": "afl.september",
+    "sport": "afl",
+    "name": {
+      "pt": "Setembro",
+      "es": "Septiembre",
+      "en": "September"
+    },
+    "description": {
+      "pt": "A fase final da temporada: assistir, acertar o vencedor e ver seu time vencer até o título.",
+      "es": "La fase final de la temporada: mirar, acertar el ganador y ver ganar a tu equipo hasta el título.",
+      "en": "The finals: watching, calling the winner and seeing your team win all the way to the title."
+    },
+    "cards": [
+      "afl.loyalty.finals_watched.1",
+      "afl.loyalty.finals_watched.2",
+      "afl.loyalty.finals_watched.3",
+      "afl.loyalty.finals_watched.4",
+      "afl.loyalty.finals_watched.5",
+      "afl.predictions.finals_winner.1",
+      "afl.predictions.finals_winner.2",
+      "afl.predictions.finals_winner.3",
+      "afl.predictions.finals_winner.4",
+      "afl.predictions.finals_winner.5",
+      "afl.results.finals_win.1",
+      "afl.results.grand_final_win.1"
+    ],
+    "unlock": {
+      "background": "background.afl.september"
+    }
+  },
+  {
+    "id": "american_football.clutch",
+    "sport": "american-football",
+    "name": {
+      "pt": "Última posse",
+      "es": "Última posesión",
+      "en": "Last Possession"
+    },
+    "description": {
+      "pt": "Jogos de uma posse, vitórias por um field goal, o chute no último lance e o empate raríssimo: para quem fica até o zero no relógio.",
+      "es": "Partidos de una posesión, victorias por un gol de campo, la patada en la última jugada y el rarísimo empate: para quien se queda hasta el cero en el reloj.",
+      "en": "One-score games, field-goal wins, the walk-off kick and the rarest tie: for those who stay until the clock hits zero."
+    },
+    "cards": [
+      "american_football.moments.walk_off_field_goal.1",
+      "american_football.results.close_win.1",
+      "american_football.results.one_score_games.1",
+      "american_football.results.one_score_games.2",
+      "american_football.results.one_score_games.3",
+      "american_football.results.one_score_games.4",
+      "american_football.results.one_score_games.5",
+      "american_football.results.tie.1"
+    ],
+    "unlock": {
+      "background": "background.american_football.clutch"
+    }
+  },
+  {
+    "id": "american_football.comebacks",
+    "sport": "american-football",
+    "name": {
+      "pt": "Viradas",
+      "es": "Remontadas",
+      "en": "Comebacks"
+    },
+    "description": {
+      "pt": "Dois touchdowns atrás, três atrás, perdendo no último quarto ou na prorrogação: quem não desiste merece uma Carta.",
+      "es": "Dos touchdowns abajo, tres abajo, perdiendo en el último cuarto o en tiempo extra: quien no se rinde merece una Carta.",
+      "en": "Two touchdowns down, three down, trailing in the fourth or into overtime: those who never give up earn a Card."
+    },
+    "cards": [
+      "american_football.moments.comeback_14.1",
+      "american_football.moments.comeback_21.1",
+      "american_football.moments.fourth_quarter_comeback.1",
+      "american_football.moments.overtime_win.1"
+    ],
+    "unlock": {
+      "title": "title.fourth_quarter"
+    }
+  },
+  {
+    "id": "american_football.defense",
+    "sport": "american-football",
+    "name": {
+      "pt": "Defesa que marca",
+      "es": "Defensa que anota",
+      "en": "Defense Scores"
+    },
+    "description": {
+      "pt": "Shutout, interceptação devolvida para touchdown e safety: os dias em que a defesa é a estrela.",
+      "es": "Blanqueada, intercepción devuelta hasta el touchdown y safety: los días en que la defensa es la estrella.",
+      "en": "Shutout, pick-six and safety: the days when the defense is the star."
+    },
+    "cards": [
+      "american_football.moments.pick_six.1",
+      "american_football.moments.safety.1",
+      "american_football.results.shutout_win.1"
+    ],
+    "unlock": {
+      "frame": "frame.shield"
+    }
+  },
+  {
+    "id": "american_football.dominance",
+    "sport": "american-football",
+    "name": {
+      "pt": "Domínio",
+      "es": "Dominio",
+      "en": "Dominance"
+    },
+    "description": {
+      "pt": "Massacre por quatro touchdowns e os quatro quartos vencidos: quando só um time aparece para jogar.",
+      "es": "Paliza por cuatro touchdowns y los cuatro cuartos ganados: cuando solo un equipo aparece para jugar.",
+      "en": "A four-touchdown blowout and all four quarters won: when only one team shows up to play."
+    },
+    "cards": [
+      "american_football.moments.period_sweep.1",
+      "american_football.results.blowout_win.1"
+    ],
+    "unlock": {
+      "background": "background.american_football.dominance"
+    }
+  },
+  {
+    "id": "american_football.faithful",
+    "sport": "american-football",
+    "name": {
+      "pt": "Fiel",
+      "es": "Fiel",
+      "en": "Faithful"
+    },
+    "description": {
+      "pt": "Jogo após jogo do seu time, em casa ou fora, sem faltar: a Coleção de quem está sempre lá.",
+      "es": "Partido tras partido de tu equipo, de local o de visitante, sin faltar: la Colección de quien siempre está.",
+      "en": "Game after game of your team, home or away, never absent: the Collection of those who are always there."
+    },
+    "cards": [
+      "american_football.loyalty.favorite_games.1",
+      "american_football.loyalty.favorite_games.2",
+      "american_football.loyalty.favorite_games.3",
+      "american_football.loyalty.favorite_games.4",
+      "american_football.loyalty.favorite_games.5",
+      "american_football.loyalty.favorite_streak.1",
+      "american_football.loyalty.favorite_streak.2",
+      "american_football.loyalty.favorite_streak.3",
+      "american_football.loyalty.favorite_streak.4",
+      "american_football.loyalty.favorite_streak.5",
+      "american_football.results.away_win.1"
+    ],
+    "unlock": {
+      "title": "title.die_hard"
+    }
+  },
+  {
+    "id": "american_football.fireworks",
+    "sport": "american-football",
+    "name": {
+      "pt": "Fogos no placar",
+      "es": "Fuegos en el tablero",
+      "en": "Scoreboard Fireworks"
+    },
+    "description": {
+      "pt": "Quarto de 21 pontos, setenta pontos somados, quarenta do seu time e trezentas jardas de passe: o ataque em noite de gala.",
+      "es": "Cuarto de 21 puntos, setenta puntos sumados, cuarenta de tu equipo y trescientas yardas de pase: el ataque en noche de gala.",
+      "en": "A 21-point quarter, seventy combined points, forty of your own and three hundred passing yards: the offense on a gala night."
+    },
+    "cards": [
+      "american_football.moments.big_quarter.1",
+      "american_football.moments.forty_points.1",
+      "american_football.moments.passer_300.1",
+      "american_football.moments.shootout.1"
+    ],
+    "unlock": {
+      "background": "background.american_football.fireworks"
+    }
+  },
+  {
+    "id": "american_football.gridiron_tour",
+    "sport": "american-football",
+    "name": {
+      "pt": "Volta pela liga",
+      "es": "Vuelta por la liga",
+      "en": "League Tour"
+    },
+    "description": {
+      "pt": "Times diferentes e meses diferentes: o futebol americano inteiro, de agosto a fevereiro.",
+      "es": "Equipos distintos y meses distintos: todo el fútbol americano, de agosto a febrero.",
+      "en": "Different teams and different months: all of football, from August to February."
+    },
+    "cards": [
+      "american_football.explorer.months.1",
+      "american_football.explorer.months.2",
+      "american_football.explorer.months.3",
+      "american_football.explorer.months.4",
+      "american_football.explorer.months.5",
+      "american_football.explorer.teams.1",
+      "american_football.explorer.teams.2",
+      "american_football.explorer.teams.3",
+      "american_football.explorer.teams.4",
+      "american_football.explorer.teams.5"
+    ],
+    "unlock": {
+      "background": "background.american_football.gridiron_tour"
+    }
+  },
+  {
+    "id": "american_football.postseason",
+    "sport": "american-football",
+    "name": {
+      "pt": "Janeiro",
+      "es": "Enero",
+      "en": "January"
+    },
+    "description": {
+      "pt": "Playoffs assistidos, playoffs vencidos, o vencedor acertado e a final do título: o mês em que tudo decide.",
+      "es": "Postemporada vista, postemporada ganada, el ganador acertado y la final del título: el mes en que todo se define.",
+      "en": "Playoffs watched, playoffs won, winners called and the title game: the month when everything is decided."
+    },
+    "cards": [
+      "american_football.loyalty.playoff_watched.1",
+      "american_football.loyalty.playoff_watched.2",
+      "american_football.loyalty.playoff_watched.3",
+      "american_football.loyalty.playoff_watched.4",
+      "american_football.loyalty.playoff_watched.5",
+      "american_football.predictions.playoff_winner.1",
+      "american_football.predictions.playoff_winner.2",
+      "american_football.predictions.playoff_winner.3",
+      "american_football.predictions.playoff_winner.4",
+      "american_football.predictions.playoff_winner.5",
+      "american_football.results.final_win.1",
+      "american_football.results.playoff_win.1"
+    ],
+    "unlock": {
+      "background": "background.american_football.postseason"
+    }
+  },
+  {
+    "id": "american_football.rivalry",
+    "sport": "american-football",
+    "name": {
+      "pt": "Rivalidade",
+      "es": "Rivalidad",
+      "en": "Rivalry"
+    },
+    "description": {
+      "pt": "Tudo que acontece quando os rivais se encontram: assistir, acertar o vencedor e ver seu time vencer.",
+      "es": "Todo lo que pasa cuando los rivales se cruzan: mirar, acertar el ganador y ver ganar a tu equipo.",
+      "en": "Everything that happens when rivals meet: watching, calling the winner and seeing your team win."
+    },
+    "cards": [
+      "american_football.loyalty.rivalry_watched.1",
+      "american_football.loyalty.rivalry_watched.2",
+      "american_football.loyalty.rivalry_watched.3",
+      "american_football.loyalty.rivalry_watched.4",
+      "american_football.loyalty.rivalry_watched.5",
+      "american_football.predictions.rivalry_winner.1",
+      "american_football.predictions.rivalry_winner.2",
+      "american_football.predictions.rivalry_winner.3",
+      "american_football.predictions.rivalry_winner.4",
+      "american_football.predictions.rivalry_winner.5",
+      "american_football.results.rivalry_win.1",
+      "american_football.results.rivalry_win.2",
+      "american_football.results.rivalry_win.3",
+      "american_football.results.rivalry_win.4",
+      "american_football.results.rivalry_win.5"
+    ],
+    "unlock": {
+      "frame": "frame.rivalry"
+    }
+  },
+  {
+    "id": "american_football.sharp_eye",
+    "sport": "american-football",
+    "name": {
+      "pt": "Olho afiado",
+      "es": "Ojo afilado",
+      "en": "Sharp Eye"
+    },
+    "description": {
+      "pt": "Sequências de acertos: a Coleção de quem lê o jogo antes do snap.",
+      "es": "Rachas de aciertos: la Colección de quien lee el juego antes del snap.",
+      "en": "Hit streaks: the Collection of those who read the game before the snap."
+    },
+    "cards": [
+      "american_football.predictions.hit_streak.1",
+      "american_football.predictions.hit_streak.2",
+      "american_football.predictions.hit_streak.3",
+      "american_football.predictions.hit_streak.4",
+      "american_football.predictions.hit_streak.5"
+    ],
+    "unlock": {
+      "title": "title.playcaller"
+    }
+  },
+  {
+    "id": "baseball.big_bats",
+    "sport": "baseball",
+    "name": {
+      "pt": "Bastões em chamas",
+      "es": "Bates encendidos",
+      "en": "Big Bats"
+    },
+    "description": {
+      "pt": "Entrada de seis, massacre, grand slam e ciclo: as noites em que o ataque mandou no jogo.",
+      "es": "Entrada de seis, paliza, grand slam y ciclo: las noches en que el ataque mandó en el partido.",
+      "en": "Six-run innings, blowouts, grand slams and cycles: the nights the lineup ran the game."
+    },
+    "cards": [
+      "baseball.moments.big_inning.1",
+      "baseball.moments.cycle.1",
+      "baseball.moments.grand_slam.1",
+      "baseball.results.blowout.1"
+    ],
+    "unlock": {
+      "background": "background.baseball.big_bats"
+    }
+  },
+  {
+    "id": "baseball.bleachers",
+    "sport": "baseball",
+    "name": {
+      "pt": "Arquibancada",
+      "es": "La grada",
+      "en": "The Bleachers"
+    },
+    "description": {
+      "pt": "Jogo após jogo do seu time, sem faltar: a Coleção de quem está sempre lá.",
+      "es": "Partido tras partido de tu equipo, sin faltar: la Colección de quien siempre está.",
+      "en": "Game after game of your team, never absent: the Collection of those who are always there."
+    },
+    "cards": [
+      "baseball.loyalty.favorite_games.1",
+      "baseball.loyalty.favorite_games.2",
+      "baseball.loyalty.favorite_games.3",
+      "baseball.loyalty.favorite_games.4",
+      "baseball.loyalty.favorite_games.5",
+      "baseball.loyalty.favorite_streak.1",
+      "baseball.loyalty.favorite_streak.2",
+      "baseball.loyalty.favorite_streak.3",
+      "baseball.loyalty.favorite_streak.4",
+      "baseball.loyalty.favorite_streak.5"
+    ],
+    "unlock": {
+      "title": "title.bleacher_regular"
+    }
+  },
+  {
+    "id": "baseball.close_calls",
+    "sport": "baseball",
+    "name": {
+      "pt": "Finais apertados",
+      "es": "Finales cerrados",
+      "en": "Close Calls"
+    },
+    "description": {
+      "pt": "Entradas extras, vitórias por uma corrida, reação na nona e a última corrida em casa: para quem fica até o último out.",
+      "es": "Entradas extra, victorias por una carrera, reacción en la novena y la última carrera en casa: para quien se queda hasta el último out.",
+      "en": "Extra innings, one-run wins, ninth-inning rallies and walking it off at home: for those who stay until the last out."
+    },
+    "cards": [
+      "baseball.moments.extra_innings.1",
+      "baseball.moments.extra_innings.2",
+      "baseball.moments.extra_innings.3",
+      "baseball.moments.extra_innings.4",
+      "baseball.moments.extra_innings.5",
+      "baseball.moments.ninth_inning_rally.1",
+      "baseball.moments.walk_off_extra.1",
+      "baseball.moments.walk_off.1",
+      "baseball.moments.walk_off.2",
+      "baseball.moments.walk_off.3",
+      "baseball.moments.walk_off.4",
+      "baseball.moments.walk_off.5",
+      "baseball.results.one_run_win.1",
+      "baseball.results.one_run_win.2",
+      "baseball.results.one_run_win.3",
+      "baseball.results.one_run_win.4",
+      "baseball.results.one_run_win.5"
+    ],
+    "unlock": {
+      "background": "background.baseball.close_calls"
+    }
+  },
+  {
+    "id": "baseball.comebacks",
+    "sport": "baseball",
+    "name": {
+      "pt": "Viradas",
+      "es": "Remontadas",
+      "en": "Comebacks"
+    },
+    "description": {
+      "pt": "Três corridas atrás, cinco corridas atrás: quem não desiste merece uma Carta.",
+      "es": "Tres carreras abajo, cinco carreras abajo: quien no se rinde merece una Carta.",
+      "en": "Three down, five down: those who never give up earn a Card."
+    },
+    "cards": [
+      "baseball.moments.comeback_five.1",
+      "baseball.moments.comeback_three.1",
+      "baseball.moments.comeback_three.2",
+      "baseball.moments.comeback_three.3",
+      "baseball.moments.comeback_three.4",
+      "baseball.moments.comeback_three.5"
+    ],
+    "unlock": {
+      "title": "title.late_rally"
+    }
+  },
+  {
+    "id": "baseball.decision_nights",
+    "sport": "baseball",
+    "name": {
+      "pt": "Noites de decisão",
+      "es": "Noches de definición",
+      "en": "Decision Nights"
+    },
+    "description": {
+      "pt": "Playoffs e finais: as noites em que o beisebol decide alguma coisa, vistas, palpitadas e vencidas.",
+      "es": "Playoffs y finales: las noches en que el béisbol decide algo, vistas, pronosticadas y ganadas.",
+      "en": "Playoffs and finals: the nights when baseball decides something, watched, called and won."
+    },
+    "cards": [
+      "baseball.loyalty.finals_watched.1",
+      "baseball.loyalty.finals_watched.2",
+      "baseball.loyalty.finals_watched.3",
+      "baseball.loyalty.finals_watched.4",
+      "baseball.loyalty.finals_watched.5",
+      "baseball.predictions.playoff_winner.1",
+      "baseball.predictions.playoff_winner.2",
+      "baseball.predictions.playoff_winner.3",
+      "baseball.predictions.playoff_winner.4",
+      "baseball.predictions.playoff_winner.5",
+      "baseball.results.final_win.1"
+    ],
+    "unlock": {
+      "frame": "frame.pennant"
+    }
+  },
+  {
+    "id": "baseball.mound",
+    "sport": "baseball",
+    "name": {
+      "pt": "Montinho",
+      "es": "Montículo",
+      "en": "The Mound"
+    },
+    "description": {
+      "pt": "Adversário zerado, jogo sem rebatidas, jogo perfeito: quando o arremesso faz história.",
+      "es": "Blanqueada, juego sin hits, juego perfecto: cuando el pitcheo hace historia.",
+      "en": "Shutouts, no-hitters and perfect games: when pitching makes history."
+    },
+    "cards": [
+      "baseball.moments.no_hitter.1",
+      "baseball.moments.perfect_game.1",
+      "baseball.results.shutout_win.1",
+      "baseball.results.shutout_win.2",
+      "baseball.results.shutout_win.3",
+      "baseball.results.shutout_win.4",
+      "baseball.results.shutout_win.5"
+    ],
+    "unlock": {
+      "background": "background.baseball.mound"
+    }
+  },
+  {
+    "id": "baseball.rivalry",
+    "sport": "baseball",
+    "name": {
+      "pt": "Clássico do diamante",
+      "es": "Clásico del diamante",
+      "en": "Diamond Rivalry"
+    },
+    "description": {
+      "pt": "Tudo que acontece quando os rivais se encontram no diamante e o seu time vence.",
+      "es": "Todo lo que pasa cuando los rivales se cruzan en el diamante y tu equipo gana.",
+      "en": "Everything that happens when rivals meet on the diamond and your team wins."
+    },
+    "cards": [
+      "baseball.results.derby_win.1",
+      "baseball.results.derby_win.2",
+      "baseball.results.derby_win.3",
+      "baseball.results.derby_win.4",
+      "baseball.results.derby_win.5"
+    ],
+    "unlock": {
+      "frame": "frame.crosstown"
+    }
+  },
+  {
+    "id": "baseball.scouts_eye",
+    "sport": "baseball",
+    "name": {
+      "pt": "Olho de scout",
+      "es": "Ojo de scout",
+      "en": "Scout’s Eye"
+    },
+    "description": {
+      "pt": "Placar exato, contagem de corridas e sequências de acertos: a Coleção de quem lê o jogo.",
+      "es": "Marcador exacto, cuenta de carreras y rachas de aciertos: la Colección de quien lee el juego.",
+      "en": "Exact scores, run counts and hit streaks: the Collection of those who read the game."
+    },
+    "cards": [
+      "baseball.predictions.exact_score.1",
+      "baseball.predictions.exact_score.2",
+      "baseball.predictions.exact_score.3",
+      "baseball.predictions.exact_score.4",
+      "baseball.predictions.exact_score.5",
+      "baseball.predictions.hit_streak.1",
+      "baseball.predictions.hit_streak.2",
+      "baseball.predictions.hit_streak.3",
+      "baseball.predictions.hit_streak.4",
+      "baseball.predictions.hit_streak.5",
+      "baseball.predictions.runs_quantity.1",
+      "baseball.predictions.runs_quantity.2",
+      "baseball.predictions.runs_quantity.3",
+      "baseball.predictions.runs_quantity.4",
+      "baseball.predictions.runs_quantity.5"
+    ],
+    "unlock": {
+      "title": "title.scorekeeper"
+    }
+  },
+  {
+    "id": "baseball.summer_to_winter",
+    "sport": "baseball",
+    "name": {
+      "pt": "Do verão ao inverno",
+      "es": "Del verano al invierno",
+      "en": "Summer to Winter"
+    },
+    "description": {
+      "pt": "Competições, países e meses diferentes: o beisebol inteiro, o ano inteiro.",
+      "es": "Torneos, países y meses distintos: todo el béisbol, todo el año.",
+      "en": "Different competitions, countries and months: all of baseball, all year long."
+    },
+    "cards": [
+      "baseball.explorer.competitions.1",
+      "baseball.explorer.competitions.2",
+      "baseball.explorer.competitions.3",
+      "baseball.explorer.competitions.4",
+      "baseball.explorer.competitions.5",
+      "baseball.explorer.countries.1",
+      "baseball.explorer.countries.2",
+      "baseball.explorer.countries.3",
+      "baseball.explorer.countries.4",
+      "baseball.explorer.countries.5",
+      "baseball.explorer.months.1",
+      "baseball.explorer.months.2",
+      "baseball.explorer.months.3",
+      "baseball.explorer.months.4",
+      "baseball.explorer.months.5"
+    ],
+    "unlock": {
+      "background": "background.baseball.summer_to_winter"
+    }
+  },
+  {
+    "id": "basketball.comebacks",
+    "sport": "basketball",
+    "name": {
+      "pt": "Viradas",
+      "es": "Remontadas",
+      "en": "Comebacks"
+    },
+    "description": {
+      "pt": "Quinze atrás, vinte atrás, dez atrás entrando no último quarto: as noites em que o seu time não desistiu.",
+      "es": "Quince abajo, veinte abajo, diez abajo entrando al último cuarto: las noches en que tu equipo no se rindió.",
+      "en": "Fifteen down, twenty down, ten down entering the fourth: the nights your team refused to quit."
+    },
+    "cards": [
+      "basketball.moments.comeback_15.1",
+      "basketball.moments.comeback_20.1",
+      "basketball.moments.fourth_quarter_comeback.1"
+    ],
+    "unlock": {
+      "title": "title.never_fold"
+    }
+  },
+  {
+    "id": "basketball.explorer",
+    "sport": "basketball",
+    "name": {
+      "pt": "Continente da bola",
+      "es": "Continente de la pelota",
+      "en": "Hoops Continent"
+    },
+    "description": {
+      "pt": "Competições, países e meses diferentes, mais os jogos de manhã dos torneios distantes: o basquete inteiro.",
+      "es": "Torneos, países y meses distintos, más los partidos de mañana de los torneos lejanos: todo el básquet.",
+      "en": "Different competitions, countries and months, plus the morning games of faraway tournaments: all of basketball."
+    },
+    "cards": [
+      "basketball.explorer.competitions.1",
+      "basketball.explorer.competitions.2",
+      "basketball.explorer.competitions.3",
+      "basketball.explorer.competitions.4",
+      "basketball.explorer.competitions.5",
+      "basketball.explorer.countries.1",
+      "basketball.explorer.countries.2",
+      "basketball.explorer.countries.3",
+      "basketball.explorer.countries.4",
+      "basketball.explorer.countries.5",
+      "basketball.explorer.months.1",
+      "basketball.explorer.months.2",
+      "basketball.explorer.months.3",
+      "basketball.explorer.months.4",
+      "basketball.explorer.months.5",
+      "basketball.rhythm.morning_game.1",
+      "basketball.rhythm.morning_game.2",
+      "basketball.rhythm.morning_game.3",
+      "basketball.rhythm.morning_game.4",
+      "basketball.rhythm.morning_game.5"
+    ],
+    "unlock": {
+      "background": "background.basketball.continent"
+    }
+  },
+  {
+    "id": "basketball.faithful",
+    "sport": "basketball",
+    "name": {
+      "pt": "Fiel",
+      "es": "Fiel",
+      "en": "Faithful"
+    },
+    "description": {
+      "pt": "Jogo após jogo do seu time, em casa e na estrada: a Coleção de quem está sempre lá.",
+      "es": "Partido tras partido de tu equipo, en casa y de visitante: la Colección de quien siempre está.",
+      "en": "Game after game of your team, home and on the road: the Collection of those who are always there."
+    },
+    "cards": [
+      "basketball.loyalty.favorite_games.1",
+      "basketball.loyalty.favorite_games.2",
+      "basketball.loyalty.favorite_games.3",
+      "basketball.loyalty.favorite_games.4",
+      "basketball.loyalty.favorite_games.5",
+      "basketball.loyalty.favorite_streak.1",
+      "basketball.loyalty.favorite_streak.2",
+      "basketball.loyalty.favorite_streak.3",
+      "basketball.loyalty.favorite_streak.4",
+      "basketball.loyalty.favorite_streak.5",
+      "basketball.results.away_win.1",
+      "basketball.results.away_win.2",
+      "basketball.results.away_win.3",
+      "basketball.results.away_win.4",
+      "basketball.results.away_win.5"
+    ],
+    "unlock": {
+      "title": "title.sixth_player"
+    }
+  },
+  {
+    "id": "basketball.overtime",
+    "sport": "basketball",
+    "name": {
+      "pt": "Até o fim",
+      "es": "Hasta el final",
+      "en": "To the End"
+    },
+    "description": {
+      "pt": "Prorrogação, dupla prorrogação e vitórias por uma posse: para quem nunca desliga antes do estouro.",
+      "es": "Tiempo extra, doble tiempo extra y victorias por una posesión: para quien nunca apaga antes de la chicharra.",
+      "en": "Overtime, double overtime and one-possession wins: for those who never switch off before the buzzer."
+    },
+    "cards": [
+      "basketball.moments.double_overtime.1",
+      "basketball.moments.overtime.1",
+      "basketball.results.close_win.1"
+    ],
+    "unlock": {
+      "frame": "frame.overtime"
+    }
+  },
+  {
+    "id": "basketball.playoffs",
+    "sport": "basketball",
+    "name": {
+      "pt": "Noites de playoff",
+      "es": "Noches de playoffs",
+      "en": "Playoff Nights"
+    },
+    "description": {
+      "pt": "Séries, finais, palpites e presença: tudo que acontece quando a temporada de verdade começa.",
+      "es": "Series, finales, pronósticos y presencia: todo lo que pasa cuando empieza la temporada de verdad.",
+      "en": "Series, finals, calls and attendance: everything that happens when the real season begins."
+    },
+    "cards": [
+      "basketball.loyalty.playoff_games.1",
+      "basketball.loyalty.playoff_games.2",
+      "basketball.loyalty.playoff_games.3",
+      "basketball.loyalty.playoff_games.4",
+      "basketball.loyalty.playoff_games.5",
+      "basketball.predictions.final_winner.1",
+      "basketball.predictions.final_winner.2",
+      "basketball.predictions.final_winner.3",
+      "basketball.predictions.final_winner.4",
+      "basketball.predictions.final_winner.5",
+      "basketball.predictions.playoff_winner.1",
+      "basketball.predictions.playoff_winner.2",
+      "basketball.predictions.playoff_winner.3",
+      "basketball.predictions.playoff_winner.4",
+      "basketball.predictions.playoff_winner.5",
+      "basketball.results.final_win.1",
+      "basketball.results.playoff_win.1",
+      "basketball.results.playoff_win.2",
+      "basketball.results.playoff_win.3",
+      "basketball.results.playoff_win.4",
+      "basketball.results.playoff_win.5"
+    ],
+    "unlock": {
+      "background": "background.basketball.playoffs"
+    }
+  },
+  {
+    "id": "basketball.scoreboard",
+    "sport": "basketball",
+    "name": {
+      "pt": "Placar quente",
+      "es": "Marcador caliente",
+      "en": "Hot Scoreboard"
+    },
+    "description": {
+      "pt": "Quartos avassaladores, vitórias largas, massacres e placares estourados: quando o ataque manda no jogo.",
+      "es": "Cuartos arrolladores, victorias amplias, palizas y marcadores desbordados: cuando el ataque manda en el partido.",
+      "en": "Monster quarters, comfortable wins, blowouts and overloaded scoreboards: when offense runs the game."
+    },
+    "cards": [
+      "basketball.moments.big_quarter.1",
+      "basketball.moments.big_quarter.2",
+      "basketball.moments.big_quarter.3",
+      "basketball.moments.big_quarter.4",
+      "basketball.moments.big_quarter.5",
+      "basketball.moments.period_sweep.1",
+      "basketball.results.big_win.1",
+      "basketball.results.big_win.2",
+      "basketball.results.big_win.3",
+      "basketball.results.big_win.4",
+      "basketball.results.big_win.5",
+      "basketball.results.blowout.1",
+      "basketball.results.high_scoring.1"
+    ],
+    "unlock": {
+      "background": "background.basketball.scoreboard"
+    }
+  },
+  {
+    "id": "basketball.sharp_eye",
+    "sport": "basketball",
+    "name": {
+      "pt": "Leitura de jogo",
+      "es": "Lectura de juego",
+      "en": "Game Reader"
+    },
+    "description": {
+      "pt": "Sequências de acertos e o vencedor dos jogos do seu time: a Coleção de quem lê o jogo antes da bola subir.",
+      "es": "Rachas de aciertos y el ganador de los partidos de tu equipo: la Colección de quien lee el juego antes del salto.",
+      "en": "Hit streaks and your team’s winners called right: the Collection of those who read the game before the tip."
+    },
+    "cards": [
+      "basketball.predictions.favorite_winner.1",
+      "basketball.predictions.favorite_winner.2",
+      "basketball.predictions.favorite_winner.3",
+      "basketball.predictions.favorite_winner.4",
+      "basketball.predictions.favorite_winner.5",
+      "basketball.predictions.hit_streak.1",
+      "basketball.predictions.hit_streak.2",
+      "basketball.predictions.hit_streak.3",
+      "basketball.predictions.hit_streak.4",
+      "basketball.predictions.hit_streak.5"
+    ],
+    "unlock": {
+      "title": "title.game_reader"
+    }
+  },
+  {
+    "id": "basketball.star_night",
+    "sport": "basketball",
+    "name": {
+      "pt": "Noite de estrela",
+      "es": "Noche de estrella",
+      "en": "Star Night"
+    },
+    "description": {
+      "pt": "Triple-double, cinquenta pontos, dez bolas de três e a cesta no estouro: as noites de um jogador só.",
+      "es": "Triple-doble, cincuenta puntos, diez triples y la canasta sobre la chicharra: las noches de un solo jugador.",
+      "en": "Triple-double, fifty points, ten threes and the buzzer-beater: the nights that belong to one player."
+    },
+    "cards": [
+      "basketball.moments.buzzer_beater.1",
+      "basketball.moments.fifty_points.1",
+      "basketball.moments.ten_threes.1",
+      "basketball.moments.triple_double.1"
+    ],
+    "unlock": {
+      "background": "background.basketball.star_night"
+    }
+  },
+  {
+    "id": "common.collector",
+    "sport": null,
+    "name": {
+      "pt": "Colecionador",
+      "es": "Coleccionista",
+      "en": "Collector"
+    },
+    "description": {
+      "pt": "As Cartas de quem fecha Coleções: completar esta destrava a moldura do colecionador.",
+      "es": "Las cartas de quien cierra colecciones: completarla desbloquea el marco del coleccionista.",
+      "en": "The cards of those who finish collections: completing it unlocks the collector frame."
+    },
+    "cards": [
+      "common.collector.collections.1",
+      "common.collector.collections.2",
+      "common.collector.collections.3",
+      "common.collector.collections.4",
+      "common.collector.collections.5",
+      "common.collector.sports.1",
+      "common.collector.sports.2",
+      "common.collector.sports.3",
+      "common.collector.sports.4",
+      "common.collector.sports.5"
+    ],
+    "unlock": {
+      "frame": "frame.collector"
+    }
+  },
+  {
+    "id": "common.community",
+    "sport": null,
+    "name": {
+      "pt": "Por dentro",
+      "es": "Al tanto",
+      "en": "Insider"
+    },
+    "description": {
+      "pt": "Trivia, enquetes, convites, resumos e escalações: a vida do torcedor fora dos 90 minutos. Destrava o título \"Por dentro\".",
+      "es": "Trivia, encuestas, invitaciones, resúmenes y alineaciones: la vida del hincha fuera del partido. Desbloquea el título \"Al tanto\".",
+      "en": "Trivia, polls, invites, recaps and lineups: fan life beyond the final whistle. Unlocks the \"Insider\" title."
+    },
+    "cards": [
+      "common.community.invite.1",
+      "common.community.invite.2",
+      "common.community.invite.3",
+      "common.community.invite.4",
+      "common.community.invite.5",
+      "common.consumption.lineup.1",
+      "common.consumption.lineup.2",
+      "common.consumption.lineup.3",
+      "common.consumption.lineup.4",
+      "common.consumption.lineup.5",
+      "common.knowledge.trivia_streak.1",
+      "common.knowledge.trivia_streak.2",
+      "common.knowledge.trivia_streak.3",
+      "common.knowledge.trivia_streak.4",
+      "common.knowledge.trivia_streak.5",
+      "community.poll.1",
+      "community.poll.2",
+      "community.poll.3",
+      "community.poll.4",
+      "community.poll.5",
+      "consumption.recap.1",
+      "consumption.recap.2",
+      "consumption.recap.3",
+      "consumption.recap.4",
+      "consumption.recap.5",
+      "knowledge.trivia.1",
+      "knowledge.trivia.2",
+      "knowledge.trivia.3",
+      "knowledge.trivia.4",
+      "knowledge.trivia.5"
+    ],
+    "unlock": {
+      "title": "title.insider"
+    }
+  },
+  {
+    "id": "common.explorer",
+    "sport": null,
+    "name": {
+      "pt": "Explorador",
+      "es": "Explorador",
+      "en": "Explorer"
+    },
+    "description": {
+      "pt": "Esportes, competições e países diferentes acompanhados ao vivo. Destrava o plano de fundo do mapa.",
+      "es": "Deportes, competiciones y países diferentes seguidos en vivo. Desbloquea el fondo del mapa.",
+      "en": "Different sports, competitions and countries followed live. Unlocks the map background."
+    },
+    "cards": [
+      "common.explorer.competitions.1",
+      "common.explorer.competitions.2",
+      "common.explorer.competitions.3",
+      "common.explorer.competitions.4",
+      "common.explorer.competitions.5",
+      "common.explorer.countries.1",
+      "common.explorer.countries.2",
+      "common.explorer.countries.3",
+      "common.explorer.countries.4",
+      "common.explorer.countries.5",
+      "common.explorer.sports.1",
+      "common.explorer.sports.2",
+      "common.explorer.sports.3",
+      "common.explorer.sports.4",
+      "common.explorer.sports.5"
+    ],
+    "unlock": {
+      "background": "background.common.explorer"
+    }
+  },
+  {
+    "id": "common.loyalty",
+    "sport": null,
+    "name": {
+      "pt": "Fiel",
+      "es": "Fiel",
+      "en": "Loyal"
+    },
+    "description": {
+      "pt": "Jogos assistidos, do seu time, clássicos, finais e sequências. Destrava o plano de fundo da arquibancada.",
+      "es": "Partidos vistos, de tu equipo, clásicos, finales y rachas. Desbloquea el fondo de la grada.",
+      "en": "Matches watched, your team, derbies, finals and streaks. Unlocks the stands background."
+    },
+    "cards": [
+      "common.loyalty.day_streak.1",
+      "common.loyalty.day_streak.2",
+      "common.loyalty.day_streak.3",
+      "common.loyalty.day_streak.4",
+      "common.loyalty.day_streak.5",
+      "common.loyalty.derby.1",
+      "common.loyalty.derby.2",
+      "common.loyalty.derby.3",
+      "common.loyalty.derby.4",
+      "common.loyalty.derby.5",
+      "common.loyalty.favorite_streak.1",
+      "common.loyalty.favorite_streak.2",
+      "common.loyalty.favorite_streak.3",
+      "common.loyalty.favorite_streak.4",
+      "common.loyalty.favorite_streak.5",
+      "common.loyalty.favorite_watched.1",
+      "common.loyalty.favorite_watched.2",
+      "common.loyalty.favorite_watched.3",
+      "common.loyalty.favorite_watched.4",
+      "common.loyalty.favorite_watched.5",
+      "common.loyalty.finals.1",
+      "common.loyalty.finals.2",
+      "common.loyalty.finals.3",
+      "common.loyalty.finals.4",
+      "common.loyalty.finals.5",
+      "loyalty.watched.1",
+      "loyalty.watched.2",
+      "loyalty.watched.3",
+      "loyalty.watched.4",
+      "loyalty.watched.5"
+    ],
+    "unlock": {
+      "background": "background.common.loyalty"
+    }
+  },
+  {
+    "id": "common.moments",
+    "sport": null,
+    "name": {
+      "pt": "Eu estava lá",
+      "es": "Yo estuve ahí",
+      "en": "I was there"
+    },
+    "description": {
+      "pt": "As vitórias do seu time que você viu ao vivo: comuns, viradas, clássicos, finais e prorrogações. Destrava a moldura \"Eu estava lá\".",
+      "es": "Las victorias de tu equipo que viste en vivo: normales, remontadas, clásicos, finales y tiempos extra. Desbloquea el marco \"Yo estuve ahí\".",
+      "en": "The wins of your team you saw live: regular, comebacks, derbies, finals and overtime. Unlocks the \"I was there\" frame."
+    },
+    "cards": [
+      "common.moments.derby_win.1",
+      "common.moments.favorite_comeback.1",
+      "common.moments.favorite_win.1",
+      "common.moments.favorite_win.2",
+      "common.moments.favorite_win.3",
+      "common.moments.favorite_win.4",
+      "common.moments.favorite_win.5",
+      "common.moments.final_win.1",
+      "common.moments.overtime_win.1",
+      "common.moments.overtime_win.2",
+      "common.moments.overtime_win.3",
+      "common.moments.overtime_win.4",
+      "common.moments.overtime_win.5"
+    ],
+    "unlock": {
+      "frame": "frame.i_was_there"
+    }
+  },
+  {
+    "id": "common.prediction_habit",
+    "sport": null,
+    "name": {
+      "pt": "Palpite é hábito",
+      "es": "Pronosticar es hábito",
+      "en": "Prediction habit"
+    },
+    "description": {
+      "pt": "Palpites feitos, rodadas seguidas, sequências certeiras e competições diferentes. Destrava o título \"Sempre no jogo\".",
+      "es": "Pronósticos hechos, jornadas seguidas, rachas certeras y competiciones diferentes. Desbloquea el título \"Siempre en juego\".",
+      "en": "Predictions made, rounds in a row, hot streaks and different competitions. Unlocks the \"Always in\" title."
+    },
+    "cards": [
+      "common.predictions.competitions.1",
+      "common.predictions.competitions.2",
+      "common.predictions.competitions.3",
+      "common.predictions.competitions.4",
+      "common.predictions.competitions.5",
+      "common.predictions.round_streak.1",
+      "common.predictions.round_streak.2",
+      "common.predictions.round_streak.3",
+      "common.predictions.round_streak.4",
+      "common.predictions.round_streak.5",
+      "common.predictions.streak.1",
+      "common.predictions.streak.2",
+      "common.predictions.streak.3",
+      "common.predictions.streak.4",
+      "common.predictions.streak.5",
+      "predictions.placed.1",
+      "predictions.placed.2",
+      "predictions.placed.3",
+      "predictions.placed.4",
+      "predictions.placed.5"
+    ],
+    "unlock": {
+      "title": "title.always_in"
+    }
+  },
+  {
+    "id": "common.predictions",
+    "sport": null,
+    "name": {
+      "pt": "Olho clínico",
+      "es": "Ojo clínico",
+      "en": "Sharp eye"
+    },
+    "description": {
+      "pt": "Os acertos: vencedor, quantidade, placar exato, acerto em cheio e qualquer tipo. Destrava a moldura \"Olho clínico\".",
+      "es": "Los aciertos: ganador, cantidad, marcador exacto, acierto total y de cualquier tipo. Desbloquea el marco \"Ojo clínico\".",
+      "en": "The right calls: winner, count, exact score, full hit and any kind. Unlocks the \"Sharp eye\" frame."
+    },
+    "cards": [
+      "common.predictions.full_hit.1",
+      "common.predictions.full_hit.2",
+      "common.predictions.full_hit.3",
+      "common.predictions.full_hit.4",
+      "common.predictions.full_hit.5",
+      "predictions.correct.1",
+      "predictions.correct.2",
+      "predictions.correct.3",
+      "predictions.correct.4",
+      "predictions.correct.5",
+      "predictions.exact_score.1",
+      "predictions.exact_score.2",
+      "predictions.exact_score.3",
+      "predictions.exact_score.4",
+      "predictions.exact_score.5",
+      "predictions.quantity.1",
+      "predictions.quantity.2",
+      "predictions.quantity.3",
+      "predictions.quantity.4",
+      "predictions.quantity.5",
+      "predictions.winner.1",
+      "predictions.winner.2",
+      "predictions.winner.3",
+      "predictions.winner.4",
+      "predictions.winner.5"
+    ],
+    "unlock": {
+      "frame": "frame.sharp_eye"
+    }
+  },
+  {
+    "id": "common.rhythm",
+    "sport": null,
+    "name": {
+      "pt": "Relógio do torcedor",
+      "es": "Reloj del hincha",
+      "en": "Fan clock"
+    },
+    "description": {
+      "pt": "Madrugadas, noites e fins de semana de jogo. Destrava o título \"A qualquer hora\".",
+      "es": "Madrugadas, noches y fines de semana de partido. Desbloquea el título \"A cualquier hora\".",
+      "en": "Small hours, late nights and weekends of games. Unlocks the \"Any hour\" title."
+    },
+    "cards": [
+      "common.rhythm.early_bird.1",
+      "common.rhythm.early_bird.2",
+      "common.rhythm.early_bird.3",
+      "common.rhythm.early_bird.4",
+      "common.rhythm.early_bird.5",
+      "common.rhythm.night_owl.1",
+      "common.rhythm.night_owl.2",
+      "common.rhythm.night_owl.3",
+      "common.rhythm.night_owl.4",
+      "common.rhythm.night_owl.5",
+      "common.rhythm.weekend.1",
+      "common.rhythm.weekend.2",
+      "common.rhythm.weekend.3",
+      "common.rhythm.weekend.4",
+      "common.rhythm.weekend.5"
+    ],
+    "unlock": {
+      "title": "title.all_hours"
+    }
+  },
+  {
+    "id": "football.artistry",
+    "sport": "football",
+    "name": {
+      "pt": "Obra de arte",
+      "es": "Obra de arte",
+      "en": "Work of Art"
+    },
+    "description": {
+      "pt": "Os lances que fazem o estádio levantar: hat-trick, bicicleta, gol do meio de campo e a noite perfeita de um jogador.",
+      "es": "Las jugadas que levantan al estadio: triplete, chilena, gol desde mitad de cancha y la noche perfecta de un jugador.",
+      "en": "The plays that lift the whole stadium: hat-trick, bicycle kick, halfway-line goal and a player’s perfect night."
+    },
+    "cards": [
+      "football.moments.bicycle_kick.1",
+      "football.moments.halfway_line_goal.1",
+      "football.moments.hat_trick.1",
+      "football.moments.player_rating.1"
+    ],
+    "unlock": {
+      "background": "background.football.artistry"
+    }
+  },
+  {
+    "id": "football.big_nights",
+    "sport": "football",
+    "name": {
+      "pt": "Noites grandes",
+      "es": "Noches grandes",
+      "en": "Big Nights"
+    },
+    "description": {
+      "pt": "Finais, mata-matas e goleadas: as noites em que o futebol decide alguma coisa.",
+      "es": "Finales, eliminación directa y goleadas: las noches en que el fútbol decide algo.",
+      "en": "Finals, knockouts and routs: the nights when football decides something."
+    },
+    "cards": [
+      "football.loyalty.finals_watched.1",
+      "football.loyalty.finals_watched.2",
+      "football.loyalty.finals_watched.3",
+      "football.loyalty.finals_watched.4",
+      "football.loyalty.finals_watched.5",
+      "football.predictions.final_winner.1",
+      "football.predictions.final_winner.2",
+      "football.predictions.final_winner.3",
+      "football.predictions.final_winner.4",
+      "football.predictions.final_winner.5",
+      "football.predictions.knockout_winner.1",
+      "football.predictions.knockout_winner.2",
+      "football.predictions.knockout_winner.3",
+      "football.predictions.knockout_winner.4",
+      "football.predictions.knockout_winner.5",
+      "football.results.big_win.1",
+      "football.results.final_win.1"
+    ],
+    "unlock": {
+      "background": "background.football.big_nights"
+    }
+  },
+  {
+    "id": "football.comebacks",
+    "sport": "football",
+    "name": {
+      "pt": "Viradas",
+      "es": "Remontadas",
+      "en": "Comebacks"
+    },
+    "description": {
+      "pt": "Dois gols atrás, três gols atrás, decisão nos pênaltis: quem não desiste merece uma Carta.",
+      "es": "Dos goles abajo, tres goles abajo, definición por penales: quien no se rinde merece una Carta.",
+      "en": "Two down, three down, settled on penalties: those who never give up earn a Card."
+    },
+    "cards": [
+      "football.moments.comeback_three.1",
+      "football.moments.comeback_two.1",
+      "football.results.penalties_win.1"
+    ],
+    "unlock": {
+      "title": "title.never_give_up"
+    }
+  },
+  {
+    "id": "football.derby_days",
+    "sport": "football",
+    "name": {
+      "pt": "Dias de clássico",
+      "es": "Días de clásico",
+      "en": "Derby Days"
+    },
+    "description": {
+      "pt": "Tudo que acontece quando os rivais se encontram: assistir, acertar o placar e ver seu time vencer.",
+      "es": "Todo lo que pasa cuando los rivales se cruzan: mirar, acertar el marcador y ver ganar a tu equipo.",
+      "en": "Everything that happens when rivals meet: watching, calling the score and seeing your team win."
+    },
+    "cards": [
+      "football.loyalty.derby_watched.1",
+      "football.loyalty.derby_watched.2",
+      "football.loyalty.derby_watched.3",
+      "football.loyalty.derby_watched.4",
+      "football.loyalty.derby_watched.5",
+      "football.predictions.derby_exact.1",
+      "football.predictions.derby_exact.2",
+      "football.predictions.derby_exact.3",
+      "football.predictions.derby_exact.4",
+      "football.predictions.derby_exact.5",
+      "football.results.derby_win.1",
+      "football.results.derby_win.2",
+      "football.results.derby_win.3",
+      "football.results.derby_win.4",
+      "football.results.derby_win.5"
+    ],
+    "unlock": {
+      "frame": "frame.derby"
+    }
+  },
+  {
+    "id": "football.faithful",
+    "sport": "football",
+    "name": {
+      "pt": "Fiel",
+      "es": "Fiel",
+      "en": "Faithful"
+    },
+    "description": {
+      "pt": "Jogo após jogo do seu time, sem faltar: a Coleção de quem está sempre lá.",
+      "es": "Partido tras partido de tu equipo, sin faltar: la Colección de quien siempre está.",
+      "en": "Match after match of your team, never absent: the Collection of those who are always there."
+    },
+    "cards": [
+      "football.loyalty.favorite_games.1",
+      "football.loyalty.favorite_games.2",
+      "football.loyalty.favorite_games.3",
+      "football.loyalty.favorite_games.4",
+      "football.loyalty.favorite_games.5",
+      "football.loyalty.favorite_streak.1",
+      "football.loyalty.favorite_streak.2",
+      "football.loyalty.favorite_streak.3",
+      "football.loyalty.favorite_streak.4",
+      "football.loyalty.favorite_streak.5"
+    ],
+    "unlock": {
+      "title": "title.faithful"
+    }
+  },
+  {
+    "id": "football.fortress",
+    "sport": "football",
+    "name": {
+      "pt": "Fortaleza",
+      "es": "Fortaleza",
+      "en": "Fortress"
+    },
+    "description": {
+      "pt": "Vitórias sem sofrer gol e a muralha do goleiro: a defesa também faz história.",
+      "es": "Victorias con el arco en cero y la muralla del arquero: la defensa también hace historia.",
+      "en": "Wins without conceding and the keeper’s wall: defense makes history too."
+    },
+    "cards": [
+      "football.moments.keeper_wall.1",
+      "football.results.clean_sheet.1",
+      "football.results.clean_sheet.2",
+      "football.results.clean_sheet.3",
+      "football.results.clean_sheet.4",
+      "football.results.clean_sheet.5"
+    ],
+    "unlock": {
+      "background": "background.football.fortress"
+    }
+  },
+  {
+    "id": "football.last_minute",
+    "sport": "football",
+    "name": {
+      "pt": "Último minuto",
+      "es": "Último minuto",
+      "en": "Last Minute"
+    },
+    "description": {
+      "pt": "Gols nos acréscimos e vitórias no apagar das luzes: para quem nunca sai antes do apito.",
+      "es": "Goles en el descuento y triunfos sobre la hora: para quien nunca se va antes del silbato.",
+      "en": "Stoppage-time goals and last-gasp winners: for those who never leave before the whistle."
+    },
+    "cards": [
+      "football.moments.late_winner.1",
+      "football.moments.stoppage_time_goal.1",
+      "football.moments.stoppage_time_goal.2",
+      "football.moments.stoppage_time_goal.3",
+      "football.moments.stoppage_time_goal.4",
+      "football.moments.stoppage_time_goal.5"
+    ],
+    "unlock": {
+      "background": "background.football.last_minute"
+    }
+  },
+  {
+    "id": "football.sharp_eye",
+    "sport": "football",
+    "name": {
+      "pt": "Olho afiado",
+      "es": "Ojo afilado",
+      "en": "Sharp Eye"
+    },
+    "description": {
+      "pt": "Sequências de acertos e o placar mais difícil de prever: a Coleção de quem lê o jogo.",
+      "es": "Rachas de aciertos y el marcador más difícil de prever: la Colección de quien lee el juego.",
+      "en": "Hit streaks and the hardest score to call: the Collection of those who read the game."
+    },
+    "cards": [
+      "football.predictions.hit_streak.1",
+      "football.predictions.hit_streak.2",
+      "football.predictions.hit_streak.3",
+      "football.predictions.hit_streak.4",
+      "football.predictions.hit_streak.5",
+      "football.predictions.scoreless_exact.1",
+      "football.predictions.scoreless_exact.2",
+      "football.predictions.scoreless_exact.3",
+      "football.predictions.scoreless_exact.4",
+      "football.predictions.scoreless_exact.5"
+    ],
+    "unlock": {
+      "title": "title.sharp_eye"
+    }
+  },
+  {
+    "id": "football.whistle",
+    "sport": "football",
+    "name": {
+      "pt": "Apito e vídeo",
+      "es": "Silbato y video",
+      "en": "Whistle and Review"
+    },
+    "description": {
+      "pt": "Gol anulado, pênalti perdido, expulsão do adversário: os momentos em que o jogo vira no apito.",
+      "es": "Gol anulado, penal fallado, expulsión del rival: los momentos en que el partido cambia con el silbato.",
+      "en": "Goal disallowed, penalty missed, opponent sent off: the moments when the match turns on a whistle."
+    },
+    "cards": [
+      "football.moments.penalty_missed.1",
+      "football.moments.red_card_opponent.1",
+      "football.moments.var_goal_disallowed.1"
+    ],
+    "unlock": {
+      "frame": "frame.whistle"
+    }
+  },
+  {
+    "id": "football.world_tour",
+    "sport": "football",
+    "name": {
+      "pt": "Volta ao mundo",
+      "es": "Vuelta al mundo",
+      "en": "World Tour"
+    },
+    "description": {
+      "pt": "Competições, países e meses diferentes: o futebol inteiro, o ano inteiro.",
+      "es": "Torneos, países y meses distintos: todo el fútbol, todo el año.",
+      "en": "Different competitions, countries and months: all of football, all year long."
+    },
+    "cards": [
+      "football.explorer.competitions.1",
+      "football.explorer.competitions.2",
+      "football.explorer.competitions.3",
+      "football.explorer.competitions.4",
+      "football.explorer.competitions.5",
+      "football.explorer.countries.1",
+      "football.explorer.countries.2",
+      "football.explorer.countries.3",
+      "football.explorer.countries.4",
+      "football.explorer.countries.5",
+      "football.explorer.months.1",
+      "football.explorer.months.2",
+      "football.explorer.months.3",
+      "football.explorer.months.4",
+      "football.explorer.months.5"
+    ],
+    "unlock": {
+      "background": "background.football.world_tour"
+    }
+  },
+  {
+    "id": "formula_1.charge",
+    "sport": "formula-1",
+    "name": {
+      "pt": "Remontada",
+      "es": "Remontada",
+      "en": "The Charge"
+    },
+    "description": {
+      "pt": "Vitórias e pódios de quem largou lá atrás e ganhou dez posições: a arte de furar o pelotão.",
+      "es": "Victorias y podios de quien largó atrás y ganó diez posiciones: el arte de atravesar el pelotón.",
+      "en": "Wins and podiums from the back of the grid and ten-place climbs: the art of cutting through the pack."
+    },
+    "cards": [
+      "formula_1.moments.big_climb.1",
+      "formula_1.moments.big_climb.2",
+      "formula_1.moments.big_climb.3",
+      "formula_1.moments.big_climb.4",
+      "formula_1.moments.big_climb.5",
+      "formula_1.moments.podium_charge.1",
+      "formula_1.moments.podium_climb.1",
+      "formula_1.moments.podium_climb.2",
+      "formula_1.moments.podium_climb.3",
+      "formula_1.moments.podium_climb.4",
+      "formula_1.moments.podium_climb.5",
+      "formula_1.moments.winner_from_back.1",
+      "formula_1.moments.winner_from_deep.1"
+    ],
+    "unlock": {
+      "title": "title.charger"
+    }
+  },
+  {
+    "id": "formula_1.grid_to_glory",
+    "sport": "formula-1",
+    "name": {
+      "pt": "Da pole à bandeirada",
+      "es": "De la pole a la bandera",
+      "en": "Grid to Glory"
+    },
+    "description": {
+      "pt": "O que a largada já conta sobre a chegada: vitórias da pole, da segunda fila e o fim de semana perfeito.",
+      "es": "Lo que la largada ya cuenta sobre la llegada: victorias desde la pole, desde la segunda fila y el fin de semana perfecto.",
+      "en": "What the start already says about the finish: wins from pole, from the second row, and the perfect weekend."
+    },
+    "cards": [
+      "formula_1.moments.off_front_row.1",
+      "formula_1.moments.off_front_row.2",
+      "formula_1.moments.off_front_row.3",
+      "formula_1.moments.off_front_row.4",
+      "formula_1.moments.off_front_row.5",
+      "formula_1.moments.perfect_weekend.1",
+      "formula_1.moments.pole_to_win.1",
+      "formula_1.moments.pole_to_win.2",
+      "formula_1.moments.pole_to_win.3",
+      "formula_1.moments.pole_to_win.4",
+      "formula_1.moments.pole_to_win.5",
+      "formula_1.moments.winner_from_sixth.1"
+    ],
+    "unlock": {
+      "background": "background.formula_1.grid_to_glory"
+    }
+  },
+  {
+    "id": "formula_1.night_shift",
+    "sport": "formula-1",
+    "name": {
+      "pt": "Turno da madrugada",
+      "es": "Turno de madrugada",
+      "en": "Night Shift"
+    },
+    "description": {
+      "pt": "Corridas de madrugada e de manhã cedo: a Coleção de quem ajusta o despertador pelo calendário.",
+      "es": "Carreras de madrugada y de mañana temprano: la Colección de quien ajusta el despertador por el calendario.",
+      "en": "Small-hours and early-morning races: the Collection of those who set the alarm by the calendar."
+    },
+    "cards": [
+      "formula_1.rhythm.early_bird.1",
+      "formula_1.rhythm.early_bird.2",
+      "formula_1.rhythm.early_bird.3",
+      "formula_1.rhythm.early_bird.4",
+      "formula_1.rhythm.early_bird.5",
+      "formula_1.rhythm.night_owl.1",
+      "formula_1.rhythm.night_owl.2",
+      "formula_1.rhythm.night_owl.3",
+      "formula_1.rhythm.night_owl.4",
+      "formula_1.rhythm.night_owl.5"
+    ],
+    "unlock": {
+      "title": "title.night_shift"
+    }
+  },
+  {
+    "id": "formula_1.paddock",
+    "sport": "formula-1",
+    "name": {
+      "pt": "Passe do paddock",
+      "es": "Pase del paddock",
+      "en": "Paddock Pass"
+    },
+    "description": {
+      "pt": "Toda corrida da temporada, o seu piloto no pódio e a primeira vitória de alguém: a Coleção de quem vive o campeonato.",
+      "es": "Cada carrera de la temporada, tu piloto en el podio y la primera victoria de alguien: la Colección de quien vive el campeonato.",
+      "en": "Every race of the season, your driver on the podium and somebody’s first win: the Collection of those who live the championship."
+    },
+    "cards": [
+      "formula_1.loyalty.races_watched.1",
+      "formula_1.loyalty.races_watched.2",
+      "formula_1.loyalty.races_watched.3",
+      "formula_1.loyalty.races_watched.4",
+      "formula_1.loyalty.races_watched.5",
+      "formula_1.moments.favorite_driver_podium.1",
+      "formula_1.moments.favorite_driver_podium.2",
+      "formula_1.moments.favorite_driver_podium.3",
+      "formula_1.moments.favorite_driver_podium.4",
+      "formula_1.moments.favorite_driver_podium.5",
+      "formula_1.moments.maiden_win.1"
+    ],
+    "unlock": {
+      "frame": "frame.paddock"
+    }
+  },
+  {
+    "id": "formula_1.pit_wall",
+    "sport": "formula-1",
+    "name": {
+      "pt": "Muro dos boxes",
+      "es": "Muro de boxes",
+      "en": "Pit Wall"
+    },
+    "description": {
+      "pt": "Uma parada só, dezoito carros na bandeirada, três equipes no pódio e o carro de segurança: a corrida vista da estratégia.",
+      "es": "Una sola parada, dieciocho autos en la bandera, tres escuderías en el podio y el auto de seguridad: la carrera vista desde la estrategia.",
+      "en": "One stop, eighteen cars at the flag, three teams on the podium and the safety car: the race as the strategists see it."
+    },
+    "cards": [
+      "formula_1.moments.full_field.1",
+      "formula_1.moments.full_field.2",
+      "formula_1.moments.full_field.3",
+      "formula_1.moments.full_field.4",
+      "formula_1.moments.full_field.5",
+      "formula_1.moments.mixed_podium.1",
+      "formula_1.moments.one_stop_win.1",
+      "formula_1.moments.one_stop_win.2",
+      "formula_1.moments.one_stop_win.3",
+      "formula_1.moments.one_stop_win.4",
+      "formula_1.moments.one_stop_win.5",
+      "formula_1.moments.safety_car.1",
+      "formula_1.moments.safety_car.2",
+      "formula_1.moments.safety_car.3",
+      "formula_1.moments.safety_car.4",
+      "formula_1.moments.safety_car.5"
+    ],
+    "unlock": {
+      "background": "background.formula_1.pit_wall"
+    }
+  },
+  {
+    "id": "formula_1.race_reader",
+    "sport": "formula-1",
+    "name": {
+      "pt": "Leitura de corrida",
+      "es": "Lectura de carrera",
+      "en": "Race Reader"
+    },
+    "description": {
+      "pt": "Vencedor na mosca, sequências de acertos e um Palpite em toda corrida: a Coleção de quem lê a pista.",
+      "es": "Ganador exacto, rachas de aciertos y un pronóstico en cada carrera: la Colección de quien lee la pista.",
+      "en": "Winners called, hit streaks and a prediction every race: the Collection of those who read the track."
+    },
+    "cards": [
+      "formula_1.predictions.every_race.1",
+      "formula_1.predictions.every_race.2",
+      "formula_1.predictions.every_race.3",
+      "formula_1.predictions.every_race.4",
+      "formula_1.predictions.every_race.5",
+      "formula_1.predictions.hit_streak.1",
+      "formula_1.predictions.hit_streak.2",
+      "formula_1.predictions.hit_streak.3",
+      "formula_1.predictions.hit_streak.4",
+      "formula_1.predictions.hit_streak.5",
+      "formula_1.predictions.winner_hits.1",
+      "formula_1.predictions.winner_hits.2",
+      "formula_1.predictions.winner_hits.3",
+      "formula_1.predictions.winner_hits.4",
+      "formula_1.predictions.winner_hits.5"
+    ],
+    "unlock": {
+      "title": "title.race_reader"
+    }
+  },
+  {
+    "id": "formula_1.world_tour",
+    "sport": "formula-1",
+    "name": {
+      "pt": "Volta ao mundo",
+      "es": "Vuelta al mundo",
+      "en": "World Tour"
+    },
+    "description": {
+      "pt": "Países e meses diferentes: o campeonato inteiro, de março a dezembro.",
+      "es": "Países y meses distintos: el campeonato entero, de marzo a diciembre.",
+      "en": "Different countries and months: the whole championship, March to December."
+    },
+    "cards": [
+      "formula_1.explorer.countries.1",
+      "formula_1.explorer.countries.2",
+      "formula_1.explorer.countries.3",
+      "formula_1.explorer.countries.4",
+      "formula_1.explorer.countries.5",
+      "formula_1.explorer.months.1",
+      "formula_1.explorer.months.2",
+      "formula_1.explorer.months.3",
+      "formula_1.explorer.months.4",
+      "formula_1.explorer.months.5"
+    ],
+    "unlock": {
+      "background": "background.formula_1.world_tour"
+    }
+  },
+  {
+    "id": "handball.big_stage",
+    "sport": "handball",
+    "name": {
+      "pt": "Palco grande",
+      "es": "Gran escenario",
+      "en": "Big Stage"
+    },
+    "description": {
+      "pt": "Finais e mata-matas: assistir, acertar quem passa e ver seu time vencer quando não há volta.",
+      "es": "Finales y eliminatorias: mirar, acertar quién avanza y ver ganar a tu equipo cuando no hay vuelta.",
+      "en": "Finals and knockouts: watching, calling who goes through and seeing your team win when there is no way back."
+    },
+    "cards": [
+      "handball.loyalty.knockout_watched.1",
+      "handball.loyalty.knockout_watched.2",
+      "handball.loyalty.knockout_watched.3",
+      "handball.loyalty.knockout_watched.4",
+      "handball.loyalty.knockout_watched.5",
+      "handball.predictions.final_winner.1",
+      "handball.predictions.final_winner.2",
+      "handball.predictions.final_winner.3",
+      "handball.predictions.final_winner.4",
+      "handball.predictions.final_winner.5",
+      "handball.predictions.knockout_winner.1",
+      "handball.predictions.knockout_winner.2",
+      "handball.predictions.knockout_winner.3",
+      "handball.predictions.knockout_winner.4",
+      "handball.predictions.knockout_winner.5",
+      "handball.results.final_win.1",
+      "handball.results.knockout_win.1",
+      "handball.results.knockout_win.2",
+      "handball.results.knockout_win.3",
+      "handball.results.knockout_win.4",
+      "handball.results.knockout_win.5"
+    ],
+    "unlock": {
+      "background": "background.handball.big_stage"
+    }
+  },
+  {
+    "id": "handball.comebacks",
+    "sport": "handball",
+    "name": {
+      "pt": "Viradas",
+      "es": "Remontadas",
+      "en": "Comebacks"
+    },
+    "description": {
+      "pt": "Perdia no intervalo e venceu: de um gol ou de cinco, a virada é o jogo que o torcedor conta para sempre.",
+      "es": "Perdía al descanso y ganó: de un gol o de cinco, la remontada es el partido que la hinchada cuenta para siempre.",
+      "en": "Behind at the break and won: by one goal or by five, the comeback is the match fans retell forever."
+    },
+    "cards": [
+      "handball.moments.comeback_five.1",
+      "handball.moments.second_half_turnaround.1",
+      "handball.moments.second_half_turnaround.2",
+      "handball.moments.second_half_turnaround.3",
+      "handball.moments.second_half_turnaround.4",
+      "handball.moments.second_half_turnaround.5"
+    ],
+    "unlock": {
+      "title": "title.second_half"
+    }
+  },
+  {
+    "id": "handball.faithful",
+    "sport": "handball",
+    "name": {
+      "pt": "Fiel",
+      "es": "Fiel",
+      "en": "Faithful"
+    },
+    "description": {
+      "pt": "Jogo após jogo do seu time, em casa, fora e no torneio da seleção: a Coleção de quem está sempre lá.",
+      "es": "Partido tras partido de tu equipo, de local, de visitante y en el torneo de la selección: la Colección de quien siempre está.",
+      "en": "Match after match of your team, home, away and at the national-team tournament: the Collection of those who are always there."
+    },
+    "cards": [
+      "handball.loyalty.favorite_games.1",
+      "handball.loyalty.favorite_games.2",
+      "handball.loyalty.favorite_games.3",
+      "handball.loyalty.favorite_games.4",
+      "handball.loyalty.favorite_games.5",
+      "handball.loyalty.favorite_streak.1",
+      "handball.loyalty.favorite_streak.2",
+      "handball.loyalty.favorite_streak.3",
+      "handball.loyalty.favorite_streak.4",
+      "handball.loyalty.favorite_streak.5",
+      "handball.loyalty.tournament_games.1",
+      "handball.loyalty.tournament_games.2",
+      "handball.loyalty.tournament_games.3",
+      "handball.loyalty.tournament_games.4",
+      "handball.loyalty.tournament_games.5",
+      "handball.results.away_win.1",
+      "handball.results.away_win.2",
+      "handball.results.away_win.3",
+      "handball.results.away_win.4",
+      "handball.results.away_win.5"
+    ],
+    "unlock": {
+      "title": "title.sixty_minutes"
+    }
+  },
+  {
+    "id": "handball.fortress",
+    "sport": "handball",
+    "name": {
+      "pt": "Fortaleza",
+      "es": "Fortaleza",
+      "en": "Fortress"
+    },
+    "description": {
+      "pt": "Dois tempos vencidos, o goleiro gigante e os sete metros defendidos: a defesa também faz história.",
+      "es": "Dos tiempos ganados, el arquero gigante y los siete metros atajados: la defensa también hace historia.",
+      "en": "Both halves won, the giant keeper and the seven-metre saves: defense makes history too."
+    },
+    "cards": [
+      "handball.moments.keeper_wall.1",
+      "handball.moments.period_sweep.1",
+      "handball.moments.period_sweep.2",
+      "handball.moments.period_sweep.3",
+      "handball.moments.period_sweep.4",
+      "handball.moments.period_sweep.5",
+      "handball.moments.seven_metre_saved.1"
+    ],
+    "unlock": {
+      "frame": "frame.seven_metres"
+    }
+  },
+  {
+    "id": "handball.goal_fest",
+    "sport": "handball",
+    "name": {
+      "pt": "Festa de gols",
+      "es": "Fiesta de goles",
+      "en": "Goal Fest"
+    },
+    "description": {
+      "pt": "Setenta gols, vinte num tempo só, goleada de dez e o braço que marca dez: o handebol em velocidade máxima.",
+      "es": "Setenta goles, veinte en un solo tiempo, goleada de diez y el brazo que marca diez: el balonmano a máxima velocidad.",
+      "en": "Seventy goals, twenty in one half, a ten-goal rout and the arm that scores ten: handball at full speed."
+    },
+    "cards": [
+      "handball.moments.big_win.1",
+      "handball.moments.high_scoring.1",
+      "handball.moments.player_ten_goals.1",
+      "handball.moments.second_half_twenty.1"
+    ],
+    "unlock": {
+      "background": "background.handball.goal_fest"
+    }
+  },
+  {
+    "id": "handball.one_goal",
+    "sport": "handball",
+    "name": {
+      "pt": "Um gol de diferença",
+      "es": "Un gol de diferencia",
+      "en": "One Goal Apart"
+    },
+    "description": {
+      "pt": "Empate, vitória por um gol, prorrogação, sete metros e o gol no último segundo: os jogos que acabam no fio.",
+      "es": "Empate, victoria por un gol, tiempo extra, siete metros y el gol en el último segundo: los partidos que se definen al filo.",
+      "en": "Draws, one-goal wins, overtime, shootouts and the last-second goal: the matches decided on a knife edge."
+    },
+    "cards": [
+      "handball.moments.buzzer_beater.1",
+      "handball.moments.draw.1",
+      "handball.moments.one_goal_win.1",
+      "handball.moments.overtime_win.1",
+      "handball.moments.shootout_win.1"
+    ],
+    "unlock": {
+      "background": "background.handball.one_goal"
+    }
+  },
+  {
+    "id": "handball.sharp_eye",
+    "sport": "handball",
+    "name": {
+      "pt": "Olho afiado",
+      "es": "Ojo afilado",
+      "en": "Sharp Eye"
+    },
+    "description": {
+      "pt": "Sequências de acertos e a conta de gols: a Coleção de quem lê o jogo antes do primeiro arremesso.",
+      "es": "Rachas de aciertos y la cuenta de goles: la Colección de quien lee el partido antes del primer lanzamiento.",
+      "en": "Hit streaks and the goal count: the Collection of those who read the match before the first throw."
+    },
+    "cards": [
+      "handball.predictions.hit_streak.1",
+      "handball.predictions.hit_streak.2",
+      "handball.predictions.hit_streak.3",
+      "handball.predictions.hit_streak.4",
+      "handball.predictions.hit_streak.5",
+      "handball.predictions.quantity.1",
+      "handball.predictions.quantity.2",
+      "handball.predictions.quantity.3",
+      "handball.predictions.quantity.4",
+      "handball.predictions.quantity.5"
+    ],
+    "unlock": {
+      "title": "title.court_reader"
+    }
+  },
+  {
+    "id": "handball.world_tour",
+    "sport": "handball",
+    "name": {
+      "pt": "Volta ao mundo",
+      "es": "Vuelta al mundo",
+      "en": "World Tour"
+    },
+    "description": {
+      "pt": "Competições e meses diferentes: o handebol inteiro, o ano inteiro.",
+      "es": "Torneos y meses distintos: todo el balonmano, todo el año.",
+      "en": "Different competitions and months: all of handball, all year long."
+    },
+    "cards": [
+      "handball.explorer.competitions.1",
+      "handball.explorer.competitions.2",
+      "handball.explorer.competitions.3",
+      "handball.explorer.competitions.4",
+      "handball.explorer.competitions.5",
+      "handball.explorer.months.1",
+      "handball.explorer.months.2",
+      "handball.explorer.months.3",
+      "handball.explorer.months.4",
+      "handball.explorer.months.5"
+    ],
+    "unlock": {
+      "background": "background.handball.world_tour"
+    }
+  },
+  {
+    "id": "hockey.comebacks",
+    "sport": "hockey",
+    "name": {
+      "pt": "Viradas no gelo",
+      "es": "Remontadas en el hielo",
+      "en": "Comebacks on Ice"
+    },
+    "description": {
+      "pt": "Dois gols atrás, três gols atrás, virada no terceiro, empate com o goleiro fora: quem não desiste merece uma Carta.",
+      "es": "Dos goles abajo, tres goles abajo, remontada en el tercero, empate con el arquero afuera: quien no se rinde merece una Carta.",
+      "en": "Two down, three down, a third-period rally, a goalie-pulled equalizer: those who never give up earn a Card."
+    },
+    "cards": [
+      "hockey.moments.comeback_three.1",
+      "hockey.moments.comeback_two.1",
+      "hockey.moments.extra_attacker_tie.1",
+      "hockey.moments.third_period_comeback.1",
+      "hockey.moments.third_period_comeback.2",
+      "hockey.moments.third_period_comeback.3",
+      "hockey.moments.third_period_comeback.4",
+      "hockey.moments.third_period_comeback.5"
+    ],
+    "unlock": {
+      "title": "title.third_period"
+    }
+  },
+  {
+    "id": "hockey.extra_time",
+    "sport": "hockey",
+    "name": {
+      "pt": "Tempo extra",
+      "es": "Tiempo extra",
+      "en": "Extra Time"
+    },
+    "description": {
+      "pt": "Prorrogação e shootout: as vitórias que chegam depois do relógio zerar.",
+      "es": "Tiempo extra y tanda de penales: las victorias que llegan después de que el reloj se pone en cero.",
+      "en": "Overtime and shootouts: the wins that come after the clock hits zero."
+    },
+    "cards": [
+      "hockey.moments.overtime_win.1",
+      "hockey.moments.overtime_win.2",
+      "hockey.moments.overtime_win.3",
+      "hockey.moments.overtime_win.4",
+      "hockey.moments.overtime_win.5",
+      "hockey.moments.shootout_win.1"
+    ],
+    "unlock": {
+      "background": "background.hockey.extra_time"
+    }
+  },
+  {
+    "id": "hockey.faithful",
+    "sport": "hockey",
+    "name": {
+      "pt": "Fiel no gelo",
+      "es": "Fiel en el hielo",
+      "en": "Faithful on Ice"
+    },
+    "description": {
+      "pt": "Jogo após jogo do seu time, sem faltar: a Coleção de quem está sempre lá, mesmo de madrugada.",
+      "es": "Partido tras partido de tu equipo, sin faltar: la Colección de quien siempre está, incluso de madrugada.",
+      "en": "Game after game of your team, never absent: the Collection of those who are always there, even late at night."
+    },
+    "cards": [
+      "hockey.loyalty.favorite_games.1",
+      "hockey.loyalty.favorite_games.2",
+      "hockey.loyalty.favorite_games.3",
+      "hockey.loyalty.favorite_games.4",
+      "hockey.loyalty.favorite_games.5",
+      "hockey.loyalty.favorite_streak.1",
+      "hockey.loyalty.favorite_streak.2",
+      "hockey.loyalty.favorite_streak.3",
+      "hockey.loyalty.favorite_streak.4",
+      "hockey.loyalty.favorite_streak.5"
+    ],
+    "unlock": {
+      "title": "title.ice_faithful"
+    }
+  },
+  {
+    "id": "hockey.firepower",
+    "sport": "hockey",
+    "name": {
+      "pt": "Poder de fogo",
+      "es": "Poder de fuego",
+      "en": "Firepower"
+    },
+    "description": {
+      "pt": "Períodos de quatro gols, goleadas, jogos de dez gols e os lances de ataque que o gelo guarda.",
+      "es": "Períodos de cuatro goles, goleadas, partidos de diez goles y las jugadas de ataque que el hielo guarda.",
+      "en": "Four-goal periods, routs, ten-goal games and the attacking plays the ice remembers."
+    },
+    "cards": [
+      "hockey.moments.big_period.1",
+      "hockey.moments.hat_trick.1",
+      "hockey.moments.penalty_shot_goal.1",
+      "hockey.moments.shorthanded_goal.1",
+      "hockey.results.blowout_win.1",
+      "hockey.results.high_scoring.1",
+      "hockey.results.high_scoring.2",
+      "hockey.results.high_scoring.3",
+      "hockey.results.high_scoring.4",
+      "hockey.results.high_scoring.5"
+    ],
+    "unlock": {
+      "background": "background.hockey.firepower"
+    }
+  },
+  {
+    "id": "hockey.fortress",
+    "sport": "hockey",
+    "name": {
+      "pt": "Muralha de gelo",
+      "es": "Muralla de hielo",
+      "en": "Wall of Ice"
+    },
+    "description": {
+      "pt": "Rede intacta, três períodos vencidos e a noite de quarenta defesas: a defesa também faz história.",
+      "es": "Red intacta, tres períodos ganados y la noche de cuarenta atajadas: la defensa también hace historia.",
+      "en": "Shutouts, three periods won and the forty-save night: defense makes history too."
+    },
+    "cards": [
+      "hockey.results.goalie_40_saves.1",
+      "hockey.results.period_sweep.1",
+      "hockey.results.shutout_win.1"
+    ],
+    "unlock": {
+      "background": "background.hockey.fortress"
+    }
+  },
+  {
+    "id": "hockey.playoff_run",
+    "sport": "hockey",
+    "name": {
+      "pt": "Rumo ao título",
+      "es": "Camino al título",
+      "en": "Road to the Title"
+    },
+    "description": {
+      "pt": "Assistir, acertar e vencer no mata-mata, até a prorrogação de playoff e a final: a Coleção da primavera no gelo.",
+      "es": "Mirar, acertar y ganar en la eliminación directa, hasta el tiempo extra de playoff y la final: la Colección de la primavera en el hielo.",
+      "en": "Watching, calling and winning in the knockouts, down to playoff overtime and the final: the Collection of spring on ice."
+    },
+    "cards": [
+      "hockey.loyalty.knockout_watched.1",
+      "hockey.loyalty.knockout_watched.2",
+      "hockey.loyalty.knockout_watched.3",
+      "hockey.loyalty.knockout_watched.4",
+      "hockey.loyalty.knockout_watched.5",
+      "hockey.moments.knockout_overtime_win.1",
+      "hockey.predictions.knockout_winner.1",
+      "hockey.predictions.knockout_winner.2",
+      "hockey.predictions.knockout_winner.3",
+      "hockey.predictions.knockout_winner.4",
+      "hockey.predictions.knockout_winner.5",
+      "hockey.results.final_win.1",
+      "hockey.results.knockout_win.1",
+      "hockey.results.knockout_win.2",
+      "hockey.results.knockout_win.3",
+      "hockey.results.knockout_win.4",
+      "hockey.results.knockout_win.5"
+    ],
+    "unlock": {
+      "background": "background.hockey.playoff_run"
+    }
+  },
+  {
+    "id": "hockey.sharp_eye",
+    "sport": "hockey",
+    "name": {
+      "pt": "Olho de lince",
+      "es": "Ojo de lince",
+      "en": "Lynx Eye"
+    },
+    "description": {
+      "pt": "Placares exatos e sequências de acertos no esporte mais imprevisível: a Coleção de quem lê o gelo.",
+      "es": "Marcadores exactos y rachas de aciertos en el deporte más impredecible: la Colección de quien lee el hielo.",
+      "en": "Exact scores and hit streaks in the least predictable sport: the Collection of those who read the ice."
+    },
+    "cards": [
+      "hockey.predictions.exact_score.1",
+      "hockey.predictions.exact_score.2",
+      "hockey.predictions.exact_score.3",
+      "hockey.predictions.exact_score.4",
+      "hockey.predictions.exact_score.5",
+      "hockey.predictions.hit_streak.1",
+      "hockey.predictions.hit_streak.2",
+      "hockey.predictions.hit_streak.3",
+      "hockey.predictions.hit_streak.4",
+      "hockey.predictions.hit_streak.5"
+    ],
+    "unlock": {
+      "title": "title.ice_reader"
+    }
+  },
+  {
+    "id": "hockey.world_tour",
+    "sport": "hockey",
+    "name": {
+      "pt": "Volta ao gelo",
+      "es": "Vuelta al hielo",
+      "en": "Tour of the Ice"
+    },
+    "description": {
+      "pt": "Competições, países e meses diferentes: o hóquei inteiro, de setembro a junho.",
+      "es": "Torneos, países y meses distintos: todo el hockey, de septiembre a junio.",
+      "en": "Different competitions, countries and months: all of hockey, September to June."
+    },
+    "cards": [
+      "hockey.explorer.competitions.1",
+      "hockey.explorer.competitions.2",
+      "hockey.explorer.competitions.3",
+      "hockey.explorer.competitions.4",
+      "hockey.explorer.competitions.5",
+      "hockey.explorer.countries.1",
+      "hockey.explorer.countries.2",
+      "hockey.explorer.countries.3",
+      "hockey.explorer.countries.4",
+      "hockey.explorer.countries.5",
+      "hockey.explorer.months.1",
+      "hockey.explorer.months.2",
+      "hockey.explorer.months.3",
+      "hockey.explorer.months.4",
+      "hockey.explorer.months.5"
+    ],
+    "unlock": {
+      "background": "background.hockey.world_tour"
+    }
+  },
+  {
+    "id": "mma.cageside",
+    "sport": "mma",
+    "name": {
+      "pt": "Grade da gaiola",
+      "es": "Reja de la jaula",
+      "en": "Cageside"
+    },
+    "description": {
+      "pt": "Lutas assistidas até o último sino, sábados de luta, noites de cinturão e a vitória do seu lutador: a Coleção de quem está sempre lá.",
+      "es": "Peleas vistas hasta la última campana, sábados de pelea, noches de cinturón y la victoria de tu peleador: la Colección de quien siempre está.",
+      "en": "Fights watched to the final bell, fight Saturdays, title nights and your fighter’s win: the Collection of those who are always there."
+    },
+    "cards": [
+      "mma.loyalty.fights_watched.1",
+      "mma.loyalty.fights_watched.2",
+      "mma.loyalty.fights_watched.3",
+      "mma.loyalty.fights_watched.4",
+      "mma.loyalty.fights_watched.5",
+      "mma.loyalty.saturday_nights.1",
+      "mma.loyalty.saturday_nights.2",
+      "mma.loyalty.saturday_nights.3",
+      "mma.loyalty.saturday_nights.4",
+      "mma.loyalty.saturday_nights.5",
+      "mma.loyalty.title_fights.1",
+      "mma.loyalty.title_fights.2",
+      "mma.loyalty.title_fights.3",
+      "mma.loyalty.title_fights.4",
+      "mma.loyalty.title_fights.5",
+      "mma.moments.decision.1",
+      "mma.moments.decision.2",
+      "mma.moments.decision.3",
+      "mma.moments.decision.4",
+      "mma.moments.decision.5",
+      "mma.moments.favorite_fighter_win.1"
+    ],
+    "unlock": {
+      "frame": "frame.cageside"
+    }
+  },
+  {
+    "id": "mma.finishers",
+    "sport": "mma",
+    "name": {
+      "pt": "Finalizadores",
+      "es": "Finalizadores",
+      "en": "Finishers"
+    },
+    "description": {
+      "pt": "Nocautes, finalizações e os fins que chegam no último round: as noites em que os jurados não precisaram pontuar.",
+      "es": "Nocauts, sumisiones y los finales que llegan en el último asalto: las noches en que los jueces no tuvieron que puntuar.",
+      "en": "Knockouts, submissions and last-round endings: the nights the judges never had to score."
+    },
+    "cards": [
+      "mma.moments.fifth_round_finish.1",
+      "mma.moments.final_round_finish.1",
+      "mma.moments.final_round_finish.2",
+      "mma.moments.final_round_finish.3",
+      "mma.moments.final_round_finish.4",
+      "mma.moments.final_round_finish.5",
+      "mma.moments.knockout.1",
+      "mma.moments.knockout.2",
+      "mma.moments.knockout.3",
+      "mma.moments.knockout.4",
+      "mma.moments.knockout.5",
+      "mma.moments.submission.1",
+      "mma.moments.submission.2",
+      "mma.moments.submission.3",
+      "mma.moments.submission.4",
+      "mma.moments.submission.5"
+    ],
+    "unlock": {
+      "background": "background.mma.finishers"
+    }
+  },
+  {
+    "id": "mma.first_bell",
+    "sport": "mma",
+    "name": {
+      "pt": "Primeiro sino",
+      "es": "Primera campana",
+      "en": "First Bell"
+    },
+    "description": {
+      "pt": "Tudo que acaba no primeiro round: nocaute, finalização, menos de um minuto, meio minuto e as noites de sinos curtos.",
+      "es": "Todo lo que termina en el primer asalto: nocaut, sumisión, menos de un minuto, medio minuto y las noches de campanas cortas.",
+      "en": "Everything that ends in round one: knockout, submission, under a minute, half a minute and short-bell nights."
+    },
+    "cards": [
+      "mma.moments.card_night.1",
+      "mma.moments.card_night.2",
+      "mma.moments.card_night.3",
+      "mma.moments.card_night.4",
+      "mma.moments.card_night.5",
+      "mma.moments.first_round_ko.1",
+      "mma.moments.first_round_ko.2",
+      "mma.moments.first_round_ko.3",
+      "mma.moments.first_round_ko.4",
+      "mma.moments.first_round_ko.5",
+      "mma.moments.first_round_submission.1",
+      "mma.moments.first_round_submission.2",
+      "mma.moments.first_round_submission.3",
+      "mma.moments.first_round_submission.4",
+      "mma.moments.first_round_submission.5",
+      "mma.moments.flash_finish.1",
+      "mma.moments.lightning_finish.1",
+      "mma.moments.lightning_submission.1"
+    ],
+    "unlock": {
+      "background": "background.mma.first_bell"
+    }
+  },
+  {
+    "id": "mma.night_shift",
+    "sport": "mma",
+    "name": {
+      "pt": "Turno da noite",
+      "es": "Turno de noche",
+      "en": "Night Shift"
+    },
+    "description": {
+      "pt": "Lutas de madrugada, lutas no café da manhã e os palpites certos quando a cidade dorme: o fuso é só detalhe.",
+      "es": "Peleas de madrugada, peleas en el desayuno y los pronósticos certeros cuando la ciudad duerme: el huso horario es solo un detalle.",
+      "en": "Late-night fights, breakfast fights and the right calls while the city sleeps: time zones are just a detail."
+    },
+    "cards": [
+      "mma.predictions.night_winner.1",
+      "mma.predictions.night_winner.2",
+      "mma.predictions.night_winner.3",
+      "mma.predictions.night_winner.4",
+      "mma.predictions.night_winner.5",
+      "mma.rhythm.early_bird.1",
+      "mma.rhythm.early_bird.2",
+      "mma.rhythm.early_bird.3",
+      "mma.rhythm.early_bird.4",
+      "mma.rhythm.early_bird.5",
+      "mma.rhythm.night_owl.1",
+      "mma.rhythm.night_owl.2",
+      "mma.rhythm.night_owl.3",
+      "mma.rhythm.night_owl.4",
+      "mma.rhythm.night_owl.5"
+    ],
+    "unlock": {
+      "background": "background.mma.night_shift"
+    }
+  },
+  {
+    "id": "mma.oracle",
+    "sport": "mma",
+    "name": {
+      "pt": "Olho de matchmaker",
+      "es": "Ojo de matchmaker",
+      "en": "Matchmaker’s Eye"
+    },
+    "description": {
+      "pt": "Palpites feitos, vencedores certos, sequências e os fins previstos: a Coleção de quem lê a luta antes do sino.",
+      "es": "Pronósticos hechos, ganadores acertados, rachas y finales previstos: la Colección de quien lee la pelea antes de la campana.",
+      "en": "Picks made, winners called, streaks and finishes foreseen: the Collection of those who read the fight before the bell."
+    },
+    "cards": [
+      "mma.predictions.finish_pick.1",
+      "mma.predictions.finish_pick.2",
+      "mma.predictions.finish_pick.3",
+      "mma.predictions.finish_pick.4",
+      "mma.predictions.finish_pick.5",
+      "mma.predictions.hit_streak.1",
+      "mma.predictions.hit_streak.2",
+      "mma.predictions.hit_streak.3",
+      "mma.predictions.hit_streak.4",
+      "mma.predictions.hit_streak.5",
+      "mma.predictions.placed.1",
+      "mma.predictions.placed.2",
+      "mma.predictions.placed.3",
+      "mma.predictions.placed.4",
+      "mma.predictions.placed.5",
+      "mma.predictions.winner.1",
+      "mma.predictions.winner.2",
+      "mma.predictions.winner.3",
+      "mma.predictions.winner.4",
+      "mma.predictions.winner.5"
+    ],
+    "unlock": {
+      "title": "title.fight_reader"
+    }
+  },
+  {
+    "id": "mma.world_tour",
+    "sport": "mma",
+    "name": {
+      "pt": "Volta ao mundo na gaiola",
+      "es": "Vuelta al mundo en la jaula",
+      "en": "Cage World Tour"
+    },
+    "description": {
+      "pt": "Países, meses e palpites o ano inteiro: a gaiola viaja e você vai junto.",
+      "es": "Países, meses y pronósticos todo el año: la jaula viaja y tú vas con ella.",
+      "en": "Countries, months and picks all year long: the cage travels and you go along."
+    },
+    "cards": [
+      "mma.explorer.countries.1",
+      "mma.explorer.countries.2",
+      "mma.explorer.countries.3",
+      "mma.explorer.countries.4",
+      "mma.explorer.countries.5",
+      "mma.explorer.months_predicted.1",
+      "mma.explorer.months_predicted.2",
+      "mma.explorer.months_predicted.3",
+      "mma.explorer.months_predicted.4",
+      "mma.explorer.months_predicted.5",
+      "mma.explorer.months.1",
+      "mma.explorer.months.2",
+      "mma.explorer.months.3",
+      "mma.explorer.months.4",
+      "mma.explorer.months.5"
+    ],
+    "unlock": {
+      "background": "background.mma.world_tour"
+    }
+  },
+  {
+    "id": "nba.comebacks",
+    "sport": "nba",
+    "name": {
+      "pt": "Viradas",
+      "es": "Remontadas",
+      "en": "Comebacks"
+    },
+    "description": {
+      "pt": "Quinze atrás, vinte atrás, dez atrás entrando no último quarto: as noites em que o seu time não desistiu.",
+      "es": "Quince abajo, veinte abajo, diez abajo entrando al último cuarto: las noches en que tu equipo no se rindió.",
+      "en": "Fifteen down, twenty down, ten down entering the fourth: the nights your team refused to quit."
+    },
+    "cards": [
+      "nba.moments.comeback_15.1",
+      "nba.moments.comeback_20.1",
+      "nba.moments.fourth_quarter_comeback.1"
+    ],
+    "unlock": {
+      "title": "title.fourth_quarter_closer"
+    }
+  },
+  {
+    "id": "nba.explorer",
+    "sport": "nba",
+    "name": {
+      "pt": "Noite adentro",
+      "es": "Noche adentro",
+      "en": "Into the Night"
+    },
+    "description": {
+      "pt": "Todos os times, todos os meses e as madrugadas de jogo: a liga inteira, do primeiro ao último horário.",
+      "es": "Todos los equipos, todos los meses y las madrugadas de partido: la liga entera, del primer al último horario.",
+      "en": "Every team, every month and the late-night tip-offs: the whole league, first slot to last."
+    },
+    "cards": [
+      "nba.explorer.months.1",
+      "nba.explorer.months.2",
+      "nba.explorer.months.3",
+      "nba.explorer.months.4",
+      "nba.explorer.months.5",
+      "nba.explorer.teams.1",
+      "nba.explorer.teams.2",
+      "nba.explorer.teams.3",
+      "nba.explorer.teams.4",
+      "nba.explorer.teams.5",
+      "nba.rhythm.night_owl.1",
+      "nba.rhythm.night_owl.2",
+      "nba.rhythm.night_owl.3",
+      "nba.rhythm.night_owl.4",
+      "nba.rhythm.night_owl.5"
+    ],
+    "unlock": {
+      "background": "background.nba.night_shift"
+    }
+  },
+  {
+    "id": "nba.faithful",
+    "sport": "nba",
+    "name": {
+      "pt": "Fiel",
+      "es": "Fiel",
+      "en": "Faithful"
+    },
+    "description": {
+      "pt": "Jogo após jogo do seu time, em casa e na estrada: a Coleção de quem está sempre lá.",
+      "es": "Partido tras partido de tu equipo, en casa y de visitante: la Colección de quien siempre está.",
+      "en": "Game after game of your team, home and on the road: the Collection of those who are always there."
+    },
+    "cards": [
+      "nba.loyalty.favorite_games.1",
+      "nba.loyalty.favorite_games.2",
+      "nba.loyalty.favorite_games.3",
+      "nba.loyalty.favorite_games.4",
+      "nba.loyalty.favorite_games.5",
+      "nba.loyalty.favorite_streak.1",
+      "nba.loyalty.favorite_streak.2",
+      "nba.loyalty.favorite_streak.3",
+      "nba.loyalty.favorite_streak.4",
+      "nba.loyalty.favorite_streak.5",
+      "nba.results.away_win.1",
+      "nba.results.away_win.2",
+      "nba.results.away_win.3",
+      "nba.results.away_win.4",
+      "nba.results.away_win.5"
+    ],
+    "unlock": {
+      "title": "title.courtside"
+    }
+  },
+  {
+    "id": "nba.overtime",
+    "sport": "nba",
+    "name": {
+      "pt": "Até o fim",
+      "es": "Hasta el final",
+      "en": "To the End"
+    },
+    "description": {
+      "pt": "Prorrogação, dupla prorrogação e vitórias por uma posse: para quem nunca desliga antes do estouro.",
+      "es": "Tiempo extra, doble tiempo extra y victorias por una posesión: para quien nunca apaga antes de la chicharra.",
+      "en": "Overtime, double overtime and one-possession wins: for those who never switch off before the buzzer."
+    },
+    "cards": [
+      "nba.moments.double_overtime.1",
+      "nba.moments.overtime.1",
+      "nba.moments.overtime.2",
+      "nba.moments.overtime.3",
+      "nba.moments.overtime.4",
+      "nba.moments.overtime.5",
+      "nba.results.close_win.1",
+      "nba.results.close_win.2",
+      "nba.results.close_win.3",
+      "nba.results.close_win.4",
+      "nba.results.close_win.5"
+    ],
+    "unlock": {
+      "frame": "frame.extra_period"
+    }
+  },
+  {
+    "id": "nba.playoffs",
+    "sport": "nba",
+    "name": {
+      "pt": "Noites de playoff",
+      "es": "Noches de playoffs",
+      "en": "Playoff Nights"
+    },
+    "description": {
+      "pt": "Séries, finais, palpites e presença: tudo que acontece quando a temporada de verdade começa.",
+      "es": "Series, finales, pronósticos y presencia: todo lo que pasa cuando empieza la temporada de verdad.",
+      "en": "Series, finals, calls and attendance: everything that happens when the real season begins."
+    },
+    "cards": [
+      "nba.loyalty.playoff_games.1",
+      "nba.loyalty.playoff_games.2",
+      "nba.loyalty.playoff_games.3",
+      "nba.loyalty.playoff_games.4",
+      "nba.loyalty.playoff_games.5",
+      "nba.predictions.final_winner.1",
+      "nba.predictions.final_winner.2",
+      "nba.predictions.final_winner.3",
+      "nba.predictions.final_winner.4",
+      "nba.predictions.final_winner.5",
+      "nba.predictions.playoff_winner.1",
+      "nba.predictions.playoff_winner.2",
+      "nba.predictions.playoff_winner.3",
+      "nba.predictions.playoff_winner.4",
+      "nba.predictions.playoff_winner.5",
+      "nba.results.final_win.1",
+      "nba.results.playoff_win.1",
+      "nba.results.playoff_win.2",
+      "nba.results.playoff_win.3",
+      "nba.results.playoff_win.4",
+      "nba.results.playoff_win.5"
+    ],
+    "unlock": {
+      "background": "background.nba.playoffs"
+    }
+  },
+  {
+    "id": "nba.scoreboard",
+    "sport": "nba",
+    "name": {
+      "pt": "Placar quente",
+      "es": "Marcador caliente",
+      "en": "Hot Scoreboard"
+    },
+    "description": {
+      "pt": "Quartos avassaladores, vitórias largas, massacres e placares estourados: quando o ataque manda no jogo.",
+      "es": "Cuartos arrolladores, victorias amplias, palizas y marcadores desbordados: cuando el ataque manda en el partido.",
+      "en": "Monster quarters, comfortable wins, blowouts and overloaded scoreboards: when offense runs the game."
+    },
+    "cards": [
+      "nba.moments.big_quarter.1",
+      "nba.moments.big_quarter.2",
+      "nba.moments.big_quarter.3",
+      "nba.moments.big_quarter.4",
+      "nba.moments.big_quarter.5",
+      "nba.moments.period_sweep.1",
+      "nba.results.big_win.1",
+      "nba.results.big_win.2",
+      "nba.results.big_win.3",
+      "nba.results.big_win.4",
+      "nba.results.big_win.5",
+      "nba.results.blowout.1",
+      "nba.results.high_scoring.1",
+      "nba.results.high_scoring.2",
+      "nba.results.high_scoring.3",
+      "nba.results.high_scoring.4",
+      "nba.results.high_scoring.5"
+    ],
+    "unlock": {
+      "background": "background.nba.scoreboard"
+    }
+  },
+  {
+    "id": "nba.sharp_eye",
+    "sport": "nba",
+    "name": {
+      "pt": "Leitura de jogo",
+      "es": "Lectura de juego",
+      "en": "Game Reader"
+    },
+    "description": {
+      "pt": "Sequências de acertos e o vencedor dos jogos do seu time: a Coleção de quem lê o jogo antes da bola subir.",
+      "es": "Rachas de aciertos y el ganador de los partidos de tu equipo: la Colección de quien lee el juego antes del salto.",
+      "en": "Hit streaks and your team’s winners called right: the Collection of those who read the game before the tip."
+    },
+    "cards": [
+      "nba.predictions.favorite_winner.1",
+      "nba.predictions.favorite_winner.2",
+      "nba.predictions.favorite_winner.3",
+      "nba.predictions.favorite_winner.4",
+      "nba.predictions.favorite_winner.5",
+      "nba.predictions.hit_streak.1",
+      "nba.predictions.hit_streak.2",
+      "nba.predictions.hit_streak.3",
+      "nba.predictions.hit_streak.4",
+      "nba.predictions.hit_streak.5"
+    ],
+    "unlock": {
+      "title": "title.sharpshooter"
+    }
+  },
+  {
+    "id": "nba.star_night",
+    "sport": "nba",
+    "name": {
+      "pt": "Noite de estrela",
+      "es": "Noche de estrella",
+      "en": "Star Night"
+    },
+    "description": {
+      "pt": "Triple-double, cinquenta pontos, dez bolas de três e a cesta no estouro: as noites de um jogador só.",
+      "es": "Triple-doble, cincuenta puntos, diez triples y la canasta sobre la chicharra: las noches de un solo jugador.",
+      "en": "Triple-double, fifty points, ten threes and the buzzer-beater: the nights that belong to one player."
+    },
+    "cards": [
+      "nba.moments.buzzer_beater.1",
+      "nba.moments.fifty_points.1",
+      "nba.moments.ten_threes.1",
+      "nba.moments.triple_double.1",
+      "nba.moments.triple_double.2",
+      "nba.moments.triple_double.3",
+      "nba.moments.triple_double.4",
+      "nba.moments.triple_double.5"
+    ],
+    "unlock": {
+      "background": "background.nba.star_night"
+    }
+  },
+  {
+    "id": "rugby.big_nights",
+    "sport": "rugby",
+    "name": {
+      "pt": "Noites grandes",
+      "es": "Noches grandes",
+      "en": "Big Nights"
+    },
+    "description": {
+      "pt": "Mata-matas, finais e a prorrogação que ninguém esperava: as noites em que o rugby decide alguma coisa.",
+      "es": "Eliminatorias, finales y el tiempo extra que nadie esperaba: las noches en que el rugby decide algo.",
+      "en": "Knockouts, finals and the extra time nobody expected: the nights when rugby decides something."
+    },
+    "cards": [
+      "rugby.loyalty.knockout_watched.1",
+      "rugby.loyalty.knockout_watched.2",
+      "rugby.loyalty.knockout_watched.3",
+      "rugby.loyalty.knockout_watched.4",
+      "rugby.loyalty.knockout_watched.5",
+      "rugby.moments.knockout_overtime.1",
+      "rugby.results.final_win.1"
+    ],
+    "unlock": {
+      "background": "background.rugby.big_nights"
+    }
+  },
+  {
+    "id": "rugby.comebacks",
+    "sport": "rugby",
+    "name": {
+      "pt": "Viradas",
+      "es": "Remontadas",
+      "en": "Comebacks"
+    },
+    "description": {
+      "pt": "Perder o primeiro tempo e vencer o jogo: a Coleção de quem não sai no intervalo.",
+      "es": "Perder el primer tiempo y ganar el partido: la Colección de quien no se va en el entretiempo.",
+      "en": "Trailing at the break and winning the match: the Collection of those who never leave at half time."
+    },
+    "cards": [
+      "rugby.moments.big_comeback.1",
+      "rugby.moments.halftime_comeback.1"
+    ],
+    "unlock": {
+      "title": "title.never_say_die"
+    }
+  },
+  {
+    "id": "rugby.dawn",
+    "sport": "rugby",
+    "name": {
+      "pt": "Madrugada oval",
+      "es": "Madrugada ovalada",
+      "en": "Oval Dawn"
+    },
+    "description": {
+      "pt": "Jogos de madrugada, fins de semana de sevens e rugby o ano inteiro: o calendário de quem segue a bola oval pelo mundo.",
+      "es": "Partidos de madrugada, fines de semana de sevens y rugby todo el año: el calendario de quien sigue la pelota ovalada por el mundo.",
+      "en": "Small-hours kick-offs, sevens weekends and rugby all year: the calendar of those who follow the oval ball around the world."
+    },
+    "cards": [
+      "rugby.explorer.months.1",
+      "rugby.explorer.months.2",
+      "rugby.explorer.months.3",
+      "rugby.explorer.months.4",
+      "rugby.explorer.months.5",
+      "rugby.loyalty.dawn_games.1",
+      "rugby.loyalty.dawn_games.2",
+      "rugby.loyalty.dawn_games.3",
+      "rugby.loyalty.dawn_games.4",
+      "rugby.loyalty.dawn_games.5",
+      "rugby.loyalty.sevens_weekend.1",
+      "rugby.loyalty.sevens_weekend.2",
+      "rugby.loyalty.sevens_weekend.3",
+      "rugby.loyalty.sevens_weekend.4",
+      "rugby.loyalty.sevens_weekend.5"
+    ],
+    "unlock": {
+      "background": "background.rugby.dawn"
+    }
+  },
+  {
+    "id": "rugby.faithful",
+    "sport": "rugby",
+    "name": {
+      "pt": "Fiel",
+      "es": "Fiel",
+      "en": "Faithful"
+    },
+    "description": {
+      "pt": "Jogo após jogo do seu time, rodada após rodada, lendo o resultado antes do apito: a Coleção de quem está sempre lá.",
+      "es": "Partido tras partido de tu equipo, fecha tras fecha, leyendo el resultado antes del silbato: la Colección de quien siempre está.",
+      "en": "Match after match of your team, round after round, reading the result before the whistle: the Collection of those who are always there."
+    },
+    "cards": [
+      "rugby.loyalty.favorite_games.1",
+      "rugby.loyalty.favorite_games.2",
+      "rugby.loyalty.favorite_games.3",
+      "rugby.loyalty.favorite_games.4",
+      "rugby.loyalty.favorite_games.5",
+      "rugby.loyalty.favorite_streak.1",
+      "rugby.loyalty.favorite_streak.2",
+      "rugby.loyalty.favorite_streak.3",
+      "rugby.loyalty.favorite_streak.4",
+      "rugby.loyalty.favorite_streak.5",
+      "rugby.predictions.favorite_winner.1",
+      "rugby.predictions.favorite_winner.2",
+      "rugby.predictions.favorite_winner.3",
+      "rugby.predictions.favorite_winner.4",
+      "rugby.predictions.favorite_winner.5",
+      "rugby.predictions.round_streak.1",
+      "rugby.predictions.round_streak.2",
+      "rugby.predictions.round_streak.3",
+      "rugby.predictions.round_streak.4",
+      "rugby.predictions.round_streak.5"
+    ],
+    "unlock": {
+      "title": "title.oval_faithful"
+    }
+  },
+  {
+    "id": "rugby.fortress",
+    "sport": "rugby",
+    "name": {
+      "pt": "Fortaleza",
+      "es": "Fortaleza",
+      "en": "Fortress"
+    },
+    "description": {
+      "pt": "Linha intacta, vitória fora de casa e o adversário com um a menos: a defesa também faz história.",
+      "es": "Línea intacta, victoria de visitante y el rival con uno menos: la defensa también hace historia.",
+      "en": "Line untouched, away wins and the opponent a player short: defense makes history too."
+    },
+    "cards": [
+      "rugby.moments.red_card_opponent.1",
+      "rugby.results.away_win.1",
+      "rugby.results.shutout.1"
+    ],
+    "unlock": {
+      "frame": "frame.oval_fortress"
+    }
+  },
+  {
+    "id": "rugby.last_kick",
+    "sport": "rugby",
+    "name": {
+      "pt": "Último chute",
+      "es": "Última patada",
+      "en": "Last Kick"
+    },
+    "description": {
+      "pt": "Jogos de um placar, vitórias por um chute, empates e tries depois da sirene: para quem nunca sai antes do apito.",
+      "es": "Partidos de un marcador, victorias por una patada, empates y tries después de la sirena: para quien nunca se va antes del silbato.",
+      "en": "One-score games, wins by a kick, draws and tries after the siren: for those who never leave before the whistle."
+    },
+    "cards": [
+      "rugby.moments.after_the_siren.1",
+      "rugby.moments.one_score_game.1",
+      "rugby.moments.one_score_game.2",
+      "rugby.moments.one_score_game.3",
+      "rugby.moments.one_score_game.4",
+      "rugby.moments.one_score_game.5",
+      "rugby.moments.winning_drop_goal.1",
+      "rugby.results.draw.1",
+      "rugby.results.narrow_win.1"
+    ],
+    "unlock": {
+      "background": "background.rugby.last_kick"
+    }
+  },
+  {
+    "id": "rugby.scoreboard",
+    "sport": "rugby",
+    "name": {
+      "pt": "Placar cheio",
+      "es": "Marcador lleno",
+      "en": "Full Scoreboard"
+    },
+    "description": {
+      "pt": "Goleadas, segundos tempos avassaladores, festivais de pontos e três tries de um só: quando o placar não para.",
+      "es": "Goleadas, segundos tiempos arrolladores, festivales de puntos y tres tries del mismo: cuando el marcador no para.",
+      "en": "Routs, second-half avalanches, points festivals and a try hat-trick: when the scoreboard never stops."
+    },
+    "cards": [
+      "rugby.moments.second_half_surge.1",
+      "rugby.moments.try_hat_trick.1",
+      "rugby.results.big_win.1",
+      "rugby.results.points_festival.1"
+    ],
+    "unlock": {
+      "background": "background.rugby.scoreboard"
+    }
+  },
+  {
+    "id": "rugby.sharp_eye",
+    "sport": "rugby",
+    "name": {
+      "pt": "Olho afiado",
+      "es": "Ojo afilado",
+      "en": "Sharp Eye"
+    },
+    "description": {
+      "pt": "Sequências de acertos e o vencedor do mata-mata: a Coleção de quem lê o jogo oval.",
+      "es": "Rachas de aciertos y el ganador de la eliminatoria: la Colección de quien lee el juego ovalado.",
+      "en": "Hit streaks and knockout winners: the Collection of those who read the oval game."
+    },
+    "cards": [
+      "rugby.predictions.hit_streak.1",
+      "rugby.predictions.hit_streak.2",
+      "rugby.predictions.hit_streak.3",
+      "rugby.predictions.hit_streak.4",
+      "rugby.predictions.hit_streak.5",
+      "rugby.predictions.knockout_winner.1",
+      "rugby.predictions.knockout_winner.2",
+      "rugby.predictions.knockout_winner.3",
+      "rugby.predictions.knockout_winner.4",
+      "rugby.predictions.knockout_winner.5"
+    ],
+    "unlock": {
+      "title": "title.oval_eye"
+    }
+  },
+  {
+    "id": "rugby.world_tour",
+    "sport": "rugby",
+    "name": {
+      "pt": "Volta ao mundo oval",
+      "es": "Vuelta al mundo ovalado",
+      "en": "Oval World Tour"
+    },
+    "description": {
+      "pt": "Competições e times diferentes, dos dois hemisférios: o rugby inteiro.",
+      "es": "Torneos y equipos distintos, de los dos hemisferios: todo el rugby.",
+      "en": "Different competitions and teams from both hemispheres: all of rugby."
+    },
+    "cards": [
+      "rugby.explorer.competitions.1",
+      "rugby.explorer.competitions.2",
+      "rugby.explorer.competitions.3",
+      "rugby.explorer.competitions.4",
+      "rugby.explorer.competitions.5",
+      "rugby.explorer.teams.1",
+      "rugby.explorer.teams.2",
+      "rugby.explorer.teams.3",
+      "rugby.explorer.teams.4",
+      "rugby.explorer.teams.5"
+    ],
+    "unlock": {
+      "background": "background.rugby.world_tour"
+    }
+  },
+  {
+    "id": "volleyball.big_nights",
+    "sport": "volleyball",
+    "name": {
+      "pt": "Noites grandes",
+      "es": "Noches grandes",
+      "en": "Big Nights"
+    },
+    "description": {
+      "pt": "Playoffs e finais: as noites em que o vôlei decide alguma coisa, assistidas, palpitadas e vencidas.",
+      "es": "Playoffs y finales: las noches en que el vóley decide algo, vistas, pronosticadas y ganadas.",
+      "en": "Playoffs and finals: the nights when volleyball decides something, watched, called and won."
+    },
+    "cards": [
+      "volleyball.loyalty.finals_watched.1",
+      "volleyball.loyalty.finals_watched.2",
+      "volleyball.loyalty.finals_watched.3",
+      "volleyball.loyalty.finals_watched.4",
+      "volleyball.loyalty.finals_watched.5",
+      "volleyball.predictions.playoff_winner.1",
+      "volleyball.predictions.playoff_winner.2",
+      "volleyball.predictions.playoff_winner.3",
+      "volleyball.predictions.playoff_winner.4",
+      "volleyball.predictions.playoff_winner.5",
+      "volleyball.results.final_win.1",
+      "volleyball.results.playoff_win.1"
+    ],
+    "unlock": {
+      "background": "background.volleyball.big_nights"
+    }
+  },
+  {
+    "id": "volleyball.comebacks",
+    "sport": "volleyball",
+    "name": {
+      "pt": "Viradas",
+      "es": "Remontadas",
+      "en": "Comebacks"
+    },
+    "description": {
+      "pt": "Atrás em sets, dois sets abaixo, match point contra: quem não desiste merece uma Carta.",
+      "es": "Abajo en sets, dos sets abajo, match point en contra: quien no se rinde merece una Carta.",
+      "en": "Down in sets, two sets down, match point against: those who never give up earn a Card."
+    },
+    "cards": [
+      "volleyball.moments.match_point_saved.1",
+      "volleyball.moments.reverse_sweep.1",
+      "volleyball.moments.set_comeback.1"
+    ],
+    "unlock": {
+      "title": "title.fightback"
+    }
+  },
+  {
+    "id": "volleyball.dominance",
+    "sport": "volleyball",
+    "name": {
+      "pt": "Domínio",
+      "es": "Dominio",
+      "en": "Dominance"
+    },
+    "description": {
+      "pt": "Três a zero, sets arrasadores, bloqueio e saque: quando seu time não deixa o jogo começar para o outro lado.",
+      "es": "Tres a cero, sets arrolladores, bloqueo y saque: cuando tu equipo no deja que el partido empiece para el otro lado.",
+      "en": "Straight sets, runaway sets, blocks and serves: when your team never lets the other side into the match."
+    },
+    "cards": [
+      "volleyball.moments.ace_streak.1",
+      "volleyball.moments.block_party.1",
+      "volleyball.moments.crushing_set.1",
+      "volleyball.moments.set_blowout.1",
+      "volleyball.results.sweep.1",
+      "volleyball.results.sweep.2",
+      "volleyball.results.sweep.3",
+      "volleyball.results.sweep.4",
+      "volleyball.results.sweep.5"
+    ],
+    "unlock": {
+      "background": "background.volleyball.dominance"
+    }
+  },
+  {
+    "id": "volleyball.faithful",
+    "sport": "volleyball",
+    "name": {
+      "pt": "Fiel à quadra",
+      "es": "Fiel a la cancha",
+      "en": "Court Faithful"
+    },
+    "description": {
+      "pt": "Jogo após jogo do seu time, em casa e fora: a Coleção de quem está sempre lá.",
+      "es": "Partido tras partido de tu equipo, de local y de visitante: la Colección de quien siempre está.",
+      "en": "Match after match of your team, home and away: the Collection of those who are always there."
+    },
+    "cards": [
+      "volleyball.loyalty.favorite_games.1",
+      "volleyball.loyalty.favorite_games.2",
+      "volleyball.loyalty.favorite_games.3",
+      "volleyball.loyalty.favorite_games.4",
+      "volleyball.loyalty.favorite_games.5",
+      "volleyball.loyalty.favorite_streak.1",
+      "volleyball.loyalty.favorite_streak.2",
+      "volleyball.loyalty.favorite_streak.3",
+      "volleyball.loyalty.favorite_streak.4",
+      "volleyball.loyalty.favorite_streak.5",
+      "volleyball.results.away_win.1",
+      "volleyball.results.away_win.2",
+      "volleyball.results.away_win.3",
+      "volleyball.results.away_win.4",
+      "volleyball.results.away_win.5"
+    ],
+    "unlock": {
+      "title": "title.court_faithful"
+    }
+  },
+  {
+    "id": "volleyball.fifth_set",
+    "sport": "volleyball",
+    "name": {
+      "pt": "Quinto set",
+      "es": "Quinto set",
+      "en": "Fifth Set"
+    },
+    "description": {
+      "pt": "Tie-breaks jogados, vencidos e sem fim: para quem fica até o último ponto.",
+      "es": "Tie-breaks jugados, ganados y sin fin: para quien se queda hasta el último punto.",
+      "en": "Fifth sets played, won and never-ending: for those who stay until the last point."
+    },
+    "cards": [
+      "volleyball.moments.tie_break_marathon.1",
+      "volleyball.moments.tie_break_win.1",
+      "volleyball.moments.tie_break.1",
+      "volleyball.moments.tie_break.2",
+      "volleyball.moments.tie_break.3",
+      "volleyball.moments.tie_break.4",
+      "volleyball.moments.tie_break.5"
+    ],
+    "unlock": {
+      "background": "background.volleyball.fifth_set"
+    }
+  },
+  {
+    "id": "volleyball.long_sets",
+    "sport": "volleyball",
+    "name": {
+      "pt": "Sets sem fim",
+      "es": "Sets sin fin",
+      "en": "Endless Sets"
+    },
+    "description": {
+      "pt": "Vantagem, 30 pontos e rallies que não terminam: os sets que ninguém quis perder.",
+      "es": "Ventaja, 30 puntos y rallies que no terminan: los sets que nadie quiso perder.",
+      "en": "Deuce, thirty points and rallies that never end: the sets nobody wanted to lose."
+    },
+    "cards": [
+      "volleyball.moments.deuce_set_win.1",
+      "volleyball.moments.deuce_set_win.2",
+      "volleyball.moments.deuce_set_win.3",
+      "volleyball.moments.deuce_set_win.4",
+      "volleyball.moments.deuce_set_win.5",
+      "volleyball.moments.long_rally.1",
+      "volleyball.moments.marathon_set.1"
+    ],
+    "unlock": {
+      "frame": "frame.deuce"
+    }
+  },
+  {
+    "id": "volleyball.sharp_eye",
+    "sport": "volleyball",
+    "name": {
+      "pt": "Olho de levantador",
+      "es": "Ojo de armador",
+      "en": "Setter’s Eye"
+    },
+    "description": {
+      "pt": "Sets na mosca, sequências de acertos e a noite de trinta pontos: a Coleção de quem lê o jogo.",
+      "es": "Sets exactos, rachas de aciertos y la noche de treinta puntos: la Colección de quien lee el juego.",
+      "en": "Exact set scores, hit streaks and the thirty-point night: the Collection of those who read the game."
+    },
+    "cards": [
+      "volleyball.moments.thirty_points.1",
+      "volleyball.predictions.hit_streak.1",
+      "volleyball.predictions.hit_streak.2",
+      "volleyball.predictions.hit_streak.3",
+      "volleyball.predictions.hit_streak.4",
+      "volleyball.predictions.hit_streak.5",
+      "volleyball.predictions.sets_exact.1",
+      "volleyball.predictions.sets_exact.2",
+      "volleyball.predictions.sets_exact.3",
+      "volleyball.predictions.sets_exact.4",
+      "volleyball.predictions.sets_exact.5"
+    ],
+    "unlock": {
+      "title": "title.setter_eye"
+    }
+  },
+  {
+    "id": "volleyball.world_tour",
+    "sport": "volleyball",
+    "name": {
+      "pt": "Giro do vôlei",
+      "es": "Gira del vóley",
+      "en": "Volleyball Tour"
+    },
+    "description": {
+      "pt": "Competições e meses diferentes: o vôlei inteiro, o ano inteiro.",
+      "es": "Torneos y meses distintos: todo el vóley, todo el año.",
+      "en": "Different competitions and months: all of volleyball, all year long."
+    },
+    "cards": [
+      "volleyball.explorer.competitions.1",
+      "volleyball.explorer.competitions.2",
+      "volleyball.explorer.competitions.3",
+      "volleyball.explorer.competitions.4",
+      "volleyball.explorer.competitions.5",
+      "volleyball.explorer.months.1",
+      "volleyball.explorer.months.2",
+      "volleyball.explorer.months.3",
+      "volleyball.explorer.months.4",
+      "volleyball.explorer.months.5"
+    ],
+    "unlock": {
+      "background": "background.volleyball.world_tour"
+    }
+  }
+]

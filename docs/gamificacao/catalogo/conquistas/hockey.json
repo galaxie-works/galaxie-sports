@@ -1,0 +1,1622 @@
+[
+  {
+    "id": "hockey.explorer.competitions",
+    "sport": "hockey",
+    "category": "participation",
+    "family": "explorer",
+    "collection": "hockey.world_tour",
+    "rule": {
+      "input": "prediction",
+      "where": {
+        "sport": [
+          "hockey"
+        ]
+      },
+      "count": {
+        "mode": "distinct",
+        "key": "competition"
+      }
+    },
+    "requires_data": [
+      "fan.prediction",
+      "event.sport",
+      "event.competition.id"
+    ],
+    "stepped": true,
+    "seasonal": false,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "a plataforma cobre 35 competições de hóquei (liga norte-americana, russa, europeias, de desenvolvimento, torneios de seleções, olímpico, feminina); um torcedor assíduo palpita em 4 a 8 delas por temporada e 32 é alcance de várias temporadas (fonte: cobertura da plataforma, seção 6 da missão)",
+    "name": {
+      "pt": "Mapa do gelo",
+      "es": "Mapa del hielo",
+      "en": "Map of the Ice"
+    },
+    "description": {
+      "pt": "Dê Palpites em competições de hóquei diferentes.",
+      "es": "Haz pronósticos en torneos de hockey distintos.",
+      "en": "Make predictions across different hockey competitions."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 2,
+        "bonus_points": 0,
+        "card_key": "hockey.explorer.competitions.1"
+      },
+      {
+        "step": 2,
+        "threshold": 4,
+        "bonus_points": 0,
+        "card_key": "hockey.explorer.competitions.2"
+      },
+      {
+        "step": 3,
+        "threshold": 8,
+        "bonus_points": 0,
+        "card_key": "hockey.explorer.competitions.3"
+      },
+      {
+        "step": 4,
+        "threshold": 16,
+        "bonus_points": 0,
+        "card_key": "hockey.explorer.competitions.4"
+      },
+      {
+        "step": 5,
+        "threshold": 32,
+        "bonus_points": 0,
+        "card_key": "hockey.explorer.competitions.5"
+      }
+    ]
+  },
+  {
+    "id": "hockey.explorer.countries",
+    "sport": "hockey",
+    "category": "participation",
+    "family": "explorer",
+    "collection": "hockey.world_tour",
+    "rule": {
+      "input": "participation",
+      "action": "watched",
+      "where": {
+        "sport": [
+          "hockey"
+        ]
+      },
+      "count": {
+        "mode": "distinct",
+        "key": "country"
+      }
+    },
+    "requires_data": [
+      "fan.participation",
+      "fan.presence",
+      "event.sport",
+      "event.competition.country"
+    ],
+    "stepped": true,
+    "seasonal": false,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria sobre a cobertura: as 35 competições de hóquei são de cerca de 10 a 12 países (América do Norte, Rússia, Suécia, Finlândia, Alemanha, Suíça, Tchéquia e outros) mais torneios continentais e de seleções sem país; 8 países é alcance de uma temporada curiosa e 16 só em várias (fonte: cobertura da plataforma, seção 6 da missão)",
+    "name": {
+      "pt": "Gelo de muitos países",
+      "es": "Hielo de muchos países",
+      "en": "Ice of Many Countries"
+    },
+    "description": {
+      "pt": "Assista a hóquei de competições de países diferentes.",
+      "es": "Mira hockey de torneos de países distintos.",
+      "en": "Watch hockey from competitions in different countries."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 0,
+        "card_key": "hockey.explorer.countries.1"
+      },
+      {
+        "step": 2,
+        "threshold": 2,
+        "bonus_points": 0,
+        "card_key": "hockey.explorer.countries.2"
+      },
+      {
+        "step": 3,
+        "threshold": 4,
+        "bonus_points": 0,
+        "card_key": "hockey.explorer.countries.3"
+      },
+      {
+        "step": 4,
+        "threshold": 8,
+        "bonus_points": 0,
+        "card_key": "hockey.explorer.countries.4"
+      },
+      {
+        "step": 5,
+        "threshold": 16,
+        "bonus_points": 0,
+        "card_key": "hockey.explorer.countries.5"
+      }
+    ]
+  },
+  {
+    "id": "hockey.explorer.months",
+    "sport": "hockey",
+    "category": "participation",
+    "family": "explorer",
+    "collection": "hockey.world_tour",
+    "rule": {
+      "input": "participation",
+      "action": "watched",
+      "where": {
+        "sport": [
+          "hockey"
+        ]
+      },
+      "count": {
+        "mode": "distinct",
+        "key": "month"
+      }
+    },
+    "requires_data": [
+      "fan.participation",
+      "fan.presence",
+      "event.sport",
+      "event.starts_at",
+      "program.time_zone"
+    ],
+    "stepped": true,
+    "seasonal": false,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "a temporada de hóquei vai de setembro (ligas europeias e russa) a junho (final do playoff norte-americano), com os torneios de seleções em maio e o olímpico em fevereiro: 9 a 10 meses com jogo; Platina = 9 meses, Lendário = 2 temporadas (fontes do calendário em pesquisa/hockey.md)",
+    "name": {
+      "pt": "Temporada inteira",
+      "es": "Temporada entera",
+      "en": "Whole Season Long"
+    },
+    "description": {
+      "pt": "Assista a hóquei em meses diferentes, de setembro até o último jogo de junho.",
+      "es": "Mira hockey en meses distintos, de septiembre hasta el último partido de junio.",
+      "en": "Watch hockey in different months, from September to the last game in June."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 0,
+        "card_key": "hockey.explorer.months.1"
+      },
+      {
+        "step": 2,
+        "threshold": 2,
+        "bonus_points": 0,
+        "card_key": "hockey.explorer.months.2"
+      },
+      {
+        "step": 3,
+        "threshold": 4,
+        "bonus_points": 0,
+        "card_key": "hockey.explorer.months.3"
+      },
+      {
+        "step": 4,
+        "threshold": 9,
+        "bonus_points": 0,
+        "card_key": "hockey.explorer.months.4"
+      },
+      {
+        "step": 5,
+        "threshold": 18,
+        "bonus_points": 0,
+        "card_key": "hockey.explorer.months.5"
+      }
+    ]
+  },
+  {
+    "id": "hockey.loyalty.favorite_games",
+    "sport": "hockey",
+    "category": "participation",
+    "family": "loyalty",
+    "collection": "hockey.faithful",
+    "rule": {
+      "input": "participation",
+      "action": "watched",
+      "where": {
+        "sport": [
+          "hockey"
+        ],
+        "favorite_playing": true
+      }
+    },
+    "requires_data": [
+      "fan.participation",
+      "fan.presence",
+      "fan.favorite_team_id",
+      "event.participants",
+      "event.sport"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "82 jogos por time na temporada regular da liga norte-americana, 68 na russa, 52 a 60 nas europeias, 72 na liga de desenvolvimento, 30 na feminina profissional; o torcedor assíduo acompanha cerca de metade de uma temporada de 82 (jogos em dia de semana e fusos distantes): Platina = 41, Lendário = 100 (fontes do calendário em pesquisa/hockey.md)",
+    "name": {
+      "pt": "Fiel no gelo",
+      "es": "Fiel en el hielo",
+      "en": "True on the Ice"
+    },
+    "description": {
+      "pt": "Assista aos jogos do seu time do coração no hóquei.",
+      "es": "Mira los partidos de tu equipo del corazón en el hockey.",
+      "en": "Watch your favorite hockey team’s games."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 0,
+        "card_key": "hockey.loyalty.favorite_games.1"
+      },
+      {
+        "step": 2,
+        "threshold": 5,
+        "bonus_points": 0,
+        "card_key": "hockey.loyalty.favorite_games.2"
+      },
+      {
+        "step": 3,
+        "threshold": 15,
+        "bonus_points": 0,
+        "card_key": "hockey.loyalty.favorite_games.3"
+      },
+      {
+        "step": 4,
+        "threshold": 41,
+        "bonus_points": 0,
+        "card_key": "hockey.loyalty.favorite_games.4"
+      },
+      {
+        "step": 5,
+        "threshold": 100,
+        "bonus_points": 0,
+        "card_key": "hockey.loyalty.favorite_games.5"
+      }
+    ]
+  },
+  {
+    "id": "hockey.loyalty.favorite_streak",
+    "sport": "hockey",
+    "category": "participation",
+    "family": "loyalty",
+    "collection": "hockey.faithful",
+    "rule": {
+      "input": "participation",
+      "action": "watched",
+      "where": {
+        "sport": [
+          "hockey"
+        ],
+        "favorite_playing": true
+      },
+      "count": {
+        "mode": "streak",
+        "unit": "game"
+      }
+    },
+    "requires_data": [
+      "fan.participation",
+      "fan.presence",
+      "fan.favorite_team_id",
+      "event.participants",
+      "event.sport"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria: um time joga 3 a 4 vezes por semana (82 jogos em 6 meses), então 20 jogos seguidos é mais de um mês sem falhar e 40 é meia temporada; o torcedor assíduo assiste a 50 a 60% dos jogos do time (fontes do calendário em pesquisa/hockey.md)",
+    "name": {
+      "pt": "Sem perder um jogo",
+      "es": "Sin perderse un partido",
+      "en": "Never Miss a Game"
+    },
+    "description": {
+      "pt": "Assista a jogos seguidos do seu time de hóquei, sem pular nenhum.",
+      "es": "Mira partidos seguidos de tu equipo de hockey, sin saltarte ninguno.",
+      "en": "Watch your hockey team’s games back to back, without skipping one."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 2,
+        "bonus_points": 0,
+        "card_key": "hockey.loyalty.favorite_streak.1"
+      },
+      {
+        "step": 2,
+        "threshold": 5,
+        "bonus_points": 0,
+        "card_key": "hockey.loyalty.favorite_streak.2"
+      },
+      {
+        "step": 3,
+        "threshold": 10,
+        "bonus_points": 0,
+        "card_key": "hockey.loyalty.favorite_streak.3"
+      },
+      {
+        "step": 4,
+        "threshold": 20,
+        "bonus_points": 0,
+        "card_key": "hockey.loyalty.favorite_streak.4"
+      },
+      {
+        "step": 5,
+        "threshold": 40,
+        "bonus_points": 0,
+        "card_key": "hockey.loyalty.favorite_streak.5"
+      }
+    ]
+  },
+  {
+    "id": "hockey.loyalty.knockout_watched",
+    "sport": "hockey",
+    "category": "participation",
+    "family": "loyalty",
+    "collection": "hockey.playoff_run",
+    "rule": {
+      "input": "participation",
+      "action": "watched",
+      "where": {
+        "sport": [
+          "hockey"
+        ],
+        "stage": [
+          "knockout"
+        ]
+      }
+    },
+    "requires_data": [
+      "fan.participation",
+      "fan.presence",
+      "event.sport",
+      "event.stage.kind"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "o playoff da liga norte-americana tem 60 a 90 jogos em dois meses, as ligas europeias 40 a 60 cada e os torneios de seleções 7 a 8 de mata-mata; um torcedor assíduo assiste a 15 a 20 jogos de mata-mata por temporada (fonte: nhl.com/info/standings-info/playoff-format; calendário em pesquisa/hockey.md)",
+    "name": {
+      "pt": "Noites de playoff",
+      "es": "Noches de playoff",
+      "en": "Playoff Nights"
+    },
+    "description": {
+      "pt": "Assista a jogos de mata-mata de qualquer competição de hóquei.",
+      "es": "Mira partidos de eliminación directa de cualquier torneo de hockey.",
+      "en": "Watch knockout games from any hockey competition."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 0,
+        "card_key": "hockey.loyalty.knockout_watched.1"
+      },
+      {
+        "step": 2,
+        "threshold": 3,
+        "bonus_points": 0,
+        "card_key": "hockey.loyalty.knockout_watched.2"
+      },
+      {
+        "step": 3,
+        "threshold": 8,
+        "bonus_points": 0,
+        "card_key": "hockey.loyalty.knockout_watched.3"
+      },
+      {
+        "step": 4,
+        "threshold": 16,
+        "bonus_points": 0,
+        "card_key": "hockey.loyalty.knockout_watched.4"
+      },
+      {
+        "step": 5,
+        "threshold": 40,
+        "bonus_points": 0,
+        "card_key": "hockey.loyalty.knockout_watched.5"
+      }
+    ]
+  },
+  {
+    "id": "hockey.moments.big_period",
+    "sport": "hockey",
+    "category": "moment",
+    "family": "moments",
+    "collection": "hockey.firepower",
+    "rule": {
+      "input": "moment",
+      "fact": "score.period",
+      "params": {
+        "team": "favorite",
+        "period": "any",
+        "points_min": 4
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.score.periods",
+      "event.status=finished",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria por Poisson: times marcam cerca de 3 gols por jogo (6,0 a 6,1 por jogo somando os dois, 2024-25), 1 por período; 4 ou mais num mesmo período sai em cerca de 2% dos períodos e 5 a 6% dos jogos, 4 a 5 vezes por temporada para o time do torcedor; 6 gols num período acontece a 3 times por temporada (fonte: dailyfaceoff.com/news/has-nhl-scoring-peaked-2024-25; flamesnation.ca/news/calgary-flames-arizona-coyotes-six-goals)",
+    "name": {
+      "pt": "Período de fogo",
+      "es": "Período de fuego",
+      "en": "Period on Fire"
+    },
+    "description": {
+      "pt": "Assista ao jogo em que seu time marca quatro gols ou mais num mesmo período.",
+      "es": "Mira el partido en que tu equipo marca cuatro goles o más en un mismo período.",
+      "en": "Watch your team score four or more goals in a single period."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 25,
+        "card_key": "hockey.moments.big_period.1"
+      }
+    ]
+  },
+  {
+    "id": "hockey.moments.comeback_three",
+    "sport": "hockey",
+    "category": "moment",
+    "family": "moments",
+    "collection": "hockey.comebacks",
+    "rule": {
+      "input": "moment",
+      "fact": "score.comeback",
+      "params": {
+        "team": "favorite",
+        "trailing_by_min": 3,
+        "at": "any"
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "time 3 gols atrás depois do 1º período vence cerca de 7% das vezes e depois do 2º cerca de 2%; o líder da liga numa temporada recente teve 3 viradas de 3 gols e o recorde histórico de um time é 4; para o time do torcedor, cerca de uma a cada 2 temporadas (fonte: tsn.ca/the-rarity-of-the-three-goal-comeback-1.412950; thehockeywriters.com/panthers-three-3-goal-comeback-wins-2021-22)",
+    "name": {
+      "pt": "Virada de três gols",
+      "es": "Remontada de tres goles",
+      "en": "Three-Goal Comeback"
+    },
+    "description": {
+      "pt": "Assista ao jogo em que seu time vence depois de fechar um período três gols atrás.",
+      "es": "Mira el partido en que tu equipo gana tras cerrar un período tres goles abajo.",
+      "en": "Watch your team win after ending a period three goals down."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 120,
+        "card_key": "hockey.moments.comeback_three.1"
+      }
+    ]
+  },
+  {
+    "id": "hockey.moments.comeback_two",
+    "sport": "hockey",
+    "category": "moment",
+    "family": "moments",
+    "collection": "hockey.comebacks",
+    "rule": {
+      "input": "moment",
+      "fact": "score.comeback",
+      "params": {
+        "team": "favorite",
+        "trailing_by_min": 2,
+        "at": "any"
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria: o time está 2 gols atrás ao fim de algum período em cerca de 25 jogos por temporada e vence 10 a 15% deles, 2 a 4 viradas por temporada; a liga fala em \"ano das viradas\" quando esse número sobe (fonte-base: thescore.com/news/1693663; tsn.ca/the-rarity-of-the-three-goal-comeback-1.412950)",
+    "name": {
+      "pt": "Virada de dois gols",
+      "es": "Remontada de dos goles",
+      "en": "Two-Goal Comeback"
+    },
+    "description": {
+      "pt": "Assista ao jogo em que seu time vence depois de fechar um período dois gols atrás.",
+      "es": "Mira el partido en que tu equipo gana tras cerrar un período dos goles abajo.",
+      "en": "Watch your team win after ending a period two goals down."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 25,
+        "card_key": "hockey.moments.comeback_two.1"
+      }
+    ]
+  },
+  {
+    "id": "hockey.moments.extra_attacker_tie",
+    "sport": "hockey",
+    "category": "moment",
+    "family": "moments",
+    "collection": "hockey.comebacks",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "overtime": true
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "proposed.event.play_by_play.goal.minute",
+      "proposed.event.play_by_play.goal.empty_net",
+      "event.score.periods",
+      "event.status=finished",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": false,
+    "inactive_reason": "sem lance a lance no hóquei: o motor não tem o minuto do gol nem sabe se o goleiro estava fora. Precisa de proposed.event.play_by_play.goal.minute e goal.empty_net (goleiro puxado) e de um fato hockey.goal com min_minute e extra_attacker. A regra acima é só a aproximação (jogo do seu time que foi à prorrogação) e não pode ser ligada assim.",
+    "real_world_frequency": "cerca de 6% dos gols saem no último minuto de um período (414 em 2018-19), e com o goleiro fora o empate sai em cerca de 17% das tentativas; estimativa própria: 3 a 4 empates no fim com o goleiro puxado por time e temporada (fonte: policyviz.com/2019/09/12/last-minute-hockey-goals; fivethirtyeight.com/features/nhl-coaches-are-pulling-goalies-earlier-than-ever)",
+    "name": {
+      "pt": "Empate com seis",
+      "es": "Empate con seis",
+      "en": "Six-Skater Equalizer"
+    },
+    "description": {
+      "pt": "Esteja assistindo quando seu time empatar no último minuto com o goleiro fora.",
+      "es": "Mira en vivo cuando tu equipo empate en el último minuto con el arquero afuera.",
+      "en": "Be watching when your team ties it in the final minute with the goalie pulled."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 25,
+        "card_key": "hockey.moments.extra_attacker_tie.1"
+      }
+    ]
+  },
+  {
+    "id": "hockey.moments.hat_trick",
+    "sport": "hockey",
+    "category": "moment",
+    "family": "moments",
+    "collection": "hockey.firepower",
+    "rule": {
+      "input": "moment",
+      "fact": "score.period",
+      "params": {
+        "team": "favorite",
+        "period": "any",
+        "points_min": 3
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.score.periods",
+      "proposed.player_game_stats.goals",
+      "event.status=finished",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": false,
+    "inactive_reason": "falta estatística de jogador por partida: o motor recebe só gols por período, sem saber quem marcou. Precisa de proposed.player_game_stats.goals e de um fato de jogador (ex.: hockey.hat_trick com min_goals). A regra acima é só a aproximação (3 gols do seu time num período) e não pode ser ligada assim.",
+    "real_world_frequency": "77 hat-tricks na temporada regular 2024-25 e 115 em 2023-24 da liga norte-americana (6 a 9% dos 1.312 jogos); para o time do torcedor, 2 a 4 por temporada (fonte: thehockeywriters.com/?p=468983)",
+    "name": {
+      "pt": "Três do mesmo taco",
+      "es": "Tres del mismo palo",
+      "en": "Hat Trick"
+    },
+    "description": {
+      "pt": "Esteja assistindo quando um jogador do seu time marcar três gols no mesmo jogo.",
+      "es": "Mira en vivo cuando un jugador de tu equipo marque tres goles en el mismo partido.",
+      "en": "Be watching when one of your team’s players scores three goals in one game."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 25,
+        "card_key": "hockey.moments.hat_trick.1"
+      }
+    ]
+  },
+  {
+    "id": "hockey.moments.knockout_overtime_win",
+    "sport": "hockey",
+    "category": "moment",
+    "family": "moments",
+    "collection": "hockey.playoff_run",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win",
+        "overtime": true
+      },
+      "presence": "game",
+      "where": {
+        "stage": [
+          "knockout"
+        ]
+      }
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id",
+      "event.stage.kind"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria: cerca de um quarto dos jogos de playoff da liga norte-americana vai à prorrogação (temporadas recentes tiveram recorde de jogos de um gol no playoff) e um time que chega ao playoff joga 4 a 28 jogos, vencendo 1 a 2 na prorrogação; metade dos times nem chega (fonte-base: nbcsports.com/nhl/news/nhl-nearing-record-for-one-goal-games-in-stanley-cup-playoffs; nhl.com/info/standings-info/playoff-format)",
+    "name": {
+      "pt": "Prorrogação de playoff",
+      "es": "Tiempo extra de playoff",
+      "en": "Playoff Overtime"
+    },
+    "description": {
+      "pt": "Assista ao jogo de mata-mata em que seu time vence na prorrogação.",
+      "es": "Mira el partido de eliminación directa en que tu equipo gana en tiempo extra.",
+      "en": "Watch your team win a knockout game in overtime."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 60,
+        "card_key": "hockey.moments.knockout_overtime_win.1"
+      }
+    ]
+  },
+  {
+    "id": "hockey.moments.overtime_win",
+    "sport": "hockey",
+    "category": "moment",
+    "family": "moments",
+    "collection": "hockey.extra_time",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win",
+        "overtime": true
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "20,5% a 23,5% dos jogos da liga norte-americana vão além do tempo normal (20,5% em 2024-25, 27% no início de 2025-26); para o time do torcedor, 17 a 19 jogos por temporada de 82 e cerca de 9 vitórias (fonte: africa.espn.com/nhl/story/_/id/47210375; dailyfaceoff.com/news/5-major-nhl-trends-defined-2025-26-season-loser-point-overtime-save-percentage)",
+    "name": {
+      "pt": "Vitória na prorrogação",
+      "es": "Triunfo en tiempo extra",
+      "en": "Overtime Winner"
+    },
+    "description": {
+      "pt": "Assista às vitórias do seu time decididas depois do tempo normal.",
+      "es": "Mira las victorias de tu equipo definidas después del tiempo reglamentario.",
+      "en": "Watch your team win games that go past regulation."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 10,
+        "card_key": "hockey.moments.overtime_win.1"
+      },
+      {
+        "step": 2,
+        "threshold": 2,
+        "bonus_points": 20,
+        "card_key": "hockey.moments.overtime_win.2"
+      },
+      {
+        "step": 3,
+        "threshold": 4,
+        "bonus_points": 40,
+        "card_key": "hockey.moments.overtime_win.3"
+      },
+      {
+        "step": 4,
+        "threshold": 9,
+        "bonus_points": 75,
+        "card_key": "hockey.moments.overtime_win.4"
+      },
+      {
+        "step": 5,
+        "threshold": 25,
+        "bonus_points": 150,
+        "card_key": "hockey.moments.overtime_win.5"
+      }
+    ]
+  },
+  {
+    "id": "hockey.moments.penalty_shot_goal",
+    "sport": "hockey",
+    "category": "moment",
+    "family": "moments",
+    "collection": "hockey.firepower",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win",
+        "margin_max": 1
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "proposed.event.play_by_play.penalty_shot",
+      "event.score",
+      "event.status=finished",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": false,
+    "inactive_reason": "sem lance a lance no hóquei: o motor não registra o penalty shot (o pênalti durante o jogo, diferente do shootout). Precisa de proposed.event.play_by_play.penalty_shot com resultado. A regra acima é só a aproximação (vitória apertada do seu time) e não pode ser ligada assim.",
+    "real_world_frequency": "estimativa própria: 60 a 80 penalty shots por temporada regular na liga norte-americana, cerca de um terço convertidos, 20 a 25 gols em 1.312 jogos; para o time do torcedor, menos de 1 por temporada (sem fonte estatística pública consolidada)",
+    "name": {
+      "pt": "Gol de penalty shot",
+      "es": "Gol de tiro penal",
+      "en": "Penalty-Shot Goal"
+    },
+    "description": {
+      "pt": "Esteja assistindo quando seu time marcar num penalty shot durante o jogo.",
+      "es": "Mira en vivo cuando tu equipo marque en un tiro penal durante el partido.",
+      "en": "Be watching when your team scores on a penalty shot during the game."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 60,
+        "card_key": "hockey.moments.penalty_shot_goal.1"
+      }
+    ]
+  },
+  {
+    "id": "hockey.moments.shootout_win",
+    "sport": "hockey",
+    "category": "moment",
+    "family": "moments",
+    "collection": "hockey.extra_time",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win",
+        "shootout": true
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "cerca de 8% dos jogos da liga norte-americana vão ao shootout desde a prorrogação 3 contra 3 (77 shootouts em 2024-25, ritmo de 119 em 2025-26); para o time do torcedor, 6 a 7 shootouts e 3 vitórias por temporada (fonte: thescore.com/nhl/news/913976; dailyfaceoff.com/news/5-major-nhl-trends-defined-2025-26-season-loser-point-overtime-save-percentage)",
+    "name": {
+      "pt": "Vitória no shootout",
+      "es": "Triunfo en los penales",
+      "en": "Shootout Winner"
+    },
+    "description": {
+      "pt": "Assista ao jogo em que seu time vence na disputa de shootout.",
+      "es": "Mira el partido en que tu equipo gana en la tanda de penales.",
+      "en": "Watch the game your team wins in a shootout."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 25,
+        "card_key": "hockey.moments.shootout_win.1"
+      }
+    ]
+  },
+  {
+    "id": "hockey.moments.shorthanded_goal",
+    "sport": "hockey",
+    "category": "moment",
+    "family": "moments",
+    "collection": "hockey.firepower",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win"
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "proposed.event.play_by_play.goal.strength",
+      "event.score",
+      "event.status=finished",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": false,
+    "inactive_reason": "sem lance a lance no hóquei: o motor não sabe se o gol saiu em desvantagem numérica. Precisa de proposed.event.play_by_play.goal.strength (even, power_play, short_handed) e de um fato hockey.goal com strength. A regra acima é só a aproximação (vitória do seu time) e não pode ser ligada assim; quando ativar, tende a ser repetível (6 a 8 por temporada).",
+    "real_world_frequency": "estimativa própria: a liga norte-americana registra cerca de 200 a 250 gols em desvantagem numérica por temporada regular, 6 a 8 por time (sem fonte estatística pública consolidada; recordes individuais em hockey-reference.com/leaders/goals_sh_season.html)",
+    "name": {
+      "pt": "Gol com um a menos",
+      "es": "Gol con uno menos",
+      "en": "Shorthanded Goal"
+    },
+    "description": {
+      "pt": "Esteja assistindo quando seu time marcar com um jogador a menos no gelo.",
+      "es": "Mira en vivo cuando tu equipo marque con un jugador menos en el hielo.",
+      "en": "Be watching when your team scores while killing a penalty."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 25,
+        "card_key": "hockey.moments.shorthanded_goal.1"
+      }
+    ]
+  },
+  {
+    "id": "hockey.moments.third_period_comeback",
+    "sport": "hockey",
+    "category": "moment",
+    "family": "moments",
+    "collection": "hockey.comebacks",
+    "rule": {
+      "input": "moment",
+      "fact": "score.comeback",
+      "params": {
+        "team": "favorite",
+        "trailing_by_min": 1,
+        "at": "last_regular"
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "time que entra no 3º período atrás vence 8% a 21% das vezes conforme o time (7,7% o pior, 21% o melhor); estimativa própria de 12 a 15% na média, sobre cerca de 34 jogos por temporada em que o time está atrás depois de dois períodos: 4 a 5 viradas no 3º por temporada (fonte: thehockeynews.com/nhl/winnipeg-jets/latest-news/jets-hold-league-worst-winning-percentage-when-leading-after-two-periods; nhl.com/news/2018-19-penguins-numbers-stats-analysis-299805438)",
+    "name": {
+      "pt": "Virada no terceiro",
+      "es": "Remontada en el tercero",
+      "en": "Third-Period Comeback"
+    },
+    "description": {
+      "pt": "Assista aos jogos em que seu time entra no terceiro período atrás e vence.",
+      "es": "Mira los partidos en que tu equipo entra al tercer período abajo y gana.",
+      "en": "Watch your team enter the third period behind and win."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 10,
+        "card_key": "hockey.moments.third_period_comeback.1"
+      },
+      {
+        "step": 2,
+        "threshold": 2,
+        "bonus_points": 20,
+        "card_key": "hockey.moments.third_period_comeback.2"
+      },
+      {
+        "step": 3,
+        "threshold": 4,
+        "bonus_points": 40,
+        "card_key": "hockey.moments.third_period_comeback.3"
+      },
+      {
+        "step": 4,
+        "threshold": 8,
+        "bonus_points": 75,
+        "card_key": "hockey.moments.third_period_comeback.4"
+      },
+      {
+        "step": 5,
+        "threshold": 20,
+        "bonus_points": 150,
+        "card_key": "hockey.moments.third_period_comeback.5"
+      }
+    ]
+  },
+  {
+    "id": "hockey.predictions.exact_score",
+    "sport": "hockey",
+    "category": "hit",
+    "family": "predictions",
+    "collection": "hockey.sharp_eye",
+    "rule": {
+      "input": "prediction",
+      "kind": "exact_score",
+      "correct": true,
+      "where": {
+        "sport": [
+          "hockey"
+        ]
+      }
+    },
+    "requires_data": [
+      "fan.prediction",
+      "event.sport"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "os placares mais comuns da história da liga norte-americana são 3 a 2 (10,6% dos jogos), 4 a 2 (7,7%) e 2 a 1 (7,6%); estimativa própria: o placar exato sai em cerca de 8 a 10% dos Palpites, e um torcedor que palpita em 80 a 120 jogos por temporada acerta 8 a 12 (fonte: thewincolumn.ca/2018/09/05/the-history-of-nhl-final-scores)",
+    "name": {
+      "pt": "Na mosca no gelo",
+      "es": "Exacto en el hielo",
+      "en": "On the Nose on Ice"
+    },
+    "description": {
+      "pt": "Acerte o placar exato de jogos de hóquei.",
+      "es": "Acierta el marcador exacto de partidos de hockey.",
+      "en": "Predict the exact score of hockey games."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 20,
+        "card_key": "hockey.predictions.exact_score.1"
+      },
+      {
+        "step": 2,
+        "threshold": 2,
+        "bonus_points": 40,
+        "card_key": "hockey.predictions.exact_score.2"
+      },
+      {
+        "step": 3,
+        "threshold": 5,
+        "bonus_points": 80,
+        "card_key": "hockey.predictions.exact_score.3"
+      },
+      {
+        "step": 4,
+        "threshold": 10,
+        "bonus_points": 150,
+        "card_key": "hockey.predictions.exact_score.4"
+      },
+      {
+        "step": 5,
+        "threshold": 25,
+        "bonus_points": 300,
+        "card_key": "hockey.predictions.exact_score.5"
+      }
+    ]
+  },
+  {
+    "id": "hockey.predictions.hit_streak",
+    "sport": "hockey",
+    "category": "hit",
+    "family": "predictions",
+    "collection": "hockey.sharp_eye",
+    "rule": {
+      "input": "prediction",
+      "correct": true,
+      "where": {
+        "sport": [
+          "hockey"
+        ]
+      },
+      "count": {
+        "mode": "streak",
+        "unit": "prediction"
+      }
+    },
+    "requires_data": [
+      "fan.prediction",
+      "event.sport"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria: o hóquei é o esporte de time mais imprevisível (o favorito pelo placar esperado vence só 54% das vezes em 2025-26), então 5 acertos seguidos saem para 1 em cerca de 20 tentativas e 10 seguidos para 1 em mil; um torcedor assíduo chega a 10 numa temporada e a 25 em poucas (fonte: africa.espn.com/nhl/story/_/id/47210375)",
+    "name": {
+      "pt": "Sequência no gelo",
+      "es": "Racha en el hielo",
+      "en": "Ice-Cold Streak"
+    },
+    "description": {
+      "pt": "Acerte Palpites de hóquei seguidos, sem errar nenhum no meio.",
+      "es": "Acierta pronósticos de hockey seguidos, sin fallar ninguno en el medio.",
+      "en": "Get hockey predictions right back to back, without a miss in between."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 2,
+        "bonus_points": 20,
+        "card_key": "hockey.predictions.hit_streak.1"
+      },
+      {
+        "step": 2,
+        "threshold": 5,
+        "bonus_points": 40,
+        "card_key": "hockey.predictions.hit_streak.2"
+      },
+      {
+        "step": 3,
+        "threshold": 10,
+        "bonus_points": 80,
+        "card_key": "hockey.predictions.hit_streak.3"
+      },
+      {
+        "step": 4,
+        "threshold": 25,
+        "bonus_points": 150,
+        "card_key": "hockey.predictions.hit_streak.4"
+      },
+      {
+        "step": 5,
+        "threshold": 50,
+        "bonus_points": 300,
+        "card_key": "hockey.predictions.hit_streak.5"
+      }
+    ]
+  },
+  {
+    "id": "hockey.predictions.knockout_winner",
+    "sport": "hockey",
+    "category": "hit",
+    "family": "predictions",
+    "collection": "hockey.playoff_run",
+    "rule": {
+      "input": "prediction",
+      "kind": "winner",
+      "correct": true,
+      "where": {
+        "sport": [
+          "hockey"
+        ],
+        "stage": [
+          "knockout"
+        ]
+      }
+    },
+    "requires_data": [
+      "fan.prediction",
+      "event.sport",
+      "event.stage.kind"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria sobre o calendário: o playoff da liga norte-americana tem 60 a 90 jogos por ano, as ligas europeias 40 a 60 cada e os torneios de seleções 7 a 8 de mata-mata; um torcedor assíduo palpita em 40 a 80 jogos de mata-mata por temporada e acerta o vencedor em cerca de metade (fonte: nhl.com/info/standings-info/playoff-format; calendário em pesquisa/hockey.md)",
+    "name": {
+      "pt": "Quem avança",
+      "es": "Quién avanza",
+      "en": "Who Goes Through"
+    },
+    "description": {
+      "pt": "Acerte o vencedor de jogos de mata-mata no hóquei.",
+      "es": "Acierta el ganador en partidos de eliminación directa de hockey.",
+      "en": "Predict the winner of knockout hockey games."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 20,
+        "card_key": "hockey.predictions.knockout_winner.1"
+      },
+      {
+        "step": 2,
+        "threshold": 3,
+        "bonus_points": 40,
+        "card_key": "hockey.predictions.knockout_winner.2"
+      },
+      {
+        "step": 3,
+        "threshold": 8,
+        "bonus_points": 80,
+        "card_key": "hockey.predictions.knockout_winner.3"
+      },
+      {
+        "step": 4,
+        "threshold": 20,
+        "bonus_points": 150,
+        "card_key": "hockey.predictions.knockout_winner.4"
+      },
+      {
+        "step": 5,
+        "threshold": 50,
+        "bonus_points": 300,
+        "card_key": "hockey.predictions.knockout_winner.5"
+      }
+    ]
+  },
+  {
+    "id": "hockey.results.blowout_win",
+    "sport": "hockey",
+    "category": "moment",
+    "family": "results",
+    "collection": "hockey.firepower",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win",
+        "margin_min": 5
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria: na história da liga norte-americana o vencedor marca 6 gols ou menos em 91% dos jogos e os placares mais comuns são 3 a 2, 4 a 2 e 2 a 1; diferença de 5 ou mais em cerca de 4 a 5% dos jogos, 1 a 2 goleadas por temporada para o time do torcedor (fonte: thewincolumn.ca/2018/09/05/the-history-of-nhl-final-scores)",
+    "name": {
+      "pt": "Goleada no gelo",
+      "es": "Goleada en el hielo",
+      "en": "Rout on Ice"
+    },
+    "description": {
+      "pt": "Assista a uma vitória do seu time por cinco gols ou mais de diferença.",
+      "es": "Mira una victoria de tu equipo por cinco o más goles de diferencia.",
+      "en": "Watch your team win by five goals or more."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 25,
+        "card_key": "hockey.results.blowout_win.1"
+      }
+    ]
+  },
+  {
+    "id": "hockey.results.final_win",
+    "sport": "hockey",
+    "category": "moment",
+    "family": "results",
+    "collection": "hockey.playoff_run",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win"
+      },
+      "presence": "game",
+      "where": {
+        "stage": [
+          "final"
+        ]
+      }
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id",
+      "event.stage.kind"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria sobre o calendário: 2 de 32 times chegam à série final da liga norte-americana por ano (até 4 vitórias cada); nas ligas europeias, 2 de 14; nos torneios de seleções a final é jogo único; para o time do torcedor, anos entre finais vencidas (fonte: nhl.com/info/standings-info/playoff-format; calendário em pesquisa/hockey.md)",
+    "name": {
+      "pt": "Vitória em final",
+      "es": "Victoria en una final",
+      "en": "Final Won"
+    },
+    "description": {
+      "pt": "Assista a uma vitória do seu time em jogo de final.",
+      "es": "Mira una victoria de tu equipo en un partido de final.",
+      "en": "Watch your team win a final."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 120,
+        "card_key": "hockey.results.final_win.1"
+      }
+    ]
+  },
+  {
+    "id": "hockey.results.goalie_40_saves",
+    "sport": "hockey",
+    "category": "moment",
+    "family": "results",
+    "collection": "hockey.fortress",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win",
+        "shutout": true
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "proposed.player_game_stats.saves",
+      "event.score",
+      "event.status=finished",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": false,
+    "inactive_reason": "falta estatística de jogador por partida: o motor não recebe defesas nem chutes. Precisa de proposed.player_game_stats.saves e de um fato de jogador (hockey.player_stat com stat e min). A regra acima é só a aproximação (vitória sem sofrer gol) e não pode ser ligada assim.",
+    "real_world_frequency": "estimativa própria: um goleiro enfrenta 40 chutes ou mais em cerca de 8% dos jogos e vence metade deles, 3 a 4 vitórias com 40 defesas por time e temporada; a média de defesas por jogo caiu e o aproveitamento da liga está no menor nível em 30 anos (fonte: tsn.ca/nhl/article/nhl-save-percentages-hit-lowest-level-in-30-years; thehockeywriters.com/nhl-goalies-with-most-saves-in-game)",
+    "name": {
+      "pt": "Quarenta defesas",
+      "es": "Cuarenta atajadas",
+      "en": "Forty Saves"
+    },
+    "description": {
+      "pt": "Assista à vitória em que o goleiro do seu time faz quarenta defesas ou mais.",
+      "es": "Mira la victoria en que el arquero de tu equipo hace cuarenta atajadas o más.",
+      "en": "Watch your team win with its goalie making forty or more saves."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 25,
+        "card_key": "hockey.results.goalie_40_saves.1"
+      }
+    ]
+  },
+  {
+    "id": "hockey.results.high_scoring",
+    "sport": "hockey",
+    "category": "moment",
+    "family": "results",
+    "collection": "hockey.firepower",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "any",
+        "total_min": 10
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.score",
+      "fan.presence"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria por Poisson sobre 6,0 a 6,1 gols por jogo (2024-25): 10 gols ou mais em cerca de 8% dos jogos; um torcedor assíduo que assiste a 40 a 80 jogos por temporada vê 3 a 7 (fonte: dailyfaceoff.com/news/has-nhl-scoring-peaked-2024-25; thehockeynews.com/news/latest-news/the-goalies-revenge-stingy-stoppers-take-control-late-in-nhl-second-round)",
+    "name": {
+      "pt": "Dez gols no gelo",
+      "es": "Diez goles en el hielo",
+      "en": "Ten-Goal Game"
+    },
+    "description": {
+      "pt": "Assista a jogos de hóquei com dez gols ou mais no total.",
+      "es": "Mira partidos de hockey con diez goles o más en total.",
+      "en": "Watch hockey games with ten or more goals in total."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 10,
+        "card_key": "hockey.results.high_scoring.1"
+      },
+      {
+        "step": 2,
+        "threshold": 2,
+        "bonus_points": 20,
+        "card_key": "hockey.results.high_scoring.2"
+      },
+      {
+        "step": 3,
+        "threshold": 4,
+        "bonus_points": 40,
+        "card_key": "hockey.results.high_scoring.3"
+      },
+      {
+        "step": 4,
+        "threshold": 8,
+        "bonus_points": 75,
+        "card_key": "hockey.results.high_scoring.4"
+      },
+      {
+        "step": 5,
+        "threshold": 20,
+        "bonus_points": 150,
+        "card_key": "hockey.results.high_scoring.5"
+      }
+    ]
+  },
+  {
+    "id": "hockey.results.knockout_win",
+    "sport": "hockey",
+    "category": "moment",
+    "family": "results",
+    "collection": "hockey.playoff_run",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win"
+      },
+      "presence": "game",
+      "where": {
+        "stage": [
+          "knockout"
+        ]
+      }
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id",
+      "event.stage.kind"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "16 de 32 times chegam ao playoff da liga norte-americana e jogam 4 séries de melhor de 7 (4 a 28 jogos; 16 vitórias dão o título); a maioria dos classificados soma 2 a 8 vitórias por ano e metade dos times nenhuma; nas ligas europeias e nos torneios de seleções o mata-mata tem 3 a 7 jogos (fonte: nhl.com/info/standings-info/playoff-format; calendário em pesquisa/hockey.md)",
+    "name": {
+      "pt": "Vitória de playoff",
+      "es": "Triunfo de playoff",
+      "en": "Playoff Win"
+    },
+    "description": {
+      "pt": "Assista às vitórias do seu time em jogos de mata-mata.",
+      "es": "Mira las victorias de tu equipo en partidos de eliminación directa.",
+      "en": "Watch your team win knockout games."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 10,
+        "card_key": "hockey.results.knockout_win.1"
+      },
+      {
+        "step": 2,
+        "threshold": 2,
+        "bonus_points": 20,
+        "card_key": "hockey.results.knockout_win.2"
+      },
+      {
+        "step": 3,
+        "threshold": 4,
+        "bonus_points": 40,
+        "card_key": "hockey.results.knockout_win.3"
+      },
+      {
+        "step": 4,
+        "threshold": 8,
+        "bonus_points": 75,
+        "card_key": "hockey.results.knockout_win.4"
+      },
+      {
+        "step": 5,
+        "threshold": 20,
+        "bonus_points": 150,
+        "card_key": "hockey.results.knockout_win.5"
+      }
+    ]
+  },
+  {
+    "id": "hockey.results.period_sweep",
+    "sport": "hockey",
+    "category": "moment",
+    "family": "results",
+    "collection": "hockey.fortress",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win",
+        "period_sweep": true
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria: vencer os três períodos (gols do período a favor nos três) acontece em cerca de 10% das vitórias de um time; com 40 vitórias por temporada, 3 a 5 varridas por temporada para o time do torcedor (sem fonte estatística pública consolidada; base de gols por período em thehockeynews.com/news/best-and-worst-nhl-teams-in-goals-by-period)",
+    "name": {
+      "pt": "Três períodos nossos",
+      "es": "Tres períodos nuestros",
+      "en": "Clean Sweep of Periods"
+    },
+    "description": {
+      "pt": "Assista a uma vitória do seu time vencendo os três períodos.",
+      "es": "Mira una victoria de tu equipo ganando los tres períodos.",
+      "en": "Watch your team win all three periods of a game."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 25,
+        "card_key": "hockey.results.period_sweep.1"
+      }
+    ]
+  },
+  {
+    "id": "hockey.results.shutout_win",
+    "sport": "hockey",
+    "category": "moment",
+    "family": "results",
+    "collection": "hockey.fortress",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win",
+        "shutout": true
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria: cerca de 9 a 10% dos jogos da liga norte-americana terminam com um lado sem marcar (vitórias por 1 a 0 são 2,1% de todos os jogos da história e os times líderes somam 8 shutouts por temporada, com média perto de 4); para o time do torcedor, 3 a 5 vitórias sem sofrer gol por temporada (fonte: thewincolumn.ca/2018/09/05/the-history-of-nhl-final-scores; statmuse.com/nhl/ask/which-nhl-team-has-the-most-shutouts-this-season)",
+    "name": {
+      "pt": "Rede intacta",
+      "es": "Red intacta",
+      "en": "Shutout"
+    },
+    "description": {
+      "pt": "Assista a uma vitória do seu time sem sofrer gol.",
+      "es": "Mira una victoria de tu equipo sin recibir goles.",
+      "en": "Watch your team win without conceding a goal."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 25,
+        "card_key": "hockey.results.shutout_win.1"
+      }
+    ]
+  }
+]
