@@ -120,6 +120,15 @@ services:
         condition: service_completed_successfully
     expose:
       - '8080'
+    healthcheck:
+      # O mesmo teste da imagem (selfheal.mjs http /health), com a janela de partida larga do deploy de 17/11: o
+      # api-candidate (que herda este bloco) ficou pronto em 55 s com a CPU limitada e os três candidatos subindo
+      # juntos, e o padrão da imagem (20 s + 3 × 15 s) o reprovou. Falhas dentro do start_period não contam.
+      interval: 15s
+      timeout: 6s
+      retries: 5
+      start_period: 90s
+      start_interval: 2s
     # /metrics e /internal não passam pelo Traefik (equivale ao bloqueio que o Caddy fazia).
     labels:
       - traefik.enable=true
@@ -225,10 +234,14 @@ services:
       - '3000'
       - '9464'
     healthcheck:
+      # Janela de partida larga (#1335 do deploy de 17/11): com a CPU da VPS limitada pelo provedor e os três candidatos
+      # (api, site e console) subindo juntos, o site ficou pronto depois dos 65 s que o padrão da imagem dava
+      # (20 s + 3 × 15 s). Dentro do start_period as falhas não contam e o start_interval de 2 s marca healthy
+      # assim que o app responde; o CANDIDATE_TIMEOUT (180 s) continua sendo o teto do deploy.
       interval: 15s
       timeout: 6s
-      retries: 3
-      start_period: 20s
+      retries: 5
+      start_period: 90s
       start_interval: 2s
     # O acesso é controlado pelo próprio app (login por convite, papéis e prazo por usuário).
     labels:
