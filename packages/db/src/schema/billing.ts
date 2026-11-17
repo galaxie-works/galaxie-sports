@@ -13,7 +13,7 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 import { createdAt, pkUuidV7, updatedAt } from './_shared.js';
-import { tenant, type TenantState } from './api.js';
+import { tenant, type ApiModule, type TenantState } from './api.js';
 
 /**
  * Plataforma comercial (#1136, F1 #1137): versões do catálogo, preços de lista e exceções por tenant. A estrutura do
@@ -374,5 +374,38 @@ export const tenantStateEvent = billing.table(
       sql`${t.cause} in ('signup', 'provision', 'review', 'payment', 'clock', 'admin', 'request', 'migration')`,
     ),
     index('tenant_state_event_tenant_idx').on(t.tenantId, t.createdAt),
+  ],
+);
+
+// ─── teste por módulo pela loja (F3, decisão 9; doc 01 §A loja de features; PL3) ──────────────────────────────────
+
+/**
+ * Teste de um módulo ligado pela loja (Planos e módulos): 14 dias com a faixa mínima, **uma vez por módulo e
+ * organização** (o índice único é a regra; vale para todas as marcas da organização). A ativação grava, na mesma
+ * transação, esta linha, um `tenant_override` `module_grant` do módulo e um `tenant_override` `tier` por faixa com o
+ * mínimo do catálogo, todos com `valid_until = ends_at` e `reason = 'module_trial'`: no fim o override vence sozinho e o
+ * módulo sai dos direitos, sem job. `started_by`: `panel:<id do usuário>` ou `galaxie:<id>`. Só cresce: a linha fica
+ * como prova de que o teste já foi usado.
+ */
+export const moduleTrial = billing.table(
+  'module_trial',
+  {
+    id: pkUuidV7(),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organization.id, { onDelete: 'restrict' }),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenant.id, { onDelete: 'cascade' }),
+    module: text('module').$type<ApiModule>().notNull(),
+    startedAt: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
+    endsAt: timestamp('ends_at', { withTimezone: true }).notNull(),
+    startedBy: text('started_by').notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex('module_trial_organization_module_uq').on(t.organizationId, t.module),
+    index('module_trial_tenant_idx').on(t.tenantId, t.endsAt),
+    check('module_trial_period', sql`${t.endsAt} > ${t.startedAt}`),
   ],
 );

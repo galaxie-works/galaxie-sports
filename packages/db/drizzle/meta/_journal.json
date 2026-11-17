@@ -883,6 +883,13 @@
       "when": 1794867154794,
       "tag": "0185_tenant_state",
       "breakpoints": true
+    },
+    {
+      "idx": 126,
+      "version": "7",
+      "when": 1794872620570,
+      "tag": "0186_module_trial",
+      "breakpoints": true
     }
   ]
 }
