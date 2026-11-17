@@ -574,6 +574,15 @@ services:
       WORKER_TASK_HEAP_MB: ${WORKER_TASK_HEAP_MB:-160}
       WORKER_DRAIN_S: ${WORKER_DRAIN_S:-60}
       WORKER_CONCURRENCY_ASSETS_ESPELHAR: ${WORKER_CONCURRENCY_ASSETS_ESPELHAR:-2}
+      # E-mails do ciclo de vida do tenant (tenant.lifecycle, plataforma F3): o mesmo SMTP do console; sem SMTP, o
+      # registro fica sem entrega e o log avisa. Os links: o console e Planos e módulos (a loja, como na API)
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-465}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      CONSOLE_URL: https://${DEMO_DOMAIN:?defina DEMO_DOMAIN}/client
+      UPGRADE_URL_BASE: https://${DEMO_DOMAIN:?defina DEMO_DOMAIN}/client/plans
       WORKER_CONCURRENCY_CARGA_HISTORICA: ${WORKER_CONCURRENCY_CARGA_HISTORICA:-1}
       WORKER_CONCURRENCY_ACERVO_IMPORTAR: ${WORKER_CONCURRENCY_ACERVO_IMPORTAR:-1}
       WORKER_CONCURRENCY_BACKFILL_NORMALIZAR: ${WORKER_CONCURRENCY_BACKFILL_NORMALIZAR:-1}

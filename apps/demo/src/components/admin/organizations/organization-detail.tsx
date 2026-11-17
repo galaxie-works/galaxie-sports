@@ -28,6 +28,7 @@ import {
 import type { StaffActionRow } from '@/lib/client/staff';
 import { useFormatters, useI18n } from '@/lib/i18n/client';
 
+import { BrandStateActions, BrandStateBadge } from './brand-state-actions';
 import { IssuedKeysDialog } from './issued-keys-dialog';
 
 function Fact({ label, children }: { label: string; children: React.ReactNode }) {
@@ -189,7 +190,10 @@ export function OrganizationDetail({
                 <TableRow>
                   <TableHead>{T.columns.brand}</TableHead>
                   <TableHead>{T.columns.plan}</TableHead>
-                  <TableHead>{T.columns.status}</TableHead>
+                  <TableHead>{T.columns.state}</TableHead>
+                  <TableHead>{T.columns.since}</TableHead>
+                  <TableHead>{T.columns.trialEnds}</TableHead>
+                  <TableHead className="text-right">{T.columns.actions}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -203,12 +207,16 @@ export function OrganizationDetail({
                     </TableCell>
                     <TableCell className="text-sm">{b.plan}</TableCell>
                     <TableCell>
-                      <Badge
-                        variant={b.status === 'active' ? 'success-light' : 'warning-light'}
-                        radius="full"
-                      >
-                        {t.client.tenant.status[b.status]}
-                      </Badge>
+                      <BrandStateBadge state={b.state} />
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-sm tabular-nums">
+                      {fmt.date(b.stateSince)}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-sm tabular-nums">
+                      {b.trialEndsAt ? fmt.date(b.trialEndsAt) : '—'}
+                    </TableCell>
+                    <TableCell>
+                      <BrandStateActions brand={b} />
                     </TableCell>
                   </TableRow>
                 ))}

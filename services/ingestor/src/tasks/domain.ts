@@ -4,10 +4,15 @@
  * `last_checked_at` e `last_error` (null quando bateu). Idempotente: domínio já comprovado só atualiza a conferência;
  * domínio apagado antes da tomada encerra sem erro. Um host comprovado é de uma marca só (índice parcial do banco):
  * a gravação que colide vira `last_error`, não falha da tarefa.
+ *
+ * Domínio comprovado entra nas origens (F3, decisão 12): quando o TXT bate, `https://<host>` (e `https://www.<host>`
+ * quando o host não começa com `www.`) entra em `allowed_origins` de toda chave publicável `live` ativa da marca que
+ * ainda não o tenha. A reconferência diária é do `tenant.lifecycle`; se o TXT sumiu, `verified_at` fica e
+ * `last_error` registra (nenhuma origem sai sem decisão do dono).
  */
 import { resolveTxt as dnsResolveTxt } from 'node:dns/promises';
-import { eq } from 'drizzle-orm';
-import { domain, type Database } from '@galaxie/db';
+import { and, eq, isNull, sql } from 'drizzle-orm';
+import { domain, normalizeAllowedOrigin, publishableKey, type Database } from '@galaxie/db';
 import type { TaskHandler } from './run.js';
 
 /** Nome do registro TXT que o cliente publica (o mesmo do painel). */
@@ -16,6 +21,7 @@ export const txtRecordName = (host: string) => `${DOMAIN_TXT_PREFIX}.${host}`;
 
 export interface DomainRecord {
   id: string;
+  tenantId: string;
   host: string;
   txtToken: string;
   verifiedAt: Date | null;
@@ -30,17 +36,55 @@ export interface DomainVerifyDeps {
     id: string,
     patch: { verifiedAt?: Date; lastCheckedAt: Date; lastError: string | null },
   ) => Promise<void>;
+  /** Acrescenta as origens que faltam às chaves publicáveis `live` ativas da marca; devolve quantas chaves mudaram. */
+  addOrigins: (db: Database, tenantId: string, origins: readonly string[]) => Promise<number>;
   now?: () => Date;
 }
 
-export const pgDomainStore: Pick<DomainVerifyDeps, 'load' | 'save'> = {
+/** As origens que um host comprovado libera: o próprio e, sem `www.`, também o `www.`. */
+export function originsForHost(host: string): string[] {
+  const hosts = host.startsWith('www.') ? [host] : [host, `www.${host}`];
+  return hosts.map((h) => normalizeAllowedOrigin(`https://${h}`)).filter((o): o is string => o !== null);
+}
+
+export const pgDomainStore: Pick<DomainVerifyDeps, 'load' | 'save' | 'addOrigins'> = {
   async load(db, id) {
     const [row] = await db
-      .select({ id: domain.id, host: domain.host, txtToken: domain.txtToken, verifiedAt: domain.verifiedAt })
+      .select({
+        id: domain.id,
+        tenantId: domain.tenantId,
+        host: domain.host,
+        txtToken: domain.txtToken,
+        verifiedAt: domain.verifiedAt,
+      })
       .from(domain)
       .where(eq(domain.id, id))
       .limit(1);
     return row ?? null;
+  },
+  async addOrigins(db, tenantId, origins) {
+    if (!origins.length) return 0;
+    // um só UPDATE por chave, no banco: ler e regravar a lista perderia uma edição simultânea do painel. Só as chaves
+    // a que falta alguma origem mudam, e só as faltantes entram, na ordem dada
+    const wanted = sql`ARRAY[${sql.join(
+      origins.map((o) => sql`${o}`),
+      sql`, `,
+    )}]::text[]`;
+    const rows = await db
+      .update(publishableKey)
+      .set({
+        allowedOrigins: sql`${publishableKey.allowedOrigins} || array(select o from unnest(${wanted}) as o where not (o = any(${publishableKey.allowedOrigins})))`,
+      })
+      .where(
+        and(
+          eq(publishableKey.tenantId, tenantId),
+          eq(publishableKey.env, 'live'),
+          isNull(publishableKey.revokedAt),
+          sql`not (${publishableKey.allowedOrigins} @> ${wanted})`,
+        ),
+      )
+      .returning({ id: publishableKey.id });
+    return rows.length;
   },
   async save(db, id, patch) {
     await db
@@ -98,10 +142,17 @@ export function tenantVerifyDomain(
       await deps.save(db, id, { lastCheckedAt: now, lastError: 'host já comprovado por outra marca' });
       return { detail: `${record.host}: já comprovado por outra marca`, stats: { comprovado: 0 } };
     }
-    await checkpoint({ log: [`${name}: ${matched ? 'bateu' : (error ?? 'não bateu')}`] });
+    // comprovado (agora ou de novo): as origens do host entram nas chaves publicáveis que ainda não as têm
+    const keysChanged = matched ? await deps.addOrigins(db, record.tenantId, originsForHost(record.host)) : 0;
+    await checkpoint({
+      log: [
+        `${name}: ${matched ? 'bateu' : (error ?? 'não bateu')}`,
+        ...(keysChanged ? [`origens do host em ${keysChanged} chave(s) publicável(is)`] : []),
+      ],
+    });
     return {
       detail: matched ? `${record.host} comprovado` : `${record.host}: ${error}`,
-      stats: { comprovado: matched ? 1 : 0, registros: records.length },
+      stats: { comprovado: matched ? 1 : 0, registros: records.length, chavesComOrigem: keysChanged },
     };
   };
 }

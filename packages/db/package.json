@@ -86,6 +86,10 @@
     "./key-events": {
       "types": "./dist/key-events.d.ts",
       "default": "./dist/key-events.js"
+    },
+    "./tenant-notifications": {
+      "types": "./dist/tenant-notifications.d.ts",
+      "default": "./dist/tenant-notifications.js"
     }
   },
   "files": [

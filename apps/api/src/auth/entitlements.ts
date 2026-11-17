@@ -11,7 +11,12 @@ import {
   type EntitlementsCacheStore,
 } from '@galaxie/billing';
 
-type Rights = Pick<Entitlements, 'modules' | 'features'>;
+/**
+ * O que a API aplica dos direitos: módulos e features sempre; `limits` (cota e limite por minuto, com os tetos do trial,
+ * F3 decisão 14) e `tiers` (a faixa de conexões SSE) quando o resolvedor os traz.
+ */
+export type Rights = Pick<Entitlements, 'modules' | 'features'> &
+  Partial<Pick<Entitlements, 'limits' | 'tiers'>>;
 export type ResolveRights = (tenantId: string) => Promise<Rights | null>;
 
 /** Quem resolve os direitos na API e apaga o cache depois de uma mudança do tenant. */

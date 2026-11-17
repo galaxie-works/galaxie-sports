@@ -156,6 +156,9 @@ export function redactKey(url: string): string {
  * `GET /v1/stream` — Server-Sent Events filtrados por eventos, competições, esportes e tópicos.
  * Ver docs/05 §5.1.
  */
+/** Faixa do catálogo (`config/catalog/modules.yaml`, módulo core_data) com as conexões SSE simultâneas do tenant. */
+export const SSE_CONNECTIONS_TIER = 'core_data.sse_connections';
+
 export async function streamRoutes(app: FastifyInstance, deps: StreamDeps): Promise<Set<SseConnection>> {
   const open = new Set<SseConnection>();
   const maxConnections = deps.options.maxConnectionsPerTenant ?? 100;
@@ -250,8 +253,10 @@ export async function streamRoutes(app: FastifyInstance, deps: StreamDeps): Prom
       };
       res.once('close', onEarlyClose);
       const connectionId = randomUUID();
+      // o teto do tenant: o da API ou, se menor, a faixa dos direitos (5 na conta em trial; F3, decisão 14)
+      const tenantMax = Math.min(maxConnections, tenant.tiers?.[SSE_CONNECTIONS_TIER] ?? maxConnections);
       const acquired = await deps.limiter
-        .acquire(tenant.tenantId, connectionId, maxConnections)
+        .acquire(tenant.tenantId, connectionId, tenantMax)
         .catch((err: unknown) => {
           // Valkey fora: não derruba o tempo real (fail-open), como o rate limit
           request.log.warn({ err }, 'limite de conexões SSE indisponível');
@@ -272,7 +277,7 @@ export async function streamRoutes(app: FastifyInstance, deps: StreamDeps): Prom
           429,
           'RATE_LIMITED',
           'Limite de conexões simultâneas do tenant atingido',
-          `Máximo de ${maxConnections} conexões SSE abertas por tenant.`,
+          `Máximo de ${tenantMax} conexões SSE abertas por tenant.`,
           { headers: { 'retry-after': '30' } },
         );
       }

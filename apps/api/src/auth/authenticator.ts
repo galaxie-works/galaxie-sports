@@ -1,8 +1,8 @@
 import { createHash } from 'node:crypto';
 import type { AccessErrorReason, ApiModule, ApiPlan } from '@galaxie/db';
-import { problems } from '../errors.js';
+import { problems, type ProblemError } from '../errors.js';
 import { parseApiKey, verifySecret } from './keys.js';
-import type { KeyRecord, TenantStore } from './tenant-store.js';
+import type { KeyRecord, TenantRecord, TenantStore } from './tenant-store.js';
 import { ipBucket, type AuthThrottle } from './throttle.js';
 import type { VerifiedKeyStore } from './verified-keys.js';
 
@@ -31,11 +31,14 @@ export interface TenantContext {
   markets: string[];
   /** Esportes contratados; vazio = todos. */
   sports: string[];
+  /** Limite por minuto que vale: o dos direitos (`entitlements().limits`, com os tetos do trial) ou, sem eles, a coluna. */
   rateLimitPerMinute: number;
-  /** Cota diária de produção do tenant; null/ausente = sem cota (docs/politica-de-chaves.md §4). */
+  /** Cota diária de produção que vale; null/ausente = sem cota (docs/politica-de-chaves.md §4). */
   dailyRequestQuota?: number | null;
   /** Features ligadas pelos direitos do tenant (presente quando a API resolve os direitos). */
   features?: string[];
+  /** Faixas dos direitos (`core_data.sse_connections` → 5 no trial); presente quando a API resolve os direitos. */
+  tiers?: Record<string, number>;
 }
 
 export interface AuthenticatorOptions {
@@ -187,9 +190,16 @@ export class Authenticator {
     // estado da chave antes do scrypt: chave revogada/expirada não custa CPU a cada tentativa
     if (record.revokedAt && record.revokedAt <= now) return markDead('Chave revogada.', 'revoked');
     if (record.expiresAt && record.expiresAt <= now) return markDead('Chave expirada.', 'expired');
-    this.assertKeyState(record, now, parsed.env, reveal, (reason) =>
+    this.assertKeyEnv(record, parsed.env, reveal, (reason) =>
       this.denied(record.tenant.id, reason, parsed.prefix),
     );
+    // estado do tenant (F3): o código da recusa (em revisão, trial vencido, suspenso…) diz algo sobre o cliente, então
+    // só sai para quem já provou ter a chave; quem só tem o prefixo paga o scrypt e, errando o segredo, vê o 401 comum
+    const stateProblem = tenantStateProblem(record.tenant, now);
+    if (stateProblem && remembered) {
+      this.denied(record.tenant.id, 'tenant_inactive', parsed.prefix);
+      throw stateProblem;
+    }
     if (record.keyFormat >= 2 && parsed.format < 2) {
       this.denied(record.tenant.id, 'invalid_secret', parsed.prefix);
       throw problems.invalidKey();
@@ -213,6 +223,11 @@ export class Authenticator {
     }
     // renovado a cada releitura do registro (uma por chave e instância a cada `cacheTtlMs`)
     this.verifiedKeys?.add(cacheKey, this.rememberTtlMs).catch(() => {});
+    // segredo provado: agora a recusa pelo estado pode dizer o motivo
+    if (stateProblem) {
+      this.denied(record.tenant.id, 'tenant_inactive', parsed.prefix);
+      throw stateProblem;
+    }
 
     const ctx = contextOf(record, parsed.prefix);
     put(this.cache, cacheKey, { ctx, at: t, expiresAt: t + this.cacheTtlMs });
@@ -248,40 +263,27 @@ export class Authenticator {
       this.denied(record.tenant.id, 'expired', prefix);
       throw problems.invalidKey('Chave expirada.');
     }
-    this.assertKeyState(
-      record,
-      now,
-      record.env,
-      (d) => d,
-      (reason) => this.denied(record.tenant.id, reason, prefix),
-    );
+    const stateProblem = tenantStateProblem(record.tenant, now);
+    if (stateProblem) {
+      this.denied(record.tenant.id, 'tenant_inactive', prefix);
+      throw stateProblem;
+    }
     const ctx = contextOf(record, prefix);
     put(this.cache, cacheKey, { ctx, at: t, expiresAt: t + this.cacheTtlMs });
     this.touch(record.keyId, now);
     return ctx;
   }
 
-  /** Tenant ativo, dentro do trial e ambiente da chave igual ao do prefixo. */
-  private assertKeyState(
+  /**
+   * O prefixo vale: `gs_test_` de uma chave de produção (ou o contrário) não autentica. Sem cache negativo por prefixo
+   * aqui, para não bloquear a chave certa do mesmo prefixo.
+   */
+  private assertKeyEnv(
     record: KeyRecord,
-    now: Date,
     env: 'live' | 'test',
     reveal: (detail: string) => string | undefined,
-    denied: (reason: AccessErrorReason) => void = () => {},
+    denied: (reason: AccessErrorReason) => void,
   ): void {
-    if (record.tenant.status !== 'active') {
-      denied('tenant_inactive');
-      throw problems.invalidKey(reveal('Tenant suspenso.'));
-    }
-    // fim do trial vale para todas as chaves do tenant
-    if (record.tenant.trialEndsAt && record.tenant.trialEndsAt <= now) {
-      denied('tenant_inactive');
-      throw problems.invalidKey(
-        reveal('O trial terminou: fale com o time da Galaxie para contratar um plano.'),
-      );
-    }
-    // o prefixo vale: `gs_test_` de uma chave de produção (ou o contrário) não autentica. Sem cache negativo
-    // por prefixo aqui, para não bloquear a chave certa do mesmo prefixo
     if (env !== record.env) {
       denied('wrong_env');
       throw problems.invalidKey(reveal('O ambiente da chave (live/test) não confere com o prefixo.'));
@@ -296,7 +298,36 @@ export class Authenticator {
   }
 }
 
-/** Contexto da requisição a partir do registro da chave secreta. */
+/**
+ * A API responde por estado (plataforma comercial F3, doc 02 "O que cada estado permite"): a recusa que o estado do
+ * tenant impõe a qualquer chave dele (secreta ou publicável), ou null quando o tenant tem acesso (`trial`, `active` e
+ * `past_due`, que passa como `active`). Enquanto o job `tenant.lifecycle` não gravou a transição, `trial` com
+ * `trial_ends_at` vencido já responde `TRIAL_EXPIRED`.
+ */
+export function tenantStateProblem(
+  tenant: Pick<TenantRecord, 'state' | 'trialEndsAt'>,
+  now: Date,
+): ProblemError | null {
+  switch (tenant.state) {
+    case 'draft':
+    case 'pending_review':
+      return problems.tenantPendingReview();
+    case 'rejected':
+      return problems.tenantRejected();
+    case 'trial_expired':
+      return problems.trialExpired();
+    case 'suspended':
+      return problems.subscriptionSuspended();
+    case 'cancelled':
+      return problems.tenantCancelled();
+    case 'trial':
+      return tenant.trialEndsAt && tenant.trialEndsAt <= now ? problems.trialExpired() : null;
+    case 'active':
+    case 'past_due':
+      return null;
+  }
+}
+
 /**
  * Módulos fechados até decisão do dono: sem eles, as rotas respondem 403 e o tempo real não entrega o tópico.
  * Só a chave secreta dos tenants listados passa (a vitrine do próprio site lê por ela).
@@ -349,7 +380,12 @@ function contextOf(record: KeyRecord, prefix: string): TenantContext {
  */
 export function withEntitlements(
   ctx: TenantContext,
-  ent: { modules: readonly ApiModule[]; features: readonly string[] },
+  ent: {
+    modules: readonly ApiModule[];
+    features: readonly string[];
+    limits?: { rateLimitPerMinute: number; dailyRequestQuota: number | null };
+    tiers?: Record<string, number>;
+  },
 ): TenantContext {
   const allows = ctx.keyAllows;
   const modules = withoutClosedModules(
@@ -357,7 +393,16 @@ export function withEntitlements(
     ctx.slug,
     ctx.keyKind,
   );
-  return { ...ctx, modules, features: [...ent.features] };
+  return {
+    ...ctx,
+    modules,
+    features: [...ent.features],
+    // cota e limite por minuto saem dos direitos (F3, decisão 14): no trial são os tetos do teste, não a coluna
+    ...(ent.limits
+      ? { rateLimitPerMinute: ent.limits.rateLimitPerMinute, dailyRequestQuota: ent.limits.dailyRequestQuota }
+      : {}),
+    ...(ent.tiers ? { tiers: { ...ent.tiers } } : {}),
+  };
 }
 
 export function assertModule(ctx: TenantContext, module: ApiModule): void {
