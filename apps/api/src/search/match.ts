@@ -50,7 +50,17 @@ export function searchPattern(term: string): string {
  * "sobrenome". Só o padrão vai como parâmetro.
  */
 export function personSearchMatchSql(term: string): SQL {
-  return sql`(coalesce(p.name, '') || ' ' || coalesce(p.first_name, '') || ' ' || coalesce(p.last_name, '')) ~* ${searchPattern(term)}`;
+  return sql`(coalesce(p.name, '') || ' ' || coalesce(p.first_name, '') || ' ' || coalesce(p.last_name, '')) ~* ${personSearchPattern(term)}`;
+}
+
+/**
+ * Regex do pré-filtro de pessoas. Termo curto (2 letras) também só casa no começo de uma palavra, mas com os
+ * separadores de nome explícitos (espaço, ponto, apóstrofo, hífen) em vez de `[^[:alnum:]]`: com a classe negada o
+ * pg_trgm não extrai trigrama nenhum e o planner volta ao seq scan; com a lista ele usa os trigramas de começo de
+ * palavra ("  r", " ro") do índice. É justamente o termo que a busca recebe a cada tecla.
+ */
+export function personSearchPattern(term: string): string {
+  return term.length < 3 ? `(^|[ .'-])${accentPattern(term)}` : accentPattern(term);
 }
 
 /** `fold` no Postgres (sem a extensão unaccent). */

@@ -332,15 +332,22 @@ describe('GET /v1/search', () => {
     // nome completo contíguo (primeiro nome + sobrenome) segue casando sem os apelidos em jsonpath
     const full = await search('q=raphael%20claudio%20veiga&types=person');
     expect(full.body.data[0]).toMatchObject({ name: 'R. Veiga', matched: 'Raphael Cláudio Veiga' });
-    // com 3 linhas o planner prefere o seq scan; desligado, só usa o índice se a expressão for a mesma dele
-    const plan = await db.transaction(async (tx) => {
-      await tx.execute(sql`set local enable_seqscan = off`);
-      const rows = await tx.execute<{ 'QUERY PLAN': string }>(
-        sql`explain select p.id from core.person p where ${personSearchMatchSql('veiga')}`,
-      );
-      return rows.map((r) => r['QUERY PLAN']).join(' ');
-    });
-    expect(plan).toContain('Bitmap Index Scan on person_search_trgm_idx');
+    // com 3 linhas o planner prefere o seq scan; desligado, só usa o índice se a expressão for a mesma dele. Um
+    // regex de que o pg_trgm não extrai trigrama nenhum ainda passa pelo índice, mas lendo-o inteiro: aí o recheck
+    // descarta o "Boca", e é isso que distingue o termo curto (2 letras, o mais frequente na digitação)
+    for (const term of ['veiga', 've']) {
+      const plan = await db.transaction(async (tx) => {
+        await tx.execute(sql`set local enable_seqscan = off`);
+        const rows = await tx.execute<{ 'QUERY PLAN': string }>(
+          sql`explain (analyze, costs off) select p.id from core.person p where ${personSearchMatchSql(term)}`,
+        );
+        return rows.map((r) => r['QUERY PLAN']).join(' ');
+      });
+      expect(plan).toContain('Bitmap Index Scan on person_search_trgm_idx');
+      expect(plan).not.toContain('Rows Removed by Index Recheck');
+    }
+    const short = await search('q=ve&types=person');
+    expect(short.body.data.map((r) => r.name)).toContain('R. Veiga');
   });
 
   it('respeita os esportes do plano e o limite por tipo', async () => {

@@ -7,6 +7,7 @@ import {
   fold,
   matchOf,
   personSearchMatchSql,
+  personSearchPattern,
   searchPattern,
   splitMatchup,
   stringsOf,
@@ -86,10 +87,17 @@ describe('busca — pré-filtro de pessoas (índice person_search_trgm_idx)', ()
     expect(q.params).toEqual([accentPattern('messi')]);
   });
 
-  it('termo curto só casa no começo de uma palavra', () => {
+  it('termo curto só casa no começo de uma palavra, com separadores que o pg_trgm indexa', () => {
     expect(dialect.sqlToQuery(personSearchMatchSql('ro')).params).toEqual([
-      `(^|[^[:alnum:]])${accentPattern('ro')}`,
+      `(^|[ .'-])${accentPattern('ro')}`,
     ]);
+    expect(dialect.sqlToQuery(personSearchMatchSql('ronaldo')).params).toEqual([accentPattern('ronaldo')]);
+    const re = new RegExp(personSearchPattern('ro'), 'i');
+    for (const hit of ['Rodrygo', 'Cristiano Ronaldo', 'J. Rodríguez', "D'Rossi", 'Saint-Romain'])
+      expect(hit).toMatch(re);
+    expect('Carolina').not.toMatch(re);
+    // as outras entidades seguem com a classe negada
+    expect(searchPattern('br')).toBe(`(^|[^[:alnum:]])${accentPattern('br')}`);
     expect(searchPattern('ronaldo')).toBe(accentPattern('ronaldo'));
   });
 
