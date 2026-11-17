@@ -310,6 +310,9 @@ tests:
       # o dump do NAS de 93600 s (= 26 h após o zero): com 1 h de idade na avaliação de 27 h
       - series: 'galaxie_job_last_success_timestamp_seconds{job_name="nas-dump"}'
         values: '93600x3300'
+      # modo nas ligado: o backup-check registra backup-mode-nas a cada verificação (aqui, sempre agora)
+      - series: 'galaxie_job_last_success_timestamp_seconds{job_name="backup-mode-nas"}'
+        values: '0+60x3300'
     alert_rule_test:
       - eval_time: 27h
         alertname: BackupStale
@@ -338,6 +341,25 @@ tests:
             exp_annotations:
               summary: 'Último backup do Postgres com sucesso há 2d 6h 0m 0s'
               description: 'O serviço backup deveria gerar um dump por dia (ou o dump do NAS, com BACKUP_DUMP_SOURCE=nas, deixar o recibo). Veja os logs do container backup e, no NAS, o last_dump.txt da stack nas-replica.'
+
+  # Volta atrás (BACKUP_DUMP_SOURCE=vps de novo): a série nas-dump fica velha para sempre, mas sem o backup-mode-nas
+  # recente o NasDumpStale não dispara; o BackupStale volta a depender só do pg-backup
+  - name: sem o modo nas ligado, nas-dump velho não alerta
+    interval: 1m
+    input_series:
+      - series: 'galaxie_job_last_success_timestamp_seconds{job_name="pg-backup"}'
+        values: '0+60x3300'
+      - series: 'galaxie_job_last_success_timestamp_seconds{job_name="nas-dump"}'
+        values: '0x3300'
+      - series: 'galaxie_job_last_success_timestamp_seconds{job_name="backup-mode-nas"}'
+        values: '0x3300'
+    alert_rule_test:
+      - eval_time: 54h
+        alertname: NasDumpStale
+        exp_alerts: []
+      - eval_time: 54h
+        alertname: BackupStale
+        exp_alerts: []
 
   - name: raw do futebol parado há mais de 26 horas
     interval: 1m

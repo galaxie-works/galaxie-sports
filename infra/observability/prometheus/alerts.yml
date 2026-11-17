@@ -82,9 +82,13 @@ groups:
 
       # Só existe depois do primeiro recibo do NAS (BACKUP_DUMP_SOURCE=nas): o dump da réplica parou (túnel, réplica
       # atrasada ou promovida, slot perdido, disco do NAS cheio, chave de recibo). O semanal da VPS continua existindo;
-      # este alerta é para ir ao NAS antes que o semanal seja a única cópia.
+      # este alerta é para ir ao NAS antes que o semanal seja a única cópia. Só vale com o modo ligado: o backup-check.sh
+      # registra o job backup-mode-nas a cada verificação (6 h) enquanto BACKUP_DUMP_SOURCE=nas; voltar para vps deixa
+      # a série nas-dump no banco, mas sem o backup-mode-nas recente (12 h) o alerta desarma sozinho.
       - alert: NasDumpStale
-        expr: time() - galaxie_job_last_success_timestamp_seconds{job_name="nas-dump"} > 26 * 3600
+        expr: >-
+          (time() - galaxie_job_last_success_timestamp_seconds{job_name="nas-dump"} > 26 * 3600)
+          and on() (time() - galaxie_job_last_success_timestamp_seconds{job_name="backup-mode-nas"} < 12 * 3600)
         for: 10m
         labels:
           severity: critical

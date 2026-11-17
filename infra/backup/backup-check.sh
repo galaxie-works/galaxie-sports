@@ -9,7 +9,9 @@
 #     pelo comando forçado da chave de recibo, "<quando> <bytes> <arquivo>") OU o dump local mais recente, o que for
 #     mais novo; e, à parte, quando o dump local (o semanal, BACKUP_DAYS) tem mais de BACKUP_LOCAL_MAX_AGE_H horas
 #     (padrão 192 = 8 dias). O recibo fresco vira uma linha `nas-dump` em ops.job_run com a hora real do dump
-#     (lib.sh › job_record): é o que alimenta NasDumpStale e cala o BackupStale no Prometheus;
+#     (lib.sh › job_record): é o que alimenta NasDumpStale e cala o BackupStale no Prometheus. Cada verificação nesse
+#     modo registra também o job `backup-mode-nas`: o NasDumpStale só vale com ele recente, então voltar para vps
+#     desarma o alerta sozinho em 12 h;
 #   - com BACKUP_NAS_RECEIPT=true, o recibo do NAS ($BACKUP_DIR/.nas_last_pull, que o NAS toca depois de copiar;
 #     ver docs/runbooks/exercicio-dr.md) tem mais de BACKUP_MAX_AGE_H horas, ou não existe;
 #   - com BACKUP_S3_SYNC_PREFIXES ou BACKUP_S3_SYNC_TASKS_BUCKET=true, o recibo do sync do S3 ($BACKUP_DIR/.s3_last_sync,
@@ -64,6 +66,10 @@ else
       fi
     fi
   fi
+  # sinal de "modo nas ligado" para o Prometheus: o NasDumpStale só vale enquanto este job for recente (12 h); ao voltar
+  # para vps a série nas-dump continua no banco, mas o alerta para de valer sozinho
+  mode_id=$(job_start backup-mode-nas)
+  job_finish "$mode_id" ok "" "{\"receipt\":\"$nas_dump_name\"}"
   if [ -n "$nas_why" ]; then
     if [ -n "$dump" ] && [ "$dump_age" -le "$max_s" ]; then
       log warn "$nas_why; vale o dump local $(basename "$dump") (há $((dump_age / 60)) min)"
