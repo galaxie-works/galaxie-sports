@@ -22,8 +22,8 @@
 #   - um SHA anterior aos três projetos continua publicável, sem subir um segundo Postgres no mesmo volume
 #   - a demo vira site e console (issue #546): os dois sobem lado a lado, a demo sai depois, o candidato e o smoke rodam
 #     nos dois; só a configuração do console muda → troca só ele; volta para um SHA com a demo e de novo para a frente
-#   - DUMP_MODE=nas (docs/runbooks/replica-no-nas.md): com migration nova e sem recibo do dump do NAS, para sem tocar em
-#     nada; com o recibo, segue sem pg_dump na VPS; DUMP_MODE inválido é recusado
+#   - DUMP_MODE=nas (docs/runbooks/replica-no-nas.md): com migration nova e sem recibo do dump do NAS, deixa o pedido,
+#     espera e para sem tocar em nada; com o recibo, segue sem pg_dump na VPS; DUMP_MODE inválido é recusado
 #
 #   bash infra/vps-telemetry/deploy-gh.test.sh
 set -euo pipefail
@@ -931,14 +931,16 @@ echo n >> "$REPO_T/apps/api/x"
 C15="$(commit "c15: migration nova")"
 publish
 before="$(created)"
-# o volume de backups da VPS de faz de conta (o nas-dump-check.sh lê NAS_BACKUPS_DIR; o ssh falso roda aqui, com este ambiente)
-export NAS_BACKUPS_DIR="$WORK/backups-nas"
+# o volume de backups da VPS de faz de conta (o nas-dump-check.sh lê NAS_BACKUPS_DIR; o ssh falso roda aqui, com este
+# ambiente); sem recibo ele deixa o pedido ao NAS e espera: aqui, 2 s (o NAS de faz de conta nunca responde)
+export NAS_BACKUPS_DIR="$WORK/backups-nas" NAS_DUMP_WAIT_S=2 NAS_DUMP_POLL_S=1
 mkdir -p "$NAS_BACKUPS_DIR"
 deploy "$C15" DUMP_MODE=nas
 expect_rc 1
-expect_log '^FAIL  sem prova de backup recente'
-expect_log 'docker exec nas-replica-dumper-1 /dump.sh pre-migrate'
+expect_log 'Pedido de dump deixado para o NAS \(rótulo gha-'
+expect_log '^FAIL  o NAS não atendeu o pedido de dump em'
 expect_log '^FAIL  sem prova de backup para o migrate \(DUMP_MODE=nas\)'
+expect_eq "pedido retirado" "$(find "$NAS_BACKUPS_DIR" -mindepth 1 | wc -l | tr -d ' ')" 0
 expect_eq "DEPLOY_SHA não mudou" "$(env_of DEPLOY_SHA)" "$C14"
 expect_recreated "$before"
 
@@ -950,7 +952,7 @@ expect_log '^prova de backup antes do migrate \(DUMP_MODE=nas\): galaxie_sports_
 expect_log '^migrate da .* \(1 migration\(s\) nova\(s\)\)'
 expect_log '^PASS  '
 expect_eq "DEPLOY_SHA gravado" "$(env_of DEPLOY_SHA)" "$C15"
-unset NAS_BACKUPS_DIR
+unset NAS_BACKUPS_DIR NAS_DUMP_WAIT_S NAS_DUMP_POLL_S
 
 echo "── DUMP_MODE inválido é recusado antes de tocar na VPS"
 before="$(created)"

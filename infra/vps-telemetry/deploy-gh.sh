@@ -34,8 +34,9 @@
 #   7. com migration nova no journal do SHA, dump do banco (pre-migrate-dump.sh; falhou = para sem trocar nada). Com
 #      DUMP_MODE=nas (vars.DUMP_MODE no Actions; padrão vps), em vez do pg_dump na VPS confere a prova de um dump feito
 #      fora dela (nas-dump-check.sh: o recibo .nas_last_dump da réplica do NAS ou um dump local, com até
-#      NAS_DUMP_MAX_AGE_MIN min, padrão 120; docs/runbooks/replica-no-nas.md); sem prova, para sem tocar no banco e diz
-#      como pedir o dump ao NAS. SKIP_PRE_MIGRATE_DUMP=1 pula os dois. Depois o migrate com saída 0 antes de qualquer
+#      NAS_DUMP_MAX_AGE_MIN min, padrão 120; docs/runbooks/replica-no-nas.md); sem prova, deixa o pedido de dump na VPS
+#      e espera o NAS atender (até NAS_DUMP_WAIT_MIN, padrão 20); sem recibo no prazo, para sem tocar no banco.
+#      SKIP_PRE_MIGRATE_DUMP=1 pula os dois. Depois o migrate com saída 0 antes de qualquer
 #      troca (a versão no ar segue, sobre o schema novo), só se a imagem ou a configuração dele mudou, se há migration
 #      nova ou com FORCE
 #   7b. com a api ou o app web (site e console; num SHA de antes da divisão, a demo) na lista: os candidatos sobem ao lado
@@ -408,15 +409,18 @@ if [ "${SKIP_PRE_MIGRATE_DUMP:-}" = 1 ]; then
   echo "WARN  SKIP_PRE_MIGRATE_DUMP=1: sem dump antes do migrate"
 elif [ "$DUMP_MODE" = nas ]; then
   # sem pg_dump na VPS: a prova é o dump feito na réplica do NAS (recibo .nas_last_dump) ou um dump local recente
+  # (sem recibo recente nem dump local, o nas-dump-check.sh deixa o pedido na VPS e espera o NAS dumpar: até
+  # NAS_DUMP_WAIT_MIN, dentro do teto do passo do deploy no workflow)
   NAS_MAX_AGE="${NAS_DUMP_MAX_AGE_MIN:-120}"
-  [[ "$NAS_MAX_AGE" =~ ^[0-9]+$ ]] || { echo "FAIL  NAS_DUMP_MAX_AGE_MIN='$NAS_MAX_AGE' inválido (minutos)"; exit 1; }
-  if out="$(ssh "$VPS" "cd $DIR && NAS_DUMP_MAX_AGE_MIN='$NAS_MAX_AGE' bash -s -- '$journal'" < "$HERE/nas-dump-check.sh")"; then
+  NAS_WAIT="${NAS_DUMP_WAIT_MIN:-20}"
+  [[ "$NAS_MAX_AGE" =~ ^[0-9]+$ && "$NAS_WAIT" =~ ^[0-9]+$ ]] || { echo "FAIL  NAS_DUMP_MAX_AGE_MIN='$NAS_MAX_AGE' ou NAS_DUMP_WAIT_MIN='$NAS_WAIT' inválido (minutos)"; exit 1; }
+  if out="$(ssh "$VPS" "cd $DIR && NAS_DUMP_MAX_AGE_MIN='$NAS_MAX_AGE' NAS_DUMP_WAIT_MIN='$NAS_WAIT' bash -s -- '$journal' 'gha-$RUN_ID-${OLD:0:7}-${SHA:0:7}'" < "$HERE/nas-dump-check.sh")"; then
     printf '%s\n' "$out" | grep -v '^NAS_DUMP=' || true
     NAS_DUMP="$(sed -n 's/^NAS_DUMP=//p' <<< "$out")"
     [ -z "$NAS_DUMP" ] || echo "prova de backup antes do migrate (DUMP_MODE=nas): $NAS_DUMP"
   else
     printf '%s\n' "$out"
-    echo "FAIL  sem prova de backup para o migrate (DUMP_MODE=nas); nada foi trocado na VPS. Peça o dump ao NAS (acima) ou rode uma vez com DUMP_MODE=vps"
+    echo "FAIL  sem prova de backup para o migrate (DUMP_MODE=nas); nada foi trocado na VPS. Confira o NAS (acima) ou publique uma vez com DUMP_MODE=vps"
     exit 1
   fi
 elif out="$(ssh "$VPS" "cd $DIR && bash -s -- '$journal' '${OLD:0:7}-${SHA:0:7}'" < "$HERE/pre-migrate-dump.sh")"; then
