@@ -8,6 +8,7 @@ import {
 import { createDb, type Database, type DbProfile } from '@galaxie/db';
 import { quotaPolicyFromEnv } from '@galaxie/observability';
 import { PgCatalogSource, type CatalogSource } from './jobs/catalog-source.js';
+import { dbProfileFromEnv } from './db-profile.js';
 import { PgCursorStore } from './jobs/runtime/cursor-store.js';
 import { PgJobRunStore } from './jobs/runtime/job-run-store.js';
 import { PgRawSource } from './jobs/runtime/raw-source.js';
@@ -22,13 +23,7 @@ export interface IngestorContext {
   offline: boolean;
 }
 
-/**
- * Perfil de tempos do banco de um processo do ingestor: `live` dentro do serviço do ao vivo (`SCHEDULER_PROFILE=live`,
- * que os jobs herdam do scheduler), o padrão (`job`) no resto. Ver packages/db/src/client.ts › DB_TIMEOUTS.
- */
-export function dbProfileFromEnv(env: NodeJS.ProcessEnv = process.env): DbProfile | undefined {
-  return env.SCHEDULER_PROFILE?.trim().toLowerCase() === 'live' ? 'live' : undefined;
-}
+export { dbProfileFromEnv };
 
 /**
  * Monta banco, Governor e cliente a partir das variáveis de ambiente (.env). O perfil de tempos do banco é o de

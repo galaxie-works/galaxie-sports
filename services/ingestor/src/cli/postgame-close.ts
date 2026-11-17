@@ -7,12 +7,15 @@
  * Opções: --forcar (busca todas as datas pendentes agora, ignorando o intervalo; respeita o teto do dia)
  *
  * Custo quando não há nada na vez (a maior parte dos minutos): uma consulta dos pendentes e uma leitura de cursores
- * (dezenas de ms de banco). O resto era o Node carregando o que só serve para buscar: o cliente do fornecedor, o
- * logger com as métricas e a normalização (~1,4 s de CPU de 2,3 s). Por isso esses módulos só são carregados depois de
- * saber que há lista na vez (docs/runbooks/alertas-e-monitoramento.md › CPU dos jobs por minuto).
+ * (dezenas de ms de banco). O resto era o Node carregando o que só serve para buscar: o logger com a observabilidade
+ * (~650 ms), a normalização (~730 ms) e o contexto do fornecedor. Esses três só são carregados depois de saber que há
+ * lista na vez; o runner vem junto com o job-cli e é leve (docs/runbooks/alertas-e-monitoramento.md › CPU dos jobs por
+ * minuto).
  */
 import { closeDb, createDb } from '@galaxie/db';
+import { dbProfileFromEnv } from '../db-profile.js';
 import { PgCursorStore } from '../jobs/runtime/cursor-store.js';
+import { plannedRequest } from '../jobs/runtime/runner.js';
 import {
   dueLists,
   holdSport,
@@ -33,9 +36,9 @@ await runCli(async () => {
   if (!sports.length) return;
   const url = process.env.DATABASE_URL;
   if (!url) throw new Error('Defina DATABASE_URL (.env).');
-  // o mesmo perfil de tempos que o contexto escolheria (context.ts › dbProfileFromEnv), sem carregar o contexto
-  const live = process.env.SCHEDULER_PROFILE?.trim().toLowerCase() === 'live';
-  const db = createDb(url, live ? { profile: 'live' } : {});
+  // o mesmo perfil de tempos do contexto, sem carregar o contexto
+  const profile = dbProfileFromEnv();
+  const db = createDb(url, profile ? { profile } : {});
   try {
     const now = new Date();
     const cursors = new PgCursorStore(db);
@@ -71,14 +74,12 @@ await runCli(async () => {
       return;
     }
     if (!due.length) return;
-    // há lista na vez: só agora o cliente do fornecedor, o Governor, o logger e a normalização
-    const [{ jobContextFromEnv }, { plannedRequest }, { logger }, { normalizeAfterFetch }] =
-      await Promise.all([
-        import('../context.js'),
-        import('../jobs/runtime/runner.js'),
-        import('../logger.js'),
-        import('../normalize/after-fetch.js'),
-      ]);
+    // há lista na vez: só agora o contexto do fornecedor (cliente, Governor), o logger e a normalização
+    const [{ jobContextFromEnv }, { logger }, { normalizeAfterFetch }] = await Promise.all([
+      import('../context.js'),
+      import('../logger.js'),
+      import('../normalize/after-fetch.js'),
+    ]);
     const ctx = jobContextFromEnv(process.env, { db });
     const normalize = normalizeAfterFetch(ctx.db, {
       // os outros esportes vão ao core já aqui, sem esperar o normalize-sports de hora em hora
