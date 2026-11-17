@@ -29,6 +29,7 @@ import {
   TEAM_ENDPOINTS,
   teamTargets,
 } from './people-job.js';
+import { OTHER_SPORTS_SCHEDULE } from './other-sports.js';
 import { cursorId, type CursorRef, type CursorStore } from './runtime/cursor-store.js';
 import type { RawSource } from './runtime/raw-source.js';
 import { plannedRequest, type AfterFetch, type JobSpec, type PlannedRequest } from './runtime/runner.js';
@@ -38,20 +39,7 @@ const DAY_MS = 86_400_000;
 /** Jogo que começou há mais que isto já acabou (futebol: ~2 h, com prorrogação e pênaltis ~2h40). */
 const SURELY_OVER_MS = 6 * 3_600_000;
 
-/** Agenda diária das outras 11 APIs (cada uma com cota própria): 1 chamada = todas as ligas do dia. */
-export const OTHER_SPORTS_SCHEDULE: Record<Exclude<ApiSport, 'football'>, string> = {
-  afl: '/games',
-  baseball: '/games',
-  basketball: '/games',
-  'formula-1': '/races',
-  handball: '/games',
-  hockey: '/games',
-  mma: '/fights',
-  nba: '/games',
-  'american-football': '/games',
-  rugby: '/games',
-  volleyball: '/games',
-};
+export { OTHER_SPORTS_SCHEDULE };
 
 /**
  * Período do rodízio por endpoint: o cursor mais antigo que isso volta para a fila. `/sidelined` a cada 2 dias (o

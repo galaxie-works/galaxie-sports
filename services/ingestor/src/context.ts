@@ -39,13 +39,14 @@ export function dbProfileFromEnv(env: NodeJS.ProcessEnv = process.env): DbProfil
  */
 export function contextFromEnv(
   env: NodeJS.ProcessEnv = process.env,
-  options: { dbProfile?: DbProfile | undefined } = {},
+  options: { dbProfile?: DbProfile | undefined; db?: Database | undefined } = {},
 ): IngestorContext {
   const { APISPORTS_KEY, DATABASE_URL } = env;
   if (!DATABASE_URL) throw new Error('Defina DATABASE_URL (.env).');
   const planFor = plansFromEnv(env);
   const dbProfile = options.dbProfile ?? dbProfileFromEnv(env);
-  const db = createDb(DATABASE_URL, dbProfile ? { profile: dbProfile } : {});
+  // um pool já aberto (o job que decidiu barato, sem o contexto, se tinha trabalho) é reaproveitado
+  const db = options.db ?? createDb(DATABASE_URL, dbProfile ? { profile: dbProfile } : {});
   const liveTimeoutMs = Number(env.APISPORTS_LIVE_TIMEOUT_MS) || undefined;
   const governor = new PgQuotaGovernor(db, quotaPolicyFromEnv(env));
   const offline = !APISPORTS_KEY;
@@ -75,8 +76,11 @@ export interface JobContext extends RunDeps {
 }
 
 /** Dependências dos jobs de ingestão (cursores, job_run, raw, catálogo) sobre o Postgres. */
-export function jobContextFromEnv(env: NodeJS.ProcessEnv = process.env): JobContext {
-  const ctx = contextFromEnv(env);
+export function jobContextFromEnv(
+  env: NodeJS.ProcessEnv = process.env,
+  options: { db?: Database | undefined } = {},
+): JobContext {
+  const ctx = contextFromEnv(env, options);
   return {
     ...ctx,
     cursors: new PgCursorStore(ctx.db),
