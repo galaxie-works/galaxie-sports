@@ -211,6 +211,11 @@ jobs:
           PROJECT: ${{ inputs.project || 'apps' }}
           # só no disparo manual: o automático (workflow_run) nunca pula o dump
           SKIP_PRE_MIGRATE_DUMP: ${{ github.event_name == 'workflow_dispatch' && inputs.skip_dump == '1' && '1' || '' }}
+          # vps (padrão): pg_dump na VPS antes do migrate; nas: a prova é o dump feito na réplica do NAS (recibo
+          # .nas_last_dump) ou um dump local com até NAS_DUMP_MAX_AGE_MIN min. Variáveis do repositório (Settings ›
+          # Variables); só ligue nas com a réplica no ar (docs/runbooks/replica-no-nas.md)
+          DUMP_MODE: ${{ vars.DUMP_MODE || 'vps' }}
+          NAS_DUMP_MAX_AGE_MIN: ${{ vars.NAS_DUMP_MAX_AGE_MIN || '120' }}
           TARGET_DIR: ${{ runner.temp }}/alvo
         run: |
           set -o pipefail

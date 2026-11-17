@@ -322,6 +322,15 @@ fi
 journal="$(grep -c '"idx"' "$WT/packages/db/drizzle/meta/_journal.json")" || journal=""
 if [ "${SKIP_PRE_MIGRATE_DUMP:-}" = 1 ]; then
   echo "WARN  SKIP_PRE_MIGRATE_DUMP=1: sem dump antes do migrate"
+elif [ "${DUMP_MODE:-vps}" = nas ]; then
+  # sem pg_dump na VPS: a prova é o dump da réplica do NAS ou um dump local recente (docs/runbooks/replica-no-nas.md)
+  if out="$(ssh "$VPS" "cd $DIR && NAS_DUMP_MAX_AGE_MIN='${NAS_DUMP_MAX_AGE_MIN:-120}' bash -s -- '$journal'" < "$ROOT/infra/vps-telemetry/nas-dump-check.sh")"; then
+    printf '%s\n' "$out"
+  else
+    printf '%s\n' "$out"
+    echo "FAIL  sem prova de backup para o migrate (DUMP_MODE=nas); nada foi trocado na VPS. Peça o dump ao NAS (acima) ou rode uma vez com DUMP_MODE=vps"
+    exit 1
+  fi
 elif out="$(ssh "$VPS" "cd $DIR && bash -s -- '$journal' '${OLD:0:7}-${SHA:0:7}'" < "$ROOT/infra/vps-telemetry/pre-migrate-dump.sh")"; then
   printf '%s\n' "$out" | grep -v '^PRE_DUMP=' || true
   PRE_DUMP="$(sed -n 's/^PRE_DUMP=//p' <<< "$out")"

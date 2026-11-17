@@ -31,9 +31,13 @@
 #   5. compose.yml do SHA e tags no .env, validados; docker compose pull só dos serviços com imagem nossa (os de
 #      terceiros, como o postgres, ficam na imagem que já está na VPS)
 #   6. plano (deploy-plan.sh): quem troca, por digest da imagem e por configuração; o log diz serviço a serviço
-#   7. com migration nova no journal do SHA, dump do banco (pre-migrate-dump.sh; falhou = para sem trocar nada); migrate
-#      com saída 0 antes de qualquer troca (a versão no ar segue, sobre o schema novo), só se a imagem ou a configuração
-#      dele mudou, se há migration nova ou com FORCE
+#   7. com migration nova no journal do SHA, dump do banco (pre-migrate-dump.sh; falhou = para sem trocar nada). Com
+#      DUMP_MODE=nas (vars.DUMP_MODE no Actions; padrão vps), em vez do pg_dump na VPS confere a prova de um dump feito
+#      fora dela (nas-dump-check.sh: o recibo .nas_last_dump da réplica do NAS ou um dump local, com até
+#      NAS_DUMP_MAX_AGE_MIN min, padrão 120; docs/runbooks/replica-no-nas.md); sem prova, para sem tocar no banco e diz
+#      como pedir o dump ao NAS. SKIP_PRE_MIGRATE_DUMP=1 pula os dois. Depois o migrate com saída 0 antes de qualquer
+#      troca (a versão no ar segue, sobre o schema novo), só se a imagem ou a configuração dele mudou, se há migration
+#      nova ou com FORCE
 #   7b. com a api ou o app web (site e console; num SHA de antes da divisão, a demo) na lista: os candidatos sobem ao lado
 #      dos que estão no ar, sem tráfego (candidate.sh), e o smoke roda em cada um web. Smoke com FAIL = para aqui, sem troca
 #   8. backup do compose e do .env e troca dos dois. Lista vazia (sem FORCE): sem pós-deploy nem smoke, termina SKIP
@@ -216,6 +220,15 @@ SCALE=""
 MIG_BEFORE=""
 MIG_AFTER=""
 PRE_DUMP="" # dump de antes do migrate (só com migration nova)
+NAS_DUMP="" # com DUMP_MODE=nas: a prova de backup aceita (dump no NAS ou local), para a mensagem de volta
+DUMP_MODE="${DUMP_MODE:-vps}"
+case "$DUMP_MODE" in
+  vps | nas) ;;
+  *)
+    echo "FAIL  DUMP_MODE='$DUMP_MODE' inválido: vps (pg_dump na VPS antes do migrate) ou nas (prova do dump da réplica do NAS)"
+    exit 1
+    ;;
+esac
 EARLY_MIG="" # migrations aplicadas antes da troca
 CAND_UP=""
 TROCA="" # serviços que trocam neste deploy (deploy-plan.sh)
@@ -242,6 +255,7 @@ rollback_help() {
     fi
     echo "FAIL  prefira corrigir para frente (deploy de um fix); voltar exige restaurar também o banco (infra/backup/restore.sh), perdendo o que foi gravado depois do dump"
     [ -z "$PRE_DUMP" ] || echo "FAIL  dump de antes do migrate: ssh $VPS 'cd $DIR && $DADOS_DC exec backup restore.sh --yes $PRE_DUMP' (com API e ingestor parados)"
+    [ -z "$NAS_DUMP" ] || echo "FAIL  prova de backup aceita antes do migrate: $NAS_DUMP. Dump no NAS: copie-o com o .sha256 para o volume backups da VPS e rode restore.sh --yes <arquivo> (docs/runbooks/replica-no-nas.md › Restaurar)"
   fi
   echo "FAIL  conferir: ssh $VPS 'cd $DIR && $DC ps -a && $DC logs --tail 50'"
 }
@@ -392,6 +406,19 @@ journal="$(grep -c '"idx"' "$TARGET/packages/db/drizzle/meta/_journal.json")" ||
 # mais migrations que o banco; sem espaço ou com o pg_dump falhando, para aqui, sem ter trocado nada.
 if [ "${SKIP_PRE_MIGRATE_DUMP:-}" = 1 ]; then
   echo "WARN  SKIP_PRE_MIGRATE_DUMP=1: sem dump antes do migrate"
+elif [ "$DUMP_MODE" = nas ]; then
+  # sem pg_dump na VPS: a prova é o dump feito na réplica do NAS (recibo .nas_last_dump) ou um dump local recente
+  NAS_MAX_AGE="${NAS_DUMP_MAX_AGE_MIN:-120}"
+  [[ "$NAS_MAX_AGE" =~ ^[0-9]+$ ]] || { echo "FAIL  NAS_DUMP_MAX_AGE_MIN='$NAS_MAX_AGE' inválido (minutos)"; exit 1; }
+  if out="$(ssh "$VPS" "cd $DIR && NAS_DUMP_MAX_AGE_MIN='$NAS_MAX_AGE' bash -s -- '$journal'" < "$HERE/nas-dump-check.sh")"; then
+    printf '%s\n' "$out" | grep -v '^NAS_DUMP=' || true
+    NAS_DUMP="$(sed -n 's/^NAS_DUMP=//p' <<< "$out")"
+    [ -z "$NAS_DUMP" ] || echo "prova de backup antes do migrate (DUMP_MODE=nas): $NAS_DUMP"
+  else
+    printf '%s\n' "$out"
+    echo "FAIL  sem prova de backup para o migrate (DUMP_MODE=nas); nada foi trocado na VPS. Peça o dump ao NAS (acima) ou rode uma vez com DUMP_MODE=vps"
+    exit 1
+  fi
 elif out="$(ssh "$VPS" "cd $DIR && bash -s -- '$journal' '${OLD:0:7}-${SHA:0:7}'" < "$HERE/pre-migrate-dump.sh")"; then
   printf '%s\n' "$out" | grep -v '^PRE_DUMP=' || true
   PRE_DUMP="$(sed -n 's/^PRE_DUMP=//p' <<< "$out")"
