@@ -1,0 +1,1544 @@
+[
+  {
+    "id": "volleyball.explorer.competitions",
+    "sport": "volleyball",
+    "category": "participation",
+    "family": "explorer",
+    "collection": "volleyball.world_tour",
+    "rule": {
+      "input": "prediction",
+      "where": {
+        "sport": [
+          "volleyball"
+        ]
+      },
+      "count": {
+        "mode": "distinct",
+        "key": "competition"
+      }
+    },
+    "requires_data": [
+      "fan.prediction",
+      "event.sport",
+      "event.competition.id"
+    ],
+    "stepped": true,
+    "seasonal": false,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "a plataforma cobre 32 competições de vôlei; um torcedor assíduo palpita em 8 a 12 delas por temporada (ligas nacionais masculina e feminina, continentais de clubes, liga de seleções, torneios de seleções) e 20 é alcance de 2 ou 3 temporadas (fonte: cobertura da plataforma, seção 6 da missão)",
+    "name": {
+      "pt": "Mapa do vôlei",
+      "es": "Mapa del vóley",
+      "en": "Volleyball Map"
+    },
+    "description": {
+      "pt": "Dê Palpites em competições de vôlei diferentes.",
+      "es": "Haz pronósticos en torneos de vóley distintos.",
+      "en": "Make predictions across different volleyball competitions."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 0,
+        "card_key": "volleyball.explorer.competitions.1"
+      },
+      {
+        "step": 2,
+        "threshold": 2,
+        "bonus_points": 0,
+        "card_key": "volleyball.explorer.competitions.2"
+      },
+      {
+        "step": 3,
+        "threshold": 5,
+        "bonus_points": 0,
+        "card_key": "volleyball.explorer.competitions.3"
+      },
+      {
+        "step": 4,
+        "threshold": 10,
+        "bonus_points": 0,
+        "card_key": "volleyball.explorer.competitions.4"
+      },
+      {
+        "step": 5,
+        "threshold": 20,
+        "bonus_points": 0,
+        "card_key": "volleyball.explorer.competitions.5"
+      }
+    ]
+  },
+  {
+    "id": "volleyball.explorer.months",
+    "sport": "volleyball",
+    "category": "participation",
+    "family": "explorer",
+    "collection": "volleyball.world_tour",
+    "rule": {
+      "input": "participation",
+      "action": "watched",
+      "where": {
+        "sport": [
+          "volleyball"
+        ]
+      },
+      "count": {
+        "mode": "distinct",
+        "key": "month"
+      }
+    },
+    "requires_data": [
+      "fan.participation",
+      "fan.presence",
+      "event.sport",
+      "event.starts_at",
+      "program.time_zone"
+    ],
+    "stepped": true,
+    "seasonal": false,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "ligas nacionais de outubro a maio, liga de seleções de junho a agosto, continentais de clubes e torneios de seleções entre agosto e outubro: há vôlei em todos os meses do ano; Platina = 12 meses, Lendário = 2 anos (fontes do calendário em pesquisa/volleyball.md)",
+    "name": {
+      "pt": "Ano inteiro",
+      "es": "Todo el año",
+      "en": "All Year Round"
+    },
+    "description": {
+      "pt": "Assista a vôlei em meses diferentes, sem deixar a rede esfriar.",
+      "es": "Mira vóley en meses distintos, sin dejar que la red se enfríe.",
+      "en": "Watch volleyball in different months, never letting the net go cold."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 0,
+        "card_key": "volleyball.explorer.months.1"
+      },
+      {
+        "step": 2,
+        "threshold": 3,
+        "bonus_points": 0,
+        "card_key": "volleyball.explorer.months.2"
+      },
+      {
+        "step": 3,
+        "threshold": 6,
+        "bonus_points": 0,
+        "card_key": "volleyball.explorer.months.3"
+      },
+      {
+        "step": 4,
+        "threshold": 12,
+        "bonus_points": 0,
+        "card_key": "volleyball.explorer.months.4"
+      },
+      {
+        "step": 5,
+        "threshold": 24,
+        "bonus_points": 0,
+        "card_key": "volleyball.explorer.months.5"
+      }
+    ]
+  },
+  {
+    "id": "volleyball.loyalty.favorite_games",
+    "sport": "volleyball",
+    "category": "participation",
+    "family": "loyalty",
+    "collection": "volleyball.faithful",
+    "rule": {
+      "input": "participation",
+      "action": "watched",
+      "where": {
+        "sport": [
+          "volleyball"
+        ],
+        "favorite_playing": true
+      }
+    },
+    "requires_data": [
+      "fan.participation",
+      "fan.presence",
+      "fan.favorite_team_id",
+      "event.participants",
+      "event.sport"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "as ligas nacionais do Brasil têm 12 clubes em turno e returno, 22 jogos na fase classificatória, e até 29 com playoffs (quartas e semi em melhor de três, final única); Platina = a fase classificatória (fonte: lance.com.br/volei/sete-times-cinco-vagas-superliga-masculina-reta-final.html; nsctotal.com.br/?p=7691795; calendário em pesquisa/volleyball.md)",
+    "name": {
+      "pt": "Fiel ao time",
+      "es": "Fiel al equipo",
+      "en": "True to the Team"
+    },
+    "description": {
+      "pt": "Assista aos jogos do seu time do coração.",
+      "es": "Mira los partidos de tu equipo del corazón.",
+      "en": "Watch your favorite team’s matches."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 0,
+        "card_key": "volleyball.loyalty.favorite_games.1"
+      },
+      {
+        "step": 2,
+        "threshold": 3,
+        "bonus_points": 0,
+        "card_key": "volleyball.loyalty.favorite_games.2"
+      },
+      {
+        "step": 3,
+        "threshold": 8,
+        "bonus_points": 0,
+        "card_key": "volleyball.loyalty.favorite_games.3"
+      },
+      {
+        "step": 4,
+        "threshold": 22,
+        "bonus_points": 0,
+        "card_key": "volleyball.loyalty.favorite_games.4"
+      },
+      {
+        "step": 5,
+        "threshold": 60,
+        "bonus_points": 0,
+        "card_key": "volleyball.loyalty.favorite_games.5"
+      }
+    ]
+  },
+  {
+    "id": "volleyball.loyalty.favorite_streak",
+    "sport": "volleyball",
+    "category": "participation",
+    "family": "loyalty",
+    "collection": "volleyball.faithful",
+    "rule": {
+      "input": "participation",
+      "action": "watched",
+      "where": {
+        "sport": [
+          "volleyball"
+        ],
+        "favorite_playing": true
+      },
+      "count": {
+        "mode": "streak",
+        "unit": "game"
+      }
+    },
+    "requires_data": [
+      "fan.participation",
+      "fan.presence",
+      "fan.favorite_team_id",
+      "event.participants",
+      "event.sport"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria: um torcedor assíduo assiste a 70 a 80% dos jogos do time; 22 seguidos é a fase classificatória inteira sem falhar e 45 são quase duas temporadas (base: 22 a 29 jogos por time, calendário em pesquisa/volleyball.md)",
+    "name": {
+      "pt": "Sem perder um jogo",
+      "es": "Sin perderse un partido",
+      "en": "Never Miss a Match"
+    },
+    "description": {
+      "pt": "Assista a jogos seguidos do seu time, sem pular nenhum.",
+      "es": "Mira partidos seguidos de tu equipo, sin saltarte ninguno.",
+      "en": "Watch your team’s matches back to back, without skipping one."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 2,
+        "bonus_points": 0,
+        "card_key": "volleyball.loyalty.favorite_streak.1"
+      },
+      {
+        "step": 2,
+        "threshold": 5,
+        "bonus_points": 0,
+        "card_key": "volleyball.loyalty.favorite_streak.2"
+      },
+      {
+        "step": 3,
+        "threshold": 10,
+        "bonus_points": 0,
+        "card_key": "volleyball.loyalty.favorite_streak.3"
+      },
+      {
+        "step": 4,
+        "threshold": 22,
+        "bonus_points": 0,
+        "card_key": "volleyball.loyalty.favorite_streak.4"
+      },
+      {
+        "step": 5,
+        "threshold": 45,
+        "bonus_points": 0,
+        "card_key": "volleyball.loyalty.favorite_streak.5"
+      }
+    ]
+  },
+  {
+    "id": "volleyball.loyalty.finals_watched",
+    "sport": "volleyball",
+    "category": "participation",
+    "family": "loyalty",
+    "collection": "volleyball.big_nights",
+    "rule": {
+      "input": "participation",
+      "action": "watched",
+      "where": {
+        "sport": [
+          "volleyball"
+        ],
+        "stage": [
+          "final"
+        ]
+      }
+    },
+    "requires_data": [
+      "fan.participation",
+      "fan.presence",
+      "event.sport",
+      "event.stage.kind"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria sobre o calendário: 6 a 8 finais por temporada para o torcedor de vôlei (ligas nacionais masculina e feminina, continentais de clubes, fase final da liga de seleções, torneios de seleções) (fontes do calendário em pesquisa/volleyball.md)",
+    "name": {
+      "pt": "Noite de decisão",
+      "es": "Noche de definición",
+      "en": "Final Night"
+    },
+    "description": {
+      "pt": "Assista a jogos de final de qualquer competição de vôlei.",
+      "es": "Mira partidos de final de cualquier torneo de vóley.",
+      "en": "Watch finals from any volleyball competition."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 0,
+        "card_key": "volleyball.loyalty.finals_watched.1"
+      },
+      {
+        "step": 2,
+        "threshold": 2,
+        "bonus_points": 0,
+        "card_key": "volleyball.loyalty.finals_watched.2"
+      },
+      {
+        "step": 3,
+        "threshold": 4,
+        "bonus_points": 0,
+        "card_key": "volleyball.loyalty.finals_watched.3"
+      },
+      {
+        "step": 4,
+        "threshold": 8,
+        "bonus_points": 0,
+        "card_key": "volleyball.loyalty.finals_watched.4"
+      },
+      {
+        "step": 5,
+        "threshold": 20,
+        "bonus_points": 0,
+        "card_key": "volleyball.loyalty.finals_watched.5"
+      }
+    ]
+  },
+  {
+    "id": "volleyball.moments.ace_streak",
+    "sport": "volleyball",
+    "category": "moment",
+    "family": "moments",
+    "collection": "volleyball.dominance",
+    "rule": {
+      "input": "moment",
+      "fact": "score.period",
+      "params": {
+        "team": "favorite",
+        "period": "any",
+        "margin_min": 10
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "proposed.event.incidents.type=ace",
+      "proposed.event.incidents.person_id",
+      "event.score.periods",
+      "event.status=finished",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": false,
+    "inactive_reason": "o motor recebe só os pontos de cada set: não há lance a lance nem estatística de jogador no vôlei, então o ace não chega. Falta proposed.event.incidents.type=ace com sequência por ponto e person_id, e um fato volleyball.ace_streak com min_aces. A regra acima é só a aproximação (set vencido por 10 ou mais) e não pode ser ligada assim.",
+    "real_world_frequency": "estimativa própria: três aces seguidos do mesmo sacador acontecem em cerca de 2 a 3% dos jogos; para o time do torcedor, 0,5 a 1 por temporada (sem fonte estatística pública)",
+    "name": {
+      "pt": "Sequência de aces",
+      "es": "Racha de aces",
+      "en": "Ace Streak"
+    },
+    "description": {
+      "pt": "Esteja assistindo quando um sacador do seu time fizer três aces seguidos.",
+      "es": "Mira en vivo cuando un sacador de tu equipo haga tres aces seguidos.",
+      "en": "Be watching when one of your team’s servers hits three aces in a row."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 60,
+        "card_key": "volleyball.moments.ace_streak.1"
+      }
+    ]
+  },
+  {
+    "id": "volleyball.moments.block_party",
+    "sport": "volleyball",
+    "category": "moment",
+    "family": "moments",
+    "collection": "volleyball.dominance",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win",
+        "sets": "3-0"
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "proposed.team_game_stats.blocks",
+      "event.score",
+      "event.status=finished",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": false,
+    "inactive_reason": "falta estatística de time por partida: os pontos de bloqueio não chegam ao motor no vôlei. Falta proposed.team_game_stats.blocks e um fato volleyball.team_stat com stat e min. A regra acima é só a aproximação (vitória por 3 a 0) e não pode ser ligada assim.",
+    "real_world_frequency": "estimativa própria: 15 pontos de bloqueio ou mais num jogo acontecem em cerca de 5% dos jogos de elite; para o time do torcedor, 1 a 2 por temporada (sem fonte estatística pública)",
+    "name": {
+      "pt": "Muralha no bloqueio",
+      "es": "Muralla en el bloqueo",
+      "en": "Block Wall"
+    },
+    "description": {
+      "pt": "Assista ao jogo em que seu time faz 15 pontos de bloqueio ou mais.",
+      "es": "Mira el partido en que tu equipo hace 15 puntos de bloqueo o más.",
+      "en": "Watch the match where your team scores fifteen block points or more."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 60,
+        "card_key": "volleyball.moments.block_party.1"
+      }
+    ]
+  },
+  {
+    "id": "volleyball.moments.crushing_set",
+    "sport": "volleyball",
+    "category": "moment",
+    "family": "moments",
+    "collection": "volleyball.dominance",
+    "rule": {
+      "input": "moment",
+      "fact": "score.period",
+      "params": {
+        "team": "favorite",
+        "period": "any",
+        "margin_min": 20
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.score.periods",
+      "event.score",
+      "event.status=finished",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": false,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria: set vencido por 20 pontos ou mais (25 a 5) quase não existe entre times de elite; aparece uma vez a cada poucos anos somando todas as ligas e seleções cobertas (sem fonte estatística pública; base da margem típica de 5 pontos: marklebedew.com/2021/01/08/match-characteristics-plus-liga)",
+    "name": {
+      "pt": "Set perfeito",
+      "es": "Set perfecto",
+      "en": "Flawless Set"
+    },
+    "description": {
+      "pt": "Assista a um set que seu time vence por 20 pontos ou mais de diferença.",
+      "es": "Mira un set que tu equipo gana por 20 puntos o más de diferencia.",
+      "en": "Watch a set your team wins by twenty points or more."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 200,
+        "card_key": "volleyball.moments.crushing_set.1"
+      }
+    ]
+  },
+  {
+    "id": "volleyball.moments.deuce_set_win",
+    "sport": "volleyball",
+    "category": "moment",
+    "family": "moments",
+    "collection": "volleyball.long_sets",
+    "rule": {
+      "input": "moment",
+      "fact": "score.period",
+      "params": {
+        "team": "favorite",
+        "period": "any",
+        "points_min": 26
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.score.periods",
+      "event.score",
+      "event.status=finished",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "8 a 9% dos sets passam do empate em 24 a 24 (cerca de 700 jogos registrados), ou seja, perto de 30% dos jogos têm um set na vantagem; o time do torcedor vence 4 a 5 sets assim por temporada (fonte: keepthescore.com/blog/posts/volleyball-scoring)",
+    "name": {
+      "pt": "Set na vantagem",
+      "es": "Set en ventaja",
+      "en": "Deuce Set"
+    },
+    "description": {
+      "pt": "Assista aos sets em que seu time passa dos 25 pontos, depois do empate em 24 a 24.",
+      "es": "Mira los sets en que tu equipo pasa de los 25 puntos, tras el empate en 24 a 24.",
+      "en": "Watch the sets where your team goes past 25 points after a 24-24 tie."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 10,
+        "card_key": "volleyball.moments.deuce_set_win.1"
+      },
+      {
+        "step": 2,
+        "threshold": 2,
+        "bonus_points": 20,
+        "card_key": "volleyball.moments.deuce_set_win.2"
+      },
+      {
+        "step": 3,
+        "threshold": 5,
+        "bonus_points": 40,
+        "card_key": "volleyball.moments.deuce_set_win.3"
+      },
+      {
+        "step": 4,
+        "threshold": 10,
+        "bonus_points": 75,
+        "card_key": "volleyball.moments.deuce_set_win.4"
+      },
+      {
+        "step": 5,
+        "threshold": 25,
+        "bonus_points": 150,
+        "card_key": "volleyball.moments.deuce_set_win.5"
+      }
+    ]
+  },
+  {
+    "id": "volleyball.moments.long_rally",
+    "sport": "volleyball",
+    "category": "moment",
+    "family": "moments",
+    "collection": "volleyball.long_sets",
+    "rule": {
+      "input": "moment",
+      "fact": "score.period",
+      "params": {
+        "team": "any",
+        "period": "any",
+        "points_min": 28
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "proposed.event.incidents.rally_duration",
+      "event.score.periods",
+      "event.status=finished",
+      "fan.presence"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": false,
+    "inactive_reason": "o motor recebe só os pontos de cada set: não há lance a lance no vôlei, então a duração de um rally não chega. Falta proposed.event.incidents.rally_duration (segundos de cada rally) e um fato volleyball.rally com duration_min. A regra acima é só a aproximação (set que chega a 28 pontos) e não pode ser ligada assim.",
+    "real_world_frequency": "estimativa própria: um rally de 30 segundos ou mais acontece em cerca de 5% dos jogos de elite; para o time do torcedor, 1 a 2 por temporada (sem fonte estatística pública)",
+    "name": {
+      "pt": "Rally sem fim",
+      "es": "Rally interminable",
+      "en": "Endless Rally"
+    },
+    "description": {
+      "pt": "Assista a um rally de 30 segundos ou mais, com os dois times defendendo tudo.",
+      "es": "Mira un rally de 30 segundos o más, con los dos equipos defendiendo todo.",
+      "en": "Watch a rally of thirty seconds or more, with both teams digging everything."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 60,
+        "card_key": "volleyball.moments.long_rally.1"
+      }
+    ]
+  },
+  {
+    "id": "volleyball.moments.marathon_set",
+    "sport": "volleyball",
+    "category": "moment",
+    "family": "moments",
+    "collection": "volleyball.long_sets",
+    "rule": {
+      "input": "moment",
+      "fact": "score.period",
+      "params": {
+        "team": "any",
+        "period": "any",
+        "points_min": 30
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.score.periods",
+      "event.score",
+      "event.status=finished",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "8 a 9% dos sets chegam ao empate em 24 e cada rodada de vantagem seguinte sai em metade: um set de 30 pontos ou mais acontece em cerca de 0,5% dos sets, 2% dos jogos, 0,5 a 0,7 por temporada para o time; os recordes são 66 a 64 entre seleções (2026), 54 a 52 entre clubes (2002) e 50 a 48 na liga de seleções (fonte: keepthescore.com/blog/posts/volleyball-scoring; cev.eu/articles/volleyball/italy-and-germany-deliver-longest-set-and-match-ever-during-fipav-cup-men-elite-fixture; dzrh.com.ph/post/poland-prevails-after-record-breaking-48-50-vnl-opener-against-argentina)",
+    "name": {
+      "pt": "Set de 30 pontos",
+      "es": "Set de 30 puntos",
+      "en": "Thirty-Point Set"
+    },
+    "description": {
+      "pt": "Assista a um set em que um time chega a 30 pontos.",
+      "es": "Mira un set en que un equipo llega a los 30 puntos.",
+      "en": "Watch a set where a team reaches thirty points."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 60,
+        "card_key": "volleyball.moments.marathon_set.1"
+      }
+    ]
+  },
+  {
+    "id": "volleyball.moments.match_point_saved",
+    "sport": "volleyball",
+    "category": "moment",
+    "family": "moments",
+    "collection": "volleyball.comebacks",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win",
+        "sets": "3-2"
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "proposed.event.incidents.point_sequence",
+      "event.score.periods",
+      "event.score",
+      "event.status=finished",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": false,
+    "inactive_reason": "o motor recebe só o total de pontos de cada set, sem a sequência ponto a ponto: não dá para saber se o adversário chegou a ter match point. Falta proposed.event.incidents.point_sequence (placar a cada ponto) e um parâmetro match_point_saved no fato score.result. A regra acima é só a aproximação (vitória por 3 a 2) e não pode ser ligada assim.",
+    "real_world_frequency": "estimativa própria: salvar match point e vencer o jogo acontece em 1 a 2% dos jogos; para o time do torcedor, 0,3 a 0,5 por temporada (sem fonte estatística pública)",
+    "name": {
+      "pt": "Match point salvo",
+      "es": "Match point salvado",
+      "en": "Match Point Saved"
+    },
+    "description": {
+      "pt": "Assista ao jogo em que seu time salva match point e ainda vence.",
+      "es": "Mira el partido en que tu equipo salva un match point y aun así gana.",
+      "en": "Watch the match where your team saves match point and still wins."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 120,
+        "card_key": "volleyball.moments.match_point_saved.1"
+      }
+    ]
+  },
+  {
+    "id": "volleyball.moments.reverse_sweep",
+    "sport": "volleyball",
+    "category": "moment",
+    "family": "moments",
+    "collection": "volleyball.comebacks",
+    "rule": {
+      "input": "moment",
+      "fact": "score.comeback",
+      "params": {
+        "team": "favorite",
+        "trailing_by_min": 2
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.score.periods",
+      "event.score",
+      "event.status=finished",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "6,8% dos jogos da liga polonesa chegam a 2 a 2 depois de 0 a 2 e quem forçou o quinto set vence 43,5% deles: cerca de 3% dos jogos têm virada de 0 a 2; para o time do torcedor, 0,4 por temporada, uma a cada 2 ou 3 temporadas (fonte: marklebedew.com/2021/01/08/match-characteristics-plus-liga; volleymetrics.blogspot.com/2007/12/happy-holidays-to-everyone-todays-entry.html)",
+    "name": {
+      "pt": "Virada de 0 a 2",
+      "es": "Remontada de 0 a 2",
+      "en": "Reverse Sweep"
+    },
+    "description": {
+      "pt": "Assista ao jogo em que seu time vence depois de perder os dois primeiros sets.",
+      "es": "Mira el partido en que tu equipo gana tras perder los dos primeros sets.",
+      "en": "Watch the match where your team wins after dropping the first two sets."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 120,
+        "card_key": "volleyball.moments.reverse_sweep.1"
+      }
+    ]
+  },
+  {
+    "id": "volleyball.moments.set_blowout",
+    "sport": "volleyball",
+    "category": "moment",
+    "family": "moments",
+    "collection": "volleyball.dominance",
+    "rule": {
+      "input": "moment",
+      "fact": "score.period",
+      "params": {
+        "team": "favorite",
+        "period": "any",
+        "margin_min": 15
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.score.periods",
+      "event.score",
+      "event.status=finished",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "o perdedor de um set faz em média 20,4 pontos na liga polonesa (margem típica de 5); set vencido por 15 ou mais (25 a 10) é estimativa própria de 2% dos sets, 8% dos jogos, cerca de 1 por temporada a favor do time (fonte: marklebedew.com/2021/01/08/match-characteristics-plus-liga)",
+    "name": {
+      "pt": "Set arrasador",
+      "es": "Set arrollador",
+      "en": "Runaway Set"
+    },
+    "description": {
+      "pt": "Assista a um set que seu time vence por 15 pontos ou mais de diferença.",
+      "es": "Mira un set que tu equipo gana por 15 puntos o más de diferencia.",
+      "en": "Watch a set your team wins by fifteen points or more."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 60,
+        "card_key": "volleyball.moments.set_blowout.1"
+      }
+    ]
+  },
+  {
+    "id": "volleyball.moments.set_comeback",
+    "sport": "volleyball",
+    "category": "moment",
+    "family": "moments",
+    "collection": "volleyball.comebacks",
+    "rule": {
+      "input": "moment",
+      "fact": "score.comeback",
+      "params": {
+        "team": "favorite",
+        "trailing_by_min": 1
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.score.periods",
+      "event.score",
+      "event.status=finished",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria sobre a distribuição 3-0, 3-1 e 3-2 da liga polonesa: cerca de 30% das vitórias vêm depois de estar atrás em sets (perdeu o primeiro, ou estava 1 a 2); para o time do torcedor, 3 a 5 por temporada (fonte-base: marklebedew.com/2021/01/08/match-characteristics-plus-liga)",
+    "name": {
+      "pt": "Virada em sets",
+      "es": "Remontada en sets",
+      "en": "Set Comeback"
+    },
+    "description": {
+      "pt": "Assista ao jogo em que seu time vence depois de estar atrás no placar de sets.",
+      "es": "Mira el partido en que tu equipo gana tras ir abajo en el marcador de sets.",
+      "en": "Watch the match where your team wins after trailing in sets."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 25,
+        "card_key": "volleyball.moments.set_comeback.1"
+      }
+    ]
+  },
+  {
+    "id": "volleyball.moments.thirty_points",
+    "sport": "volleyball",
+    "category": "moment",
+    "family": "moments",
+    "collection": "volleyball.sharp_eye",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win",
+        "sets": "3-2"
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "proposed.player_game_stats.points",
+      "event.score",
+      "event.status=finished",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": false,
+    "inactive_reason": "falta estatística de jogador por partida: os pontos de cada atleta não chegam ao motor no vôlei. Falta proposed.player_game_stats.points e um fato volleyball.player_stat com stat e min. A regra acima é só a aproximação (vitória por 3 a 2, o jogo longo em que isso costuma acontecer) e não pode ser ligada assim.",
+    "real_world_frequency": "estimativa própria: 30 pontos ou mais de uma atleta num jogo acontecem em cerca de 3% dos jogos, quase sempre em jogos de cinco sets; para o time do torcedor, 0,5 a 1 por temporada (sem fonte estatística pública)",
+    "name": {
+      "pt": "Trinta pontos",
+      "es": "Treinta puntos",
+      "en": "Thirty-Point Night"
+    },
+    "description": {
+      "pt": "Assista ao jogo em que uma atleta do seu time marca 30 pontos ou mais.",
+      "es": "Mira el partido en que una jugadora de tu equipo marca 30 puntos o más.",
+      "en": "Watch the match where one of your team’s players scores thirty points or more."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 60,
+        "card_key": "volleyball.moments.thirty_points.1"
+      }
+    ]
+  },
+  {
+    "id": "volleyball.moments.tie_break",
+    "sport": "volleyball",
+    "category": "moment",
+    "family": "moments",
+    "collection": "volleyball.fifth_set",
+    "rule": {
+      "input": "moment",
+      "fact": "score.period",
+      "params": {
+        "team": "favorite",
+        "period": "s5"
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.score.periods",
+      "event.score",
+      "event.status=finished",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "11% dos jogos da liga polonesa (703 jogos de cinco temporadas) e 19% de uma conferência universitária americana (236 jogos) vão ao quinto set; para o time do torcedor, 3 a 5 tie-breaks por temporada de 22 a 29 jogos (fonte: marklebedew.com/2021/01/08/match-characteristics-plus-liga; coachingvb.com/thoughts-fivbs-7-sets-15-proposal)",
+    "name": {
+      "pt": "Tie-break",
+      "es": "Tie-break",
+      "en": "Fifth Set"
+    },
+    "description": {
+      "pt": "Assista aos jogos do seu time que vão até o tie-break.",
+      "es": "Mira los partidos de tu equipo que llegan al tie-break.",
+      "en": "Watch your team’s matches that go all the way to a fifth set."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 10,
+        "card_key": "volleyball.moments.tie_break.1"
+      },
+      {
+        "step": 2,
+        "threshold": 2,
+        "bonus_points": 20,
+        "card_key": "volleyball.moments.tie_break.2"
+      },
+      {
+        "step": 3,
+        "threshold": 4,
+        "bonus_points": 40,
+        "card_key": "volleyball.moments.tie_break.3"
+      },
+      {
+        "step": 4,
+        "threshold": 8,
+        "bonus_points": 75,
+        "card_key": "volleyball.moments.tie_break.4"
+      },
+      {
+        "step": 5,
+        "threshold": 20,
+        "bonus_points": 150,
+        "card_key": "volleyball.moments.tie_break.5"
+      }
+    ]
+  },
+  {
+    "id": "volleyball.moments.tie_break_marathon",
+    "sport": "volleyball",
+    "category": "moment",
+    "family": "moments",
+    "collection": "volleyball.fifth_set",
+    "rule": {
+      "input": "moment",
+      "fact": "score.period",
+      "params": {
+        "team": "any",
+        "period": "s5",
+        "points_min": 18
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.score.periods",
+      "event.score",
+      "event.status=finished",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria: cerca de 12% dos tie-breaks empatam em 14 a 14 e cada rodada de vantagem seguinte sai em metade, então um quinto set que chega a 18 pontos acontece em cerca de 3% dos tie-breaks, 0,5% dos jogos, 0,1 a 0,2 por temporada para o time (base: 11 a 19% dos jogos vão ao quinto set; fonte: marklebedew.com/2021/01/08/match-characteristics-plus-liga)",
+    "name": {
+      "pt": "Tie-break sem fim",
+      "es": "Tie-break sin fin",
+      "en": "Endless Fifth Set"
+    },
+    "description": {
+      "pt": "Assista a um tie-break que passa dos 18 pontos.",
+      "es": "Mira un tie-break que pasa de los 18 puntos.",
+      "en": "Watch a fifth set that runs past eighteen points."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 120,
+        "card_key": "volleyball.moments.tie_break_marathon.1"
+      }
+    ]
+  },
+  {
+    "id": "volleyball.moments.tie_break_win",
+    "sport": "volleyball",
+    "category": "moment",
+    "family": "moments",
+    "collection": "volleyball.fifth_set",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win",
+        "sets": "3-2"
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "cerca de metade dos 3 a 5 tie-breaks do time por temporada termina em vitória: 2 vitórias por 3 a 2 por temporada (base: 11 a 19% dos jogos vão ao quinto set; fonte: marklebedew.com/2021/01/08/match-characteristics-plus-liga; coachingvb.com/thoughts-fivbs-7-sets-15-proposal)",
+    "name": {
+      "pt": "Vitória no tie-break",
+      "es": "Triunfo en el tie-break",
+      "en": "Fifth-Set Win"
+    },
+    "description": {
+      "pt": "Assista ao jogo em que seu time vence por 3 sets a 2.",
+      "es": "Mira el partido en que tu equipo gana por 3 sets a 2.",
+      "en": "Watch the match your team wins three sets to two."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 25,
+        "card_key": "volleyball.moments.tie_break_win.1"
+      }
+    ]
+  },
+  {
+    "id": "volleyball.predictions.hit_streak",
+    "sport": "volleyball",
+    "category": "hit",
+    "family": "predictions",
+    "collection": "volleyball.sharp_eye",
+    "rule": {
+      "input": "prediction",
+      "correct": true,
+      "where": {
+        "sport": [
+          "volleyball"
+        ]
+      },
+      "count": {
+        "mode": "streak",
+        "unit": "prediction"
+      }
+    },
+    "requires_data": [
+      "fan.prediction",
+      "event.sport"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria: no vôlei o favorito vence mais vezes que no futebol (não há empate e 42 a 61% dos jogos são 3 a 0), então o Palpite de vencedor acerta cerca de 65%; 5 acertos seguidos saem para 1 em 9 tentativas e 10 para 1 em 75; um torcedor assíduo chega a 10 numa temporada e a 25 em poucas (base: marklebedew.com/2021/01/08/match-characteristics-plus-liga)",
+    "name": {
+      "pt": "Sequência certeira",
+      "es": "Racha certera",
+      "en": "Hot Streak"
+    },
+    "description": {
+      "pt": "Acerte Palpites de vôlei seguidos, sem errar nenhum no meio.",
+      "es": "Acierta pronósticos de vóley seguidos, sin fallar ninguno en el medio.",
+      "en": "Get volleyball predictions right back to back, without a miss in between."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 2,
+        "bonus_points": 20,
+        "card_key": "volleyball.predictions.hit_streak.1"
+      },
+      {
+        "step": 2,
+        "threshold": 5,
+        "bonus_points": 40,
+        "card_key": "volleyball.predictions.hit_streak.2"
+      },
+      {
+        "step": 3,
+        "threshold": 10,
+        "bonus_points": 80,
+        "card_key": "volleyball.predictions.hit_streak.3"
+      },
+      {
+        "step": 4,
+        "threshold": 25,
+        "bonus_points": 150,
+        "card_key": "volleyball.predictions.hit_streak.4"
+      },
+      {
+        "step": 5,
+        "threshold": 50,
+        "bonus_points": 300,
+        "card_key": "volleyball.predictions.hit_streak.5"
+      }
+    ]
+  },
+  {
+    "id": "volleyball.predictions.playoff_winner",
+    "sport": "volleyball",
+    "category": "hit",
+    "family": "predictions",
+    "collection": "volleyball.big_nights",
+    "rule": {
+      "input": "prediction",
+      "kind": "winner",
+      "correct": true,
+      "where": {
+        "sport": [
+          "volleyball"
+        ],
+        "stage": [
+          "knockout"
+        ]
+      }
+    },
+    "requires_data": [
+      "fan.prediction",
+      "event.sport",
+      "event.stage.kind"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria sobre o calendário: um torcedor assíduo encontra 20 a 30 jogos de playoff por temporada (ligas nacionais masculina e feminina, continentais de clubes, fase final da liga de seleções) e acerta o vencedor em cerca de 60% (fontes do calendário em pesquisa/volleyball.md)",
+    "name": {
+      "pt": "Quem avança",
+      "es": "Quién avanza",
+      "en": "Who Advances"
+    },
+    "description": {
+      "pt": "Acerte o vencedor de jogos de playoff e mata-mata de vôlei.",
+      "es": "Acierta el ganador en partidos de playoffs y eliminación directa de vóley.",
+      "en": "Predict the winner of volleyball playoff and knockout matches."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 20,
+        "card_key": "volleyball.predictions.playoff_winner.1"
+      },
+      {
+        "step": 2,
+        "threshold": 2,
+        "bonus_points": 40,
+        "card_key": "volleyball.predictions.playoff_winner.2"
+      },
+      {
+        "step": 3,
+        "threshold": 5,
+        "bonus_points": 80,
+        "card_key": "volleyball.predictions.playoff_winner.3"
+      },
+      {
+        "step": 4,
+        "threshold": 10,
+        "bonus_points": 150,
+        "card_key": "volleyball.predictions.playoff_winner.4"
+      },
+      {
+        "step": 5,
+        "threshold": 25,
+        "bonus_points": 300,
+        "card_key": "volleyball.predictions.playoff_winner.5"
+      }
+    ]
+  },
+  {
+    "id": "volleyball.predictions.sets_exact",
+    "sport": "volleyball",
+    "category": "hit",
+    "family": "predictions",
+    "collection": "volleyball.sharp_eye",
+    "rule": {
+      "input": "prediction",
+      "kind": "exact_score",
+      "correct": true,
+      "where": {
+        "sport": [
+          "volleyball"
+        ]
+      }
+    },
+    "requires_data": [
+      "fan.prediction",
+      "event.sport"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "no vôlei o placar exato é em sets (3 a 0, 3 a 1 ou 3 a 2 para cada lado: seis resultados); com 42 a 61% dos jogos terminando 3 a 0, o torcedor acerta cerca de 1 em 4 Palpites; palpitando em 40 a 60 jogos por temporada, 10 a 15 acertos (estimativa própria sobre marklebedew.com/2021/01/08/match-characteristics-plus-liga; coachingvb.com/thoughts-fivbs-7-sets-15-proposal)",
+    "name": {
+      "pt": "Sets na mosca",
+      "es": "Sets exactos",
+      "en": "Sets on the Nose"
+    },
+    "description": {
+      "pt": "Acerte o placar exato em sets de jogos de vôlei.",
+      "es": "Acierta el marcador exacto en sets de partidos de vóley.",
+      "en": "Predict the exact set score of volleyball matches."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 20,
+        "card_key": "volleyball.predictions.sets_exact.1"
+      },
+      {
+        "step": 2,
+        "threshold": 3,
+        "bonus_points": 40,
+        "card_key": "volleyball.predictions.sets_exact.2"
+      },
+      {
+        "step": 3,
+        "threshold": 6,
+        "bonus_points": 80,
+        "card_key": "volleyball.predictions.sets_exact.3"
+      },
+      {
+        "step": 4,
+        "threshold": 12,
+        "bonus_points": 150,
+        "card_key": "volleyball.predictions.sets_exact.4"
+      },
+      {
+        "step": 5,
+        "threshold": 30,
+        "bonus_points": 300,
+        "card_key": "volleyball.predictions.sets_exact.5"
+      }
+    ]
+  },
+  {
+    "id": "volleyball.results.away_win",
+    "sport": "volleyball",
+    "category": "moment",
+    "family": "results",
+    "collection": "volleyball.faithful",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "side": "away",
+        "outcome": "win"
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "metade dos 22 a 29 jogos do time é fora de casa e o visitante vence cerca de 40% deles (o mandante vence 60% dos jogos de cinco sets numa amostra universitária): 5 a 6 vitórias fora por temporada (fonte: bruinsportsanalytics.com/post/fifth-set-factors-what-determines-a-team-s-success-in-close-ncaa-d1-men-s-volleyball-matches; estimativa própria sobre o calendário)",
+    "name": {
+      "pt": "Vitória fora de casa",
+      "es": "Victoria de visitante",
+      "en": "Road Win"
+    },
+    "description": {
+      "pt": "Assista às vitórias do seu time como visitante.",
+      "es": "Mira las victorias de tu equipo como visitante.",
+      "en": "Watch your team win on the road."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 10,
+        "card_key": "volleyball.results.away_win.1"
+      },
+      {
+        "step": 2,
+        "threshold": 2,
+        "bonus_points": 20,
+        "card_key": "volleyball.results.away_win.2"
+      },
+      {
+        "step": 3,
+        "threshold": 4,
+        "bonus_points": 40,
+        "card_key": "volleyball.results.away_win.3"
+      },
+      {
+        "step": 4,
+        "threshold": 8,
+        "bonus_points": 75,
+        "card_key": "volleyball.results.away_win.4"
+      },
+      {
+        "step": 5,
+        "threshold": 20,
+        "bonus_points": 150,
+        "card_key": "volleyball.results.away_win.5"
+      }
+    ]
+  },
+  {
+    "id": "volleyball.results.final_win",
+    "sport": "volleyball",
+    "category": "moment",
+    "family": "results",
+    "collection": "volleyball.big_nights",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win"
+      },
+      "presence": "game",
+      "where": {
+        "stage": [
+          "final"
+        ]
+      }
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id",
+      "event.stage.kind"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria sobre o calendário: um clube disputa no máximo 1 ou 2 finais por temporada (liga nacional, copa nacional, continental de clubes) e para a maioria passam anos entre finais vencidas; a final da liga nacional é jogo único (fontes: cnnbrasil.com.br/esportes/volei/minas-e-praia-clube-decidem-final-da-superliga-feminina-em-jogo-unico; calendário em pesquisa/volleyball.md)",
+    "name": {
+      "pt": "Vitória em final",
+      "es": "Victoria en una final",
+      "en": "Final Won"
+    },
+    "description": {
+      "pt": "Assista a uma vitória do seu time em jogo de final.",
+      "es": "Mira una victoria de tu equipo en un partido de final.",
+      "en": "Watch your team win a final."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 120,
+        "card_key": "volleyball.results.final_win.1"
+      }
+    ]
+  },
+  {
+    "id": "volleyball.results.playoff_win",
+    "sport": "volleyball",
+    "category": "moment",
+    "family": "results",
+    "collection": "volleyball.big_nights",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win"
+      },
+      "presence": "game",
+      "where": {
+        "stage": [
+          "knockout"
+        ]
+      }
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id",
+      "event.stage.kind"
+    ],
+    "stepped": false,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "estimativa própria sobre o calendário: um clube que chega à final da liga nacional joga 5 a 7 jogos de playoff (quartas e semi em melhor de três, final única) e vence 3 a 4; os eliminados nas quartas vencem 0 ou 1: 2 a 4 por temporada (fontes do calendário em pesquisa/volleyball.md)",
+    "name": {
+      "pt": "Vitória no mata-mata",
+      "es": "Triunfo en playoffs",
+      "en": "Playoff Win"
+    },
+    "description": {
+      "pt": "Assista a uma vitória do seu time em jogo de playoff.",
+      "es": "Mira una victoria de tu equipo en un partido de playoffs.",
+      "en": "Watch your team win a playoff match."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 25,
+        "card_key": "volleyball.results.playoff_win.1"
+      }
+    ]
+  },
+  {
+    "id": "volleyball.results.sweep",
+    "sport": "volleyball",
+    "category": "moment",
+    "family": "results",
+    "collection": "volleyball.dominance",
+    "rule": {
+      "input": "moment",
+      "fact": "score.result",
+      "params": {
+        "team": "favorite",
+        "outcome": "win",
+        "sets": "3-0"
+      },
+      "presence": "game"
+    },
+    "requires_data": [
+      "event.status=finished",
+      "event.status_detail",
+      "event.score",
+      "event.score.periods",
+      "event.participants",
+      "fan.presence",
+      "fan.favorite_team_id"
+    ],
+    "stepped": true,
+    "seasonal": true,
+    "active": true,
+    "inactive_reason": null,
+    "real_world_frequency": "42,5% dos jogos da liga polonesa e 52 a 61% em amostras universitárias e mundiais terminam 3 a 0; o time do torcedor vence por 3 a 0 em cerca de 25% dos jogos, 6 a 8 por temporada de 22 a 29 jogos (fonte: marklebedew.com/2021/01/08/match-characteristics-plus-liga; coachingvb.com/thoughts-fivbs-7-sets-15-proposal)",
+    "name": {
+      "pt": "Três a zero",
+      "es": "Tres a cero",
+      "en": "Straight Sets"
+    },
+    "description": {
+      "pt": "Assista às vitórias do seu time por 3 sets a 0.",
+      "es": "Mira las victorias de tu equipo por 3 sets a 0.",
+      "en": "Watch your team win in straight sets."
+    },
+    "steps": [
+      {
+        "step": 1,
+        "threshold": 1,
+        "bonus_points": 10,
+        "card_key": "volleyball.results.sweep.1"
+      },
+      {
+        "step": 2,
+        "threshold": 2,
+        "bonus_points": 20,
+        "card_key": "volleyball.results.sweep.2"
+      },
+      {
+        "step": 3,
+        "threshold": 4,
+        "bonus_points": 40,
+        "card_key": "volleyball.results.sweep.3"
+      },
+      {
+        "step": 4,
+        "threshold": 8,
+        "bonus_points": 75,
+        "card_key": "volleyball.results.sweep.4"
+      },
+      {
+        "step": 5,
+        "threshold": 20,
+        "bonus_points": 150,
+        "card_key": "volleyball.results.sweep.5"
+      }
+    ]
+  }
+]

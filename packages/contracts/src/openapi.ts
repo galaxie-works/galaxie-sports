@@ -25,6 +25,7 @@ import { gamePaths } from './game.js';
 import { moderationPaths } from './moderation.js';
 import { chatPaths } from './chat.js';
 import { communityPaths } from './communities.js';
+import { communityFeedPaths } from './community-feed.js';
 import { ChampionsParams, ChampionsQuery, CompetitionChampions } from './champions.js';
 import { ChannelGuide, ChannelGuideParams, ChannelGuideQuery } from './channel-guide.js';
 import { channelListPaths } from './channel-list.js';
@@ -776,6 +777,7 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): ReturnType<t
       ...moderationPaths,
       ...chatPaths,
       ...communityPaths,
+      ...communityFeedPaths,
       ...channelListPaths,
       ...relatedPaths,
     }),
