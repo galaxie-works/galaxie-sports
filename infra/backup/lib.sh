@@ -62,6 +62,16 @@ job_finish() {
   sql_quiet "update ops.job_run set status = '$status', finished_at = now(), error = $error_sql, stats = '$stats'::jsonb where id = '$id'"
 }
 
+# Registra em ops.job_run uma execução que aconteceu em outro lugar e em outra hora (o dump feito na réplica do NAS,
+# pelo recibo .nas_last_dump; docs/runbooks/replica-no-nas.md): job_record <job> <quando ISO> <stats json>. Só grava se
+# ainda não há execução desse job com esse started_at (o verificador roda a cada 6 h e lê o mesmo recibo), para a
+# métrica galaxie_job_last_success_timestamp_seconds{job_name} marcar a hora real do dump.
+job_record() {
+  sql_quiet "insert into ops.job_run (job, status, started_at, finished_at, stats)
+    select '$1', 'ok', '$2'::timestamptz, '$2'::timestamptz, '$3'::jsonb
+    where not exists (select 1 from ops.job_run where job = '$1' and started_at = '$2'::timestamptz)"
+}
+
 # Dumps do banco em BACKUP_DIR, do mais antigo ao mais recente (o nome leva o horário UTC: ordem de nome = ordem de tempo).
 # Cifrado (BACKUP_AGE_RECIPIENTS) o dump termina em .dump.age; os em claro de antes da cifragem continuam na lista.
 list_dumps() {

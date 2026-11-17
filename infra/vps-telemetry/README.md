@@ -511,7 +511,8 @@ mensais no NAS), a cópia do NAS (stack `galaxie-sports-backup-nas`) e o ensaio 
 [docs/runbooks/exercicio-dr.md](../../docs/runbooks/exercicio-dr.md). Na VPS:
 
 - `docker compose -f compose.dados.yml exec backup backup-check.sh`: verificação avulsa (último dump e, com `BACKUP_NAS_RECEIPT=true`, o
-  padrão, o recibo `.nas_last_pull` que o NAS deixa depois de copiar e conferir).
+  padrão, o recibo `.nas_last_pull` que o NAS deixa depois de copiar e conferir; com `BACKUP_DUMP_SOURCE=nas`, o recibo
+  `.nas_last_dump` do dump feito na réplica do NAS vale como prova e vira o job `nas-dump` em `ops.job_run`).
 - `docker compose -f compose.dados.yml exec backup restore-drill.sh`: ensaio avulso. Restaura num banco `galaxie_sports_drill_<data>`, nunca
   no de produção, e precisa de 2x o tamanho do banco livre no disco.
 - Resultado dos dois em `ops.job_run` (jobs `backup-check` e `pg-restore-drill`) e nas métricas `galaxie_job_*`.
@@ -527,6 +528,15 @@ mensais no NAS), a cópia do NAS (stack `galaxie-sports-backup-nas`) e o ensaio 
   para sem ter tocado em nada; `SKIP_PRE_MIGRATE_DUMP=1` publica sem ele. Migration nova não tem rollback automático:
   voltar é parar API e ingestor, `docker compose -f compose.dados.yml exec backup restore.sh --yes pre-migrate/<arquivo>` (o deploy que
   falhou imprime o comando) e subir a versão anterior.
+- **Dump fora da VPS (`DUMP_MODE=nas`):** com a réplica no NAS ([docs/runbooks/replica-no-nas.md](../../docs/runbooks/replica-no-nas.md)),
+  a variável do repositório `DUMP_MODE=nas` troca o `pre-migrate-dump.sh` pelo `nas-dump-check.sh`: a prova é o recibo
+  `.nas_last_dump` que o `dump.sh` da stack `nas-replica` deixa no volume `backups` (até `NAS_DUMP_MAX_AGE_MIN` min,
+  padrão 120, e tamanho plausível) ou um dump local com a mesma idade; sem prova, o deploy deixa o pedido de dump na VPS
+  (`.nas_dump_request`) e espera o NAS atender (até `NAS_DUMP_WAIT_MIN`, padrão 20); sem recibo no prazo, para antes de
+  tocar no banco e diz o que conferir. O serviço `replica-proxy` do `compose.dados.yml` publica o Postgres em `127.0.0.1:5432`
+  da VPS para o túnel do NAS; `preparar-replica.sh` prepara o resto (papel `replicador`, `pg_hba`, retenção de WAL,
+  chaves). No `.env`, `BACKUP_DUMP_SOURCE=nas` faz o verificador aceitar o recibo como prova e `BACKUP_DAYS=0` deixa o
+  dump da VPS semanal.
 - O dump de partida do serviço `backup` (`BACKUP_ON_START`) espera o `migrate` terminar: o `pg_dump` segura as
   tabelas e o `migrate`, com `lock_timeout` curto, desistiria. E só roda quando o último dump bem-sucedido tem mais de
   `BACKUP_ON_START_MIN_AGE_H` horas (padrão 20; `BACKUP_ON_START=always` faz sempre). Todo deploy recria o `backup`

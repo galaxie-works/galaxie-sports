@@ -33,7 +33,9 @@ command="touch /var/lib/docker/volumes/galaxie-sports_backups/_data/.nas_last_pu
 ```
 
 As duas do NAS estão descritas em [exercicio-dr.md › Cópia no NAS](exercicio-dr.md) (o `rrsync` vem do pacote
-`rsync`). Login só por chave: `PasswordAuthentication no` num arquivo de `/etc/ssh/sshd_config.d/` que seja lido
+`rsync`). Com a réplica no NAS ([replica-no-nas.md](replica-no-nas.md)), o `preparar-replica.sh` troca o comando da
+`galaxie-nas-receipt` por `command="/usr/local/bin/galaxie-nas-receipt",restrict` (recibo da cópia e do dump) e acrescenta
+a `galaxie-nas-tunnel`, `command="/bin/false",restrict,port-forwarding,permitopen="127.0.0.1:5432"`. Login só por chave: `PasswordAuthentication no` num arquivo de `/etc/ssh/sshd_config.d/` que seja lido
 **antes** do `50-cloud-init.conf` (o sshd fica com o primeiro valor que lê; ex.: `00-galaxie.conf`), e confira com
 `sshd -T | grep passwordauthentication`.
 
@@ -158,10 +160,11 @@ api-sports); os logos enviados à mão em Ajustes → Grades e ofertas e os do a
   conferida com a impressão digital mostrada no console do provedor); `VPS_SSH_KEY` igual. IP novo: variável
   `VPS_SSH_TARGET` (`root@<ip>`).
 - NAS: `ssh/known_hosts` com a chave de host nova e, com IP novo, `VPS_HOST` da stack `galaxie-sports-backup-nas`
-  ([exercicio-dr.md › Cópia no NAS](exercicio-dr.md)).
+  ([exercicio-dr.md › Cópia no NAS](exercicio-dr.md)) e da stack `nas-replica` (o `known_hosts` dela também; a réplica
+  se refaz numa VPS nova: `preparar-replica.sh` e [replica-no-nas.md › Refazer](replica-no-nas.md#refazer-a-réplica)).
 - Réplica no NAS ([docs/16](../16-implantacao.md)): a VPS nova precisa do papel de replicação, do `pg_hba`, do slot com
   teto e das chaves SSH restritas do túnel e do recibo (#1306); a stack `nas-replica` aponta para o host novo e faz a
-  primeira sincronização inteira de novo. Passo a passo no `replica-no-nas.md` (#1311). Enquanto a réplica não volta,
+  primeira sincronização inteira de novo. Passo a passo em [replica-no-nas.md](replica-no-nas.md). Enquanto a réplica não volta,
   o deploy com migration nova usa `DUMP_MODE=vps`.
 - Monitor externo e alertas por push: nada muda se os domínios forem os mesmos.
 - Rodar o workflow Deploy com `sha=<o mesmo SHA>` e `force=1` para conferir o caminho do Actions (smoke incluído).
