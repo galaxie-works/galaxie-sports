@@ -73,8 +73,10 @@ describe('Authenticator.authenticateProvenKey (revalidação do stream aberto co
     });
     record!.revokedAt = null;
     record!.tenant.status = 'suspended';
+    record!.tenant.state = 'suspended';
     await expect(auth.authenticateProvenKey(prefix, ctx.keyId, { maxAgeMs: 0 })).rejects.toMatchObject({
-      code: 'INVALID_KEY',
+      status: 402,
+      code: 'SUBSCRIPTION_SUSPENDED',
     });
   });
 });

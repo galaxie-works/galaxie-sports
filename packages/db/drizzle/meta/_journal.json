@@ -894,14 +894,35 @@
     {
       "idx": 127,
       "version": "7",
-      "when": 1794950644154,
-      "tag": "0191_extensao_pg_trgm",
+      "when": 1794928494911,
+      "tag": "0185_tenant_state",
       "breakpoints": true
     },
     {
       "idx": 128,
       "version": "7",
-      "when": 1794950644155,
+      "when": 1794928640567,
+      "tag": "0186_module_trial",
+      "breakpoints": true
+    },
+    {
+      "idx": 129,
+      "version": "7",
+      "when": 1794928730137,
+      "tag": "0187_tenant_notification",
+      "breakpoints": true
+    },
+    {
+      "idx": 130,
+      "version": "7",
+      "when": 1794950644154,
+      "tag": "0191_extensao_pg_trgm",
+      "breakpoints": true
+    },
+    {
+      "idx": 131,
+      "version": "7",
+      "when": 1794952147634,
       "tag": "0192_busca_trigram_pessoa",
       "breakpoints": true
     }

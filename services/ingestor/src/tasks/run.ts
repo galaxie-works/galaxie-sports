@@ -22,6 +22,7 @@ import { backfillNormalizar, backfillTabelas } from './backfill.js';
 import { cargaHistorica } from './carga.js';
 import { tenantVerifyDomain } from './domain.js';
 import { assetsEspelhar } from './espelho.js';
+import { tenantLifecycle } from './lifecycle.js';
 
 export { TaskInterruptedError, TaskRefusedError };
 
@@ -106,6 +107,7 @@ export const TASK_HANDLERS: Readonly<Record<string, TaskHandler>> = {
   'backfill.normalizar': backfillNormalizar(),
   'backfill.tabelas': backfillTabelas(),
   'tenant.verify_domain': tenantVerifyDomain(),
+  'tenant.lifecycle': tenantLifecycle(),
 };
 
 /** Os tipos que este worker sabe rodar (o `types` do `takeNext`). */

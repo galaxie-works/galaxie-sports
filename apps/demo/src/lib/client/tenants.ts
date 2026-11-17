@@ -13,6 +13,9 @@ import {
   type ModuleLimitKey,
   type ModuleUsageMetric,
 } from '@galaxie/db/engage-modules';
+import type { TenantState } from '@galaxie/db/schema';
+
+import { effectiveState } from '@galaxie/billing';
 
 import { pool } from '@/lib/auth/db';
 
@@ -30,6 +33,16 @@ export interface TenantInfo extends TenantOption {
   /** Organização que assina e paga (`billing.organization`, F2); null só até a migration de dados rodar. */
   organizationId: string | null;
   organizationName: string | null;
+  /**
+   * Estado do ciclo de vida (F3) que vale agora: a coluna, com o mesmo fallback da API e dos direitos (`effectiveState`:
+   * `trial` com `trial_ends_at` vencido conta como `trial_expired` até o job `tenant.lifecycle` gravar a transição). O
+   * console mostra e restringe o menu por ele; `status` é só o espelho.
+   */
+  state: TenantState;
+  /** Desde quando está no estado (ISO 8601). */
+  stateSince: string;
+  /** Prazo do estado `trial` (ISO 8601); null sem prazo. */
+  trialEndsAt: string | null;
   plan: string;
   modules: string[];
   /** Países (ISO2) contratados; vazio = todos os mercados. */
@@ -79,12 +92,21 @@ export async function getTenantInfo(id: string): Promise<TenantInfo | null> {
     `select t.id::text, t.slug, t.name, t.status::text as status, t.plan, t.modules, t.markets, t.sports,
             t.rate_limit_per_minute as "rateLimitPerMinute", t.daily_request_quota as "dailyRequestQuota",
             t.organization_id::text as "organizationId", o.name as "organizationName",
-            coalesce(o.is_galaxie, false) as "isGalaxie"
+            coalesce(o.is_galaxie, false) as "isGalaxie",
+            t.state, to_char(t.state_since at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as "stateSince",
+            to_char(t.trial_ends_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as "trialEndsAt"
        from api.tenant t left join billing.organization o on o.id = t.organization_id
       where t.id = $1`,
     [id],
   );
-  return row ?? null;
+  if (!row) return null;
+  return {
+    ...row,
+    state: effectiveState(
+      { state: row.state, trialEndsAt: row.trialEndsAt ? new Date(row.trialEndsAt) : null },
+      new Date(),
+    ),
+  };
 }
 
 export async function tenantExists(id: string): Promise<boolean> {

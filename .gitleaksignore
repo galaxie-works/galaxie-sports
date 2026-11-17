@@ -48,3 +48,7 @@ aaa2a1b0d770ad5f0a6b0ca04a8adff071c70a9f:apps/demo/src/lib/cosmos/widget-install
 # afbbe063 (PR #1264, F2 b): falso positivo do generic-api-key num token TXT inventado no teste da tarefa
 # tenant.verify_domain; sem segredo. Desde o commit seguinte o token do teste é curto e sem entropia.
 afbbe063c330d04428f07472f1f3dbde7bb10779:services/ingestor/src/tasks/domain.test.ts:generic-api-key:12
+
+# dd6a3bc2 (PR #1301, F3 c): falso positivo do curl-auth-header no teste do checklist, que monta um `curl` de exemplo
+# com prefixo inventado e um marcador no lugar do segredo (`RESTO_DA_CHAVE`); sem segredo.
+dd6a3bc203014dd8f38578f4b0b25a0b627a5a57:apps/demo/src/lib/client/checklist-shared.test.ts:curl-auth-header:77

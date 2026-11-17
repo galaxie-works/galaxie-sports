@@ -1,5 +1,5 @@
 import { eq } from 'drizzle-orm';
-import { apiKey, tenant, type ApiModule, type ApiPlan, type Database } from '@galaxie/db';
+import { apiKey, tenant, type ApiModule, type ApiPlan, type Database, type TenantState } from '@galaxie/db';
 
 export interface TenantRecord {
   id: string;
@@ -9,10 +9,13 @@ export interface TenantRecord {
   markets: string[];
   sports: string[];
   rateLimitPerMinute: number;
+  /** Espelho de `state` (F3): `suspended` só quando o estado é `suspended`. A autenticação decide por `state`. */
   status: 'active' | 'suspended';
+  /** Estado do ciclo de vida (`api.tenant.state`): a API responde por ele (`tenantStateProblem`). */
+  state: TenantState;
   /** Cota diária de produção; null/ausente = sem cota. */
   dailyRequestQuota?: number | null;
-  /** Fim do trial; depois dele nenhuma chave do tenant autentica. */
+  /** Prazo do estado `trial`; vencido, nenhuma chave do tenant autentica (fallback até o `tenant.lifecycle` rodar). */
   trialEndsAt?: Date | null;
 }
 
@@ -64,6 +67,7 @@ export class PgTenantStore implements TenantStore {
         sports: row.tenant.sports,
         rateLimitPerMinute: row.tenant.rateLimitPerMinute,
         status: row.tenant.status,
+        state: row.tenant.state,
         dailyRequestQuota: row.tenant.dailyRequestQuota,
         trialEndsAt: row.tenant.trialEndsAt,
       },

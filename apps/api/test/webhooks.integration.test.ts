@@ -649,7 +649,7 @@ describe('webhooks assinados', () => {
       topics: ['score'],
       filters: { events: [id] },
     });
-    await db.update(tenant).set({ status: 'suspended' }).where(eq(tenant.id, tenantId));
+    await db.update(tenant).set({ status: 'suspended', state: 'suspended' }).where(eq(tenant.id, tenantId));
     // entrega que já estava na fila (ou em retentativa) quando o tenant foi suspenso
     const [row] = await db
       .insert(webhookDelivery)
@@ -661,6 +661,32 @@ describe('webhooks assinados', () => {
       })
       .toMatchObject({ status: 'dead', lastError: 'tenant suspenso' });
     expect(hits('/susp')).toHaveLength(0);
+  });
+
+  it('tenant em trial (estado, F3): entregas enfileiradas vão para a DLQ sem envio, mesmo com plano pago', async () => {
+    const id = await newEvent();
+    const { id: tenantId } = await upsertTenant(db, {
+      slug: 'portal-trial',
+      name: 'Em trial',
+      plan: 'enterprise',
+    });
+    const ep = await create({
+      tenantSlug: 'portal-trial',
+      url: `${base}/trial-state`,
+      topics: ['score'],
+      filters: { events: [id] },
+    });
+    await db.update(tenant).set({ state: 'trial' }).where(eq(tenant.id, tenantId));
+    const [row] = await db
+      .insert(webhookDelivery)
+      .values({ endpointId: ep.id, changeId: 1, topic: 'event.score_changed', payload: { id: '1' } })
+      .returning();
+    await expect
+      .poll(async () => (await db.select().from(webhookDelivery).where(eq(webhookDelivery.id, row!.id)))[0], {
+        timeout: 5_000,
+      })
+      .toMatchObject({ status: 'dead', lastError: 'tenant em trial: sem webhooks' });
+    expect(hits('/trial-state')).toHaveLength(0);
   });
 
   it('tenant que passou a trial: entregas pendentes ou em retentativa são descartadas, sem envio', async () => {

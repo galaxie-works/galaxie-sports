@@ -35,6 +35,25 @@ describe('withEntitlements (#1137)', () => {
     expect(out.modules).toEqual(['core_data']);
   });
 
+  it('limites e faixas dos direitos entram no contexto (F3, decisão 14); sem eles, ficam as colunas', () => {
+    const out = withEntitlements(ctx(), {
+      modules: ['core_data'],
+      features: ['realtime.sse'],
+      limits: { rateLimitPerMinute: 60, dailyRequestQuota: 5000 },
+      tiers: { 'core_data.sse_connections': 5 },
+    });
+    expect(out.rateLimitPerMinute).toBe(60);
+    expect(out.dailyRequestQuota).toBe(5000);
+    expect(out.tiers).toEqual({ 'core_data.sse_connections': 5 });
+    const keep = withEntitlements(ctx({ dailyRequestQuota: 500_000 }), {
+      modules: ['core_data'],
+      features: [],
+    });
+    expect(keep.rateLimitPerMinute).toBe(300);
+    expect(keep.dailyRequestQuota).toBe(500_000);
+    expect(keep.tiers).toBeUndefined();
+  });
+
   it('módulo fechado continua fora para a chave publicável', () => {
     const out = withEntitlements(ctx({ keyKind: 'publishable' }), {
       modules: ['core_data', 'related_content'],

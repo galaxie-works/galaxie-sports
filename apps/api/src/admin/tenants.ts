@@ -1,5 +1,6 @@
 import { and, asc, desc, eq, gt, isNull, or, sql } from 'drizzle-orm';
 import { apiKey, recordKeyEvent, tenant, type ApiModule, type ApiPlan, type Database } from '@galaxie/db';
+import { recordTenantCreated, transitionTenantState } from '@galaxie/billing';
 import { createApiKey, upsertTenant, type CreatedKey, type TenantInput } from '../auth/admin.js';
 import type { KeyEnv } from '../auth/keys.js';
 import type { PlanCatalog } from './plans.js';
@@ -105,9 +106,13 @@ export function resolveTenantValues(
   };
 }
 
+/** Quem age pelas rotas internas de admin e pela CLI, nos eventos da máquina de estados. */
+export const ADMIN_ACTOR = 'api:admin';
+
 /**
  * Onboarding: cria o tenant a partir do modelo do plano e (por padrão) a primeira chave, numa
- * transação. Slug repetido → TenantConflictError (não sobrescreve um cliente existente).
+ * transação. Slug repetido → TenantConflictError (não sobrescreve um cliente existente). A máquina de estados (F3)
+ * nasce em `draft` e, na mesma transação, vai a `trial` (plano com prazo) ou `active` (jornada assistida, doc 02).
  */
 export async function createTenantFromPlan(
   db: Database,
@@ -116,16 +121,28 @@ export async function createTenantFromPlan(
 ): Promise<{ tenant: TenantView; key: CreatedKey | null }> {
   const values = resolveTenantValues(plans, input);
   return db.transaction(async (tx) => {
-    const [row] = await tx
+    const trialEndsAt = trialEndsFor(plans, input.plan);
+    const [created] = await tx
       .insert(tenant)
       .values({
         slug: input.slug,
         name: input.name,
         ...values,
-        trialEndsAt: trialEndsFor(plans, input.plan),
+        trialEndsAt,
+        state: 'draft',
       })
       .onConflictDoNothing({ target: tenant.slug })
-      .returning();
+      .returning({ id: tenant.id });
+    if (!created) throw new TenantConflictError(input.slug);
+    const now = new Date();
+    await recordTenantCreated(tx, created.id, { cause: 'provision', actor: ADMIN_ACTOR, now });
+    await transitionTenantState(tx, created.id, trialEndsAt ? 'trial' : 'active', {
+      cause: 'provision',
+      actor: ADMIN_ACTOR,
+      reason: 'criação pela rota interna de admin',
+      now,
+    });
+    const [row] = await tx.select().from(tenant).where(eq(tenant.id, created.id));
     if (!row) throw new TenantConflictError(input.slug);
     let key: CreatedKey | null = null;
     if (input.key !== false) {
@@ -304,7 +321,7 @@ export async function upsertTenantWithKey(
   actor: KeyActor = 'admin',
 ): Promise<{ tenant: { id: string; created: boolean }; key: CreatedKey }> {
   return db.transaction(async (tx) => {
-    const t = await upsertTenant(tx, input);
+    const t = await upsertTenant(tx, input, actor);
     return { tenant: t, key: await issueKeyIn(tx, t.id, options, now, actor) };
   });
 }

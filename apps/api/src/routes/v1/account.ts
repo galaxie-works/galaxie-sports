@@ -51,8 +51,9 @@ export async function accountRoutes(app: FastifyInstance, opts: AccountRoutesOpt
         modules: t.modules,
         markets: t.markets,
         sports: t.sports,
-        rateLimitPerMinute: t.rateLimitPerMinute,
-        dailyRequestQuota: t.dailyRequestQuota,
+        // os limites que valem (direitos, com os tetos do trial), não as colunas do tenant (F3, decisão 14)
+        rateLimitPerMinute: ctx.rateLimitPerMinute,
+        dailyRequestQuota: ctx.dailyRequestQuota ?? null,
       },
       key: { ...key, effectiveModules: ctx.modules },
     };
@@ -82,11 +83,10 @@ export async function accountRoutes(app: FastifyInstance, opts: AccountRoutesOpt
   app.get('/v1/account/usage', { config }, async (request) => {
     const ctx = tenantOf(request);
     const range = parseInput(UsageQuery, request.query);
-    const t = await getTenant(db(), ctx.tenantId);
     const days = usageByDay(await queryUsage(db(), opts.usage, { ...range, tenantId: ctx.tenantId }));
     return {
       ...range,
-      dailyRequestQuota: t?.dailyRequestQuota ?? null,
+      dailyRequestQuota: ctx.dailyRequestQuota ?? null,
       total: days.reduce((n, d) => n + d.total, 0),
       days,
     };

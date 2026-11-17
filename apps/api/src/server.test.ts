@@ -154,7 +154,9 @@ describe('autenticação e planos', () => {
       url: '/v1/sports',
       headers: { 'x-galaxie-key': suspended.key },
     });
-    expect(res.statusCode).toBe(401);
+    // suspenso (F3): depois de provar a chave, o 402 diz o motivo
+    expect(res.statusCode).toBe(402);
+    expect(res.json()).toMatchObject({ code: 'SUBSCRIPTION_SUSPENDED' });
 
     const revoked = await memoryTenant();
     revoked.store.keys.get(revoked.prefix)!.revokedAt = new Date(Date.now() - 1000);

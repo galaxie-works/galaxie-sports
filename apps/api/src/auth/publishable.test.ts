@@ -35,6 +35,7 @@ const record = (over: Partial<VerifiedPublishableKey> = {}): VerifiedPublishable
     sports: ['football'],
     rateLimitPerMinute: 120,
     dailyRequestQuota: null,
+    state: 'active',
   },
   allowedOrigins: ['https://app.exemplo.test', 'https://*.exemplo.test'],
   widgetId: null,
@@ -89,6 +90,30 @@ describe('PublishableAuthenticator', () => {
     );
     expect(await code(auth.authenticate(key, 'https://atacante.test'))).toBe('403 ORIGIN_NOT_ALLOWED');
     expect(await code(auth.authenticate(key, undefined))).toBe('403 ORIGIN_NOT_ALLOWED');
+  });
+
+  it('estado do tenant (F3): trial vencido → 401 TRIAL_EXPIRED; suspenso → 402; past_due passa', async () => {
+    const { key } = generatePublishableKey();
+    const origin = 'https://app.exemplo.test';
+    const past = new Date(Date.now() - 1000);
+    const trialExpiredByClock = record({ tenant: { ...record().tenant, state: 'trial', trialEndsAt: past } });
+    expect(
+      await code(
+        new PublishableAuthenticator(store({ [key]: trialExpiredByClock }).s).authenticate(key, origin),
+      ),
+    ).toBe('401 TRIAL_EXPIRED');
+    const byState = (state: VerifiedPublishableKey['tenant']['state']) =>
+      new PublishableAuthenticator(store({ [key]: record({ tenant: { ...record().tenant, state } }) }).s);
+    expect(await code(byState('trial_expired').authenticate(key, origin))).toBe('401 TRIAL_EXPIRED');
+    expect(await code(byState('suspended').authenticate(key, origin))).toBe('402 SUBSCRIPTION_SUSPENDED');
+    expect(await code(byState('pending_review').authenticate(key, origin))).toBe('401 TENANT_PENDING_REVIEW');
+    expect(await code(byState('cancelled').authenticate(key, origin))).toBe('401 TENANT_CANCELLED');
+    await expect(byState('past_due').authenticate(key, origin)).resolves.toMatchObject({
+      keyKind: 'publishable',
+    });
+    await expect(byState('trial').authenticate(key, origin)).resolves.toMatchObject({
+      keyKind: 'publishable',
+    });
   });
 
   it('preflight: só origens de chaves ativas', async () => {

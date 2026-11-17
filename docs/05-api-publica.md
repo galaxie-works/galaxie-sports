@@ -881,7 +881,7 @@ próprios logs. `?key=` e `?token=` só valem para `/v1/stream`. No servidor ou 
 
 **Limites e robustez.**
 
-- **Conexões por tenant:** no máximo `SSE_MAX_CONNECTIONS_PER_TENANT` (padrão 100) simultâneas, somando todas as instâncias (lease por conexão no Valkey, renovado no heartbeat; expira sozinho se a instância cair). Acima → 429 `RATE_LIMITED` com `retry-after: 30`. A abertura também conta no rate limit da rota.
+- **Conexões por tenant:** no máximo `SSE_MAX_CONNECTIONS_PER_TENANT` (padrão 100) simultâneas, somando todas as instâncias (lease por conexão no Valkey, renovado no heartbeat; expira sozinho se a instância cair), ou menos quando a faixa `core_data.sse_connections` dos direitos do tenant é menor (5 na conta em `trial`, pelo modelo `trial` de `config/catalog/plans.yaml`). Acima → 429 `RATE_LIMITED` com `retry-after: 30`. A abertura também conta no rate limit da rota.
 - **Conexões por instância:** cada processo da API aceita no máximo `SSE_MAX_CONNECTIONS` (padrão 1000) streams, somando todos os tenants. Acima → 503 `DEGRADED` com `retry-after` entre 15 e 44 s (espalhado, para os recusados não voltarem juntos); enquanto isso, o estado sai pela API REST. Métricas: `galaxie_sse_connections_open` e `galaxie_sse_connections_rejected_total{reason}`; alerta `SseProcessLimitReached`.
 - **Backpressure:** se o cliente não consome (socket cheio), as mensagens ficam numa fila de até 1 MiB; estourou, a conexão é derrubada e o cliente retoma pelo `Last-Event-ID` — um cliente lento nunca segura memória da API.
 - **Entrega:** pelo menos uma vez, em ordem de ID na prática; a mesma mudança não é repetida numa conexão (deduplicação por ID). Clientes devem tratar mudanças como idempotentes pelo `id`.
@@ -974,7 +974,12 @@ Formato RFC 9457 (`application/problem+json`):
 | Código | Situação |
 |---|---|
 | 400 `INVALID_PARAMS` | Parâmetro inválido |
-| 401 `INVALID_KEY` | Chave ausente/inválida |
+| 401 `INVALID_KEY` | Chave ausente/inválida (também quando o segredo está errado num tenant sem acesso: o estado do cliente não vaza pelo prefixo) |
+| 401 `TENANT_PENDING_REVIEW` | Cadastro em provisionamento ou na fila de revisão da equipe ([ciclo de vida do tenant](runbooks/ciclo-de-vida-do-tenant.md)) |
+| 401 `TENANT_REJECTED` | Cadastro recusado pela equipe |
+| 401 `TRIAL_EXPIRED` | O trial acabou sem contratação; `upgrade_url` leva a Planos e módulos |
+| 402 `SUBSCRIPTION_SUSPENDED` | Assinatura suspensa (cobrança ou equipe); `upgrade_url` leva a Planos e módulos |
+| 401 `TENANT_CANCELLED` | Conta cancelada: os dados ficam pelo prazo de guarda, as chaves não autenticam |
 | 403 `MODULE_NOT_IN_PLAN` / `MARKET_NOT_IN_PLAN` | Recurso fora do contrato |
 | 403 `ORIGIN_NOT_ALLOWED` | Chave publicável usada de uma origem fora da lista dela (ou sem `Origin`/`Referer`), §1.3 |
 | 403 `PUBLISHABLE_KEY_NOT_ALLOWED` | Chave publicável em rota que ela não alcança (escrita, `/v1/account`, SSE, espelho), §1.3 |

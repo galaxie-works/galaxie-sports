@@ -73,7 +73,8 @@ novo, com o mesmo resultado.
 | `backfill.normalizar` | Normalização completa raw → core do futebol (o `normalize:football --tudo`) | Um endpoint do raw por lote | Respostas por endpoint | Não |
 | `backfill.tabelas` | Recálculo local das tabelas (o `standings:recompute`) | Lotes de `lote` temporadas (padrão 20) | Quantas temporadas | Não |
 | `exemplo.eco` | Exemplo e teste da fila (`pausaMs` faz cada lote demorar, para exercitar a drenagem) | Um lote por repetição | Quantos lotes | Não |
-| `tenant.verify_domain` | Confere o TXT `_galaxie-verify.<host>` de um domínio da marca (`billing.domain`) e grava `verified_at` quando o valor bate; sempre grava `last_checked_at` e `last_error` | Uma consulta, sem lotes; o painel do cliente enfileira uma por domínio (`dedupe_key` = id) | Sem prévia | Não |
+| `tenant.verify_domain` | Confere o TXT `_galaxie-verify.<host>` de um domínio da marca (`billing.domain`) e grava `verified_at` quando o valor bate; sempre grava `last_checked_at` e `last_error`. Comprovado, põe `https://<host>` (e `https://www.<host>`) nas origens das chaves publicáveis `live` da marca que ainda não as têm | Uma consulta, sem lotes; o painel do cliente enfileira uma por domínio (`dedupe_key` = id) e o `tenant.lifecycle` reenfileira os comprovados há mais de 24 h | Sem prévia | Não |
+| `tenant.lifecycle` | Relógio da máquina de estados do tenant ([runbook](ciclo-de-vida-do-tenant.md)): trial vencido → `trial_expired`; `trial_expired`, `past_due` e `suspended` passam dos prazos de `runtime_setting`; reconferência diária dos domínios comprovados. Não apaga nada | Uma passada por todos os tenants do relógio; o scheduler enfileira uma por dia (`SCHEDULE_TENANT_LIFECYCLE`) | Sem prévia | Não |
 
 Parâmetros (`gs tarefa tipos` mostra todos, com o padrão):
 
@@ -85,6 +86,7 @@ Parâmetros (`gs tarefa tipos` mostra todos, com o padrão):
 | `backfill.normalizar` | `endpoints` (lista JSON, ex. `["/fixtures"]`; padrão: todos os do raw) |
 | `backfill.tabelas` | `dias` (padrão 4), `temporadas` (lista JSON de ids), `lote` |
 | `tenant.verify_domain` | `domainId` (id em `billing.domain`) |
+| `tenant.lifecycle` | `now` (opcional, ISO 8601: instante de referência, só para ensaio) |
 
 Exemplos (no contêiner, troque `pnpm --filter @galaxie/ingestor gs` por `node dist/cli/gs.js`):
 
