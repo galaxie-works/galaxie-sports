@@ -107,7 +107,7 @@ mkdir -p "$REPO_T/config/broadcasters" "$REPO_T/config/broadcast-rights" "$REPO_
   "$REPO_T/infra/ops" "$REPO_T/infra/vps-telemetry" "$REPO_T/packages/db/drizzle/meta"
 echo x | tee "$REPO_T/config/broadcasters/a" "$REPO_T/config/broadcast-rights/a" "$REPO_T/config/catalog/a" \
   "$REPO_T/data/knowledge/a" \
-  "$REPO_T/infra/healthcheck/selfheal.mjs" "$REPO_T/infra/backup/a" "$REPO_T/infra/observability/prometheus/a" \
+  "$REPO_T/infra/healthcheck/selfheal.mjs" "$REPO_T/infra/healthcheck/selfheal.sh" "$REPO_T/infra/backup/a" "$REPO_T/infra/observability/prometheus/a" \
   "$REPO_T/infra/observability/grafana/a" >/dev/null
 printf '{"entries":[{"idx":0}]}\n' | sed 's/{"idx"/\n{"idx"/' > "$REPO_T/packages/db/drizzle/meta/_journal.json"
 cp "$REPO/infra/ops/image-inputs.mjs" "$REPO/infra/ops/image-hash.sh" "$REPO_T/infra/ops/"

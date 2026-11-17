@@ -1,4 +1,5 @@
 import { Cron } from 'croner';
+import type { Database } from '@galaxie/db';
 
 /** Um CLI executado periodicamente por um scheduler (horários em UTC — o dia de cota vira às 00:00 UTC). */
 export interface ScheduledJob {
@@ -46,6 +47,16 @@ export interface ScheduledJob {
    * `running` de outra cópia é órfã.
    */
   lock?: 'job' | 'instance';
+  /**
+   * Consulta leve "há trabalho?", feita no processo do scheduler antes de subir o do job (idle-gate.ts). Sem trabalho,
+   * nenhum processo sobe e a execução fica em ops.job_run como `ok` com `stats.idle`. Só vale para o horário da agenda
+   * e o catch-up; o job roda completo na partida, a cada `fullEveryMs` (padrão 6 h) e se a consulta falhar. A consulta
+   * tem de selecionar o mesmo que o job, de preferência pela mesma função.
+   */
+  idleCheck?: {
+    hasWork: (db: Database) => Promise<boolean>;
+    fullEveryMs?: number;
+  };
 }
 
 /** Nome da trava do job: o do job, ou `<job>@<cópia>` quando a trava é por cópia do scheduler. */
