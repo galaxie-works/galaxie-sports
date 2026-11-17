@@ -151,6 +151,8 @@ export const ROLE_GRANTS: Record<RoleService, RoleGrants> = {
       // tenant é revogada com revoked_at, nunca apagada
       'billing.price',
       'billing.tenant_override',
+      // F3: o registro dos e-mails (gravado antes do envio, preenchido depois; a falha do envio apaga a linha)
+      'billing.tenant_notification',
       // guia de tom do cliente (#1009)
       'cosmos.brand_voice',
       // painel do Chat ao vivo do cliente (#973): congelar, modo lento e o padrão das salas (sem apagar sala)
@@ -174,6 +176,10 @@ export const ROLE_GRANTS: Record<RoleService, RoleGrants> = {
       'cosmos.moderation_config_log',
       // termos da Comunidade por versão (#939): versão nova é linha nova
       'community.terms_version',
+      // plataforma comercial F3: histórico da máquina de estados (transitionTenantState) e o teste por módulo
+      // (startModuleTrial): linha nova, nunca alterada
+      'billing.tenant_state_event',
+      'billing.module_trial',
       // vetores da base de conhecimento do assistente (#1118; sem a tabela, o GRANT é pulado)
       'cosmos.doc_embedding',
     ],
@@ -181,17 +187,34 @@ export const ROLE_GRANTS: Record<RoleService, RoleGrants> = {
   // ingestor (agendador e CLIs manuais, inclusive o seed semântico do pós-deploy); o cursor do cache da demo é
   // piso da poda do change feed (change-feed-prune). Em `api`, só a poda das entregas de webhook e dos erros de acesso (data-retention,
   // ops-retention.ts): DELETE sem INSERT/UPDATE, para o ingestor não forjar entrega que o worker assina e envia
+  // Plataforma comercial F3 (tarefas tenant.lifecycle e tenant.verify_domain, worker da fila no mesmo papel): o relógio
+  // muda o estado do tenant (api.tenant, só UPDATE) e grava o evento (billing.tenant_state_event, só acréscimo); os
+  // e-mails do ciclo de vida gravam, preenchem e apagam billing.tenant_notification e leem os destinatários em
+  // billing.organization_member e demo_auth."user" (billing já entra na leitura larga, com module_trial e domain); a
+  // conferência do TXT atualiza billing.domain (verified_at, last_checked_at, last_error) e as origens em
+  // ops.publishable_key (ops já é escrita)
   ingestor: {
     read: [
       ...APP_SCHEMAS.filter((s) => !PERSONAL_SCHEMAS.includes(s)),
       `${DEMO_AUTH_SCHEMA}.${DEMO_FEED_CURSOR}`,
+      `${DEMO_AUTH_SCHEMA}.user`,
     ],
-    write: ['raw', 'core', 'ops', 'semantic', 'enrich', 'multisport', 'equestrian'],
+    write: [
+      'raw',
+      'core',
+      'ops',
+      'semantic',
+      'enrich',
+      'multisport',
+      'equestrian',
+      'billing.tenant_notification',
+    ],
     // Cosmos AI: manutenção da carteira (cosmos-upkeep: reservas vencidas, teste vencido, recarga automática)
     modify: ['cosmos.wallet', 'cosmos.recharge_attempt'],
-    // reservas vencidas e recarga automática: só muda o estado do que a demo criou
-    update: ['cosmos.reservation', 'cosmos.auto_recharge'],
-    append: ['cosmos.ledger', 'cosmos.balance_alert'],
+    // reservas vencidas e recarga automática: só muda o estado do que a demo criou; o estado do tenant e a
+    // conferência do domínio (F3) também são só UPDATE
+    update: ['cosmos.reservation', 'cosmos.auto_recharge', 'api.tenant', 'billing.domain'],
+    append: ['cosmos.ledger', 'cosmos.balance_alert', 'billing.tenant_state_event'],
     prune: ['api.webhook_delivery', 'api.access_error_daily'],
   },
   // agentes de IA (mesma imagem do ingestor, perfil agents)
@@ -420,7 +443,12 @@ export async function applyRoles(url: string, options: ApplyRolesOptions = {}): 
           const { schema, table } = splitScope(scope);
           if (!existing.has(schema) && schema !== DEMO_AUTH_SCHEMA) continue;
           if (table) {
-            await tx`grant select on ${tx(schema)}.${tx(table)} to ${r}`;
+            // tabela que ainda não existe (demo_auth."user" antes da primeira subida da demo): o GRANT sai na próxima
+            // rodada do migrate
+            const exists = await tx<
+              { ok: boolean }[]
+            >`select to_regclass(${`${schema}.${table}`}) is not null as ok`;
+            if (exists[0]!.ok) await tx`grant select on ${tx(schema)}.${tx(table)} to ${r}`;
             continue;
           }
           await tx`grant select on all tables in schema ${tx(schema)} to ${r}`;

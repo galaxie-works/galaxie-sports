@@ -12,8 +12,9 @@
  *
  * Destinatários: os Donos e o Financeiro da organização (`billing.organization_member`, cargos `owner` e `billing`), com
  * o e-mail lido da tabela `user` do Better Auth, que vive no schema do console (`demo_auth`, a `AUTH_SCHEMA` de
- * `apps/demo/src/lib/auth/db.ts`; quem roda noutro schema passa `authSchema`). Convite ainda não aceito conta: o Dono
- * convidado pela equipe precisa receber o que acontece com a conta dele.
+ * `apps/demo/src/lib/auth/db.ts`; quem roda noutro schema passa `authSchema`). Convite ainda não aceito e dentro do
+ * prazo conta (o Dono convidado pela equipe precisa receber o que acontece com a conta dele); convite vencido sem
+ * aceite, não.
  */
 import { and, eq, sql } from 'drizzle-orm';
 import type { Database } from './client.js';
@@ -147,6 +148,7 @@ export async function tenantNotificationAudience(
         join ${sql.raw(`"${schema}"."user"`)} u on u.id = om.user_id
        where om.organization_id = ${t.organizationId}
          and om.role in ('owner', 'billing')
+         and (om.accepted_at is not null or om.expires_at is null or om.expires_at > now())
        order by case om.role when 'owner' then 0 else 1 end, om.created_at`);
   } catch (err) {
     // banco sem o schema do console (ensaio fora do ambiente da demo): ninguém a avisar, nada a derrubar
