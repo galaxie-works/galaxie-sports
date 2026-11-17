@@ -1,0 +1,198 @@
+# Stack `nas-replica` do NAS (Portainer do NAS, ambiente local): réplica física em streaming do Postgres de produção e
+# os dumps feitos a partir dela, para a VPS não gastar CPU nem disco com pg_dump (decisão de 17/11/2026; runbook
+# docs/runbooks/replica-no-nas.md). Três serviços:
+#   tunnel    túnel SSH NAS → VPS com uma chave que só encaminha porta (restrict,port-forwarding,permitopen); o Postgres
+#             de produção aparece como tunnel:5432 dentro da rede desta stack. Nada entra na LAN: a conexão sai do NAS.
+#   postgres  hot standby (postgres:17-alpine, a mesma major da produção). Na primeira subida, replica-entrypoint.sh faz
+#             o pg_basebackup pelo túnel (slot nas_replica criado pelo próprio basebackup) e depois sobe lendo o
+#             standby.signal. Só leitura; nunca é promovido.
+#   dumper    pg_dump -Fc da réplica todo dia (DUMP_CRON), a pedido do deploy (a cada minuto consulta na VPS o pedido
+#             que o nas-dump-check.sh deixa com DUMP_MODE=nas e o atende em pre-migrate/) e sob demanda (docker exec
+#             nas-replica-dumper-1 /dump.sh, ou o arquivo-gatilho NAS_BACKUP_PATH/.dump-now), na pasta de backups do
+#             NAS (daily/, a mesma do nas-pull.sh, com a rotação 7/4/6 e a mesma trava), com o recibo .nas_last_dump na
+#             VPS e a cópia fora de casa opcional (rclone).
+# Nada de segredo aqui: senhas vêm do ambiente da stack (env.example) e as chaves SSH ficam só nas pastas do NAS.
+# Validar: docker compose -f infra/nas-replica/compose.yml --env-file infra/nas-replica/env.example config -q
+
+x-logging: &logging
+  driver: json-file
+  options: { max-size: 10m, max-file: '3' }
+
+services:
+  tunnel:
+    image: alpine:3.22
+    restart: unless-stopped
+    mem_limit: 64m
+    environment:
+      TZ: UTC
+      VPS_HOST: ${VPS_HOST:?defina VPS_HOST}
+      VPS_USER: ${VPS_USER:-root}
+      VPS_PORT: ${VPS_PORT:-22}
+      # onde o Postgres de produção responde NA VPS (o serviço replica-proxy do compose.dados.yml publica em 127.0.0.1)
+      VPS_PG_BIND: ${VPS_PG_BIND:-127.0.0.1:5432}
+    volumes:
+      # chave tunnel_ed25519 e known_hosts da VPS, gerados no próprio NAS (README › Instalação)
+      - ${NAS_REPLICA_PATH:?defina NAS_REPLICA_PATH}/ssh:/ssh:ro
+    # --no-scripts: no Docker do NAS (kernel do ADM) o apk não roda os scripts de pacote (ver infra/nas-dev/compose.yml)
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        set -e
+        apk add --no-cache -q --no-scripts autossh openssh-client
+        for t in autossh ssh; do command -v "$$t" >/dev/null || { echo "$$t não instalado" >&2; exit 1; }; done
+        # a chave montada do NAS pode vir com modo largo demais para o ssh: cópia só do root
+        install -m 700 -d /run/ssh && install -m 600 /ssh/tunnel_ed25519 /run/ssh/tunnel_ed25519 && install -m 644 /ssh/known_hosts /run/ssh/known_hosts
+        # -M 0: sem porta de monitor; a queda é detectada pelo ServerAlive e o autossh reconecta (AUTOSSH_GATETIME=0:
+        # falha logo na primeira conexão também conta como "tente de novo", e não como erro fatal)
+        export AUTOSSH_GATETIME=0 AUTOSSH_POLL=30 AUTOSSH_LOGLEVEL=6
+        exec autossh -M 0 -N -T \
+          -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=/run/ssh/known_hosts \
+          -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -o ExitOnForwardFailure=yes -o ConnectTimeout=30 \
+          -i /run/ssh/tunnel_ed25519 -p "$$VPS_PORT" \
+          -L "0.0.0.0:5432:$$VPS_PG_BIND" "$$VPS_USER@$$VPS_HOST"
+    healthcheck:
+      test: ['CMD-SHELL', 'nc -z 127.0.0.1 5432']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    logging: *logging
+
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    mem_limit: ${REPLICA_MEM_LIMIT:-2560m}
+    shm_size: 256mb
+    depends_on:
+      - tunnel
+    environment:
+      TZ: UTC
+      # subdiretório do volume nomeado (montado em /var/lib/postgresql/data, o VOLUME da imagem: montar o pai faria o
+      # Docker criar um volume anônimo por cima e os dados não ficariam em nas-replica_pgdata); o .pgpass fica ao lado
+      PGDATA: /var/lib/postgresql/data/pgdata
+      PGPASSFILE: /var/lib/postgresql/data/.pgpass
+      # papel de replicação da produção (preparar-replica.sh grava REPLICATOR_PASSWORD no .env da VPS; copie de lá)
+      REPLICATOR_PASSWORD: ${REPLICATOR_PASSWORD:?defina REPLICATOR_PASSWORD}
+      REPLICA_SLOT: ${REPLICA_SLOT:-nas_replica}
+      PRIMARY_HOST: tunnel
+      PRIMARY_PORT: '5432'
+      # a imagem só exige POSTGRES_PASSWORD para um initdb, que nunca acontece aqui (o cluster vem do basebackup)
+      POSTGRES_PASSWORD: nao-usado-cluster-vem-do-basebackup
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # scripts da stack (cópias de infra/nas-replica/*.sh; o compose roda o arquivo da pasta, como o nas-pull.sh)
+      - ${NAS_REPLICA_PATH:?defina NAS_REPLICA_PATH}:/replica:ro
+    entrypoint: ['/bin/sh', '/replica/replica-entrypoint.sh']
+    # Standby: os parâmetros de capacidade (max_connections, max_wal_senders, max_worker_processes, max_locks_per_
+    # transaction) precisam ser >= os da produção (compose.dados.yml), senão o hot standby recusa subir. O resto é
+    # dimensionado para o NAS: cache próprio de 512 MB. max_standby_streaming_delay=-1: uma consulta longa (o pg_dump,
+    # que tem snapshot próprio) nunca é cancelada por conflito com a recuperação; o replay espera e alcança depois.
+    command:
+      - postgres
+      - -c
+      - hot_standby=on
+      - -c
+      - max_connections=${REPLICA_MAX_CONNECTIONS:-130}
+      - -c
+      - shared_buffers=${REPLICA_SHARED_BUFFERS:-512MB}
+      - -c
+      - effective_cache_size=${REPLICA_EFFECTIVE_CACHE_SIZE:-1792MB}
+      - -c
+      - work_mem=8MB
+      - -c
+      - maintenance_work_mem=64MB
+      - -c
+      - max_standby_streaming_delay=-1
+      - -c
+      - max_standby_archive_delay=-1
+      - -c
+      - hot_standby_feedback=off
+      - -c
+      - wal_receiver_timeout=120s
+      - -c
+      - log_min_messages=warning
+    healthcheck:
+      # durante o basebackup (horas, na primeira subida) fica unhealthy: é esperado, e o dumper espera por conta própria
+      test: ['CMD-SHELL', 'pg_isready -q -h 127.0.0.1 -p 5432']
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 120s
+    logging: *logging
+
+  dumper:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    mem_limit: 256m
+    depends_on:
+      - postgres
+    environment:
+      TZ: UTC
+      # a réplica (serviço acima) e quem lê tudo nela: o papel galaxie_backup da produção (pg_read_all_data), com a
+      # senha de DB_URL_BACKUP do .env da VPS; os papéis e senhas chegam à réplica junto com os dados
+      PGHOST: postgres
+      PGPORT: '5432'
+      PGDATABASE: ${POSTGRES_DB:-galaxie_sports}
+      PGUSER: ${DUMP_PGUSER:-galaxie_backup}
+      PGPASSWORD: ${DUMP_PGPASSWORD:?defina DUMP_PGPASSWORD (senha do papel galaxie_backup, de DB_URL_BACKUP da VPS)}
+      # conferência do slot na produção, pelo túnel, como replicador (só lê pg_replication_slots; vazio = pula)
+      REPLICATOR_PASSWORD: ${REPLICATOR_PASSWORD:-}
+      REPLICA_SLOT: ${REPLICA_SLOT:-nas_replica}
+      PRIMARY_HOST: tunnel
+      PRIMARY_PORT: '5432'
+      # agenda do dump diário (UTC) e se dumpa na partida (true = só se o último dump de daily/ tiver mais de 20 h)
+      DUMP_CRON: ${DUMP_CRON:-30 3 * * *}
+      DUMP_ON_START: ${DUMP_ON_START:-true}
+      DUMP_PREFIX: ${DUMP_PREFIX:-galaxie_sports_}
+      # réplica atrasada mais que isto (MB de WAL por aplicar, medido contra a produção pelo túnel) = sem dump
+      DUMP_MAX_LAG_MB: ${DUMP_MAX_LAG_MB:-256}
+      # retenção de daily/weekly/monthly (a mesma do nas-pull.sh) e dos dumps pré-migrate (/dump.sh pre-migrate <rótulo>)
+      NAS_KEEP_DAILY: ${NAS_KEEP_DAILY:-7}
+      NAS_KEEP_WEEKLY: ${NAS_KEEP_WEEKLY:-4}
+      NAS_KEEP_MONTHLY: ${NAS_KEEP_MONTHLY:-6}
+      PRE_MIGRATE_KEEP: ${PRE_MIGRATE_KEEP:-2}
+      # dumps cifrados com age (chaves PÚBLICAS, as mesmas BACKUP_AGE_RECIPIENTS da VPS; a privada nunca fica no NAS).
+      # Vazio = dump em claro no NAS. Obrigatório para a cópia fora de casa (abaixo), salvo OFFSITE_ALLOW_PLAINTEXT=true
+      DUMP_AGE_RECIPIENTS: ${DUMP_AGE_RECIPIENTS:-}
+      # recibo na VPS (.nas_last_dump), pela chave de recibo da stack galaxie-sports-backup-nas (NAS_BACKUP_PATH/ssh)
+      VPS_HOST: ${VPS_HOST:?defina VPS_HOST}
+      VPS_USER: ${VPS_USER:-root}
+      VPS_PORT: ${VPS_PORT:-22}
+      # cópia fora de casa, OPCIONAL e desligada por padrão (decisão do Wagner; README › Cópia fora de casa): remoto do
+      # rclone (ex.: r2:galaxie-dumps), configurado em NAS_REPLICA_PATH/rclone.conf, fora do git; guarda os OFFSITE_KEEP
+      # dumps mais recentes lá
+      OFFSITE_RCLONE_REMOTE: ${OFFSITE_RCLONE_REMOTE:-}
+      OFFSITE_KEEP: ${OFFSITE_KEEP:-2}
+      OFFSITE_ALLOW_PLAINTEXT: ${OFFSITE_ALLOW_PLAINTEXT:-false}
+      RCLONE_CONFIG: /replica/rclone.conf
+    volumes:
+      # a pasta de backups do NAS (a da stack galaxie-sports-backup-nas): daily/weekly/monthly, nas-lib.sh, ssh/receipt_ed25519
+      - ${NAS_BACKUP_PATH:?defina NAS_BACKUP_PATH}:/data
+      # scripts e configuração desta stack (dump.sh, rclone.conf)
+      - ${NAS_REPLICA_PATH:?defina NAS_REPLICA_PATH}:/replica:ro
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        set -e
+        # coreutils: o GNU date (-d) da rotação semanal/mensal da nas-lib.sh
+        apk add --no-cache -q --no-scripts openssh-client age rclone coreutils
+        for t in ssh age rclone pg_dump pg_restore psql flock; do command -v "$$t" >/dev/null || { echo "$$t não instalado" >&2; exit 1; }; done
+        # o crond não repassa o ambiente do container para os jobs; o /dump.sh (docker exec e cron) carrega o mesmo
+        export -p > /etc/dumper.env
+        printf '#!/bin/sh\n. /etc/dumper.env\nexec /bin/sh /replica/dump.sh "$$@"\n' > /dump.sh && chmod 755 /dump.sh
+        {
+          echo "$$DUMP_CRON /dump.sh >/proc/1/fd/1 2>&1"
+          # pedido do deploy (DUMP_MODE=nas): a cada minuto, lê na VPS o pedido pela chave de recibo e, se houver, faz o
+          # dump pre-migrate (sai calado sem pedido ou com outro dump rodando: a trava é a mesma do nas-pull.sh)
+          echo "* * * * * /dump.sh --pedido >/proc/1/fd/1 2>&1"
+          # arquivo-gatilho: quem tem a pasta do NAS pede um dump criando NAS_BACKUP_PATH/.dump-now (conferido a cada minuto)
+          echo "* * * * * [ -f /data/.dump-now ] && rm -f /data/.dump-now && /dump.sh >/proc/1/fd/1 2>&1"
+        } | crontab -
+        if [ "$$DUMP_ON_START" = true ]; then /dump.sh --se-velho || true; fi
+        exec crond -f -l 8
+    logging: *logging
+
+volumes:
+  pgdata:
