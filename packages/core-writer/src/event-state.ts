@@ -120,7 +120,7 @@ export async function applyProviderFailure(
 }
 
 const CLOCK_STATUSES: EventStatus[] = ['scheduled', 'starting', 'live', 'break'];
-/** Candidatos do relógio por página (e por transação). */
+/** Candidatos do relógio por página (e por transação), padrão da opção `pageSize`. */
 export const CLOCK_PAGE = 500;
 
 /**
@@ -137,9 +137,10 @@ export const CLOCK_PAGE = 500;
 export async function advanceEventClock(
   db: Database,
   now: Date,
-  options: MachineOptions & { sport?: string } = {},
+  options: MachineOptions & { sport?: string; pageSize?: number } = {},
 ): Promise<{ examined: number; changed: number; transitions: number }> {
   const horizon = new Date(now.getTime() + STARTING_WINDOW_MS);
+  const pageSize = options.pageSize ?? CLOCK_PAGE;
   let examined = 0;
   let changed = 0;
   let transitions = 0;
@@ -155,7 +156,7 @@ export async function advanceEventClock(
       .from(event)
       .where(and(...conditions))
       .orderBy(asc(event.startsAt), asc(event.id))
-      .limit(CLOCK_PAGE);
+      .limit(pageSize);
     if (!page.length) break;
     examined += page.length;
     await db.transaction(async (tx) => {
@@ -181,7 +182,7 @@ export async function advanceEventClock(
       changed += changes.length;
       transitions += changes.reduce((n, c) => n + c.transitions.length, 0);
     });
-    if (page.length < CLOCK_PAGE) break;
+    if (page.length < pageSize) break;
     after = page[page.length - 1]!;
   }
   return { examined, changed, transitions };
