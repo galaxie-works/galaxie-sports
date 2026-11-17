@@ -96,6 +96,18 @@ services:
       - ../tests/load/results:/results
     working_dir: /scripts
 
+  # SMTP falso do E2E (tests/e2e/README.md). Só sobe com o profile "e2e" (pnpm e2e:mail): a demo de teste manda o código
+  # de acesso por ele (porta 1025, qualquer usuário e senha, sem TLS) e o teste lê pela API HTTP (porta 8025).
+  mailpit:
+    image: axllent/mailpit:v1.32.0
+    profiles: ['e2e']
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: '1'
+      MP_SMTP_AUTH_ALLOW_INSECURE: '1'
+    ports:
+      - '${INFRA_BIND:-127.0.0.1}:1025:1025'
+      - '${INFRA_BIND:-127.0.0.1}:8025:8025'
+
 volumes:
   pgdata:
   valkeydata:

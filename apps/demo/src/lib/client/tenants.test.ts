@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { sectionsForState } from '@/components/client/client-nav';
+import { sectionsForState } from '@/components/client/client-nav-shared';
 
 /*
  * P2 da revisão do #1299: entre o fim do trial e a rodada diária do `tenant.lifecycle`, a coluna ainda diz `trial`, mas a

@@ -175,6 +175,44 @@ export const FanCards = z
   .meta({ id: 'FanCards' });
 export type FanCards = z.infer<typeof FanCards>;
 
+export const AchievementEarnersParams = z.object({
+  achievementId: z
+    .string()
+    .regex(/^[a-z0-9_]+(\.[a-z0-9_]+)+$/)
+    .max(80),
+});
+export const AchievementEarnersQuery = z.object({
+  season: z
+    .string()
+    .regex(/^(all|\d{4}(-\d{2,4})?)$/)
+    .default('all'),
+  limit: z.coerce.number().int().min(1).max(30).default(10),
+});
+
+export const AchievementEarners = z
+  .object({
+    data: z.object({
+      achievement_id: z.string(),
+      season: z.string(),
+      total: z.number().int().meta({ description: 'Torcedores do programa com o primeiro Degrau.' }),
+      earners: z
+        .array(
+          z.object({
+            profile_id: z.uuid(),
+            nickname: z.string().nullable(),
+            avatar_url: z.string().nullable(),
+            step: z.number().int().min(1).max(5),
+          }),
+        )
+        .meta({
+          description:
+            'Alguns que já ganharam, do Degrau mais alto. Só aparece quem é adulto e deixou as Conquistas visíveis no Perfil.',
+        }),
+    }),
+  })
+  .meta({ id: 'AchievementEarners' });
+export type AchievementEarners = z.infer<typeof AchievementEarners>;
+
 const problem = (description: string) => ({
   description,
   content: { 'application/problem+json': { schema: Problem } },
@@ -245,6 +283,18 @@ export const gamePaths: ZodOpenApiPathsObject = {
       tags: [TAG],
       security: fanAuth,
       responses: { '200': { description: 'OK', content: json(FanAchievements) }, ...common },
+    },
+  },
+  '/v1/achievements/{achievementId}/earners': {
+    get: {
+      summary: 'Quem já ganhou',
+      description:
+        'Torcedores do mesmo cliente e país que já ganharam a Conquista. Mostra só quem é adulto e deixou as ' +
+        'Conquistas visíveis; o total conta todos.',
+      tags: [TAG],
+      security: fanAuth,
+      requestParams: { path: AchievementEarnersParams, query: AchievementEarnersQuery },
+      responses: { '200': { description: 'OK', content: json(AchievementEarners) }, ...common },
     },
   },
   '/v1/fans/me/cards': {

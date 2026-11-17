@@ -130,6 +130,31 @@ minutos importam se o repositório voltar a ser privado.
 dois pelo `webServer` do Playwright quando não estão no ar. Contra o Postgres local (porta 5433), o seed cria o próprio
 banco `galaxie_e2e_<hex>` e não toca no banco de desenvolvimento.
 
+### Como rodar localmente
+
+Implantado na onda 0 (#1317); detalhes, variáveis e depuração em [tests/e2e/README.md](../../tests/e2e/README.md).
+
+```bash
+pnpm infra:up          # Postgres e Valkey locais (ou o .env apontando para o Postgres de desenvolvimento)
+pnpm e2e:mail          # Mailpit, o SMTP falso (perfil e2e do infra/docker-compose.yml): SMTP 1025, tela e API 8025
+pnpm build             # API e demo de produção
+pnpm --filter @galaxie/e2e-tests exec playwright install chromium   # uma vez por versão do Playwright
+pnpm e2e               # = pnpm --filter @galaxie/e2e-tests e2e
+```
+
+O executor (`tests/e2e/src/run.ts`) cria `galaxie_e2e_<hex>` no servidor da `DATABASE_URL`, aplica as migrations, grava o
+seed, roda o Playwright (que sobe a API na 8180 e a demo na 3100, apontadas para esse banco) e apaga o banco no fim,
+inclusive quando o teste falha. O banco de desenvolvimento não é tocado. Relatório da última execução:
+`pnpm --filter @galaxie/e2e-tests e2e:report`.
+
+O que a onda 0 adotou das decisões em aberto (a recomendação do brief em cada uma):
+
+- **Login no teste**: opção A, Mailpit como serviço do job e perfil `e2e` do compose local. O projeto `setup` faz o login
+  de verdade do admin e do cliente de referência e guarda as sessões (`storageState`).
+- **Quando o job roda**: no PR que alcança a API, a demo ou o `tests/e2e` (o recorte do `turbo --affected`, que inclui os
+  pacotes compartilhados de que elas dependem), e sempre na fila de merge e no push para a `main`. Fica fora dos checks
+  obrigatórios nas duas primeiras semanas; tornar obrigatório é configuração do repositório, com o dono.
+
 ### Em produção: smoke pós-deploy só de leitura
 
 Projeto separado do Playwright (`smoke`), rodado por um job novo no `deploy.yml` depois da troca de versão, contra o

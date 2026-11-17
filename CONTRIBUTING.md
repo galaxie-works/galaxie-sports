@@ -13,6 +13,7 @@ pnpm install
 pnpm format:check && pnpm lint && pnpm lint:deps && pnpm build && pnpm typecheck
 pnpm test                 # unitários (src/**/*.test.ts)
 pnpm test:integration     # integração (test/**/*.integration.test.ts) contra o Postgres local
+pnpm e2e                  # ponta a ponta no navegador (Playwright), com o Mailpit de `pnpm e2e:mail` (tests/e2e/README.md)
 ```
 
 No PR, o CI roda build, typecheck e testes só nos pacotes que a mudança alcança (os que mudaram e quem depende deles, `turbo --affected`); na fila de

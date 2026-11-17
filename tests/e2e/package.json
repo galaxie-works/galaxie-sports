@@ -1,0 +1,19 @@
+{
+  "name": "@galaxie/e2e-tests",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Testes de ponta a ponta no navegador (Playwright): a API e a demo de produção contra um banco descartável, só por HTTP",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "e2e": "node src/run.ts",
+    "e2e:report": "playwright show-report playwright-report"
+  },
+  "devDependencies": {
+    "@galaxie/billing": "workspace:*",
+    "@galaxie/db": "workspace:*",
+    "@playwright/test": "1.64.0",
+    "drizzle-orm": "^0.45.4",
+    "postgres": "^4.1.1"
+  }
+}

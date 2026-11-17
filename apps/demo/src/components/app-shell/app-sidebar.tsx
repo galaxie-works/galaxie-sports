@@ -24,7 +24,7 @@ import {
   SidebarRail,
   useSidebar,
 } from '@/components/ui/sidebar';
-import { CLIENT_NAV } from '@/components/client/client-nav';
+import { CLIENT_NAV } from '@/components/client/client-nav-shared';
 import { LIVE_HREF, LiveNavItem } from '@/components/live/live-nav-item';
 import { AnimatedSportIcon } from '@/components/sport/animated-sport-icon';
 import { CountryFlag } from '@/components/sport/country-flag';
