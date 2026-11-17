@@ -4,6 +4,9 @@
 //   node selfheal.mjs http <url>              # 2xx = saudável
 //   node selfheal.mjs heartbeat <arquivo> <ms> # arquivo tocado há menos de <ms> = saudável
 //
+// As imagens chamam o selfheal.sh, que confere em shell e só sobe este script na falha ou quando o estado abaixo ainda
+// não está "saudável, zero falhas" para o processo atual. Mudou o formato do selfheal.json? Ajuste o selfheal.sh junto.
+//
 // O Docker só marca o contêiner como unhealthy; sem Swarm, ninguém reinicia. Este script conta as falhas
 // seguidas e, passado o limite, encerra o processo principal (filho do tini, PID 1): o contêiner sai e a
 // política `restart: unless-stopped` sobe outro. Sem socket do Docker e sem contêiner extra.

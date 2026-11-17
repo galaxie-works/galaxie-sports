@@ -448,7 +448,11 @@ jobs:
             infra/vps-telemetry/candidate.sh infra/vps-telemetry/maintenance.sh infra/vps-telemetry/migrar-para-tres-projetos.sh infra/vps-telemetry/rolling-swap.sh infra/vps-telemetry/rolling-swap.test.sh infra/vps-telemetry/ligar-webhooks.sh \
             infra/vps-telemetry/prune-images.sh infra/vps-telemetry/prune-images.test.sh infra/ops/vps-stats/*.sh \
             infra/ops/migrate-dev.sh infra/ops/migrate-dev.test.sh \
-            infra/vps-telemetry/ensure-secrets.sh infra/vps-telemetry/ensure-secrets.test.sh
+            infra/vps-telemetry/ensure-secrets.sh infra/vps-telemetry/ensure-secrets.test.sh \
+            infra/healthcheck/selfheal.sh infra/healthcheck/selfheal.test.sh
+
+      - name: Healthcheck em shell (selfheal.sh só sobe o Node na falha; node, wget e /proc falsos)
+        run: bash infra/healthcheck/selfheal.test.sh
 
       - name: Segredos internos gerados no deploy (ensure-secrets.sh, só o que falta, nunca troca, sem mostrar valor)
         run: bash infra/vps-telemetry/ensure-secrets.test.sh

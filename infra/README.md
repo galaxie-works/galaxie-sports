@@ -16,6 +16,7 @@ observabilidade e os scripts de operação.
 | `observability/` | Imagens do Prometheus (alertas, SLOs, testes de regra) e do Grafana (painéis de cota e SLO, alertas → issues) | VPS |
 | `lineup-render/` | Servidor do Playwright para renderizar páginas de grade com JavaScript. Fora do workspace pnpm (tem `package-lock.json` próprio) | VPS (`lineup-render`) |
 | `healthcheck/selfheal.mjs` | Healthcheck com auto-reinício, copiado nas imagens Node (API, demo, ingestor) | dentro das imagens |
+| `healthcheck/selfheal.sh` | Caminho rápido do healthcheck: confere em shell e só sobe o `selfheal.mjs` na falha ou com contagem para zerar (teste: `selfheal.test.sh`) | dentro das imagens |
 
 ## Fluxo do deploy
 
