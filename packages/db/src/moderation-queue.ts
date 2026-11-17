@@ -57,6 +57,10 @@ export interface ModerationCaseView {
   createdAt: Date;
   /** Prazo do item: o da apelação (padrão 72 h, #953); os outros casos não têm prazo próprio. */
   dueAt: Date | null;
+  /** Suspeita de abuso infantil: a denúncia às autoridades vem antes de fechar (#1289). */
+  childSafety: boolean;
+  legalHoldUntil: Date | null;
+  authorityReportedAt: Date | null;
 }
 
 async function audit(
@@ -91,6 +95,11 @@ async function audit(
     purgeAt: row.clocks.decisionPurgeAt,
   });
 }
+
+/** A linha não está presa a um caso sob guarda legal em vigor (#1289). */
+const heldCaseFree = (tenantCol: unknown, caseCol: unknown) =>
+  sql`(${caseCol} is null or not exists (select 1 from ${moderationCase} hc where hc.tenant_id = ${tenantCol}
+    and hc.id = ${caseCol} and hc.legal_hold_until > now()))`;
 
 /** `text[]` a partir de uma lista (o driver não manda array JS como parâmetro de `sql`). */
 const textArray = (items: readonly string[]) =>
@@ -473,6 +482,9 @@ export async function listQueue(
     sanctionId: r.sanctionId,
     createdAt: r.createdAt,
     dueAt,
+    childSafety: r.childSafety,
+    legalHoldUntil: r.legalHoldUntil,
+    authorityReportedAt: r.authorityReportedAt,
   }));
 }
 
@@ -514,6 +526,9 @@ export async function readCase(
     sanctionId: r.sanctionId,
     createdAt: r.createdAt,
     dueAt: row.dueAt,
+    childSafety: r.childSafety,
+    legalHoldUntil: r.legalHoldUntil,
+    authorityReportedAt: r.authorityReportedAt,
     resolvedBy: r.resolvedBy,
     resolvedAt: r.resolvedAt,
   };
@@ -546,7 +561,8 @@ export async function automaticSanctionsOf(
 }
 
 export type UndoResult =
-  { ok: true; revoked: number } | { ok: false; reason: 'not_found' | 'not_automatic' | 'appeal' };
+  | { ok: true; revoked: number }
+  | { ok: false; reason: 'not_found' | 'not_automatic' | 'appeal' | 'legal_hold' };
 
 /**
  * Desfaz uma decisão automática (filtro ou Cosmos, #999): o conteúdo volta ao ar, as punições do caso aplicadas pela
@@ -574,12 +590,15 @@ export async function undoDecision(
         resolvedBy: moderationCase.resolvedBy,
         targetProfileId: moderationCase.targetProfileId,
         automatic: sql<boolean>`coalesce(${moderationCase.detail}, '{}'::jsonb) ?| array['filter', 'cosmos']`,
+        held: sql<boolean>`${moderationCase.childSafety} or coalesce(${moderationCase.legalHoldUntil} > now(), false)`,
       })
       .from(moderationCase)
       .where(and(eq(moderationCase.tenantId, input.tenantId), eq(moderationCase.id, input.caseId)))
       .for('update');
     if (!c) return { ok: false, reason: 'not_found' } as const;
     if (c.source === 'appeal') return { ok: false, reason: 'appeal' } as const;
+    // abuso infantil ou guarda legal (#1289): o conteúdo não volta ao ar por aqui
+    if (c.held) return { ok: false, reason: 'legal_hold' } as const;
     // fechado por pessoa: a decisão é dela, e o caminho é a apelação
     const byPerson = c.status !== 'open' && c.resolvedBy !== 'cosmos' && c.resolvedBy !== 'system';
     if (!c.automatic || byPerson) return { ok: false, reason: 'not_automatic' } as const;
@@ -672,7 +691,10 @@ export async function closeCase(
         resolvedAt: now,
         resolvedBy: input.actor.id,
         purgeAt: input.clocks.decisionPurgeAt,
-        ...(input.status === 'dismissed' ? { hiddenAt: null } : {}),
+        // abuso infantil (#1289): o conteúdo marcado não volta ao ar nem ao descartar
+        ...(input.status === 'dismissed'
+          ? { hiddenAt: sql`case when ${moderationCase.childSafety} then ${moderationCase.hiddenAt} end` }
+          : {}),
         ...(input.status === 'resolved' && input.hide
           ? { hiddenAt: sql`coalesce(${moderationCase.hiddenAt}, ${now.toISOString()}::timestamptz)` }
           : {}),
@@ -683,6 +705,8 @@ export async function closeCase(
           eq(moderationCase.tenantId, input.tenantId),
           eq(moderationCase.id, input.caseId),
           eq(moderationCase.status, 'open'),
+          // abuso infantil (#1289): a denúncia às autoridades vem antes de fechar, por qualquer caminho
+          sql`(not ${moderationCase.childSafety} or ${moderationCase.authorityReportedAt} is not null)`,
         ),
       )
       .returning({ id: moderationCase.id, targetProfileId: moderationCase.targetProfileId });
@@ -1531,6 +1555,8 @@ export async function purgeModeration(
           sql`${moderationCase.contentPurgeAt} <= now()`,
           sql`${moderationCase.content} is not null`,
           sql`${moderationCase.status} <> 'open'`,
+          // guarda legal (#1289): o conteúdo denunciado fica até o fim dela
+          sql`(${moderationCase.legalHoldUntil} is null or ${moderationCase.legalHoldUntil} <= now())`,
           sql`not exists (select 1 from ${moderationAppeal} a where a.tenant_id = ${moderationCase.tenantId}
             and a.case_id = ${moderationCase.id} and a.status = 'pending')`,
         ),
@@ -1540,7 +1566,11 @@ export async function purgeModeration(
       .update(moderationAudit)
       .set({ content: null })
       .where(
-        and(sql`${moderationAudit.contentPurgeAt} <= now()`, sql`${moderationAudit.content} is not null`),
+        and(
+          sql`${moderationAudit.contentPurgeAt} <= now()`,
+          sql`${moderationAudit.content} is not null`,
+          heldCaseFree(moderationAudit.tenantId, moderationAudit.caseId),
+        ),
       )
       .returning({ id: moderationAudit.id });
     // o prazo da decisão (purge_at − created_at) conta a partir do encerramento da punição; a Advertência não tem
@@ -1553,6 +1583,7 @@ export async function purgeModeration(
           sql`coalesce(least(${moderationSanction.revokedAt}, ${moderationSanction.endsAt}), case when ${moderationSanction.level} = 'warning' then ${moderationSanction.startsAt} end) + (${moderationSanction.purgeAt} - ${moderationSanction.createdAt}) <= now()`,
           sql`not exists (select 1 from ${moderationAppeal} a where a.tenant_id = ${moderationSanction.tenantId}
             and a.sanction_id = ${moderationSanction.id} and a.status = 'pending')`,
+          heldCaseFree(moderationSanction.tenantId, moderationSanction.caseId),
         ),
       )
       .returning({ id: moderationSanction.id });
@@ -1571,6 +1602,7 @@ export async function purgeModeration(
           // caso de apelação só sai com a punição (cascata): senão a etapa poderia ser pedida de novo
           isNull(moderationCase.sanctionId),
           sql`${moderationCase.purgeAt} <= now()`,
+          sql`(${moderationCase.legalHoldUntil} is null or ${moderationCase.legalHoldUntil} <= now())`,
           sql`not exists (select 1 from ${moderationSanction} s where s.tenant_id = ${moderationCase.tenantId}
             and s.case_id = ${moderationCase.id})`,
         ),
@@ -1585,6 +1617,7 @@ export async function purgeModeration(
             where s.tenant_id = ${moderationAudit.tenantId} and s.id = ${moderationAudit.sanctionId}))`,
           sql`(${moderationAudit.caseId} is null or not exists (select 1 from ${moderationCase} c
             where c.tenant_id = ${moderationAudit.tenantId} and c.id = ${moderationAudit.caseId}))`,
+          heldCaseFree(moderationAudit.tenantId, moderationAudit.caseId),
         ),
       )
       .returning({ id: moderationAudit.id });
@@ -1619,6 +1652,7 @@ export async function eraseModerationContent(
   profileId: string,
 ): Promise<void> {
   await tx.execute(sql`set local engage.moderation_erasure = 'on'`);
+  // o conteúdo sob guarda legal (#1289) fica até o fim dela: a exclusão do titular tem essa exceção na lei
   await tx
     .update(moderationCase)
     .set({ content: null, contentPurgeAt: null })
@@ -1627,6 +1661,7 @@ export async function eraseModerationContent(
         eq(moderationCase.tenantId, tenantId),
         eq(moderationCase.targetProfileId, profileId),
         sql`${moderationCase.content} is not null`,
+        sql`(${moderationCase.legalHoldUntil} is null or ${moderationCase.legalHoldUntil} <= now())`,
       ),
     );
   await tx
@@ -1637,6 +1672,7 @@ export async function eraseModerationContent(
         eq(moderationAudit.tenantId, tenantId),
         or(eq(moderationAudit.subjectProfileId, profileId), eq(moderationAudit.actor, `fan:${profileId}`)),
         sql`${moderationAudit.content} is not null`,
+        heldCaseFree(moderationAudit.tenantId, moderationAudit.caseId),
       ),
     );
   // o que o filtro ou a Cosmos guardaram do conteúdo dele
@@ -1648,6 +1684,7 @@ export async function eraseModerationContent(
         eq(moderationCase.tenantId, tenantId),
         eq(moderationCase.targetProfileId, profileId),
         sql`${moderationCase.detail} is not null`,
+        sql`(${moderationCase.legalHoldUntil} is null or ${moderationCase.legalHoldUntil} <= now())`,
       ),
     );
   // o que ele escreveu nas apelações
@@ -1739,4 +1776,145 @@ export async function moderationNotesFor(
     .where(and(eq(moderationNote.tenantId, tenantId), eq(moderationNote.profileId, profileId)))
     .orderBy(desc(moderationNote.createdAt))
     .limit(limit);
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Guarda legal e denúncia às autoridades (#1289)
+
+/** Leva a guarda à mensagem do chat do caso (tirada do ar e presa até o fim da guarda). */
+async function holdChatMessage(
+  tx: Executor,
+  tenantId: string,
+  messageId: string,
+  until: Date,
+): Promise<void> {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(messageId)) return;
+  const id = messageId.toLowerCase();
+  // a fixada denunciada sai do topo da sala
+  await tx.execute(sql`
+    update chat.room set pinned_message_id = null, pinned_by = null, pinned_at = null, updated_at = now()
+     where tenant_id = ${tenantId} and pinned_message_id = ${id}::uuid`);
+  await tx.execute(sql`
+    update chat.message
+       set legal_hold_until = greatest(coalesce(legal_hold_until, ${until.toISOString()}::timestamptz),
+                                       ${until.toISOString()}::timestamptz),
+           flags = case when visibility = 'shadow' and not ('was_shadow' = any(flags))
+                        then array_append(flags, 'was_shadow') else flags end,
+           visibility = 'hidden'
+     where tenant_id = ${tenantId} and id = ${id}::uuid`);
+}
+
+/**
+ * Suspeita de abuso infantil: o conteúdo sai do ar e fica preservado (guarda legal desde já), e o caso só fecha depois
+ * da denúncia às autoridades. Qualquer cargo que tira conteúdo do ar marca; `false` se o caso não está aberto ou já
+ * estava marcado.
+ */
+export async function flagChildSafety(
+  tx: Executor,
+  input: {
+    tenantId: string;
+    caseId: string;
+    actor: ModerationActor;
+    holdUntil: Date;
+    clocks: ModerationClocks;
+    now: Date;
+  },
+): Promise<boolean> {
+  const [c] = await tx
+    .update(moderationCase)
+    .set({
+      childSafety: true,
+      legalHoldUntil: sql`greatest(coalesce(${moderationCase.legalHoldUntil}, ${input.holdUntil.toISOString()}::timestamptz), ${input.holdUntil.toISOString()}::timestamptz)`,
+      hiddenAt: sql`coalesce(${moderationCase.hiddenAt}, ${input.now.toISOString()}::timestamptz)`,
+      updatedAt: input.now,
+    })
+    .where(
+      and(
+        eq(moderationCase.tenantId, input.tenantId),
+        eq(moderationCase.id, input.caseId),
+        eq(moderationCase.status, 'open'),
+        eq(moderationCase.childSafety, false),
+      ),
+    )
+    .returning({
+      module: moderationCase.module,
+      targetType: moderationCase.targetType,
+      targetId: moderationCase.targetId,
+      targetProfileId: moderationCase.targetProfileId,
+    });
+  if (!c) return false;
+  if (c.module === 'chat' && c.targetType === 'message')
+    await holdChatMessage(tx, input.tenantId, c.targetId, input.holdUntil);
+  await audit(tx, {
+    tenantId: input.tenantId,
+    actor: input.actor,
+    action: 'authority.flag',
+    clocks: input.clocks,
+    subjectProfileId: c.targetProfileId,
+    caseId: input.caseId,
+    reason: 'child_safety',
+    rules: { legalHoldUntil: input.holdUntil.toISOString() },
+  });
+  return true;
+}
+
+/**
+ * Registra a denúncia às autoridades (só o admin do cliente e a equipe Galaxie; quem chama confere o cargo). A guarda
+ * conta da denúncia, pelo `legalHoldDays` da ficha. `false` se o caso não existe ou já foi denunciado.
+ */
+export async function reportToAuthorities(
+  tx: Executor,
+  input: {
+    tenantId: string;
+    caseId: string;
+    actor: ModerationActor;
+    reference: string | null;
+    holdUntil: Date;
+    clocks: ModerationClocks;
+    now: Date;
+  },
+): Promise<boolean> {
+  const [c] = await tx
+    .update(moderationCase)
+    .set({
+      authorityReportedAt: input.now,
+      authorityReportedBy: input.actor.id,
+      authorityReference: input.reference,
+      legalHoldUntil: sql`greatest(coalesce(${moderationCase.legalHoldUntil}, ${input.holdUntil.toISOString()}::timestamptz), ${input.holdUntil.toISOString()}::timestamptz)`,
+      hiddenAt: sql`coalesce(${moderationCase.hiddenAt}, ${input.now.toISOString()}::timestamptz)`,
+      updatedAt: input.now,
+    })
+    .where(
+      and(
+        eq(moderationCase.tenantId, input.tenantId),
+        eq(moderationCase.id, input.caseId),
+        isNull(moderationCase.authorityReportedAt),
+        // a apelação é sobre a punição; a denúncia vai no caso original
+        sql`${moderationCase.source} <> 'appeal'`,
+      ),
+    )
+    .returning({
+      module: moderationCase.module,
+      targetType: moderationCase.targetType,
+      targetId: moderationCase.targetId,
+      targetProfileId: moderationCase.targetProfileId,
+      childSafety: moderationCase.childSafety,
+    });
+  if (!c) return false;
+  if (c.module === 'chat' && c.targetType === 'message')
+    await holdChatMessage(tx, input.tenantId, c.targetId, input.holdUntil);
+  await audit(tx, {
+    tenantId: input.tenantId,
+    actor: input.actor,
+    action: 'authority.report',
+    clocks: input.clocks,
+    subjectProfileId: c.targetProfileId,
+    caseId: input.caseId,
+    reason: c.childSafety ? 'child_safety' : 'authority',
+    rules: {
+      legalHoldUntil: input.holdUntil.toISOString(),
+      ...(input.reference ? { reference: input.reference } : {}),
+    },
+  });
+  return true;
 }
