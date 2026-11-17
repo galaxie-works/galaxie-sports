@@ -3,6 +3,10 @@
 Tudo o que sobe o Galaxie Sports fora do código: a infra local de desenvolvimento, a stack da VPS, backup,
 observabilidade e os scripts de operação.
 
+O desenho de como isso se junta na produção (VPS, réplica do Postgres e dumps no NAS, deploy pelo Actions, limites e
+regras) está em [docs/16 · Implantação](../docs/16-implantacao.md), que substitui desde 17/11/2026 o desenho com o
+backup nascendo na VPS.
+
 | Pasta / arquivo | O que é | Onde roda |
 |---|---|---|
 | [`docker-compose.yml`](docker-compose.yml) | Infra **local**: Postgres 17 (porta 5433), Valkey, RustFS/S3 + bucket, e o k6 (perfil `load`) | máquina de dev (`pnpm infra:up`) |
@@ -10,8 +14,9 @@ observabilidade e os scripts de operação.
 | [`traefik/`](traefik/README.md) | Cópia do Traefik da VPS, que serve todas as stacks de lá | VPS |
 | [`cloudflare/`](cloudflare/README.md) | O que roda na Cloudflare: o Worker de cache de borda da API (`api-edge-cache`, deploy à mão com wrangler) | Cloudflare |
 | [`ops/`](ops/README.md) | Plano B de operação a partir da máquina de dev (deploy, trem de merge, portão do Codex, issue de alerta) | dev (Git Bash) |
-| [`backup/`](backup/README.md) | Imagem do backup diário do Postgres (dump validado, retenção, S3 opcional, ensaio de restauração) | VPS (`backup`) |
-| `nas-backup/` | Cópia dos dumps da VPS para o NAS (camada 2 do 3-2-1) | NAS |
+| [`backup/`](backup/README.md) | Imagem do backup do Postgres (dump validado, retenção, cópia dos prefixos do S3, verificador, ensaio de restauração). No desenho novo, na VPS fica o dump semanal; o diário nasce no NAS ([docs/16](../docs/16-implantacao.md)) | VPS (`backup`) |
+| `nas-backup/` | `nas-pull`: cópia dos prefixos do S3 da VPS para o NAS (e dos dumps da VPS, até a troca do #1312) | NAS |
+| `nas-replica/` | Stack `nas-replica`: túnel SSH, Postgres em hot standby da produção e `dumper` (dump diário e pré-deploy a partir da réplica, recibo `.nas_last_dump` na VPS). Chega com o #1307; nomes conforme o PR da réplica; runbook `docs/runbooks/replica-no-nas.md` (#1311) | NAS |
 | [`nas-dev/`](nas-dev/compose.yml) | Stack `galaxie-sports-dev` do NAS: Postgres, Valkey e RustFS do **desenvolvimento**, mais ingestor e agents no perfil `workers`, que nascem com tudo que gasta cota desligado, e o `espelho` semanal produção → dev a partir dos dumps do NAS ([ambiente de dev](../docs/runbooks/ambiente-de-dev.md)) | NAS |
 | `observability/` | Imagens do Prometheus (alertas, SLOs, testes de regra) e do Grafana (painéis de cota e SLO, alertas → issues) | VPS |
 | `lineup-render/` | Servidor do Playwright para renderizar páginas de grade com JavaScript. Fora do workspace pnpm (tem `package-lock.json` próprio) | VPS (`lineup-render`) |
@@ -22,6 +27,10 @@ observabilidade e os scripts de operação.
 1. O merge no `main` dispara `.github/workflows/docker.yml`, que constrói e publica as imagens no GHCR com a tag do SHA.
 2. `.github/workflows/deploy.yml` entra por SSH na VPS e roda `vps-telemetry/deploy-gh.sh`: trava, pull, `migrate`,
    candidatas, troca, smoke test e volta ao SHA anterior se algo falhar.
+
+Regras de hoje ([docs/16 §5](../docs/16-implantacao.md#5-regras-operacionais)): um deploy por dia, de madrugada, à
+mão (`DEPLOY_AUTO=off`), com a carga pausada; com `DUMP_MODE=nas`, o pré-migrate confere o recibo do dump do NAS em vez
+de rodar `pg_dump` na VPS.
 
 Passo a passo: [docs/runbooks/deploy-pelo-github.md](../docs/runbooks/deploy-pelo-github.md) · Subir uma VPS do zero:
 [docs/runbooks/bootstrap-vps.md](../docs/runbooks/bootstrap-vps.md) · Backup e DR:
