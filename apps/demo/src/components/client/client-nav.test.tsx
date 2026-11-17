@@ -7,15 +7,14 @@ import { LOCALES, type Locale } from '@/lib/i18n/config';
 import { clientDictionary } from '@/lib/i18n/dictionary';
 import { compareAlpha } from '@/lib/alphabetical';
 
+import { ClientNavSheet, ClientSideNav } from './client-nav';
 import {
   CLIENT_NAV,
-  ClientNavSheet,
-  ClientSideNav,
   clientNavGroups,
   navRequirement,
   sectionsForState,
   STATES_WITH_NOTICE_ONLY,
-} from './client-nav';
+} from './client-nav-shared';
 
 afterEach(cleanup);
 
