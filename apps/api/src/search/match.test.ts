@@ -1,5 +1,16 @@
+import { readFileSync } from 'node:fs';
+import { PgDialect } from 'drizzle-orm/pg-core';
 import { describe, expect, it } from 'vitest';
-import { accentPattern, bestMatch, fold, matchOf, splitMatchup, stringsOf } from './match.js';
+import {
+  accentPattern,
+  bestMatch,
+  fold,
+  matchOf,
+  personSearchMatchSql,
+  searchPattern,
+  splitMatchup,
+  stringsOf,
+} from './match.js';
 
 describe('busca — casamento', () => {
   it('dobra caixa, acento e espaços', () => {
@@ -61,5 +72,33 @@ describe('busca — confronto "time x time"', () => {
     expect(splitMatchup('a x b')).toBeNull();
     expect(splitMatchup('x vasco')).toBeNull();
     expect(splitMatchup('a x b x c')).toBeNull();
+  });
+});
+
+describe('busca — pré-filtro de pessoas (índice person_search_trgm_idx)', () => {
+  const dialect = new PgDialect();
+  const EXPR =
+    "(coalesce(p.name, '') || ' ' || coalesce(p.first_name, '') || ' ' || coalesce(p.last_name, ''))";
+
+  it('usa a expressão do índice com os literais inline; só o padrão vai como parâmetro', () => {
+    const q = dialect.sqlToQuery(personSearchMatchSql('messi'));
+    expect(q.sql).toBe(`${EXPR} ~* $1`);
+    expect(q.params).toEqual([accentPattern('messi')]);
+  });
+
+  it('termo curto só casa no começo de uma palavra', () => {
+    expect(dialect.sqlToQuery(personSearchMatchSql('ro')).params).toEqual([
+      `(^|[^[:alnum:]])${accentPattern('ro')}`,
+    ]);
+    expect(searchPattern('ronaldo')).toBe(accentPattern('ronaldo'));
+  });
+
+  it('é a mesma expressão da migration do índice (sem o alias da tabela)', () => {
+    const migration = readFileSync(
+      new URL('../../../../packages/db/drizzle/0192_busca_trigram_pessoa.sql', import.meta.url),
+      'utf8',
+    );
+    const indexed = EXPR.replace(/p\.(\w+)/g, '"$1"');
+    expect(migration).toContain(`USING gin (${indexed} gin_trgm_ops)`);
   });
 });

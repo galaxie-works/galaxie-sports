@@ -33,6 +33,26 @@ export function accentPattern(term: string): string {
     .join('');
 }
 
+/**
+ * Regex do pré-filtro (`~*`): o termo sem acento; termo curto (2 letras) só casa no começo de uma palavra
+ * ("br" acha Brasil, não Gibraltar).
+ */
+export function searchPattern(term: string): string {
+  return term.length < 3 ? `(^|[^[:alnum:]])${accentPattern(term)}` : accentPattern(term);
+}
+
+/**
+ * Pré-filtro da busca de pessoas sobre `core.person` (alias `p`). A expressão tem de ser idêntica, caractere a
+ * caractere, à do índice `person_search_trgm_idx` (migration 0192, `packages/db/src/schema/core.ts`), com os
+ * literais `''` e `' '` inline e não como parâmetro: só assim o planner casa o índice GIN trigram e não lê a
+ * tabela inteira (630 mil linhas; o seq scan passava do statement_timeout). Por isso nada de `concat_ws` (STABLE,
+ * não indexável) nem dos apelidos em jsonpath: nome, primeiro nome e sobrenome já cobrem "nome completo" e
+ * "sobrenome". Só o padrão vai como parâmetro.
+ */
+export function personSearchMatchSql(term: string): SQL {
+  return sql`(coalesce(p.name, '') || ' ' || coalesce(p.first_name, '') || ' ' || coalesce(p.last_name, '')) ~* ${searchPattern(term)}`;
+}
+
 /** `fold` no Postgres (sem a extensão unaccent). */
 export function foldSql(expr: SQL): SQL {
   return sql`lower(translate(${expr}, ${ACCENTED}, ${PLAIN}))`;

@@ -1,4 +1,5 @@
 import { randomBytes } from 'node:crypto';
+import { sql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { Redis } from 'ioredis';
 import postgres from 'postgres';
@@ -23,6 +24,7 @@ import {
 } from '@galaxie/db';
 import { createApiKey, upsertTenant } from '../src/auth/admin.js';
 import { RecordingCdnPurger } from '../src/cache/purger.js';
+import { personSearchMatchSql } from '../src/search/match.js';
 import { buildServer } from '../src/server.js';
 
 const adminUrl = process.env.DATABASE_URL;
@@ -324,6 +326,21 @@ describe('GET /v1/search', () => {
     });
     const br = await search('q=bra&types=country&locale=pt-BR');
     expect(br.body.data[0]).toMatchObject({ type: 'country', id: 'BR', name: 'Brasil', matched: 'BRA' });
+  });
+
+  it('pessoas: o pré-filtro usa o índice trigram person_search_trgm_idx', async () => {
+    // nome completo contíguo (primeiro nome + sobrenome) segue casando sem os apelidos em jsonpath
+    const full = await search('q=raphael%20claudio%20veiga&types=person');
+    expect(full.body.data[0]).toMatchObject({ name: 'R. Veiga', matched: 'Raphael Cláudio Veiga' });
+    // com 3 linhas o planner prefere o seq scan; desligado, só usa o índice se a expressão for a mesma dele
+    const plan = await db.transaction(async (tx) => {
+      await tx.execute(sql`set local enable_seqscan = off`);
+      const rows = await tx.execute<{ 'QUERY PLAN': string }>(
+        sql`explain select p.id from core.person p where ${personSearchMatchSql('veiga')}`,
+      );
+      return rows.map((r) => r['QUERY PLAN']).join(' ');
+    });
+    expect(plan).toContain('Bitmap Index Scan on person_search_trgm_idx');
   });
 
   it('respeita os esportes do plano e o limite por tipo', async () => {
