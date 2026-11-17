@@ -455,7 +455,8 @@ describe('resumo pré-calculado (job explore-summary, #596)', () => {
     const rows = await db.select().from(exploreSummary);
     expect(rows.find((r) => r.sport === '*' && r.market === '*')?.generatedAt).toEqual(NOW);
     expect(new Set(rows.map((r) => r.generatedAt.getTime()))).toEqual(new Set([NOW.getTime()]));
-    expect((await refreshExploreSummary(db, geo, { now: NOW })).reason).toBeNull();
+    // sem freio: o null vem de não haver mudança, não do freio
+    expect((await refreshExploreSummary(db, geo, { now: NOW, minIntervalMs: 0 })).reason).toBeNull();
     // uma rodada que começou antes (conta mais velha) e terminou depois não sobrescreve a mais nova
     const older = await refreshExploreSummary(db, geo, {
       now: new Date(NOW.getTime() - 60_000),
