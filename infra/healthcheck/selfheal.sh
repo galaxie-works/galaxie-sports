@@ -44,12 +44,20 @@ main_proc() {
   echo "$pid@$ticks"
 }
 
-if healthy "$@"; then
+rc=0
+healthy "$@" || rc=$?
+if [ "$rc" -eq 0 ]; then
   proc=$(main_proc) || proc=''
   # o JSON que o selfheal.mjs grava depois de um healthcheck saudável: {"proc":"…","seenOk":true,"fails":0,…,"term":null}
   if [ -n "$proc" ] && grep -q "\"proc\":\"$proc\",\"seenOk\":true,\"fails\":0," "$STATE" 2>/dev/null &&
     grep -q '"term":null' "$STATE" 2>/dev/null; then
     exit 0
   fi
+  export SELFHEAL_PROBE=ok
+elif [ "$rc" -ne 127 ]; then
+  # Veredito já tomado: o selfheal.mjs usa este resultado em vez de testar de novo. Sem isso, um processo travado
+  # custava o wget (até 4 s) mais o fetch do Node (até 4 s), passava do timeout do healthcheck (6 s), o Docker matava
+  # o probe antes de a falha ser contada e o contêiner nunca era reiniciado. 127 = sem wget/stat: o Node testa.
+  export SELFHEAL_PROBE=fail
 fi
 exec node "$DIR/selfheal.mjs" "$@"

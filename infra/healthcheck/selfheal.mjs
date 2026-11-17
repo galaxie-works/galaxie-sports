@@ -93,7 +93,11 @@ const note = (msg) => {
   }
 };
 
-const ok = await healthy(process.argv.slice(2)).catch(() => false);
+// SELFHEAL_PROBE: veredito que o selfheal.sh já tomou (ok|fail). Testar de novo somaria um segundo timeout de 4 s e
+// passaria do timeout do healthcheck (6 s); sem ele (chamada direta ou shell sem wget), o Node testa.
+const probe = env.SELFHEAL_PROBE;
+const ok =
+  probe === 'ok' ? true : probe === 'fail' ? false : await healthy(process.argv.slice(2)).catch(() => false);
 
 const pid = mainPid();
 const ticks = (() => {

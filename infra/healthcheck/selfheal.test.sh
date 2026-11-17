@@ -12,10 +12,10 @@ WORK=$(mktemp -d)
 trap 'rm -rf "$WORK"' EXIT
 
 mkdir -p "$WORK/bin" "$WORK/proc/1/task/1" "$WORK/proc/4242" "$WORK/state"
-# node falso: registra a chamada e sai com o código pedido (o selfheal.mjs de verdade decidiria)
+# node falso: registra a chamada (com o veredito SELFHEAL_PROBE) e sai com o código pedido (o selfheal.mjs de verdade decidiria)
 cat >"$WORK/bin/node" <<'EOF'
 #!/bin/sh
-echo "$*" >>"$NODE_LOG"
+echo "probe=${SELFHEAL_PROBE:-} $*" >>"$NODE_LOG"
 exit "${FAKE_NODE_EXIT:-0}"
 EOF
 # wget falso: sai com FAKE_WGET_EXIT (0 = 2xx)
@@ -82,6 +82,20 @@ clean_state
 check 'http 2xx e estado limpo: sai 0 sem subir o Node' 0 não http http://127.0.0.1:8080/health
 export FAKE_WGET_EXIT=8 FAKE_NODE_EXIT=1
 check 'http com erro: quem decide é o Node' 1 sim http http://127.0.0.1:8080/health
+if grep -q '^probe=fail ' "$NODE_LOG"; then
+  echo 'ok   http com erro: o Node recebe o veredito (SELFHEAL_PROBE=fail) e não testa de novo'
+else
+  echo "FALHA http com erro: o Node não recebeu SELFHEAL_PROBE=fail ($(cat "$NODE_LOG"))"
+  fails=$((fails + 1))
+fi
+export FAKE_WGET_EXIT=127
+check 'sem wget (127): o Node testa sozinho' 1 sim http http://127.0.0.1:8080/health
+if grep -q '^probe= ' "$NODE_LOG"; then
+  echo 'ok   sem wget: o Node não recebe veredito'
+else
+  echo "FALHA sem wget: veredito inesperado ($(cat "$NODE_LOG"))"
+  fails=$((fails + 1))
+fi
 unset FAKE_WGET_EXIT FAKE_NODE_EXIT
 
 clean_state
