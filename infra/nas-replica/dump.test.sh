@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # Teste do dump.sh com psql, pg_dump, pg_restore, ssh, age e rclone falsos: as paradas (réplica promovida, atrasada,
-# slot perdido, recibo antigo na VPS), o dump diário e o pré-migrate, a pausa/retomada do replay, a cifragem e a cópia
-# fora de casa. Precisa de GNU date (como no contêiner do NAS).
+# slot perdido, recibo antigo na VPS), o dump diário e o pré-migrate, o replay pausado à mão, o pedido do deploy
+# (--pedido), a cifragem e a cópia fora de casa. Precisa de GNU date e coreutils (como no contêiner do NAS e no CI).
 #
 #   bash infra/nas-replica/dump.test.sh
-# shellcheck disable=SC2034 # r e pw são lidos nas condições de `confere`, que o shellcheck não enxerga (eval)
+# shellcheck disable=SC2034 # r é lido nas condições de `confere`, que o shellcheck não enxerga (eval)
 set -u
 here="$(cd "$(dirname "$0")" && pwd)"
 work="$(mktemp -d)"
@@ -17,8 +17,8 @@ cp "$here/../nas-backup/nas-lib.sh" "$nas/nas-lib.sh"
 : >"$nas/ssh/receipt_ed25519"
 : >"$nas/ssh/known_hosts"
 
-# psql falso: responde conforme a consulta; -h tunnel é a produção. Variáveis do teste: RECOVERY (t/f), LAG_MB,
-# SLOT ("t reserved" | "t lost" | ""), PRIMARY_DOWN=1 (a produção não responde)
+# psql falso: responde conforme a consulta; -h tunnel é a produção. Variáveis do teste: RECOVERY (t/f), PAUSED (t/f),
+# RESUME_FAILS=1, LAG_MB, SLOT ("t reserved" | "t lost" | ""), PRIMARY_DOWN=1 (a produção não responde)
 cat >"$work/bin/psql" <<'FAKE'
 #!/bin/sh
 sql=""
@@ -42,9 +42,10 @@ if [ "$host" = tunnel ]; then
 fi
 case "$sql" in
 *pg_is_in_recovery*) echo "${RECOVERY:-t}" ;;
+*pg_is_wal_replay_paused*) echo "${PAUSED:-f}" ;;
+*pg_wal_replay_resume*) [ -n "${RESUME_FAILS:-}" ] && exit 1; echo "" ;;
 *pg_wal_lsn_diff*) echo "${LAG_MB:-3}" ;;
 *pg_last_wal_replay_lsn* | *pg_last_wal_receive_lsn*) echo "0/4FF0000" ;;
-*pg_get_wal_replay_pause_state*) echo paused ;;
 *pg_last_xact_replay_timestamp*) echo "2026-01-01 03:29:00+00" ;;
 *) echo "" ;;
 esac
@@ -57,7 +58,8 @@ for a in "$@"; do case "$a" in --file=*) printf 'conteudo-do-dump-%s\n' "$(date 
 FAKE
 printf '#!/bin/sh\necho "pg_restore $*" >>"$CALLS"\n' >"$work/bin/pg_restore"
 printf '#!/bin/sh\nexit 0\n' >"$work/bin/pg_isready"
-# ssh falso: o comando forçado da VPS (galaxie-nas-receipt). Com SSH_OLD=1 é o comando antigo (só toca .nas_last_pull)
+# ssh falso: o comando forçado da VPS (galaxie-nas-receipt: pull, dump, pedido). Com SSH_OLD=1 é o comando antigo (só
+# toca .nas_last_pull); PEDIDO="<quando> <rótulo>" é um pedido pendente na VPS
 cat >"$work/bin/ssh" <<'FAKE'
 #!/bin/sh
 cmd=""
@@ -65,9 +67,18 @@ for a in "$@"; do cmd="$a"; done
 echo "ssh $cmd" >>"$CALLS"
 if [ -n "${SSH_OLD:-}" ]; then touch "$VPS/.nas_last_pull"; exit 0; fi
 set -- $cmd
-[ "$1" = dump ] || { echo "recibo: comando desconhecido"; exit 1; }
-printf '%s %s %s\n' "$2" "$3" "$4" >"$VPS/.nas_last_dump"
-echo "recibo dump ok"
+case "$1" in
+dump)
+  printf '%s %s %s\n' "$2" "$3" "$4" >"$VPS/.nas_last_dump"
+  rm -f "$VPS/.nas_dump_request"
+  echo "recibo dump ok"
+  ;;
+pedido)
+  [ -f "$VPS/.nas_dump_request" ] && echo "pedido $(cat "$VPS/.nas_dump_request")"
+  echo "recibo pedido ok"
+  ;;
+*) echo "recibo: comando desconhecido"; exit 1 ;;
+esac
 FAKE
 # age falso: "cifra" copiando; rclone falso: copyto/lsf/deletefile numa pasta
 cat >"$work/bin/age" <<'FAKE'
@@ -90,6 +101,7 @@ lsf) ls -1 "$REMOTE" ;;
 deletefile) rm -f "$REMOTE/${1#*/}" ;;
 esac
 FAKE
+# flock falso: o teste roda uma execução por vez (o Git Bash do Windows não tem flock)
 printf '#!/bin/sh\nexit 0\n' >"$work/bin/flock"
 chmod +x "$work/bin/"*
 export PATH="$work/bin:$PATH" CALLS="$work/calls.log" VPS="$vps" REMOTE="$remote" \
@@ -101,40 +113,65 @@ confere() {
 }
 dump() { sh "$here/dump.sh" "$@" >"$work/out.log" 2>&1; }
 limpa() {
-  rm -rf "$nas/daily" "$nas/weekly" "$nas/monthly" "$nas/pre-migrate" "$nas/incoming" "$nas/last_dump.txt" "$vps/.nas_last_dump" "$remote"
+  rm -rf "$nas/daily" "$nas/weekly" "$nas/monthly" "$nas/pre-migrate" "$nas/incoming" "$nas/last_dump.txt" "$vps/.nas_last_dump" "$vps/.nas_dump_request" "$remote"
   mkdir -p "$remote"
   : >"$CALLS"
-  unset RECOVERY LAG_MB SLOT PRIMARY_DOWN SSH_OLD DUMP_AGE_RECIPIENTS OFFSITE_RCLONE_REMOTE OFFSITE_ALLOW_PLAINTEXT
+  unset RECOVERY PAUSED RESUME_FAILS LAG_MB SLOT PRIMARY_DOWN SSH_OLD DUMP_AGE_RECIPIENTS OFFSITE_RCLONE_REMOTE OFFSITE_ALLOW_PLAINTEXT
 }
-ordem() { grep -n -- "$1" "$CALLS" | head -n 1 | cut -d: -f1; }
+n_daily() { ls -1 "$nas/daily/"*.dump 2>/dev/null | wc -l; }
 
 limpa
-dump
-n_daily() { ls -1 "$nas/daily/"*.dump 2>/dev/null | wc -l; }
-confere "dump diário em daily/ com .sha256" '[ "$(n_daily)" = 1 ] && [ -f "$(ls "$nas"/daily/*.dump).sha256" ] && [ -z "$(ls "$nas/incoming")" ]'
-confere "replay pausado antes do pg_dump e retomado depois" \
-  '[ "$(ordem pg_wal_replay_pause)" -lt "$(ordem "pg_dump ")" ] && [ "$(ordem "pg_dump ")" -lt "$(ordem pg_wal_replay_resume)" ]'
+dump && r=0 || r=$?
+confere "dump diário em daily/ com .sha256, sem sobra em incoming/" '[ "$r" = 0 ] && [ "$(n_daily)" = 1 ] && [ -f "$(ls "$nas"/daily/*.dump).sha256" ] && [ -z "$(ls "$nas/incoming")" ]'
+confere "sem pausar o replay (o papel de backup não é superusuário)" '! grep -q "pg_wal_replay_pause\|pg_wal_replay_resume" "$CALLS"'
 confere "pg_dump no formato do backup da VPS" 'grep -q -- "--format=custom --compress=zstd:5 --no-owner --no-privileges --exclude-table-data=enrich.related_content" "$CALLS"'
 confere "recibo na VPS com quando, bytes e arquivo" 'read -r q b f <"$vps/.nas_last_dump" && [ "$b" -gt 0 ] && [ "$f" = "$(basename "$(ls "$nas"/daily/*.dump)")" ] && case "$q" in 20*T*Z) true ;; *) false ;; esac'
 confere "last_dump.txt ok, sem cópia fora de casa" 'grep -q " ok: daily " "$nas/last_dump.txt" && ! grep -q rclone "$CALLS"'
 
+# o dump do mesmo dia que o nas-pull.sh trouxe da VPS fica como está (a trava é a mesma; a rotação cuida)
+echo da-vps >"$nas/daily/galaxie_sports_$(date -u +%Y%m%d)T000000Z.dump" && : >"$nas/daily/galaxie_sports_$(date -u +%Y%m%d)T000000Z.dump.sha256"
 sleep 1
 dump
-confere "segundo dump no mesmo dia troca o anterior (um por dia em daily/)" '[ "$(n_daily)" = 1 ]'
+confere "dump do mesmo dia trazido da VPS fica (dois em daily/)" '[ "$(n_daily)" = 3 ] && [ -f "$nas/daily/galaxie_sports_$(date -u +%Y%m%d)T000000Z.dump" ]'
 
 dump pre-migrate abc1234-def5678
-confere "pre-migrate vai para pre-migrate/, fora de daily/" '[ "$(ls -1 "$nas/pre-migrate/"*pre-migrate_*_abc1234-def5678.dump | wc -l)" = 1 ] && [ "$(n_daily)" = 1 ]'
+confere "pre-migrate vai para pre-migrate/, fora de daily/" '[ "$(ls -1 "$nas/pre-migrate/"*pre-migrate_*_abc1234-def5678.dump | wc -l)" = 1 ] && [ "$(n_daily)" = 3 ]'
 sleep 1; dump pre-migrate b; sleep 1; dump pre-migrate c
 confere "pre-migrate guarda só PRE_MIGRATE_KEEP (2)" '[ "$(ls -1 "$nas/pre-migrate/"*.dump | wc -l)" = 2 ] && [ -z "$(ls "$nas/pre-migrate/" | grep abc1234)" ]'
 confere "rótulo inválido é recusado" '! sh "$here/dump.sh" pre-migrate "x y" >/dev/null 2>&1'
 
+: >"$CALLS"
 dump --se-velho && r=0 || r=$?
-confere "--se-velho com dump recente não faz nada" '[ "$r" = 0 ] && ! grep -q "pg_dump " <(tail -n 3 "$CALLS")'
+confere "--se-velho com dump recente não faz nada" '[ "$r" = 0 ] && ! grep -q "pg_dump " "$CALLS"'
+
+# o pedido do deploy (nas-dump-check.sh com DUMP_MODE=nas): --pedido a cada minuto
+: >"$CALLS"
+dump --pedido && r=0 || r=$?
+confere "--pedido sem pedido pendente: consulta a VPS e não dumpa" '[ "$r" = 0 ] && grep -q "ssh pedido" "$CALLS" && ! grep -q "pg_dump " "$CALLS"'
+printf '2026-11-17T04:00:00Z gha-123-abc1234-def5678\n' >"$vps/.nas_dump_request"
+sleep 1
+dump --pedido && r=0 || r=$?
+confere "--pedido com pedido: dump pre-migrate com o rótulo do deploy, recibo tocado e pedido apagado" \
+  '[ "$r" = 0 ] && [ -f "$(ls "$nas/pre-migrate/"*_gha-123-abc1234-def5678.dump)" ] && grep -q "_gha-123-abc1234-def5678.dump" "$vps/.nas_last_dump" && [ ! -f "$vps/.nas_dump_request" ]'
+printf 'ontem rm -rf /\n' >"$vps/.nas_dump_request"
+: >"$CALLS"
+dump --pedido && r=0 || r=$?
+confere "--pedido malformado é ignorado" '[ "$r" = 0 ] && ! grep -q "pg_dump " "$CALLS"'
+rm -f "$vps/.nas_dump_request"
+
+limpa
+export PAUSED=t
+dump && r=0 || r=$?
+confere "replay pausado à mão: retomado antes do dump, com aviso" '[ "$r" = 0 ] && grep -q "pg_wal_replay_resume" "$CALLS" && grep -q "retomado antes do dump" "$work/out.log"'
+limpa
+export PAUSED=t RESUME_FAILS=1
+dump && r=0 || r=$?
+confere "replay pausado e sem permissão para retomar: dump sai com o aviso do superusuário" '[ "$r" = 0 ] && grep -q "como superusuário na réplica" "$work/out.log"'
 
 limpa
 export RECOVERY=f
 dump && r=0 || r=$?
-confere "réplica fora da recuperação (promovida): falha sem dump nem pausa" '[ "$r" != 0 ] && [ "$(n_daily)" = 0 ] && ! grep -q pg_wal_replay_pause "$CALLS" && grep -q "NÃO está em recuperação" "$nas/last_dump.txt"'
+confere "réplica fora da recuperação (promovida): falha sem dump" '[ "$r" != 0 ] && [ "$(n_daily)" = 0 ] && ! grep -q "pg_dump " "$CALLS" && grep -q "NÃO está em recuperação" "$nas/last_dump.txt"'
 
 limpa
 export LAG_MB=999
@@ -164,10 +201,11 @@ confere "cópia fora de casa com dump em claro é recusada (dump e recibo feitos
 
 limpa
 export OFFSITE_RCLONE_REMOTE=r2:galaxie-dumps OFFSITE_KEEP=2
-export DUMP_AGE_RECIPIENTS="age1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"
+chave_age="age1$(printf 'q%.0s' $(seq 58))" # uma chave pública do age de faz de conta, no formato certo (age1 + 58)
+export DUMP_AGE_RECIPIENTS="$chave_age"
 dump && r=0 || r=$?
 confere "com DUMP_AGE_RECIPIENTS o dump sai .dump.age e vai para o remoto com o .sha256" \
-  '[ "$r" = 0 ] && [ "$(ls -1 "$nas"/daily/*.dump.age | wc -l)" = 1 ] && [ "$(ls -1 "$remote" | wc -l)" = 2 ] && grep -q "age -R" "$CALLS"'
+  '[ "$r" = 0 ] && [ "$(ls -1 "$nas"/daily/*.dump.age | wc -l)" = 1 ] && [ -z "$(ls "$nas/incoming")" ] && [ "$(ls -1 "$remote" | wc -l)" = 2 ] && grep -q "age -R" "$CALLS"'
 sleep 1; dump; sleep 1; dump pre-migrate x
 confere "o remoto fica só com os OFFSITE_KEEP (2) dumps mais novos" '[ "$(ls -1 "$remote"/*.dump.age | wc -l)" = 2 ] && [ "$(ls -1 "$remote" | wc -l)" = 4 ]'
 unset OFFSITE_KEEP
@@ -175,7 +213,7 @@ unset OFFSITE_KEEP
 limpa
 export DUMP_AGE_RECIPIENTS="nao-e-chave"
 dump && r=0 || r=$?
-confere "DUMP_AGE_RECIPIENTS inválido: falha antes de pausar o replay" '[ "$r" != 0 ] && ! grep -q pg_wal_replay_pause "$CALLS"'
+confere "DUMP_AGE_RECIPIENTS inválido: falha antes do pg_dump" '[ "$r" != 0 ] && ! grep -q "pg_dump " "$CALLS"'
 
 if [ "$fails" -gt 0 ]; then
   echo "$fails falha(s)" >&2

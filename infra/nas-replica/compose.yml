@@ -6,9 +6,11 @@
 #   postgres  hot standby (postgres:17-alpine, a mesma major da produção). Na primeira subida, replica-entrypoint.sh faz
 #             o pg_basebackup pelo túnel (slot nas_replica criado pelo próprio basebackup) e depois sobe lendo o
 #             standby.signal. Só leitura; nunca é promovido.
-#   dumper    pg_dump -Fc da réplica todo dia (DUMP_CRON) e sob demanda (docker exec nas-replica-dumper-1 /dump.sh, ou
-#             o arquivo-gatilho NAS_BACKUP_PATH/.dump-now), na pasta de backups do NAS (daily/, a mesma do nas-pull.sh,
-#             com a rotação 7/4/6), com o recibo .nas_last_dump na VPS e a cópia fora de casa opcional (rclone).
+#   dumper    pg_dump -Fc da réplica todo dia (DUMP_CRON), a pedido do deploy (a cada minuto consulta na VPS o pedido
+#             que o nas-dump-check.sh deixa com DUMP_MODE=nas e o atende em pre-migrate/) e sob demanda (docker exec
+#             nas-replica-dumper-1 /dump.sh, ou o arquivo-gatilho NAS_BACKUP_PATH/.dump-now), na pasta de backups do
+#             NAS (daily/, a mesma do nas-pull.sh, com a rotação 7/4/6 e a mesma trava), com o recibo .nas_last_dump na
+#             VPS e a cópia fora de casa opcional (rclone).
 # Nada de segredo aqui: senhas vêm do ambiente da stack (env.example) e as chaves SSH ficam só nas pastas do NAS.
 # Validar: docker compose -f infra/nas-replica/compose.yml --env-file infra/nas-replica/env.example config -q
 
@@ -66,7 +68,10 @@ services:
       - tunnel
     environment:
       TZ: UTC
-      PGDATA: /var/lib/postgresql/data
+      # subdiretório do volume nomeado (montado em /var/lib/postgresql/data, o VOLUME da imagem: montar o pai faria o
+      # Docker criar um volume anônimo por cima e os dados não ficariam em nas-replica_pgdata); o .pgpass fica ao lado
+      PGDATA: /var/lib/postgresql/data/pgdata
+      PGPASSFILE: /var/lib/postgresql/data/.pgpass
       # papel de replicação da produção (preparar-replica.sh grava REPLICATOR_PASSWORD no .env da VPS; copie de lá)
       REPLICATOR_PASSWORD: ${REPLICATOR_PASSWORD:?defina REPLICATOR_PASSWORD}
       REPLICA_SLOT: ${REPLICA_SLOT:-nas_replica}
@@ -75,14 +80,14 @@ services:
       # a imagem só exige POSTGRES_PASSWORD para um initdb, que nunca acontece aqui (o cluster vem do basebackup)
       POSTGRES_PASSWORD: nao-usado-cluster-vem-do-basebackup
     volumes:
-      - pgdata:/var/lib/postgresql
+      - pgdata:/var/lib/postgresql/data
       # scripts da stack (cópias de infra/nas-replica/*.sh; o compose roda o arquivo da pasta, como o nas-pull.sh)
       - ${NAS_REPLICA_PATH:?defina NAS_REPLICA_PATH}:/replica:ro
     entrypoint: ['/bin/sh', '/replica/replica-entrypoint.sh']
     # Standby: os parâmetros de capacidade (max_connections, max_wal_senders, max_worker_processes, max_locks_per_
     # transaction) precisam ser >= os da produção (compose.dados.yml), senão o hot standby recusa subir. O resto é
-    # dimensionado para o NAS: cache próprio de 512 MB. max_standby_streaming_delay=-1: uma consulta longa (o pg_dump)
-    # nunca é cancelada por conflito com a recuperação; o dump.sh ainda pausa o replay durante o dump, por garantia.
+    # dimensionado para o NAS: cache próprio de 512 MB. max_standby_streaming_delay=-1: uma consulta longa (o pg_dump,
+    # que tem snapshot próprio) nunca é cancelada por conflito com a recuperação; o replay espera e alcança depois.
     command:
       - postgres
       - -c
@@ -179,6 +184,9 @@ services:
         printf '#!/bin/sh\n. /etc/dumper.env\nexec /bin/sh /replica/dump.sh "$$@"\n' > /dump.sh && chmod 755 /dump.sh
         {
           echo "$$DUMP_CRON /dump.sh >/proc/1/fd/1 2>&1"
+          # pedido do deploy (DUMP_MODE=nas): a cada minuto, lê na VPS o pedido pela chave de recibo e, se houver, faz o
+          # dump pre-migrate (sai calado sem pedido ou com outro dump rodando: a trava é a mesma do nas-pull.sh)
+          echo "* * * * * /dump.sh --pedido >/proc/1/fd/1 2>&1"
           # arquivo-gatilho: quem tem a pasta do NAS pede um dump criando NAS_BACKUP_PATH/.dump-now (conferido a cada minuto)
           echo "* * * * * [ -f /data/.dump-now ] && rm -f /data/.dump-now && /dump.sh >/proc/1/fd/1 2>&1"
         } | crontab -

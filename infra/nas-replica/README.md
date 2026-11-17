@@ -9,9 +9,9 @@ API do Portainer (stacks, variáveis, `exec`); nada aqui pede SSH no NAS.
 | --- | --- |
 | [`compose.yml`](compose.yml) | A stack: `tunnel` (SSH NAS → VPS, só encaminhamento de porta), `postgres` (hot standby `postgres:17-alpine`) e `dumper` (`pg_dump` diário e sob demanda, recibo na VPS, cópia fora de casa opcional) |
 | [`env.example`](env.example) | Todas as variáveis da stack, com os padrões; os segredos sem padrão. Copie para as variáveis da stack no Portainer; nunca commite preenchido |
-| [`replica-entrypoint.sh`](replica-entrypoint.sh) | Entrypoint do `postgres`: na primeira subida faz o `pg_basebackup` pelo túnel (slot `nas_replica`, `-R`), depois sobe como standby; recusa subir um cluster que saiu da recuperação |
-| [`dump.sh`](dump.sh) | O dump: conferências (em recuperação, atraso, slot, disco), replay pausado durante o `pg_dump`, mesmo formato do backup da VPS, `daily/` com a rotação 7/4/6 ou `pre-migrate/`, recibo `.nas_last_dump` na VPS, `rclone` opcional |
-| [`dump.test.sh`](dump.test.sh) | Teste do `dump.sh` com binários falsos (`bash infra/nas-replica/dump.test.sh`; roda no CI) |
+| [`replica-entrypoint.sh`](replica-entrypoint.sh) | Entrypoint do `postgres`: na primeira subida apaga um slot inativo que tenha sobrado e faz o `pg_basebackup` pelo túnel (slot `nas_replica`, `-R`) num subdiretório do volume, depois sobe como standby; recusa subir um cluster que saiu da recuperação |
+| [`dump.sh`](dump.sh) | O dump: conferências (em recuperação, replay pausado à mão, atraso, slot, disco), `pg_dump` sem pausar o replay (snapshot próprio + `max_standby_streaming_delay=-1`), mesmo formato do backup da VPS, `daily/` com a rotação 7/4/6 ou `pre-migrate/`, `--pedido` (o pedido do deploy), recibo `.nas_last_dump` na VPS, `rclone` opcional |
+| [`dump.test.sh`](dump.test.sh), [`replica-entrypoint.test.sh`](replica-entrypoint.test.sh) | Testes com binários falsos (`bash infra/nas-replica/dump.test.sh`; rodam no CI, no Linux) |
 
 Os scripts rodam **da pasta do NAS** (`NAS_REPLICA_PATH`, montada em `/replica`), como o `nas-pull.sh` da stack de backup:
 o compose não depende de nada ao lado dele no repositório. Atualizar um script é copiar o arquivo novo para a pasta (e
@@ -33,26 +33,36 @@ VPS (produção)                                   NAS (LAN do dono)
 1. **`tunnel`** abre `ssh -N -L 0.0.0.0:5432:127.0.0.1:5432` para a VPS com a chave `tunnel_ed25519` (gerada no NAS), que
    no `authorized_keys` da VPS tem `command="/bin/false",restrict,port-forwarding,permitopen="127.0.0.1:5432"`: só pode
    encaminhar para essa porta, sem shell. Na VPS, `127.0.0.1:5432` é o serviço `replica-proxy` do `compose.dados.yml`
-   (socat para o `postgres` da stack). `autossh` reconecta sozinho quando o link cai. Nada entra na LAN do NAS: a
-   conexão sai de lá.
-2. **`postgres`** é um hot standby. Na primeira subida o `replica-entrypoint.sh` espera o túnel e roda
-   `pg_basebackup -h tunnel -U replicador -X stream -R -C -S nas_replica` numa pasta temporária; completo, vira
-   `PGDATA` e o Postgres sobe lendo o `standby.signal`. Dali em diante recebe o WAL em streaming pelo slot `nas_replica`,
+   (socat para o `postgres` da stack, com IP fixo na rede da stack: o único que o `pg_hba` aceita para replicação).
+   `autossh` reconecta sozinho quando o link cai. Nada entra na LAN do NAS: a conexão sai de lá.
+2. **`postgres`** é um hot standby. Na primeira subida o `replica-entrypoint.sh` espera o túnel, apaga na produção um
+   slot `nas_replica` inativo que tenha sobrado de um basebackup interrompido (um ativo é de outra réplica, e para) e
+   roda `pg_basebackup -h tunnel -U replicador -X stream -R -C -S nas_replica` numa pasta temporária do volume
+   (`/var/lib/postgresql/data/basebackup.tmp`); completo, vira `PGDATA` (`…/data/pgdata`, um subdiretório do volume
+   nomeado `nas-replica_pgdata`) e o Postgres sobe lendo o `standby.signal`. Dali em diante recebe o WAL em streaming pelo slot `nas_replica`,
    que a produção criou no basebackup: a produção guarda o WAL que a réplica ainda não recebeu, até o teto
    `max_slot_wal_keep_size` da VPS (4 GB; passou disso com o NAS fora, o slot é invalidado e a réplica se refaz). A
    réplica aceita leitura (`hot_standby=on`), nunca escrita, e **nunca é promovida**: o entrypoint recusa subir um
    cluster sem `standby.signal`, e o `dump.sh` recusa dumpar uma réplica que não está em recuperação.
 3. **`dumper`** roda o `dump.sh` no horário `DUMP_CRON` (03:30 UTC, o mesmo do dump que a VPS fazia), na partida
-   (`DUMP_ON_START=true`, só se o último tiver mais de 20 h) e sob demanda:
+   (`DUMP_ON_START=true`, só se o último tiver mais de 20 h), **a pedido do deploy** e sob demanda:
+   - pedido do deploy: com `DUMP_MODE=nas`, um deploy com migration que não acha recibo recente deixa o pedido na VPS
+     (`.nas_dump_request`) e espera; o cron roda `/dump.sh --pedido` a cada minuto, que lê o pedido pela chave de
+     recibo (comando forçado `pedido`), faz o dump em `pre-migrate/` com o rótulo do deploy e toca o recibo, que apaga
+     o pedido ([runbook › Deploy sem dump local](../../docs/runbooks/replica-no-nas.md#deploy-sem-dump-local));
    - pela API do Portainer: `exec` no contêiner `nas-replica-dumper-1` com `/dump.sh` (diário) ou
-     `/dump.sh pre-migrate <rótulo>` (antes de um deploy com migration; é o que a mensagem de falha do deploy manda);
+     `/dump.sh pre-migrate <rótulo>`;
    - ou criando o arquivo-gatilho `NAS_BACKUP_PATH/.dump-now` (o cron confere a cada minuto).
 
-   O dump sai no **mesmo formato do backup da VPS** (`infra/backup/backup.sh`: custom, zstd, sem dono e privilégios, sem
-   os dados da API do YouTube), conferido com `pg_restore --list`, com `.sha256`, na pasta de backups do NAS que a
-   stack `galaxie-sports-backup-nas` já usa: `daily/` (um por dia; a rotação 7/4/6 da `nas-lib.sh`, compartilhada com
-   o `nas-pull.sh`) ou `pre-migrate/` (os `PRE_MIGRATE_KEEP` mais novos, fora da rotação). O `espelho` semanal
-   produção → dev (`infra/nas-dev`) continua lendo `daily/` como antes. Depois, o recibo `.nas_last_dump` na VPS
+   O `pg_dump` roda **sem pausar o replay** (pausar exige superusuário, e o papel de backup não é): ele tem snapshot
+   próprio e a réplica sobe com `max_standby_streaming_delay=-1`, então a consulta longa nunca é cancelada por conflito
+   com a recuperação (o replay espera e alcança depois). Um replay pausado à mão é retomado antes do dump, quando o papel
+   pode; senão fica o aviso. O dump sai no **mesmo formato do backup da VPS** (`infra/backup/backup.sh`: custom, zstd,
+   sem dono e privilégios, sem os dados da API do YouTube), conferido com `pg_restore --list`, com `.sha256`, na pasta
+   de backups do NAS que a stack `galaxie-sports-backup-nas` já usa: `daily/` (a rotação 7/4/6 da `nas-lib.sh`,
+   compartilhada com o `nas-pull.sh`, e a mesma trava `.lock`: os dois nunca mexem em `daily/` ao mesmo tempo) ou
+   `pre-migrate/` (os `PRE_MIGRATE_KEEP` mais novos, fora da rotação). O `espelho` semanal produção → dev
+   (`infra/nas-dev`) continua lendo `daily/` como antes. Depois, o recibo `.nas_last_dump` na VPS
    (`<quando> <bytes> <arquivo>`), pela chave de recibo que o `nas-pull.sh` já usa: é o que o deploy com `DUMP_MODE=nas`
    e o verificador da VPS (`BACKUP_DUMP_SOURCE=nas`) conferem.
 
@@ -95,14 +105,16 @@ Resumo; o passo a passo com as conferências está no [runbook](../../docs/runbo
    `ssh/known_hosts` copiado da stack de backup. Na pasta de backups (`NAS_BACKUP_PATH`), a `nas-lib.sh` de
    `infra/nas-backup` ao lado do `nas-pull.sh`.
 3. **Stack no Portainer**: nome `nas-replica`, o `compose.yml` daqui e as variáveis de `env.example` preenchidas. Os
-   contêineres saem como `nas-replica-tunnel-1`, `nas-replica-postgres-1` e `nas-replica-dumper-1`.
+   contêineres saem como `nas-replica-tunnel-1`, `nas-replica-postgres-1` e `nas-replica-dumper-1`. Na mesma hora,
+   `NAS_DUMPS_FROM_REPLICA=1` na stack `galaxie-sports-backup-nas` (o `nas-pull.sh` deixa os dumps com esta stack e segue
+   só com os assets do S3; o que ele já trouxe fica em `daily/` até a rotação).
 4. **Primeira sincronização**: o `postgres` fica horas no `pg_basebackup` (o log mostra o progresso); o `dumper` espera.
    Pronto quando `pg_stat_replication` na VPS mostra `nas_replica` em `streaming` e `select pg_is_in_recovery()` na
    réplica responde `t`.
 5. **Primeiro dump**: `exec` no `nas-replica-dumper-1` com `/dump.sh`; confira `NAS_BACKUP_PATH/last_dump.txt` e, na
    VPS, `.nas_last_dump` (`preparar-replica.sh --status`).
-6. Só então: `DUMP_MODE=nas` no deploy, `BACKUP_DUMP_SOURCE=nas` + `BACKUP_DAYS=0` na VPS e `NAS_DUMPS_FROM_REPLICA=1`
-   na stack de backup do NAS ([runbook › Ligar](../../docs/runbooks/replica-no-nas.md#7-ligar-o-modo-nas)).
+6. Só então: `DUMP_MODE=nas` no deploy e `BACKUP_DUMP_SOURCE=nas` + `BACKUP_DAYS=0` + `BACKUP_KEEP_DAILY=3` na VPS
+   ([runbook › Ligar](../../docs/runbooks/replica-no-nas.md#7-ligar-o-modo-nas)).
 
 ## Cópia fora de casa (opcional; decisão do Wagner)
 

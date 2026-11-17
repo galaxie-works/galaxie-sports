@@ -1,39 +1,56 @@
 #!/bin/sh
 # Entrypoint do serviço `postgres` da stack nas-replica (infra/nas-replica/compose.yml): o hot standby da produção.
 # Roda como root (como o docker-entrypoint.sh da imagem postgres) e:
-#   1. sem cluster em $PGDATA: espera o túnel (tunnel:5432) responder e faz o pg_basebackup da produção como o usuário
-#      postgres, numa pasta temporária ao lado (basebackup.tmp), com -R (standby.signal + primary_conninfo em
-#      postgresql.auto.conf) e o slot REPLICA_SLOT criado pelo próprio basebackup (-C -S). Só com o basebackup completo
-#      a pasta vira $PGDATA; interrompido, a temporária é apagada e o contêiner sai (restart: unless-stopped tenta de
-#      novo, do zero). A senha vai pelo .pgpass do usuário postgres, nunca na linha de comando nem no auto.conf;
+#   1. sem cluster em $PGDATA (um subdiretório do volume nomeado, /var/lib/postgresql/data/pgdata, para o Docker não
+#      criar um volume anônimo por cima do VOLUME da imagem): espera o túnel (tunnel:5432) responder, apaga na
+#      produção um slot REPLICA_SLOT que tenha sobrado INATIVO de um basebackup interrompido (senão o -C falha com
+#      "already exists" e o contêiner entra em laço; um slot ATIVO é de outra réplica e para aqui) e faz o
+#      pg_basebackup da produção como o usuário postgres, numa pasta temporária no mesmo volume (basebackup.tmp), com
+#      -R (standby.signal + primary_conninfo em postgresql.auto.conf) e o slot criado pelo próprio basebackup (-C -S).
+#      Só com o basebackup completo a pasta vira $PGDATA; interrompido, a temporária é apagada e o contêiner sai
+#      (restart: unless-stopped tenta de novo, do zero). A senha vai pelo .pgpass (PGPASSFILE, no volume), nunca na
+#      linha de comando nem no auto.conf;
 #   2. com cluster: regrava o .pgpass (a senha pode ter mudado no ambiente da stack) e confere o standby.signal: um
 #      cluster que saiu da recuperação (promovido por engano) NÃO sobe, para a cópia divergente nunca passar por réplica;
 #   3. exec docker-entrypoint.sh postgres ... (os -c do compose).
-# Nunca toca na produção além de ler o WAL. Runbook: docs/runbooks/replica-no-nas.md.
+# Nunca toca na produção além de ler o WAL e, no caso 1, apagar o próprio slot inativo. Runbook: docs/runbooks/replica-no-nas.md.
+# Teste com binários falsos: replica-entrypoint.test.sh.
 set -eu
 
-: "${PGDATA:=/var/lib/postgresql/data}"
+: "${PGDATA:=/var/lib/postgresql/data/pgdata}"
 : "${PRIMARY_HOST:=tunnel}"
 : "${PRIMARY_PORT:=5432}"
 : "${REPLICA_SLOT:=nas_replica}"
 : "${REPLICATOR_USER:=replicador}"
 : "${REPLICATOR_PASSWORD:?defina REPLICATOR_PASSWORD}"
-PGHOME=/var/lib/postgresql
-TMP="$PGHOME/basebackup.tmp"
+VOL="$(dirname "$PGDATA")"
+: "${PGPASSFILE:=$VOL/.pgpass}"
+TMP="$VOL/basebackup.tmp"
 
 log() { printf '{"level":"%s","time":"%s","service":"nas-replica","msg":"%s"}\n' "$1" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$2"; }
+# como o usuário postgres (a imagem alpine usa su-exec); num teste sem root, direto
+as_postgres() {
+  if [ "$(id -u)" = 0 ]; then su-exec postgres "$@"; else "$@"; fi
+}
+own() { [ "$(id -u)" != 0 ] || chown postgres:postgres "$@"; }
 
 # .pgpass do usuário postgres: host:porta:banco:usuário:senha (replication casa com *)
 write_pgpass() {
   umask 077
-  printf '%s:%s:*:%s:%s\n' "$PRIMARY_HOST" "$PRIMARY_PORT" "$REPLICATOR_USER" "$REPLICATOR_PASSWORD" >"$PGHOME/.pgpass"
-  chown postgres:postgres "$PGHOME/.pgpass"
-  chmod 600 "$PGHOME/.pgpass"
+  printf '%s:%s:*:%s:%s\n' "$PRIMARY_HOST" "$PRIMARY_PORT" "$REPLICATOR_USER" "$REPLICATOR_PASSWORD" >"$PGPASSFILE"
+  own "$PGPASSFILE"
+  chmod 600 "$PGPASSFILE"
   umask 022
 }
+# na produção, pelo túnel, como replicador (só pg_replication_slots)
+psql_primary() {
+  as_postgres env PGPASSFILE="$PGPASSFILE" psql -X -q -t -A -v ON_ERROR_STOP=1 -h "$PRIMARY_HOST" -p "$PRIMARY_PORT" \
+    -U "$REPLICATOR_USER" -d postgres -w -c "$1"
+}
 
-mkdir -p "$PGHOME"
-chown postgres:postgres "$PGHOME"
+mkdir -p "$VOL"
+own "$VOL"
+export PGPASSFILE
 write_pgpass
 
 if [ ! -s "$PGDATA/PG_VERSION" ]; then
@@ -45,10 +62,20 @@ if [ ! -s "$PGDATA/PG_VERSION" ]; then
     [ "$i" -le 120 ] || { log error "túnel sem resposta depois de 10 min (o serviço tunnel está no ar? a chave está no authorized_keys da VPS?)"; exit 1; }
     sleep 5
   done
+  # slot que sobrou de um basebackup interrompido: inativo, some; ativo é de outra réplica usando o mesmo nome
+  slot=$(psql_primary "select active from pg_replication_slots where slot_name = '$REPLICA_SLOT'" 2>/dev/null || echo "?")
+  case "$slot" in
+    "") ;;
+    f)
+      psql_primary "select pg_drop_replication_slot('$REPLICA_SLOT')" >/dev/null || { log error "slot $REPLICA_SLOT inativo na produção e não deu para apagá-lo (sobra de um basebackup interrompido): apague à mão, select pg_drop_replication_slot('$REPLICA_SLOT')"; exit 1; }
+      log warn "slot $REPLICA_SLOT inativo na produção (sobra de um basebackup interrompido): apagado; o basebackup cria outro"
+      ;;
+    t) log error "slot $REPLICA_SLOT ATIVO na produção: outra réplica o usa. Troque REPLICA_SLOT ou pare a outra"; exit 1 ;;
+    *) log warn "não deu para consultar o slot na produção (papel sem acesso ao banco postgres?); seguindo para o basebackup" ;;
+  esac
   log info "basebackup da produção começando (pode levar horas num link residencial; o progresso sai neste log)"
   # -R: standby.signal e primary_conninfo (com passfile, sem a senha) no postgresql.auto.conf; -C -S: cria o slot
-  # (falha se já existir: slot de uma réplica anterior se apaga na produção, runbook › Refazer a réplica)
-  if ! su-exec postgres env HOME="$PGHOME" PGPASSFILE="$PGHOME/.pgpass" pg_basebackup \
+  if ! as_postgres env PGPASSFILE="$PGPASSFILE" pg_basebackup \
     -d "host=$PRIMARY_HOST port=$PRIMARY_PORT user=$REPLICATOR_USER application_name=$REPLICA_SLOT" \
     -D "$TMP" -X stream -R -C -S "$REPLICA_SLOT" --checkpoint=fast --progress --no-password; then
     rm -rf "$TMP"
