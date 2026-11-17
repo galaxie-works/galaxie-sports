@@ -26,7 +26,7 @@ function repo(packages, files = {}) {
   };
   write(
     'pnpm-workspace.yaml',
-    'packages:\n  - apps/*\n  - services/*\n  - packages/*\n  - tests/integration\n',
+    'packages:\n  - apps/*\n  - services/*\n  - packages/*\n  - tests/integration\n  - tests/e2e\n',
   );
   for (const [dir, deps] of Object.entries(packages)) {
     const name = `@galaxie/${dir.split('/')[1]}`;
@@ -241,6 +241,7 @@ describe('camadas', () => {
     assert.equal(kindOf('packages/rules'), 'domain');
     assert.equal(kindOf('packages/widgets'), 'ui');
     assert.equal(kindOf('tests/integration'), 'test');
+    assert.equal(kindOf('tests/e2e'), 'test');
     assert.equal(kindOf('packages/nada'), null);
     assert.ok(isTestFile('apps/api/src/x.test.ts'));
     assert.ok(isTestFile('apps/api/test/x.ts'));
@@ -252,7 +253,7 @@ describe('camadas', () => {
     const root = repo(PKGS);
     writeFileSync(
       join(root, 'pnpm-workspace.yaml'),
-      'packages:\n  - apps/*\n  - services/*\n  - packages/*\n  - tests/integration\n  - tools/*\n',
+      'packages:\n  - apps/*\n  - services/*\n  - packages/*\n  - tests/integration\n  - tests/e2e\n  - tools/*\n',
     );
     await assert.rejects(() => collect(root), /scripts\/deps\/rules\.mjs/);
   });

@@ -24,6 +24,8 @@
     "infra:up": "docker compose -f infra/docker-compose.yml --env-file .env up -d --wait postgres valkey s3 && docker compose -f infra/docker-compose.yml --env-file .env run --rm s3-init",
     "infra:down": "docker compose -f infra/docker-compose.yml --env-file .env down",
     "infra:logs": "docker compose -f infra/docker-compose.yml logs -f",
+    "e2e": "pnpm --filter @galaxie/e2e-tests e2e",
+    "e2e:mail": "docker compose -f infra/docker-compose.yml --profile e2e up -d --wait mailpit",
     "db:generate": "pnpm --filter @galaxie/db db:generate",
     "db:migrate": "pnpm --filter @galaxie/db db:migrate",
     "db:studio": "pnpm --filter @galaxie/db db:studio",
