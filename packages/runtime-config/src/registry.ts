@@ -723,7 +723,8 @@ export const SETTINGS: readonly SettingDef[] = [
     default: 'BR:1,AR:0.6,MX:0.6,CO:0.45,CL:0.4,PE:0.35,UY:0.35,EC:0.35',
   }),
   agents('related', { key: 'RELATED_MAX_SEARCHES_PER_EVENT', type: 'int', min: 0, max: 16, default: '4' }),
-  agents('related', { key: 'RELATED_MAX_SEARCHES_PER_RUN', type: 'int', min: 0, max: 16, default: '2' }),
+  // 6 por execução (decisão do dono em 17/11/2026, com o related-run a cada 10 min: mantém ~36 buscas por hora; antes 2)
+  agents('related', { key: 'RELATED_MAX_SEARCHES_PER_RUN', type: 'int', min: 0, max: 16, default: '6' }),
   agents('related', { key: 'RELATED_CHANNEL_ENOUGH', type: 'int', min: 1, max: 50, default: '4' }),
   agents('related', {
     key: 'RELATED_CHANNEL_REFRESH_MINUTES',

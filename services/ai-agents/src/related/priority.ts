@@ -12,8 +12,11 @@ export const DEFAULT_RELATED_MARKETS = ['BR', 'AR', 'MX', 'CO', 'CL', 'PE', 'UY'
 export const DEFAULT_MIN_RELEVANCE = 50;
 /** Buscas por jogo no total (todas as execuções). */
 export const DEFAULT_MAX_SEARCHES_PER_EVENT = 4;
-/** Buscas por jogo numa execução (a primeira sai no apito, a segunda quando os melhores momentos saíram). */
-export const DEFAULT_MAX_SEARCHES_PER_RUN = 2;
+/**
+ * Buscas por jogo numa execução (a primeira sai no apito, a segunda quando os melhores momentos saíram). 6 desde
+ * 17/11/2026 (decisão do dono): com o job a cada 10 min em vez de 3, mantém ~36 buscas por hora (antes 2).
+ */
+export const DEFAULT_MAX_SEARCHES_PER_RUN = 6;
 export const DEFAULT_MAX_VIDEOS = 12;
 export const DEFAULT_LOOKBACK_HOURS = 24;
 export const DEFAULT_SECOND_SEARCH_MINUTES = 30;
