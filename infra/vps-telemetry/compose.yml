@@ -469,7 +469,9 @@ services:
         condition: service_completed_successfully
     # O da imagem (batimento do scheduler, como no ingestor), com a primeira checagem em 2 s: a troca espera a cópia
     # nova ficar healthy antes de parar a antiga. O selfheal.sh confere em shell e só sobe o Node na falha; imagem
-    # anterior a ele (volta do deploy) usa o selfheal.mjs direto
+    # anterior a ele (volta do deploy) usa o selfheal.mjs direto. Janela de partida de 90 s (deploy de 17/11, como a
+    # api e o site): o primeiro batimento só sai depois do banco e do servidor de operação, e com a CPU limitada isso
+    # passou dos 30 s da imagem; dentro do start_period as falhas não contam
     healthcheck:
       test:
         [
@@ -478,8 +480,8 @@ services:
         ]
       interval: 30s
       timeout: 6s
-      retries: 3
-      start_period: 30s
+      retries: 5
+      start_period: 90s
       start_interval: 2s
     # No SIGTERM a líder fecha o tick (até 70 s no pior caso: SCHEDULER_STOP_WAIT_SECONDS; o normal é 1 a 3 s), publica
     # o estado e solta a trava; a reserva assume na tentativa seguinte. 5 s a mais para o scheduler sair antes do SIGKILL
@@ -539,6 +541,22 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
+    # O mesmo teste da imagem (batimento do scheduler; selfheal.sh em shell, e o .mjs na imagem anterior a ele), com a
+    # janela de partida larga do deploy de 17/11: a imagem nova do ingestor ficou unhealthy nas primeiras checagens (o
+    # batimento só sai depois do banco e do servidor de operação, e com a CPU limitada isso passou dos 30 s + 3 × 30 s
+    # da imagem) e o deploy acabou sem o serviço. Falhas dentro do start_period não contam e o start_interval de 2 s
+    # marca healthy assim que o primeiro batimento sai
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'if [ -f /usr/local/lib/galaxie/selfheal.sh ]; then exec sh /usr/local/lib/galaxie/selfheal.sh heartbeat "$$SCHEDULER_HEARTBEAT_FILE" 120000; fi; exec node /usr/local/lib/galaxie/selfheal.mjs heartbeat "$$SCHEDULER_HEARTBEAT_FILE" 120000',
+        ]
+      interval: 30s
+      timeout: 6s
+      retries: 5
+      start_period: 90s
+      start_interval: 2s
     stop_grace_period: 40s
     logging: *logging
 
@@ -692,6 +710,21 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
+    # O mesmo teste da imagem (batimento do scheduler; selfheal.sh em shell, e o .mjs na imagem anterior a ele), com a
+    # mesma janela de partida de 90 s do ingestor: é o mesmo scheduler e a mesma subida (banco e servidor de operação
+    # antes do primeiro batimento), e no deploy de 17/11 o padrão da imagem (30 s + 3 × 30 s) não bastou com a CPU
+    # limitada. Falhas dentro do start_period não contam e o start_interval de 2 s marca healthy no primeiro batimento
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'if [ -f /usr/local/lib/galaxie/selfheal.sh ]; then exec sh /usr/local/lib/galaxie/selfheal.sh heartbeat "$$SCHEDULER_HEARTBEAT_FILE" 120000; fi; exec node /usr/local/lib/galaxie/selfheal.mjs heartbeat "$$SCHEDULER_HEARTBEAT_FILE" 120000',
+        ]
+      interval: 30s
+      timeout: 6s
+      retries: 5
+      start_period: 90s
+      start_interval: 2s
     stop_grace_period: 40s
     logging: *logging
 
