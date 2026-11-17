@@ -87,8 +87,11 @@ async function lockTenant(tx: Tx, tenantId: string) {
   return row;
 }
 
-/** `entitlements` com uma transação aberta é erro de programação: a invalidação rodaria antes do commit. */
-function assertInvalidationAllowed(
+/**
+ * `entitlements` com uma transação aberta é erro de programação: a invalidação rodaria antes do commit. Vale para toda
+ * escrita de direitos que aceita `TenantStateExecutor` (`startModuleTrial` também).
+ */
+export function assertInvalidationAllowed(
   db: TenantStateExecutor,
   input: Pick<TransitionInput, 'entitlements'>,
 ): void {

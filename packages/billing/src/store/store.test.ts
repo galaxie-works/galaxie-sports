@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { loadCatalog } from '../catalog/catalog.js';
-import { canStartModuleTrial, storeView } from './store.js';
+import { canStartModuleTrial, storeView, type StoreEntitlements } from './store.js';
 
 const catalog = loadCatalog();
 const byModule = (items: ReturnType<typeof storeView>) => Object.fromEntries(items.map((i) => [i.module, i]));
@@ -68,11 +68,11 @@ describe('storeView (loja de features, #1137)', () => {
   });
 
   it('"Ativar teste": só o cartão disponível com teste no catálogo e ainda não usado na organização', () => {
-    const ent = {
+    const ent: StoreEntitlements = {
       plan: 'fan_experience',
       modules: ['core_data', 'where_to_watch', 'semantic'],
       state: 'active',
-    } as const;
+    };
     const fresh = byModule(storeView(catalog, ent));
     // a Cosmos está disponível mas não tem teste por dias (créditos próprios)
     expect(fresh.cosmos_ai).toMatchObject({ state: 'available', trialDays: null });

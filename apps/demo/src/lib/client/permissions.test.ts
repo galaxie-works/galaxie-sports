@@ -9,7 +9,7 @@ import { canContractModules } from './permissions';
  */
 
 const T = '01a16029-0000-7000-8000-000000000001';
-const member = (role: TenantRole, overrides?: Actor extends { overrides?: infer O } ? O : never) => ({
+const member = (role: TenantRole, overrides?: ReturnType<typeof setRolePermission>) => ({
   role: 'client',
   memberRole: role,
   tenant: { id: T },

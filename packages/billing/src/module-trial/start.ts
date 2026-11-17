@@ -15,7 +15,11 @@ import { publishChange } from '@galaxie/db/change-feed';
 import { moduleTrial, tenantOverride, type ApiModule } from '@galaxie/db/schema';
 import type { Catalog } from '../catalog/catalog.js';
 import { invalidateEntitlements } from '../entitlements/load.js';
-import type { EntitlementsInvalidation, TenantStateExecutor } from '../tenant-state/transition.js';
+import {
+  assertInvalidationAllowed,
+  type EntitlementsInvalidation,
+  type TenantStateExecutor,
+} from '../tenant-state/transition.js';
 
 /** Tópico publicado no `ops.change_feed` quando um teste de módulo começa. */
 export const MODULE_TRIAL_STARTED_TOPIC = 'tenant.module_trial_started';
@@ -49,7 +53,10 @@ export interface StartModuleTrialInput {
   /** `panel:<id do usuário>` ou `galaxie:<id do usuário>`. */
   actor: string;
   now?: Date;
-  /** Cache de direitos a invalidar depois do commit (a API tem o Valkey; a demo não: o TTL de 60 s cobre). */
+  /**
+   * Cache de direitos a invalidar depois do commit (a API tem o Valkey; a demo não: o TTL de 60 s cobre). Só com o
+   * executor `Database`: com uma transação aberta a função lança (a invalidação rodaria antes do commit).
+   */
   entitlements?: EntitlementsInvalidation | null;
 }
 
@@ -92,6 +99,7 @@ export async function startModuleTrial(
   const def = catalog.modules[input.module as ApiModule];
   if (!def) throw new ModuleTrialError('unknown_module', input.module);
   if (def.trialDays === null) throw new ModuleTrialError('no_trial', input.module);
+  assertInvalidationAllowed(db, input);
   const module = input.module as ApiModule;
   const trialDays = def.trialDays;
   const now = input.now ?? new Date();

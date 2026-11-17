@@ -173,6 +173,23 @@ describe('startModuleTrial', () => {
     });
   });
 
+  it('entitlements com transação aberta é recusado antes de gravar (a invalidação rodaria antes do commit)', async () => {
+    const org = await newOrganization('org-teste-d');
+    const id = await newTenant('teste-d', org);
+    await expect(
+      db.transaction((tx) =>
+        startModuleTrial(tx, catalog, {
+          tenantId: id,
+          organizationId: org,
+          module: 'live_chat',
+          actor: 'panel:u4',
+          entitlements: { cache: null, catalog },
+        }),
+      ),
+    ).rejects.toThrow(/invalidação de direitos/);
+    expect(await overridesOf(id)).toHaveLength(0);
+  });
+
   it('módulo sem teste no catálogo ou desconhecido: erro antes de tocar no banco', async () => {
     const org = await newOrganization('org-teste-c');
     const id = await newTenant('teste-c', org);
