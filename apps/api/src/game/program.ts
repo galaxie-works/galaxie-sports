@@ -17,7 +17,9 @@ export interface GameProgram {
 /** O cliente tem o módulo Gamificação ligado e está ativo? */
 export async function tenantHasGamification(db: Database, tenantId: string): Promise<boolean> {
   const [row] = await db
-    .select({ ok: sql<boolean>`'gamification' = any(${tenant.modules}) and ${tenant.status} = 'active'` })
+    .select({
+      ok: sql<boolean>`'gamification' = any(${tenant.modules}) and ${tenant.state} in ('trial', 'active', 'past_due')`,
+    })
     .from(tenant)
     .where(eq(tenant.id, tenantId))
     .limit(1);

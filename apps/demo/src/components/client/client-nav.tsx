@@ -1,5 +1,6 @@
 'use client';
 
+import type { TenantState } from '@galaxie/db/schema';
 import type { TenantAction } from '@galaxie/engage';
 import {
   Blocks,
@@ -121,6 +122,40 @@ export const CLIENT_NAV = [
 }[];
 
 export type ClientSection = (typeof CLIENT_NAV)[number]['id'];
+
+/**
+ * Estados em que o console não abre área nenhuma: só a tela do estado (espera da revisão, recusa, guarda do
+ * cancelamento; `draft` dura a transação do provisionamento). F3, decisão 8; doc 02 "O que cada estado permite".
+ */
+export const STATES_WITH_NOTICE_ONLY: readonly TenantState[] = [
+  'draft',
+  'pending_review',
+  'rejected',
+  'cancelled',
+];
+
+/**
+ * Áreas que o estado do tenant deixa abertas (F3, decisão 8); null = todas (o cargo e os módulos decidem). Em
+ * `trial_expired` e `suspended` só o que leva à regularização: Planos e módulos (Cobrança, quando existir) e Chaves.
+ */
+export function sectionsForState(state: TenantState): readonly ClientSection[] | null {
+  switch (state) {
+    case 'trial_expired':
+      return ['plans', 'keys'];
+    case 'suspended':
+      return ['keys', 'plans'];
+    case 'draft':
+    case 'pending_review':
+    case 'rejected':
+    case 'cancelled':
+      // a visão geral fica no menu como o lugar da tela do estado; a moldura não renderiza mais nada
+      return ['overview'];
+    case 'trial':
+    case 'active':
+    case 'past_due':
+      return null;
+  }
+}
 
 export interface ClientNavLeaf {
   id: ClientSection;

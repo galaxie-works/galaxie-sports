@@ -1,11 +1,17 @@
-import type { StoreItem, StoreState } from '@galaxie/billing';
+import { canStartModuleTrial, type StoreItem, type StoreState } from '@galaxie/billing';
 
 import { Badge } from '@/components/reui/badge';
 import { Frame, FrameDescription, FrameHeader, FramePanel, FrameTitle } from '@/components/reui/frame';
+import { buttonVariants } from '@/components/ui/button';
 import { getTenantPlanStore } from '@/lib/client/entitlements';
-import type { TenantInfo } from '@/lib/client/tenants';
+import { canContractModules } from '@/lib/client/permissions';
 import type { Dictionary } from '@/lib/i18n/dictionary';
+import { getFormatters } from '@/lib/i18n/server';
 import { fill } from '@/lib/i18n/text';
+import { CONTACT_EMAIL } from '@/lib/site';
+
+import type { ClientAreaContext } from './client-area';
+import { ModuleTrialButton } from './module-trial-button';
 
 type BadgeVariant =
   'success-light' | 'info-light' | 'primary-light' | 'warning-light' | 'outline' | 'secondary';
@@ -22,16 +28,25 @@ const STATE_VARIANT: Record<StoreState, BadgeVariant> = {
   blocked: 'outline',
 };
 
-/** Loja de features do tenant: cada módulo do catálogo com o estado para este tenant (#1137). */
-export async function PlansPanel({ tenant, t }: { tenant: TenantInfo; t: Dictionary }) {
+/**
+ * Loja de features do tenant: cada módulo do catálogo com o estado para este tenant (#1137). Desde a F3 (decisão 9),
+ * o cartão disponível com teste ganha "Ativar teste de N dias" para quem contrata (`canContractModules`), e o cartão em
+ * teste mostra o prazo e "Contratar antes do fim" (o checkout é da F4: o botão abre o contato com a Galaxie).
+ */
+export async function PlansPanel({ ctx, t }: { ctx: ClientAreaContext; t: Dictionary }) {
+  const { tenant } = ctx;
   const p = t.client.planStore;
   const o = t.client.overview;
-  const store = await getTenantPlanStore(tenant.id).catch((err: unknown) => {
-    // catálogo ausente ou inválido, banco fora: aparece no log, não só na tela
-    console.error('Planos e módulos: não foi possível ler os direitos do tenant', err);
-    return null;
-  });
+  const [store, fmt] = await Promise.all([
+    getTenantPlanStore(tenant.id).catch((err: unknown) => {
+      // catálogo ausente ou inválido, banco fora: aparece no log, não só na tela
+      console.error('Planos e módulos: não foi possível ler os direitos do tenant', err);
+      return null;
+    }),
+    getFormatters(),
+  ]);
   if (!store) return <p className="text-muted-foreground text-sm">{p.unavailable}</p>;
+  const canContract = canContractModules(ctx);
 
   const planName = (plan: string) => o.plans[plan as keyof typeof o.plans] ?? plan;
   const moduleName = (item: StoreItem) =>
@@ -40,6 +55,8 @@ export async function PlansPanel({ tenant, t }: { tenant: TenantInfo; t: Diction
     { id: 'data', title: p.data, items: store.items.filter((i) => i.kind === 'data') },
     { id: 'engage', title: p.engage, items: store.items.filter((i) => i.kind === 'engage') },
   ];
+  const contractHref = (item: StoreItem) =>
+    `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(fill(p.contractSubject, { module: moduleName(item), tenant: tenant.name }))}`;
 
   return (
     <div className="flex flex-col gap-4">
@@ -81,10 +98,29 @@ export async function PlansPanel({ tenant, t }: { tenant: TenantInfo; t: Diction
                     {item.state === 'available' && item.trialDays ? (
                       <span className="text-muted-foreground text-xs">
                         {fill(p.trialDays, { days: item.trialDays })}
+                        {canContract ? ` · ${p.trialHint}` : ''}
+                      </span>
+                    ) : null}
+                    {item.state === 'trial' && item.trialEndsAt ? (
+                      <span className="text-muted-foreground text-xs">
+                        {fill(p.trialEnds, { date: fmt.date(item.trialEndsAt) })}
                       </span>
                     ) : null}
                   </div>
-                  <Badge variant={STATE_VARIANT[item.state]}>{p.states[item.state]}</Badge>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {item.state === 'trial' && canContract ? (
+                      <a
+                        href={contractHref(item)}
+                        className={buttonVariants({ size: 'sm', variant: 'outline' })}
+                      >
+                        {p.contractBeforeEnd}
+                      </a>
+                    ) : null}
+                    {canContract && canStartModuleTrial(item) ? (
+                      <ModuleTrialButton module={item.module} days={item.trialDays!} />
+                    ) : null}
+                    <Badge variant={STATE_VARIANT[item.state]}>{p.states[item.state]}</Badge>
+                  </div>
                 </li>
               ))}
             </ul>

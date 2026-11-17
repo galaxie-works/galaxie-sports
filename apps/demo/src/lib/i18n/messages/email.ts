@@ -1,4 +1,4 @@
-/** E-mails do painel (convite, código e pedido de créditos da Cosmos), no idioma de quem recebe. */
+/** E-mails do painel (convite, código, pedido de créditos da Cosmos e boas-vindas da marca), no idioma de quem recebe. */
 import { defineMessages } from '../define';
 
 export default defineMessages(
@@ -29,6 +29,24 @@ export default defineMessages(
       how: 'Aprove para abrir a compra ou recuse com uma nota. Quem pediu vê a sua resposta na tela da Cosmos.',
       action: 'Ver o pedido',
     },
+    welcome: {
+      subject: 'Bem-vindo(a) à Galaxie Sports: {brand} está pronta',
+      intro:
+        'A marca {brand} está provisionada em modo de teste até {date}, com os módulos do Fan Experience e dado de produção.',
+      introNoDate:
+        'A marca {brand} está provisionada em modo de teste, com os módulos do Fan Experience e dado de produção.',
+      checklistIntro:
+        'Os quatro passos da primeira sessão estão no topo do console; cada um se marca sozinho quando acontece:',
+      steps: {
+        call: 'Primeira chamada: rode o curl pronto com a sua chave de teste.',
+        widget: 'Um widget no ar: instale o embed do widget de exemplo numa página do seu site.',
+        invite: 'Convide alguém: a pessoa aceita o convite por e-mail.',
+        plan: 'Escolha o plano: Planos e módulos mostra o preço previsto e os módulos para testar.',
+      },
+      action: 'Abrir o console',
+      footnote:
+        'As chaves secretas apareceram uma única vez, no fim do cadastro. Guarde-as num cofre; a chave de teste não conta na cota de produção.',
+    },
   },
   {
     en: {
@@ -58,6 +76,24 @@ export default defineMessages(
         how: 'Approve to open the purchase or decline with a note. The requester sees your answer on the Cosmos page.',
         action: 'See the request',
       },
+      welcome: {
+        subject: 'Welcome to Galaxie Sports: {brand} is ready',
+        intro:
+          '{brand} is provisioned in trial mode until {date}, with the Fan Experience modules and production data.',
+        introNoDate:
+          '{brand} is provisioned in trial mode, with the Fan Experience modules and production data.',
+        checklistIntro:
+          'The four first-session steps are at the top of the console; each one is checked off on its own when it happens:',
+        steps: {
+          call: 'First call: run the ready-made curl with your test key.',
+          widget: 'A widget live: install the sample widget embed on a page of your site.',
+          invite: 'Invite someone: they accept the invitation by email.',
+          plan: 'Choose your plan: Plans and modules shows the expected price and the modules you can try.',
+        },
+        action: 'Open the console',
+        footnote:
+          'The secret keys were shown only once, at the end of sign-up. Keep them in a vault; the test key does not count against the production quota.',
+      },
     },
     'es-AR': {
       greeting: '¡Hola, {name}!',
@@ -85,6 +121,24 @@ export default defineMessages(
         reason: 'Justificación escrita por quien pidió: “{reason}”',
         how: 'Aprobá para abrir la compra o rechazá con una nota. Quien pidió ve tu respuesta en la pantalla de Cosmos.',
         action: 'Ver el pedido',
+      },
+      welcome: {
+        subject: 'Bienvenido(a) a Galaxie Sports: {brand} está lista',
+        intro:
+          'La marca {brand} está provisionada en modo de prueba hasta el {date}, con los módulos de Fan Experience y datos de producción.',
+        introNoDate:
+          'La marca {brand} está provisionada en modo de prueba, con los módulos de Fan Experience y datos de producción.',
+        checklistIntro:
+          'Los cuatro pasos de la primera sesión están en la parte superior de la consola; cada uno se marca solo cuando ocurre:',
+        steps: {
+          call: 'Primera llamada: ejecuta el curl listo con tu clave de prueba.',
+          widget: 'Un widget en el aire: instala el embed del widget de ejemplo en una página de tu sitio.',
+          invite: 'Invita a alguien: la persona acepta la invitación por e-mail.',
+          plan: 'Elige el plan: Planes y módulos muestra el precio previsto y los módulos para probar.',
+        },
+        action: 'Abrir la consola',
+        footnote:
+          'Las claves secretas aparecieron una sola vez, al final del registro. Guárdalas en una bóveda; la clave de prueba no cuenta en la cuota de producción.',
       },
     },
   },

@@ -230,6 +230,29 @@ export const TENANT_VERIFY_DOMAIN = defineTaskType({
   maxAttempts: 3,
 });
 
+/**
+ * Relógio da máquina de estados do tenant (plataforma comercial F3, doc 02 §Máquina de estados): uma vez por dia (o
+ * scheduler enfileira, `SCHEDULE_TENANT_LIFECYCLE`), aplica as transições por prazo lidas de `runtime_setting`
+ * (`trial` vencido → `trial_expired`; `trial_expired`, `past_due` e `suspended` há mais de N dias → `cancelled`,
+ * `suspended`, `cancelled`), com causa `clock`, e reenfileira `tenant.verify_domain` para cada domínio comprovado há
+ * mais de 24 h. Não apaga nada: o prazo de guarda vencido depois de `cancelled` só vira aviso. Idempotente: rodar duas
+ * vezes no mesmo dia não muda nada a mais. Sem prévia: não há o que planejar.
+ */
+export const TENANT_LIFECYCLE = defineTaskType({
+  type: 'tenant.lifecycle',
+  descricao:
+    'Relógio do ciclo de vida dos tenants: trial vencido, prazos de trial vencido, inadimplência e suspensão (runtime_setting) e a reconferência diária dos domínios comprovados. Não apaga nada.',
+  params: z.object({
+    now: z.iso
+      .datetime({ offset: true })
+      .optional()
+      .describe('Instante de referência (ISO 8601); padrão: agora. Só para ensaio.'),
+  }),
+  previa: false,
+  destrutiva: false,
+  maxAttempts: 3,
+});
+
 export type TaskRegistry = readonly TaskTypeDef[];
 
 /** Todos os tipos conhecidos. */
@@ -241,6 +264,7 @@ export const TASK_TYPES: TaskRegistry = [
   BACKFILL_NORMALIZAR,
   BACKFILL_TABELAS,
   TENANT_VERIFY_DOMAIN,
+  TENANT_LIFECYCLE,
 ] as unknown as TaskRegistry;
 
 export function taskType(type: string, registry: TaskRegistry = TASK_TYPES): TaskTypeDef | undefined {

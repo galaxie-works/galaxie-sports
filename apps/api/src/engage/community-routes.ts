@@ -86,7 +86,10 @@ export class CommunityGate {
     let value = hit && Date.now() - hit.at < 10_000 ? hit.value : undefined;
     if (!value) {
       value = this.db()
-        .select({ ok: sql<boolean>`'communities' = any(${tenant.modules}) and ${tenant.status} = 'active'` })
+        // módulo ligado e tenant em estado com acesso (F3, máquina de estados): trial, active e past_due
+        .select({
+          ok: sql<boolean>`'communities' = any(${tenant.modules}) and ${tenant.state} in ('trial', 'active', 'past_due')`,
+        })
         .from(tenant)
         .where(eq(tenant.id, tenantId))
         .limit(1)

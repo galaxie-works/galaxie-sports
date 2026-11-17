@@ -9,6 +9,7 @@ import {
   type Database,
 } from '@galaxie/db';
 import { createApiKey, type CreatedKey } from '@galaxie/db/api-keys';
+import { recordTenantCreated, transitionTenantState } from '@galaxie/billing';
 
 export { createApiKey, type CreatedKey };
 
@@ -33,10 +34,14 @@ export function isModule(value: string): value is ApiModule {
   return (API_MODULES as readonly string[]).includes(value);
 }
 
-/** Cria o tenant ou atualiza o existente com o mesmo slug (idempotente). */
+/**
+ * Cria o tenant ou atualiza o existente com o mesmo slug (idempotente). Na criação, a máquina de estados (F3) nasce em
+ * `draft` e vai a `trial` (com prazo) ou `active` (contrato), causa `provision`; na atualização o estado não muda.
+ */
 export async function upsertTenant(
   db: DbOrTx,
   input: TenantInput,
+  actor = 'cli:tenant-create',
 ): Promise<{ id: string; created: boolean }> {
   const values = {
     slug: input.slug,
@@ -51,10 +56,21 @@ export async function upsertTenant(
   };
   const [row] = await db
     .insert(tenant)
-    .values(values)
+    .values({ ...values, state: 'draft' })
     .onConflictDoUpdate({ target: tenant.slug, set: { ...values, updatedAt: sql`now()` } })
     .returning({ id: tenant.id, created: sql<boolean>`(xmax = 0)` });
-  return row!;
+  const t = row!;
+  if (t.created) {
+    const now = new Date();
+    await recordTenantCreated(db, t.id, { cause: 'provision', actor, now });
+    await transitionTenantState(db, t.id, input.trialEndsAt ? 'trial' : 'active', {
+      cause: 'provision',
+      actor,
+      reason: 'criação pela CLI tenant:create (upsertTenant)',
+      now,
+    });
+  }
+  return t;
 }
 
 export async function revokeApiKey(db: Database, keyId: string, at = new Date()): Promise<void> {

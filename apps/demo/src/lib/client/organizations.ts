@@ -37,7 +37,10 @@ async function query(where: string, params: unknown[]): Promise<OrganizationRow[
       `select o.id::text, o.slug, o.name, o.country, o.currency, o.billing_entity, o.capacity_tier, o.review_status,
               o.is_galaxie, o.created_at,
               (select json_agg(json_build_object('id', t.id::text, 'slug', t.slug, 'name', t.name,
-                                                  'status', t.status::text, 'plan', t.plan) order by t.name, t.slug)
+                                                  'status', t.status::text, 'plan', t.plan, 'state', t.state,
+                                                  'stateSince', to_char(t.state_since at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"'),
+                                                  'trialEndsAt', to_char(t.trial_ends_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"'))
+                               order by t.name, t.slug)
                  from api.tenant t where t.organization_id = o.id) as brands,
               (select count(*)::int from billing.organization_member m where m.organization_id = o.id) as members
          from billing.organization o

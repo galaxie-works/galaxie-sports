@@ -42,6 +42,7 @@ const AREA_OF: Readonly<Record<string, JobArea>> = {
   // manutenção: limpeza, cota e qualidade
   'change-feed-prune': 'maintenance',
   'data-retention': 'maintenance',
+  'tenant-lifecycle': 'maintenance',
   'quota-status': 'maintenance',
   'data-quality': 'maintenance',
 };

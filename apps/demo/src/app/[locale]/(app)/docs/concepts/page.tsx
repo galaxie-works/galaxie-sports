@@ -227,6 +227,11 @@ const CACHE_ROWS = [
 const ERROR_ROWS = [
   ['400 INVALID_PARAMS', 'invalidParams'],
   ['401 INVALID_KEY', 'invalidKey'],
+  ['401 TENANT_PENDING_REVIEW', 'tenantPendingReview'],
+  ['401 TENANT_REJECTED', 'tenantRejected'],
+  ['401 TRIAL_EXPIRED', 'trialExpired'],
+  ['402 SUBSCRIPTION_SUSPENDED', 'subscriptionSuspended'],
+  ['401 TENANT_CANCELLED', 'tenantCancelled'],
   ['403 MODULE_NOT_IN_PLAN', 'moduleNotInPlan'],
   ['403 MARKET_NOT_IN_PLAN', 'marketNotInPlan'],
   ['404 NOT_FOUND', 'notFound'],

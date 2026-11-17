@@ -13,7 +13,7 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 import { createdAt, pkUuidV7, updatedAt } from './_shared.js';
-import { tenant } from './api.js';
+import { tenant, type ApiModule, type TenantState } from './api.js';
 
 /**
  * Plataforma comercial (#1136, F1 #1137): versões do catálogo, preços de lista e exceções por tenant. A estrutura do
@@ -315,5 +315,146 @@ export const platformStaffAction = billing.table(
     check('billing_staff_action_reason', sql`length(trim(${t.reason})) >= 5`),
     index('billing_staff_action_tenant_idx').on(t.tenantId, t.id.desc()),
     index('billing_staff_action_organization_idx').on(t.organizationId, t.id.desc()),
+  ],
+);
+
+// ─── máquina de estados do tenant (F3, doc 02 §Máquina de estados do tenant) ───────────────────────────────────────
+
+/**
+ * O que provocou a mudança de estado: o cadastro, o provisionamento, a revisão do cadastro (PL2), um pagamento (F4), o
+ * relógio (job `tenant.lifecycle`), a equipe com motivo (PL17), um pedido do cliente ou a migration de dados.
+ */
+export const TENANT_STATE_EVENT_CAUSES = [
+  'signup',
+  'provision',
+  'review',
+  'payment',
+  'clock',
+  'admin',
+  'request',
+  'migration',
+] as const;
+export type TenantStateEventCause = (typeof TENANT_STATE_EVENT_CAUSES)[number];
+
+/**
+ * Histórico da máquina de estados: uma linha por transição (e uma, com `from_state` nulo, pela criação em `draft`). A
+ * transição é sempre por evento registrado; `transitionTenantState` (`@galaxie/billing`) grava aqui e em
+ * `api.tenant.state` na mesma transação. Só cresce.
+ */
+export const tenantStateEvent = billing.table(
+  'tenant_state_event',
+  {
+    id: pkUuidV7(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenant.id, { onDelete: 'cascade' }),
+    /** Estado anterior; null na criação do tenant. */
+    fromState: text('from_state').$type<TenantState>(),
+    toState: text('to_state').$type<TenantState>().notNull(),
+    cause: text('cause').$type<TenantStateEventCause>().notNull(),
+    /** Motivo em texto (obrigatório nas ações da equipe, pelo `staff_action`; livre nas demais). */
+    reason: text('reason'),
+    /** Quem: `signup:<id>`, `galaxie:<id do usuário>`, `job:tenant.lifecycle`, `api:admin`, `migration:<número>`. */
+    actor: text('actor').notNull(),
+    /** O que mais vale guardar (prazo do trial antes e depois, id do pagamento…). */
+    payload: jsonb('payload').$type<Record<string, unknown>>(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    check(
+      'tenant_state_event_from',
+      sql`${t.fromState} is null or ${t.fromState} in ('draft', 'pending_review', 'rejected', 'trial', 'trial_expired', 'active', 'past_due', 'suspended', 'cancelled')`,
+    ),
+    check(
+      'tenant_state_event_to',
+      sql`${t.toState} in ('draft', 'pending_review', 'rejected', 'trial', 'trial_expired', 'active', 'past_due', 'suspended', 'cancelled')`,
+    ),
+    check(
+      'tenant_state_event_cause',
+      sql`${t.cause} in ('signup', 'provision', 'review', 'payment', 'clock', 'admin', 'request', 'migration')`,
+    ),
+    index('tenant_state_event_tenant_idx').on(t.tenantId, t.createdAt),
+  ],
+);
+
+// ─── teste por módulo pela loja (F3, decisão 9; doc 01 §A loja de features; PL3) ──────────────────────────────────
+
+/**
+ * Teste de um módulo ligado pela loja (Planos e módulos): 14 dias com a faixa mínima, **uma vez por módulo e
+ * organização** (o índice único é a regra; vale para todas as marcas da organização). A ativação grava, na mesma
+ * transação, esta linha, um `tenant_override` `module_grant` do módulo e um `tenant_override` `tier` por faixa com o
+ * mínimo do catálogo, todos com `valid_until = ends_at` e `reason = 'module_trial'`: no fim o override vence sozinho e o
+ * módulo sai dos direitos, sem job. `started_by`: `panel:<id do usuário>` ou `galaxie:<id>`. Só cresce: a linha fica
+ * (as duas FKs são `restrict`: nem apagar a marca nem a organização apaga a prova do teste usado)
+ * como prova de que o teste já foi usado.
+ */
+export const moduleTrial = billing.table(
+  'module_trial',
+  {
+    id: pkUuidV7(),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organization.id, { onDelete: 'restrict' }),
+    /** Marca que ligou o teste; `restrict` nos dois lados: apagar a marca ou a organização não pode apagar a prova. */
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenant.id, { onDelete: 'restrict' }),
+    module: text('module').$type<ApiModule>().notNull(),
+    startedAt: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
+    endsAt: timestamp('ends_at', { withTimezone: true }).notNull(),
+    startedBy: text('started_by').notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex('module_trial_organization_module_uq').on(t.organizationId, t.module),
+    index('module_trial_tenant_idx').on(t.tenantId, t.endsAt),
+    check('module_trial_period', sql`${t.endsAt} > ${t.startedAt}`),
+  ],
+);
+
+// ─── e-mails do ciclo de vida (F3, decisão 11; doc 02 §O trial e §Provisionamento, passo 9) ───────────────────────
+
+/** O que cada e-mail do ciclo de vida é; o texto fica na demo (boas-vindas) e no worker (`services/ingestor/src/mail`). */
+export const TENANT_NOTIFICATION_KINDS = [
+  'welcome',
+  'trial_reminder',
+  'trial_expired',
+  'module_trial_ending',
+  'suspended',
+  'cancelled',
+] as const;
+export type TenantNotificationKind = (typeof TENANT_NOTIFICATION_KINDS)[number];
+
+/**
+ * Registro de cada e-mail do ciclo de vida mandado aos Donos e ao Financeiro da organização: a idempotência é o índice
+ * único por tenant, `kind` e `ref` (`ref` distingue o dia do lembrete do trial, o módulo do teste acabando e o
+ * `state_since` da suspensão ou do cancelamento; vazio nos demais). Quem envia grava a linha **antes** de enviar
+ * (`insert ... on conflict do nothing`: a segunda rodada do dia não envia de novo), e depois do envio preenche `sent_at`
+ * e `recipients`; se o envio falhou, apaga a linha para a próxima rodada tentar de novo. `sent_at` nulo com a linha
+ * gravada = registrado sem entrega (SMTP não configurado ou organização sem destinatário). `kind` fica sem CHECK para
+ * um e-mail novo não pedir migration. Só cresce.
+ */
+export const tenantNotification = billing.table(
+  'tenant_notification',
+  {
+    id: pkUuidV7(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenant.id, { onDelete: 'cascade' }),
+    kind: text('kind').$type<TenantNotificationKind>().notNull(),
+    /** Dia do lembrete (`'23'`), módulo (`'chat'`), `state_since` em ISO 8601, ou vazio. */
+    ref: text('ref').notNull().default(''),
+    /** Quando o e-mail saiu de fato; null = registrado sem entrega. */
+    sentAt: timestamp('sent_at', { withTimezone: true }),
+    /** E-mails de quem recebeu (Donos e Financeiro da organização no momento do envio). */
+    recipients: text('recipients')
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex('tenant_notification_tenant_kind_ref_uq').on(t.tenantId, t.kind, t.ref),
+    index('tenant_notification_tenant_idx').on(t.tenantId, t.createdAt),
   ],
 );

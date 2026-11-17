@@ -27,6 +27,11 @@ modules:
     name: Core Data
     status: available
     trialDays: 30
+    tiers:
+      # conexões SSE (/v1/stream) simultâneas por tenant, somando as instâncias. O padrão é o teto da API
+      # (SSE_MAX_CONNECTIONS_PER_TENANT, 100); o modelo `trial` de plans.yaml fixa 5 para a conta em teste (doc 02
+      # §O trial, F3 decisão 14) e a API aplica o menor entre o teto e a faixa dos direitos
+      core_data.sse_connections: { min: 1, max: 1000, default: 100 }
     features:
       core_data.rest: {}
       # tempo real: o trial não tem (PLANS_WITHOUT_REALTIME)
