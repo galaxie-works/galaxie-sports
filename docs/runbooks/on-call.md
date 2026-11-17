@@ -108,7 +108,9 @@ A queima do SLO `ao-vivo` não manda push: ela chega no resumo diário e diz se 
   ```
 
   O `error` do job em Ajustes → Plataforma → Status dos serviços (jobs `pg-backup` e `backup-check`) diz qual parte falhou: dump, conferência
-  ou recibo do NAS. Recibo do NAS atrasado: a stack `galaxie-sports-backup-nas` no Portainer do NAS parou.
+  ou recibo do NAS. Recibo do NAS atrasado: a stack `galaxie-sports-backup-nas` no Portainer do NAS parou. Com a
+  réplica no NAS ([docs/16](../16-implantacao.md)), o dump diário nasce na stack `nas-replica`: recibo `.nas_last_dump`
+  atrasado é o `dumper` ou o túnel parado (`replica-no-nas.md`, #1311). A produção segue no ar nos dois casos.
 - **`RestoreDrillFailed`**: o dump mais recente não restaurou. É sério, mas não urgente de madrugada: siga o
   [runbook de DR](exercicio-dr.md) no dia seguinte e confira se o dump de antes restaura.
 - **`DiskAlmostFull`** (acima de 85%):

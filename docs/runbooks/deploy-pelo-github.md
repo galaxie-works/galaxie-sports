@@ -3,6 +3,10 @@
 Build, merge e deploy rodam no GitHub (Actions e GHCR), sem Docker Desktop na máquina de dev. Os scripts antigos
 (`infra/ops/merge-train.sh`, `infra/ops/deploy-safe.sh` → `infra/vps-telemetry/deploy.sh`) ficam como **plano B**.
 
+> **Regra em vigor desde 17/11/2026** ([docs/16 §5](../16-implantacao.md#5-regras-operacionais)): `DEPLOY_AUTO=off`, um
+> deploy por dia, de madrugada, disparado à mão, com as migrations do dia num lote e a carga pausada. O caminho
+> automático abaixo continua pronto para quando a variável voltar a `on`.
+
 ## Como fica
 
 ```text
@@ -98,7 +102,8 @@ o que faltar.
    job) diz: `plano: api: troca (in-abc1234 → in-def5678) · ingestor: igual, fica · agents: troca (config mudou) · …`. Serviço que saiu do compose aparece como
    `<serviço>: sai` (a demo, quando virou `site` e `console`): sai depois que os da mesma imagem trocaram
    (`rolling-swap.sh --retire`), e a volta do grupo o sobe de novo antes de tirar os novos.
-7. Migration nova: dump do banco. `migrate` com saída 0 **antes de qualquer troca**, só se a imagem ou a configuração
+7. Migration nova: dump do banco (com `DUMP_MODE=nas`, o pré-migrate confere o recibo do dump que o NAS fez a partir
+   da réplica em vez de rodar `pg_dump` na VPS; [docs/16 §5](../16-implantacao.md#5-regras-operacionais)). `migrate` com saída 0 **antes de qualquer troca**, só se a imagem ou a configuração
    dele mudou, se há migration nova ou com `force=1`. Com a API, o site ou o console na lista, o **smoke roda na versão nova
    antes da troca**, nos candidatos sem tráfego (`site-candidate` e `console-candidate`, cada um no papel dele); reprovado, nada troca
    ([README da stack › Candidato e troca sem manutenção](../../infra/vps-telemetry/README.md)).

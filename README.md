@@ -298,6 +298,7 @@ pnpm --filter @galaxie/ingestor assets:mirror --descobrir-raw
 | — | [Política de segurança](SECURITY.md) | Como reportar vulnerabilidades, controles, rotação de segredos |
 | 14 | [SLOs e orçamento de erro](docs/14-slos-e-error-budget.md) | Alvos da produção, SLIs em PromQL, alertas de queima e política do orçamento |
 | 15 | [Organização do monorepo](docs/15-organizacao-do-monorepo.md) | Mapa das pastas, dependências, o que vira imagem, fronteiras e candidatas a repo próprio |
+| 16 | [Implantação](docs/16-implantacao.md) | O desenho da produção (VPS e réplica no NAS), quem depende de quem, limites, regras de deploy e o caminho com cliente |
 | — | [On-call](docs/runbooks/on-call.md) | Recebi um push: o primeiro passo de cada alerta grave |
 | — | [Postmortems](docs/postmortems/README.md) | Incidentes de produção, sem culpados, com linha do tempo e ações |
 | — | [Exercício de DR](docs/runbooks/exercicio-dr.md) | Backup → ensaio → restauração, com o registro do último exercício |

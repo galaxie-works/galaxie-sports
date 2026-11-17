@@ -91,7 +91,7 @@ galaxie-sports/
 ├── infra/
 │   ├── docker-compose.yml    # Postgres 17, Valkey, RustFS (S3), bucket de assets
 │   ├── vps-telemetry/        # stack da VPS (Traefik) + scripts do deploy
-│   ├── backup/               # imagem de backup: pg_dump diário, retenção, restore scriptado
+│   ├── backup/               # imagem de backup: dump, retenção, restore scriptado (onde o dump nasce: docs/16)
 │   ├── observability/        # Prometheus (alertas) e Grafana (painel de cota)
 │   └── traefik/              # borda da VPS (TLS e roteamento)
 └── docs/                     # esta documentação
@@ -204,11 +204,15 @@ sequenceDiagram
 
 ## 8. Ambientes e deploy
 
+O desenho da implantação (o que roda na VPS e no NAS, réplica do Postgres, backup, deploy e limites) está em
+[docs/16 · Implantação](16-implantacao.md).
+
 | Ambiente | Onde | Dados |
 |---|---|---|
 | `local` | Docker Compose (`infra/docker-compose.yml`) | Snapshot do raw (dump) — zero chamadas ao fornecedor |
-| `staging` | VPS com Traefik ([`infra/vps-telemetry`](../infra/vps-telemetry/README.md): stack e deploy; backups e restore em [`infra/backup`](../infra/backup/README.md)) | Ingestão real |
-| `production` | VPS dedicada ou nuvem gerenciada | Plano pago do fornecedor + CDN |
+| `dev` | NAS, stack `galaxie-sports-dev` a partir do git ([ambiente de dev](runbooks/ambiente-de-dev.md)) | Espelho semanal da produção, anonimizado |
+| produção (`APP_ENV=staging`) | VPS com Traefik ([`infra/vps-telemetry`](../infra/vps-telemetry/README.md)), com réplica do Postgres e dumps no NAS ([docs/16](16-implantacao.md)) | Ingestão real |
+| com cliente | Máquina com CPU dedicada e processamento separado da API ([docs/16 §6](16-implantacao.md#6-quando-houver-cliente)) | Plano pago do fornecedor + CDN |
 
 Variáveis de ambiente principais (nunca versionadas):
 
