@@ -37,7 +37,7 @@ o país, a marca e o motivo; o convite sai por e-mail e as chaves aparecem uma v
 | 4 | Tema da marca com a cor informada | pula se a marca já tem tema |
 | 5 | Widget de exemplo "Placar do dia" (`live_list`) no Builder, no idioma da organização, seguindo o tema do passo 4 | pula se a marca já tem widget |
 | 6 | Evento `tenant.provisioned` em `ops.change_feed`, com a faixa calculada e o uso declarado no payload | só na criação da marca |
-| 7 | E-mail de boas-vindas com o checklist aos Donos e ao Financeiro da organização, no idioma dela, quando a marca está em `trial` (a que ficou em revisão recebe ao ser aprovada) | registro em `billing.tenant_notification` (`kind = 'welcome'`); sem SMTP, log |
+| 7 | E-mail de boas-vindas com o checklist aos Donos e ao Financeiro da organização, no idioma dela, quando a marca está em `trial` (a que ficou em revisão recebe ao ser aprovada) | registro em `billing.tenant_notification` (`kind = 'welcome'`); se ninguém recebeu (sem SMTP, transporte), o registro sai e o `tenant.lifecycle` do worker manda nos dias seguintes |
 
 O slug de outra organização ou marca não é tomado: rodar de novo exige ser Dono da organização existente.
 

@@ -239,16 +239,20 @@ a equipe aprovar.
 ## Os e-mails do ciclo de vida
 
 Decisão 11 do brief. Saem para os **Donos e o Financeiro da organização** (`billing.organization_member`, cargos `owner` e
-`billing`, com o e-mail do Better Auth), um e-mail por pessoa, no idioma da organização (`locale`; en, es neutro e
-pt-BR). Todo envio fica registrado em `billing.tenant_notification` (migration 0187): a linha é gravada **antes** do
-envio (`insert ... on conflict do nothing` no índice único por tenant, `kind` e `ref`), e por isso a segunda rodada não
-envia de novo; depois do envio `sent_at` e `recipients` são preenchidos. Se o transporte falhou para todos, a linha é
-apagada e a próxima rodada tenta de novo. Sem SMTP (`SMTP_*` vazias) ou sem destinatário, a linha fica sem `sent_at`
-(registrado sem entrega) e o log avisa; o produto segue.
+`billing`, com o e-mail do Better Auth; convite pendente dentro do prazo conta, convite vencido sem aceite não), um
+e-mail por pessoa, no idioma da organização (`locale`; en, es neutro e pt-BR). Todo envio fica registrado em
+`billing.tenant_notification` (migration 0187): a linha é gravada **antes** do envio (`insert ... on conflict do nothing`
+no índice único por tenant, `kind` e `ref`), e por isso a segunda rodada não envia de novo; depois do envio `sent_at` e
+`recipients` são preenchidos **só com quem recebeu** (quem falhou no meio fica no log; não há segunda tentativa
+parcial). Se ninguém recebeu, por falha do transporte **ou por SMTP não configurado** (`SMTP_*` vazias), a linha é
+apagada e a próxima rodada tenta de novo (em desenvolvimento sem SMTP, o relógio tenta todo dia, sem efeito). Só
+"sem destinatário" (organização sem Dono nem Financeiro com e-mail) e o lembrete superado por outro ficam registrados
+sem `sent_at`. Os e-mails nunca derrubam o `tenant.lifecycle`: uma falha em bloco entra no relatório (`mailError`) e no
+log, e a reconferência dos domínios roda mesmo assim.
 
 | `kind` | `ref` | Quando | Quem manda |
 | --- | --- | --- | --- |
-| `welcome` | vazio | A marca entra em `trial`: no provisionamento (cadastro e criação assistida) ou na aprovação da revisão do cadastro. Traz o checklist | Console (`apps/demo/src/lib/client/welcome-email.ts`) |
+| `welcome` | vazio | A marca entra em `trial`: no provisionamento (cadastro e criação assistida) ou na aprovação da revisão do cadastro. Traz o checklist. Se o console não conseguiu mandar, o relógio manda nos dias seguintes (marca em `trial` há até 3 dias sem o registro), com o mesmo texto | Console (`apps/demo/src/lib/client/welcome-email.ts`); o worker como segunda tentativa |
 | `trial_reminder` | o dia (`23`, `29`) | Dia N do trial, contado da entrada em `trial` (`state_since`; dia 1 = o dia da entrada), para cada N de `TRIAL_REMINDER_DAYS`, enquanto o trial não venceu. Sai na primeira rodada em que o dia atual ≥ N; se mais de um está devido de uma vez (a primeira rodada depois do deploy, um dia sem rodada), só o mais tardio é enviado e os outros ficam registrados sem envio. Estender o trial não reinicia a conta dos dias | Worker |
 | `trial_expired` | vazio | `trial → trial_expired`, na mesma rodada do relógio | Worker |
 | `module_trial_ending` | o módulo | `billing.module_trial` com `ends_at` em até `MODULE_TRIAL_REMINDER_DAYS_BEFORE` dias, em marca com acesso (`trial`, `active`, `past_due`) | Worker |
@@ -257,7 +261,7 @@ apagada e a próxima rodada tenta de novo. Sem SMTP (`SMTP_*` vazias) ou sem des
 
 Os avisos de estado (`trial_expired`, `suspended`, `cancelled`) só saem quando a mudança tem até 3 dias
 (`STATE_MAIL_WINDOW_DAYS`): quem já estava no estado antes desta versão não recebe um aviso atrasado. Os textos do
-worker ficam em `services/ingestor/src/mail/texts.ts`; o botão leva a Planos e módulos (`UPGRADE_URL_BASE`, a mesma
+worker ficam em `services/ingestor/src/mail/texts.ts` (as boas-vindas repetem o texto do console); o botão leva a Planos e módulos (`UPGRADE_URL_BASE`, a mesma
 variável do `upgrade_url` da API) ou ao console (`CONSOLE_URL`; sem ela, a origem de `UPGRADE_URL_BASE` + `/client`);
 sem nenhuma, o e-mail sai sem link. O transporte é o nodemailer com as mesmas `SMTP_*` do console (compose: serviço
 `worker`). Parte pura e testável: `dueLifecycleNotifications` e `recipientEmails`
@@ -268,6 +272,16 @@ sem nenhuma, o e-mail sai sem link. O transporte é o nodemailer com as mesmas `
 Só expande: `billing.tenant_notification` (`tenant_id`, `kind`, `ref` com padrão vazio, `sent_at`, `recipients text[]`,
 `created_at`; índice único por tenant, `kind` e `ref`; índice por tenant). `kind` fica sem CHECK para um e-mail novo não
 pedir migration. Só cresce.
+
+## Os papéis do banco
+
+A matriz de `packages/db/src/roles.ts` ([runbook dos papéis](papeis-do-banco.md)) acompanha o que a F3 passou a tocar;
+a troca de papéis continua desligada. `galaxie_ingestor` (o worker da fila roda com ele): UPDATE em `api.tenant` e
+`billing.domain`, acréscimo em `billing.tenant_state_event`, escrita em `billing.tenant_notification`, leitura de
+`demo_auth."user"` (os destinatários; `billing.organization_member`, `module_trial` e `domain` já entravam pela leitura
+larga de `billing`). `galaxie_demo`: escrita em `billing.tenant_notification`, acréscimo em `billing.tenant_state_event`
+e `billing.module_trial`. A tabela do `demo_auth` que ainda não existe (antes da primeira subida da demo) é pulada e
+ganha o GRANT na rodada seguinte do `migrate`.
 
 ## O que ficou de fora
 
