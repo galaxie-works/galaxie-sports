@@ -1,6 +1,7 @@
 /**
- * Fumaça da API: a chave secreta `gs_test_…` semeada autentica no `/v1` e a resposta é da marca de referência. Os
- * cenários de recusa (sem chave, chave revogada, estado do tenant, módulo) são da onda 1 (#1319).
+ * Fumaça da API: a chave secreta `gs_test_…` semeada autentica no `/v1` e a resposta é da marca de referência; sem
+ * chave, a mesma rota recusa (prova que o 200 vem da chave, não de uma API aberta). Os outros cenários de recusa
+ * (chave revogada, estado do tenant, módulo) são da onda 1 (#1319).
  */
 import { expect, test } from '@playwright/test';
 
@@ -19,4 +20,10 @@ test('GET /v1/account com a chave semeada responde 200 com a marca de referênci
   expect(body.tenant.plan).toBe('fan_experience');
   expect(body.tenant.modules).toContain('core_data');
   expect(body.key.env).toBe('test');
+});
+
+test('GET /v1/account sem chave responde 401 INVALID_KEY', async ({ request }) => {
+  const res = await request.get(`${API_URL}/v1/account`);
+  expect(res.status()).toBe(401);
+  expect(((await res.json()) as { code?: string }).code).toBe('INVALID_KEY');
 });

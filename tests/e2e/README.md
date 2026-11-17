@@ -28,7 +28,7 @@ Projetos do Playwright (`playwright.config.ts`):
 | Projeto | O quê |
 | --- | --- |
 | `setup` | O admin (`e2e.admin@galaxie.test`, o primeiro admin da demo) entra pelo código, cria o cliente de referência (`e2e.cliente@galaxie.test`, papel `client` na `marca-e2e`) e o cliente entra; as sessões ficam em `.auth/` |
-| `api` | `GET /v1/account` com a chave semeada responde 200 |
+| `api` | `GET /v1/account` com a chave semeada responde 200; sem chave, 401 |
 | `chromium` | A home pública abre; o admin vê Ajustes; o cliente vê o console (falha conhecida, ver abaixo) |
 
 As chaves e o segredo do login só existem no banco descartável e no ambiente do processo do Playwright; nada vai para
