@@ -281,3 +281,4 @@ export {
 export { fanAvatarPublic, fanAvatarPublicUrl } from './fan-avatar-public.js';
 export * from './shop.js';
 export * from './community.js';
+export * from './tenant-notifications.js';
