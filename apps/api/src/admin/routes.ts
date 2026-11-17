@@ -1,6 +1,15 @@
 import type { FastifyInstance } from 'fastify';
 import * as z from 'zod';
-import { API_MODULES, API_PLANS, listKeyEvents, tenant, type Database } from '@galaxie/db';
+import {
+  API_MODULES,
+  API_PLANS,
+  listKeyEvents,
+  tenant,
+  type ApiPlan,
+  type Database,
+  type TenantState,
+} from '@galaxie/db';
+import { stateHasAccess, TenantStateError, transitionTenantState } from '@galaxie/billing';
 import { inArray } from 'drizzle-orm';
 import { problems } from '../errors.js';
 import {
@@ -17,6 +26,7 @@ import { parseInput, UUID_RE } from '../util.js';
 import type { AdminGuard } from './guard.js';
 import type { PlanCatalog } from './plans.js';
 import {
+  ADMIN_ACTOR,
   createTenantFromPlan,
   getTenant,
   invalidScopes,
@@ -28,7 +38,9 @@ import {
   revokeTenantKey,
   rotateKey,
   TenantConflictError,
+  trialEndsFor,
   updateTenant,
+  type TenantView,
 } from './tenants.js';
 
 export interface AdminRoutesOptions {
@@ -135,6 +147,48 @@ export async function adminRoutes(app: FastifyInstance, opts: AdminRoutesOptions
     reply.header('cache-control', 'no-store');
   });
 
+  /**
+   * O que o PATCH pede da máquina de estados (F3): `status: suspended` suspende (de trial, active ou past_due);
+   * `status: active` reativa um suspenso (nos estados com acesso é no-op; nos demais, 409: o estado manda); trocar um
+   * plano com prazo (`trial`) por um pago leva `trial`/`trial_expired` a `active`. Devolve a transição feita, ou null.
+   */
+  const adminStateTransition = async (
+    current: TenantView,
+    patch: { status?: 'active' | 'suspended' | undefined; plan?: ApiPlan | undefined },
+  ): Promise<{ from: TenantState; to: TenantState } | null> => {
+    const apply = async (to: TenantState, reason: string) => {
+      try {
+        const r = await transitionTenantState(db, current.id, to, {
+          cause: 'admin',
+          actor: ADMIN_ACTOR,
+          reason,
+        });
+        return { from: r.from, to: r.to };
+      } catch (err) {
+        if (err instanceof TenantStateError) throw problems.conflict(err.message);
+        throw err;
+      }
+    };
+    if (patch.status === 'suspended' && current.state !== 'suspended')
+      return apply('suspended', 'PATCH /internal/admin/tenants (status: suspended)');
+    if (patch.status === 'active') {
+      if (current.state === 'suspended')
+        return apply('active', 'PATCH /internal/admin/tenants (status: active)');
+      if (!stateHasAccess(current.state))
+        throw problems.conflict(
+          `O tenant está em ${current.state}: status não reativa este estado; use a máquina de estados (console).`,
+        );
+    }
+    if (
+      patch.plan !== undefined &&
+      patch.plan !== current.plan &&
+      !trialEndsFor(plans, patch.plan) &&
+      (current.state === 'trial' || current.state === 'trial_expired')
+    )
+      return apply('active', `PATCH /internal/admin/tenants (plan: ${patch.plan})`);
+    return null;
+  };
+
   const tenantOr404 = async (id: string) => {
     const t = await getTenant(db, id);
     if (!t) throw problems.notFound('Tenant');
@@ -188,9 +242,32 @@ export async function adminRoutes(app: FastifyInstance, opts: AdminRoutesOptions
 
   app.patch('/internal/admin/tenants/:id', { config }, async (request) => {
     const { id } = parseInput(TenantParams, request.params);
-    const body = parseInput(PatchTenantBody, request.body ?? {});
-    const updated = await updateTenant(db, plans, id, body);
+    const { status, ...body } = parseInput(PatchTenantBody, request.body ?? {});
+    const current = await tenantOr404(id);
+    // plano com prazo (o `trial` legado, decisão 13 do brief) só entra em draft ou trial: fora disso o prazo nunca
+    // valeria (o fallback do autenticador e dos direitos só vale no estado trial)
+    if (
+      body.plan !== undefined &&
+      body.plan !== current.plan &&
+      trialEndsFor(plans, body.plan) &&
+      current.state !== 'trial' &&
+      current.state !== 'draft'
+    )
+      throw problems.conflict(
+        `O tenant está em ${current.state}: o plano ${body.plan} tem prazo de trial e só vale em trial ou draft.`,
+      );
+    let updated = Object.keys(body).length ? await updateTenant(db, plans, current.id, body) : current;
     if (!updated) throw problems.notFound('Tenant');
+    // a máquina de estados (F3) é quem muda `status`: suspender e reativar viram transições com evento; a troca de um
+    // plano com prazo por um pago leva o trial a active
+    const transition = await adminStateTransition(current, { status, plan: body.plan });
+    if (transition) {
+      updated = (await getTenant(db, current.id)) ?? updated;
+      request.log.info(
+        { tenant: updated.slug, admin: 'tenant.state', ...transition },
+        'estado do tenant alterado',
+      );
+    }
     await changed(updated.id);
     request.log.info(
       { tenant: updated.slug, admin: 'tenant.update', fields: Object.keys(body) },

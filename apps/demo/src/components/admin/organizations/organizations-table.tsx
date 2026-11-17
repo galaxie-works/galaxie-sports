@@ -10,6 +10,7 @@ import type { OrganizationRow } from '@/lib/client/organizations-shared';
 import { useI18n } from '@/lib/i18n/client';
 import { fill } from '@/lib/i18n/text';
 
+import { STATE_VARIANT } from './brand-state-actions';
 import { NewOrganizationDialog } from './new-organization-dialog';
 
 const REVIEW_VARIANT = {
@@ -64,7 +65,11 @@ export function OrganizationsTable({ rows }: { rows: OrganizationRow[] }) {
                       {o.brands.length ? (
                         <div className="flex flex-wrap gap-1">
                           {o.brands.map((b) => (
-                            <Badge key={b.id} variant={b.status === 'active' ? 'secondary' : 'warning-light'}>
+                            <Badge
+                              key={b.id}
+                              variant={b.state === 'active' ? 'secondary' : STATE_VARIANT[b.state]}
+                              title={T.state[b.state]}
+                            >
                               {b.name}
                             </Badge>
                           ))}

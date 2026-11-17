@@ -8,21 +8,7 @@ import {
   type Catalog,
 } from '../catalog/catalog.js';
 import type { CapacityTier } from '../catalog/schema.js';
-
-/**
- * Estado do tenant. A F1 deriva só `trial`, `active`, `suspended` e `trial_expired` das colunas de hoje; `past_due` e
- * `cancelled` entram com a máquina de estados da F3. Os estados que desligam tudo estão em `STATES_WITHOUT_ACCESS`.
- */
-export const TENANT_STATES = [
-  'trial',
-  'active',
-  'past_due',
-  'suspended',
-  'cancelled',
-  'trial_expired',
-] as const;
-export type TenantState = (typeof TENANT_STATES)[number];
-export const STATES_WITHOUT_ACCESS: readonly TenantState[] = ['suspended', 'cancelled', 'trial_expired'];
+import { STATES_WITHOUT_ACCESS, type TenantState } from '../tenant-state/state.js';
 
 /** O que o banco diz do tenant (só o que a resolução usa). */
 export type TenantRow = {
@@ -33,8 +19,10 @@ export type TenantRow = {
   sports: string[];
   rateLimitPerMinute: number;
   dailyRequestQuota: number | null;
+  /** Prazo do estado `trial`; a resolução o usa também como fallback enquanto o job `tenant.lifecycle` não rodou. */
   trialEndsAt: Date | null;
-  status: 'active' | 'suspended';
+  /** `api.tenant.state` (F3): a coluna, gravada só por `transitionTenantState`. */
+  state: TenantState;
   catalogVersion: string | null;
   /** Da organização quando a marca tem uma (PL23); senão, a da marca; null = padrão do catálogo. */
   capacityTier: CapacityTier | null;
@@ -105,11 +93,14 @@ export type ResolveOptions = {
   galaxieTenantIds?: readonly string[];
 };
 
-function deriveState(t: TenantRow, now: Date): TenantState {
-  if (t.status === 'suspended') return 'suspended';
-  if (t.trialEndsAt && t.trialEndsAt.getTime() <= now.getTime()) return 'trial_expired';
-  if (t.trialEndsAt || t.plan === 'trial') return 'trial';
-  return 'active';
+/**
+ * O estado que vale agora: a coluna (`state`), com um só fallback: `trial` cujo `trial_ends_at` já passou conta como
+ * `trial_expired` até o job `tenant.lifecycle` gravar a transição (o mesmo fallback do autenticador da API).
+ */
+export function effectiveState(t: Pick<TenantRow, 'state' | 'trialEndsAt'>, now: Date): TenantState {
+  if (t.state === 'trial' && t.trialEndsAt && t.trialEndsAt.getTime() <= now.getTime())
+    return 'trial_expired';
+  return t.state;
 }
 
 /** Função pura: junta catálogo, tenant, faixas, exceções e carteira numa resposta de direitos. */
@@ -121,7 +112,7 @@ export function resolveEntitlements(
   const now = opts.now ?? new Date();
   const { tenant } = input;
   const warnings: string[] = [];
-  const state = deriveState(tenant, now);
+  const state = effectiveState(tenant, now);
   // precedência entre exceções que se contradizem (conceder e retirar o mesmo módulo, duas faixas): vale a mais nova.
   // Aplicadas da mais antiga para a mais nova, com o id (UUID v7, ordenável) desempatando: o resultado não depende da
   // ordem em que o banco devolve as linhas

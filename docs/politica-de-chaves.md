@@ -13,7 +13,7 @@ anômalo (§5).
 | 1 | Chave de teste: mesmo dado da produção, limite de 60 req/min por rota (nunca acima do limite do tenant) e uso contado à parte | Não existe sandbox de dados esportivos; o que o cliente precisa é separar o tráfego de desenvolvimento, como o modo teste da Stripe |
 | 2 | Publicável de teste `gs_pk_test_`, aceita só em `localhost`/`127.0.0.1`/`[::1]` | A chave de produção nunca precisa listar `localhost`, que qualquer um roda na própria máquina |
 | 3 | Teto por tenant: 5 secretas por ambiente e 20 publicáveis, contando as em período de graça | Basta para rotação e um serviço por chave; um teto baixo limita o estrago de uma conta comprometida |
-| 4 | Plano `trial` de 30 dias, cota baixa, sem SSE nem webhooks | Avaliação com prazo e custo previsíveis; o fim do trial vale para todas as chaves do tenant |
+| 4 | Trial de 30 dias (`TRIAL_DAYS`), e o acesso de toda chave decidido pelo estado do tenant (`api.tenant.state`) | Avaliação com prazo e custo previsíveis; o fim do trial, a suspensão e o cancelamento valem para todas as chaves do tenant, com o código do motivo ([ciclo de vida](runbooks/ciclo-de-vida-do-tenant.md)) |
 | 5 | Cota diária aplicada: aviso a partir de 80% e 429 `QUOTA_EXCEEDED` a partir de 110%; `enterprise` sem cota | Cota só exibida não protege a infraestrutura nem o contrato; a folga de 10% evita cortar no limite exato |
 | 6 | Formato de chave com checksum e padrão cadastrado no secret scanning do GitHub | O checksum permite achar chave vazada sem falso positivo, como nos tokens do GitHub |
 
@@ -66,13 +66,20 @@ anômalo (§5).
   - a publicável não expira.
 - **Revogação:** pela operação (`.../keys/{keyId}/revoke`) ou pelo painel (publicável). Vale em até 60 s, inclusive em
   stream SSE aberto.
-- **Trial:** plano `trial` em `config/catalog/plans.yaml` (`trialDays: 30`, só `core_data`, 60 req/min, cota de 5000/dia).
-  - O onboarding grava `api.tenant.trial_ends_at`. Depois do prazo, nenhuma chave do tenant autentica (401, secreta ou
-    publicável).
-  - Trocar o plano (`PATCH /internal/admin/tenants/{id}` com `plan`) tira o prazo; voltar para `trial` dá 30 dias de
-    novo.
+- **Trial e estado do tenant** ([ciclo de vida](runbooks/ciclo-de-vida-do-tenant.md)): o cadastro nasce em `trial` com
+  `api.tenant.trial_ends_at = agora + TRIAL_DAYS` (o plano `trial` legado de `config/catalog/plans.yaml`, `trialDays: 30`,
+  só `core_data`, segue até os tenants que o têm migrarem).
+  - Depois do prazo, nenhuma chave do tenant autentica: 401 `TRIAL_EXPIRED` com `upgrade_url` (secreta ou publicável),
+    já antes do job `tenant.lifecycle` gravar `trial_expired`. Em `pending_review`, `rejected`, `suspended` (402
+    `SUBSCRIPTION_SUSPENDED`) e `cancelled` a resposta também diz o motivo, só para quem provou ter a chave.
+  - Trocar um plano com prazo por um pago (`PATCH /internal/admin/tenants/{id}` com `plan`) tira o prazo e leva o
+    tenant a `active`. O plano `trial` legado (decisão 13 do brief da F3: fica até os tenants que o têm migrarem) só
+    entra em tenant em `trial` ou `draft`; fora disso o `PATCH` responde 409 `CONFLICT`, porque o prazo nunca valeria.
   - Sem tempo real (`PLANS_WITHOUT_REALTIME`): `/v1/stream` responde 403 `MODULE_NOT_IN_PLAN`, o cadastro de webhook é
     recusado e o worker não enfileira entregas do tenant.
+  - Webhooks só em `active` e `past_due` (`TENANT_STATES_WITH_WEBHOOKS`): no estado `trial` o SSE funciona, mas o worker
+    não entrega webhooks (doc 02 da plataforma, tabela "O trial"); a entrega que já estava na fila vai para a DLQ com
+    `tenant em trial: sem webhooks`.
 
 ## 4. Limites e cota
 

@@ -160,7 +160,9 @@ export async function writeTenantConfig(
 /** O cliente tem o módulo `live_chat` ligado e está ativo? (o token do torcedor não traz os módulos). */
 export async function tenantHasLiveChat(db: Database, tenantId: string): Promise<boolean> {
   const [row] = await db
-    .select({ ok: sql<boolean>`'live_chat' = any(${tenant.modules}) and ${tenant.status} = 'active'` })
+    .select({
+      ok: sql<boolean>`'live_chat' = any(${tenant.modules}) and ${tenant.state} in ('trial', 'active', 'past_due')`,
+    })
     .from(tenant)
     .where(eq(tenant.id, tenantId))
     .limit(1);

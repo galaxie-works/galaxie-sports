@@ -974,7 +974,12 @@ Formato RFC 9457 (`application/problem+json`):
 | Código | Situação |
 |---|---|
 | 400 `INVALID_PARAMS` | Parâmetro inválido |
-| 401 `INVALID_KEY` | Chave ausente/inválida |
+| 401 `INVALID_KEY` | Chave ausente/inválida (também quando o segredo está errado num tenant sem acesso: o estado do cliente não vaza pelo prefixo) |
+| 401 `TENANT_PENDING_REVIEW` | Cadastro em provisionamento ou na fila de revisão da equipe ([ciclo de vida do tenant](runbooks/ciclo-de-vida-do-tenant.md)) |
+| 401 `TENANT_REJECTED` | Cadastro recusado pela equipe |
+| 401 `TRIAL_EXPIRED` | O trial acabou sem contratação; `upgrade_url` leva a Planos e módulos |
+| 402 `SUBSCRIPTION_SUSPENDED` | Assinatura suspensa (cobrança ou equipe); `upgrade_url` leva a Planos e módulos |
+| 401 `TENANT_CANCELLED` | Conta cancelada: os dados ficam pelo prazo de guarda, as chaves não autenticam |
 | 403 `MODULE_NOT_IN_PLAN` / `MARKET_NOT_IN_PLAN` | Recurso fora do contrato |
 | 403 `ORIGIN_NOT_ALLOWED` | Chave publicável usada de uma origem fora da lista dela (ou sem `Origin`/`Referer`), §1.3 |
 | 403 `PUBLISHABLE_KEY_NOT_ALLOWED` | Chave publicável em rota que ela não alcança (escrita, `/v1/account`, SSE, espelho), §1.3 |

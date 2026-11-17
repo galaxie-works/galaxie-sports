@@ -6,7 +6,9 @@
  * 0. `billing.organization` (upsert por slug; o aceite dos termos só entra quando ainda não há);
  * 1. `api.tenant` (upsert por slug; plano Fan Experience, módulos do plano, `markets = [país]`,
  *    `trial_ends_at = agora + TRIAL_DAYS` só na criação, `catalog_version` como a F1 grava, faixa de capacidade na
- *    organização e nula na marca);
+ *    organização e nula na marca). A marca nasce em `draft` e, na mesma transação, vai a `trial` ou, com a revisão do
+ *    cadastro pendente (PL2), a `pending_review` (máquina de estados da F3, decisão 6; `transitionTenantState` de
+ *    `@galaxie/billing`, evento `signup` ou `provision`);
  * 2. `api.tenant_member` e `billing.organization_member` com quem criou como Dono (único por tenant e usuário);
  * 3. chaves secretas `live` e `test` (pula o ambiente que já tem chave válida) e uma publicável com o host padrão
  *    (pula se a marca já tem uma ativa), as três na mesma transação: falhou uma, nenhuma fica gravada e a repetição
@@ -20,8 +22,8 @@
  * empresa" (PL2) é conferida de novo com trava consultiva no banco: a conferência da tela (`signup/actions.ts`) só
  * roda quando o e-mail ainda não tem usuário, e duas requisições simultâneas não podem passar juntas.
  *
- * Fora daqui, para a F3: a máquina de estados (`draft`, `pending_review`…), o widget de exemplo no Builder, o cliente
- * no Stripe e o e-mail de boas-vindas. `status` e `review_status` que já existem bastam para esta fase.
+ * Fora daqui: o widget de exemplo no Builder e o e-mail de boas-vindas (PR c da F3), o cliente no Stripe (F4). O job
+ * `tenant.provision` do doc 02 não entra enquanto não houver passo externo: o provisionamento segue síncrono.
  */
 import { createApiKey } from '@galaxie/db/api-keys';
 import { publishChange } from '@galaxie/db/change-feed';
@@ -45,7 +47,13 @@ import {
   saveWidgetTheme,
 } from '@galaxie/db/widgets';
 import { DEFAULT_THEMES } from '@galaxie/widgets';
-import { recordCatalogVersion, type Catalog, type CapacityTier } from '@galaxie/billing';
+import {
+  recordCatalogVersion,
+  recordTenantCreated,
+  transitionTenantState,
+  type Catalog,
+  type CapacityTier,
+} from '@galaxie/billing';
 import { and, eq, isNull, sql } from 'drizzle-orm';
 
 import { AUTH_SCHEMA } from '@/lib/auth/db';
@@ -233,7 +241,13 @@ async function upsertOrganization(tx: Tx, input: ProvisionInput, now: Date) {
   return org;
 }
 
-async function upsertTenant(tx: Tx, input: ProvisionInput, organizationId: string, now: Date) {
+async function upsertTenant(
+  tx: Tx,
+  input: ProvisionInput,
+  organizationId: string,
+  reviewStatus: OrganizationReviewStatus,
+  now: Date,
+) {
   const plan = input.catalog.plans[SIGNUP_PLAN];
   const [existing] = await tx
     .select({ id: tenant.id, organizationId: tenant.organizationId })
@@ -258,10 +272,13 @@ async function upsertTenant(tx: Tx, input: ProvisionInput, organizationId: strin
       // a faixa é da organização (PL23): a coluna da marca fica nula
       capacityTier: null,
       organizationId,
+      // a máquina de estados (F3): nasce em draft e muda logo abaixo, na mesma transação
+      state: 'draft',
+      stateSince: now,
     })
     .onConflictDoUpdate({
       target: tenant.slug,
-      // de novo: só o nome; o prazo do trial e a organização gravados na criação ficam
+      // de novo: só o nome; o prazo do trial, a organização e o estado gravados na criação ficam
       set: {
         name: input.brand.name,
         trialEndsAt: sql`coalesce(${tenant.trialEndsAt}, excluded.trial_ends_at)`,
@@ -270,7 +287,19 @@ async function upsertTenant(tx: Tx, input: ProvisionInput, organizationId: strin
       },
     })
     .returning({ id: tenant.id, created: sql<boolean>`(xmax = 0)`, trialEndsAt: tenant.trialEndsAt });
-  return row!;
+  const t = row!;
+  if (t.created) {
+    // decisão 6: draft → trial, ou → pending_review quando o cadastro caiu numa regra antiabuso (PL2)
+    const cause = input.source === 'signup' ? 'signup' : 'provision';
+    await recordTenantCreated(tx, t.id, { cause, actor: input.actor, now });
+    await transitionTenantState(tx, t.id, reviewStatus === 'pending' ? 'pending_review' : 'trial', {
+      cause,
+      actor: input.actor,
+      now,
+      payload: { review_status: reviewStatus, trial_ends_at: t.trialEndsAt?.toISOString() ?? null },
+    });
+  }
+  return t;
 }
 
 async function addOwner(tx: Tx, input: ProvisionInput, organizationId: string, tenantId: string, now: Date) {
@@ -415,7 +444,7 @@ export async function provisionOrganization(db: Database, input: ProvisionInput)
   const base = await db.transaction(async (tx) => {
     if (input.source === 'signup') await assertDomainFree(tx, input);
     const org = await upsertOrganization(tx, input, now);
-    const t = await upsertTenant(tx, input, org.id, now);
+    const t = await upsertTenant(tx, input, org.id, org.reviewStatus, now);
     await addOwner(tx, input, org.id, t.id, now);
     if (t.created)
       await publishChange(tx, {

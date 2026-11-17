@@ -3,13 +3,16 @@
 O cliente cria a conta sozinho em `/signup`: e-mail de trabalho e código de acesso (o mesmo login por OTP), depois o
 assistente da organização (país, termos), da primeira marca (nome, identificador, esportes, domínio, cor) e a
 calculadora de capacidade. O provisionamento (`apps/demo/src/lib/client/provision.ts`) é idempotente e serve também à
-equipe, pelo botão **Nova organização** em Ajustes › Clientes › Organizações e marcas. A máquina de estados do tenant,
-os e-mails dos dias 23 e 29, o trial por módulo pela loja, o Stripe e a marcação automática do checklist ficam para a F3.
+equipe, pelo botão **Nova organização** em Ajustes › Clientes › Organizações e marcas. A máquina de estados do tenant
+(a marca nasce em `draft` e vai a `trial` ou `pending_review` na mesma transação) está no
+[runbook do ciclo de vida](ciclo-de-vida-do-tenant.md); os e-mails dos dias 23 e 29, o trial por módulo pela loja, o
+Stripe e a marcação automática do checklist ficam para os PRs (b) e (c) da F3 e para a F4.
 
 ## Como ligar
 
 O cadastro público nasce **desligado** e só abre com as duas chaves de runtime abaixo, em Ajustes › Clientes ›
-Cadastros e trials (`ops.runtime_setting`; vale sem reiniciar):
+Cadastros, trials e ciclo de vida (`ops.runtime_setting`; vale sem reiniciar; os prazos do ciclo de vida da mesma tela
+estão no [runbook do ciclo de vida](ciclo-de-vida-do-tenant.md)):
 
 | Chave | Padrão | O que faz |
 | --- | --- | --- |
@@ -27,7 +30,7 @@ o país, a marca e o motivo; o convite sai por e-mail e as chaves aparecem uma v
 | Passo | Cria | Idempotência |
 | --- | --- | --- |
 | 0 | `billing.organization` (país, moeda e entidade: BR → BRL/Ltda, demais → USD/LLC; faixa; revisão; termos) | upsert por `slug`; o aceite dos termos só entra quando ainda não há |
-| 1 | `api.tenant` com plano `fan_experience`, módulos do plano, `markets = [país]`, `trial_ends_at`, `catalog_version`; `capacity_tier` nulo (a faixa é da organização) | upsert por `slug`; o prazo do trial fica o da criação |
+| 1 | `api.tenant` com plano `fan_experience`, módulos do plano, `markets = [país]`, `trial_ends_at`, `catalog_version`; `capacity_tier` nulo (a faixa é da organização); estado `draft` → `trial`, ou `pending_review` com a revisão pendente (eventos em `billing.tenant_state_event`) | upsert por `slug`; o prazo do trial e o estado ficam os da criação |
 | 2 | `api.tenant_member` e `billing.organization_member` com quem criou como Dono | único por tenant/organização e usuário |
 | 3 | Chaves secretas `live` e `test` e uma publicável com o host padrão (`https://<slug>.<host da plataforma>`) | pula o que já existe; só com `review_status` fora de `pending`/`rejected` |
 | 4 | Tema da marca com a cor informada | pula se a marca já tem tema |
@@ -39,8 +42,9 @@ O slug de outra organização ou marca não é tomado: rodar de novo exige ser D
 
 - **PL2 (e-mail grátis e um trial por domínio).** Domínios de provedor grátis (lista em
   `apps/demo/src/lib/signup/email-domain.ts`) não são barrados: a organização nasce com `review_status = 'pending'` e
-  sem chave. A equipe aprova em Organizações e marcas (editar → revisão "Aprovado", com motivo); na aprovação as chaves
-  que faltam são emitidas e aparecem uma vez na tela. Com e-mail de empresa, se já existe organização em trial cujo
+  sem chave, e a marca em `pending_review`. A equipe aprova em Organizações e marcas (**Aprovar** na marca, ou editar →
+  revisão "Aprovado", com motivo): a marca vai a `trial` e as chaves que faltam são emitidas e aparecem uma vez na tela;
+  **Recusar** leva a `rejected`. Com e-mail de empresa, se já existe organização em trial cujo
   Dono tem o mesmo domínio, o cadastro recusa e pede um convite ao Dono.
 - **PL3 (trial).** A conta nasce com os três módulos do Fan Experience por `TRIAL_DAYS`, um país e faixa **C1**. A
   calculadora só informa a faixa que o uso declarado pediria (vai no payload do evento `tenant.provisioned`).

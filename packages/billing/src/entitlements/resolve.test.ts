@@ -16,7 +16,7 @@ const tenantRow = (over: Partial<TenantRow> = {}): TenantRow => ({
   rateLimitPerMinute: 300,
   dailyRequestQuota: 500_000,
   trialEndsAt: null,
-  status: 'active',
+  state: 'active',
   catalogVersion: null,
   capacityTier: null,
   ...over,
@@ -58,24 +58,49 @@ describe('resolveEntitlements', () => {
     expect(e.warnings).toEqual([]);
   });
 
-  it('trial sem tempo real; trial vencido e suspenso ficam sem nenhum módulo', () => {
-    const trial = tenantRow({ plan: 'trial', modules: ['core_data'], trialEndsAt: later });
+  it('trial sem tempo real; trial vencido (coluna ou prazo) e suspenso ficam sem nenhum módulo', () => {
+    const trial = tenantRow({ plan: 'trial', modules: ['core_data'], trialEndsAt: later, state: 'trial' });
     const e = resolveEntitlements(catalog, inputs({ tenant: trial }), { now });
     expect(e.state).toBe('trial');
     expect(e.features).not.toContain('realtime.sse');
 
+    // o job tenant.lifecycle ainda não rodou: o prazo vencido vale como trial_expired
     const expired = resolveEntitlements(catalog, inputs({ tenant: { ...trial, trialEndsAt: past } }), {
       now,
     });
     expect(expired.state).toBe('trial_expired');
     expect(expired.modules).toEqual([]);
     expect(expired.features).toEqual([]);
+    // a coluna já diz trial_expired: o mesmo, sem depender do prazo
+    expect(
+      resolveEntitlements(catalog, inputs({ tenant: tenantRow({ state: 'trial_expired' }) }), { now })
+        .modules,
+    ).toEqual([]);
+    // o prazo vencido só vale no estado trial: active com trial_ends_at antigo segue active
+    expect(
+      resolveEntitlements(catalog, inputs({ tenant: tenantRow({ state: 'active', trialEndsAt: past }) }), {
+        now,
+      }).state,
+    ).toBe('active');
 
-    const suspended = resolveEntitlements(catalog, inputs({ tenant: tenantRow({ status: 'suspended' }) }), {
+    const suspended = resolveEntitlements(catalog, inputs({ tenant: tenantRow({ state: 'suspended' }) }), {
       now,
     });
     expect(suspended.state).toBe('suspended');
     expect(suspended.modules).toEqual([]);
+  });
+
+  it('estados da F3: draft, pending_review, rejected e cancelled sem acesso; past_due passa como active', () => {
+    for (const state of ['draft', 'pending_review', 'rejected', 'cancelled'] as const) {
+      const e = resolveEntitlements(catalog, inputs({ tenant: tenantRow({ state }) }), { now });
+      expect(e.state).toBe(state);
+      expect(e.modules).toEqual([]);
+    }
+    const pastDue = resolveEntitlements(catalog, inputs({ tenant: tenantRow({ state: 'past_due' }) }), {
+      now,
+    });
+    expect(pastDue.state).toBe('past_due');
+    expect(pastDue.modules).toEqual(['core_data', 'semantic', 'where_to_watch']);
   });
 
   it('exceções: concede e retira módulo, fixa faixa e soma add-on; vencida ou revogada não vale', () => {
