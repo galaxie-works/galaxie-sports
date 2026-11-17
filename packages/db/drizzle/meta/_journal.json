@@ -915,14 +915,21 @@
     {
       "idx": 130,
       "version": "7",
-      "when": 1794950644154,
-      "tag": "0191_extensao_pg_trgm",
+      "when": 1794951968621,
+      "tag": "0188_chat_antiflood",
       "breakpoints": true
     },
     {
       "idx": 131,
       "version": "7",
-      "when": 1794952147634,
+      "when": 1794951969621,
+      "tag": "0191_extensao_pg_trgm",
+      "breakpoints": true
+    },
+    {
+      "idx": 132,
+      "version": "7",
+      "when": 1794954246642,
       "tag": "0192_busca_trigram_pessoa",
       "breakpoints": true
     }

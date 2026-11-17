@@ -1,6 +1,6 @@
 {
-  "id": "5f35af7a-1584-4564-a1a0-072b18e93ad3",
-  "prevId": "deddccde-5ec9-48b5-a3b8-d6706baa1e16",
+  "id": "43acf03e-85df-4898-9b32-184bd2e6f3b6",
+  "prevId": "b7dbcecd-4774-4a71-b0cc-025c44305845",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -24418,6 +24418,18 @@
           "primaryKey": false,
           "notNull": false
         },
+        "flood_max_per_minute": {
+          "name": "flood_max_per_minute",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "flood_block_seconds": {
+          "name": "flood_block_seconds",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
         "updated_by": {
           "name": "updated_by",
           "type": "text",
@@ -24464,6 +24476,14 @@
         "tenant_config_slow": {
           "name": "tenant_config_slow",
           "value": "\"chat\".\"tenant_config\".\"slow_mode_seconds\" is null or \"chat\".\"tenant_config\".\"slow_mode_seconds\" between 0 and 600"
+        },
+        "tenant_config_flood_max": {
+          "name": "tenant_config_flood_max",
+          "value": "\"chat\".\"tenant_config\".\"flood_max_per_minute\" is null or \"chat\".\"tenant_config\".\"flood_max_per_minute\" between 3 and 60"
+        },
+        "tenant_config_flood_block": {
+          "name": "tenant_config_flood_block",
+          "value": "\"chat\".\"tenant_config\".\"flood_block_seconds\" is null or \"chat\".\"tenant_config\".\"flood_block_seconds\" between 30 and 1800"
         },
         "tenant_config_strictness": {
           "name": "tenant_config_strictness",

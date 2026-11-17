@@ -148,6 +148,8 @@ export interface ChatTenantSettings {
   slowModeSeconds: number | null;
   strictness: 'standard' | 'strict' | null;
   eventKinds: string[] | null;
+  floodMaxPerMinute: number | null;
+  floodBlockSeconds: number | null;
 }
 
 export async function loadChatSettings(tenantId: string): Promise<ChatTenantSettings> {
@@ -157,8 +159,11 @@ export async function loadChatSettings(tenantId: string): Promise<ChatTenantSett
     slow_mode_seconds: number | null;
     strictness: ChatTenantSettings['strictness'];
     event_kinds: string[] | null;
+    flood_max_per_minute: number | null;
+    flood_block_seconds: number | null;
   }>(
-    `select open_before_minutes, close_after_minutes, slow_mode_seconds, strictness, event_kinds
+    `select open_before_minutes, close_after_minutes, slow_mode_seconds, strictness, event_kinds,
+            flood_max_per_minute, flood_block_seconds
        from chat.tenant_config where tenant_id = $1`,
     [tenantId],
   );
@@ -169,6 +174,8 @@ export async function loadChatSettings(tenantId: string): Promise<ChatTenantSett
     slowModeSeconds: r?.slow_mode_seconds ?? null,
     strictness: r?.strictness ?? null,
     eventKinds: r?.event_kinds ?? null,
+    floodMaxPerMinute: r?.flood_max_per_minute ?? null,
+    floodBlockSeconds: r?.flood_block_seconds ?? null,
   };
 }
 
