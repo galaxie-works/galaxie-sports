@@ -189,7 +189,7 @@ describe('tenant.lifecycle com o banco', () => {
     await db.insert(moduleTrial).values({
       organizationId: org!.id,
       tenantId: ativo,
-      module: 'chat',
+      module: 'live_chat',
       startedAt: daysAgo(13),
       endsAt: daysAgo(-1),
       startedBy: 'teste',
@@ -236,7 +236,7 @@ describe('tenant.lifecycle com o banco', () => {
     expect(
       r2.notifications.sent.map((n) => `${n.tenant}: ${n.kind} ${n.ref} → ${n.recipients}`).sort(),
     ).toEqual([
-      'mail-ativo: module_trial_ending chat → 2',
+      'mail-ativo: module_trial_ending live_chat → 2',
       'mail-dia-23: trial_reminder 23 → 2',
       'mail-vence: trial_expired  → 2',
     ]);
@@ -255,7 +255,7 @@ describe('tenant.lifecycle com o banco', () => {
     expect(reminder?.text).toContain('day 23');
     expect(reminder?.text).toContain('See plans and modules: https://console.example/client/plans');
     expect(sent.some((m) => m.subject === "mail-vence's trial has ended")).toBe(true);
-    expect(sent.some((m) => m.subject === 'The chat module trial ends tomorrow')).toBe(true);
+    expect(sent.some((m) => m.subject === 'The live_chat module trial ends tomorrow')).toBe(true);
 
     const rows = await db
       .select({
