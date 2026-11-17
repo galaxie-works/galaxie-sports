@@ -2,7 +2,7 @@ import { loadCatalog } from '@galaxie/billing';
 import { createDb, closeDb, runMigrations, type Database } from '@galaxie/db';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
-import { createAuthTestDb, sentMails, signInAs, type AuthTestDb } from './support/auth-db';
+import { createAuthTestDb, fakeSmtp, sentMails, signInAs, type AuthTestDb } from './support/auth-db';
 
 /*
  * Cadastro em autoatendimento (F2 c): o provisionamento cria organização, marca, Dono e chaves uma vez só, por mais
@@ -294,6 +294,59 @@ describe('provisionamento idempotente', () => {
     expect(r.issued).toHaveLength(1);
     expect(r.issued![0]!.keys.test).toMatch(/^gs_test_/);
     expect(await count(`api.api_key where tenant_id = $1`, [pending.tenantId])).toBe(2);
+  });
+
+  it('sem SMTP as boas-vindas não ficam registradas: o relógio do worker tenta nos dias seguintes', async () => {
+    const owner = { userId: await user('dono@semsmtp.test'), email: 'dono@semsmtp.test' };
+    fakeSmtp.configured = false;
+    try {
+      const r = await provision.provisionOrganization(db, {
+        ...input(owner, { slug: 'sem-smtp' }),
+        brand: { slug: 'sem-smtp', name: 'Sem SMTP' },
+      });
+      expect(r.welcomeSent).toBe(false);
+      expect(await count(`billing.tenant_notification where tenant_id = $1`, [r.tenantId])).toBe(0);
+    } finally {
+      fakeSmtp.configured = true;
+    }
+  });
+
+  it('aprovar a revisão manda as boas-vindas uma vez para cada marca irmã que entrou em trial', async () => {
+    const owner = { userId: await user('duas@gmail.com'), email: 'duas@gmail.com' };
+    const first = await provision.provisionOrganization(db, {
+      ...input(owner, { slug: 'duas-marcas', reviewStatus: 'pending' }),
+      brand: { slug: 'duas-marcas', name: 'Marca Um' },
+    });
+    const second = await provision.provisionOrganization(db, {
+      ...input(owner, { slug: 'duas-marcas', reviewStatus: 'pending' }),
+      brand: { slug: 'duas-marcas-dois', name: 'Marca Dois' },
+    });
+    expect(second.organizationId).toBe(first.organizationId);
+    expect(sentMails.filter((m) => m.to.includes('duas@gmail.com'))).toHaveLength(0);
+    const r = await staff.updateOrganizationAction({
+      id: first.organizationId,
+      reviewStatus: 'approved',
+      reason: 'cadastro conferido no ticket 456',
+    });
+    expect(r.ok).toBe(true);
+    const welcome = sentMails.filter((m) => m.to.includes('duas@gmail.com'));
+    expect(welcome.map((m) => m.subject).sort()).toEqual([
+      'Bem-vindo(a) à Galaxie Sports: Marca Dois está pronta',
+      'Bem-vindo(a) à Galaxie Sports: Marca Um está pronta',
+    ]);
+    // aprovar de novo não manda de novo
+    await staff.updateOrganizationAction({
+      id: first.organizationId,
+      reviewStatus: 'approved',
+      reason: 'cadastro conferido no ticket 456',
+    });
+    expect(sentMails.filter((m) => m.to.includes('duas@gmail.com'))).toHaveLength(2);
+    expect(
+      await count(`billing.tenant_notification where tenant_id in ($1, $2) and kind = 'welcome'`, [
+        first.tenantId,
+        second.tenantId,
+      ]),
+    ).toBe(2);
   });
 
   it('Dono convidado pela equipe nasce com convite pendente e prazo', async () => {

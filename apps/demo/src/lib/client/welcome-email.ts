@@ -3,9 +3,9 @@
  * §Provisionamento, passo 9), só no servidor. Sai quando a marca entra em `trial`: no provisionamento (cadastro e
  * criação assistida) e na aprovação da revisão do cadastro (PL2), para os Donos e o Financeiro da organização, no
  * idioma dela (`billing.organization.locale`). O envio fica registrado em `billing.tenant_notification`
- * (`kind = 'welcome'`): rodar de novo não manda de novo. Sem SMTP, o registro fica sem `sent_at` e o log avisa; a falha
- * do envio apaga o registro para a próxima tentativa. Nenhuma falha aqui derruba o provisionamento: quem chama
- * registra e segue.
+ * (`kind = 'welcome'`): rodar de novo não manda de novo. Se ninguém recebeu (transporte falhou ou SMTP não
+ * configurado), o registro é apagado e o `tenant.lifecycle` do worker manda nos dias seguintes; só "sem destinatário"
+ * fica registrado sem entrega. Nenhuma falha aqui derruba o provisionamento: quem chama registra e segue.
  */
 import { and, eq } from 'drizzle-orm';
 
@@ -34,7 +34,7 @@ export interface WelcomeEmailResult {
   /** Ao menos um destinatário recebeu. */
   delivered: boolean;
   recipients: string[];
-  /** Por que nada saiu: já registrado antes, sem destinatário, marca inexistente, ou SMTP ausente (registrado). */
+  /** Por que nada saiu: já registrado antes, sem destinatário, marca inexistente, ou SMTP ausente (o worker tenta). */
   skipped?: 'already' | 'no_recipients' | 'not_found' | 'no_smtp';
 }
 
@@ -74,9 +74,8 @@ export async function sendWelcomeEmail(
     ? fill(t.intro, { ...vars, date: longDate(locale, row.trialEndsAt) })
     : fill(t.introNoDate, vars);
 
-  let delivered = false;
+  const deliveredTo: string[] = [];
   let smtpMissing = false;
-  let failed = 0;
   for (const person of audience.recipients) {
     const mail = renderNotice({
       locale,
@@ -88,17 +87,17 @@ export async function sendWelcomeEmail(
       footnote: t.footnote,
     });
     const r = await sendMail({ to: [person.email], ...mail });
-    if (r.delivered) delivered = true;
+    if (r.delivered) deliveredTo.push(person.email);
     else if (r.error === 'SMTP not configured') smtpMissing = true;
-    else failed += 1;
   }
-  if (!delivered && !smtpMissing && failed) {
-    // nada saiu por falha do transporte: a próxima rodada tenta de novo
+  if (!deliveredTo.length) {
+    // ninguém recebeu (transporte ou SMTP ausente): o registro sai, e o relógio do worker tenta nos dias seguintes
     await releaseTenantNotification(db, id);
-    return { delivered: false, recipients };
+    return { delivered: false, recipients, ...(smtpMissing ? { skipped: 'no_smtp' as const } : {}) };
   }
-  await markTenantNotificationSent(db, id, { recipients, delivered, at: input.now });
-  return { delivered, recipients, ...(delivered ? {} : { skipped: 'no_smtp' as const }) };
+  // só quem recebeu fica no registro
+  await markTenantNotificationSent(db, id, { recipients: deliveredTo, delivered: true, at: input.now });
+  return { delivered: true, recipients: deliveredTo };
 }
 
 /**

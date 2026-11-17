@@ -17,7 +17,7 @@ import {
 } from './checklist-shared';
 import type { TenantInfo } from './tenants';
 
-/** Banco sem alguma tabela (migrations atrasadas): o checklist não aparece. */
+/** Banco sem alguma tabela (migrations atrasadas): o checklist não aparece, sem alarde. */
 const isMissingTable = (err: unknown) => (err as { code?: string }).code === '42P01';
 
 interface KeyRow {
@@ -26,28 +26,27 @@ interface KeyRow {
 }
 
 export async function loadChecklistFacts(tenant: Pick<TenantInfo, 'id' | 'state'>): Promise<ChecklistFacts> {
-  try {
-    const [testKey, publishable, others, widget] = await Promise.all([
-      pool.query<KeyRow>(
-        `select prefix, last_used_at
+  const [testKey, publishable, others, widget] = await Promise.all([
+    pool.query<KeyRow>(
+      `select prefix, last_used_at
            from api.api_key
           where tenant_id = $1 and env = 'test' and revoked_at is null
             and (expires_at is null or expires_at > now())
           order by last_used_at desc nulls last, created_at
           limit 1`,
-        [tenant.id],
-      ),
-      pool.query<KeyRow>(
-        `select prefix, last_used_at
+      [tenant.id],
+    ),
+    pool.query<KeyRow>(
+      `select prefix, last_used_at
            from ops.publishable_key
           where tenant_id = $1 and revoked_at is null
           order by last_used_at desc nulls last, created_at
           limit 1`,
-        [tenant.id],
-      ),
-      // quem criou a marca é o primeiro cargo gravado nela; conta quem mais já aceitou, na marca ou na organização
-      pool.query<{ n: number }>(
-        `with creator as (
+      [tenant.id],
+    ),
+    // quem criou a marca é o primeiro cargo gravado nela; conta quem mais já aceitou, na marca ou na organização
+    pool.query<{ n: number }>(
+      `with creator as (
            select user_id from api.tenant_member
             where tenant_id = $1 and user_id is not null
             order by created_at limit 1
@@ -61,42 +60,41 @@ export async function loadChecklistFacts(tenant: Pick<TenantInfo, 'id' | 'state'
          )
          select count(*)::int as n from accepted
           where user_id <> coalesce((select user_id from creator), '')`,
-        [tenant.id],
-      ),
-      pool.query<{ id: string }>(
-        `select id::text from ops.widget
+      [tenant.id],
+    ),
+    pool.query<{ id: string }>(
+      `select id::text from ops.widget
           where tenant_id = $1 and archived_at is null
           order by created_at limit 1`,
-        [tenant.id],
-      ),
-    ]);
-    const key = (r: KeyRow | undefined) => (r ? { prefix: r.prefix, used: r.last_used_at !== null } : null);
-    return {
-      state: tenant.state,
-      testKey: key(testKey.rows[0]),
-      publishableKey: key(publishable.rows[0]),
-      acceptedOthers: others.rows[0]?.n ?? 0,
-      sampleWidgetId: widget.rows[0]?.id ?? null,
-    };
-  } catch (err) {
-    if (isMissingTable(err))
-      return {
-        state: tenant.state,
-        testKey: null,
-        publishableKey: null,
-        acceptedOthers: 0,
-        sampleWidgetId: null,
-      };
-    throw err;
-  }
+      [tenant.id],
+    ),
+  ]);
+  const key = (r: KeyRow | undefined) => (r ? { prefix: r.prefix, used: r.last_used_at !== null } : null);
+  return {
+    state: tenant.state,
+    testKey: key(testKey.rows[0]),
+    publishableKey: key(publishable.rows[0]),
+    acceptedOthers: others.rows[0]?.n ?? 0,
+    sampleWidgetId: widget.rows[0]?.id ?? null,
+  };
 }
 
-/** Monta o checklist da marca, ou null quando ele não deve aparecer (tudo feito, ou estado fora de teste/ativo). */
+/**
+ * Monta o checklist da marca, ou null quando ele não deve aparecer (tudo feito, estado fora de teste/ativo) ou quando a
+ * leitura falhou: o checklist é acessório, a visão geral não cai por ele (o erro vai para o log).
+ */
 export async function loadChecklist(
   tenant: Pick<TenantInfo, 'id' | 'state'>,
   secretPlaceholder: string,
 ): Promise<ChecklistView | null> {
-  const facts = await loadChecklistFacts(tenant);
+  let facts: ChecklistFacts;
+  try {
+    facts = await loadChecklistFacts(tenant);
+  } catch (err) {
+    if (!isMissingTable(err))
+      console.error('[checklist] leitura falhou; a visão geral segue sem o checklist', err);
+    return null;
+  }
   const steps = checklistSteps(facts);
   if (!checklistVisible(facts, steps)) return null;
   return {

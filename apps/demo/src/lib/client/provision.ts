@@ -19,7 +19,7 @@
  *    é o tipo de placar sem parâmetro obrigatório, ao contrário do `match_card`, que pede um jogo), seguindo o tema da
  *    marca do passo 4 quando há, no idioma da organização e no mercado do país dela (pula se a marca já tem widget).
  *    Nasce também com a revisão pendente: sem chave, o widget não alcança dado nenhum, e o checklist mostra o embed dele
- *    assim que a equipe aprovar;
+ *    assim que a equipe aprovar. A falha do widget não derruba o provisionamento;
  * 6. o evento `tenant.provisioned` no outbox (`ops.change_feed`), com a faixa que a calculadora indicou e o uso
  *    declarado no payload — só na criação da marca;
  * 7. o e-mail de boas-vindas com o checklist (F3, decisão 11), aos Donos e ao Financeiro da organização, no idioma
@@ -544,14 +544,20 @@ export async function provisionOrganization(db: Database, input: ProvisionInput)
       })
     : { ...NO_KEYS };
   const theme = await ensureBrandTheme(db, input, base.t.id);
-  const sampleWidgetCreated = await ensureSampleWidget(db, {
-    tenantId: base.t.id,
-    locale: input.organization.locale,
-    market: input.organization.country,
-    sport: input.brand.sports?.[0] ?? null,
-    brandThemeId: theme.themeId,
-    actor: input.actor,
-  });
+  // o widget é acessório: uma falha aqui não pode perder as chaves acima, que só aparecem uma vez
+  let sampleWidgetCreated = false;
+  try {
+    sampleWidgetCreated = await ensureSampleWidget(db, {
+      tenantId: base.t.id,
+      locale: input.organization.locale,
+      market: input.organization.country,
+      sport: input.brand.sports?.[0] ?? null,
+      brandThemeId: theme.themeId,
+      actor: input.actor,
+    });
+  } catch (err) {
+    console.error('[provisionamento] widget de exemplo falhou', err);
+  }
   // boas-vindas quando a marca está em trial (a que ficou em revisão recebe na aprovação); uma vez, pelo registro
   let welcomeSent = false;
   if (issue) {

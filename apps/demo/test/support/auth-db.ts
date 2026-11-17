@@ -14,6 +14,8 @@ export const sentCodes = new Map<string, string>();
 
 /** E-mails montados mandados por `sendMail` (boas-vindas do provisionamento, F3), na ordem. */
 export const sentMails: { to: string[]; subject: string; text: string }[] = [];
+/** `smtp = false` faz o `sendMail` falso responder como o de verdade sem SMTP configurado. */
+export const fakeSmtp = { configured: true };
 
 export const fakeEmailModule = {
   sendAccessEmail: async ({ to, code }: { to: string; code?: string }) => {
@@ -21,6 +23,7 @@ export const fakeEmailModule = {
     return { delivered: true };
   },
   sendMail: async (mail: { to: readonly string[]; subject: string; text: string; html: string }) => {
+    if (!fakeSmtp.configured) return { delivered: false, error: 'SMTP not configured' };
     sentMails.push({ to: [...mail.to], subject: mail.subject, text: mail.text });
     return { delivered: true };
   },
