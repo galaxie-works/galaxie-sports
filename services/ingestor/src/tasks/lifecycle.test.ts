@@ -26,6 +26,8 @@ const settings: LifecycleSettings = {
   pastDueDays: 7,
   suspendedDays: 30,
   cancelledRetentionDays: 90,
+  trialReminderDays: [23, 29],
+  moduleTrialReminderDaysBefore: 2,
 };
 
 let seq = 0;
@@ -58,6 +60,8 @@ function world(tenants: LifecycleTenant[], domains: { id: string; host: string }
       enqueued.push(id);
       return { created };
     },
+    // os e-mails têm teste próprio (../mail/lifecycle-notifications.test.ts e o de integração)
+    notifications: null,
     now: () => NOW,
   };
   return { deps, transitions, enqueued };

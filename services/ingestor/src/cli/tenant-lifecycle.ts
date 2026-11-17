@@ -27,6 +27,7 @@ await runCli(async () => {
         recusadas: r.refused.map((x) => `${x.tenant}: ${x.error}`).join('; ') || '—',
         'guarda vencida (nada apagado)': r.retentionExpired.join(', ') || '—',
         'domínios de volta à conferência': r.domainsRechecked,
+        'e-mails': `${r.notifications.sent.length} enviados · ${r.notifications.registered.length} registrados sem entrega · ${r.notifications.failed.length} com falha`,
       },
     ]);
   } finally {
