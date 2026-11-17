@@ -270,11 +270,12 @@ Sem o secret, fica a issue e o e-mail do GitHub. Como não passa pelo Grafana, n
    sai (o gate espera `ci.yml` e `docker.yml` verdes). Com merges mais rápidos que o CI, o gate pula commit após commit.
    Corrija a main ou dispare à mão: `gh workflow run deploy.yml`.
 3. **`DEPLOY_AUTO`:** `gh variable list`. Sem `DEPLOY_AUTO=on` o deploy automático não roda (plano B ligado).
-4. **A trava da VPS:** `ssh root@145.223.94.149 'cat /docker/galaxie-sports/.deploy.lock/owner'`. Trava de deploy morto
+4. **A trava da VPS** (`$VPS` = `usuario@host` da produção, `gh variable get VPS_SSH_TARGET --env producao`):
+   `ssh "$VPS" 'cat /docker/galaxie-sports/.deploy.lock/owner'`. Trava de deploy morto
    com mais de 90 min é tomada pelo próximo deploy; antes disso, o [runbook do deploy](deploy-pelo-github.md#plano-b-contingência)
    diz como liberar. O diagnóstico automático da issue já traz a trava e a imagem de cada serviço (depois do primeiro
    deploy que gravar o `diagnostico.sh` novo).
-5. **O que roda de fato:** `ssh root@145.223.94.149 'cd /docker/galaxie-sports && docker compose ps -a --format "{{.Service}}: {{.Image}} ({{.Status}})"'`.
+5. **O que roda de fato:** `ssh "$VPS" 'cd /docker/galaxie-sports && docker compose ps -a --format "{{.Service}}: {{.Image}} ({{.Status}})"'`.
    Compare com o `image_hash` do `/version`. Contêiner com tag antiga e deploy verde: o swap falhou, ver o log do passo.
 6. Publique de novo com `gh workflow run deploy.yml` (SHA já no ar precisa de `-f force=1`). A issue fecha na checagem
    seguinte (até 30 min) quando a versão alcançar a main.

@@ -36,7 +36,9 @@ jobs:
       contents: read
       packages: read # a VPS baixa a imagem com o token deste job (vale só enquanto ele roda)
     env:
-      VPS: ${{ vars.VPS_SSH_TARGET || 'root@145.223.94.149' }}
+      # alvo SSH da produção (usuario@host), variável do ambiente producao; sem IP de reserva: vazia, o passo
+      # "Alvo SSH da produção" falha (docs/runbooks/migracao-producao-cpu-dedicada.md)
+      VPS: ${{ vars.VPS_SSH_TARGET }}
       DIR: /docker/galaxie-sports
       IMAGE: ghcr.io/galaxie-works/galaxie-sports-backup
     steps:
@@ -92,6 +94,14 @@ jobs:
         run: |
           docker manifest inspect "$IMAGE:$TAG" >/dev/null ||
             { echo "::error::$IMAGE:$TAG não está no GHCR (o workflow de imagens terminou com sucesso neste commit?)"; exit 1; }
+
+      - name: Alvo SSH da produção
+        run: |
+          if [ -z "$VPS" ]; then
+            echo "::error::vars.VPS_SSH_TARGET do ambiente producao não configurada (usuario@host da máquina de produção; docs/runbooks/migracao-producao-cpu-dedicada.md)"
+            exit 1
+          fi
+          echo "alvo: $VPS"
 
       - name: Chave SSH da VPS
         env:

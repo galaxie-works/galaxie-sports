@@ -223,8 +223,8 @@ PULL_POLICY=missing docker compose up -d --no-deps site console
 ```
 
 `api`, `webhooks`, `site`, `console` e `worker` também voltam sem manutenção (o worker drenando), da máquina de dev,
-depois de editar o `.env`:
-`ssh root@145.223.94.149 'cd /docker/galaxie-sports && bash -s -- site console' < infra/vps-telemetry/rolling-swap.sh`. Os outros
+depois de editar o `.env` (`$VPS` = `usuario@host` da produção, `gh variable get VPS_SSH_TARGET --env producao`):
+`ssh "$VPS" 'cd /docker/galaxie-sports && bash -s -- site console' < infra/vps-telemetry/rolling-swap.sh`. Os outros
 sobem com `docker compose up -d --no-deps <serviço>` (`ingestor` com `--scale ingestor=<escala atual>`). Imagem que a poda
 já tirou da VPS (ficam a no ar e as 3 anteriores de cada imagem) precisa de `docker login ghcr.io` antes. O deploy seguinte
 compara de novo: se o SHA dele ainda pedir a imagem nova, ele troca.
@@ -356,18 +356,19 @@ Cada item precisa do OK do dono. Estado em 2026-10-26:
 2. **Chave SSH só do deploy** (na máquina de dev; a privada não passa por chat nem por log):
 
    ```bash
+   VPS=$(gh variable get VPS_SSH_TARGET --env producao)   # usuario@host da produção
    ssh-keygen -t ed25519 -N '' -C gha-deploy-galaxie-sports -f ~/.ssh/galaxie_gha_deploy
    # na VPS, uma linha nova no authorized_keys do root, com "restrict" (sem túnel, sem pty, sem agent forwarding):
-   { printf 'restrict '; cat ~/.ssh/galaxie_gha_deploy.pub; } | ssh root@145.223.94.149 'cat >> ~/.ssh/authorized_keys'
-   ssh -i ~/.ssh/galaxie_gha_deploy root@145.223.94.149 'cd /docker/galaxie-sports && docker compose ps -q | wc -l'
+   { printf 'restrict '; cat ~/.ssh/galaxie_gha_deploy.pub; } | ssh "$VPS" 'cat >> ~/.ssh/authorized_keys'
+   ssh -i ~/.ssh/galaxie_gha_deploy "$VPS" 'cd /docker/galaxie-sports && docker compose ps -q | wc -l'
    ```
 
 3. **known_hosts da VPS**: conferir que a impressão digital do `ssh-keyscan` bate com a que a própria VPS mostra:
 
    ```bash
-   ssh-keyscan -t ed25519 145.223.94.149 2>/dev/null > /tmp/vps_known_hosts
+   ssh-keyscan -t ed25519 <ip-da-producao> 2>/dev/null > /tmp/vps_known_hosts
    ssh-keygen -lf /tmp/vps_known_hosts
-   ssh root@145.223.94.149 'ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub'   # o mesmo SHA256:…
+   ssh "$VPS" 'ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub'   # o mesmo SHA256:…
    ```
 
 4. **Ambiente `producao` e os secrets** (o ambiente nasce no primeiro uso; aqui ele é restrito à `main`):
@@ -417,7 +418,7 @@ não dá para corrigir na hora.
 
    O `deploy.sh` constrói local, envia por `docker save | ssh` e usa a mesma trava e o mesmo `post-deploy.sh`. Com a
    VPS presa num deploy morto do Actions, a trava com mais de 90 min é tomada sozinha; antes disso:
-   `ssh root@145.223.94.149 'cat /docker/galaxie-sports/.deploy.lock/owner'` diz de quem é, e
+   `ssh "$VPS" 'cat /docker/galaxie-sports/.deploy.lock/owner'` diz de quem é, e
    `rm -rf /docker/galaxie-sports/.deploy.lock` libera.
 3. Voltando o Actions: `gh variable set DEPLOY_AUTO --body on`.
 

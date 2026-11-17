@@ -158,7 +158,8 @@ Na importação, a primeira foto do primeiro candidato que não foi rejeitada **
 Depois do deploy (migration `0027_fotos_commons`) e com o F1DB já carregado. Os passos com IA usam o serviço `agents`, que é a mesma imagem do ingestor com as chaves de IA. O volume `galaxie-commons` guarda o manifesto ordenado e as biografias entre uma execução e outra.
 
 ```bash
-ssh root@145.223.94.149
+# $VPS = usuario@host da produção (gh variable get VPS_SSH_TARGET --env producao); o IP não fica no repositório
+ssh "$VPS"
 cd /docker/galaxie-sports
 # 0. volume de trabalho do usuário do container (só na primeira vez)
 docker compose run --rm --no-deps --user root -v galaxie-commons:/data/commons --entrypoint chown agents \

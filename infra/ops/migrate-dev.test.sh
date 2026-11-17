@@ -44,7 +44,7 @@ calls() { cat "$TMP/calls" 2>/dev/null || true; }
 reset() { rm -f "$TMP/calls"; }
 
 DEV='postgres://galaxie:segredo@192.168.1.34:5433/galaxie_sports'
-PROD='postgres://galaxie:segredo@145.223.94.149:5432/galaxie_sports'
+PROD='postgres://galaxie:segredo@203.0.113.10:5432/galaxie_sports'
 unset DATABASE_URL GALAXIE_ENV IMAGE_PREFIX DEV_HOSTS
 
 # 1. URL que não é a do dev: aviso em letras grandes e nada roda
@@ -55,7 +55,7 @@ code=$?
 set -e
 check "produção: sai 1" "$code" 1
 contains "produção: avisa" "$out" "ATENÇÃO: DATABASE_URL NÃO É A DO DEV"
-contains "produção: diz o host" "$out" "host lido: 145.223.94.149"
+contains "produção: diz o host" "$out" "host lido: 203.0.113.10"
 contains "produção: não mostra a senha" "$(printf '%s' "$out" | grep -c segredo)" "0"
 check "produção: docker não roda" "$(calls)" ""
 
