@@ -241,6 +241,20 @@ existe para todo commit). O compose dele tem o Postgres e os outros dados, e sub
 o deploy publica as **imagens** do SHA com o `compose.yml` de apps deste checkout, e o smoke do SHA. Um SHA anterior ao
 `/health` do worker deixa os webhooks como estão (com `WARN`).
 
+### Serviços parados antes do deploy
+
+O deploy recria só os serviços que o `rolling-swap` e o `post-deploy` conhecem e que estão **de pé**: um serviço parado à
+mão antes (por exemplo, `ingestor` e `live` desligados para aliviar a CPU durante a troca, como em 17/11) fica `Exited`
+com a imagem antiga e não volta sozinho. Depois do deploy, suba-os com a imagem nova e religue o que mais tiver parado:
+
+```bash
+cd /docker/galaxie-sports && docker compose up -d --no-deps ingestor live
+docker compose -f compose.dados.yml up -d --no-deps backup
+docker compose -f compose.obs.yml up -d
+```
+
+Confira com `docker compose ps` que nenhum serviço ficou `Exited` e que as tags batem com a ponta publicada.
+
 ### Dados e observabilidade
 
 O deploy automático só conhece o `compose.yml` de apps. `gh workflow run deploy.yml -f project=obs` publica Prometheus e
