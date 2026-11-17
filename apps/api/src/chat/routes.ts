@@ -58,6 +58,7 @@ import {
 } from './rooms.js';
 import { ChatSettings, type ChatSettingsValues } from './settings.js';
 import { ChatHub, reactionRoomKey } from './hub.js';
+import { MemoryFloodGuard, type FloodGuard } from './flood.js';
 import { MemoryReactionCounter, type ReactionCounter } from './reactions.js';
 import { gameMessages } from './game.js';
 import { MemoryChatPeak, type ChatPeak } from './peak.js';
@@ -76,6 +77,8 @@ export interface ChatRoutesDeps {
   reactions?: ReactionCounter | undefined;
   /** Fecha o segundo das reações a cada `ms`. Padrão 1 s. */
   reactionsIntervalMs?: number | undefined;
+  /** Anti-flood por pessoa; sem ele, em memória. */
+  flood?: FloodGuard | undefined;
 }
 
 const MODULE = { module: 'live_chat' as const };
@@ -90,6 +93,10 @@ function effective(room: ChatRoomRow | null, cfg: ChatTenantConfigRow, g: ChatSe
     maxChars: g.maxChars,
     historyOnJoin: g.historyOnJoin,
     eventKinds: cfg.eventKinds,
+    flood: {
+      maxPerMinute: cfg.floodMaxPerMinute ?? g.floodMaxPerMinute,
+      blockSeconds: cfg.floodBlockSeconds ?? g.floodBlockSeconds,
+    },
   };
 }
 
@@ -125,6 +132,8 @@ export async function chatRoutes(app: FastifyInstance, deps: ChatRoutesDeps): Pr
   const now = () => deps.now?.() ?? new Date();
   const hub = deps.hub ?? new ChatHub();
   const reactions = deps.reactions ?? new MemoryReactionCounter();
+  const flood = deps.flood ?? new MemoryFloodGuard();
+  let floodErrorAt = 0;
   // Fecha o segundo das reações. Toda instância roda o relógio, mas só uma fecha cada segundo (trava no Valkey) e o
   // script atômico garante que cada reação conta uma vez. Uma rodada por vez; o log de falha sai no máximo por minuto
   let flushing = false;
@@ -481,6 +490,29 @@ export async function chatRoutes(app: FastifyInstance, deps: ChatRoutesDeps): Pr
         ...(shadowMuted ? ['muted'] : []),
       ];
       const purgeAt = await purgeAtFor(fan.tenantId, profile.country, at);
+      // anti-flood por pessoa, em todas as salas do cliente (no lugar do modo escudo): só conta a mensagem que passou
+      // do modo lento e do filtro (tentativa recusada não vira repetição). Passou do limite em 60 s ou repetiu a mesma
+      // mensagem, fica o bloqueio. Valkey fora não barra ninguém (o modo lento continua valendo), mas fica no log
+      const floodLeft = await flood
+        .hit(fan.tenantId, fan.profileId, text, eff.flood, at.getTime())
+        .catch((err: unknown) => {
+          if (Date.now() - floodErrorAt > 60_000) {
+            floodErrorAt = Date.now();
+            request.log.warn({ err }, 'anti-flood do chat indisponível; envio liberado');
+          }
+          return 0;
+        });
+      if (floodLeft > 0)
+        throw new ProblemError(
+          429,
+          'RATE_LIMITED',
+          'Muitas mensagens',
+          sendRefusalNotice('flood', fan.locale),
+          {
+            headers: { 'retry-after': String(Math.ceil(floodLeft / 1000)) },
+            errors: [{ path: 'refusal', message: 'flood' }],
+          },
+        );
       const saved = await insertMessage(
         database,
         {
@@ -570,6 +602,8 @@ export async function chatRoutes(app: FastifyInstance, deps: ChatRoutesDeps): Pr
         slow_mode_seconds: eff.slowModeSeconds,
         strictness: eff.strictness,
         event_kinds: eff.eventKinds ?? [...CHAT_GAME_KINDS],
+        flood_max_per_minute: eff.flood.maxPerMinute,
+        flood_block_seconds: eff.flood.blockSeconds,
         custom: Object.entries(cfg)
           .filter(([, v]) => v !== null)
           .map(([k]) => k.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`)),

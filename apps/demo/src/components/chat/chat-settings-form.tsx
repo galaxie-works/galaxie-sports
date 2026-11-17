@@ -26,6 +26,8 @@ export function ChatSettingsForm({ initial }: { initial: ChatTenantSettings }) {
   const [slow, setSlow] = useState(initial.slowModeSeconds?.toString() ?? '');
   const [strictness, setStrictness] = useState<string>(initial.strictness ?? 'default');
   const [kinds, setKinds] = useState<string[]>(initial.eventKinds ?? [...KINDS]);
+  const [floodMax, setFloodMax] = useState(initial.floodMaxPerMinute?.toString() ?? '');
+  const [floodBlock, setFloodBlock] = useState(initial.floodBlockSeconds?.toString() ?? '');
   const [pending, start] = useTransition();
 
   const save = () =>
@@ -37,6 +39,8 @@ export function ChatSettingsForm({ initial }: { initial: ChatTenantSettings }) {
         strictness: strictness === 'default' ? null : (strictness as 'standard' | 'strict'),
         // as seis ligadas = padrão (null): um tipo novo do jogo entra sozinho
         eventKinds: kinds.length === KINDS.length ? null : kinds,
+        floodMaxPerMinute: num(floodMax),
+        floodBlockSeconds: num(floodBlock),
       });
       if (!r.ok) return void toast.error(r.error ?? t.chatPanel.errors.generic);
       toast.success(T.saved);
@@ -77,6 +81,26 @@ export function ChatSettingsForm({ initial }: { initial: ChatTenantSettings }) {
               inputMode="numeric"
               value={slow}
               onChange={(e) => setSlow(e.target.value)}
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="chat-flood-max">{T.floodMax}</FieldLabel>
+            <Input
+              id="chat-flood-max"
+              inputMode="numeric"
+              placeholder="10"
+              value={floodMax}
+              onChange={(e) => setFloodMax(e.target.value)}
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="chat-flood-block">{T.floodBlock}</FieldLabel>
+            <Input
+              id="chat-flood-block"
+              inputMode="numeric"
+              placeholder="180"
+              value={floodBlock}
+              onChange={(e) => setFloodBlock(e.target.value)}
             />
           </Field>
           <Field>

@@ -915,7 +915,14 @@
     {
       "idx": 130,
       "version": "7",
-      "when": 1794951944492,
+      "when": 1794951968621,
+      "tag": "0188_chat_antiflood",
+      "breakpoints": true
+    },
+    {
+      "idx": 131,
+      "version": "7",
+      "when": 1794953908907,
       "tag": "0190_game_fiel_ativa",
       "breakpoints": true
     }

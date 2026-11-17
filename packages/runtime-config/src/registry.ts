@@ -1121,6 +1121,27 @@ export const SETTINGS: readonly SettingDef[] = [
     apply: 'refresh',
     default: '3',
   },
+  // anti-flood por pessoa (no lugar do modo escudo): passou do limite em 60 s, fica o bloqueio sem enviar
+  {
+    key: 'CHAT_FLOOD_MAX_PER_MINUTE',
+    section: 'engage',
+    type: 'int',
+    min: 3,
+    max: 60,
+    services: ['api'],
+    apply: 'refresh',
+    default: '10',
+  },
+  {
+    key: 'CHAT_FLOOD_BLOCK_SECONDS',
+    section: 'engage',
+    type: 'int',
+    min: 30,
+    max: 1800,
+    services: ['api'],
+    apply: 'refresh',
+    default: '180',
+  },
   {
     key: 'CHAT_MESSAGE_MAX_CHARS',
     section: 'engage',

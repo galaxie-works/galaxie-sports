@@ -17,7 +17,8 @@ describe('OpenAPI', () => {
     expect(result.errors ?? []).toEqual([]);
     expect(result.valid).toBe(true);
     expect(doc.openapi).toBe('3.1.0');
-  });
+    // validar o documento inteiro leva mais de 5 s no runner lento do CI
+  }, 60_000);
 
   it('publica as rotas do catálogo, o espelho e os componentes principais', () => {
     const doc = buildOpenApiDocument();
