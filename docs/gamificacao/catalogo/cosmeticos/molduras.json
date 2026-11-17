@@ -1,0 +1,465 @@
+[
+  {
+    "id": "frame.cageside",
+    "name": {
+      "pt": "Grade da gaiola",
+      "es": "Reja de la jaula",
+      "en": "Cageside"
+    },
+    "unlock": {
+      "collection": "mma.cageside"
+    },
+    "animated": false,
+    "art_prompt": "A charcoal ring textured like the chain-link mesh of a fighting cage, a thin amber light line along the inner edge as if a spotlight were behind it, warm amber flat halo outside. Circular avatar ring, 1:1, transparent background and empty transparent center, the ring occupies only the outer twelve percent of the canvas. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, face, portrait, person, photo in the center, filled center"
+  },
+  {
+    "id": "frame.collector",
+    "name": {
+      "pt": "Colecionador",
+      "es": "Coleccionista",
+      "en": "Collector"
+    },
+    "unlock": {
+      "collection": "common.collector"
+    },
+    "animated": false,
+    "art_prompt": "A ring built from the edges of overlapping trading cards fanned around the circle, five card edges in slate-grey, steel-blue, violet, amber and prismatic, flat two-tone shading, no text on any card. Circular avatar ring, 1:1, transparent background and empty transparent center, the ring occupies only the outer twelve percent of the canvas. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, face, portrait, person, photo in the center, filled center"
+  },
+  {
+    "id": "frame.crosstown",
+    "name": {
+      "pt": "Clássico do diamante",
+      "es": "Clásico del diamante",
+      "en": "Diamond Rivalry"
+    },
+    "unlock": {
+      "collection": "baseball.rivalry"
+    },
+    "animated": false,
+    "art_prompt": "A deep violet ring crossed by a single stitched seam like the seam of a generic baseball, the stitches in amber, two tiny bat silhouettes crossing at the bottom of the ring, faint flat glow. Circular avatar ring, 1:1, transparent background and empty transparent center, the ring occupies only the outer twelve percent of the canvas. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, face, portrait, person, photo in the center, filled center"
+  },
+  {
+    "id": "frame.derby",
+    "name": {
+      "pt": "Dia de clássico",
+      "es": "Día de clásico",
+      "en": "Derby Day"
+    },
+    "unlock": {
+      "collection": "football.derby_days"
+    },
+    "animated": false,
+    "art_prompt": "A ring split into two halves, one plain white and one plain charcoal, meeting at the top and bottom in a small centre-circle motif of a football pitch, a thin violet inner line, faint flat glow. Circular avatar ring, 1:1, transparent background and empty transparent center, the ring occupies only the outer twelve percent of the canvas. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, face, portrait, person, photo in the center, filled center"
+  },
+  {
+    "id": "frame.deuce",
+    "name": {
+      "pt": "Set sem fim",
+      "es": "Set sin fin",
+      "en": "Endless Set"
+    },
+    "unlock": {
+      "collection": "volleyball.long_sets"
+    },
+    "animated": false,
+    "art_prompt": "A deep violet ring textured like volleyball net mesh with a thin white tape band along the outer edge, a small generic volleyball silhouette engraved at the bottom, faint flat glow. Circular avatar ring, 1:1, transparent background and empty transparent center, the ring occupies only the outer twelve percent of the canvas. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, face, portrait, person, photo in the center, filled center"
+  },
+  {
+    "id": "frame.ever_present",
+    "name": {
+      "pt": "Sempre presente",
+      "es": "Siempre presente",
+      "en": "Ever Present"
+    },
+    "unlock": {
+      "achievement": "loyalty.watched",
+      "step": 5
+    },
+    "animated": true,
+    "animation": "Sweep: the iridescent band rotates 360 degrees around the ring in 4 s while four particles orbit as in the Stellar ring, no flashes, luminance change under 20 percent; the static fallback is the mid-loop frame.",
+    "art_prompt": "An iridescent prismatic ring engraved with a continuous row of stadium seats all the way around, every seat drawn as occupied by a plain silhouette, short light rays at the corners, few large particles outside the ring. Circular avatar ring, 1:1, transparent background and empty transparent center, the ring occupies only the outer twelve percent of the canvas. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, face, portrait, person, photo in the center, filled center, faces on the silhouettes, rays over the center"
+  },
+  {
+    "id": "frame.exact_score_master",
+    "name": {
+      "pt": "Placar exato",
+      "es": "Marcador exacto",
+      "en": "Exact Score"
+    },
+    "unlock": {
+      "achievement": "predictions.exact_score",
+      "step": 5
+    },
+    "animated": true,
+    "animation": "Pulse: the outer halo grows from 0 to 6 percent of the ring radius and back, 3 s loop, ease-in-out, luminance change under 20 percent, no flashes; the static fallback is the mid-loop frame.",
+    "art_prompt": "An iridescent prismatic ring with two short flat bars of equal length engraved at the top like a perfectly balanced score, thin light rays at the four diagonal corners, few large particles outside the ring. Circular avatar ring, 1:1, transparent background and empty transparent center, the ring occupies only the outer twelve percent of the canvas. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, face, portrait, person, photo in the center, filled center, digits on the bars, rays over the center"
+  },
+  {
+    "id": "frame.extra_ice",
+    "name": {
+      "pt": "Gelo extra",
+      "es": "Hielo extra",
+      "en": "Extra Ice"
+    },
+    "unlock": {
+      "achievement": "hockey.moments.overtime_win",
+      "step": 5
+    },
+    "animated": false,
+    "art_prompt": "An iridescent prismatic ring with a frosted pale inner edge like fresh ice, a hockey stick and puck silhouette engraved at the bottom, clock tick marks at the top, light rays only at the corners. Circular avatar ring, 1:1, transparent background and empty transparent center, the ring occupies only the outer twelve percent of the canvas. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, face, portrait, person, photo in the center, filled center, rays over the center"
+  },
+  {
+    "id": "frame.extra_period",
+    "name": {
+      "pt": "Período extra",
+      "es": "Periodo extra",
+      "en": "Extra Period"
+    },
+    "unlock": {
+      "collection": "nba.overtime"
+    },
+    "animated": false,
+    "art_prompt": "A warm amber ring with clock tick marks engraved all the way around and a single thicker mark at the top like a game clock stopped at zero, a tiny basketball hoop silhouette at the bottom, soft flat outer halo. Circular avatar ring, 1:1, transparent background and empty transparent center, the ring occupies only the outer twelve percent of the canvas. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, face, portrait, person, photo in the center, filled center"
+  },
+  {
+    "id": "frame.full_hit",
+    "name": {
+      "pt": "Acerto em cheio",
+      "es": "Acierto total",
+      "en": "Full Hit"
+    },
+    "unlock": {
+      "achievement": "common.predictions.full_hit",
+      "step": 5
+    },
+    "animated": true,
+    "animation": "Orbit: four small particles travel around the ring at different speeds, 4 s per lap, no blinking, luminance change under 20 percent; the static fallback shows the particles at rest on the ring.",
+    "art_prompt": "An iridescent prismatic ring with three small engraved marks at the top, a circle, a chevron and a dash, standing for winner, count and score, short light rays at the corners, few large particles outside the ring. Circular avatar ring, 1:1, transparent background and empty transparent center, the ring occupies only the outer twelve percent of the canvas. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, face, portrait, person, photo in the center, filled center, rays over the center, particles inside the ring"
+  },
+  {
+    "id": "frame.hot_streak",
+    "name": {
+      "pt": "Mão quente",
+      "es": "Mano caliente",
+      "en": "Hot Streak"
+    },
+    "unlock": {
+      "achievement": "common.predictions.streak",
+      "step": 5
+    },
+    "animated": false,
+    "art_prompt": "An iridescent prismatic ring with a chain of small engraved check marks running all the way around without a gap, a warm amber flat inner glow, light rays only at the corners. Circular avatar ring, 1:1, transparent background and empty transparent center, the ring occupies only the outer twelve percent of the canvas. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, face, portrait, person, photo in the center, filled center, rays over the center, flames"
+  },
+  {
+    "id": "frame.i_was_there",
+    "name": {
+      "pt": "Eu estava lá",
+      "es": "Yo estuve ahí",
+      "en": "I Was There"
+    },
+    "unlock": {
+      "collection": "common.moments"
+    },
+    "animated": false,
+    "art_prompt": "A warm amber ring engraved with curved rows of stadium seats, one seat in the row at the top left as a slightly raised flat highlight, soft flat outer halo. Circular avatar ring, 1:1, transparent background and empty transparent center, the ring occupies only the outer twelve percent of the canvas. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, face, portrait, person, photo in the center, filled center"
+  },
+  {
+    "id": "frame.knockout_night",
+    "name": {
+      "pt": "Noite de nocaute",
+      "es": "Noche de nocaut",
+      "en": "Knockout Night"
+    },
+    "unlock": {
+      "achievement": "mma.moments.knockout",
+      "step": 5
+    },
+    "animated": false,
+    "art_prompt": "An iridescent prismatic ring textured with the chain-link mesh of a fighting cage along the inner edge, a single raised fist silhouette engraved at the top, light rays only at the corners. Circular avatar ring, 1:1, transparent background and empty transparent center, the ring occupies only the outer twelve percent of the canvas. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, face, portrait, person, photo in the center, filled center, rays over the center, blood, bruises, injuries, pain"
+  },
+  {
+    "id": "frame.level_1_2",
+    "name": {
+      "pt": "Arquibancada",
+      "es": "La grada",
+      "en": "The Stands"
+    },
+    "unlock": {
+      "level": 1
+    },
+    "animated": false,
+    "art_prompt": "A thin matte slate-grey ring with a single engraved groove running around it like a row of stadium seats, flat two-tone shading, no glow. Circular avatar ring, 1:1, transparent background and empty transparent center, the ring occupies only the outer twelve percent of the canvas. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, face, portrait, person, photo in the center, filled center"
+  },
+  {
+    "id": "frame.level_10",
+    "name": {
+      "pt": "Prisma",
+      "es": "Prisma",
+      "en": "Prism"
+    },
+    "unlock": {
+      "level": 10
+    },
+    "animated": true,
+    "animation": "Sweep: the iridescent band rotates 360 degrees around the ring in 4 s while four particles orbit as in the Stellar ring, no flashes, luminance change under 20 percent; the static fallback is the mid-loop frame.",
+    "art_prompt": "An iridescent prismatic ring shifting from cyan to violet to amber to pink around its circumference, short thin light rays pointing outward at the four diagonal corners, few large particles outside the ring. Circular avatar ring, 1:1, transparent background and empty transparent center, the ring occupies only the outer twelve percent of the canvas. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, face, portrait, person, photo in the center, filled center, rays over the center, particles inside the ring"
+  },
+  {
+    "id": "frame.level_3_4",
+    "name": {
+      "pt": "Escovado",
+      "es": "Cepillado",
+      "en": "Brushed"
+    },
+    "unlock": {
+      "level": 3
+    },
+    "animated": false,
+    "art_prompt": "A brushed steel-blue ring with a thin lighter inner line, flat two-tone shading, matte finish, no glow. Circular avatar ring, 1:1, transparent background and empty transparent center, the ring occupies only the outer twelve percent of the canvas. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, face, portrait, person, photo in the center, filled center"
+  },
+  {
+    "id": "frame.level_5_6",
+    "name": {
+      "pt": "Lapidado",
+      "es": "Tallado",
+      "en": "Faceted"
+    },
+    "unlock": {
+      "level": 5
+    },
+    "animated": false,
+    "art_prompt": "A deep violet ring cut into eight flat facets around its circumference, each facet a slightly different shade, a faint flat inner halo, no particles. Circular avatar ring, 1:1, transparent background and empty transparent center, the ring occupies only the outer twelve percent of the canvas. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, face, portrait, person, photo in the center, filled center"
+  },
+  {
+    "id": "frame.level_7_8",
+    "name": {
+      "pt": "Louro",
+      "es": "Laurel",
+      "en": "Laurel"
+    },
+    "unlock": {
+      "level": 7
+    },
+    "animated": true,
+    "animation": "Pulse: the outer halo grows from 0 to 6 percent of the ring radius and back, 3 s loop, ease-in-out, luminance change under 20 percent, no flashes; the static fallback is the mid-loop frame.",
+    "art_prompt": "A warm amber ring with an engraved laurel pattern of simple leaves running all the way around, a soft flat outer halo one shade lighter. Circular avatar ring, 1:1, transparent background and empty transparent center, the ring occupies only the outer twelve percent of the canvas. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, face, portrait, person, photo in the center, filled center"
+  },
+  {
+    "id": "frame.level_9",
+    "name": {
+      "pt": "Estelar",
+      "es": "Estelar",
+      "en": "Stellar"
+    },
+    "unlock": {
+      "level": 9
+    },
+    "animated": true,
+    "animation": "Orbit: four small particles travel around the ring at different speeds, 4 s per lap, no blinking, luminance change under 20 percent; the static fallback shows the particles at rest on the ring.",
+    "art_prompt": "A pale amber ring with small five-pointed stars engraved at regular intervals, four slightly larger star particles resting on the ring, a soft flat halo. Circular avatar ring, 1:1, transparent background and empty transparent center, the ring occupies only the outer twelve percent of the canvas. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, face, portrait, person, photo in the center, filled center"
+  },
+  {
+    "id": "frame.oval",
+    "name": {
+      "pt": "Anel oval",
+      "es": "Anillo oval",
+      "en": "Oval Ring"
+    },
+    "unlock": {
+      "collection": "afl.faithful"
+    },
+    "animated": false,
+    "art_prompt": "A brushed steel-blue ring with a generic oval ball silhouette engraved at the bottom and four thin goal posts engraved at the top, thin inner line, matte, no glow. Circular avatar ring, 1:1, transparent background and empty transparent center, the ring occupies only the outer twelve percent of the canvas. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, face, portrait, person, photo in the center, filled center"
+  },
+  {
+    "id": "frame.oval_fortress",
+    "name": {
+      "pt": "Fortaleza oval",
+      "es": "Fortaleza ovalada",
+      "en": "Oval Fortress"
+    },
+    "unlock": {
+      "collection": "rugby.fortress"
+    },
+    "animated": false,
+    "art_prompt": "A deep violet ring drawn as a row of flat stone blocks like a rampart, an H-shaped rugby post silhouette engraved at the top, faint flat glow. Circular avatar ring, 1:1, transparent background and empty transparent center, the ring occupies only the outer twelve percent of the canvas. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, face, portrait, person, photo in the center, filled center"
+  },
+  {
+    "id": "frame.overtime",
+    "name": {
+      "pt": "Até o fim",
+      "es": "Hasta el final",
+      "en": "To the End"
+    },
+    "unlock": {
+      "collection": "basketball.overtime"
+    },
+    "animated": false,
+    "art_prompt": "A deep violet ring with clock tick marks engraved around it and a thicker mark at the top, a small generic basketball silhouette engraved at the bottom, faceted corners, faint flat glow. Circular avatar ring, 1:1, transparent background and empty transparent center, the ring occupies only the outer twelve percent of the canvas. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, face, portrait, person, photo in the center, filled center"
+  },
+  {
+    "id": "frame.paddock",
+    "name": {
+      "pt": "Passe do paddock",
+      "es": "Pase del paddock",
+      "en": "Paddock Pass"
+    },
+    "unlock": {
+      "collection": "formula_1.paddock"
+    },
+    "animated": false,
+    "art_prompt": "A charcoal ring with a woven carbon-like texture, a thin checkered band of small squares running along the inner edge, a tiny open-wheel race car silhouette engraved at the bottom, warm amber flat halo. Circular avatar ring, 1:1, transparent background and empty transparent center, the ring occupies only the outer twelve percent of the canvas. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, face, portrait, person, photo in the center, filled center"
+  },
+  {
+    "id": "frame.pennant",
+    "name": {
+      "pt": "Flâmula",
+      "es": "Banderín",
+      "en": "Pennant"
+    },
+    "unlock": {
+      "collection": "baseball.decision_nights"
+    },
+    "animated": false,
+    "art_prompt": "A warm amber ring with small plain triangular pennants engraved around it like bunting over a ballpark, no text on any pennant, a tiny diamond outline at the bottom, soft flat outer halo. Circular avatar ring, 1:1, transparent background and empty transparent center, the ring occupies only the outer twelve percent of the canvas. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, face, portrait, person, photo in the center, filled center"
+  },
+  {
+    "id": "frame.pole_to_flag",
+    "name": {
+      "pt": "Pole à bandeirada",
+      "es": "De pole a bandera",
+      "en": "Pole to Flag"
+    },
+    "unlock": {
+      "achievement": "formula_1.moments.pole_to_win",
+      "step": 5
+    },
+    "animated": true,
+    "animation": "Sweep: the iridescent band rotates 360 degrees around the ring in 4 s while four particles orbit as in the Stellar ring, no flashes, luminance change under 20 percent; the static fallback is the mid-loop frame.",
+    "art_prompt": "An iridescent prismatic ring with a thin checkered band of small squares along its inner edge and a single pole-position mark engraved at the top, short light rays at the corners, few large particles outside the ring. Circular avatar ring, 1:1, transparent background and empty transparent center, the ring occupies only the outer twelve percent of the canvas. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, face, portrait, person, photo in the center, filled center, rays over the center, particles inside the ring"
+  },
+  {
+    "id": "frame.rivalry",
+    "name": {
+      "pt": "Rivalidade",
+      "es": "Rivalidad",
+      "en": "Rivalry"
+    },
+    "unlock": {
+      "collection": "american_football.rivalry"
+    },
+    "animated": false,
+    "art_prompt": "A ring split into plain white and plain charcoal halves, two generic football helmet silhouettes with plain shells facing each other at the top, a thin violet inner line, faint flat glow. Circular avatar ring, 1:1, transparent background and empty transparent center, the ring occupies only the outer twelve percent of the canvas. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, face, portrait, person, photo in the center, filled center"
+  },
+  {
+    "id": "frame.seven_metres",
+    "name": {
+      "pt": "Sete metros",
+      "es": "Siete metros",
+      "en": "Seven Metres"
+    },
+    "unlock": {
+      "collection": "handball.fortress"
+    },
+    "animated": false,
+    "art_prompt": "A deep violet ring with a dashed line engraved along its middle like the seven-metre line of a handball court, a small goalkeeper silhouette with arms and legs spread engraved at the bottom, faint flat glow. Circular avatar ring, 1:1, transparent background and empty transparent center, the ring occupies only the outer twelve percent of the canvas. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, face, portrait, person, photo in the center, filled center"
+  },
+  {
+    "id": "frame.sharp_eye",
+    "name": {
+      "pt": "Olho clínico",
+      "es": "Ojo clínico",
+      "en": "Sharp Eye"
+    },
+    "unlock": {
+      "collection": "common.predictions"
+    },
+    "animated": false,
+    "art_prompt": "A deep violet ring with four thin tick marks at the cardinal points like the aperture of a lens, a thin concentric inner line, faceted corners, faint flat glow. Circular avatar ring, 1:1, transparent background and empty transparent center, the ring occupies only the outer twelve percent of the canvas. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, face, portrait, person, photo in the center, filled center"
+  },
+  {
+    "id": "frame.shield",
+    "name": {
+      "pt": "Muralha",
+      "es": "Muralla",
+      "en": "The Wall"
+    },
+    "unlock": {
+      "collection": "american_football.defense"
+    },
+    "animated": false,
+    "art_prompt": "A charcoal ring made of flat interlocking plates like a shield wall, a thin steel-blue inner line, a generic goal post silhouette engraved at the top, matte, no glow. Circular avatar ring, 1:1, transparent background and empty transparent center, the ring occupies only the outer twelve percent of the canvas. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, face, portrait, person, photo in the center, filled center"
+  },
+  {
+    "id": "frame.siren",
+    "name": {
+      "pt": "Sirene final",
+      "es": "Sirena final",
+      "en": "Final Siren"
+    },
+    "unlock": {
+      "collection": "afl.final_siren"
+    },
+    "animated": false,
+    "art_prompt": "A deep violet ring with concentric sound-wave arcs engraved at the top like a siren going off, a generic oval ball silhouette engraved at the bottom, faint flat glow. Circular avatar ring, 1:1, transparent background and empty transparent center, the ring occupies only the outer twelve percent of the canvas. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, face, portrait, person, photo in the center, filled center"
+  },
+  {
+    "id": "frame.stoppage_time",
+    "name": {
+      "pt": "Acréscimos",
+      "es": "Tiempo añadido",
+      "en": "Stoppage Time"
+    },
+    "unlock": {
+      "achievement": "football.moments.stoppage_time_goal",
+      "step": 5
+    },
+    "animated": false,
+    "art_prompt": "An iridescent prismatic ring with clock tick marks engraved around it and a short extra arc of ticks beyond the top mark like added time, a generic football silhouette engraved at the bottom, light rays only at the corners. Circular avatar ring, 1:1, transparent background and empty transparent center, the ring occupies only the outer twelve percent of the canvas. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, face, portrait, person, photo in the center, filled center, rays over the center"
+  },
+  {
+    "id": "frame.whistle",
+    "name": {
+      "pt": "Apito",
+      "es": "Silbato",
+      "en": "The Whistle"
+    },
+    "unlock": {
+      "collection": "football.whistle"
+    },
+    "animated": false,
+    "art_prompt": "A deep violet ring with a referee whistle silhouette engraved at the top and a small blank screen rectangle engraved at the bottom, a thin inner line, faint flat glow. Circular avatar ring, 1:1, transparent background and empty transparent center, the ring occupies only the outer twelve percent of the canvas. Cosmic illustration style: deep-space backdrop with nebula gradients in indigo and violet, dense star field, soft glowing constellation lines tracing the action, bold simplified shapes with clean edges, subtle film grain, strong silhouette readable at thumbnail size.",
+    "art_negative_prompt": "logos, crests, badges, brand names, sponsor marks, readable text, letters, numbers, jersey numbers, recognizable faces, real athletes, real stadiums, club colors, national flags, watermark, blurry, extra limbs, deformed hands, face, portrait, person, photo in the center, filled center"
+  }
+]

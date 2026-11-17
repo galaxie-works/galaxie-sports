@@ -45,3 +45,4 @@ export * from './narration.js';
 export * from './chat.js';
 export * from './shop.js';
 export * from './communities.js';
+export * from './community-feed.js';

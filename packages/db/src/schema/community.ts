@@ -301,3 +301,154 @@ export const communityInvite = community.table(
     check('invite_uses', sql`${t.uses} >= 0 and (${t.maxUses} is null or ${t.uses} <= ${t.maxUses})`),
   ],
 );
+
+// ---------------------------------------------------------------- Feed (#946)
+
+/** Quem publicou: o sistema (post automático do jogo), a equipe do cliente ou um membro. */
+export const COMMUNITY_POST_AUTHORS = ['system', 'staff', 'member'] as const;
+export type CommunityPostAuthor = (typeof COMMUNITY_POST_AUTHORS)[number];
+
+/** Card anexado ao post: um jogo, um time ou atleta, ou um jogador (ids do `core`, sem chave estrangeira). */
+export const COMMUNITY_POST_ATTACHMENTS = ['event', 'participant', 'person'] as const;
+export type CommunityPostAttachment = (typeof COMMUNITY_POST_ATTACHMENTS)[number];
+
+/**
+ * `public` aparece para os membros; `shadow` só o autor vê (abuso ou Silêncio oculto); `hidden` foi tirado pela
+ * moderação. Igual ao chat.
+ */
+export const COMMUNITY_CONTENT_VISIBILITY = ['public', 'shadow', 'hidden'] as const;
+export type CommunityContentVisibility = (typeof COMMUNITY_CONTENT_VISIBILITY)[number];
+
+export const COMMUNITY_REACTIONS = ['like'] as const;
+export type CommunityReaction = (typeof COMMUNITY_REACTIONS)[number];
+
+export const communityPost = community.table(
+  'post',
+  {
+    tenantId: tenantRef(),
+    id: communityId(),
+    communityId: uuid('community_id').notNull(),
+    author: text('author').$type<CommunityPostAuthor>().notNull(),
+    /** Perfil do membro (`member`); null para o sistema e a equipe. */
+    profileId: uuid('profile_id'),
+    /** Quem da equipe publicou (`staff`): `panel:<id>` ou `galaxie:<id>`. */
+    staffBy: text('staff_by'),
+    /** Texto que passou pela base de regras (#969); null no post automático (o texto sai do modelo, no idioma de quem lê). */
+    body: text('body'),
+    /** Post automático: o tipo (`kickoff`, `full_time`…) e os dados do jogo. */
+    autoKind: text('auto_kind'),
+    data: jsonb('data').$type<Record<string, unknown>>(),
+    attachmentType: text('attachment_type').$type<CommunityPostAttachment>(),
+    attachmentId: uuid('attachment_id'),
+    /** Foto só de cargos até a moderação de imagem do Feed (#1025). */
+    photoUrl: text('photo_url'),
+    visibility: text('visibility').$type<CommunityContentVisibility>().notNull().default('public'),
+    flags: text('flags')
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
+    pinnedAt: timestamp('pinned_at', { withTimezone: true }),
+    pinnedBy: text('pinned_by'),
+    /** Quem tirou ou devolveu por último (moderação). */
+    moderatedBy: text('moderated_by'),
+    /** Relógio de conteúdo da ficha do país (#954): depois disso o post é apagado. */
+    purgeAt: timestamp('purge_at', { withTimezone: true }).notNull(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    primaryKey({ name: 'post_pkey', columns: [t.tenantId, t.id] }),
+    foreignKey({
+      name: 'post_community_fk',
+      columns: [t.tenantId, t.communityId],
+      foreignColumns: [communityCommunity.tenantId, communityCommunity.id],
+    }).onDelete('cascade'),
+    foreignKey({
+      name: 'post_profile_fk',
+      columns: [t.tenantId, t.profileId],
+      foreignColumns: [fanProfile.tenantId, fanProfile.id],
+    }).onDelete('cascade'),
+    // o Feed é por Comunidade, sem linha do tempo por pessoa: o id (uuid v7) dá a ordem
+    index('post_feed_idx').on(t.tenantId, t.communityId, t.id),
+    index('post_pinned_idx')
+      .on(t.tenantId, t.communityId, t.pinnedAt)
+      .where(sql`${t.pinnedAt} is not null`),
+    index('post_purge_idx').on(t.purgeAt),
+    // um post automático por tipo e jogo em cada Comunidade (repetir a leitura do jogo é inofensivo)
+    uniqueIndex('post_auto_uq')
+      .on(t.tenantId, t.communityId, t.autoKind, t.attachmentId)
+      .where(sql`${t.autoKind} is not null`),
+    check('post_author', inList('author', COMMUNITY_POST_AUTHORS)),
+    check('post_visibility', inList('visibility', COMMUNITY_CONTENT_VISIBILITY)),
+    check(
+      'post_attachment',
+      sql`(${t.attachmentType} is null and ${t.attachmentId} is null) or (${t.attachmentId} is not null and ${inList('attachment_type', COMMUNITY_POST_ATTACHMENTS)})`,
+    ),
+    check('post_member_profile', sql`${t.author} <> 'member' or ${t.profileId} is not null`),
+    check('post_member_photo', sql`${t.author} = 'staff' or ${t.photoUrl} is null`),
+    check('post_content', sql`${t.body} is not null or ${t.autoKind} is not null`),
+    check('post_body_len', sql`${t.body} is null or length(${t.body}) between 1 and 5000`),
+  ],
+);
+
+export const communityComment = community.table(
+  'comment',
+  {
+    tenantId: tenantRef(),
+    id: communityId(),
+    postId: uuid('post_id').notNull(),
+    profileId: uuid('profile_id').notNull(),
+    body: text('body').notNull(),
+    visibility: text('visibility').$type<CommunityContentVisibility>().notNull().default('public'),
+    flags: text('flags')
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
+    moderatedBy: text('moderated_by'),
+    purgeAt: timestamp('purge_at', { withTimezone: true }).notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    primaryKey({ name: 'comment_pkey', columns: [t.tenantId, t.id] }),
+    foreignKey({
+      name: 'comment_post_fk',
+      columns: [t.tenantId, t.postId],
+      foreignColumns: [communityPost.tenantId, communityPost.id],
+    }).onDelete('cascade'),
+    foreignKey({
+      name: 'comment_profile_fk',
+      columns: [t.tenantId, t.profileId],
+      foreignColumns: [fanProfile.tenantId, fanProfile.id],
+    }).onDelete('cascade'),
+    index('comment_post_idx').on(t.tenantId, t.postId, t.id),
+    index('comment_purge_idx').on(t.purgeAt),
+    check('comment_visibility', inList('visibility', COMMUNITY_CONTENT_VISIBILITY)),
+    check('comment_body_len', sql`length(${t.body}) between 1 and 2000`),
+  ],
+);
+
+/** Curtida: uma por Perfil e post. 13 a 17 também curte (reagir não é escrever). */
+export const communityReaction = community.table(
+  'reaction',
+  {
+    tenantId: tenantRef(),
+    postId: uuid('post_id').notNull(),
+    profileId: uuid('profile_id').notNull(),
+    kind: text('kind').$type<CommunityReaction>().notNull().default('like'),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    primaryKey({ name: 'reaction_pkey', columns: [t.tenantId, t.postId, t.profileId] }),
+    foreignKey({
+      name: 'reaction_post_fk',
+      columns: [t.tenantId, t.postId],
+      foreignColumns: [communityPost.tenantId, communityPost.id],
+    }).onDelete('cascade'),
+    foreignKey({
+      name: 'reaction_profile_fk',
+      columns: [t.tenantId, t.profileId],
+      foreignColumns: [fanProfile.tenantId, fanProfile.id],
+    }).onDelete('cascade'),
+    check('reaction_kind', inList('kind', COMMUNITY_REACTIONS)),
+  ],
+);
