@@ -89,6 +89,8 @@ describe('registro de tópicos de webhook', () => {
       'game.prediction.scored',
       'game.prediction.reverted',
       'game.achievement.step_reached',
+      'game.card.granted',
+      'game.level.reached',
     ]);
     expect(topics(['live_chat', 'cosmos_ai'])).toEqual([]);
   });

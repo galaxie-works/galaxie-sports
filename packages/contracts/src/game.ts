@@ -131,49 +131,86 @@ export const MyRanking = z
   .meta({ id: 'MyRanking' });
 export type MyRanking = z.infer<typeof MyRanking>;
 
+const FanAchievementView = z.object({
+  achievement_id: z.string(),
+  season: z.string().meta({ description: '`all` (vitalícia) ou o ano da temporada.' }),
+  count: z.number().int(),
+  steps: z.number().int().meta({ description: 'Degraus alcançados (0 a 5).' }),
+  next_threshold: z.number().int().nullable().meta({ description: 'Quanto falta contar para o próximo.' }),
+  rarity: z
+    .number()
+    .nullable()
+    .meta({ description: 'Fração dos torcedores do programa com o primeiro Degrau (0 a 1).' }),
+});
+
 export const FanAchievements = z
   .object({
     data: z.object({
       program_country: z.string(),
-      achievements: z.array(
-        z.object({
-          achievement_id: z.string(),
-          season: z.string().meta({ description: '`all` (vitalícia) ou o ano da temporada.' }),
-          count: z.number().int(),
-          steps: z.number().int().meta({ description: 'Degraus alcançados (0 a 5).' }),
-          next_threshold: z
-            .number()
-            .int()
-            .nullable()
-            .meta({ description: 'Quanto falta contar para o próximo.' }),
-          rarity: z
-            .number()
-            .nullable()
-            .meta({ description: 'Fração dos torcedores do programa com o primeiro Degrau (0 a 1).' }),
-        }),
-      ),
+      achievements: z.array(FanAchievementView),
     }),
   })
   .meta({ id: 'FanAchievements' });
 export type FanAchievements = z.infer<typeof FanAchievements>;
 
+const FanCardView = z.object({
+  card_key: z.string(),
+  achievement_id: z.string(),
+  season: z.string(),
+  step: z.number().int(),
+  granted_at: z.string(),
+});
+
 export const FanCards = z
   .object({
     data: z.object({
       program_country: z.string(),
-      cards: z.array(
-        z.object({
-          card_key: z.string(),
-          achievement_id: z.string(),
-          season: z.string(),
-          step: z.number().int(),
-          granted_at: z.string(),
-        }),
-      ),
+      cards: z.array(FanCardView),
     }),
   })
   .meta({ id: 'FanCards' });
 export type FanCards = z.infer<typeof FanCards>;
+
+/** Nível do torcedor pelos Pontos (`game.level_def`, igual para todos os clientes). */
+export const FanLevelView = z
+  .object({
+    level: z.number().int().positive(),
+    min_points: z.number().int().nonnegative().meta({ description: 'Mínimo de Pontos do Nível atual.' }),
+    next_min_points: z
+      .number()
+      .int()
+      .positive()
+      .nullable()
+      .meta({ description: 'Mínimo do próximo Nível; null no último.' }),
+  })
+  .meta({ id: 'FanLevel' });
+
+// ─── leitura pelo servidor do cliente (chave secreta, #913) ──────────────────────────────────────
+
+const ExternalId = z.string().trim().min(1).max(200);
+export const GameFanParams = z.object({ externalAccountId: ExternalId, externalProfileId: ExternalId });
+
+const ProgramCountry = z
+  .string()
+  .regex(/^[A-Z]{2}$/)
+  .meta({ description: 'País do programa (ISO 3166-1 alfa-2, maiúsculo).' });
+
+export const GameRankingServerQuery = RankingQuery.extend({ country: ProgramCountry });
+
+export const FanGameSummary = z
+  .object({
+    data: z.object({
+      profile_id: z.uuid().meta({ description: 'Id opaco do Perfil na Galaxie (o mesmo dos webhooks).' }),
+      program_country: z.string(),
+      points: z.number().int().meta({ description: 'Pontos: só sobem; definem Nível e Ranking.' }),
+      balance: z.number().int().meta({ description: 'Saldo que se pode gastar no resgate (só 18+).' }),
+      level: FanLevelView,
+      achievements: z.array(FanAchievementView),
+      cards: z.array(FanCardView),
+    }),
+  })
+  .meta({ id: 'FanGameSummary' });
+export type FanGameSummary = z.infer<typeof FanGameSummary>;
 
 export const AchievementEarnersParams = z.object({
   achievementId: z
@@ -226,7 +263,42 @@ const common = {
   '429': problem('Limite atingido (RATE_LIMITED)'),
 };
 
+const serverAuth = [{ galaxieKey: [] }];
+const serverCommon = {
+  '401': problem('Chave ausente, inválida ou que não é a secreta (INVALID_KEY)'),
+  '403': problem('Módulo Gamificação desligado (MODULE_NOT_IN_PLAN)'),
+  '429': problem('Limite atingido (RATE_LIMITED)'),
+};
+
 export const gamePaths: ZodOpenApiPathsObject = {
+  '/v1/fans/{externalAccountId}/profiles/{externalProfileId}/game': {
+    get: {
+      summary: 'Gamificação de um torcedor (servidor)',
+      description:
+        'Para o servidor do cliente, com a chave secreta: Pontos, Saldo, Nível, Conquistas e Cartas de um Perfil ' +
+        'pelos ids do seu sistema, no país do programa do Perfil. Use para apps próprios, sem os widgets. Perfil ' +
+        'que não existe (ou foi excluído) dá 404.',
+      tags: [TAG],
+      security: serverAuth,
+      requestParams: { path: GameFanParams },
+      responses: {
+        '200': { description: 'OK', content: json(FanGameSummary) },
+        '404': problem('Perfil não encontrado (NOT_FOUND)'),
+        ...serverCommon,
+      },
+    },
+  },
+  '/v1/game/rankings/{period}': {
+    get: {
+      summary: 'Ranking do período (servidor)',
+      description:
+        'O mesmo Ranking que o torcedor vê, para o servidor do cliente, com a chave secreta e o país do programa.',
+      tags: [TAG],
+      security: serverAuth,
+      requestParams: { path: RankingParams, query: GameRankingServerQuery },
+      responses: { '200': { description: 'OK', content: json(Ranking) }, ...serverCommon },
+    },
+  },
   '/v1/predictions/open': {
     get: {
       summary: 'Palpite de um jogo',

@@ -337,6 +337,30 @@ export async function readFan(
   return { ...row, nickname: row.nickname };
 }
 
+/** Perfil ativo pelos ids do sistema do cliente (rotas do servidor, chave secreta); null se não existe. */
+export async function findFanByExternal(
+  db: Database,
+  input: { tenantId: string; externalAccountId: string; externalProfileId: string },
+): Promise<{ profileId: string; country: string } | null> {
+  const [row] = await db
+    .select({ profileId: fanProfile.id, country: fanProfile.country })
+    .from(fanProfile)
+    .innerJoin(
+      fanAccount,
+      and(eq(fanAccount.tenantId, fanProfile.tenantId), eq(fanAccount.id, fanProfile.accountId)),
+    )
+    .where(
+      and(
+        eq(fanProfile.tenantId, input.tenantId),
+        eq(fanAccount.externalAccountId, input.externalAccountId),
+        eq(fanProfile.externalProfileId, input.externalProfileId),
+        isNull(fanProfile.deletedAt),
+      ),
+    )
+    .limit(1);
+  return row ?? null;
+}
+
 /** O torcedor muda a visibilidade campo a campo e o time do coração. */
 export async function patchFan(
   db: Database,

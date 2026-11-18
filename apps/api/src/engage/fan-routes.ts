@@ -38,6 +38,7 @@ import {
   isEngageModule,
   readLedger,
   readWallets,
+  levelForPoints,
   type Database,
 } from '@galaxie/db';
 import type { TenantContext } from '../auth/authenticator.js';
@@ -341,9 +342,19 @@ export async function fanRoutes(app: FastifyInstance, deps: FanRoutesDeps): Prom
   app.get('/v1/fans/me/wallet', { config: { fan: true, age: 'read' } }, async (request, reply) => {
     const { fan } = await walletFan(request);
     const wallets = await readWallets(db(), fan.tenantId, fan.profileId);
+    const levels = await Promise.all(wallets.map((w) => levelForPoints(db(), w.points)));
     reply.header('cache-control', 'no-store');
     const res: FanWallet = {
-      data: wallets.map((w) => ({ program_country: w.programCountry, points: w.points, balance: w.balance })),
+      data: wallets.map((w, i) => ({
+        program_country: w.programCountry,
+        points: w.points,
+        balance: w.balance,
+        level: {
+          level: levels[i]!.level,
+          min_points: levels[i]!.minPoints,
+          next_min_points: levels[i]!.nextMinPoints,
+        },
+      })),
     };
     return res;
   });

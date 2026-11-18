@@ -9,7 +9,9 @@
  * - Perfil excluído não recebe lançamento novo;
  * - o estorno tira o que o lançamento deu; se parte do Saldo já foi gasta, tira só o que sobrou (os Pontos saem
  *   inteiros, porque nunca foram gastos);
- * - evento estornado não credita mais, nem quando o estorno chega antes do crédito (`fan.points_revoked_event`).
+ * - evento estornado não credita mais, nem quando o estorno chega antes do crédito (`fan.points_revoked_event`);
+ * - o crédito que passa do mínimo de um Nível (`game.level_def`) avisa o cliente (`game.level.reached`), na mesma
+ *   transação; o estorno não tira Nível nem avisa.
  */
 import { and, desc, eq, lt, sql } from 'drizzle-orm';
 import type { Database } from './client.js';
@@ -23,6 +25,7 @@ import {
   type FanPointsReason,
   type FanPointsSource,
 } from './schema/fan.js';
+import { publishWebhookEvent } from './webhooks.js';
 
 /** Motivos que creditam (o resgate e o estorno têm função própria). */
 export type FanCreditReason = Exclude<FanPointsReason, 'redeem' | 'revert'>;
@@ -238,7 +241,59 @@ async function apply(
       note: entry.note ?? null,
     })
     .returning(entryColumns);
+  if (entry.pointsDelta > 0) await announceLevel(tx, key, current.points, pointsAfter, entry.sourceEvent);
   return row!;
+}
+
+/** Nível de uma quantidade de Pontos e o mínimo do próximo (`game.level_def`, igual para todos os clientes). */
+export interface FanLevel {
+  level: number;
+  minPoints: number;
+  /** Mínimo do próximo Nível; null no último. */
+  nextMinPoints: number | null;
+}
+
+/** Níveis por Pontos: o maior com mínimo até `points`. Sem Nível cadastrado, o 1 a partir de zero. */
+export async function levelForPoints(db: Pick<Database, 'execute'>, points: number): Promise<FanLevel> {
+  const [row] = await db.execute<{
+    level: number | null;
+    min_points: string | null;
+    next_min: string | null;
+  }>(sql`
+    select (select level from game.level_def where min_points <= ${points} order by min_points desc limit 1) as level,
+           (select min_points from game.level_def where min_points <= ${points} order by min_points desc limit 1)
+             as min_points,
+           (select min(min_points) from game.level_def where min_points > ${points}) as next_min`);
+  return {
+    level: row?.level ?? 1,
+    minPoints: row?.min_points === null || row?.min_points === undefined ? 0 : Number(row.min_points),
+    nextMinPoints: row?.next_min === null || row?.next_min === undefined ? null : Number(row.next_min),
+  };
+}
+
+/** Crédito que mudou o Nível: um aviso só, com o Nível mais alto alcançado (um crédito grande pode pular Níveis). */
+async function announceLevel(
+  tx: Tx,
+  key: FanWalletKey,
+  before: number,
+  after: number,
+  sourceEvent: string,
+): Promise<void> {
+  const [from, to] = await Promise.all([levelForPoints(tx, before), levelForPoints(tx, after)]);
+  if (to.level <= from.level) return;
+  await publishWebhookEvent(tx, {
+    tenantId: key.tenantId,
+    topic: 'game.level.reached',
+    data: {
+      profile_id: key.profileId,
+      program_country: key.programCountry,
+      level: to.level,
+      previous_level: from.level,
+      points: after,
+      min_points: to.minPoints,
+      source_event: sourceEvent,
+    },
+  });
 }
 
 /**

@@ -4,11 +4,13 @@
  * - `GET /v1/predictions/open?event_id=`: prazo, tipos, Piso e os Palpites do torcedor no jogo.
  * - `PUT /v1/predictions/{eventId}`: grava ou troca até o prazo (relógio do banco). Grátis, sem compra.
  * - `GET /v1/rankings/{period}` e `.../me`: Ranking único do cliente no país, pelos Pontos definitivos.
+ * - Para o servidor do cliente (chave secreta, #913): `GET /v1/fans/{conta}/profiles/{perfil}/game` (Pontos, Nível,
+ *   Conquistas e Cartas de um Perfil pelos ids do sistema dele) e `GET /v1/game/rankings/{period}?country=`.
  *
  * Esportes do MVP: futebol, basquete (e NBA) e futebol americano. Menor de 13 fica fora (portão de idade da rota,
  * capacidade `predict`); 13 a 17 palpita e pontua.
  */
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyRequest } from 'fastify';
 import {
   PredictionEventParams,
   PredictionOpenQuery,
@@ -16,10 +18,13 @@ import {
   RankingParams,
   RankingQuery,
   AchievementEarnersParams,
+  GameFanParams,
+  GameRankingServerQuery,
   AchievementEarnersQuery,
   type AchievementEarners,
   type FanAchievements,
   type FanCards,
+  type FanGameSummary,
   type MyRanking,
   type OpenPredictions,
   type PredictionInput,
@@ -33,6 +38,8 @@ import {
   event,
   readFanAchievements,
   readFanCards,
+  levelForPoints,
+  readWallets,
   readMyRanking,
   readPredictions,
   readRanking,
@@ -50,8 +57,8 @@ import {
 import { eq } from 'drizzle-orm';
 import { problems } from '../errors.js';
 import { parseInput } from '../util.js';
-import { readFan } from '../engage/fans.js';
-import { resolveProgram, tenantHasGamification } from './program.js';
+import { findFanByExternal, readFan } from '../engage/fans.js';
+import { programCountryFor, resolveProgram, tenantHasGamification } from './program.js';
 
 /** Jogo que aceita Palpite enquanto não começa. */
 const PREDICTABLE_STATUSES = new Set(['scheduled', 'postponed']);
@@ -74,6 +81,43 @@ function view(row: GamePredictionRow): PredictionView {
     points: row.finalPoints ?? row.provisionalPoints,
     full_hit: row.fullHit,
   };
+}
+
+/** Chave secreta do servidor do cliente, com o módulo ligado (não vale a publicável nem o token do torcedor). */
+function secretTenantId(request: FastifyRequest): string {
+  const t = request.tenant;
+  if (!t || t.keyKind !== 'secret' || !t.keyPrefix)
+    throw problems.invalidKey('Use a chave secreta no header x-galaxie-key, no seu servidor.');
+  return t.tenantId;
+}
+
+type AchievementRows = Awaited<ReturnType<typeof readFanAchievements>>;
+type ActiveRows = Awaited<ReturnType<typeof activeAchievements>>;
+type CardRows = Awaited<ReturnType<typeof readFanCards>>;
+
+function achievementsView(
+  rows: AchievementRows,
+  active: ActiveRows,
+): FanAchievements['data']['achievements'] {
+  const thresholds = new Map(active.map((a) => [a.id, a.thresholds]));
+  return rows.map((r) => ({
+    achievement_id: r.achievementId,
+    season: r.season,
+    count: r.count,
+    steps: r.steps,
+    next_threshold: thresholds.get(r.achievementId)?.[r.steps] ?? null,
+    rarity: r.rarity,
+  }));
+}
+
+function cardsView(cards: CardRows): FanCards['data']['cards'] {
+  return cards.map((c) => ({
+    card_key: c.cardKey,
+    achievement_id: c.achievementId,
+    season: c.season,
+    step: c.step,
+    granted_at: c.grantedAt.toISOString(),
+  }));
 }
 
 export async function gameRoutes(app: FastifyInstance, deps: GameRoutesDeps): Promise<void> {
@@ -224,20 +268,9 @@ export async function gameRoutes(app: FastifyInstance, deps: GameRoutesDeps): Pr
       readFanAchievements(db(), { ...program, profileId: fan.profileId }),
       activeAchievements(db(), program),
     ]);
-    const thresholds = new Map(active.map((a) => [a.id, a.thresholds]));
     reply.header('cache-control', 'no-store');
     const out: FanAchievements = {
-      data: {
-        program_country: program.programCountry,
-        achievements: rows.map((r) => ({
-          achievement_id: r.achievementId,
-          season: r.season,
-          count: r.count,
-          steps: r.steps,
-          next_threshold: thresholds.get(r.achievementId)?.[r.steps] ?? null,
-          rarity: r.rarity,
-        })),
-      },
+      data: { program_country: program.programCountry, achievements: achievementsView(rows, active) },
     };
     return out;
   });
@@ -247,15 +280,67 @@ export async function gameRoutes(app: FastifyInstance, deps: GameRoutesDeps): Pr
     const program = await fanProgram(fan.tenantId, fan.profileId);
     const cards = await readFanCards(db(), { ...program, profileId: fan.profileId });
     reply.header('cache-control', 'no-store');
-    const out: FanCards = {
+    const out: FanCards = { data: { program_country: program.programCountry, cards: cardsView(cards) } };
+    return out;
+  });
+
+  // ─── servidor do cliente (chave secreta) ───
+
+  app.get(
+    '/v1/fans/:externalAccountId/profiles/:externalProfileId/game',
+    { config: { authenticated: true } },
+    async (request, reply) => {
+      const tenantId = secretTenantId(request);
+      const params = parseInput(GameFanParams, request.params);
+      if (!(await tenantHasGamification(db(), tenantId))) throw problems.moduleNotInPlan('gamification');
+      const fan = await findFanByExternal(db(), { tenantId, ...params });
+      if (!fan) throw problems.notFound('Perfil');
+      const program = await resolveProgram(db(), tenantId, fan.country);
+      const key = { ...program, profileId: fan.profileId };
+      const [rows, active, cards, wallets] = await Promise.all([
+        readFanAchievements(db(), key),
+        activeAchievements(db(), program),
+        readFanCards(db(), key),
+        readWallets(db(), tenantId, fan.profileId),
+      ]);
+      const wallet = wallets.find((w) => w.programCountry === program.programCountry);
+      const level = await levelForPoints(db(), wallet?.points ?? 0);
+      reply.header('cache-control', 'no-store');
+      const out: FanGameSummary = {
+        data: {
+          profile_id: fan.profileId,
+          program_country: program.programCountry,
+          points: wallet?.points ?? 0,
+          balance: wallet?.balance ?? 0,
+          level: { level: level.level, min_points: level.minPoints, next_min_points: level.nextMinPoints },
+          achievements: achievementsView(rows, active),
+          cards: cardsView(cards),
+        },
+      };
+      return out;
+    },
+  );
+
+  app.get('/v1/game/rankings/:period', { config: { authenticated: true } }, async (request, reply) => {
+    const tenantId = secretTenantId(request);
+    const { period } = parseInput(RankingParams, request.params);
+    const { limit, country } = parseInput(GameRankingServerQuery, request.query);
+    if (!(await tenantHasGamification(db(), tenantId))) throw problems.moduleNotInPlan('gamification');
+    // só os países em que o cliente opera (o programa de outro país não existe para ele)
+    if ((await programCountryFor(db(), tenantId, country)) !== country)
+      throw problems.notFound('Programa no país');
+    const rows = await readRanking(db(), { tenantId, programCountry: country, period, limit });
+    reply.header('cache-control', 'private, max-age=30');
+    const out: Ranking = {
       data: {
-        program_country: program.programCountry,
-        cards: cards.map((c) => ({
-          card_key: c.cardKey,
-          achievement_id: c.achievementId,
-          season: c.season,
-          step: c.step,
-          granted_at: c.grantedAt.toISOString(),
+        period,
+        program_country: country,
+        entries: rows.map((r) => ({
+          position: r.position,
+          profile_id: r.profileId,
+          nickname: r.nickname,
+          points: r.points,
+          full_hits: r.fullHits,
         })),
       },
     };

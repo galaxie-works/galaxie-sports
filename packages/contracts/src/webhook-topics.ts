@@ -160,6 +160,64 @@ const ENGAGE_TOPICS: WebhookTopicDef[] = [
       step: z.number().int().min(1).max(5),
       completed: z.boolean(),
       card_key: z.string().nullable().meta({ description: 'Carta que o Degrau deu.' }),
+      rule_version: z
+        .number()
+        .int()
+        .positive()
+        .meta({ description: 'Versão das regras do programa que valia quando o fato foi contado.' }),
+      source_event: z.string().meta({
+        description:
+          'Id do fato real que disparou (o Palpite fechado, o jogo assistido), opaco e estável: o mesmo fato nunca ' +
+          'dispara duas vezes.',
+      }),
+    }),
+  },
+  {
+    topic: 'game.card.granted',
+    modules: WEBHOOK_TOPIC_PREFIXES.game,
+    status: 'live',
+    label: { pt: 'Carta ganha', es: 'Carta ganada', en: 'Card granted' },
+    description:
+      'Um torcedor ganhou uma Carta ao chegar a um Degrau de Conquista. A Carta é certa por Degrau: sem sorteio, ' +
+      'sem compra e sem troca. Sai junto com o `game.achievement.step_reached` do mesmo Degrau.',
+    payload: engageEnvelope('WebhookGameCardGranted', 'game.card.granted', {
+      profile_id: profileId,
+      program_country: z.string().length(2),
+      card_key: z
+        .string()
+        .meta({ description: 'Chave estável da Carta no Catálogo (`predictions.correct.1`).' }),
+      achievement_id: z.string(),
+      season: z.string().meta({ description: '`all` (vitalícia) ou o ano da temporada.' }),
+      step: z.number().int().min(1).max(5),
+      rule_version: z
+        .number()
+        .int()
+        .positive()
+        .meta({ description: 'Versão das regras do programa que valia quando o fato foi contado.' }),
+      source_event: z.string().meta({
+        description:
+          'Id do fato real que disparou (o Palpite fechado, o jogo assistido), opaco e estável: o mesmo fato nunca ' +
+          'dispara duas vezes.',
+      }),
+    }),
+  },
+  {
+    topic: 'game.level.reached',
+    modules: WEBHOOK_TOPIC_PREFIXES.game,
+    status: 'live',
+    label: { pt: 'Nível alcançado', es: 'Nivel alcanzado', en: 'Level reached' },
+    description:
+      'Os Pontos de um torcedor no programa passaram do mínimo de um Nível novo. Os Pontos só sobem (o estorno de ' +
+      'um Palpite corrigido é a única exceção), então o Nível nunca é tirado. Use para entregar o que o seu ' +
+      'programa prende ao Nível.',
+    payload: engageEnvelope('WebhookGameLevelReached', 'game.level.reached', {
+      profile_id: profileId,
+      program_country: z.string().length(2),
+      level: z.number().int().min(2).meta({ description: 'O Nível novo (o 1 é o de partida).' }),
+      previous_level: z.number().int().min(1),
+      points: z.number().int().nonnegative().meta({ description: 'Pontos do torcedor depois do crédito.' }),
+      min_points: z.number().int().nonnegative().meta({ description: 'Mínimo de Pontos do Nível novo.' }),
+      source_event: z.string().meta({ description: 'Id do crédito de Pontos que levou ao Nível, opaco.' }),
     }),
   },
   {
@@ -185,7 +243,9 @@ const ENGAGE_TOPICS: WebhookTopicDef[] = [
     modules: WEBHOOK_TOPIC_PREFIXES.game,
     status: 'planned',
     label: { pt: 'Pontos a vencer', es: 'Puntos por vencer', en: 'Points expiring' },
-    description: 'Parte do saldo de pontos de um torcedor vence em breve.',
+    description:
+      'Não será emitido: os Pontos do programa não vencem (regra do programa). Fica no registro para o cliente ' +
+      'saber que não precisa tratar vencimento.',
     payload: engageEnvelope('WebhookGamePointsExpiring', 'game.points.expiring', {
       profile_id: profileId,
       program_id: z.uuid(),

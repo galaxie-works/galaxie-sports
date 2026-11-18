@@ -256,6 +256,8 @@ export {
   debitBalance,
   readLedger,
   readWallets,
+  levelForPoints,
+  type FanLevel,
   revertPoints,
   type FanCreditReason,
   type FanLedgerEntry,

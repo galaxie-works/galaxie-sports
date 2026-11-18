@@ -230,6 +230,13 @@ export const FanWallet = z
           .meta({ description: 'País do programa (Pontos e Ranking são por cliente e país).' }),
         points: z.number().int().meta({ description: 'Pontos: só sobem; definem Nível e Ranking.' }),
         balance: z.number().int().meta({ description: 'Saldo: o que se pode gastar no resgate (só 18+).' }),
+        level: z
+          .object({
+            level: z.number().int().positive(),
+            min_points: z.number().int().nonnegative(),
+            next_min_points: z.number().int().positive().nullable(),
+          })
+          .meta({ description: 'Nível pelos Pontos e o mínimo do próximo (null no último).' }),
       }),
     ),
   })
