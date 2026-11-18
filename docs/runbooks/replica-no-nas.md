@@ -199,10 +199,10 @@ journal do SHA tem migration que o banco não tem. Nesta ordem:
    semanal de domingo ou um deploy anterior com `DUMP_MODE=vps`) com a mesma idade também.
 2. **Senão, o deploy pede o dump ao NAS e espera.** Ele grava o pedido `.nas_dump_request` no volume de backups
    (`<quando> <rótulo>`, o rótulo é `gha-<run id>-<antigo>-<novo>`) e espera até `NAS_DUMP_WAIT_MIN` minutos (padrão
-   20) por um recibo gravado **depois** do pedido. No NAS, o `dumper` consulta o pedido a cada minuto pela chave de
+   30) por um recibo gravado **depois** do pedido. No NAS, o `dumper` consulta o pedido a cada minuto pela chave de
    recibo (`dump.sh --pedido` → comando forçado `pedido`), faz o `pg_dump` da réplica em `pre-migrate/` com esse rótulo
    e toca o recibo, que apaga o pedido. O deploy vê o recibo e segue para o `migrate`. Tempos: 1 min até o NAS ver o
-   pedido + o `pg_dump` (10 a 40 min, conforme o banco) + o recibo; o teto de 20 min cabe no passo do deploy
+   pedido + o `pg_dump` (10 a 40 min, conforme o banco) + o recibo; o teto de 30 min cabe no passo do deploy
    (75 min), e `NAS_DUMP_WAIT_MIN` sobe se o dump passar disso.
 3. **Sem recibo no prazo**, o deploy retira o pedido e **para antes de tocar no banco**, com a mensagem: conferir o NAS
    (`last_dump.txt`, logs de `dumper`, `postgres` e `tunnel` no Portainer: túnel caído? réplica atrasada ou no
@@ -232,7 +232,7 @@ Regra operacional que continua valendo: no máximo um deploy com migration por d
 | --- | --- | --- |
 | `last_dump.txt`: `réplica atrasada: N MB de WAL por aplicar` | A réplica recebeu mas não aplicou (um `pg_dump` longo segura o replay por `max_standby_streaming_delay=-1`, NAS lento) ou o túnel ficou fora e ela está alcançando | Esperar; `select now() - pg_last_xact_replay_timestamp()` na réplica cai sozinho. Persistindo, log do `postgres` do NAS |
 | Log do `dumper`: `o replay da réplica estava pausado` | Alguém rodou `pg_wal_replay_pause()` à mão | O `dump.sh` retoma sozinho quando pode; sem permissão, `select pg_wal_replay_resume()` como superusuário na réplica |
-| Deploy: `o NAS não atendeu o pedido de dump em 20 min` | NAS fora, túnel caído, réplica atrasada ou ainda no basebackup, `pg_dump` mais longo que `NAS_DUMP_WAIT_MIN`, ou outro dump rodando (trava) | `last_dump.txt` e logs no Portainer; `--status` na VPS. Dump só demorou: disparar o deploy de novo (o recibo que chegou depois vale). Pressa: `DUMP_MODE=vps` por um deploy |
+| Deploy: `o NAS não atendeu o pedido de dump em 30 min` | NAS fora, túnel caído, réplica atrasada ou ainda no basebackup, `pg_dump` mais longo que `NAS_DUMP_WAIT_MIN`, ou outro dump rodando (trava) | `last_dump.txt` e logs no Portainer; `--status` na VPS. Dump só demorou: disparar o deploy de novo (o recibo que chegou depois vale). Pressa: `DUMP_MODE=vps` por um deploy |
 | `postgres` do NAS reiniciando com `replication slot "nas_replica" already exists` (versões anteriores do entrypoint) | Sobra de um basebackup interrompido | O entrypoint atual apaga sozinho um slot inativo antes do basebackup; se não conseguir, `select pg_drop_replication_slot('nas_replica')` na VPS |
 | `--status`: slot `active=f` | A réplica não está conectada: túnel caído, `postgres` do NAS parado, ou a réplica está refazendo o basebackup | Logs de `tunnel` e `postgres` no Portainer; o `autossh` reconecta sozinho quando a VPS volta a responder |
 | `--status`: slot `wal_status=lost`; `last_dump.txt` manda refazer; log do `postgres` do NAS com "requested WAL segment … has already been removed" | O NAS ficou fora por mais WAL que `max_slot_wal_keep_size` (4 GB) e a produção invalidou o slot, de propósito, para não encher o disco | [Refazer a réplica](#refazer-a-réplica) |

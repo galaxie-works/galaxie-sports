@@ -218,7 +218,7 @@ jobs:
           # (docs/runbooks/replica-no-nas.md)
           DUMP_MODE: ${{ vars.DUMP_MODE || 'vps' }}
           NAS_DUMP_MAX_AGE_MIN: ${{ vars.NAS_DUMP_MAX_AGE_MIN || '120' }}
-          NAS_DUMP_WAIT_MIN: ${{ vars.NAS_DUMP_WAIT_MIN || '20' }}
+          NAS_DUMP_WAIT_MIN: ${{ vars.NAS_DUMP_WAIT_MIN || '30' }}
           TARGET_DIR: ${{ runner.temp }}/alvo
         run: |
           set -o pipefail

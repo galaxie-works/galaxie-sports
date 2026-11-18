@@ -101,55 +101,58 @@ export interface JobStatsRow {
   consecutiveFailures: number;
 }
 
+/**
+ * Estado de cada job em `ops.job_run`, tudo pelo índice `job_run_job_started_idx (job, started_at)`: os jobs
+ * distintos saem de uma CTE recursiva que salta de job em job no índice ("skip scan", uma descida por job), e cada
+ * campo é uma descida ou uma faixa curta do índice daquele job (última execução, último sucesso, primeira execução,
+ * falhas desde o sucesso e as execuções das últimas 24 h). A versão anterior passava quatro vezes pela tabela
+ * inteira (distinct on, dois group by e a janela de 24 h sem índice que começasse por started_at): 141 mil linhas e
+ * 5 a 9 s na produção com a CPU limitada. Sem JIT: a estimativa das subconsultas por job passa do jit_above_cost e a
+ * compilação custava mais que a consulta (37 de 80 ms no banco de desenvolvimento).
+ */
 export async function jobStats(db: Database): Promise<JobStatsRow[]> {
-  const rows = await db.execute<{
-    job: string;
-    last_status: string;
-    last_started_at: string | Date;
-    last_finished_at: string | Date | null;
-    last_success_at: string | Date | null;
-    first_started_at: string | Date;
-    consecutive_failures: number;
-    runs_24h: Record<string, number> | null;
-  }>(sql`
-    with last_run as (
-      select distinct on (job) job, status, started_at, finished_at
-      from ops.job_run
-      order by job, started_at desc
-    ),
-    last_ok as (
-      -- budget_skipped: o job gravou o determinístico porque o orçamento de IA recusou; conta como sucesso
-      select job, max(started_at) as at from ops.job_run
-       where status in ('ok', 'budget_skipped') group by job
-    ),
-    first_run as (
-      select job, min(started_at) as at from ops.job_run group by job
-    ),
-    recent as (
-      select job, jsonb_object_agg(status, n) as runs
-      from (
-        select job, status, count(*)::int as n
-        from ops.job_run
-        where started_at >= now() - interval '24 hours'
-        group by job, status
-      ) x
-      group by job
-    )
-    select lr.job,
-           lr.status as last_status,
-           lr.started_at as last_started_at,
-           lr.finished_at as last_finished_at,
-           lo.at as last_success_at,
-           fr.at as first_started_at,
-           (select count(*) from ops.job_run f
-             where f.job = lr.job and f.status = 'error'
-               and f.started_at > coalesce(lo.at, '-infinity'::timestamptz))::int as consecutive_failures,
-           r.runs as runs_24h
-    from last_run lr
-    left join last_ok lo on lo.job = lr.job
-    join first_run fr on fr.job = lr.job
-    left join recent r on r.job = lr.job
-  `);
+  const rows = await db.transaction(async (tx) => {
+    await tx.execute(sql`set local jit = off`);
+    return tx.execute<{
+      job: string;
+      last_status: string;
+      last_started_at: string | Date;
+      last_finished_at: string | Date | null;
+      last_success_at: string | Date | null;
+      first_started_at: string | Date;
+      consecutive_failures: number;
+      runs_24h: Record<string, number> | null;
+    }>(sql`
+      with recursive jobs as (
+        (select job from ops.job_run order by job limit 1)
+        union all
+        select (select n.job from ops.job_run n where n.job > j.job order by n.job limit 1)
+          from jobs j
+         where j.job is not null
+      )
+      select j.job,
+             lr.status as last_status,
+             lr.started_at as last_started_at,
+             lr.finished_at as last_finished_at,
+             lo.at as last_success_at,
+             fr.at as first_started_at,
+             (select count(*) from ops.job_run f
+               where f.job = j.job and f.status = 'error'
+                 and f.started_at > coalesce(lo.at, '-infinity'::timestamptz))::int as consecutive_failures,
+             (select jsonb_object_agg(x.status, x.n)
+                from (select r.status, count(*)::int as n from ops.job_run r
+                       where r.job = j.job and r.started_at >= now() - interval '24 hours'
+                       group by r.status) x) as runs_24h
+        from jobs j
+       cross join lateral (select l.status, l.started_at, l.finished_at from ops.job_run l
+                            where l.job = j.job order by l.started_at desc limit 1) lr
+       cross join lateral (select min(s.started_at) as at from ops.job_run s where s.job = j.job) fr
+        -- budget_skipped: o job gravou o determinístico porque o orçamento de IA recusou; conta como sucesso
+        left join lateral (select max(o.started_at) as at from ops.job_run o
+                            where o.job = j.job and o.status in ('ok', 'budget_skipped')) lo on true
+       where j.job is not null
+    `);
+  });
   return rows.map((r) => ({
     job: r.job,
     runs24h: r.runs_24h ?? {},
@@ -604,25 +607,42 @@ const SIZE_SCHEMAS = [
 /**
  * Tamanho do banco e das maiores tabelas (só catálogo e stat dos arquivos, sem varrer dados). As que a retenção
  * poda (raw.api_response, ops.change_feed, ops.llm_usage...) aparecem sempre, mesmo fora das maiores.
+ *
+ * O `pg_total_relation_size` faz stat de cada arquivo da tabela, dos índices e do TOAST: em vez de chamar nas ~150
+ * tabelas dos schemas, a estimativa do catálogo (`relpages` da tabela, do TOAST e dos índices, do último
+ * VACUUM/ANALYZE) escolhe as `2 * limit` candidatas, e só elas são medidas de verdade; o ranking final é pelo tamanho
+ * medido. O `pg_database_size` vai numa subconsulta: no select de cada linha ele rodava uma vez por tabela devolvida.
  */
 export async function dbSizes(db: Database, limit = 15): Promise<DbSizeData> {
   const always = ['raw.api_response', 'ops.change_feed', 'ops.llm_usage', 'ops.job_run', 'ops.quota_ledger'];
+  const alwaysList = sql.join(
+    always.map((s) => sql`${s}`),
+    sql`, `,
+  );
   const rows = await db.execute<{ table: string; bytes: number; database_bytes: number }>(sql`
-    with t as (
-      select n.nspname || '.' || c.relname as table, pg_total_relation_size(c.oid)::float8 as bytes
+    with est as (
+      select c.oid, n.nspname || '.' || c.relname as table,
+             c.relpages::float8
+               + coalesce((select t.relpages from pg_class t where t.oid = c.reltoastrelid), 0)
+               + coalesce((select sum(i.relpages) from pg_index x join pg_class i on i.oid = x.indexrelid
+                            where x.indrelid = c.oid), 0) as pages
         from pg_class c join pg_namespace n on n.oid = c.relnamespace
        where c.relkind in ('r', 'p')
          and n.nspname in (${sql.join(
            SIZE_SCHEMAS.map((s) => sql`${s}`),
            sql`, `,
          )})
+    ), candidates as (
+      select est.oid, est.table, est.table in (${alwaysList}) as always
+        from est
+       where est.oid in (select e.oid from est e order by e.pages desc limit ${limit * 2})
+          or est.table in (${alwaysList})
+    ), t as (
+      select c.table, c.always, pg_total_relation_size(c.oid)::float8 as bytes from candidates c
     ), ranked as (select t.*, row_number() over (order by bytes desc) as rk from t)
-    select ranked.table, ranked.bytes, pg_database_size(current_database())::float8 as database_bytes
+    select ranked.table, ranked.bytes, (select pg_database_size(current_database()))::float8 as database_bytes
       from ranked
-     where rk <= ${limit} or ranked.table in (${sql.join(
-       always.map((s) => sql`${s}`),
-       sql`, `,
-     )})`);
+     where rk <= ${limit} or ranked.always`);
   return {
     databaseBytes: Number(rows[0]?.database_bytes ?? 0),
     tables: rows.map((r) => ({ table: r.table, bytes: Number(r.bytes) })),

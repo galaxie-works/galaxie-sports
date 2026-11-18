@@ -17,6 +17,7 @@ import {
   gameCardGrant,
   gameCatalogAchievement,
   gameCatalogStep,
+  gameParticipationDaily,
   gamePeriodPoints,
   gameProgramAchievement,
   gameStepGrant,
@@ -328,4 +329,218 @@ export async function readFanCards(
       ),
     )
     .orderBy(gameCardGrant.grantedAt);
+}
+
+/** Soma Pontos no Ranking dos períodos (mês e ano). */
+export async function addPeriodPoints(
+  tx: Pick<Database, 'insert'>,
+  key: GameProgramKey & { profileId: string; periods: readonly string[]; points: number; fullHits?: number },
+): Promise<void> {
+  if (key.points <= 0) return;
+  for (const period of key.periods) {
+    await tx
+      .insert(gamePeriodPoints)
+      .values({
+        tenantId: key.tenantId,
+        programCountry: key.programCountry,
+        period,
+        profileId: key.profileId,
+        points: key.points,
+        fullHits: key.fullHits ?? 0,
+      })
+      .onConflictDoUpdate({
+        target: [
+          gamePeriodPoints.tenantId,
+          gamePeriodPoints.programCountry,
+          gamePeriodPoints.period,
+          gamePeriodPoints.profileId,
+        ],
+        set: {
+          points: sql`${gamePeriodPoints.points} + excluded.points`,
+          fullHits: sql`${gamePeriodPoints.fullHits} + excluded.full_hits`,
+          reachedAt: sql`now()` as never,
+          updatedAt: sql`now()` as never,
+        },
+      });
+  }
+}
+
+/**
+ * Sinal real de participação: entra uma vez por ação e referência (a partida, a enquete). Os Pontos são cortados pelo
+ * teto diário (`dailyCap`), somando o que o Perfil já ganhou no dia em participação. Devolve null se já tinha entrado.
+ */
+export async function recordParticipation(
+  tx: Pick<Database, 'select' | 'insert' | 'update' | 'delete' | 'execute'>,
+  key: GameProgramKey & {
+    profileId: string;
+    day: string;
+    action: 'watched' | 'poll' | 'trivia' | 'consumption';
+    ref: string;
+    points: number;
+    dailyCap: number;
+  },
+): Promise<{ points: number } | null> {
+  // trava o dia do Perfil: duas ações ao mesmo tempo não passam juntas do teto
+  await tx.execute(
+    sql`select pg_advisory_xact_lock(hashtextextended(${`game.participation:${key.tenantId}:${key.programCountry}:${key.profileId}:${key.day}`}, 0))`,
+  );
+  const [today] = await tx.execute<{ n: number }>(sql`
+    select coalesce(sum(points), 0)::int as n from game.participation_daily
+     where tenant_id = ${key.tenantId} and program_country = ${key.programCountry}
+       and profile_id = ${key.profileId} and day = ${key.day}::date`);
+  const points = Math.max(0, Math.min(key.points, key.dailyCap - (today?.n ?? 0)));
+  const inserted = await tx
+    .insert(gameParticipationDaily)
+    .values({
+      tenantId: key.tenantId,
+      programCountry: key.programCountry,
+      profileId: key.profileId,
+      day: key.day,
+      action: key.action,
+      ref: key.ref,
+      points,
+    })
+    .onConflictDoNothing()
+    .returning({ points: gameParticipationDaily.points });
+  if (!inserted.length) return null;
+  await appendGameAudit(tx, {
+    tenantId: key.tenantId,
+    programCountry: key.programCountry,
+    profileId: key.profileId,
+    kind: 'participation.counted',
+    subject: `${key.action}:${key.ref}`,
+    sourceEvent: key.ref,
+    detail: { points, day: key.day },
+  });
+  return { points };
+}
+
+export interface GameWatchedCandidate {
+  tenantId: string;
+  profileId: string;
+  profileCountry: string;
+  eventId: string;
+  sport: string;
+  startsAt: Date;
+  presentMs: number;
+  eventMs: number;
+}
+
+/**
+ * Perfis que assistiram a jogos encerrados entre `since` e `until` (a janela de correção), nos clientes com a
+ * Gamificação ligada, e que ainda não ganharam o "jogo assistido" daquele jogo.
+ *
+ * - A duração é a **real**: do primeiro `live` ao `finished` do `core.event_state_log`; sem registro, o horário
+ *   oficial e o fim previsto. Vôlei 3x0, luta que acaba no 1º round e jogo atrasado contam certo.
+ * - A presença é recortada a esse intervalo, e o corte (`minFraction`) é feito no SQL.
+ * - Parte da presença (índice por `last_seen_at`), não do evento: a consulta roda a cada minuto e não pode varrer a
+ *   base histórica de jogos.
+ */
+export async function watchedCandidates(
+  db: Pick<Database, 'execute'>,
+  window: { since: Date; until: Date; minFraction: number },
+): Promise<GameWatchedCandidate[]> {
+  // a presença de um jogo que terminou em `since` pode ter acabado até 12 h antes (jogo longo, F1 com bandeira vermelha)
+  const presenceSince = new Date(window.since.getTime() - 12 * 3_600_000);
+  const rows = await db.execute<{
+    tenant_id: string;
+    profile_id: string;
+    country: string;
+    event_id: string;
+    sport: string;
+    starts_at: string | Date;
+    present_ms: string;
+    event_ms: string;
+  }>(sql`
+    with recent as (
+      select distinct w.event_id from fan.presence_window w
+       where w.last_seen_at >= ${presenceSince.toISOString()}::timestamptz
+    ), ev as (
+      select e.id, e.sport, e.starts_at,
+             coalesce((select min(l.occurred_at) from core.event_state_log l
+                        where l.event_id = e.id and l.to_status = 'live'), e.starts_at) as real_start,
+             coalesce((select max(l.occurred_at) from core.event_state_log l
+                        where l.event_id = e.id and l.to_status = 'finished'), e.ends_at_expected) as real_end
+        from recent r join core.event e on e.id = r.event_id
+       where e.status = 'finished'
+    ), done as (
+      select * from ev
+       where real_end >= ${window.since.toISOString()}::timestamptz
+         and real_end <= ${window.until.toISOString()}::timestamptz
+         and real_end > real_start
+    )
+    select w.tenant_id, w.profile_id, p.country, d.id as event_id, d.sport, d.starts_at,
+           sum(greatest(0, extract(epoch from (least(w.last_seen_at, d.real_end) - greatest(w.started_at, d.real_start))) * 1000))::bigint as present_ms,
+           (extract(epoch from (d.real_end - d.real_start)) * 1000)::bigint as event_ms
+      from done d
+      join fan.presence_window w on w.event_id = d.id
+      join fan.profile p on p.tenant_id = w.tenant_id and p.id = w.profile_id
+                        and p.deleted_at is null and p.age_band <> 'under13'
+      join api.tenant t on t.id = w.tenant_id and t.status = 'active' and 'gamification' = any(t.modules)
+     where not exists (
+         select 1 from game.participation_daily pd
+          where pd.tenant_id = w.tenant_id and pd.profile_id = w.profile_id
+            and pd.action = 'watched' and pd.ref = 'event:' || d.id::text)
+     group by w.tenant_id, w.profile_id, p.country, d.id, d.sport, d.starts_at, d.real_start, d.real_end
+    having sum(greatest(0, extract(epoch from (least(w.last_seen_at, d.real_end) - greatest(w.started_at, d.real_start)))))
+           >= ${window.minFraction} * extract(epoch from (d.real_end - d.real_start))`);
+  return rows.map((r) => ({
+    tenantId: r.tenant_id,
+    profileId: r.profile_id,
+    profileCountry: r.country,
+    eventId: r.event_id,
+    sport: r.sport,
+    startsAt: new Date(r.starts_at),
+    presentMs: Number(r.present_ms),
+    eventMs: Number(r.event_ms),
+  }));
+}
+
+export interface GameAchievementEarners {
+  /** Quantos Perfis do programa têm o primeiro Degrau (todos, inclusive os privados: é só um número). */
+  total: number;
+  /** Alguns que deixaram as Conquistas visíveis, do Degrau mais alto e mais recente. */
+  earners: { profileId: string; nickname: string | null; avatarUrl: string | null; step: number }[];
+}
+
+/**
+ * "Quem já ganhou" (decisão de 16/11): Perfis do mesmo cliente e país que chegaram ao primeiro Degrau. Só aparece
+ * quem é adulto, não está com a faixa congelada e deixou `badges` público; a foto, só com `avatar` público e liberada
+ * pela moderação de imagem. Menor nunca aparece (#1107).
+ */
+export async function readAchievementEarners(
+  db: Pick<Database, 'execute'>,
+  key: GameProgramKey & { achievementId: string; season: string; limit: number },
+): Promise<GameAchievementEarners> {
+  const [total] = await db.execute<{ n: string }>(sql`
+    select count(*) as n from game.step_grant
+     where tenant_id = ${key.tenantId} and program_country = ${key.programCountry}
+       and achievement_id = ${key.achievementId} and season = ${key.season} and step = 1`);
+  const rows = await db.execute<{
+    profile_id: string;
+    nickname: string | null;
+    avatar_url: string | null;
+    step: number;
+  }>(sql`
+    select g.profile_id, p.nickname,
+           case when p.visibility->>'avatar' = 'public' and p.avatar_status = 'visible' then p.avatar_url end as avatar_url,
+           max(g.step)::int as step
+      from game.step_grant g
+      join fan.profile p on p.tenant_id = g.tenant_id and p.id = g.profile_id
+     where g.tenant_id = ${key.tenantId} and g.program_country = ${key.programCountry}
+       and g.achievement_id = ${key.achievementId} and g.season = ${key.season}
+       and p.deleted_at is null and p.age_band = '18plus' and p.age_frozen_at is null
+       and p.visibility->>'badges' = 'public'
+     group by g.profile_id, p.nickname, p.visibility, p.avatar_status, p.avatar_url
+     order by max(g.step) desc, max(g.granted_at) desc
+     limit ${key.limit}`);
+  return {
+    total: Number(total?.n ?? 0),
+    earners: rows.map((r) => ({
+      profileId: r.profile_id,
+      nickname: r.nickname,
+      avatarUrl: r.avatar_url,
+      step: r.step,
+    })),
+  };
 }

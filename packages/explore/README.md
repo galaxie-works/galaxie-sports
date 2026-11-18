@@ -34,8 +34,9 @@ dev) rodava quase a cada minuto. A mudança que chega dentro do freio não se pe
 conta, então ela entra assim que o freio passa (a home atrasa no máximo isso). Sem nada a fazer, a decisão é a linha de
 controle, o change feed pelo índice de `created_at` e, só quando ele não disparou, o jogo novo pelo índice
 `event_created_at_idx` (migration 0190): frações de milissegundo. A API usa o
-pré-calculado até 30 min (`EXPLORE_MAX_AGE_MS`); depois disso, ou sem ele, faz a mesma conta na requisição e registra
-um aviso. A idade aparece em `galaxie_explore_summary_age_seconds` no `/metrics` da API (alerta `ExploreSummaryStale`).
+pré-calculado mesmo velho: acima de 30 min (`EXPLORE_MAX_AGE_MS`) registra um aviso e segue servindo; só acima de 24 h
+(`EXPLORE_STALE_MAX_AGE_MS`), ou sem ele, faz a mesma conta na requisição (a consulta pesada: `topTeams` mediu 24,6 s na
+produção em 17/11, acima do `statement_timeout` de 10 s da API). A idade aparece em `galaxie_explore_summary_age_seconds` no `/metrics` da API (alerta `ExploreSummaryStale`).
 
 ## Como usar
 

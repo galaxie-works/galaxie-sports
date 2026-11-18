@@ -4,7 +4,7 @@
 # recente feito fora dela, pedindo um ao NAS quando não há. Roda na VPS, na pasta da stack, chamado pelo deploy-gh.sh e
 # pelo deploy.sh:
 #
-#   ssh $VPS "cd $DIR && NAS_DUMP_MAX_AGE_MIN=120 NAS_DUMP_WAIT_MIN=20 bash -s -- <migrations no journal do SHA novo> <rótulo>" < nas-dump-check.sh
+#   ssh $VPS "cd $DIR && NAS_DUMP_MAX_AGE_MIN=120 NAS_DUMP_WAIT_MIN=30 bash -s -- <migrations no journal do SHA novo> <rótulo>" < nas-dump-check.sh
 #
 # Só quando o journal do SHA novo tem mais migrations que o banco (como o pre-migrate-dump.sh). Aí, nesta ordem:
 #   1. o recibo .nas_last_dump que o dump.sh da réplica do NAS deixa no volume de backups ("<quando> <bytes> <arquivo>"),
@@ -13,7 +13,7 @@
 #   2. um dump feito na própria VPS (diário em /backups ou em pre-migrate/) com a mesma idade também dispensa (o
 #      semanal de domingo, ou um deploy anterior com DUMP_MODE=vps);
 #   3. senão, deixa o PEDIDO de dump no volume (.nas_dump_request: "<quando> <rótulo>", o rótulo é o id do deploy) e
-#      espera até NAS_DUMP_WAIT_MIN minutos (padrão 20) por um recibo mais novo que o pedido. O dumper do NAS consulta o
+#      espera até NAS_DUMP_WAIT_MIN minutos (padrão 30) por um recibo mais novo que o pedido. O dumper do NAS consulta o
 #      pedido a cada minuto (dump.sh --pedido, pela chave de recibo), faz o pg_dump da réplica em pre-migrate/, toca o
 #      recibo e o próprio recibo apaga o pedido. Recibo novo e plausível = prova;
 #   4. sem recibo no prazo: apaga o pedido (para o NAS não fazer um dump inútil depois) e falha SEM tocar no banco, com
@@ -29,7 +29,7 @@ want="${1:?informe quantas migrations o journal do SHA novo tem}"
 label="${2:-deploy}"
 MAX_AGE_MIN="${NAS_DUMP_MAX_AGE_MIN:-120}"
 MIN_MB="${NAS_DUMP_MIN_MB:-256}"
-WAIT_MIN="${NAS_DUMP_WAIT_MIN:-20}"
+WAIT_MIN="${NAS_DUMP_WAIT_MIN:-30}"
 WAIT_S="${NAS_DUMP_WAIT_S:-$((WAIT_MIN * 60))}"
 POLL_S="${NAS_DUMP_POLL_S:-30}"
 BACKUPS_DIR="${NAS_BACKUPS_DIR:-/var/lib/docker/volumes/galaxie-sports_backups/_data}"

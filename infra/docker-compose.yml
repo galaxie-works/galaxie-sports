@@ -50,7 +50,7 @@ services:
   # Cria o bucket de assets com leitura pública (imagens servidas pela API/CDN) e o privado das tarefas, e encerra. S3 fora do ar depois de
   # 60 s, ou bucket/política que falham, saem com erro (o `pnpm infra:up` falha em vez de seguir sem bucket).
   s3-init:
-    image: amazon/aws-cli:2.40.2
+    image: amazon/aws-cli:2.40.3
     depends_on:
       - s3
     environment:
@@ -99,7 +99,7 @@ services:
   # SMTP falso do E2E (tests/e2e/README.md). Só sobe com o profile "e2e" (pnpm e2e:mail): a demo de teste manda o código
   # de acesso por ele (porta 1025, qualquer usuário e senha, sem TLS) e o teste lê pela API HTTP (porta 8025).
   mailpit:
-    image: axllent/mailpit:v1.32.0
+    image: axllent/mailpit:v1.33.1
     profiles: ['e2e']
     environment:
       MP_SMTP_AUTH_ACCEPT_ANY: '1'

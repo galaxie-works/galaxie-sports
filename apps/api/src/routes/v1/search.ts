@@ -15,12 +15,13 @@ import { requireDb, type AppContext } from '../../context.js';
 import { actuallyLiveCond, IN_PLAY, sportScope } from '../../events/queries.js';
 import { competitionName, pickText } from '../../i18n.js';
 import {
-  accentPattern,
   bestMatch,
   fold,
   foldSql,
   likeTerm,
   matchRank,
+  personSearchMatchSql,
+  searchPattern,
   splitMatchup,
   stringsOf,
 } from '../../search/match.js';
@@ -86,10 +87,10 @@ function rankSql(main: SQL, aliases: SQL, term: string): SQL {
 /**
  * Pré-seleção dos candidatos: regex sem acento sobre o nome e os apelidos (o ranking vem depois).
  * Termo curto (2 letras) só casa no começo de uma palavra: "br" acha Brasil, não Gibraltar.
+ * Pessoas usam `personSearchMatchSql`, servida pelo índice trigram (esta expressão não é indexável).
  */
 function matchesSql(main: SQL, aliases: SQL, term: string): SQL {
-  const pattern = term.length < 3 ? `(^|[^[:alnum:]])${accentPattern(term)}` : accentPattern(term);
-  return sql`concat_ws(' ', ${main}, ${aliasesText(aliases)}) ~* ${pattern}`;
+  return sql`concat_ws(' ', ${main}, ${aliasesText(aliases)}) ~* ${searchPattern(term)}`;
 }
 
 /** Nome do país para o `detail`; competições e times internacionais (`WORLD`) ficam sem. */
@@ -283,7 +284,7 @@ export async function searchRoutes(app: FastifyInstance, ctx: AppContext): Promi
           select tm.name, tm.sport from core.roster r join core.participant tm on tm.id = r.participant_id
            where r.person_id = p.id
            order by r.season_id is not null, r.valid_to desc nulls first, tm.name limit 1) t on true
-       where ${matchesSql(sql`p.name`, aliases, term)}
+       where ${personSearchMatchSql(term)}
          ${sports ? sql`and ${inList(sql`t.sport`, sports)}` : sql``}
        order by ${rankSql(sql`p.name`, aliases, term)}, t.name is null, p.photo_asset_id is null,
                 length(p.name), p.name, p.id

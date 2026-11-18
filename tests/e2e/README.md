@@ -67,10 +67,3 @@ pnpm e2e
   `E2E_SERVER_LOG_LEVEL=info` para mais).
 - **Limite do login**: a demo aceita um pedido de código a cada 45 s por e-mail e 3 por minuto por IP. Cada papel entra
   uma vez, no `setup`; um cenário que precise de outra conta usa um e-mail próprio (`<cenário>-<hex>@galaxie.test`).
-
-## Falha conhecida
-
-`chromium › cliente logado › vê o console da marca dele` está marcado com `test.fail`: no build de produção o `/client`
-quebra no servidor ("Attempted to call sectionsForState() from the server"), porque a moldura do console
-(`apps/demo/src/components/client/client-area.tsx`) chama funções exportadas de `client-nav.tsx`, que é `'use client'`.
-Quando a correção entrar, o teste passa a "passar inesperadamente" e a marcação sai junto.

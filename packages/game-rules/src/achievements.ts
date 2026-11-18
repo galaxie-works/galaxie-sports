@@ -205,14 +205,12 @@ export const INITIAL_CATALOG: readonly CatalogEntry[] = Object.freeze([
     rule: { input: 'participation', action: 'watched' },
     stepped: true,
     seasonal: true,
-    active: false,
-    inactiveReason:
-      'O jogo assistido ainda não vira sinal de participação: falta a regra de tempo mínimo de presença.',
+    active: true,
     name: { pt: 'Fiel', es: 'Fiel', en: 'Loyal' },
     description: {
-      pt: 'Acompanhe jogos ao vivo.',
-      es: 'Sigue partidos en vivo.',
-      en: 'Follow matches live.',
+      pt: 'Acompanhe ao vivo pelo menos 2/3 de um jogo.',
+      es: 'Sigue en vivo al menos 2/3 de un partido.',
+      en: 'Watch at least 2/3 of a match live.',
     },
     steps: steps('loyalty.watched', [1, 5, 15, 38, 100], []),
   },
@@ -280,4 +278,12 @@ export function levelFor(points: number): number {
   let level = 1;
   for (const l of LEVELS) if (points >= l.minPoints) level = l.level;
   return level;
+}
+
+/** Jogo assistido (decisão do Wagner, 16/11): presença verificada em pelo menos 2/3 do evento. */
+export const WATCHED_MIN_FRACTION = 2 / 3;
+
+/** A presença somada no jogo basta para contar como assistido? */
+export function watchedEnough(presentMs: number, eventMs: number): boolean {
+  return eventMs > 0 && presentMs >= WATCHED_MIN_FRACTION * eventMs;
 }

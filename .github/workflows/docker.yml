@@ -448,7 +448,7 @@ jobs:
             infra/nas-replica/dump.sh infra/nas-replica/replica-entrypoint.sh infra/nas-replica/dump.test.sh infra/nas-replica/replica-entrypoint.test.sh \
             infra/vps-telemetry/preparar-replica.sh infra/vps-telemetry/preparar-replica.test.sh infra/vps-telemetry/galaxie-nas-receipt.sh \
             infra/vps-telemetry/nas-dump-check.sh infra/vps-telemetry/nas-dump-check.test.sh \
-            infra/vps-telemetry/candidate.sh infra/vps-telemetry/maintenance.sh infra/vps-telemetry/migrar-para-tres-projetos.sh infra/vps-telemetry/rolling-swap.sh infra/vps-telemetry/rolling-swap.test.sh infra/vps-telemetry/ligar-webhooks.sh \
+            infra/vps-telemetry/candidate.sh infra/vps-telemetry/candidate.test.sh infra/vps-telemetry/maintenance.sh infra/vps-telemetry/migrar-para-tres-projetos.sh infra/vps-telemetry/rolling-swap.sh infra/vps-telemetry/rolling-swap.test.sh infra/vps-telemetry/ligar-webhooks.sh \
             infra/vps-telemetry/prune-images.sh infra/vps-telemetry/prune-images.test.sh infra/ops/vps-stats/*.sh \
             infra/ops/migrate-dev.sh infra/ops/migrate-dev.test.sh \
             infra/vps-telemetry/ensure-secrets.sh infra/vps-telemetry/ensure-secrets.test.sh \
@@ -478,6 +478,9 @@ jobs:
       # serviço, volta da stack inteira e SHA anterior às tags por serviço
       - name: Deploy só do que mudou (deploy-gh.sh com o Docker)
         run: bash infra/vps-telemetry/deploy-gh.test.sh
+
+      - name: Candidato do deploy com a lista do deploy (candidate.sh com docker falso; listagem instável, .candidates)
+        run: bash infra/vps-telemetry/candidate.test.sh
 
       - name: Poda das imagens antigas na VPS (prune-images.sh com o Docker)
         run: bash infra/vps-telemetry/prune-images.test.sh

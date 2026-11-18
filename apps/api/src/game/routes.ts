@@ -15,6 +15,9 @@ import {
   PredictionsBody,
   RankingParams,
   RankingQuery,
+  AchievementEarnersParams,
+  AchievementEarnersQuery,
+  type AchievementEarners,
   type FanAchievements,
   type FanCards,
   type MyRanking,
@@ -26,6 +29,7 @@ import {
 } from '@galaxie/contracts';
 import {
   activeAchievements,
+  readAchievementEarners,
   event,
   readFanAchievements,
   readFanCards,
@@ -257,4 +261,31 @@ export async function gameRoutes(app: FastifyInstance, deps: GameRoutesDeps): Pr
     };
     return out;
   });
+
+  app.get(
+    '/v1/achievements/:achievementId/earners',
+    { config: { fan: true, age: 'read' } },
+    async (request, reply) => {
+      const fan = request.fan!;
+      const { achievementId } = parseInput(AchievementEarnersParams, request.params);
+      const { season, limit } = parseInput(AchievementEarnersQuery, request.query);
+      const program = await fanProgram(fan.tenantId, fan.profileId);
+      const res = await readAchievementEarners(db(), { ...program, achievementId, season, limit });
+      reply.header('cache-control', 'private, max-age=60');
+      const out: AchievementEarners = {
+        data: {
+          achievement_id: achievementId,
+          season,
+          total: res.total,
+          earners: res.earners.map((e) => ({
+            profile_id: e.profileId,
+            nickname: e.nickname,
+            avatar_url: e.avatarUrl,
+            step: e.step,
+          })),
+        },
+      };
+      return out;
+    },
+  );
 }

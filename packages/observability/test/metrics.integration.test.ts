@@ -25,7 +25,7 @@ import {
 import { sql } from 'drizzle-orm';
 import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { createMetrics } from '../src/index.js';
+import { createMetrics, dbSizes } from '../src/index.js';
 
 const adminUrl = process.env.DATABASE_URL;
 if (!adminUrl) throw new Error('DATABASE_URL é obrigatória para os testes de integração (pnpm infra:up).');
@@ -703,6 +703,34 @@ describe('sinais de vida, agenda esperada e IA (ops.runtime_*, ops.llm_usage)', 
     expect(m.get('galaxie_ai_credit_check', { status: 'fail', provider: 'gemini' })).toBe(1);
     expect(m.get('galaxie_ai_spend_usd', { budget_day: budgetDay })).toBeCloseTo(4.75);
     expect(m.get('galaxie_ai_daily_budget_usd')).toBe(20);
+  });
+});
+
+describe('tamanho do banco (catálogo)', () => {
+  const PODADAS = ['raw.api_response', 'ops.change_feed', 'ops.llm_usage', 'ops.job_run', 'ops.quota_ledger'];
+
+  it('banco, a maior tabela pela medida e as que a retenção poda', async () => {
+    // a escolha das candidatas usa o relpages do último VACUUM/ANALYZE; sem ele, as tabelas recém-criadas ficam em 0
+    await db.execute(sql`analyze`);
+    const m = await scrape();
+    expect(m.get('galaxie_db_database_bytes')).toBeGreaterThan(0);
+    const tables = m.series('galaxie_db_table_bytes').map((v) => String(v.labels.table));
+    for (const t of PODADAS) expect(tables).toContain(t);
+    expect(tables.length).toBeLessThanOrEqual(15 + PODADAS.length);
+    const [top] = await db.execute<{ t: string }>(sql`
+      select n.nspname || '.' || c.relname as t
+        from pg_class c join pg_namespace n on n.oid = c.relnamespace
+       where c.relkind in ('r', 'p') and n.nspname in ('raw', 'core', 'ops')
+       order by pg_total_relation_size(c.oid) desc limit 1`);
+    expect(tables).toContain(top!.t);
+  });
+
+  it('as podadas saem mesmo fora das maiores e das candidatas', async () => {
+    const { databaseBytes, tables } = await dbSizes(db, 1);
+    expect(databaseBytes).toBeGreaterThan(0);
+    const names = tables.map((t) => t.table);
+    for (const t of PODADAS) expect(names).toContain(t);
+    expect(names.length).toBeLessThanOrEqual(1 + PODADAS.length);
   });
 });
 

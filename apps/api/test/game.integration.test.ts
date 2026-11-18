@@ -244,6 +244,25 @@ describe('Palpite e Ranking (#942)', () => {
     );
     expect(steps!.n).toBe(4); // vitalícia e temporada de cada um
 
+    // quem já ganhou: o total conta todos; a lista só mostra quem deixou as Conquistas públicas
+    const earners = () =>
+      app.inject({
+        method: 'GET',
+        url: '/v1/achievements/predictions.correct/earners',
+        headers: auth(c.token),
+      });
+    expect((await earners()).json().data).toMatchObject({ total: 1, earners: [] });
+    const open1 = await app.inject({
+      method: 'PATCH',
+      url: '/v1/fans/me',
+      headers: auth(a.token),
+      payload: { visibility: { badges: 'public' } },
+    });
+    expect(open1.statusCode).toBe(200);
+    expect((await earners()).json().data.earners).toEqual([
+      expect.objectContaining({ nickname: expect.any(String), avatar_url: null, step: 1 }),
+    ]);
+
     const period = new Intl.DateTimeFormat('en-CA', {
       timeZone: 'America/Sao_Paulo',
       year: 'numeric',
@@ -300,6 +319,57 @@ describe('Palpite e Ranking (#942)', () => {
     expect([...rows]).toEqual(want);
     const [levels] = await db.execute<{ n: number }>(sql`select count(*)::int as n from game.level_def`);
     expect(levels!.n).toBe(LEVELS.length);
+  });
+
+  it('jogo assistido: presença em pelo menos 2/3 do jogo dá Pontos e a Conquista "Fiel"', async () => {
+    const t = await tenantKey('game-watch', ['core_data', 'gamification']);
+    const [full, half] = [await fan(t.key), await fan(t.key)];
+    const start = new Date(Date.now() - 3 * 3_600_000);
+    const end = new Date(start.getTime() + 90 * 60_000);
+    const [row] = await db
+      .insert(event)
+      .values({
+        sport: 'football',
+        startsAt: start,
+        endsAtExpected: end,
+        status: 'finished',
+        score: { home: 1, away: 0 },
+      })
+      .returning({ id: event.id });
+    const ev = row!.id;
+    const window = async (externalProfileId: string, minutes: number) => {
+      await db.execute(sql`
+        insert into fan.presence_window (tenant_id, profile_id, event_id, started_at, last_seen_at, last_interaction_at)
+        select p.tenant_id, p.id, ${ev}::uuid, ${start.toISOString()}::timestamptz,
+               ${new Date(start.getTime() + minutes * 60_000).toISOString()}::timestamptz, ${start.toISOString()}::timestamptz
+          from fan.profile p where p.tenant_id = ${t.id} and p.external_profile_id = ${externalProfileId}`);
+    };
+    await window(full.profile, 61); // 61 de 90 min: passa de 2/3
+    await window(half.profile, 59); // 59 de 90: não passa
+    clock = Date.now() + 120_000;
+    expect((await scorer.sweep()).watched).toBe(1);
+    expect((await scorer.sweep()).watched).toBe(0);
+    const shelf = await app.inject({
+      method: 'GET',
+      url: '/v1/fans/me/achievements',
+      headers: auth(full.token),
+    });
+    expect(
+      (shelf.json().data.achievements as { achievement_id: string; season: string; steps: number }[]).find(
+        (a) => a.achievement_id === 'loyalty.watched' && a.season === 'all',
+      ),
+    ).toMatchObject({ steps: 1 });
+    const [w] = await db.execute<{ points: string }>(
+      sql`select w.points from fan.wallet w join fan.profile p on p.tenant_id = w.tenant_id and p.id = w.profile_id
+           where p.external_profile_id = ${full.profile}`,
+    );
+    expect(Number(w!.points)).toBe(20);
+    const halfShelf = await app.inject({
+      method: 'GET',
+      url: '/v1/fans/me/achievements',
+      headers: auth(half.token),
+    });
+    expect(halfShelf.json().data.achievements).toEqual([]);
   });
 
   it('jogo cancelado anula os Palpites, sem Pontos', async () => {
