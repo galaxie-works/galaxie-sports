@@ -486,6 +486,14 @@ export async function setContentVisibility(
  * para não prender a conexão); devolve quantos saíram. A leitura já esconde o vencido antes do expurgo. O que está sob
  * guarda legal (#1289) fica até a guarda vencer.
  */
+/**
+ * O post só sai quando nenhum comentário dele está sob guarda: o comentário aponta para o post com `on delete cascade`,
+ * e apagar o post levaria junto o comentário preservado.
+ */
+const childHold = (at: string) =>
+  sql`and not exists (select 1 from community.comment c
+        where c.tenant_id = x.tenant_id and c.post_id = x.id and c.legal_hold_until > ${at}::timestamptz)`;
+
 export async function purgeCommunityContent(
   db: Database,
   now: Date,
@@ -499,8 +507,9 @@ export async function purgeCommunityContent(
       const [row] = await db.execute<{ n: number }>(sql`
         with gone as (
           delete from ${sql.raw(table)} where ctid in (
-            select ctid from ${sql.raw(table)} where purge_at <= ${at}::timestamptz
+            select ctid from ${sql.raw(table)} x where purge_at <= ${at}::timestamptz
               and (legal_hold_until is null or legal_hold_until <= ${at}::timestamptz)
+              ${table === 'community.post' ? childHold(at) : sql``}
             limit ${batch})
           returning 1)
         select count(*)::int as n from gone`);

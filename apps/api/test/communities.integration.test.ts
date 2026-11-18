@@ -639,6 +639,24 @@ describe('Feed da Comunidade (#946)', () => {
     expect(row?.visibility).toBe('hidden');
   });
 
+  it('comentário sob guarda segura o post pai no expurgo (on delete cascade)', async () => {
+    const { t, c, adult } = await member('feed-hold-comment');
+    const p = (await post(adult.token, `/v1/communities/${c.id}/posts`, { body: 'Post pai' })).json().data;
+    const other = await fan(t.key);
+    await post(other.token, `/v1/communities/${c.id}/join`);
+    const cm = (
+      await post(other.token, `/v1/posts/${p.id}/comments`, { body: 'Comentário preservado' })
+    ).json().data;
+    await db.execute(sql`update community.post set purge_at = now() - interval '1 day' where id = ${p.id}`);
+    await db.execute(sql`update community.comment set purge_at = now() - interval '1 day',
+      legal_hold_until = now() + interval '365 days' where id = ${cm.id}`);
+    await purgeCommunityContent(db, new Date());
+    const [left] = await db.execute<{ posts: number; comments: number }>(sql`
+      select (select count(*)::int from community.post where id = ${p.id}) as posts,
+             (select count(*)::int from community.comment where id = ${cm.id}) as comments`);
+    expect(left).toEqual({ posts: 1, comments: 1 });
+  });
+
   it('o fixado sai só em pinned, sem repetir em posts', async () => {
     const { t, c, adult } = await member('feed-pin');
     const p = (await post(adult.token, `/v1/communities/${c.id}/posts`, { body: 'Regras da casa' })).json()
