@@ -57,4 +57,5 @@ CREATE UNIQUE INDEX "poll_mom_room_uq" ON "community"."poll" USING btree ("tenan
 CREATE UNIQUE INDEX "poll_mom_community_uq" ON "community"."poll" USING btree ("tenant_id","community_id","event_id") WHERE "community"."poll"."kind" = 'man_of_match' and "community"."poll"."scope" = 'community';--> statement-breakpoint
 CREATE UNIQUE INDEX "poll_option_position_uq" ON "community"."poll_option" USING btree ("tenant_id","poll_id","position");--> statement-breakpoint
 CREATE INDEX "poll_vote_option_idx" ON "community"."poll_vote" USING btree ("tenant_id","poll_id","option_id");--> statement-breakpoint
-CREATE INDEX "poll_vote_created_idx" ON "community"."poll_vote" USING btree ("created_at");
+CREATE INDEX "poll_vote_created_idx" ON "community"."poll_vote" USING btree ("created_at");--> statement-breakpoint
+CREATE INDEX "participation_daily_ref_idx" ON "game"."participation_daily" USING btree ("tenant_id","profile_id","action","ref");

@@ -25,6 +25,7 @@ import {
   type CommunityPollResponse,
 } from '@galaxie/contracts';
 import {
+  activeSanctions,
   castVote,
   closePoll,
   CommunityPollError,
@@ -104,11 +105,14 @@ export async function communityPollRoutes(
   const moderation = deps.db ? new ModerationLists(deps.db) : null;
 
   /** Texto da equipe: a base de regras recusa o que barraria ou esconderia (sem fila: a equipe reescreve). */
-  async function cleanText(tenantId: string, locale: string, path: string, raw: string): Promise<string> {
+  async function cleanText(tenantId: string, path: string, raw: string): Promise<string> {
     const text = raw.trim();
     const lists = await moderation!.forTenant(tenantId);
-    const r = screen(text, { kind: 'poll_option', locale }, lists);
-    if (r.action !== 'allow' || !text)
+    // a equipe pode escrever em qualquer um dos três idiomas: vale a regra de todos
+    const refused = ['pt-BR', 'es', 'en'].some(
+      (locale) => screen(text, { kind: 'poll_option', locale }, lists).action !== 'allow',
+    );
+    if (refused || !text)
       throw problems.invalidParams([{ path, message: 'texto recusado pelas regras da plataforma' }]);
     return text;
   }
@@ -130,7 +134,6 @@ export async function communityPollRoutes(
     const tenant = secretTenant(request);
     const body = parseInput(CommunityPollCreateBody, request.body);
     const database = db();
-    const locale = 'pt-BR';
     if (body.community_id) {
       await gate.requireModule(tenant.tenantId);
       const c = await readCommunity(database, tenant.tenantId, body.community_id);
@@ -142,10 +145,13 @@ export async function communityPollRoutes(
           { path: 'fixture_id', message: 'obrigatório na enquete da Sala do Jogo' },
         ]);
     }
-    let ev: { id: string; sport: string } | null = null;
+    const closesAt = body.closes_at ? new Date(body.closes_at) : null;
+    if (closesAt && closesAt.getTime() <= now().getTime())
+      throw problems.invalidParams([{ path: 'closes_at', message: 'precisa ser no futuro' }]);
+    let ev: { id: string; sport: string; endsAtExpected: Date } | null = null;
     if (body.fixture_id) {
       const [row] = await database
-        .select({ id: event.id, sport: event.sport })
+        .select({ id: event.id, sport: event.sport, endsAtExpected: event.endsAtExpected })
         .from(event)
         .where(eq(event.id, body.fixture_id))
         .limit(1);
@@ -169,11 +175,11 @@ export async function communityPollRoutes(
     } else {
       if (!body.question || !body.options)
         throw problems.invalidParams([{ path: 'question', message: 'pergunta e opções são obrigatórias' }]);
-      question = await cleanText(tenant.tenantId, locale, 'question', body.question);
+      question = await cleanText(tenant.tenantId, 'question', body.question);
       options = [];
       for (const [i, o] of body.options.entries())
         options.push({
-          label: await cleanText(tenant.tenantId, locale, `options.${i}`, o),
+          label: await cleanText(tenant.tenantId, `options.${i}`, o),
           personId: null,
           participantId: null,
         });
@@ -186,7 +192,9 @@ export async function communityPollRoutes(
         eventId: ev?.id ?? null,
         kind: body.kind,
         question,
-        closesAt: body.closes_at ? new Date(body.closes_at) : null,
+        // enquete da Sala sem prazo fecha 1 h depois do fim previsto do jogo (a sala também fecha)
+        closesAt:
+          closesAt ?? (!body.community_id && ev ? new Date(ev.endsAtExpected.getTime() + 3_600_000) : null),
         createdBy: `tenant:${tenant.keyPrefix}`,
         options,
       });
@@ -232,6 +240,15 @@ export async function communityPollRoutes(
     const { pollId } = parseInput(PollParams, request.params);
     const { option_id } = parseInput(CommunityVoteBody, request.body);
     await fanPoll(fan, pollId);
+    // suspensão e banimento no cliente barram também o voto (como a curtida e a reação); o silêncio só barra texto
+    const sanctions = await activeSanctions(db(), {
+      tenantId: fan.tenantId,
+      profileId: fan.profileId,
+      accountId: fan.accountId,
+      now: now(),
+    });
+    if (sanctions.some((x) => x.scope === 'tenant' && (x.level === 'ban' || x.level === 'suspension')))
+      throw refuse('sanctioned', 'Você não pode participar agora. Veja suas punições no seu Perfil.');
     try {
       await castVote(db(), {
         tenantId: fan.tenantId,

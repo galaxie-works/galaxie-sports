@@ -11,7 +11,13 @@ import { CommunityParams } from './communities.js';
 
 export const COMMUNITY_POLL_KIND_VALUES = ['free', 'man_of_match'] as const;
 export const COMMUNITY_POLL_SCOPE_VALUES = ['community', 'room'] as const;
-export const COMMUNITY_VOTE_REFUSALS = ['closed', 'already_voted', 'not_member', 'bad_option'] as const;
+export const COMMUNITY_VOTE_REFUSALS = [
+  'closed',
+  'already_voted',
+  'not_member',
+  'bad_option',
+  'sanctioned',
+] as const;
 
 export const PollParams = z.object({ pollId: z.uuid().meta({ description: 'ID da enquete.' }) });
 export type PollParams = z.infer<typeof PollParams>;

@@ -1,5 +1,5 @@
 {
-  "id": "3382be24-317b-4909-a763-fe225bb58363",
+  "id": "f2866628-9ec2-455b-b855-fb605a5d3ec4",
   "prevId": "8d5df7fe-634d-431e-b1a4-4c1facd57f1d",
   "version": "7",
   "dialect": "postgresql",
@@ -27841,6 +27841,39 @@
             },
             {
               "expression": "day",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "participation_daily_ref_idx": {
+          "name": "participation_daily_ref_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "profile_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "action",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "ref",
               "isExpression": false,
               "asc": true,
               "nulls": "last"

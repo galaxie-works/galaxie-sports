@@ -787,6 +787,17 @@ describe('Enquetes (#947)', () => {
     expect(refused.statusCode).toBe(403);
   });
 
+  it('prazo no passado é recusado', async () => {
+    const { t, c } = await setup('poll-past');
+    const res = await secret(t.key, 'POST', '/v1/polls', {
+      community_id: c.id,
+      question: 'Já fechou?',
+      options: ['Sim', 'Não'],
+      closes_at: new Date(Date.now() - 60_000).toISOString(),
+    });
+    expect(res.statusCode).toBe(400);
+  });
+
   it('pergunta com aposta é recusada pela base de regras', async () => {
     const { t, c } = await setup('poll-bet');
     const res = await secret(t.key, 'POST', '/v1/polls', {

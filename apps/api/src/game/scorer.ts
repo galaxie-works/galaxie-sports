@@ -335,9 +335,14 @@ export class GameScorer {
   async sweepPolls(): Promise<number> {
     const since = new Date(this.now() - 48 * 3_600_000);
     let counted = 0;
+    // um programa e uma escala por cliente e país na varredura (o mesmo jogo traz milhares de votos)
+    const programs = new Map<string, ReturnType<typeof resolveProgram>>();
+    const scales = new Map<string, Promise<PointsScale>>();
     for (const c of await pollVoteCandidates(this.db, { since })) {
       try {
-        const program = await resolveProgram(this.db, c.tenantId, c.profileCountry);
+        const pk = `${c.tenantId}:${c.profileCountry}`;
+        if (!programs.has(pk)) programs.set(pk, resolveProgram(this.db, c.tenantId, c.profileCountry));
+        const program = await programs.get(pk)!;
         const keys = periodKeys(c.votedAt, program.timeZone);
         const day = new Intl.DateTimeFormat('en-CA', {
           timeZone: program.timeZone,
@@ -345,7 +350,10 @@ export class GameScorer {
           month: '2-digit',
           day: '2-digit',
         }).format(c.votedAt);
-        const scale = await this.programScale(c.tenantId, program.programCountry, program.ruleVersion);
+        const sk = `${c.tenantId}:${program.programCountry}:${program.ruleVersion}`;
+        if (!scales.has(sk))
+          scales.set(sk, this.programScale(c.tenantId, program.programCountry, program.ruleVersion));
+        const scale = await scales.get(sk)!;
         const done = await this.db.transaction(async (tx) => {
           const key = { tenantId: c.tenantId, programCountry: program.programCountry };
           const [alive] = await tx.execute<{ ok: number }>(

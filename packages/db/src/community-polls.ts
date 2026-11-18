@@ -162,7 +162,8 @@ async function hydrate(
       participantName: participant.name,
       votes: sql<number>`(select count(*)::int from ${communityPollVote} v
         join fan.profile vp on vp.tenant_id = v.tenant_id and vp.id = v.profile_id and vp.deleted_at is null
-        where v.tenant_id = ${communityPollOption.tenantId} and v.option_id = ${communityPollOption.id})`,
+        where v.tenant_id = ${communityPollOption.tenantId} and v.poll_id = ${communityPollOption.pollId}
+          and v.option_id = ${communityPollOption.id})`,
     })
     .from(communityPollOption)
     .leftJoin(person, eq(person.id, communityPollOption.personId))
