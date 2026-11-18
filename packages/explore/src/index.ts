@@ -53,6 +53,7 @@ export {
   DEFAULT_EXPLORE_MIN_INTERVAL_SEC,
   EXPLORE_MAX_AGE_MS,
   EXPLORE_REFRESH_MS,
+  EXPLORE_STALE_MAX_AGE_MS,
   exploreMinIntervalMs,
   exploreRefreshReason,
   type ExploreRefreshOptions,

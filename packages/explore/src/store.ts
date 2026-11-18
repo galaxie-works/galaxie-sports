@@ -18,8 +18,17 @@ import { exploreWindow } from './window.js';
 export const ALL = '*';
 /** O job recalcula sem esperar mudança quando o resumo passa disso. */
 export const EXPLORE_REFRESH_MS = 10 * 60_000;
-/** Acima disso a API deixa o pré-calculado de lado e calcula na requisição (e o alerta dispara). */
+/**
+ * Acima disso o pré-calculado está atrasado: a API registra um aviso e o alerta `ExploreSummaryStale` dispara, mas
+ * ela continua servindo o pré-calculado até `EXPLORE_STALE_MAX_AGE_MS`.
+ */
 export const EXPLORE_MAX_AGE_MS = 30 * 60_000;
+/**
+ * Teto do "velho mas serve": acima disso o resumo está inútil e a API volta a calcular na requisição. Calcular na hora
+ * é a consulta pesada (`topTeams` mediu 24,6 s na produção em 17/11, acima do `statement_timeout` de 10 s do perfil
+ * `api`): com o job parado num deploy, um resumo de uma ou duas horas é muito melhor que erro 500.
+ */
+export const EXPLORE_STALE_MAX_AGE_MS = 24 * 60 * 60_000;
 /**
  * Freio (EXPLORE_MIN_INTERVAL_SEC, painel › Agenda): mudança de jogo (status no change feed ou jogo novo) não
  * recalcula antes disso desde a última conta. Com jogo ao vivo algum status muda quase todo minuto, e cada conta lê a
