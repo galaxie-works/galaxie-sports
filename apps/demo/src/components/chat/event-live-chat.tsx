@@ -11,6 +11,12 @@ import type { FanProfile } from '@/lib/fan/profile';
 import { useI18n } from '@/lib/i18n/client';
 
 /**
+ * O proxy da demo exige a sessão (cookie) antes de repassar; o widget pede tudo com `credentials: 'omit'` (no site de
+ * um cliente a API é de outra origem e não pode receber cookie). Aqui a API é a própria demo: o cookie vai junto.
+ */
+const sameOriginFetch: typeof fetch = (input, init) => fetch(input, { ...init, credentials: 'same-origin' });
+
+/**
  * Chat ao vivo na página do jogo da demo (#977): o widget `live_chat` pelo proxy da demo, com o token do torcedor
  * da pessoa logada. A faixa do perfil de torcedor decide: `18plus` escreve, `13_17` lê e reage. O "Entrar" do widget
  * abre o perfil de torcedor aqui mesmo (no celular o menu do usuário fica fechado dentro da barra lateral). O demo é
@@ -33,6 +39,7 @@ export function EventLiveChat({ eventId, market }: { eventId: string; market?: s
       <GalaxieWidgetProvider
         baseUrl="/api/galaxie"
         publishableKey=""
+        fetch={sameOriginFetch}
         theme={theme}
         locale={locale === 'es-AR' ? 'es' : locale}
         market={market}
