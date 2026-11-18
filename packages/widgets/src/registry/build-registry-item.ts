@@ -182,6 +182,8 @@ function defaultProps(
     // Shopping: a entidade da página (o jogo, ou o time, o campeonato ou o atleta)
     case 'shop_the_game':
       return pick(['eventId', 'teamId', 'competitionId', 'personId']);
+    case 'live_chat':
+      return pick(['eventId']);
   }
 }
 

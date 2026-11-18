@@ -39,6 +39,7 @@ describe('abas de esporte do catálogo', () => {
       'channel_guide',
       'match_stats',
       'shop_the_game',
+      'live_chat',
     ]);
     expect(tabs.find((t) => t.family.id === 'automobilismo')?.kinds).toEqual([
       'live_list',
@@ -51,6 +52,7 @@ describe('abas de esporte do catálogo', () => {
       'athlete_profile',
       'channel_guide',
       'shop_the_game',
+      'live_chat',
     ]);
     expect(tabs.find((t) => t.family.id === 'lutas')?.kinds).toContain('fight_card');
     // Hipismo e Olimpíadas e Pan: abas do catálogo fora do menu de esportes, no fim
