@@ -182,6 +182,7 @@ services:
       BACKUP_LOCAL_MAX_AGE_H: ${BACKUP_LOCAL_MAX_AGE_H:-192}
       BACKUP_KEEP_DAILY: ${BACKUP_KEEP_DAILY:-3}
       BACKUP_CHECK_INTERVAL_H: ${BACKUP_CHECK_INTERVAL_H:-6}
+      BACKUP_HEALTH_GRACE_H: ${BACKUP_HEALTH_GRACE_H:-3}
       BACKUP_NAS_RECEIPT: ${BACKUP_NAS_RECEIPT:-true}
       RESTORE_DRILL_DAY: ${RESTORE_DRILL_DAY:-1}
       # na partida, só quando o último dump bem-sucedido tem mais de BACKUP_ON_START_MIN_AGE_H h (always = sempre):
