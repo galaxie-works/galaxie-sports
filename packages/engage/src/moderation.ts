@@ -536,11 +536,6 @@ function sharesId(folded: string): boolean {
   return phone !== null && phone[1]!.replace(/\D/g, '').length >= 8;
 }
 
-/** Sinal de contato perto de um `@perfil`: o nome de um app, um verbo de seguir ou chamar, ou "meu/minha". */
-const HANDLE_COMPANION = new RegExp(
-  ` (?:${CONTACT_APPS}|${LOOSE_APPS}|segue|sigam|siga|seguir|me segue|seguime|sigueme|follow|me add|add me|agregame|chama|me chama|chamame|manda|me manda|mandame|dm|pv|inbox|meu|minha|mi|mis|my) `,
-);
-
 function hostOf(url: string): string {
   return normalizeDomain(url.replace(/^[a-z]+:\/\//i, ''));
 }
@@ -717,13 +712,9 @@ export function screen(text: string, ctx: ScreenContext, lists: CompiledLists): 
   const handles = handlesIn(folded).filter((h) => !lists.allowedHandles.has(h) && !acronyms.has(h));
   const plainText = textOf(plainWords);
   const invites = invitesOut(plainText) || invitesOut(leet) || sharesId(folded);
-  // `@perfil` sozinho é resposta a outro torcedor ("@fulano concordo"): publica e vai para a Cosmos e a fila. Com
-  // sinal de contato perto (app, "segue", "meu") ou no Apelido, barra.
-  const handleWithSignal =
-    handles.length > 0 &&
-    (identity || HANDLE_COMPANION.test(plainText.joined) || HANDLE_COMPANION.test(leet.joined));
-  const handleAlone = handles.length > 0 && !handleWithSignal;
-  if (invites || handleWithSignal) reasons.add('contact');
+  // qualquer `@perfil` fora dos oficiais que o cliente liberou barra, também como resposta a outro torcedor
+  // ("@fulano concordo"): decisão do dono do produto (#1373)
+  if (invites || handles.length > 0) reasons.add('contact');
   if ([...categories].some((c) => ABUSE.has(c))) reasons.add('abuse');
   if (categories.has('profanity')) reasons.add('profanity');
 
@@ -742,8 +733,7 @@ export function screen(text: string, ctx: ScreenContext, lists: CompiledLists): 
     ambiguousHit ||
     maybeLink ||
     // a tentativa de levar a conversa para fora fica registrada e uma pessoa revisa (proteção de menores, #1373)
-    reasons.has('contact') ||
-    handleAlone;
+    reasons.has('contact');
   return {
     action,
     reasons: sorted,

@@ -586,11 +586,11 @@ describe('screen: contato fora da sala (#1373)', () => {
   });
 
   it.each(['@fulano concordo contigo', '@joao10 tá maluco?', 'vamos @rgentina'])(
-    '@perfil sozinho publica e vai para a fila: %s',
+    '@perfil sozinho também barra e vai para a fila: %s',
     (text) => {
       const r = chat(text);
-      expect(r.action).toBe('allow');
-      expect(r.reasons).not.toContain('contact');
+      expect(r.action).toBe('block');
+      expect(r.reasons).toContain('contact');
       expect(r.suspect).toBe(true);
     },
   );
@@ -614,7 +614,7 @@ describe('screen: contato fora da sala (#1373)', () => {
     });
     const at = (text: string) => screen(text, { kind: 'chat_message', locale: 'pt-BR' }, tenant);
     expect(at('segue o @saopaulofc').reasons).not.toContain('contact');
-    expect(at('olha o @galaxiesports.').suspect).toBe(false);
+    expect(at('olha o @galaxiesports.').reasons).not.toContain('contact');
     // liberar um perfil não libera o convite para sair da sala nem outro perfil
     expect(at('me chama no zap').reasons).toContain('contact');
     expect(at('segue o @outro').reasons).toContain('contact');
