@@ -58,4 +58,11 @@ CREATE UNIQUE INDEX "poll_mom_community_uq" ON "community"."poll" USING btree ("
 CREATE UNIQUE INDEX "poll_option_position_uq" ON "community"."poll_option" USING btree ("tenant_id","poll_id","position");--> statement-breakpoint
 CREATE INDEX "poll_vote_option_idx" ON "community"."poll_vote" USING btree ("tenant_id","poll_id","option_id");--> statement-breakpoint
 CREATE INDEX "poll_vote_created_idx" ON "community"."poll_vote" USING btree ("created_at");--> statement-breakpoint
-CREATE INDEX "participation_daily_ref_idx" ON "game"."participation_daily" USING btree ("tenant_id","profile_id","action","ref");
+CREATE INDEX "participation_daily_ref_idx" ON "game"."participation_daily" USING btree ("tenant_id","profile_id","action","ref");--> statement-breakpoint
+-- Gamificação (#904): a enquete passa a emitir o sinal de voto (#947, GameScorer.sweepPolls), então a Conquista
+-- "Vote nas enquetes" passa a contar. Só muda a linha do Catálogo da Galaxie; nada do torcedor.
+UPDATE "game"."catalog_achievement"
+   SET "active" = true,
+       "inactive_reason" = NULL,
+       "updated_at" = now()
+ WHERE "id" = 'community.poll';
