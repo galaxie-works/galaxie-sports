@@ -484,13 +484,18 @@ describe('desempenho', () => {
 });
 
 describe('screen: contato fora da sala (#1373)', () => {
+  const PT = 'Não passe perfil de rede social nem chame para conversar em outro app.';
+  const ES = 'No compartas perfiles de redes sociales ni invites a hablar por otra app.';
+  const EN = "Don't share social media handles or ask people to chat on other apps.";
+
   it.each([
     'me segue no @fulano_10',
-    '@fulano manda dm',
-    'olha o @joao.silva',
+    'segue o @joao.silva',
+    'meu insta é @fulano10',
     'me chama no insta',
     'chama no zap',
     'me chama no z4p',
+    'me chamaaa no instaaa',
     'me add no discord',
     'segue lá no tiktok',
     'meu insta é fulano10',
@@ -498,18 +503,45 @@ describe('screen: contato fora da sala (#1373)', () => {
     'manda msg no wpp',
     'me chama no telegram',
     'add no 1nsta',
-  ])('barra e avisa: %s', (text) => {
+    'qual teu insta?',
+    'qual seu zap?',
+    'tem zap?',
+    'me passa teu whats',
+    'passa o insta',
+    'me chama no pv',
+    'me chama no privado',
+    'chama inbox',
+    'te chamo no zap',
+    'vamos conversar no zap',
+    'me add no ff',
+    'me chama no kwai',
+    'meu ig é fulano',
+    'insta: fulano_10',
+    'ig fulano10',
+    'arroba fulano10',
+    '@ fulano10',
+    'zap 11 9 8765 4321',
+    'me chama no uatsap',
+  ])('barra, avisa e manda para a fila: %s', (text) => {
     const r = chat(text);
     expect(r.action).toBe('block');
     expect(r.reasons).toContain('contact');
-    expect(screenNotice(r, 'pt-BR')).toBe('Não compartilhe redes sociais nem convide para outros apps aqui.');
+    expect(r.suspect).toBe(true);
+    expect(screenNotice(r, 'pt-BR')).toBe(PT);
   });
 
   it.each([
-    ['es', 'escribime por insta', 'No compartas redes sociales ni invites a otras apps aquí.'],
-    ['es', 'mi insta es fulano', 'No compartas redes sociales ni invites a otras apps aquí.'],
-    ['en', 'hit me up on snap', "Don't share social media handles or invite people to other apps here."],
-    ['en', 'add me on discord', "Don't share social media handles or invite people to other apps here."],
+    ['es', 'escribime por insta', ES],
+    ['es', 'mi insta es fulano', ES],
+    ['es', 'pasame tu insta', ES],
+    ['es', 'mandame md', ES],
+    ['es', 'mandame al whatsapp', ES],
+    ['en', 'hit me up on snap', EN],
+    ['en', 'add me on discord', EN],
+    ['en', 'what is your snap?', EN],
+    ['en', 'whats ur snap', EN],
+    ['en', 'dm me', EN],
+    ['en', 'add me on roblox', EN],
   ])('em %s: %s', (locale, text, notice) => {
     const r = chat(text, locale);
     expect(r.reasons).toContain('contact');
@@ -526,8 +558,47 @@ describe('screen: contato fora da sala (#1373)', () => {
     'quem viu o lance no replay?',
     'placar 2@1 hoje',
     'golaço!!! @ 45 do segundo tempo',
+    'my face when they scored',
+    'look at my face',
+    'minha face quando o juiz apitou',
+    'mi face cuando el árbitro cobró',
+    'my signal says offside',
+    'my threads are soaked',
+    'my dc united',
+    'chama o dc',
+    'manda o tg',
+    'chama o Zap no ataque',
+    'manda a bola pro face do gol',
+    'fala com o face do clube',
+    'fala na cara, face a face',
+    'segue no face a face',
+    'o atacante segue de face pro gol',
+    'add pressure on the snap',
+    'add another one in DC',
+    'chama o VAR',
+    'manda pro x',
+    'segue o jogo',
+    'o jogador foi pro DM',
+    'LAL @BOS tonight',
+    'Jets @NE',
   ])('não barra: %s', (text) => {
     expect(chat(text).reasons).not.toContain('contact');
+  });
+
+  it.each(['@fulano concordo contigo', '@joao10 tá maluco?', 'vamos @rgentina'])(
+    '@perfil sozinho publica e vai para a fila: %s',
+    (text) => {
+      const r = chat(text);
+      expect(r.action).toBe('allow');
+      expect(r.reasons).not.toContain('contact');
+      expect(r.suspect).toBe(true);
+    },
+  );
+
+  it('@perfil no Apelido é recusado', () => {
+    const r = screen('@Fulano10', { kind: 'nickname', locale: 'pt-BR' }, lists);
+    expect(r.reasons).toContain('contact');
+    expect(r.action).toBe('block');
   });
 
   it('e-mail continua dado pessoal, não perfil', () => {
@@ -541,18 +612,11 @@ describe('screen: contato fora da sala (#1373)', () => {
       terms: {},
       allowedHandles: ['@SaoPauloFC', 'galaxiesports'],
     });
-    expect(
-      screen('segue o @saopaulofc', { kind: 'chat_message', locale: 'pt-BR' }, tenant).reasons,
-    ).not.toContain('contact');
-    expect(
-      screen('olha o @galaxiesports.', { kind: 'chat_message', locale: 'pt-BR' }, tenant).reasons,
-    ).not.toContain('contact');
-    // liberar um perfil não libera o convite para sair da sala
-    expect(screen('me chama no zap', { kind: 'chat_message', locale: 'pt-BR' }, tenant).reasons).toContain(
-      'contact',
-    );
-    expect(screen('segue o @outro', { kind: 'chat_message', locale: 'pt-BR' }, tenant).reasons).toContain(
-      'contact',
-    );
+    const at = (text: string) => screen(text, { kind: 'chat_message', locale: 'pt-BR' }, tenant);
+    expect(at('segue o @saopaulofc').reasons).not.toContain('contact');
+    expect(at('olha o @galaxiesports.').suspect).toBe(false);
+    // liberar um perfil não libera o convite para sair da sala nem outro perfil
+    expect(at('me chama no zap').reasons).toContain('contact');
+    expect(at('segue o @outro').reasons).toContain('contact');
   });
 });

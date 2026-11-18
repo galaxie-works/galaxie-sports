@@ -478,20 +478,68 @@ function handlesIn(folded: string): string[] {
   return out;
 }
 
-/** Apps e redes para onde levar a conversa (na forma do caminho do drible: `z4p` → `zap`, `1nsta` → `insta`). */
+/**
+ * Apps e redes para onde levar a conversa, na forma do caminho do drible (`z4p` → `zap`, `1nsta` → `insta`).
+ * Os de `CONTACT_APPS` são inconfundíveis; os de `LOOSE_APPS` são também palavra comum ("my face", "o dc", "minha
+ * ff"), e só contam com preposição antes ou com o perfil depois. O "x" fica de fora: é letra comum demais.
+ */
 const CONTACT_APPS =
-  '(?:insta|instagram|ig|zap|zapzap|whats|whatsapp|wpp|wsp|watsap|tiktok|tik tok|discord|dc|telegram|telegrama|tg|snap|snapchat|kik|twitter|face|facebook|messenger|signal|threads|onlyfans)';
-/** Chamada para fora: verbo de contato perto do app ("me chama no insta", "add no discord", "hit me up on snap"). */
+  '(?:insta|instagram|zap|zapzap|zapp|whats|whatsapp|whatsap|wats|uats|uatsap|wpp|wsp|watsap|wasap|guasap|tiktok|tik tok|kwai|discord|telegram|snap|snapchat|kik|twitter|facebook|fb|messenger|onlyfans|roblox)';
+const LOOSE_APPS =
+  '(?:ig|dc|tg|face(?! (?:a|to) face)|signal|threads|ff|free fire|fortnite|minecraft|psn|xbox|steam)';
+const ANY_APP = `(?:${CONTACT_APPS}|${LOOSE_APPS})`;
+/** Conversa privada: "me chama no pv", "mandame md", "dm me". Só na forma com "me": "manda pro DM" é departamento médico. */
+const PRIVATE = '(?:direct|dm|dms|pv|privado|priv|inbox|md)';
+
+/**
+ * Chamada para fora: verbo de contato, no máximo duas palavras de enchimento ("me", "lá", "um") e a preposição antes
+ * do app ("me chama no insta", "add no discord", "hit me up on snap"). Sem a preposição não conta: "chama o Zap no
+ * ataque", "manda a bola pro face do gol".
+ */
 const CONTACT_CALL = new RegExp(
-  ` (?:chama|chamem|chamar|me chama|me add|add|adiciona|adicionem|segue|sigam|siga|seguir|manda|mande|me manda|fala|fale|me acha|me encontra|me procura|procura|chamame|escribeme|escribime|agregame|agregame|seguime|sigueme|hablame|hablame|dm|pv|inbox|hit me up|text me|message me|msg me|follow me|find me|add me|dm me)(?: [a-z0-9]+){0,3} (?:no|na|nos|pelo|pela|por|en|el|al|on|in|at|via)? ?${CONTACT_APPS} `,
+  ` (?:chama|chame|chamem|chamar|chamo|me chama|me chame|te chamo|add|me add|add me|adiciona|adicionem|me adiciona|segue|sigam|siga|seguir|me segue|manda|mande|me manda|mandame|fala|fale|me fala|falar|conversar|conversa|me acha|me encontra|me procura|procura|chamame|escribeme|escribime|escribo|te escribo|agregame|seguime|sigueme|hablame|pasame|hit me up|hmu|text me|message me|msg me|follow me|find me|dm me)(?: (?:me|la|um|uma|ai|ae|a gente|mais|tu|you|us|msg|mensagem|mensaje|oi|um oi|un))?(?: (?:me|la|um|uma|ai|ae))? (?:no|na|nos|nas|pelo|pela|pro|pra|por|en|el|al|on|in|at|via) ${ANY_APP} `,
 );
-/** Perfil próprio anunciado: "meu insta é", "mi zap", "my snap". O "x" fica de fora (é letra comum demais). */
-const CONTACT_MINE = new RegExp(` (?:meu|minha|mi|mis|my) ${CONTACT_APPS} `);
-/** O app no fim depois de "no"/"pelo" e um número ou perfil: "me chama no zap 11…" já cai no telefone; aqui só o texto. */
+/** Conversa no privado, sempre com "me": "me chama no pv", "chama inbox", "mandame md", "dm me", "slide into my dms". */
+const CONTACT_PRIVATE = new RegExp(
+  ` (?:(?:me chama|me chame|chama|chamame|me manda|mandame|manda|me fala|hablame|escribime|escribeme)(?: (?:no|na|en|al|por|pelo|pela))? ${PRIVATE}|(?:dm|inbox|text|snap) me|slide into my dms?|hmu) `,
+);
+/**
+ * Perfil próprio anunciado: "meu insta é", "mi zap", "my snap". Os apps de `LOOSE_APPS` só com o "é" depois ("meu ig é
+ * fulano"), para não pegar "my face when they scored" nem "minha ff caiu".
+ */
+const CONTACT_MINE = new RegExp(
+  ` (?:meu|minha|mi|mis|my)(?: (?:novo|nova|new))? (?:${CONTACT_APPS}|${LOOSE_APPS} (?:e|eh|es|is|ta|tá)) `,
+);
+/** Pedido do contato do outro, o caso central do aliciamento: "qual teu insta?", "tem zap?", "pasame tu wsp". */
+const CONTACT_ASK = new RegExp(
+  ` (?:qual|quais|passa|me passa|tem|tens|voce tem|vc tem|pasame|pasa|tenes|tienes|cual|whats|what is|wats|got|do you have|u got)(?: (?:e|eh|es|is|o|a|teu|tua|seu|sua|tu|your|ur|u|o teu|o seu|a tua|a sua))?(?: (?:teu|tua|seu|sua|tu|your|ur))? ${CONTACT_APPS} `,
+);
+/** Perfil com letra e número ou `_` ("fulano_10", "joao10"); só número não conta ("@ 45 do segundo tempo"). */
+const ID_TOKEN = '(?=[a-z0-9_.]*[a-z])(?=[a-z0-9_.]*[0-9_])[a-z0-9_.]{3,30}';
+/** App seguido do perfil ou do número, sem verbo: "insta: fulano_10", "ig fulano10", "zap 11 9 8765 4321". */
+const APP_ID = new RegExp(
+  `(?<![a-z0-9])(?:${CONTACT_APPS}|ig|tg|dc|face)\\s*[:=-]?\\s*(?:(?:e|eh|es|is)\\s+)?@?${ID_TOKEN}(?![a-z0-9_])`,
+);
+const APP_PHONE = new RegExp(`(?<![a-z0-9])${CONTACT_APPS}\\s*[:=-]?\\s*(\\+?\\d[\\d\\s().-]{6,24}\\d)`);
+/** "arroba fulano10", "@ fulano10": o `@` separado do perfil. */
+const SPACED_HANDLE = new RegExp(`(?<![a-z0-9])(?:arroba|@)\\s+@?${ID_TOKEN}(?![a-z0-9_])`);
 
 function invitesOut(t: Text): boolean {
-  return CONTACT_CALL.test(t.joined) || CONTACT_MINE.test(t.joined);
+  return [t.joined, t.joinedSqueezed].some(
+    (j) => CONTACT_CALL.test(j) || CONTACT_PRIVATE.test(j) || CONTACT_MINE.test(j) || CONTACT_ASK.test(j),
+  );
 }
+
+function sharesId(folded: string): boolean {
+  if (APP_ID.test(folded) || SPACED_HANDLE.test(folded)) return true;
+  const phone = APP_PHONE.exec(folded);
+  return phone !== null && phone[1]!.replace(/\D/g, '').length >= 8;
+}
+
+/** Sinal de contato perto de um `@perfil`: o nome de um app, um verbo de seguir ou chamar, ou "meu/minha". */
+const HANDLE_COMPANION = new RegExp(
+  ` (?:${CONTACT_APPS}|${LOOSE_APPS}|segue|sigam|siga|seguir|me segue|seguime|sigueme|follow|me add|add me|agregame|chama|me chama|chamame|manda|me manda|mandame|dm|pv|inbox|meu|minha|mi|mis|my) `,
+);
 
 function hostOf(url: string): string {
   return normalizeDomain(url.replace(/^[a-z]+:\/\//i, ''));
@@ -659,17 +707,27 @@ export function screen(text: string, ctx: ScreenContext, lists: CompiledLists): 
   if (hosts.some((h) => !domainIn(h, lists.allowedDomains))) reasons.add('link');
   if (hasPersonalData(trimmed)) reasons.add('personal_data');
   // perfil de rede social (menos os oficiais que o cliente liberou) e convite para sair da sala
-  if (
-    handlesIn(folded).some((h) => !lists.allowedHandles.has(h)) ||
-    invitesOut(textOf(plainWords)) ||
-    invitesOut(leet)
-  )
-    reasons.add('contact');
+  const identity = IDENTITY_KINDS.has(ctx.kind);
+  // `@BOS`, `@NE`: sigla de time no placar americano, não perfil
+  const acronyms = new Set(
+    [...trimmed.matchAll(/(?<![\p{L}\p{N}_.@])@([A-Z]{2,4})(?![\p{L}\p{N}_])/gu)].map((m) =>
+      m[1]!.toLowerCase(),
+    ),
+  );
+  const handles = handlesIn(folded).filter((h) => !lists.allowedHandles.has(h) && !acronyms.has(h));
+  const plainText = textOf(plainWords);
+  const invites = invitesOut(plainText) || invitesOut(leet) || sharesId(folded);
+  // `@perfil` sozinho é resposta a outro torcedor ("@fulano concordo"): publica e vai para a Cosmos e a fila. Com
+  // sinal de contato perto (app, "segue", "meu") ou no Apelido, barra.
+  const handleWithSignal =
+    handles.length > 0 &&
+    (identity || HANDLE_COMPANION.test(plainText.joined) || HANDLE_COMPANION.test(leet.joined));
+  const handleAlone = handles.length > 0 && !handleWithSignal;
+  if (invites || handleWithSignal) reasons.add('contact');
   if ([...categories].some((c) => ABUSE.has(c))) reasons.add('abuse');
   if (categories.has('profanity')) reasons.add('profanity');
 
   const sorted = ORDER.filter((r) => reasons.has(r));
-  const identity = IDENTITY_KINDS.has(ctx.kind);
   let action: ScreenResult['action'] = 'allow';
   if (reasons.has('abuse')) action = identity ? 'block' : 'shadow';
   else if (sorted.some((r) => r !== 'profanity')) action = 'block';
@@ -682,7 +740,10 @@ export function screen(text: string, ctx: ScreenContext, lists: CompiledLists): 
     (reasons.has('profanity') && !identity) ||
     reasons.has('betting') ||
     ambiguousHit ||
-    maybeLink;
+    maybeLink ||
+    // a tentativa de levar a conversa para fora fica registrada e uma pessoa revisa (proteção de menores, #1373)
+    reasons.has('contact') ||
+    handleAlone;
   return {
     action,
     reasons: sorted,
@@ -702,7 +763,7 @@ const NOTICES: Record<NoticeLocale, Record<ScreenReason, string>> = {
     abuse: 'Sua mensagem fere as regras da comunidade.',
     betting: 'Não é permitido divulgar apostas.',
     personal_data: 'Não compartilhe telefone, e-mail, CPF ou chave Pix.',
-    contact: 'Não compartilhe redes sociais nem convide para outros apps aqui.',
+    contact: 'Não passe perfil de rede social nem chame para conversar em outro app.',
     link: 'Links para fora não são permitidos aqui.',
     profanity: 'Escolha outras palavras.',
     slow_mode: 'Modo lento: espere {s} s para mandar de novo.',
@@ -713,7 +774,7 @@ const NOTICES: Record<NoticeLocale, Record<ScreenReason, string>> = {
     abuse: 'Tu mensaje no cumple las reglas de la comunidad.',
     betting: 'No se permite promocionar apuestas.',
     personal_data: 'No compartas teléfono, correo ni documentos.',
-    contact: 'No compartas redes sociales ni invites a otras apps aquí.',
+    contact: 'No compartas perfiles de redes sociales ni invites a hablar por otra app.',
     link: 'No se permiten enlaces externos aquí.',
     profanity: 'Elige otras palabras.',
     slow_mode: 'Modo lento: espera {s} s para volver a enviar.',
@@ -724,7 +785,7 @@ const NOTICES: Record<NoticeLocale, Record<ScreenReason, string>> = {
     abuse: 'Your message breaks the community rules.',
     betting: 'Betting promotion is not allowed.',
     personal_data: "Don't share phone numbers, emails or IDs.",
-    contact: "Don't share social media handles or invite people to other apps here.",
+    contact: "Don't share social media handles or ask people to chat on other apps.",
     link: 'External links are not allowed here.',
     profanity: 'Please choose other words.',
     slow_mode: 'Slow mode: wait {s} s before sending again.',
