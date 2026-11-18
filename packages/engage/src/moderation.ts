@@ -464,9 +464,7 @@ function hasPersonalData(text: string): boolean {
 
 /** Perfil liberado na forma comparável: minúsculas, sem o `@`. */
 export function normalizeHandle(handle: string): string {
-  return fold(handle.trim())
-    .replace(/^@+/, '')
-    .replace(/\.+$/, '');
+  return fold(handle.trim()).replace(/^@+/, '').replace(/\.+$/, '');
 }
 
 /**
