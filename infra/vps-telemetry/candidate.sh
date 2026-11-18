@@ -62,11 +62,12 @@ set_list() {
 oneline() { printf '%s' "$1" | tr '\n' ' ' | sed 's/ $//'; }
 
 # config --services estável em LISTED: até CANDIDATE_CONFIG_TRIES leituras, vale a primeira igual à anterior. Leitura que
-# falha ou que muda não conta (a de 18/11 veio incompleta, com saída 0 e stderr vazio)
+# falha ou que muda não conta (a de 18/11 veio incompleta, com saída 0 e stderr vazio). A ordem dos nomes muda a cada
+# chamada (o compose itera um mapa), por isso a comparação é do conjunto ordenado, não do texto como veio
 listed() {
   local i out prev="" have="" tries="${CANDIDATE_CONFIG_TRIES:-3}"
   for ((i = 1; i <= tries; i++)); do
-    if out="$("${C[@]}" config --services </dev/null)"; then
+    if out="$("${C[@]}" config --services </dev/null | LC_ALL=C sort)"; then
       if [ -n "$have" ] && [ "$out" = "$prev" ]; then
         LISTED="$out"
         return 0

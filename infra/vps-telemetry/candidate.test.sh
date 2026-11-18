@@ -80,6 +80,11 @@ confere "config instável (1ª leitura sem o console): lê de novo e segue quand
   '[ "$r" = 0 ] && grep -q "^WARN  candidato: config --services mudou da leitura 1 para a 2" "$work/out.log" && ups | grep -q "api-candidate site-candidate console-candidate$" && [ "$(cat "$work/reads")" = 3 ]'
 
 limpa
+export CONFIG_SEQ="api site console|console api site"
+cand up api site console && r=0 || r=$?
+confere "mesmos nomes em outra ordem (o compose itera um mapa): conta como estável, sem aviso"   '[ "$r" = 0 ] && ! grep -q "mudou da leitura" "$work/out.log" && ups | grep -q "api-candidate site-candidate console-candidate$" && [ "$(cat "$work/reads")" = 2 ]'
+
+limpa
 export CONFIG_SEQ="ERR|api site console|api site console"
 cand up api site console && r=0 || r=$?
 confere "leitura com erro não conta: segue com as duas seguintes iguais" '[ "$r" = 0 ] && grep -q "falhou na leitura 1" "$work/out.log" && ups | grep -q "console-candidate$"'
