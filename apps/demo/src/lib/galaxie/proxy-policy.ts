@@ -43,8 +43,17 @@ export function isProxyPathAllowed(path: readonly string[]): boolean {
     return false;
   // vídeos relacionados: a vitrine lê no servidor; o navegador não alcança a rota pela chave da demo
   if (path[1] === 'events' && path[3] === 'related') return false;
+  // chat: só a sala de um jogo e o stream dela (a configuração do tenant não é leitura pública)
+  if (path[1] === 'chat') return isChatRoomRead(path);
   return PROXY_RESOURCES.has(path[1]!);
 }
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+const isChatRoomRead = (path: readonly string[]) =>
+  path[2] === 'rooms' &&
+  UUID.test(path[3] ?? '') &&
+  (path.length === 4 || (path.length === 5 && path[4] === 'stream'));
 
 /** Leituras por sessão por minuto: folga para a navegação (busca a cada tecla, Builder, ao vivo). */
 export const PROXY_REQUESTS_PER_MINUTE = 300;
