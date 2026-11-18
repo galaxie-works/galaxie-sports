@@ -322,6 +322,22 @@ describe('empate decidido nos pênaltis (Leagues Cup)', () => {
     expect(b.decidedBy).toBeNull();
   });
 
+  it('o confronto direto também usa os pontos dos pênaltis (#1364)', () => {
+    const r = rulesFrom({
+      standings: { points: shootout, tie_breakers: ['goals_for', 'h2h_points', 'drawing_of_lots'] },
+    });
+    // A e B com 4 pontos e 2 gols pró; no jogo entre eles deu 1 a 1 e B venceu nos pênaltis (2 a 1 no
+    // confronto). Sem os pontos dos pênaltis no confronto, o sorteio decidiria
+    const t = computeTable({
+      rules: r,
+      matches: [pens(match('A', 'B', 1, 1), 4, 5), pens(match('B', 'C', 1, 1), 3, 2), match('A', 'C', 1, 0)],
+    });
+    const a = t.find((m) => m.teamId === 'A')!;
+    const b = t.find((m) => m.teamId === 'B')!;
+    expect([a.points, a.goalsFor, b.points, b.goalsFor]).toEqual([4, 2, 4, 2]);
+    expect(order(t).slice(0, 2)).toEqual(['B', 'A']);
+  });
+
   it('sem `shootout` no regulamento, a disputa de pênaltis não muda o empate', () => {
     const r = rulesFrom({ standings: { points: { win: 3, draw: 1, loss: 0 } } });
     const t = computeTable({ rules: r, matches: [pens(match('A', 'B', 1, 1), 4, 3)] });
