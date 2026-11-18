@@ -37,6 +37,7 @@ import {
   Sun,
   Swords,
   Table2,
+  MessagesSquare,
   Timer,
   TrendingUp,
   Trophy,
@@ -125,6 +126,7 @@ export const KIND_ICONS: Record<WidgetKind, LucideIcon> = {
   match_stats: ChartNoAxesColumn,
   upcoming_derbies: Flame,
   shop_the_game: ShoppingBag,
+  live_chat: MessagesSquare,
 };
 
 /** Nome e descrição do tipo de widget no idioma da tela (vêm do catálogo de `@galaxie/widgets`). */

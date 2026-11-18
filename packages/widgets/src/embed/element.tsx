@@ -51,6 +51,7 @@ import { optionProps, parseWidgetOptions, type WidgetOptions } from '../options.
 import { AiContext } from '../widgets/ai-context.js';
 import { AthleteProfile } from '../widgets/athlete-profile.js';
 import { Countdown } from '../widgets/countdown.js';
+import { LiveChat } from '../widgets/live-chat.js';
 import { FightCard } from '../widgets/fight-card.js';
 import { MatchTimeline } from '../widgets/match-timeline.js';
 import { EquestrianResults } from '../widgets/equestrian-results.js';
@@ -297,6 +298,8 @@ function EmbeddedWidget({ config, overrides }: { config: EmbedConfig; overrides:
       return <ChannelGuide {...o} widgetId={config.id} sport={sport} />;
     case 'match_stats':
       return <MatchStats {...o} eventId={eventId ?? ''} />;
+    case 'live_chat':
+      return <LiveChat {...o} eventId={eventId ?? ''} />;
     case 'upcoming_derbies':
       return <UpcomingDerbies {...o} />;
     case 'shop_the_game':

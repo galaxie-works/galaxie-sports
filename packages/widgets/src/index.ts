@@ -187,3 +187,4 @@ export {
   type RegistryItem,
   type RegistryItemFile,
 } from './registry/build-registry-item.js';
+export { LiveChat, type LiveChatProps } from './widgets/live-chat.js';

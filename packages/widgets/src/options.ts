@@ -1338,6 +1338,33 @@ export const WIDGET_OPTIONS: Record<WidgetKind, readonly WidgetOptionSpec[]> = {
       true,
     ),
   ],
+  live_chat: [
+    {
+      key: 'height',
+      type: 'number',
+      default: 420,
+      min: 240,
+      max: 900,
+      label: l('Altura da conversa (px)', 'Altura de la conversación (px)', 'Conversation height (px)'),
+    },
+    bool(
+      'showGame',
+      l('O jogo dentro do chat', 'El partido dentro del chat', 'The match inside the chat'),
+      true,
+    ),
+    bool('showReactions', l('Reações', 'Reacciones', 'Reactions'), true),
+    {
+      key: 'inputPosition',
+      type: 'enum',
+      default: 'bottom',
+      label: l('Campo de escrever', 'Campo para escribir', 'Message box'),
+      values: [
+        { value: 'bottom', label: l('Embaixo', 'Abajo', 'Bottom') },
+        { value: 'top', label: l('Em cima', 'Arriba', 'Top') },
+      ],
+    },
+    bool('readOnly', l('Só leitura', 'Solo lectura', 'Read-only'), false),
+  ],
 };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
