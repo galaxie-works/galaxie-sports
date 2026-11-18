@@ -199,10 +199,10 @@ journal do SHA tem migration que o banco não tem. Nesta ordem:
    semanal de domingo ou um deploy anterior com `DUMP_MODE=vps`) com a mesma idade também.
 2. **Senão, o deploy pede o dump ao NAS e espera.** Ele grava o pedido `.nas_dump_request` no volume de backups
    (`<quando> <rótulo>`, o rótulo é `gha-<run id>-<antigo>-<novo>`) e espera até `NAS_DUMP_WAIT_MIN` minutos (padrão
-   20) por um recibo gravado **depois** do pedido. No NAS, o `dumper` consulta o pedido a cada minuto pela chave de
+   30) por um recibo gravado **depois** do pedido. No NAS, o `dumper` consulta o pedido a cada minuto pela chave de
    recibo (`dump.sh --pedido` → comando forçado `pedido`), faz o `pg_dump` da réplica em `pre-migrate/` com esse rótulo
    e toca o recibo, que apaga o pedido. O deploy vê o recibo e segue para o `migrate`. Tempos: 1 min até o NAS ver o
-   pedido + o `pg_dump` (10 a 40 min, conforme o banco) + o recibo; o teto de 20 min cabe no passo do deploy
+   pedido + o `pg_dump` (10 a 40 min, conforme o banco) + o recibo; o teto de 30 min cabe no passo do deploy
    (75 min), e `NAS_DUMP_WAIT_MIN` sobe se o dump passar disso.
 3. **Sem recibo no prazo**, o deploy retira o pedido e **para antes de tocar no banco**, com a mensagem: conferir o NAS
    (`last_dump.txt`, logs de `dumper`, `postgres` e `tunnel` no Portainer: túnel caído? réplica atrasada ou no
