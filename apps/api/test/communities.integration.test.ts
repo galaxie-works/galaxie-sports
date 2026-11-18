@@ -9,9 +9,12 @@ import {
   createDb,
   createInvite,
   decideJoinRequest,
+  insertPost,
   listCommunities,
   listJoinRequests,
+  flagChildSafety,
   pinPost,
+  purgeCommunityContent,
   publishTerms,
   removeMember,
   removeScopeRule,
@@ -25,6 +28,7 @@ import { sql } from 'drizzle-orm';
 import { generateAdminKey, hashAdminKey } from '../src/admin/guard.js';
 import { loadPlans } from '../src/admin/plans.js';
 import { FanTokenSigner } from '../src/engage/fan-token.js';
+import { clocksFor } from '../src/engage/moderation-routes.js';
 import { buildServer } from '../src/server.js';
 
 const adminUrl = process.env.DATABASE_URL;
@@ -535,6 +539,122 @@ describe('Feed da Comunidade (#946)', () => {
     });
     const terms = await post(adult.token, `/v1/communities/${c.id}/posts`, { body: 'Oi' });
     expect(terms.json().errors[0].message).toBe('terms_required');
+  });
+
+  it('bloqueio vale nos dois sentidos: Feed, comentários, contadores e acesso pelo id', async () => {
+    const { t, c, adult: a } = await member('feed-block');
+    const b = await fan(t.key);
+    await post(b.token, `/v1/communities/${c.id}/join`);
+    const pa = (await post(a.token, `/v1/communities/${c.id}/posts`, { body: 'Post de A' })).json().data;
+    const pb = (await post(b.token, `/v1/communities/${c.id}/posts`, { body: 'Post de B' })).json().data;
+    const staff = await insertPost(db, {
+      tenantId: t.id,
+      communityId: c.id,
+      author: 'staff',
+      profileId: null,
+      staffBy: 'panel:1',
+      body: 'Aviso da equipe',
+      attachment: null,
+      visibility: 'public',
+      flags: [],
+      purgeAt: new Date(Date.now() + 86_400_000),
+    });
+    await new Promise((r) => setTimeout(r, 10_100)); // intervalo entre envios do mesmo torcedor
+    expect((await post(b.token, `/v1/posts/${pa.id}/comments`, { body: 'B comenta em A' })).statusCode).toBe(
+      201,
+    );
+    expect((await post(a.token, `/v1/posts/${pb.id}/comments`, { body: 'A comenta em B' })).statusCode).toBe(
+      201,
+    );
+    const ids = async (token: string) =>
+      (await get(token, `/v1/communities/${c.id}/posts`))
+        .json()
+        .data.posts.map((x: { id: string }) => x.id)
+        .sort();
+    // antes do bloqueio, cada um vê tudo
+    expect(await ids(a.token)).toEqual([pa.id, pb.id, staff.id].sort());
+    expect((await get(a.token, `/v1/posts/${pa.id}/comments`)).json().data).toHaveLength(1);
+
+    const blocked = await app.inject({
+      method: 'PUT',
+      url: `/v1/fans/me/blocks/${b.profileId}`,
+      headers: { authorization: `Bearer ${a.token}` },
+    });
+    expect(blocked.statusCode).toBe(204);
+
+    // quem bloqueou (A) e quem foi bloqueado (B) não se veem; o post da equipe continua para os dois
+    expect(await ids(a.token)).toEqual([pa.id, staff.id].sort());
+    expect(await ids(b.token)).toEqual([pb.id, staff.id].sort());
+    expect((await get(a.token, `/v1/posts/${pa.id}/comments`)).json().data).toEqual([]);
+    const mineForA = (await get(a.token, `/v1/communities/${c.id}/posts`))
+      .json()
+      .data.posts.find((x: { id: string }) => x.id === pa.id);
+    expect(mineForA.comments).toBe(0);
+    // pelo id, o post do outro não abre comentário nem curtida
+    expect((await get(b.token, `/v1/posts/${pa.id}/comments`)).statusCode).toBe(404);
+    expect((await post(b.token, `/v1/posts/${pa.id}/comments`, { body: 'oi' })).statusCode).toBe(404);
+    const like = await app.inject({
+      method: 'PUT',
+      url: `/v1/posts/${pa.id}/like`,
+      headers: { authorization: `Bearer ${b.token}` },
+    });
+    expect(like.statusCode).toBe(404);
+  }, 30_000);
+
+  it('suspeita de abuso infantil tira o post do ar e o expurgo não apaga durante a guarda (#1289)', async () => {
+    const { t, c, adult } = await member('feed-hold');
+    const p = (await post(adult.token, `/v1/communities/${c.id}/posts`, { body: 'Post denunciado' })).json()
+      .data;
+    const reporter = await fan(t.key);
+    await post(reporter.token, `/v1/communities/${c.id}/join`);
+    const report = await post(reporter.token, '/v1/moderation/reports', {
+      targetType: 'post',
+      targetId: p.id,
+      targetProfileId: adult.profileId,
+      module: 'communities',
+      community: c.id,
+      reason: 'sexual',
+    });
+    expect(report.statusCode).toBe(201);
+    const now = new Date();
+    const until = new Date(now.getTime() + 365 * 86_400_000);
+    const flagged = await db.transaction(async (tx) =>
+      flagChildSafety(tx as unknown as Database, {
+        tenantId: t.id,
+        caseId: report.json().data.case_id,
+        actor: { id: 'galaxie:1', kind: 'galaxie' },
+        holdUntil: until,
+        clocks: await clocksFor(db, t.id, 'BR', now),
+        now,
+      }),
+    );
+    expect(flagged).toBe(true);
+    expect((await get(adult.token, `/v1/communities/${c.id}/posts`)).json().data.posts).toEqual([]);
+    // o relógio da ficha venceu, mas a guarda segura o post
+    await db.execute(sql`update community.post set purge_at = now() - interval '1 day' where id = ${p.id}`);
+    await purgeCommunityContent(db, new Date());
+    const [row] = await db.execute<{ visibility: string }>(
+      sql`select visibility from community.post where id = ${p.id}`,
+    );
+    expect(row?.visibility).toBe('hidden');
+  });
+
+  it('comentário sob guarda segura o post pai no expurgo (on delete cascade)', async () => {
+    const { t, c, adult } = await member('feed-hold-comment');
+    const p = (await post(adult.token, `/v1/communities/${c.id}/posts`, { body: 'Post pai' })).json().data;
+    const other = await fan(t.key);
+    await post(other.token, `/v1/communities/${c.id}/join`);
+    const cm = (
+      await post(other.token, `/v1/posts/${p.id}/comments`, { body: 'Comentário preservado' })
+    ).json().data;
+    await db.execute(sql`update community.post set purge_at = now() - interval '1 day' where id = ${p.id}`);
+    await db.execute(sql`update community.comment set purge_at = now() - interval '1 day',
+      legal_hold_until = now() + interval '365 days' where id = ${cm.id}`);
+    await purgeCommunityContent(db, new Date());
+    const [left] = await db.execute<{ posts: number; comments: number }>(sql`
+      select (select count(*)::int from community.post where id = ${p.id}) as posts,
+             (select count(*)::int from community.comment where id = ${cm.id}) as comments`);
+    expect(left).toEqual({ posts: 1, comments: 1 });
   });
 
   it('o fixado sai só em pinned, sem repetir em posts', async () => {

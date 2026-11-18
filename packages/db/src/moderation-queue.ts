@@ -1805,6 +1805,44 @@ async function holdChatMessage(
 }
 
 /**
+ * Leva a guarda ao post ou comentário de Comunidade do caso (#946): tirado do ar, desafixado e preso até o fim da
+ * guarda (o expurgo pelo relógio da ficha não apaga antes).
+ */
+async function holdCommunityContent(
+  tx: Executor,
+  tenantId: string,
+  kind: 'post' | 'comment',
+  contentId: string,
+  until: Date,
+): Promise<void> {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(contentId)) return;
+  const id = contentId.toLowerCase();
+  const table = kind === 'post' ? 'community.post' : 'community.comment';
+  const unpin = kind === 'post' ? sql`, pinned_at = null, pinned_by = null` : sql``;
+  await tx.execute(sql`
+    update ${sql.raw(table)}
+       set legal_hold_until = greatest(coalesce(legal_hold_until, ${until.toISOString()}::timestamptz),
+                                       ${until.toISOString()}::timestamptz),
+           flags = case when visibility = 'shadow' and not ('was_shadow' = any(flags))
+                        then array_append(flags, 'was_shadow') else flags end,
+           visibility = 'hidden'${unpin}
+     where tenant_id = ${tenantId} and id = ${id}::uuid`);
+}
+
+/** A guarda vai ao conteúdo do caso, no módulo dele. */
+async function holdCaseContent(
+  tx: Executor,
+  tenantId: string,
+  c: { module: string | null; targetType: string; targetId: string },
+  until: Date,
+): Promise<void> {
+  if (c.module === 'chat' && c.targetType === 'message')
+    await holdChatMessage(tx, tenantId, c.targetId, until);
+  if (c.module === 'communities' && (c.targetType === 'post' || c.targetType === 'comment'))
+    await holdCommunityContent(tx, tenantId, c.targetType, c.targetId, until);
+}
+
+/**
  * Suspeita de abuso infantil: o conteúdo sai do ar e fica preservado (guarda legal desde já), e o caso só fecha depois
  * da denúncia às autoridades. Qualquer cargo que tira conteúdo do ar marca; `false` se o caso não está aberto ou já
  * estava marcado.
@@ -1843,8 +1881,7 @@ export async function flagChildSafety(
       targetProfileId: moderationCase.targetProfileId,
     });
   if (!c) return false;
-  if (c.module === 'chat' && c.targetType === 'message')
-    await holdChatMessage(tx, input.tenantId, c.targetId, input.holdUntil);
+  await holdCaseContent(tx, input.tenantId, c, input.holdUntil);
   await audit(tx, {
     tenantId: input.tenantId,
     actor: input.actor,
@@ -1901,8 +1938,7 @@ export async function reportToAuthorities(
       childSafety: moderationCase.childSafety,
     });
   if (!c) return false;
-  if (c.module === 'chat' && c.targetType === 'message')
-    await holdChatMessage(tx, input.tenantId, c.targetId, input.holdUntil);
+  await holdCaseContent(tx, input.tenantId, c, input.holdUntil);
   await audit(tx, {
     tenantId: input.tenantId,
     actor: input.actor,
