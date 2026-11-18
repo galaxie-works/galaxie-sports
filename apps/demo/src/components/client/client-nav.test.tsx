@@ -7,7 +7,14 @@ import { LOCALES, type Locale } from '@/lib/i18n/config';
 import { clientDictionary } from '@/lib/i18n/dictionary';
 import { compareAlpha } from '@/lib/alphabetical';
 
-import { CLIENT_NAV, ClientNavSheet, ClientSideNav, clientNavGroups, navRequirement } from './client-nav';
+import { ClientNavSheet, ClientSideNav } from './client-nav';
+import {
+  CLIENT_NAV,
+  clientNavGroups,
+  navRequirement,
+  sectionsForState,
+  STATES_WITH_NOTICE_ONLY,
+} from './client-nav-shared';
 
 afterEach(cleanup);
 
@@ -52,6 +59,46 @@ describe('clientNavGroups', () => {
       'Minha lista de canais',
       'Temas',
     ]);
+  });
+});
+
+describe('áreas por estado da conta (F3, decisão 8)', () => {
+  it('trial, active e past_due abrem tudo; teste vencido e suspensa só Planos e módulos e Chaves', () => {
+    for (const state of ['trial', 'active', 'past_due'] as const) expect(sectionsForState(state)).toBeNull();
+    expect([...sectionsForState('trial_expired')!].sort()).toEqual(['keys', 'plans']);
+    expect([...sectionsForState('suspended')!].sort()).toEqual(['keys', 'plans']);
+  });
+
+  it('em revisão, recusada, cancelada e em criação: só a visão geral, onde a tela do estado aparece', () => {
+    for (const state of STATES_WITH_NOTICE_ONLY) expect(sectionsForState(state)).toEqual(['overview']);
+    expect([...STATES_WITH_NOTICE_ONLY].sort()).toEqual(['cancelled', 'draft', 'pending_review', 'rejected']);
+  });
+
+  it.each(LOCALES)('%s: os 9 estados têm crachá e os avisos têm título e texto', (locale) => {
+    const tenant = clientDictionary(locale).client.tenant;
+    expect(Object.keys(tenant.states).sort()).toEqual([
+      'active',
+      'cancelled',
+      'draft',
+      'past_due',
+      'pending_review',
+      'rejected',
+      'suspended',
+      'trial',
+      'trial_expired',
+    ]);
+    for (const state of [
+      'draft',
+      'pending_review',
+      'rejected',
+      'trial_expired',
+      'past_due',
+      'suspended',
+      'cancelled',
+    ] as const) {
+      expect(tenant.stateNotice[state].title, `${locale} ${state}`).toBeTruthy();
+      expect(tenant.stateNotice[state].body, `${locale} ${state}`).toBeTruthy();
+    }
   });
 });
 

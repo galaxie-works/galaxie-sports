@@ -1,11 +1,12 @@
-import { and, eq, sql } from 'drizzle-orm';
-import { tenant, type Database } from '@galaxie/db';
+import { and, inArray, sql } from 'drizzle-orm';
+import { TENANT_STATES_WITH_ACCESS, tenant, type Database } from '@galaxie/db';
 import { WTW_COUNTRIES } from '@galaxie/where-to-watch';
 
 /**
  * Mercados ativos do onde assistir:
  * 1. `WTW_MARKETS` (ex.: "BR,AR") quando definido;
- * 2. senão, a união de `api.tenant.markets` dos tenants ativos com o módulo where_to_watch
+ * 2. senão, a união de `api.tenant.markets` dos tenants com acesso (estado `trial`, `active` ou `past_due`; F3) e
+ *    com o módulo where_to_watch
  *    (um tenant com lista vazia = todos os mercados);
  * 3. sem tenant com o módulo → nenhum mercado (nada roda e nada custa).
  */
@@ -21,7 +22,12 @@ export async function activeMarkets(
   const rows = await db
     .select({ markets: tenant.markets })
     .from(tenant)
-    .where(and(eq(tenant.status, 'active'), sql`'where_to_watch' = any(${tenant.modules})`));
+    .where(
+      and(
+        inArray(tenant.state, [...TENANT_STATES_WITH_ACCESS]),
+        sql`'where_to_watch' = any(${tenant.modules})`,
+      ),
+    );
   if (rows.some((r) => r.markets.length === 0)) return [...WTW_COUNTRIES];
   return [...new Set(rows.flatMap((r) => r.markets.map((m) => m.toUpperCase())))]
     .filter((c) => supported.has(c))

@@ -883,6 +883,69 @@
       "when": 1794863710951,
       "tag": "0182_comunidades_feed",
       "breakpoints": true
+    },
+    {
+      "idx": 126,
+      "version": "7",
+      "when": 1794917589745,
+      "tag": "0183_indices_jobs_por_minuto",
+      "breakpoints": true
+    },
+    {
+      "idx": 127,
+      "version": "7",
+      "when": 1794928494911,
+      "tag": "0185_tenant_state",
+      "breakpoints": true
+    },
+    {
+      "idx": 128,
+      "version": "7",
+      "when": 1794928640567,
+      "tag": "0186_module_trial",
+      "breakpoints": true
+    },
+    {
+      "idx": 129,
+      "version": "7",
+      "when": 1794928730137,
+      "tag": "0187_tenant_notification",
+      "breakpoints": true
+    },
+    {
+      "idx": 130,
+      "version": "7",
+      "when": 1794951968621,
+      "tag": "0188_chat_antiflood",
+      "breakpoints": true
+    },
+    {
+      "idx": 131,
+      "version": "7",
+      "when": 1794953958359,
+      "tag": "0189_moderacao_guarda_legal",
+      "breakpoints": true
+    },
+    {
+      "idx": 132,
+      "version": "7",
+      "when": 1794956123552,
+      "tag": "0190_game_fiel_ativa",
+      "breakpoints": true
+    },
+    {
+      "idx": 133,
+      "version": "7",
+      "when": 1794956124552,
+      "tag": "0191_extensao_pg_trgm",
+      "breakpoints": true
+    },
+    {
+      "idx": 134,
+      "version": "7",
+      "when": 1794957887666,
+      "tag": "0192_busca_trigram_pessoa",
+      "breakpoints": true
     }
   ]
 }

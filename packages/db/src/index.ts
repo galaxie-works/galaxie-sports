@@ -4,7 +4,9 @@ export {
   closeDb,
   pingDb,
   resolveDbTimeouts,
+  resolveParallelWorkers,
   sessionParams,
+  DB_PARALLEL_WORKERS,
   DB_POOL_MAX,
   DB_TIMEOUTS,
   type Database,
@@ -282,3 +284,4 @@ export { fanAvatarPublic, fanAvatarPublicUrl } from './fan-avatar-public.js';
 export * from './shop.js';
 export * from './community.js';
 export * from './community-feed.js';
+export * from './tenant-notifications.js';

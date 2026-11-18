@@ -18,8 +18,38 @@ import { exploreWindow } from './window.js';
 export const ALL = '*';
 /** O job recalcula sem esperar mudança quando o resumo passa disso. */
 export const EXPLORE_REFRESH_MS = 10 * 60_000;
-/** Acima disso a API deixa o pré-calculado de lado e calcula na requisição (e o alerta dispara). */
+/**
+ * Acima disso o pré-calculado está atrasado: a API registra um aviso e o alerta `ExploreSummaryStale` dispara, mas
+ * ela continua servindo o pré-calculado até `EXPLORE_STALE_MAX_AGE_MS`.
+ */
 export const EXPLORE_MAX_AGE_MS = 30 * 60_000;
+/**
+ * Teto do "velho mas serve": acima disso o resumo está inútil e a API volta a calcular na requisição. Calcular na hora
+ * é a consulta pesada (`topTeams` mediu 24,6 s na produção em 17/11, acima do `statement_timeout` de 10 s do perfil
+ * `api`): com o job parado num deploy, um resumo de uma ou duas horas é muito melhor que erro 500.
+ */
+export const EXPLORE_STALE_MAX_AGE_MS = 24 * 60 * 60_000;
+/**
+ * Freio (EXPLORE_MIN_INTERVAL_SEC, painel › Agenda): mudança de jogo (status no change feed ou jogo novo) não
+ * recalcula antes disso desde a última conta. Com jogo ao vivo algum status muda quase todo minuto, e cada conta lê a
+ * janela inteira de jogos; o freio segura a conta a uma a cada N segundos, e a home atrasa no máximo isso.
+ */
+export const DEFAULT_EXPLORE_MIN_INTERVAL_SEC = 180;
+
+/** O freio do env em ms: inteiro de 0 (sem freio) até `EXPLORE_REFRESH_MS`; vazio ou inválido = o padrão. */
+export function exploreMinIntervalMs(env: Record<string, string | undefined> = process.env): number {
+  const raw = env.EXPLORE_MIN_INTERVAL_SEC?.trim();
+  const n = raw ? Number(raw) : NaN;
+  const sec = Number.isInteger(n) && n >= 0 ? n : DEFAULT_EXPLORE_MIN_INTERVAL_SEC;
+  return Math.min(sec * 1000, EXPLORE_REFRESH_MS);
+}
+
+export interface ExploreRefreshOptions {
+  /** Recalcula sem esperar mudança quando o resumo passa disso (padrão `EXPLORE_REFRESH_MS`). */
+  refreshMs?: number;
+  /** Freio das mudanças, em ms (padrão `DEFAULT_EXPLORE_MIN_INTERVAL_SEC`); 0 = sem freio. */
+  minIntervalMs?: number;
+}
 
 interface MetaData {
   version: number;
@@ -118,15 +148,20 @@ const SUMMARY_CHANGES = sql`(
 
 /**
  * Por que recalcular agora (null = o resumo está em dia): não há resumo (ou é de outra versão), passou de
- * `refreshMs`, ou o change feed trouxe mudança de jogo que mexe no resumo (`SUMMARY_CHANGES`) desde a última conta.
+ * `refreshMs`, ou, passado o freio (`minIntervalMs`) desde a última conta, o change feed trouxe mudança de jogo que
+ * mexe no resumo (`SUMMARY_CHANGES`) ou entrou jogo novo na janela. A ordem é a do custo: a linha de controle, o change
+ * feed pelo índice de `created_at` (só as mudanças desde a conta) e, só quando ele não disparou, o jogo novo pelo
+ * índice de `core.event.created_at` (migration 0190; antes, o Postgres lia todos os jogos da janela para filtrar).
  * O change feed grava com o `now()` da transação: uma mudança que começou antes da conta e comitou depois pode
  * escapar desta checagem, e entra na rodada seguinte de `refreshMs`.
  */
 export async function exploreRefreshReason(
   db: Database,
   now: Date,
-  refreshMs = EXPLORE_REFRESH_MS,
+  options: ExploreRefreshOptions = {},
 ): Promise<string | null> {
+  const refreshMs = options.refreshMs ?? EXPLORE_REFRESH_MS;
+  const minIntervalMs = options.minIntervalMs ?? DEFAULT_EXPLORE_MIN_INTERVAL_SEC * 1000;
   const [meta] = await db
     .select({ data: exploreSummary.data, generatedAt: exploreSummary.generatedAt })
     .from(exploreSummary)
@@ -136,6 +171,8 @@ export async function exploreRefreshReason(
     return 'formato de outra versão';
   const age = now.getTime() - meta.generatedAt.getTime();
   if (age >= refreshMs) return `resumo com ${Math.round(age / 1000)} s`;
+  // freio: a conta é recente. A mudança que chegou nesse meio não se perde: a checagem abaixo olha desde a conta
+  if (age < minIntervalMs) return null;
   const [changed] = await db.execute<{ n: number }>(sql`
     select count(*)::int as n
       from ops.change_feed
@@ -150,11 +187,11 @@ export async function exploreRefreshReason(
     .from(event)
     .where(
       and(
+        gte(event.createdAt, meta.generatedAt),
         or(
           and(gte(event.startsAt, window.from), lt(event.startsAt, window.to)),
           inArray(event.status, IN_PLAY),
         ),
-        gte(event.createdAt, meta.generatedAt),
       ),
     );
   return added && added.n > 0 ? `${added.n} jogo(s) novo(s)` : null;

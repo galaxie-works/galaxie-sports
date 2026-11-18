@@ -23,7 +23,7 @@ import {
   type PostgameMode,
 } from '@galaxie/runtime-config';
 import type { CursorRef, CursorStore } from '../jobs/runtime/cursor-store.js';
-import { OTHER_SPORTS_SCHEDULE } from '../jobs/daily-job.js';
+import { OTHER_SPORTS_SCHEDULE } from '../jobs/other-sports.js';
 
 const MIN = 60_000;
 /** Folga no intervalo: o cron roda a cada minuto, mas o `now` de cada execução atrasa alguns segundos. */

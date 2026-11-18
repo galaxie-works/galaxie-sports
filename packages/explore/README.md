@@ -24,10 +24,19 @@ competições com jogos recentes) sai do caminho da requisição (#596): o job `
 ## Quando recalcula
 
 O job roda a cada minuto e só faz a conta quando: não há resumo (ou é de outra `EXPLORE_SNAPSHOT_VERSION`), o resumo
-passou de 10 min (`EXPLORE_REFRESH_MS`: pega jogo novo do fornecedor, que não passa pelo change feed), ou o change
-feed trouxe mudança de jogo depois da última conta (status, importância recalculada, jogo anunciado). A API usa o
-pré-calculado até 30 min (`EXPLORE_MAX_AGE_MS`); depois disso, ou sem ele, faz a mesma conta na requisição e registra
-um aviso. A idade aparece em `galaxie_explore_summary_age_seconds` no `/metrics` da API (alerta `ExploreSummaryStale`).
+passou de 10 min (`EXPLORE_REFRESH_MS`), ou, passado o freio desde a última conta, o change feed trouxe mudança de jogo
+(status, importância recalculada, jogo anunciado) ou entrou jogo novo na janela (o jogo novo do fornecedor não passa
+pelo change feed).
+
+O freio é `EXPLORE_MIN_INTERVAL_SEC` (painel › Agenda, padrão 180 s, 0 = sem freio; `exploreMinIntervalMs`): com jogo
+ao vivo algum status muda quase todo minuto, e sem o freio a conta inteira (a janela de jogos, uns 2,7 s no banco de
+dev) rodava quase a cada minuto. A mudança que chega dentro do freio não se perde: a checagem olha desde a última
+conta, então ela entra assim que o freio passa (a home atrasa no máximo isso). Sem nada a fazer, a decisão é a linha de
+controle, o change feed pelo índice de `created_at` e, só quando ele não disparou, o jogo novo pelo índice
+`event_created_at_idx` (migration 0190): frações de milissegundo. A API usa o
+pré-calculado mesmo velho: acima de 30 min (`EXPLORE_MAX_AGE_MS`) registra um aviso e segue servindo; só acima de 24 h
+(`EXPLORE_STALE_MAX_AGE_MS`), ou sem ele, faz a mesma conta na requisição (a consulta pesada: `topTeams` mediu 24,6 s na
+produção em 17/11, acima do `statement_timeout` de 10 s da API). A idade aparece em `galaxie_explore_summary_age_seconds` no `/metrics` da API (alerta `ExploreSummaryStale`).
 
 ## Como usar
 

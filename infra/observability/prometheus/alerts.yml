@@ -64,15 +64,38 @@ groups:
           summary: 'Scheduler {{ $labels.component }} sem sinal de vida há {{ $value | humanizeDuration }}'
           description: 'Nenhum relato em ops.runtime_env. Veja docker compose ps {{ $labels.component }} e os logs; o healthcheck reinicia o contêiner travado (infra/healthcheck/selfheal.mjs).'
 
+      # O dump na VPS (pg-backup) parado há mais de 26 h. Com o diário vindo da réplica do NAS
+      # (docs/runbooks/replica-no-nas.md: o da VPS vira semanal e o backup-check.sh registra cada recibo .nas_last_dump
+      # como job nas-dump, com a hora real do dump), um nas-dump com menos de 26 h cala este alerta: a prova de backup
+      # existe, só mudou de lugar. Sem nenhum dos dois recente, dispara como sempre.
       - alert: BackupStale
-        expr: time() - galaxie_job_last_success_timestamp_seconds{job_name="pg-backup"} > 26 * 3600
+        expr: >-
+          (time() - galaxie_job_last_success_timestamp_seconds{job_name="pg-backup"} > 26 * 3600)
+          unless on() (time() - galaxie_job_last_success_timestamp_seconds{job_name="nas-dump"} <= 26 * 3600)
         for: 10m
         labels:
           severity: critical
           sinal: backup-disco
         annotations:
           summary: 'Último backup do Postgres com sucesso há {{ $value | humanizeDuration }}'
-          description: 'O serviço backup deveria gerar um dump por dia. Veja os logs do container backup.'
+          description: 'O serviço backup deveria gerar um dump por dia (ou o dump do NAS, com BACKUP_DUMP_SOURCE=nas, deixar o recibo). Veja os logs do container backup e, no NAS, o last_dump.txt da stack nas-replica.'
+
+      # Só existe depois do primeiro recibo do NAS (BACKUP_DUMP_SOURCE=nas): o dump da réplica parou (túnel, réplica
+      # atrasada ou promovida, slot perdido, disco do NAS cheio, chave de recibo). O semanal da VPS continua existindo;
+      # este alerta é para ir ao NAS antes que o semanal seja a única cópia. Só vale com o modo ligado: o backup-check.sh
+      # registra o job backup-mode-nas a cada verificação (6 h) enquanto BACKUP_DUMP_SOURCE=nas; voltar para vps deixa
+      # a série nas-dump no banco, mas sem o backup-mode-nas recente (12 h) o alerta desarma sozinho.
+      - alert: NasDumpStale
+        expr: >-
+          (time() - galaxie_job_last_success_timestamp_seconds{job_name="nas-dump"} > 26 * 3600)
+          and on() (time() - galaxie_job_last_success_timestamp_seconds{job_name="backup-mode-nas"} < 12 * 3600)
+        for: 10m
+        labels:
+          severity: critical
+          sinal: backup-disco
+        annotations:
+          summary: 'Dump na réplica do NAS sem recibo novo há {{ $value | humanizeDuration }}'
+          description: 'O dump.sh da stack nas-replica não deixou recibo (.nas_last_dump) na VPS. Veja no Portainer do NAS o last_dump.txt e os logs dos serviços dumper, postgres e tunnel (docs/runbooks/replica-no-nas.md › Paradas).'
 
   # Política de backup e DR: docs/runbooks/exercicio-dr.md.
   - name: galaxie-backup
@@ -372,8 +395,9 @@ groups:
           description: 'Veja se o worker está no ar e atende o tipo {{ $labels.type }}, e se uma tarefa longa ocupa a vaga (ops.job_request, galaxie_queue_tasks_running).'
 
       # Resumo da home Explorar pré-calculado (#596): o job explore-summary refaz no minuto seguinte a uma mudança de
-      # status de jogo e a cada 10 min. Passou de 30 min (ou nunca gravou: +Inf), a API volta a montar a home na
-      # requisição, a consulta pesada que estoura o statement_timeout a frio com a VPS ocupada (deploy).
+      # status de jogo e a cada 10 min. Passou de 30 min (ou nunca gravou: +Inf), o job está parado: a API segue servindo o
+      # resumo velho até 24 h e só então (ou sem resumo) monta a home na requisição, a consulta pesada que estoura o
+      # statement_timeout a frio com a VPS ocupada (deploy).
       - alert: ExploreSummaryStale
         expr: galaxie_explore_summary_age_seconds > 1800
         for: 5m
@@ -381,7 +405,7 @@ groups:
           severity: warning
         annotations:
           summary: 'Resumo da home Explorar sem recálculo há {{ $value | humanizeDuration }}'
-          description: 'Acima de 30 min a API calcula a home na requisição (lenta a frio). Veja o job explore-summary em ops.job_run e os logs do ingestor; rode-o com "rodar agora" no painel ou com node dist/cli/explore-summary.js --forcar no ingestor.'
+          description: 'Acima de 30 min a API serve o resumo velho (até 24 h; depois calcula na requisição, a consulta pesada que estoura o statement_timeout). Veja o job explore-summary em ops.job_run e os logs do ingestor; rode-o com "rodar agora" no painel ou com node dist/cli/explore-summary.js --forcar no ingestor.'
 
       - alert: VarDetailUnknown
         expr: galaxie_var_unknown_details > 0

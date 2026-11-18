@@ -1,9 +1,14 @@
 # infra/backup
 
-Imagem `galaxie-sports-backup`: dump diário do Postgres, validação, retenção, cópia opcional para S3 e os scripts de
+Imagem `galaxie-sports-backup`: dump do Postgres (diário até 11/2026; semanal no desenho novo), validação, retenção, cópia opcional para S3 e os scripts de
 restauração. Roda como o serviço `backup` da stack da VPS ([`infra/vps-telemetry/compose.yml`](../vps-telemetry/compose.yml)).
-A cópia para o NAS (camada 2 do 3-2-1) fica em [`infra/nas-backup`](../nas-backup); o verificador e o ensaio mensal, em
+A cópia para o NAS fica em [`infra/nas-backup`](../nas-backup); o verificador e o ensaio mensal, em
 [docs/runbooks/exercicio-dr.md](../../docs/runbooks/exercicio-dr.md).
+
+> **Desenho novo desde 17/11/2026** ([docs/16 · Implantação](../../docs/16-implantacao.md)): o dump diário e o de
+> pré-deploy nascem no NAS, a partir da réplica do Postgres (stack `nas-replica`, #1307), e este serviço fica na VPS
+> com o dump semanal, a cópia dos prefixos do S3, o verificador e o ensaio (#1309). O agendamento diário descrito
+> abaixo é o **histórico (até 11/2026)**, que segue até a execução da réplica (#1312).
 
 | Script | O que faz |
 |---|---|
@@ -106,7 +111,11 @@ pelo nome. O banco anterior fica como `<db>_pre_restore_<data>` para rollback.
 4. **VPS nova ou desastre**: suba a stack, copie o dump para o volume (`docker cp arquivo.dump <contêiner-backup>:/backups/`)
    ou use o caminho `s3://...`, e siga o passo 2.
 
-Variáveis: `BACKUP_DIR`, `BACKUP_KEEP_DAILY`, `BACKUP_COMPRESS`, `BACKUP_TIME`, `BACKUP_S3_BUCKET`, `BACKUP_S3_PREFIX`,
+Variáveis: `BACKUP_DIR`, `BACKUP_KEEP_DAILY`, `BACKUP_COMPRESS`, `BACKUP_TIME`, `BACKUP_DAYS` (dias da semana do dump,
+vazio = todo dia; `0` = só domingo, o semanal da VPS com a réplica no NAS), `BACKUP_DUMP_SOURCE` (`vps` ou `nas`: de onde
+vem a prova de backup que o `backup-check.sh` cobra; com `nas`, o recibo `.nas_last_dump` do dump feito na réplica vira o
+job `nas-dump`) e `BACKUP_LOCAL_MAX_AGE_H` (idade máxima do dump local nesse modo, 192 h):
+[docs/runbooks/replica-no-nas.md](../../docs/runbooks/replica-no-nas.md); `BACKUP_S3_BUCKET`, `BACKUP_S3_PREFIX`,
 `BACKUP_S3_ENDPOINT` com `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` (ver o cabeçalho de `backup.sh`); dos assets:
 `BACKUP_S3_SYNC_PREFIXES`, `BACKUP_S3_SYNC_DEST_PREFIX`, `BACKUP_S3_SYNC_DELETE`, `BACKUP_S3_SYNC_DIR`; do bucket das
 tarefas: `BACKUP_S3_SYNC_TASKS_BUCKET`, `BACKUP_S3_SYNC_TASKS_DEST_PREFIX`, `BACKUP_S3_SYNC_TASKS_DIR`, `S3_TASKS_BUCKET`

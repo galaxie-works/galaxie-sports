@@ -113,6 +113,8 @@ export const chatMessage = chat.table(
       .default(sql`'{}'::text[]`),
     /** Relógio de conteúdo da ficha do país (#954): depois disso a mensagem é apagada. */
     purgeAt: timestamp('purge_at', { withTimezone: true }).notNull(),
+    /** Guarda legal (#1289): denunciada (ou sob suspeita de abuso infantil), não sai antes disso. */
+    legalHoldUntil: timestamp('legal_hold_until', { withTimezone: true }),
     createdAt: createdAt(),
   },
   (t) => [
@@ -150,6 +152,10 @@ export const chatTenantConfig = chat.table(
     strictness: text('strictness').$type<ChatStrictness>(),
     /** Tipos de mensagem do jogo nas salas (#965); null = todos. */
     eventKinds: text('event_kinds').array().$type<ChatGameKind[]>(),
+    /** Anti-flood: mensagens por pessoa em 60 s antes do bloqueio; null = padrão da Galaxie. */
+    floodMaxPerMinute: integer('flood_max_per_minute'),
+    /** Anti-flood: segundos sem poder enviar depois de passar do limite; null = padrão da Galaxie. */
+    floodBlockSeconds: integer('flood_block_seconds'),
     updatedBy: text('updated_by').notNull(),
     updatedAt: updatedAt(),
   },
@@ -163,6 +169,14 @@ export const chatTenantConfig = chat.table(
       sql`${t.closeAfterMinutes} is null or ${t.closeAfterMinutes} between 0 and 1440`,
     ),
     check('tenant_config_slow', sql`${t.slowModeSeconds} is null or ${t.slowModeSeconds} between 0 and 600`),
+    check(
+      'tenant_config_flood_max',
+      sql`${t.floodMaxPerMinute} is null or ${t.floodMaxPerMinute} between 3 and 60`,
+    ),
+    check(
+      'tenant_config_flood_block',
+      sql`${t.floodBlockSeconds} is null or ${t.floodBlockSeconds} between 30 and 1800`,
+    ),
     check(
       'tenant_config_strictness',
       sql`${t.strictness} is null or ${inList('strictness', CHAT_STRICTNESS)}`,

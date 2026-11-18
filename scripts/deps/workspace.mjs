@@ -5,8 +5,8 @@ import { kindOf } from './rules.mjs';
 /** As pastas do workspace (pnpm-workspace.yaml); uma nova exige rever as regras antes. */
 export const WORKSPACE_GROUPS = ['apps', 'services', 'packages', 'tests'];
 
-/** Os padrões do pnpm-workspace.yaml que as regras conhecem (`tests/` só tem o pacote de integração). */
-const EXPECTED_GLOBS = ['apps/*', 'services/*', 'packages/*', 'tests/integration'];
+/** Os padrões do pnpm-workspace.yaml que as regras conhecem (`tests/` tem os pacotes de integração e de E2E). */
+const EXPECTED_GLOBS = ['apps/*', 'services/*', 'packages/*', 'tests/integration', 'tests/e2e'];
 
 export const DEP_FIELDS = ['dependencies', 'devDependencies', 'peerDependencies', 'optionalDependencies'];
 

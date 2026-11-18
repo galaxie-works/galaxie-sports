@@ -298,10 +298,12 @@ pnpm --filter @galaxie/ingestor assets:mirror --descobrir-raw
 | — | [Política de segurança](SECURITY.md) | Como reportar vulnerabilidades, controles, rotação de segredos |
 | 14 | [SLOs e orçamento de erro](docs/14-slos-e-error-budget.md) | Alvos da produção, SLIs em PromQL, alertas de queima e política do orçamento |
 | 15 | [Organização do monorepo](docs/15-organizacao-do-monorepo.md) | Mapa das pastas, dependências, o que vira imagem, fronteiras e candidatas a repo próprio |
+| 16 | [Implantação](docs/16-implantacao.md) | O desenho da produção (VPS e réplica no NAS), quem depende de quem, limites, regras de deploy e o caminho com cliente |
 | — | [On-call](docs/runbooks/on-call.md) | Recebi um push: o primeiro passo de cada alerta grave |
 | — | [Postmortems](docs/postmortems/README.md) | Incidentes de produção, sem culpados, com linha do tempo e ações |
 | — | [Exercício de DR](docs/runbooks/exercicio-dr.md) | Backup → ensaio → restauração, com o registro do último exercício |
 | — | [Testes de carga](tests/load/README.md) | Cenários k6, metas p95 e modelo de relatório |
+| — | [QA de ponta a ponta e visual](docs/qa/README.md) | Playwright no navegador, comparação visual, smoke pós-deploy e os cenários mínimos para vender |
 
 Pesquisas de apoio (com fontes): [api-sports futebol](docs/research/api-sports-football.md) · [demais esportes](docs/research/api-sports-outros-esportes.md) · [catálogo de competições](docs/research/catalogo-competicoes.md) · [onde assistir](docs/research/onde-assistir.md) · [Olimpíadas e Pan](docs/research/olimpiadas-e-panamericano.md) · [Sportmonks](docs/research/sportmonks.md).
 

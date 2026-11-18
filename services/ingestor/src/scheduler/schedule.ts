@@ -152,6 +152,17 @@ export const DEFAULT_JOBS: readonly ScheduledJob[] = [
     timeoutMs: 60 * MINUTE,
   },
   {
+    name: 'tenant-lifecycle',
+    description:
+      'Relógio do ciclo de vida dos tenants (plataforma comercial F3): trial vencido vira trial_expired; trial vencido, inadimplência e suspensão passam de prazo (TENANT_*_DAYS em runtime_setting) e mudam de estado; domínios comprovados há mais de 24 h voltam à fila de conferência. Não apaga nada',
+    cron: '15 4 * * *',
+    script: 'dist/cli/tenant-lifecycle.js',
+    args: [],
+    timeoutMs: 10 * MINUTE,
+    // QUEUE_MODE=enqueue: o horário só enfileira a tarefa do dia (dedupe por job e dia); o worker executa
+    task: { type: 'tenant.lifecycle' },
+  },
+  {
     name: 'fixture-people',
     description:
       'Preenche quem jogou e quem dirigiu cada partida (football_fixture.player_pids/coach_pids) nas linhas anteriores ao trigger, em lotes com pausa; sem linha nula, só confere e sai',

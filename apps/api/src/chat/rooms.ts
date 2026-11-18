@@ -118,6 +118,8 @@ export interface ChatTenantConfigRow {
   slowModeSeconds: number | null;
   strictness: ChatStrictness | null;
   eventKinds: ChatGameKind[] | null;
+  floodMaxPerMinute: number | null;
+  floodBlockSeconds: number | null;
 }
 
 const EMPTY_CONFIG: ChatTenantConfigRow = {
@@ -126,6 +128,8 @@ const EMPTY_CONFIG: ChatTenantConfigRow = {
   slowModeSeconds: null,
   strictness: null,
   eventKinds: null,
+  floodMaxPerMinute: null,
+  floodBlockSeconds: null,
 };
 
 export async function readTenantConfig(db: Database, tenantId: string): Promise<ChatTenantConfigRow> {
@@ -136,6 +140,8 @@ export async function readTenantConfig(db: Database, tenantId: string): Promise<
       slowModeSeconds: chatTenantConfig.slowModeSeconds,
       strictness: chatTenantConfig.strictness,
       eventKinds: chatTenantConfig.eventKinds,
+      floodMaxPerMinute: chatTenantConfig.floodMaxPerMinute,
+      floodBlockSeconds: chatTenantConfig.floodBlockSeconds,
     })
     .from(chatTenantConfig)
     .where(eq(chatTenantConfig.tenantId, tenantId))
@@ -160,7 +166,9 @@ export async function writeTenantConfig(
 /** O cliente tem o módulo `live_chat` ligado e está ativo? (o token do torcedor não traz os módulos). */
 export async function tenantHasLiveChat(db: Database, tenantId: string): Promise<boolean> {
   const [row] = await db
-    .select({ ok: sql<boolean>`'live_chat' = any(${tenant.modules}) and ${tenant.status} = 'active'` })
+    .select({
+      ok: sql<boolean>`'live_chat' = any(${tenant.modules}) and ${tenant.state} in ('trial', 'active', 'past_due')`,
+    })
     .from(tenant)
     .where(eq(tenant.id, tenantId))
     .limit(1);

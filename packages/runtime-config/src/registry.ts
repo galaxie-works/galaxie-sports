@@ -149,6 +149,8 @@ export const SCHEDULED_JOBS: readonly ScheduledJobDef[] = [
   { name: 'assets-palette', service: 'ingestor', cron: '10 3 * * *', runNow: true },
   { name: 'change-feed-prune', service: 'ingestor', cron: '45 2 * * *', runNow: true },
   { name: 'data-retention', service: 'ingestor', cron: '20 3 * * *', runNow: true },
+  // relógio da máquina de estados do tenant (F3): transições por prazo e reconferência diária dos domínios comprovados
+  { name: 'tenant-lifecycle', service: 'ingestor', cron: '15 4 * * *', runNow: true },
   { name: 'fixture-people', service: 'ingestor', cron: '25 4 * * *', runNow: true },
   { name: 'quota-status', service: 'ingestor', cron: '5 * * * *', runNow: true },
   { name: 'data-quality', service: 'ingestor', cron: '40 4 * * *', runNow: true },
@@ -158,7 +160,8 @@ export const SCHEDULED_JOBS: readonly ScheduledJobDef[] = [
   { name: 'context-run', service: 'agents', cron: '10 * * * *', runNow: true },
   { name: 'wtw-run', service: 'agents', cron: '*/5 * * * *', runNow: false },
   { name: 'wtw-channel', service: 'agents', cron: '*/10 * * * *', runNow: false },
-  { name: 'related-run', service: 'agents', cron: '*/3 * * * *', runNow: false },
+  // a cada 10 min (decisão do dono, 17/11/2026: vídeos relacionados até 10 min depois do fim do jogo; antes */3)
+  { name: 'related-run', service: 'agents', cron: '*/10 * * * *', runNow: false },
   { name: 'wtw-rights', service: 'agents', cron: '40 5,17 * * *', runNow: false },
   { name: 'review-suggestions', service: 'agents', cron: '*/15 * * * *', runNow: true },
   { name: 'lineups-revisit', service: 'agents', cron: '50 4 * * 1', runNow: false },
@@ -446,6 +449,18 @@ export const SETTINGS: readonly SettingDef[] = [
     max: 90,
     default: '7',
   },
+  // freio do explore-summary: mudança de jogo não refaz o resumo da home antes disso desde a última conta (0 = sem
+  // freio; o recálculo de 10 min não depende dele). @galaxie/explore › exploreMinIntervalMs
+  {
+    key: 'EXPLORE_MIN_INTERVAL_SEC',
+    section: 'schedule',
+    type: 'int',
+    services: ['ingestor'],
+    apply: 'next-run',
+    min: 0,
+    max: 600,
+    default: '180',
+  },
 
   // ── IA e orçamento ──────────────────────────────────────────────────────────────────────────
   agents('ai', {
@@ -467,6 +482,9 @@ export const SETTINGS: readonly SettingDef[] = [
   ),
   // ligado/desligado é literal: off = nenhuma chamada ao LLM (os tetos abaixo só limitam)
   agents('ai', { key: 'AI_STATUS', type: 'enum', options: AI_STATUSES, default: 'on', critical: true }),
+  // validade do carimbo do insumo do Resumo (recap-run): passado isso, o jogo monta os fatos de novo mesmo sem mudança
+  // no que o carimbo enxerga (títulos, regulamento e perfil do time ficam de fora dele). ai-agents › recap/input-stamp
+  agents('ai', { key: 'RECAP_INPUT_MAX_AGE_HOURS', type: 'int', min: 1, max: 72, default: '6' }),
   // desliga agentes com a IA ligada (agente=on e vazio seguem o AI_STATUS, que é a chave geral)
   agents('ai', {
     key: 'AI_AGENT_STATUS',
@@ -710,7 +728,8 @@ export const SETTINGS: readonly SettingDef[] = [
     default: 'BR:1,AR:0.6,MX:0.6,CO:0.45,CL:0.4,PE:0.35,UY:0.35,EC:0.35',
   }),
   agents('related', { key: 'RELATED_MAX_SEARCHES_PER_EVENT', type: 'int', min: 0, max: 16, default: '4' }),
-  agents('related', { key: 'RELATED_MAX_SEARCHES_PER_RUN', type: 'int', min: 0, max: 16, default: '2' }),
+  // 6 por execução (decisão do dono em 17/11/2026, com o related-run a cada 10 min: mantém ~36 buscas por hora; antes 2)
+  agents('related', { key: 'RELATED_MAX_SEARCHES_PER_RUN', type: 'int', min: 0, max: 16, default: '6' }),
   agents('related', { key: 'RELATED_CHANNEL_ENOUGH', type: 'int', min: 1, max: 50, default: '4' }),
   agents('related', {
     key: 'RELATED_CHANNEL_REFRESH_MINUTES',
@@ -1046,6 +1065,19 @@ export const SETTINGS: readonly SettingDef[] = [
   },
 
   // ── Engajamento (#1017) ───────────────────────────────────────────────────────────────────────
+  // apagamento automático da moderação e do chat (dados pessoais): cada linha sai no prazo da ficha do país em que foi
+  // decidida (Ajustes → Fichas por país). Desligado, nada é apagado; ligar apaga o que já venceu, sem volta. Ainda
+  // não existe a guarda legal do conteúdo denunciado às autoridades: não ligar antes dela
+  {
+    key: 'MODERATION_PURGE',
+    section: 'engage',
+    type: 'enum',
+    options: ['off', 'on'],
+    services: ['api'],
+    apply: 'refresh',
+    default: 'off',
+    critical: true,
+  },
   // validade do token do torcedor (gft_, #937). Curta: punição e exclusão valem na hora pelo Valkey, mas faixa e
   // país só mudam no próximo token. Relido a cada minuto; os segredos ficam no .env (FAN_TOKEN_SECRET)
   {
@@ -1101,6 +1133,27 @@ export const SETTINGS: readonly SettingDef[] = [
     services: ['api'],
     apply: 'refresh',
     default: '3',
+  },
+  // anti-flood por pessoa (no lugar do modo escudo): passou do limite em 60 s, fica o bloqueio sem enviar
+  {
+    key: 'CHAT_FLOOD_MAX_PER_MINUTE',
+    section: 'engage',
+    type: 'int',
+    min: 3,
+    max: 60,
+    services: ['api'],
+    apply: 'refresh',
+    default: '10',
+  },
+  {
+    key: 'CHAT_FLOOD_BLOCK_SECONDS',
+    section: 'engage',
+    type: 'int',
+    min: 30,
+    max: 1800,
+    services: ['api'],
+    apply: 'refresh',
+    default: '180',
   },
   {
     key: 'CHAT_MESSAGE_MAX_CHARS',
@@ -1195,6 +1248,81 @@ export const SETTINGS: readonly SettingDef[] = [
     services: ['demo'],
     apply: 'refresh',
     default: '30',
+  },
+  // ── Ciclo de vida do tenant (plataforma comercial F3, doc 02 §Máquina de estados; PL15) ───────
+  // Prazos que o job tenant.lifecycle (worker, perfil do ingestor) aplica uma vez por dia e que o console mostra. Nunca
+  // número fixo no código: o advogado confirma nos termos. O expurgo depois de cancelled NÃO é automático: o job só
+  // avisa que o prazo de guarda venceu.
+  // trial_expired há mais de N dias → cancelled
+  {
+    key: 'TENANT_TRIAL_EXPIRED_DAYS',
+    section: 'signup',
+    type: 'int',
+    min: 1,
+    max: 3650,
+    services: ['ingestor', 'demo'],
+    apply: 'next-run',
+    applyIn: { demo: 'refresh' },
+    default: '60',
+  },
+  // past_due há mais de N dias → suspended (os 7 dias de graça: o cliente nunca descobre a falha do cartão pelo site fora do ar)
+  {
+    key: 'TENANT_PAST_DUE_DAYS',
+    section: 'signup',
+    type: 'int',
+    min: 1,
+    max: 365,
+    services: ['ingestor', 'demo'],
+    apply: 'next-run',
+    applyIn: { demo: 'refresh' },
+    default: '7',
+  },
+  // suspended há mais de N dias → cancelled
+  {
+    key: 'TENANT_SUSPENDED_DAYS',
+    section: 'signup',
+    type: 'int',
+    min: 1,
+    max: 3650,
+    services: ['ingestor', 'demo'],
+    apply: 'next-run',
+    applyIn: { demo: 'refresh' },
+    default: '30',
+  },
+  // guarda depois de cancelled: vencida, o painel avisa; nada é apagado sem decisão do dono
+  {
+    key: 'TENANT_CANCELLED_RETENTION_DAYS',
+    section: 'signup',
+    type: 'int',
+    min: 1,
+    max: 3650,
+    services: ['ingestor', 'demo'],
+    apply: 'next-run',
+    applyIn: { demo: 'refresh' },
+    default: '90',
+  },
+  // dias do trial em que o e-mail de lembrete sai (PR c da F3), separados por vírgula
+  {
+    key: 'TRIAL_REMINDER_DAYS',
+    section: 'signup',
+    type: 'text',
+    pattern: /^\d{1,3}(,\d{1,3})*$/,
+    services: ['ingestor', 'demo'],
+    apply: 'next-run',
+    applyIn: { demo: 'refresh' },
+    default: '23,29',
+  },
+  // quantos dias antes do fim do teste de um módulo o lembrete sai (PR c da F3)
+  {
+    key: 'MODULE_TRIAL_REMINDER_DAYS_BEFORE',
+    section: 'signup',
+    type: 'int',
+    min: 0,
+    max: 60,
+    services: ['ingestor', 'demo'],
+    apply: 'next-run',
+    applyIn: { demo: 'refresh' },
+    default: '2',
   },
 
   // ── Credenciais ─────────────────────────────────────────────────────────────────────────────

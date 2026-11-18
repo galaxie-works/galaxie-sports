@@ -5,6 +5,7 @@
  */
 import { parseArgs } from 'node:util';
 import { closeDb } from '@galaxie/db';
+import { recapInputMaxAgeMs } from '../recap/input-stamp.js';
 import { runRecapAgent } from '../recap/run.js';
 import {
   dbFromEnv,
@@ -39,6 +40,7 @@ try {
   const tier = intFlag(values.tier, 'tier');
   const limit = intFlag(values.limite, 'limite');
   const locales = localesFlag(values.locales);
+  const env = await runtimeEnv(db);
   const report = await runRecapAgent(db, {
     llm,
     priorityOf: await priorityFor(db),
@@ -48,10 +50,12 @@ try {
     ...(values.evento ? { eventId: values.evento } : {}),
     ...(lookback !== undefined ? { lookbackHours: lookback } : {}),
     // tiers do módulo `ai-content` do painel (MODULES_FOOTBALL); --tier vale por cima
-    tiers: moduleTiers(await runtimeEnv(db), 'ai-content'),
+    tiers: moduleTiers(env, 'ai-content'),
     ...(tier !== undefined ? { maxTier: tier } : {}),
     ...(limit !== undefined ? { limit } : {}),
     ...(locales ? { locales } : {}),
+    // validade do carimbo do insumo (painel › IA, RECAP_INPUT_MAX_AGE_HOURS)
+    inputMaxAgeMs: recapInputMaxAgeMs(env),
   });
   printAgentReport(report, values.plan);
 } finally {

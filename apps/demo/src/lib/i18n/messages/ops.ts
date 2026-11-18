@@ -83,7 +83,7 @@ export default defineMessages(
       site: 'Site da Galaxie',
       messaging: 'WhatsApp e Telegram',
       subscriptions: 'Assinaturas e carteiras',
-      signups: 'Cadastros e trials',
+      signups: 'Cadastros, trials e ciclo de vida',
       domains: 'Domínios',
       organizations: 'Organizações e marcas',
       users: 'Usuários e equipe',
@@ -272,7 +272,7 @@ export default defineMessages(
       cosmos: 'Crédito, teste e teto de segurança da Cosmos AI.',
       fanIdentity: 'Validade do token do torcedor. O segredo que assina o token fica em Credenciais.',
       signups:
-        'O cadastro em autoatendimento (/signup): liga/desliga, versão dos termos aceita, limite por IP e prazo do trial.',
+        'O cadastro em autoatendimento (/signup): liga/desliga, versão dos termos aceita, limite por IP e prazo do trial. E os prazos do ciclo de vida do tenant (trial vencido, inadimplência, suspensão e guarda) que o job tenant-lifecycle aplica.',
       history: 'Quem mudou o quê no painel e os pedidos de "rodar agora".',
       refreshHint: 'O que você muda aqui sobrescreve o .env da VPS sem reiniciar os contêineres.',
     },
@@ -680,6 +680,11 @@ export default defineMessages(
           label: 'Retenção de dados',
           description:
             'Apaga o bruto do ao vivo com mais de 30 dias e o histórico antigo de operação (execuções, cota, IA agregada por dia).',
+        },
+        'tenant-lifecycle': {
+          label: 'Ciclo de vida dos tenants',
+          description:
+            'Aplica os prazos do ciclo de vida (trial vencido, inadimplência, suspensão e guarda) e reconfere os domínios comprovados. Não apaga nada.',
         },
         'fixture-people': {
           label: 'Jogadores por partida',
@@ -1586,6 +1591,12 @@ export default defineMessages(
         description: 'Por quantos dias as mudanças ficam no feed antes da limpeza.',
         unit: 'dias',
       },
+      EXPLORE_MIN_INTERVAL_SEC: {
+        label: 'Intervalo mínimo do resumo da home',
+        description:
+          'Mudança de jogo só refaz o resumo do Explorar depois disso desde a última conta. 0 = sem freio; a conta de 10 em 10 min continua.',
+        unit: 's',
+      },
       AI_PROVIDER: {
         label: 'Provedor de IA',
         description: 'Quem escreve os textos dos agentes. Trocar exige a chave do novo provedor configurada.',
@@ -1600,6 +1611,12 @@ export default defineMessages(
         label: 'IA',
         description:
           'Chave geral: ligada ou desligada para todos os agentes. Desligada, nenhuma chamada sai para o provedor (nem a dos agentes com agente=on) e os agentes seguem só com texto determinístico.',
+      },
+      RECAP_INPUT_MAX_AGE_HOURS: {
+        label: 'Revisão completa do resumo',
+        description:
+          'O resumo pós-jogo pula o jogo cujos dados não mudaram desde a última conferência. Passadas estas horas, confere tudo de novo mesmo sem mudança.',
+        unit: 'h',
       },
       AI_AGENT_STATUS: {
         label: 'IA por agente',
@@ -1888,6 +1905,34 @@ export default defineMessages(
         description:
           'Prazo do trial do Fan Experience para quem se cadastra ou é criado pela equipe. Vale para as organizações novas; as existentes mantêm o prazo gravado.',
       },
+      TENANT_TRIAL_EXPIRED_DAYS: {
+        label: 'Dias em trial vencido até cancelar',
+        description:
+          'Depois do fim do trial sem contratação, quantos dias a conta fica em trial vencido antes de o relógio (job tenant-lifecycle) cancelar. Nada é apagado.',
+      },
+      TENANT_PAST_DUE_DAYS: {
+        label: 'Dias de graça na inadimplência',
+        description:
+          'Quantos dias a conta segue funcionando com pagamento pendente antes de o relógio suspender. O cliente nunca descobre a falha do cartão pelo site fora do ar.',
+      },
+      TENANT_SUSPENDED_DAYS: {
+        label: 'Dias suspensa até cancelar',
+        description: 'Quantos dias a conta fica suspensa antes de o relógio cancelar. Nada é apagado.',
+      },
+      TENANT_CANCELLED_RETENTION_DAYS: {
+        label: 'Dias de guarda depois do cancelamento',
+        description:
+          'Por quantos dias os dados de uma conta cancelada ficam guardados. Vencido, o painel avisa; o expurgo depende de decisão do dono.',
+      },
+      TRIAL_REMINDER_DAYS: {
+        label: 'Dias do trial com e-mail de lembrete',
+        description:
+          'Dias do trial em que o lembrete sai para os Donos e o Financeiro (separados por vírgula).',
+      },
+      MODULE_TRIAL_REMINDER_DAYS_BEFORE: {
+        label: 'Aviso antes do fim do teste de um módulo',
+        description: 'Quantos dias antes do fim do teste de um módulo o lembrete sai.',
+      },
       STRIPE_SECRET_KEY: { label: 'Stripe: chave secreta' },
       STRIPE_WEBHOOK_SECRET: { label: 'Stripe: segredo do webhook' },
       DIDIT_API_KEY: { label: 'Didit: chave da API' },
@@ -1953,6 +1998,11 @@ export default defineMessages(
           'Custo de provedor que vale 1 crédito, para converter o custo real em créditos. Vazio, cada chamada cobra só o mínimo da função. O cliente nunca vê este número.',
         unit: 'US$',
       },
+      MODERATION_PURGE: {
+        label: 'Apagamento automático da moderação',
+        description:
+          'Ligado, apaga de hora em hora o que venceu o prazo da ficha do país: conteúdo removido, decisões, notas internas e mensagens do chat. Os prazos se escolhem em Fichas por país. Não tem volta. Ainda não existe a guarda legal do conteúdo denunciado às autoridades: não ligue antes dela.',
+      },
       FAN_TOKEN_TTL_SECONDS: {
         label: 'Validade do token do torcedor',
         description:
@@ -1993,6 +2043,18 @@ export default defineMessages(
         label: 'Chat: modo lento padrão',
         description:
           'Intervalo mínimo entre duas mensagens do mesmo torcedor. 0 desliga. O cliente e a moderação mudam por sala.',
+        unit: 'segundos',
+      },
+      CHAT_FLOOD_MAX_PER_MINUTE: {
+        label: 'Chat: limite anti-flood',
+        description:
+          'Quantas mensagens o mesmo torcedor manda em 60 segundos antes do bloqueio. A mesma mensagem três vezes também bloqueia. O cliente pode mudar.',
+        unit: 'mensagens',
+      },
+      CHAT_FLOOD_BLOCK_SECONDS: {
+        label: 'Chat: bloqueio anti-flood',
+        description:
+          'Quanto tempo o torcedor fica sem enviar depois de passar do limite. O cliente pode mudar.',
         unit: 'segundos',
       },
       CHAT_MESSAGE_MAX_CHARS: {
@@ -2100,7 +2162,7 @@ export default defineMessages(
         site: 'Galaxie website',
         messaging: 'WhatsApp and Telegram',
         subscriptions: 'Subscriptions and wallets',
-        signups: 'Sign-ups and trials',
+        signups: 'Sign-ups, trials and lifecycle',
         domains: 'Domains',
         organizations: 'Organizations and brands',
         users: 'Users and team',
@@ -2289,7 +2351,7 @@ export default defineMessages(
         cosmos: 'Cosmos AI credit, trial and safety ceiling.',
         fanIdentity: 'How long the fan token lasts. The secret that signs it is in Credentials.',
         signups:
-          'Self-service sign-up (/signup): on/off, accepted terms version, per-IP limit and trial length.',
+          'Self-service sign-up (/signup): on/off, accepted terms version, per-IP limit and trial length. Plus the tenant lifecycle deadlines (expired trial, past due, suspension and retention) applied by the tenant-lifecycle job.',
         history: 'Who changed what in the panel and the "run now" requests.',
         refreshHint: 'Changes here override the VPS .env without restarting containers.',
       },
@@ -2678,6 +2740,11 @@ export default defineMessages(
             label: 'Data retention',
             description:
               'Deletes live raw responses older than 30 days and old operations history (runs, quota, AI usage rolled up by day).',
+          },
+          'tenant-lifecycle': {
+            label: 'Tenant lifecycle',
+            description:
+              'Applies the lifecycle deadlines (expired trial, past due, suspension and retention) and re-checks verified domains. Deletes nothing.',
           },
           'fixture-people': {
             label: 'Players per match',
@@ -3582,6 +3649,12 @@ export default defineMessages(
           description: 'How many days changes stay in the feed before cleanup.',
           unit: 'days',
         },
+        EXPLORE_MIN_INTERVAL_SEC: {
+          label: 'Home summary minimum interval',
+          description:
+            'A game change only rebuilds the Explore summary this long after the last build. 0 = no brake; the 10-minute rebuild still runs.',
+          unit: 's',
+        },
         AI_PROVIDER: {
           label: 'AI provider',
           description: "Who writes the agents' texts. Switching requires the new provider's key to be set.",
@@ -3599,6 +3672,12 @@ export default defineMessages(
           label: 'AI',
           description:
             'Master switch: on or off for every agent. Off, no call goes to the provider (not even for agents set to agent=on) and agents fall back to deterministic text.',
+        },
+        RECAP_INPUT_MAX_AGE_HOURS: {
+          label: 'Full recap recheck',
+          description:
+            'The post-match recap skips a game whose data has not changed since the last check. After this many hours it rechecks everything even without changes.',
+          unit: 'h',
         },
         AI_AGENT_STATUS: {
           label: 'AI per agent',
@@ -3887,6 +3966,35 @@ export default defineMessages(
           description:
             'Length of the Fan Experience trial for self-service sign-ups and team-created customers. Applies to new organizations; existing ones keep the stored date.',
         },
+        TENANT_TRIAL_EXPIRED_DAYS: {
+          label: 'Days in expired trial before cancelling',
+          description:
+            'After the trial ends without a purchase, how many days the account stays in expired trial before the clock (tenant-lifecycle job) cancels it. Nothing is deleted.',
+        },
+        TENANT_PAST_DUE_DAYS: {
+          label: 'Grace days when past due',
+          description:
+            'How many days the account keeps working with a pending payment before the clock suspends it. The customer never learns about a failed card from a site that is down.',
+        },
+        TENANT_SUSPENDED_DAYS: {
+          label: 'Days suspended before cancelling',
+          description:
+            'How many days the account stays suspended before the clock cancels it. Nothing is deleted.',
+        },
+        TENANT_CANCELLED_RETENTION_DAYS: {
+          label: 'Retention days after cancellation',
+          description:
+            'How many days the data of a cancelled account is kept. Once over, the panel warns; purging depends on the owner’s decision.',
+        },
+        TRIAL_REMINDER_DAYS: {
+          label: 'Trial days with a reminder email',
+          description:
+            'Days of the trial on which the reminder goes to the Owners and Billing (comma-separated).',
+        },
+        MODULE_TRIAL_REMINDER_DAYS_BEFORE: {
+          label: 'Notice before a module trial ends',
+          description: 'How many days before a module trial ends the reminder goes out.',
+        },
         STRIPE_SECRET_KEY: { label: 'Stripe: secret key' },
         STRIPE_WEBHOOK_SECRET: { label: 'Stripe: webhook secret' },
         DIDIT_API_KEY: { label: 'Didit: API key' },
@@ -3952,6 +4060,11 @@ export default defineMessages(
             'Provider cost worth 1 credit, used to turn real cost into credits. Empty, each call charges only the function minimum. Clients never see this number.',
           unit: 'US$',
         },
+        MODERATION_PURGE: {
+          label: 'Automatic moderation deletion',
+          description:
+            "When on, deletes every hour what passed the country rules sheet's deadline: removed content, decisions, internal notes and chat messages. Deadlines are chosen in Country rules. It cannot be undone. The legal hold for content reported to the authorities does not exist yet: do not turn this on before it does.",
+        },
         FAN_TOKEN_TTL_SECONDS: {
           label: 'Fan token lifetime',
           description:
@@ -3992,6 +4105,17 @@ export default defineMessages(
           label: 'Chat: default slow mode',
           description:
             'Minimum interval between two messages from the same fan. 0 turns it off. The client and moderators change it per room.',
+          unit: 'seconds',
+        },
+        CHAT_FLOOD_MAX_PER_MINUTE: {
+          label: 'Chat: anti-flood limit',
+          description:
+            'How many messages the same fan can send in 60 seconds before being blocked. Sending the same message three times also blocks. The client can change it.',
+          unit: 'messages',
+        },
+        CHAT_FLOOD_BLOCK_SECONDS: {
+          label: 'Chat: anti-flood block',
+          description: 'How long the fan cannot send after crossing the limit. The client can change it.',
           unit: 'seconds',
         },
         CHAT_MESSAGE_MAX_CHARS: {
@@ -4099,7 +4223,7 @@ export default defineMessages(
         site: 'Sitio de Galaxie',
         messaging: 'WhatsApp y Telegram',
         subscriptions: 'Suscripciones y billeteras',
-        signups: 'Registros y pruebas',
+        signups: 'Registros, pruebas y ciclo de vida',
         domains: 'Dominios',
         organizations: 'Organizaciones y marcas',
         users: 'Usuarios y equipo',
@@ -4289,7 +4413,7 @@ export default defineMessages(
         cosmos: 'Crédito, prueba y tope de seguridad de Cosmos AI.',
         fanIdentity: 'Validez del token del hincha. El secreto que lo firma está en Credenciales.',
         signups:
-          'El registro en autoservicio (/signup): encendido/apagado, versión de los términos aceptada, límite por IP y plazo de la prueba.',
+          'El registro en autoservicio (/signup): encendido/apagado, versión de los términos aceptada, límite por IP y plazo de la prueba. Y los plazos del ciclo de vida del tenant (prueba vencida, mora, suspensión y retención) que aplica el job tenant-lifecycle.',
         history: 'Quién cambió qué en el panel y los pedidos de "ejecutar ahora".',
         refreshHint: 'Lo que cambie aquí sobrescribe el .env de la VPS sin reiniciar los contenedores.',
       },
@@ -4692,6 +4816,11 @@ export default defineMessages(
             label: 'Retención de datos',
             description:
               'Borra el bruto del en vivo con más de 30 días y el historial viejo de operación (ejecuciones, cuota, IA agregada por día).',
+          },
+          'tenant-lifecycle': {
+            label: 'Ciclo de vida de los tenants',
+            description:
+              'Aplica los plazos del ciclo de vida (prueba vencida, mora, suspensión y retención) y vuelve a comprobar los dominios verificados. No borra nada.',
           },
           'fixture-people': {
             label: 'Jugadores por partido',
@@ -5602,6 +5731,12 @@ export default defineMessages(
           description: 'Cuántos días quedan los cambios en el feed antes de la limpieza.',
           unit: 'días',
         },
+        EXPLORE_MIN_INTERVAL_SEC: {
+          label: 'Intervalo mínimo del resumen de inicio',
+          description:
+            'Un cambio de partido solo rehace el resumen de Explorar pasado este tiempo desde el último cálculo. 0 = sin freno; el cálculo cada 10 min sigue.',
+          unit: 's',
+        },
         AI_PROVIDER: {
           label: 'Proveedor de IA',
           description:
@@ -5620,6 +5755,12 @@ export default defineMessages(
           label: 'IA',
           description:
             'Interruptor general: encendida o apagada para todos los agentes. Apagada, ninguna llamada va al proveedor (ni la de los agentes con agente=on) y los agentes siguen solo con texto determinístico.',
+        },
+        RECAP_INPUT_MAX_AGE_HOURS: {
+          label: 'Revisión completa del resumen',
+          description:
+            'El resumen pospartido omite el partido cuyos datos no cambiaron desde la última verificación. Pasadas estas horas, verifica todo de nuevo aunque no haya cambios.',
+          unit: 'h',
         },
         AI_AGENT_STATUS: {
           label: 'IA por agente',
@@ -5910,6 +6051,35 @@ export default defineMessages(
           description:
             'Plazo de la prueba de Fan Experience para quien se registra o es creado por el equipo. Vale para las organizaciones nuevas; las existentes mantienen la fecha guardada.',
         },
+        TENANT_TRIAL_EXPIRED_DAYS: {
+          label: 'Días en prueba vencida hasta cancelar',
+          description:
+            'Después del fin de la prueba sin contratación, cuántos días la cuenta queda en prueba vencida antes de que el reloj (job tenant-lifecycle) la cancele. No se borra nada.',
+        },
+        TENANT_PAST_DUE_DAYS: {
+          label: 'Días de gracia en mora',
+          description:
+            'Cuántos días la cuenta sigue funcionando con pago pendiente antes de que el reloj la suspenda. El cliente nunca se entera de la falla de la tarjeta por el sitio caído.',
+        },
+        TENANT_SUSPENDED_DAYS: {
+          label: 'Días suspendida hasta cancelar',
+          description:
+            'Cuántos días la cuenta queda suspendida antes de que el reloj la cancele. No se borra nada.',
+        },
+        TENANT_CANCELLED_RETENTION_DAYS: {
+          label: 'Días de retención después de la cancelación',
+          description:
+            'Por cuántos días se conservan los datos de una cuenta cancelada. Vencido, el panel avisa; la purga depende de la decisión del dueño.',
+        },
+        TRIAL_REMINDER_DAYS: {
+          label: 'Días de la prueba con e-mail de recordatorio',
+          description:
+            'Días de la prueba en que el recordatorio sale para los Dueños y Facturación (separados por coma).',
+        },
+        MODULE_TRIAL_REMINDER_DAYS_BEFORE: {
+          label: 'Aviso antes del fin de la prueba de un módulo',
+          description: 'Cuántos días antes del fin de la prueba de un módulo sale el recordatorio.',
+        },
         STRIPE_SECRET_KEY: { label: 'Stripe: clave secreta' },
         STRIPE_WEBHOOK_SECRET: { label: 'Stripe: secreto del webhook' },
         DIDIT_API_KEY: { label: 'Didit: clave de la API' },
@@ -5976,6 +6146,11 @@ export default defineMessages(
             'Costo de proveedor que vale 1 crédito, para convertir el costo real en créditos. Vacío, cada llamada cobra solo el mínimo de la función. El cliente nunca ve este número.',
           unit: 'US$',
         },
+        MODERATION_PURGE: {
+          label: 'Borrado automático de la moderación',
+          description:
+            'Encendido, borra cada hora lo que venció el plazo de la ficha del país: contenido eliminado, decisiones, notas internas y mensajes del chat. Los plazos se eligen en Fichas por país. No tiene vuelta atrás. Todavía no existe la retención legal del contenido denunciado a las autoridades: no lo enciendas antes.',
+        },
         FAN_TOKEN_TTL_SECONDS: {
           label: 'Validez del token del hincha',
           description:
@@ -6016,6 +6191,18 @@ export default defineMessages(
           label: 'Chat: modo lento por defecto',
           description:
             'Intervalo mínimo entre dos mensajes del mismo hincha. 0 lo desactiva. El cliente y la moderación lo cambian por sala.',
+          unit: 'segundos',
+        },
+        CHAT_FLOOD_MAX_PER_MINUTE: {
+          label: 'Chat: límite anti-flood',
+          description:
+            'Cuántos mensajes envía el mismo hincha en 60 segundos antes del bloqueo. El mismo mensaje tres veces también bloquea. El cliente puede cambiarlo.',
+          unit: 'mensajes',
+        },
+        CHAT_FLOOD_BLOCK_SECONDS: {
+          label: 'Chat: bloqueo anti-flood',
+          description:
+            'Cuánto tiempo el hincha queda sin enviar después de pasar el límite. El cliente puede cambiarlo.',
           unit: 'segundos',
         },
         CHAT_MESSAGE_MAX_CHARS: {

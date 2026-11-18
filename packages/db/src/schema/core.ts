@@ -469,22 +469,34 @@ export const participantPhoto = core.table(
   ],
 );
 
-export const person = core.table('person', {
-  id: pkUuidV7(),
-  name: text('name').notNull(),
-  firstName: text('first_name'),
-  lastName: text('last_name'),
-  birthDate: date('birth_date'),
-  nationality: text('nationality'),
-  heightCm: integer('height_cm'),
-  weightKg: integer('weight_kg'),
-  /** Local e país de nascimento (`players`: birth.place / birth.country). */
-  birthPlace: text('birth_place'),
-  birthCountry: text('birth_country'),
-  photoAssetId: uuid('photo_asset_id').references(() => asset.id),
-  createdAt: createdAt(),
-  updatedAt: updatedAt(),
-});
+export const person = core.table(
+  'person',
+  {
+    id: pkUuidV7(),
+    name: text('name').notNull(),
+    firstName: text('first_name'),
+    lastName: text('last_name'),
+    birthDate: date('birth_date'),
+    nationality: text('nationality'),
+    heightCm: integer('height_cm'),
+    weightKg: integer('weight_kg'),
+    /** Local e país de nascimento (`players`: birth.place / birth.country). */
+    birthPlace: text('birth_place'),
+    birthCountry: text('birth_country'),
+    photoAssetId: uuid('photo_asset_id').references(() => asset.id),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    // Busca global de pessoas (GET /v1/search): trigram sobre nome, primeiro nome e sobrenome. A expressão é
+    // imutável (sem concat_ws, que é STABLE) e tem de ser idêntica à do pré-filtro em
+    // apps/api/src/search/match.ts (personSearchMatchSql), senão o planner não usa o índice.
+    index('person_search_trgm_idx').using(
+      'gin',
+      sql`(coalesce(${t.name}, '') || ' ' || coalesce(${t.firstName}, '') || ' ' || coalesce(${t.lastName}, '')) gin_trgm_ops`,
+    ),
+  ],
+);
 
 export const roster = core.table(
   'roster',
@@ -828,6 +840,13 @@ export const event = core.table(
     // jogos de uma temporada e de uma fase (times, contexto, chaveamento); criados sem travar (migration 0060)
     index('event_season_idx').on(t.seasonId),
     index('event_stage_idx').on(t.stageId),
+    // jogo novo desde a última conta do resumo da home (`exploreRefreshReason`), sem varrer a tabela (migration 0190)
+    index('event_created_at_idx').on(t.createdAt),
+    // só os jogos ainda abertos (alguns milhares de 1,7 milhão): o relógio dos eventos (`advanceEventClock`) e o
+    // "em andamento" (`IN_PLAY`) leem por `starts_at` sem passar pelos encerrados (migration 0190)
+    index('event_open_starts_idx')
+      .on(t.startsAt)
+      .where(sql`${t.status} in ('scheduled', 'starting', 'live', 'break', 'suspended')`),
   ],
 );
 

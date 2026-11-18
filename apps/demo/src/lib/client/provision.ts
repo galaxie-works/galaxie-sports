@@ -6,22 +6,33 @@
  * 0. `billing.organization` (upsert por slug; o aceite dos termos só entra quando ainda não há);
  * 1. `api.tenant` (upsert por slug; plano Fan Experience, módulos do plano, `markets = [país]`,
  *    `trial_ends_at = agora + TRIAL_DAYS` só na criação, `catalog_version` como a F1 grava, faixa de capacidade na
- *    organização e nula na marca);
+ *    organização e nula na marca). A marca nasce em `draft` e, na mesma transação, vai a `trial` ou, com a revisão do
+ *    cadastro pendente (PL2), a `pending_review` (máquina de estados da F3, decisão 6; `transitionTenantState` de
+ *    `@galaxie/billing`, evento `signup` ou `provision`);
  * 2. `api.tenant_member` e `billing.organization_member` com quem criou como Dono (único por tenant e usuário);
  * 3. chaves secretas `live` e `test` (pula o ambiente que já tem chave válida) e uma publicável com o host padrão
  *    (pula se a marca já tem uma ativa), as três na mesma transação: falhou uma, nenhuma fica gravada e a repetição
  *    emite tudo de novo — só quando a revisão do cadastro não está pendente (PL2). O texto das chaves aparece uma
  *    única vez, no retorno;
  * 4. um tema da marca com a cor principal informada (pula se a marca já tem tema);
- * 5. o evento `tenant.provisioned` no outbox (`ops.change_feed`), com a faixa que a calculadora indicou e o uso
- *    declarado no payload — só na criação da marca (a F3 marca o checklist e manda o e-mail a partir dele).
+ * 5. um widget de exemplo no Builder (F3, decisão 10): "Placar do dia", do tipo `live_list` (jogos do dia com placar;
+ *    é o tipo de placar sem parâmetro obrigatório, ao contrário do `match_card`, que pede um jogo), seguindo o tema da
+ *    marca do passo 4 quando há, no idioma da organização e no mercado do país dela (pula se a marca já tem widget).
+ *    Nasce também com a revisão pendente: sem chave, o widget não alcança dado nenhum, e o checklist mostra o embed dele
+ *    assim que a equipe aprovar. A falha do widget não derruba o provisionamento;
+ * 6. o evento `tenant.provisioned` no outbox (`ops.change_feed`), com a faixa que a calculadora indicou e o uso
+ *    declarado no payload — só na criação da marca;
+ * 7. o e-mail de boas-vindas com o checklist (F3, decisão 11), aos Donos e ao Financeiro da organização, no idioma
+ *    dela, quando a marca está em `trial` (`lib/client/welcome-email.ts`; registrado em `billing.tenant_notification`,
+ *    uma vez; sem SMTP, log). A marca que ficou em `pending_review` recebe ao ser aprovada (Ajustes › Organizações).
+ *    A falha do e-mail não derruba o provisionamento.
  *
  * No cadastro (`source: 'signup'`), antes do passo 0 e na mesma transação, a regra "um trial por domínio de e-mail de
  * empresa" (PL2) é conferida de novo com trava consultiva no banco: a conferência da tela (`signup/actions.ts`) só
  * roda quando o e-mail ainda não tem usuário, e duas requisições simultâneas não podem passar juntas.
  *
- * Fora daqui, para a F3: a máquina de estados (`draft`, `pending_review`…), o widget de exemplo no Builder, o cliente
- * no Stripe e o e-mail de boas-vindas. `status` e `review_status` que já existem bastam para esta fase.
+ * Fora daqui: o cliente no Stripe (F4). O job `tenant.provision` do doc 02 não entra enquanto não houver passo
+ * externo: o provisionamento segue síncrono.
  */
 import { createApiKey } from '@galaxie/db/api-keys';
 import { publishChange } from '@galaxie/db/change-feed';
@@ -39,17 +50,27 @@ import {
 } from '@galaxie/db/schema';
 import {
   generatePublishableKey,
+  listWidgets,
   listWidgetThemes,
   MAX_PUBLISHABLE_KEYS_PER_TENANT,
   normalizeAllowedOrigin,
+  saveWidget,
   saveWidgetTheme,
+  type WidgetConfig,
 } from '@galaxie/db/widgets';
 import { DEFAULT_THEMES } from '@galaxie/widgets';
-import { recordCatalogVersion, type Catalog, type CapacityTier } from '@galaxie/billing';
+import {
+  recordCatalogVersion,
+  recordTenantCreated,
+  transitionTenantState,
+  type Catalog,
+  type CapacityTier,
+} from '@galaxie/billing';
 import { and, eq, isNull, sql } from 'drizzle-orm';
 
 import { AUTH_SCHEMA } from '@/lib/auth/db';
-
+import { organizationLocale, sendWelcomeEmail } from '@/lib/client/welcome-email';
+import { getDictionary } from '@/lib/i18n/dictionary';
 import { emailDomain, isFreeEmailDomain } from '@/lib/signup/email-domain';
 
 /** O mesmo prazo dos convites da tela Usuários e cargos (`members.ts`); repetido para não puxar o pool do auth. */
@@ -61,6 +82,9 @@ export const SIGNUP_PLAN = 'fan_experience' as const;
 /** Rótulo das chaves emitidas pelo provisionamento (aparece na lista de chaves da API). */
 const KEY_LABEL = 'provisionamento';
 const PUBLISHABLE_KEY_NAME = 'Site principal';
+
+/** Tipo do widget de exemplo (passo 5): jogos do dia com placar, sem parâmetro obrigatório. */
+export const SAMPLE_WIDGET_KIND = 'live_list' as const;
 
 export interface ProvisionInput {
   organization: {
@@ -127,6 +151,10 @@ export interface ProvisionResult {
   keys: ProvisionedKeys;
   /** O tema da marca com a cor informada foi criado agora. */
   themeCreated: boolean;
+  /** O widget de exemplo foi criado agora (false quando a marca já tinha widget). */
+  sampleWidgetCreated: boolean;
+  /** O e-mail de boas-vindas saiu agora para ao menos um destinatário (false se já tinha saído, ou sem SMTP). */
+  welcomeSent: boolean;
 }
 
 /** Recusas do provisionamento (o painel traduz pelo código). */
@@ -233,7 +261,13 @@ async function upsertOrganization(tx: Tx, input: ProvisionInput, now: Date) {
   return org;
 }
 
-async function upsertTenant(tx: Tx, input: ProvisionInput, organizationId: string, now: Date) {
+async function upsertTenant(
+  tx: Tx,
+  input: ProvisionInput,
+  organizationId: string,
+  reviewStatus: OrganizationReviewStatus,
+  now: Date,
+) {
   const plan = input.catalog.plans[SIGNUP_PLAN];
   const [existing] = await tx
     .select({ id: tenant.id, organizationId: tenant.organizationId })
@@ -258,10 +292,13 @@ async function upsertTenant(tx: Tx, input: ProvisionInput, organizationId: strin
       // a faixa é da organização (PL23): a coluna da marca fica nula
       capacityTier: null,
       organizationId,
+      // a máquina de estados (F3): nasce em draft e muda logo abaixo, na mesma transação
+      state: 'draft',
+      stateSince: now,
     })
     .onConflictDoUpdate({
       target: tenant.slug,
-      // de novo: só o nome; o prazo do trial e a organização gravados na criação ficam
+      // de novo: só o nome; o prazo do trial, a organização e o estado gravados na criação ficam
       set: {
         name: input.brand.name,
         trialEndsAt: sql`coalesce(${tenant.trialEndsAt}, excluded.trial_ends_at)`,
@@ -270,7 +307,19 @@ async function upsertTenant(tx: Tx, input: ProvisionInput, organizationId: strin
       },
     })
     .returning({ id: tenant.id, created: sql<boolean>`(xmax = 0)`, trialEndsAt: tenant.trialEndsAt });
-  return row!;
+  const t = row!;
+  if (t.created) {
+    // decisão 6: draft → trial, ou → pending_review quando o cadastro caiu numa regra antiabuso (PL2)
+    const cause = input.source === 'signup' ? 'signup' : 'provision';
+    await recordTenantCreated(tx, t.id, { cause, actor: input.actor, now });
+    await transitionTenantState(tx, t.id, reviewStatus === 'pending' ? 'pending_review' : 'trial', {
+      cause,
+      actor: input.actor,
+      now,
+      payload: { review_status: reviewStatus, trial_ends_at: t.trialEndsAt?.toISOString() ?? null },
+    });
+  }
+  return t;
 }
 
 async function addOwner(tx: Tx, input: ProvisionInput, organizationId: string, tenantId: string, now: Date) {
@@ -379,15 +428,64 @@ export async function issueMissingKeys(
   });
 }
 
-/** Tema da marca com a cor principal informada no cadastro, se a marca ainda não tem tema. */
-async function ensureBrandTheme(db: Database, input: ProvisionInput, tenantId: string): Promise<boolean> {
+/**
+ * Tema da marca com a cor principal informada no cadastro, se a marca ainda não tem tema. Devolve o tema que o widget
+ * de exemplo segue: o criado agora, ou o primeiro que a marca já tinha (null sem cor e sem tema).
+ */
+async function ensureBrandTheme(
+  db: Database,
+  input: ProvisionInput,
+  tenantId: string,
+): Promise<{ created: boolean; themeId: string | null }> {
+  const existing = await listWidgetThemes(db, tenantId);
+  if (existing.length) return { created: false, themeId: existing[0]!.id };
   const color = input.brand.color;
-  if (!color) return false;
-  if ((await listWidgetThemes(db, tenantId)).length) return false;
-  await saveWidgetTheme(db, {
+  if (!color) return { created: false, themeId: null };
+  const { theme } = await saveWidgetTheme(db, {
     tenantId,
     name: input.brand.name,
     theme: { ...DEFAULT_THEMES.dark, primary: color },
+    createdBy: input.actor,
+  });
+  return { created: true, themeId: theme.id };
+}
+
+export interface SampleWidgetInput {
+  tenantId: string;
+  /** Idioma da organização (`billing.organization.locale`); null = pt-BR. */
+  locale: string | null | undefined;
+  /** País principal da organização (ISO2): o mercado do widget. */
+  market: string;
+  /** Esporte em foco (slug); null = o widget mostra todos. */
+  sport: string | null;
+  /** Tema da marca que o widget segue; null = tema padrão só do widget. */
+  brandThemeId: string | null;
+  actor: string;
+}
+
+/**
+ * Widget de exemplo "Placar do dia" (F3, decisão 10; doc 02 §Provisionamento, passo 5), se a marca ainda não tem
+ * widget no Builder. Devolve true quando criou agora. A visão geral do console mostra o embed dele no passo 2 do
+ * checklist.
+ */
+export async function ensureSampleWidget(db: Database, input: SampleWidgetInput): Promise<boolean> {
+  if ((await listWidgets(db, input.tenantId)).length) return false;
+  const locale = organizationLocale(input.locale);
+  const config: WidgetConfig = {
+    theme: DEFAULT_THEMES.dark,
+    ...(input.brandThemeId ? { brandThemeId: input.brandThemeId } : {}),
+    // o widget fala pt-BR, es ou en (o Builder reduz `es-AR` a `es`)
+    locale: locale === 'es-AR' ? 'es' : locale,
+    market: input.market.toUpperCase(),
+    defaults: input.sport ? { sport: input.sport } : {},
+    liveList: { groupByCompetition: true, autoRefresh: true, limit: 10 },
+  };
+  await saveWidget(db, {
+    tenantId: input.tenantId,
+    kind: SAMPLE_WIDGET_KIND,
+    // o nome no idioma da organização ("Placar do dia"), do dicionário do console
+    name: getDictionary(locale).client.checklist.sampleWidgetName,
+    config,
     createdBy: input.actor,
   });
   return true;
@@ -415,7 +513,7 @@ export async function provisionOrganization(db: Database, input: ProvisionInput)
   const base = await db.transaction(async (tx) => {
     if (input.source === 'signup') await assertDomainFree(tx, input);
     const org = await upsertOrganization(tx, input, now);
-    const t = await upsertTenant(tx, input, org.id, now);
+    const t = await upsertTenant(tx, input, org.id, org.reviewStatus, now);
     await addOwner(tx, input, org.id, t.id, now);
     if (t.created)
       await publishChange(tx, {
@@ -445,7 +543,30 @@ export async function provisionOrganization(db: Database, input: ProvisionInput)
         now,
       })
     : { ...NO_KEYS };
-  const themeCreated = await ensureBrandTheme(db, input, base.t.id);
+  const theme = await ensureBrandTheme(db, input, base.t.id);
+  // o widget é acessório: uma falha aqui não pode perder as chaves acima, que só aparecem uma vez
+  let sampleWidgetCreated = false;
+  try {
+    sampleWidgetCreated = await ensureSampleWidget(db, {
+      tenantId: base.t.id,
+      locale: input.organization.locale,
+      market: input.organization.country,
+      sport: input.brand.sports?.[0] ?? null,
+      brandThemeId: theme.themeId,
+      actor: input.actor,
+    });
+  } catch (err) {
+    console.error('[provisionamento] widget de exemplo falhou', err);
+  }
+  // boas-vindas quando a marca está em trial (a que ficou em revisão recebe na aprovação); uma vez, pelo registro
+  let welcomeSent = false;
+  if (issue) {
+    try {
+      welcomeSent = (await sendWelcomeEmail(db, { tenantId: base.t.id, now })).delivered;
+    } catch (err) {
+      console.error('[provisionamento] e-mail de boas-vindas falhou', err);
+    }
+  }
   return {
     organizationId: base.org.id,
     organizationCreated: base.org.created,
@@ -454,6 +575,8 @@ export async function provisionOrganization(db: Database, input: ProvisionInput)
     reviewStatus,
     trialEndsAt: base.t.trialEndsAt,
     keys,
-    themeCreated,
+    themeCreated: theme.created,
+    sampleWidgetCreated,
+    welcomeSent,
   };
 }

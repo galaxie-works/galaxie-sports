@@ -3,6 +3,9 @@
  * créditos da Cosmos (#996). Com SMTP_*
  * configurado, envia de verdade; sem SMTP, o convite vai para o log do servidor e o código também, mas só
  * em desenvolvimento (em produção um código nunca é escrito em log). Nada disso é gravado no banco.
+ *
+ * O transporte e a moldura (`sendMail`, `renderNotice`) servem também ao e-mail de boas-vindas do provisionamento
+ * (`lib/client/welcome-email.ts`, F3), que registra o envio em `billing.tenant_notification`.
  */
 import { createHash } from 'node:crypto';
 
@@ -112,7 +115,7 @@ function greetingOf(mail: AccessEmail) {
   return name ? fill(t.greeting, { name }) : t.greetingNoName;
 }
 
-/** Moldura escura comum aos dois e-mails (tabelas e estilos inline, para os clientes de e-mail). */
+/** Moldura escura comum aos e-mails (tabelas e estilos inline, para os clientes de e-mail). */
 function frame(locale: Locale, greeting: string, rows: string) {
   return `<!doctype html><html lang="${locale}"><body style="margin:0;background:#0b0f14;font-family:Segoe UI,Arial,sans-serif;color:#e6e9ee">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="padding:32px 16px"><tr><td align="center">
@@ -189,6 +192,91 @@ ${paragraph(T.how)}
 export interface SendResult {
   delivered: boolean;
   error?: string;
+}
+
+/** Um botão (link) na moldura dos e-mails. */
+const button = (label: string, url: string) =>
+  `<tr><td style="padding-top:24px"><a href="${escapeHtml(url)}" style="display:inline-block;background:#6c69f2;color:#ffffff;text-decoration:none;font-weight:600;font-size:15px;padding:12px 20px;border-radius:8px">${escapeHtml(label)}</a></td></tr>`;
+
+export interface NoticeEmail {
+  locale: Locale;
+  /** Nome de quem recebe (só o primeiro nome vai na saudação); vazio = saudação sem nome. */
+  name: string;
+  subject: string;
+  /** Parágrafos, na ordem. */
+  paragraphs: string[];
+  /** Lista numerada (o checklist das boas-vindas), entre os parágrafos e o botão. */
+  steps?: string[];
+  action?: { label: string; url: string } | null;
+  footnote?: string | null;
+}
+
+/**
+ * E-mail de aviso na moldura do painel: saudação, parágrafos, passos numerados, botão e nota. Devolve o assunto e os
+ * dois corpos (texto e HTML); quem chama manda por `sendMail`.
+ */
+export function renderNotice(mail: NoticeEmail): { subject: string; text: string; html: string } {
+  const t = getDictionary(mail.locale).email;
+  const name = firstName(mail.name);
+  const greeting = name ? fill(t.greeting, { name }) : t.greetingNoName;
+  const steps = mail.steps ?? [];
+  const text = [
+    greeting,
+    ...mail.paragraphs,
+    ...(steps.length ? [steps.map((s, i) => `${i + 1}. ${s}`).join('\n')] : []),
+    ...(mail.action ? [`${mail.action.label}: ${mail.action.url}`] : []),
+    ...(mail.footnote ? [mail.footnote] : []),
+    t.signature,
+  ].join('\n\n');
+  const html = frame(
+    mail.locale,
+    greeting,
+    [
+      ...mail.paragraphs.map((p) => paragraph(p)),
+      ...(steps.length
+        ? [
+            `<tr><td style="padding-top:12px"><ol style="margin:0;padding-left:22px;font-size:15px;line-height:1.7;color:#b5bcc7">${steps
+              .map((s) => `<li>${escapeHtml(s)}</li>`)
+              .join('')}</ol></td></tr>`,
+          ]
+        : []),
+      ...(mail.action ? [button(mail.action.label, mail.action.url)] : []),
+      ...(mail.footnote ? [footnote(mail.footnote)] : []),
+    ].join('\n'),
+  );
+  return { subject: mail.subject, text, html };
+}
+
+/**
+ * Envia um e-mail já montado para um ou mais destinatários. Sem SMTP, registra no log (sem o corpo) e devolve
+ * `delivered: false`: quem chama decide se segue.
+ */
+export async function sendMail(mail: {
+  to: readonly string[];
+  subject: string;
+  text: string;
+  html: string;
+}): Promise<SendResult> {
+  if (!mail.to.length) return { delivered: false, error: 'no recipients' };
+  if (!smtpConfigured()) {
+    console.info(
+      `[demo-auth] SMTP não configurado; e-mail "${mail.subject}" não entregue a ${mail.to.join(', ')}`,
+    );
+    return { delivered: false, error: 'SMTP not configured' };
+  }
+  try {
+    await transport().sendMail({
+      from: smtp().from,
+      to: [...mail.to],
+      subject: mail.subject,
+      text: mail.text,
+      html: mail.html,
+    });
+    return { delivered: true };
+  } catch (err) {
+    console.error('[demo-auth] falha ao enviar e-mail', err);
+    return { delivered: false, error: err instanceof Error ? err.message : String(err) };
+  }
 }
 
 export async function sendAccessEmail(mail: AccessEmail): Promise<SendResult> {

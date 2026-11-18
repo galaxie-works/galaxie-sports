@@ -175,10 +175,14 @@ Fração ruim = tempo sem dump do Postgres com sucesso nas últimas 26 h **ou** 
 ```promql
 # slo:backup:ok
 min(
-  (time() - galaxie_job_last_success_timestamp_seconds{job_name="pg-backup"} <= bool 26 * 3600)
+  (time() - max(galaxie_job_last_success_timestamp_seconds{job_name=~"pg-backup|nas-dump"}) <= bool 26 * 3600)
   or (galaxie_job_consecutive_failures{job_name="backup-check"} == bool 0)
 )
 ```
+
+- O dump conta de onde vier: `pg-backup` (na VPS) ou `nas-dump` (na réplica do NAS, registrado pelo verificador a
+  partir do recibo `.nas_last_dump`; [runbook da réplica](runbooks/replica-no-nas.md)). Com o diário no NAS, o da VPS
+  vira semanal e o SLO continua medindo "há um dump com menos de 26 h em algum lugar".
 
 - O ensaio de restauração mensal não entra na fração: é um evento por mês. A promessa dele é binária: um ensaio com
   sucesso a cada 35 dias (`RestoreDrillStale`, `RestoreDrillFailed`).

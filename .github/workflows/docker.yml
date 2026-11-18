@@ -444,11 +444,18 @@ jobs:
             infra/vps-telemetry/deploy-plan.sh infra/vps-telemetry/deploy-verify.sh infra/vps-telemetry/post-deploy.sh infra/ops/codex-gate.sh \
             infra/ops/image-hash.sh infra/ops/image-hash.test.sh \
             infra/ops/mover-tasks-para-bucket-privado.sh infra/ops/mover-tasks-para-bucket-privado.test.sh             infra/ops/mirror-prod-to-dev.sh infra/ops/mirror-prod-to-dev.test.sh \
-            infra/nas-backup/nas-pull.sh infra/nas-backup/nas-pull.test.sh infra/ops/merge-train.test.sh infra/ops/codex-gate.test.sh \
-            infra/vps-telemetry/candidate.sh infra/vps-telemetry/maintenance.sh infra/vps-telemetry/migrar-para-tres-projetos.sh infra/vps-telemetry/rolling-swap.sh infra/vps-telemetry/rolling-swap.test.sh infra/vps-telemetry/ligar-webhooks.sh \
+            infra/nas-backup/nas-pull.sh infra/nas-backup/nas-lib.sh infra/nas-backup/nas-pull.test.sh infra/ops/merge-train.test.sh infra/ops/codex-gate.test.sh \
+            infra/nas-replica/dump.sh infra/nas-replica/replica-entrypoint.sh infra/nas-replica/dump.test.sh infra/nas-replica/replica-entrypoint.test.sh \
+            infra/vps-telemetry/preparar-replica.sh infra/vps-telemetry/preparar-replica.test.sh infra/vps-telemetry/galaxie-nas-receipt.sh \
+            infra/vps-telemetry/nas-dump-check.sh infra/vps-telemetry/nas-dump-check.test.sh \
+            infra/vps-telemetry/candidate.sh infra/vps-telemetry/candidate.test.sh infra/vps-telemetry/maintenance.sh infra/vps-telemetry/migrar-para-tres-projetos.sh infra/vps-telemetry/rolling-swap.sh infra/vps-telemetry/rolling-swap.test.sh infra/vps-telemetry/ligar-webhooks.sh \
             infra/vps-telemetry/prune-images.sh infra/vps-telemetry/prune-images.test.sh infra/ops/vps-stats/*.sh \
             infra/ops/migrate-dev.sh infra/ops/migrate-dev.test.sh \
-            infra/vps-telemetry/ensure-secrets.sh infra/vps-telemetry/ensure-secrets.test.sh
+            infra/vps-telemetry/ensure-secrets.sh infra/vps-telemetry/ensure-secrets.test.sh \
+            infra/healthcheck/selfheal.sh infra/healthcheck/selfheal.test.sh
+
+      - name: Healthcheck em shell (selfheal.sh só sobe o Node na falha; node, wget e /proc falsos)
+        run: bash infra/healthcheck/selfheal.test.sh
 
       - name: Segredos internos gerados no deploy (ensure-secrets.sh, só o que falta, nunca troca, sem mostrar valor)
         run: bash infra/vps-telemetry/ensure-secrets.test.sh
@@ -472,6 +479,9 @@ jobs:
       - name: Deploy só do que mudou (deploy-gh.sh com o Docker)
         run: bash infra/vps-telemetry/deploy-gh.test.sh
 
+      - name: Candidato do deploy com a lista do deploy (candidate.sh com docker falso; listagem instável, .candidates)
+        run: bash infra/vps-telemetry/candidate.test.sh
+
       - name: Poda das imagens antigas na VPS (prune-images.sh com o Docker)
         run: bash infra/vps-telemetry/prune-images.test.sh
 
@@ -483,6 +493,30 @@ jobs:
 
       - name: Cópia do NAS com assets do S3 (nas-pull.sh com rsync e ssh falsos)
         run: bash infra/nas-backup/nas-pull.test.sh
+
+      # Réplica no NAS (docs/runbooks/replica-no-nas.md): o dump a partir da réplica, a prova de backup do deploy com
+      # DUMP_MODE=nas e a preparação da VPS, todos com binários falsos
+      - name: Dump da réplica do NAS (dump.sh com psql, pg_dump, ssh, age e rclone falsos)
+        run: bash infra/nas-replica/dump.test.sh
+
+      - name: Subida da réplica do NAS (replica-entrypoint.sh com pg_basebackup e psql falsos)
+        run: bash infra/nas-replica/replica-entrypoint.test.sh
+
+      - name: Prova de backup do deploy com DUMP_MODE=nas (nas-dump-check.sh com docker falso)
+        run: bash infra/vps-telemetry/nas-dump-check.test.sh
+
+      - name: Preparação da VPS para a réplica (preparar-replica.sh com docker falso; comando forçado do recibo)
+        run: bash infra/vps-telemetry/preparar-replica.test.sh
+
+      - name: docker compose config (a stack nas-replica do NAS)
+        run: docker compose -f infra/nas-replica/compose.yml --env-file infra/nas-replica/env.example config -q
+
+      # o serviço backup lista o ambiente um a um: as variáveis do modo NAS têm de chegar ao contêiner
+      - name: Variáveis do dump semanal e da prova pelo NAS chegam ao serviço backup
+        run: |
+          docker compose -f infra/vps-telemetry/compose.dados.yml --env-file infra/vps-telemetry/env.example config --format json |
+            jq -e '.services.backup.environment | .BACKUP_DUMP_SOURCE == "vps" and .BACKUP_LOCAL_MAX_AGE_H == "192" and has("BACKUP_DAYS")' >/dev/null ||
+            { echo "::error::BACKUP_DAYS, BACKUP_DUMP_SOURCE ou BACKUP_LOCAL_MAX_AGE_H não chegam ao serviço backup (compose.dados.yml)"; exit 1; }
 
       - name: Espelho produção → dev (mirror-prod-to-dev.sh com psql, pg_restore, age e aws falsos)
         run: bash infra/ops/mirror-prod-to-dev.test.sh

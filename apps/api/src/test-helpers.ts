@@ -26,6 +26,8 @@ export async function memoryTenant(
       sports: overrides.sports ?? [],
       rateLimitPerMinute: overrides.rateLimitPerMinute ?? 100,
       status: overrides.status ?? 'active',
+      // sem `state` explícito, o estado segue o status (como o backfill da 0185 faz)
+      state: overrides.state ?? (overrides.status === 'suspended' ? 'suspended' : 'active'),
       dailyRequestQuota: overrides.dailyRequestQuota ?? null,
       trialEndsAt: overrides.trialEndsAt ?? null,
     },

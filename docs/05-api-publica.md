@@ -286,7 +286,7 @@ curl -H "x-galaxie-key: $KEY" "http://localhost:8080/v1/countries/BR/competition
 
 #### 3.1.2 Resumo da home "Explorar" (`apps/api/src/routes/v1/explore.ts`)
 
-`GET /v1/explore/summary?locale=&tz=` alimenta a primeira tela da demo sem N+1: uma chamada traz, para os 12 esportes e os 17 países da navegação (§3.1.1), tudo o que os cards mostram. As escolhas e as contas vêm pré-calculadas de `core.explore_summary` (#596; job `explore-summary` do ingestor, código em `packages/explore`, com as escolhas em funções puras e testadas); a rota lê numa consulta, aplica o recorte de esportes do plano e junta por id nomes, logos e os jogos em destaque (`apps/api/src/explore/summary.ts`). Sem pré-cálculo ou com ele velho (mais de 30 min), faz a mesma conta na requisição: sete consultas em lote, nenhuma por esporte ou por país ([docs/04 §2.3](04-modelo-de-dados.md#23-derivados-para-leitura)).
+`GET /v1/explore/summary?locale=&tz=` alimenta a primeira tela da demo sem N+1: uma chamada traz, para os 12 esportes e os 17 países da navegação (§3.1.1), tudo o que os cards mostram. As escolhas e as contas vêm pré-calculadas de `core.explore_summary` (#596; job `explore-summary` do ingestor, código em `packages/explore`, com as escolhas em funções puras e testadas); a rota lê numa consulta, aplica o recorte de esportes do plano e junta por id nomes, logos e os jogos em destaque (`apps/api/src/explore/summary.ts`). Com o pré-cálculo velho (mais de 30 min) segue servindo ele, com um aviso; sem pré-cálculo ou com ele acima de 24 h, faz a mesma conta na requisição: sete consultas em lote, nenhuma por esporte ou por país ([docs/04 §2.3](04-modelo-de-dados.md#23-derivados-para-leitura)).
 
 | Campo | Conteúdo |
 |---|---|
@@ -881,7 +881,7 @@ próprios logs. `?key=` e `?token=` só valem para `/v1/stream`. No servidor ou 
 
 **Limites e robustez.**
 
-- **Conexões por tenant:** no máximo `SSE_MAX_CONNECTIONS_PER_TENANT` (padrão 100) simultâneas, somando todas as instâncias (lease por conexão no Valkey, renovado no heartbeat; expira sozinho se a instância cair). Acima → 429 `RATE_LIMITED` com `retry-after: 30`. A abertura também conta no rate limit da rota.
+- **Conexões por tenant:** no máximo `SSE_MAX_CONNECTIONS_PER_TENANT` (padrão 100) simultâneas, somando todas as instâncias (lease por conexão no Valkey, renovado no heartbeat; expira sozinho se a instância cair), ou menos quando a faixa `core_data.sse_connections` dos direitos do tenant é menor (5 na conta em `trial`, pelo modelo `trial` de `config/catalog/plans.yaml`). Acima → 429 `RATE_LIMITED` com `retry-after: 30`. A abertura também conta no rate limit da rota.
 - **Conexões por instância:** cada processo da API aceita no máximo `SSE_MAX_CONNECTIONS` (padrão 1000) streams, somando todos os tenants. Acima → 503 `DEGRADED` com `retry-after` entre 15 e 44 s (espalhado, para os recusados não voltarem juntos); enquanto isso, o estado sai pela API REST. Métricas: `galaxie_sse_connections_open` e `galaxie_sse_connections_rejected_total{reason}`; alerta `SseProcessLimitReached`.
 - **Backpressure:** se o cliente não consome (socket cheio), as mensagens ficam numa fila de até 1 MiB; estourou, a conexão é derrubada e o cliente retoma pelo `Last-Event-ID` — um cliente lento nunca segura memória da API.
 - **Entrega:** pelo menos uma vez, em ordem de ID na prática; a mesma mudança não é repetida numa conexão (deduplicação por ID). Clientes devem tratar mudanças como idempotentes pelo `id`.
@@ -974,7 +974,12 @@ Formato RFC 9457 (`application/problem+json`):
 | Código | Situação |
 |---|---|
 | 400 `INVALID_PARAMS` | Parâmetro inválido |
-| 401 `INVALID_KEY` | Chave ausente/inválida |
+| 401 `INVALID_KEY` | Chave ausente/inválida (também quando o segredo está errado num tenant sem acesso: o estado do cliente não vaza pelo prefixo) |
+| 401 `TENANT_PENDING_REVIEW` | Cadastro em provisionamento ou na fila de revisão da equipe ([ciclo de vida do tenant](runbooks/ciclo-de-vida-do-tenant.md)) |
+| 401 `TENANT_REJECTED` | Cadastro recusado pela equipe |
+| 401 `TRIAL_EXPIRED` | O trial acabou sem contratação; `upgrade_url` leva a Planos e módulos |
+| 402 `SUBSCRIPTION_SUSPENDED` | Assinatura suspensa (cobrança ou equipe); `upgrade_url` leva a Planos e módulos |
+| 401 `TENANT_CANCELLED` | Conta cancelada: os dados ficam pelo prazo de guarda, as chaves não autenticam |
 | 403 `MODULE_NOT_IN_PLAN` / `MARKET_NOT_IN_PLAN` | Recurso fora do contrato |
 | 403 `ORIGIN_NOT_ALLOWED` | Chave publicável usada de uma origem fora da lista dela (ou sem `Origin`/`Referer`), §1.3 |
 | 403 `PUBLISHABLE_KEY_NOT_ALLOWED` | Chave publicável em rota que ela não alcança (escrita, `/v1/account`, SSE, espelho), §1.3 |
@@ -1273,6 +1278,8 @@ A Sala do Jogo (#915, #959): uma sala por jogo e por cliente, criada no primeiro
 **Enviar.** `POST /v1/chat/rooms/{jogo}/messages` com o token `gft_`. Só `18plus` escreve; `13_17` e `under13` recebem 403 `FAN_AGE_RESTRICTED`. Sala fora de `open` ou punição ativa (Silenciar na sala, Suspensão, Banimento) responde 409 com o motivo em `errors` (`path: refusal`). A mensagem passa pela base de regras (#969): link de fora, dado pessoal e aposta voltam com 400 e o aviso no idioma do torcedor; abuso e Silêncio oculto ficam só para o autor (`status: held`). Modo lento: 429 com `Retry-After`. O texto é apagado pelo relógio de conteúdo da ficha do país (#954).
 
 **Ajustes.** Com a chave secreta: `PATCH /v1/chat/rooms/{jogo}` congela, reabre e muda modo lento e rigor da sala; `GET`/`PUT /v1/chat/config` mudam o padrão do cliente (janela, modo lento, rigor) dentro do teto da Galaxie. `null` volta ao padrão. Rigor `strict` recusa também o palavrão leve.
+
+**Anti-flood.** Vale por torcedor, em todas as salas do cliente. Quem passa de 10 mensagens em 60 s, ou manda a mesma mensagem 3 vezes em 60 s (sem contar caixa e espaços; texto com menos de 12 caracteres, como "GOL", não entra na repetição), fica 3 min sem enviar (só conta a mensagem que passou do modo lento e do filtro): `429` com `retry-after` em segundos, `refusal: flood` e o aviso no idioma do torcedor. O cliente muda os dois números em `PUT /v1/chat/config` (`floodMaxPerMinute` de 3 a 60, `floodBlockSeconds` de 30 a 1800; `null` volta ao padrão da Galaxie). Não há modo escudo: torcida organizada escreve normalmente, e o que se barra é a enxurrada.
 
 **Receber em lotes (#964).** `GET /v1/chat/rooms/{jogo}/stream` é um SSE da sala: ao abrir vem `chat.state` (estado; `read_only_peak` quando a faixa estourou) e `ready` com `last_event_id`; depois, um `chat.batch` por lote (um por segundo por instância), com `id:` = `<época>-<lote>` e as mensagens aprovadas. Nunca sai uma mensagem por vez. Entre instâncias, os lotes passam pelo Valkey: quem está ligado em outra instância vê as mesmas mensagens; lote perdido no pub/sub é emendado pelo histórico. Reconexão: `Last-Event-ID` (ou `?last_event_id=`) reenvia os lotes perdidos do histórico curto (120 lotes por sala); se não dá para emendar (buraco fora do histórico, numeração recomeçada porque o Valkey perdeu a sequência), vem `chat.reset` e o widget relê a sala pelo GET. Ler é livre como no GET; no navegador use um cliente SSE sobre `fetch`, com a chave publicável no header (a chave nunca vai na URL), até 20 streams por chave publicável e IP. A fila de cada sala guarda no máximo 2000 mensagens: acima disso saem as mais antigas do lote (continuam no banco e no GET).
 

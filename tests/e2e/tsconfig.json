@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "noEmit": true,
+    "types": ["node"],
+    // o executor (src/run.ts) roda direto no Node 24, sem compilar: imports relativos com `.ts` e só sintaxe apagável
+    "allowImportingTsExtensions": true,
+    "erasableSyntaxOnly": true,
+    "verbatimModuleSyntax": true
+  },
+  "include": ["src", "tests", "playwright.config.ts"]
+}

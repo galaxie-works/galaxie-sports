@@ -122,6 +122,8 @@ export async function setMessageHiddenAction(input: {
                  flags = array_remove(flags, 'was_shadow')
            where tenant_id = ${ctx.tenant.id} and room_id = ${roomId} and id = ${input.messageId}
              and visibility = 'hidden'
+             -- guarda legal (#1289): denunciada às autoridades não volta ao ar
+             and (legal_hold_until is null or legal_hold_until <= now())
           returning id`);
     if (!changed.length) return;
     // mensagem fora do ar não fica fixada
@@ -371,6 +373,8 @@ export async function saveChatSettingsAction(input: {
   slowModeSeconds: number | null;
   strictness: 'standard' | 'strict' | null;
   eventKinds: string[] | null;
+  floodMaxPerMinute: number | null;
+  floodBlockSeconds: number | null;
 }): Promise<ChatActionResult> {
   const s = await session();
   if ('error' in s) return { ok: false, error: s.error };
@@ -384,24 +388,30 @@ export async function saveChatSettingsAction(input: {
   const okStrict =
     input.strictness === null || input.strictness === 'standard' || input.strictness === 'strict';
   const okKinds = input.eventKinds === null || input.eventKinds.every((k) => GAME_KINDS.includes(k));
+  const within = (v: number | null, min: number, max: number) =>
+    v === null || (Number.isInteger(v) && v >= min && v <= max);
   if (
     !minutes(input.openBeforeMinutes) ||
     !minutes(input.closeAfterMinutes) ||
     !okSlow ||
     !okStrict ||
-    !okKinds
+    !okKinds ||
+    !within(input.floodMaxPerMinute, 3, 60) ||
+    !within(input.floodBlockSeconds, 30, 1800)
   )
     return { ok: false, error: T.invalid };
   const before = await loadChatSettings(ctx.tenant.id);
   const by = actor.kind === 'galaxie' ? actor.id : `tenant:${actor.id}`;
   await pool.query(
     `insert into chat.tenant_config
-       (tenant_id, open_before_minutes, close_after_minutes, slow_mode_seconds, strictness, event_kinds, updated_by)
-     values ($1, $2, $3, $4, $5, $6, $7)
+       (tenant_id, open_before_minutes, close_after_minutes, slow_mode_seconds, strictness, event_kinds,
+        flood_max_per_minute, flood_block_seconds, updated_by)
+     values ($1, $2, $3, $4, $5, $6, $7, $8, $9)
      on conflict (tenant_id) do update set
        open_before_minutes = excluded.open_before_minutes, close_after_minutes = excluded.close_after_minutes,
        slow_mode_seconds = excluded.slow_mode_seconds, strictness = excluded.strictness,
-       event_kinds = excluded.event_kinds, updated_by = excluded.updated_by, updated_at = now()`,
+       event_kinds = excluded.event_kinds, flood_max_per_minute = excluded.flood_max_per_minute,
+       flood_block_seconds = excluded.flood_block_seconds, updated_by = excluded.updated_by, updated_at = now()`,
     [
       ctx.tenant.id,
       input.openBeforeMinutes,
@@ -409,6 +419,8 @@ export async function saveChatSettingsAction(input: {
       input.slowModeSeconds,
       input.strictness,
       input.eventKinds ? [...new Set(input.eventKinds)] : null,
+      input.floodMaxPerMinute,
+      input.floodBlockSeconds,
       by,
     ],
   );

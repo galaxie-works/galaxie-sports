@@ -12,6 +12,7 @@ import {
   registerFanAuth,
   type FanRevocations,
 } from './engage/fan-auth.js';
+import { startModerationPurge } from './engage/moderation-purge.js';
 import { FanAgeGate } from './engage/age-gate.js';
 import { fanRoutes, type FanRoutesDeps } from './engage/fan-routes.js';
 import {
@@ -30,6 +31,7 @@ import { gameRoutes } from './game/routes.js';
 import { GameScorer, startGameSweep } from './game/scorer.js';
 import { ChatGameFeed } from './chat/game.js';
 import { MemoryChatPeak, RedisChatPeak } from './chat/peak.js';
+import { RedisFloodGuard } from './chat/flood.js';
 import { MemoryReactionCounter, RedisReactionCounter } from './chat/reactions.js';
 import type { ChatStreamOptions } from './chat/stream.js';
 import type { FanTokenSigner } from './engage/fan-token.js';
@@ -142,7 +144,13 @@ export interface ServerOptions {
    * catálogo de `config/catalog` e o banco, com cache no Valkey, quando há db; `false` desliga (os módulos vêm só das
    * colunas do tenant, como antes).
    */
-  entitlements?: ((tenantId: string) => Promise<Pick<Entitlements, 'modules' | 'features'> | null>) | false;
+  entitlements?:
+    | ((
+        tenantId: string,
+      ) => Promise<
+        (Pick<Entitlements, 'modules' | 'features'> & Partial<Pick<Entitlements, 'limits' | 'tiers'>>) | null
+      >)
+    | false;
   /** Chaves publicáveis (`x-galaxie-publishable-key`); padrão: Postgres, quando há db. */
   publishableStore?: PublishableStore;
   publishableAuthenticator?: PublishableAuthenticatorOptions;
@@ -675,6 +683,9 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
     if (options.db) {
       const stopPurge = startPresencePurge(options.db, instance.log);
       instance.addHook('onClose', async () => stopPurge());
+      // apagamento automático da moderação e do chat: só com MODERATION_PURGE=on em Ajustes
+      const stopModerationPurge = startModerationPurge(options.db, instance.log);
+      instance.addHook('onClose', async () => stopModerationPurge());
     }
     await moderationRoutes(instance, { db: options.db, now: options.now, gate: fanAgeGate });
     await chatRoutes(instance, {
@@ -683,6 +694,8 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
       hub: chatHub,
       peak: chatPeak,
       reactions: chatReactions,
+      // anti-flood por pessoa no Valkey (todas as instâncias contam juntas); sem Valkey, em memória
+      ...(options.redis ? { flood: new RedisFloodGuard(options.redis, prefix) } : {}),
       stream: options.chat?.stream,
     });
     // Gamificação (#942): Palpite individual e Ranking

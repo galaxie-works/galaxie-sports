@@ -1,4 +1,6 @@
 import { MINUTE, type ScheduledJob } from '@galaxie/scheduler';
+import { hasPendingChannelLists } from '../channels/pending.js';
+import { hasPendingSuggestions } from '../review/pending.js';
 
 /**
  * Agentes de IA (`services/ai-agents`, docs/07), no perfil `agents` do scheduler: um serviço à parte,
@@ -47,9 +49,10 @@ export const AGENT_JOBS: readonly ScheduledJob[] = [
     name: 'related-run',
     description:
       'Conteúdo relacionado (YouTube): canais oficiais primeiro e busca como complemento, para os jogos encerrados nas últimas 24 h, por prioridade nos mercados e com reserva para os jogos do dia',
-    // a cada 3 min o dia todo: o jogo que acabou entra na fila na frente (os canais oficiais trazem vídeo em minutos);
-    // execução sem jogo novo não chama o YouTube
-    cron: '*/3 * * * *',
+    // a cada 10 min o dia todo (decisão do dono em 17/11/2026, antes a cada 3: vídeos relacionados até 10 min depois do
+    // fim do jogo). O jogo que acabou entra na fila na frente; execução sem jogo novo não chama o YouTube. A agenda do
+    // painel (SCHEDULE_RELATED_RUN) vale por cima
+    cron: '*/10 * * * *',
     script: 'dist/cli/related-run.js',
     args: [],
     timeoutMs: 20 * MINUTE,
@@ -69,11 +72,13 @@ export const AGENT_JOBS: readonly ScheduledJob[] = [
     name: 'review-suggestions',
     description:
       'Revisão semântica: o Gemini decide as sugestões de edição em aberto; a aprovada entra no ar como edição no banco (sem deploy), a recusada fica com o motivo no painel',
-    // sem sugestão em aberto, só uma consulta ao banco (nenhuma chamada ao modelo)
+    // sem sugestão em aberto, o scheduler nem sobe o processo: a mesma consulta da CLI (review/pending.ts) roda antes
+    // no processo dele (idleCheck); a cada 6 h roda completo mesmo assim
     cron: '*/15 * * * *',
     script: 'dist/cli/review-suggestions.js',
     args: ['--max', '10'],
     timeoutMs: 15 * MINUTE,
+    idleCheck: { hasWork: (db) => hasPendingSuggestions(db) },
   },
   {
     name: 'lineups-revisit',
@@ -103,10 +108,12 @@ export const AGENT_JOBS: readonly ScheduledJob[] = [
     name: 'channel-lists',
     description:
       'Lista de canais do cliente: a IA confere só as sobras do casamento por código (índices e enums, com validador depois); falha volta na próxima rodada',
-    // sem lista pendente, só uma consulta ao banco (nenhuma chamada ao modelo)
+    // sem lista pendente, o scheduler nem sobe o processo: a mesma consulta da CLI (channels/pending.ts, com
+    // --repetir-falhas) roda antes no processo dele (idleCheck); a cada 6 h roda completo mesmo assim
     cron: '*/10 * * * *',
     script: 'dist/cli/channel-lists.js',
     args: ['--max', '10', '--repetir-falhas'],
     timeoutMs: 15 * MINUTE,
+    idleCheck: { hasWork: (db) => hasPendingChannelLists(db) },
   },
 ];

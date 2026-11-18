@@ -9,7 +9,8 @@
  *                                    da api-sports, agendador
  *   domain   packages/ (lista abaixo)  regras de negócio compartilhadas (provedores, tabelas, base semântica, ...)
  *   ui       packages/ (lista abaixo)  bibliotecas de interface entregues ao cliente
- *   test     tests/integration       testes que cruzam API e ingestor; folha do grafo, fora de toda imagem
+ *   test     tests/integration, tests/e2e  testes que cruzam API e ingestor, e os de ponta a ponta no navegador;
+ *                                    folhas do grafo, fora de toda imagem
  *
  * Pacote novo em packages/ precisa entrar numa das listas: sem camada, o lint:deps reprova.
  */
@@ -101,8 +102,8 @@ export const RULES = [
   },
   {
     id: 'ninguem-importa-teste',
-    summary: 'Ninguém importa o pacote de testes de integração (tests/integration).',
-    why: 'Ele é uma folha do grafo de propósito: depende da API e do ingestor, e nada depende dele, então não entra na imagem nem na entrada de nenhuma delas (#563).',
+    summary: 'Ninguém importa os pacotes de teste (tests/integration, tests/e2e).',
+    why: 'São folhas do grafo de propósito: dependem do que testam, e nada depende deles, então não entram na imagem nem na entrada de nenhuma delas (#563, #1317).',
     applies: (_from, to) => to.kind === 'test',
   },
   {

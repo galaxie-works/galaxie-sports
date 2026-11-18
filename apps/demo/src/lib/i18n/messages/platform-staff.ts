@@ -18,6 +18,10 @@ export default defineMessages(
       brand: 'Marca',
       plan: 'Plano',
       status: 'Situação',
+      state: 'Estado',
+      since: 'Desde',
+      trialEnds: 'Trial até',
+      actions: 'Ações',
     },
     galaxie: 'Galaxie',
     noBrands: 'Nenhuma marca',
@@ -85,6 +89,40 @@ export default defineMessages(
       close: 'Fechar',
       approved: 'Revisão aprovada: as chaves que faltavam foram emitidas.',
     },
+    state: {
+      draft: 'Em provisionamento',
+      pending_review: 'Em revisão',
+      rejected: 'Recusado',
+      trial: 'Em trial',
+      trial_expired: 'Trial vencido',
+      active: 'Ativo',
+      past_due: 'Pagamento pendente',
+      suspended: 'Suspenso',
+      cancelled: 'Cancelado',
+    },
+    brand: {
+      actions: {
+        approve: 'Aprovar',
+        reject: 'Recusar',
+        suspend: 'Suspender',
+        reactivate: 'Reativar',
+        cancel: 'Cancelar conta',
+        extend_trial: 'Estender trial',
+      },
+      descriptions: {
+        approve:
+          'O cadastro sai da revisão e a marca entra em trial; as chaves que faltavam são emitidas e aparecem uma vez.',
+        reject: 'O cadastro é recusado: nenhuma chave vale e o cliente vê o aviso no console. Estado final.',
+        suspend: 'As chaves param de responder (402) e os widgets congelam até reativar.',
+        reactivate: 'A marca volta a active: chaves e widgets voltam a valer.',
+        cancel:
+          'A conta é cancelada: as chaves não autenticam e os dados ficam guardados pelo prazo de retenção. Estado final; nada é apagado.',
+        extend_trial:
+          'Muda o fim do trial. O estado não muda; o evento fica registrado com o prazo antes e depois.',
+      },
+      extendUntil: 'Novo fim do trial',
+      final: 'Estado final',
+    },
     errors: {
       notFound: 'Organização não encontrada.',
       reason: 'Informe o motivo (pelo menos 5 caracteres).',
@@ -96,6 +134,9 @@ export default defineMessages(
       slug: 'Identificador inválido: minúsculas, números e hífen, de 2 a 63 caracteres.',
       slugTaken: 'Este identificador já é de outra organização ou marca.',
       otherAccount: 'Este e-mail é de uma conta da equipe ou de convidado da demo, não de cliente.',
+      transition:
+        'Esta mudança não vale para o estado atual da marca. Recarregue a página e confira o estado.',
+      date: 'Informe uma data no futuro.',
     },
   },
   {
@@ -115,6 +156,10 @@ export default defineMessages(
         brand: 'Brand',
         plan: 'Plan',
         status: 'Status',
+        state: 'State',
+        since: 'Since',
+        trialEnds: 'Trial until',
+        actions: 'Actions',
       },
       galaxie: 'Galaxie',
       noBrands: 'No brands',
@@ -183,6 +228,41 @@ export default defineMessages(
         close: 'Close',
         approved: 'Review approved: the missing keys were issued.',
       },
+      state: {
+        draft: 'Provisioning',
+        pending_review: 'Under review',
+        rejected: 'Rejected',
+        trial: 'On trial',
+        trial_expired: 'Trial expired',
+        active: 'Active',
+        past_due: 'Past due',
+        suspended: 'Suspended',
+        cancelled: 'Cancelled',
+      },
+      brand: {
+        actions: {
+          approve: 'Approve',
+          reject: 'Reject',
+          suspend: 'Suspend',
+          reactivate: 'Reactivate',
+          cancel: 'Cancel account',
+          extend_trial: 'Extend trial',
+        },
+        descriptions: {
+          approve:
+            'The sign-up leaves review and the brand enters trial; the missing keys are issued and shown once.',
+          reject:
+            'The sign-up is rejected: no key works and the customer sees the notice in the console. Final state.',
+          suspend: 'Keys stop answering (402) and widgets freeze until reactivation.',
+          reactivate: 'The brand goes back to active: keys and widgets work again.',
+          cancel:
+            'The account is cancelled: keys no longer authenticate and data is kept for the retention period. Final state; nothing is deleted.',
+          extend_trial:
+            'Changes the end of the trial. The state does not change; the event records the deadline before and after.',
+        },
+        extendUntil: 'New trial end',
+        final: 'Final state',
+      },
       errors: {
         notFound: 'Organization not found.',
         reason: 'Enter the reason (at least 5 characters).',
@@ -194,6 +274,9 @@ export default defineMessages(
         slug: 'Invalid identifier: lowercase letters, digits and hyphen, 2 to 63 characters.',
         slugTaken: 'This identifier already belongs to another organization or brand.',
         otherAccount: 'This email belongs to a team account or a demo guest, not a customer.',
+        transition:
+          'This change does not apply to the brand’s current state. Reload the page and check the state.',
+        date: 'Enter a date in the future.',
       },
     },
     'es-AR': {
@@ -212,6 +295,10 @@ export default defineMessages(
         brand: 'Marca',
         plan: 'Plan',
         status: 'Estado',
+        state: 'Estado del ciclo',
+        since: 'Desde',
+        trialEnds: 'Prueba hasta',
+        actions: 'Acciones',
       },
       galaxie: 'Galaxie',
       noBrands: 'Sin marcas',
@@ -281,6 +368,41 @@ export default defineMessages(
         close: 'Cerrar',
         approved: 'Revisión aprobada: se emitieron las claves que faltaban.',
       },
+      state: {
+        draft: 'En aprovisionamiento',
+        pending_review: 'En revisión',
+        rejected: 'Rechazado',
+        trial: 'En prueba',
+        trial_expired: 'Prueba vencida',
+        active: 'Activo',
+        past_due: 'Pago pendiente',
+        suspended: 'Suspendido',
+        cancelled: 'Cancelado',
+      },
+      brand: {
+        actions: {
+          approve: 'Aprobar',
+          reject: 'Rechazar',
+          suspend: 'Suspender',
+          reactivate: 'Reactivar',
+          cancel: 'Cancelar cuenta',
+          extend_trial: 'Extender prueba',
+        },
+        descriptions: {
+          approve:
+            'El registro sale de la revisión y la marca entra en prueba; las claves que faltaban se emiten y aparecen una vez.',
+          reject:
+            'El registro se rechaza: ninguna clave vale y el cliente ve el aviso en la consola. Estado final.',
+          suspend: 'Las claves dejan de responder (402) y los widgets se congelan hasta reactivar.',
+          reactivate: 'La marca vuelve a active: claves y widgets vuelven a valer.',
+          cancel:
+            'La cuenta se cancela: las claves no autentican y los datos se conservan durante el plazo de retención. Estado final; no se borra nada.',
+          extend_trial:
+            'Cambia el fin de la prueba. El estado no cambia; el evento queda registrado con el plazo antes y después.',
+        },
+        extendUntil: 'Nuevo fin de la prueba',
+        final: 'Estado final',
+      },
       errors: {
         notFound: 'Organización no encontrada.',
         reason: 'Indique el motivo (al menos 5 caracteres).',
@@ -293,6 +415,9 @@ export default defineMessages(
         slugTaken: 'Este identificador ya es de otra organización o marca.',
         otherAccount:
           'Este e-mail es de una cuenta del equipo o de un invitado de la demo, no de un cliente.',
+        transition:
+          'Este cambio no vale para el estado actual de la marca. Recargue la página y revise el estado.',
+        date: 'Indique una fecha en el futuro.',
       },
     },
   },
