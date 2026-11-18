@@ -466,7 +466,7 @@ function hasPersonalData(text: string): boolean {
 export function normalizeHandle(handle: string): string {
   return fold(handle.trim())
     .replace(/^@+/, '')
-    .replace(/[^a-z0-9_.]/g, '');
+    .replace(/\.+$/, '');
 }
 
 /**

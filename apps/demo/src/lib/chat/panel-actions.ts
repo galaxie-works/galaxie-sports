@@ -371,7 +371,7 @@ export async function authorAction(input: {
 const MAX_HANDLES = 200;
 
 /** Lista `allowed_handles` do cliente: cria ou troca, com a versão e o histórico na mesma transação. */
-async function saveTenantHandles(tenantId: string, handles: string[], by: string): Promise<void> {
+async function saveTenantHandles(tenantId: string, handles: string[], by: string): Promise<boolean> {
   const client = await pool.connect();
   try {
     await client.query('begin');
@@ -381,9 +381,9 @@ async function saveTenantHandles(tenantId: string, handles: string[], by: string
       [tenantId],
     );
     const prev = rows[0] ?? null;
-    if (prev && prev.terms.join('\n') === handles.join('\n')) {
+    if ((prev ? prev.terms.join('\n') : '') === handles.join('\n')) {
       await client.query('rollback');
-      return;
+      return true;
     }
     const version = (prev?.version ?? 0) + 1;
     const { rows: saved } = await client.query<{ id: string }>(
@@ -400,8 +400,11 @@ async function saveTenantHandles(tenantId: string, handles: string[], by: string
       [saved[0]!.id, tenantId, version, handles, by],
     );
     await client.query('commit');
+    return true;
   } catch (err) {
     await client.query('rollback').catch(() => {});
+    // outro admin gravou a primeira versão ao mesmo tempo (índice único por cliente, lista e idioma)
+    if ((err as { code?: string }).code === '23505') return false;
     throw err;
   } finally {
     client.release();
@@ -454,7 +457,6 @@ export async function saveChatSettingsAction(input: {
   if (handles && handles.length > MAX_HANDLES) return { ok: false, error: T.invalid };
   const before = await loadChatSettings(ctx.tenant.id);
   const by = actor.kind === 'galaxie' ? actor.id : `tenant:${actor.id}`;
-  if (handles) await saveTenantHandles(ctx.tenant.id, handles, by);
   await pool.query(
     `insert into chat.tenant_config
        (tenant_id, open_before_minutes, close_after_minutes, slow_mode_seconds, strictness, event_kinds,
@@ -477,6 +479,8 @@ export async function saveChatSettingsAction(input: {
       by,
     ],
   );
+  if (handles && !(await saveTenantHandles(ctx.tenant.id, handles, by)))
+    return { ok: false, error: T.invalid };
   try {
     await recordModerationDecision(builderDb(), {
       tenantId: ctx.tenant.id,

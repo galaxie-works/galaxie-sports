@@ -59,7 +59,7 @@ export default defineMessages(
       floodBlock: 'Anti-flood: bloqueio (s, 30 a 1800)',
       allowedHandles: 'Perfis oficiais liberados',
       allowedHandlesHint:
-        'Um por linha (@seuclube, @suaemissora). O filtro barra @perfil e convite para outros apps; os daqui passam.',
+        'Um por linha (@seuclube, @suaemissora). O filtro barra @perfil e convite para outros apps; os daqui passam. Vale em até 1 minuto.',
       strictness: 'Rigor',
       strictnessDefault: 'Padrão',
       strict: 'Rigoroso (palavrão leve também volta)',
@@ -183,7 +183,7 @@ export default defineMessages(
         floodBlock: 'Anti-flood: block (s, 30 to 1800)',
         allowedHandles: 'Allowed official handles',
         allowedHandlesHint:
-          'One per line (@yourclub, @yourbroadcaster). The filter blocks @handles and invitations to other apps; these go through.',
+          'One per line (@yourclub, @yourbroadcaster). The filter blocks @handles and invitations to other apps; these go through. Takes effect within 1 minute.',
         strictness: 'Strictness',
         strictnessDefault: 'Default',
         strict: 'Strict (mild profanity is also sent back)',
@@ -306,7 +306,7 @@ export default defineMessages(
         floodBlock: 'Anti-flood: bloqueo (s, 30 a 1800)',
         allowedHandles: 'Perfiles oficiales permitidos',
         allowedHandlesHint:
-          'Uno por línea (@tuclub, @tuemisora). El filtro bloquea @perfiles e invitaciones a otras apps; estos pasan.',
+          'Uno por línea (@tuclub, @tuemisora). El filtro bloquea @perfiles e invitaciones a otras apps; estos pasan. Se aplica en hasta 1 minuto.',
         strictness: 'Rigor',
         strictnessDefault: 'Predeterminado',
         strict: 'Riguroso (la grosería leve también vuelve)',

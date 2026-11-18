@@ -64,7 +64,7 @@ export function canonicalTerms(list: ModerationListName, terms: string[]): strin
     if (!v) continue;
     if (isDomainList(list) && !/^([a-z0-9-]+\.)*[a-z0-9-]+$/.test(v)) continue;
     // perfil é uma palavra só: "não é perfil" não vira `naoeperfil`
-    if (isHandleList(list) && (/\s/.test(String(raw).trim()) || !/^[a-z0-9_.]{2,30}$/.test(v))) continue;
+    if (isHandleList(list) && !/^[a-z0-9_.]{2,30}$/.test(v)) continue;
     out.add(v);
   }
   return [...out].sort((a, b) => a.localeCompare(b));

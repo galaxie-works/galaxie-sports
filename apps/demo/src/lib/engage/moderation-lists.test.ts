@@ -24,11 +24,13 @@ describe('listas da moderação (#969)', () => {
         '@SaoPauloFC',
         ' saopaulofc ',
         '@galaxie.sports',
+        '@clube.',
+        '@sao-paulo',
         '@',
         'não é perfil',
         'a',
       ]),
-    ).toEqual(['galaxie.sports', 'saopaulofc']);
+    ).toEqual(['clube', 'galaxie.sports', 'saopaulofc']);
   });
 
   it('monta o conjunto de listas a partir das linhas', () => {
