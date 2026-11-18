@@ -34,13 +34,15 @@ describe('config/rules — todos os YAML do repositório', () => {
     for (const slug of REQUIRED) expect(all.has(slug), slug).toBe(true);
   });
 
-  it('usam slugs do catálogo de competições (exceto default)', async () => {
+  it('usam slugs do catálogo de competições ou do catálogo automático (exceto default)', async () => {
     const catalog = parse(
       readFileSync(new URL('../../../../config/competitions/football.yaml', import.meta.url), 'utf8'),
     ) as { competitions: { slug: string }[] };
     const slugs = new Set(catalog.competitions.map((c) => c.slug));
+    // fora do catálogo curado, só competição do catálogo automático da api-sports, com o id da liga no fim
+    // do slug (`finland-kakkonen-lohko-a-247`, #1187)
     for (const slug of (await loadAllCompetitionRules()).keys()) {
-      if (slug !== 'default') expect(slugs.has(slug), slug).toBe(true);
+      if (slug !== 'default') expect(slugs.has(slug) || /-\d+$/.test(slug), slug).toBe(true);
     }
   });
 
