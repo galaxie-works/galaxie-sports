@@ -163,6 +163,8 @@ export const ROLE_GRANTS: Record<RoleService, RoleGrants> = {
       // painel do Chat ao vivo do cliente (#973): congelar, modo lento e o padrão das salas (sem apagar sala)
       'chat.room',
       'chat.tenant_config',
+      // painel da Gamificação do cliente (#917): ligar ou desligar Conquistas no programa
+      'game.program_achievement',
       // Comunidades no painel do cliente (#939): escopo, configuração, convites e a fila de aprovação. A Comunidade
       // nunca é apagada (sair do escopo arquiva), nem o membro (tirar muda o estado)
       'community.scope_rule',
@@ -194,6 +196,11 @@ export const ROLE_GRANTS: Record<RoleService, RoleGrants> = {
       'billing.staff_action',
       // vetores da base de conhecimento do assistente (#1118; sem a tabela, o GRANT é pulado)
       'cosmos.doc_embedding',
+      // Gamificação (#917): ativar o programa (só cria, nunca muda), a versão de regra que nasce com ele e a
+      // auditoria do que o cliente muda
+      'game.program',
+      'game.rule_version',
+      'game.audit_log',
     ],
   },
   // ingestor (agendador e CLIs manuais, inclusive o seed semântico do pós-deploy); o cursor do cache da demo é

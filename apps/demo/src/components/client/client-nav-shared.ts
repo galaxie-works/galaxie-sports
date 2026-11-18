@@ -19,6 +19,7 @@ import {
   Palette,
   ShieldCheck,
   ShoppingBag,
+  Trophy,
   Tv,
   Users,
   UsersRound,
@@ -74,6 +75,15 @@ export const CLIENT_NAV = [
     group: 'engagement',
     action: 'settings.manage',
     module: 'communities',
+  },
+  {
+    // Gamificação (#917): programas por país, Conquistas do Catálogo e o resumo
+    id: 'gamification',
+    href: '/client/gamification',
+    icon: Trophy,
+    group: 'engagement',
+    action: 'settings.manage',
+    module: 'gamification',
   },
   {
     id: 'shopping',
