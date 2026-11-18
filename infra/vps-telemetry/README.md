@@ -532,7 +532,7 @@ mensais no NAS), a cópia do NAS (stack `galaxie-sports-backup-nas`) e o ensaio 
   a variável do repositório `DUMP_MODE=nas` troca o `pre-migrate-dump.sh` pelo `nas-dump-check.sh`: a prova é o recibo
   `.nas_last_dump` que o `dump.sh` da stack `nas-replica` deixa no volume `backups` (até `NAS_DUMP_MAX_AGE_MIN` min,
   padrão 120, e tamanho plausível) ou um dump local com a mesma idade; sem prova, o deploy deixa o pedido de dump na VPS
-  (`.nas_dump_request`) e espera o NAS atender (até `NAS_DUMP_WAIT_MIN`, padrão 20); sem recibo no prazo, para antes de
+  (`.nas_dump_request`) e espera o NAS atender (até `NAS_DUMP_WAIT_MIN`, padrão 30); sem recibo no prazo, para antes de
   tocar no banco e diz o que conferir. O serviço `replica-proxy` do `compose.dados.yml` publica o Postgres em `127.0.0.1:5432`
   da VPS para o túnel do NAS; `preparar-replica.sh` prepara o resto (papel `replicador`, `pg_hba`, retenção de WAL,
   chaves). No `.env`, `BACKUP_DUMP_SOURCE=nas` faz o verificador aceitar o recibo como prova e `BACKUP_DAYS=0` deixa o

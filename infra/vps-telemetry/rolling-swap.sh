@@ -9,7 +9,7 @@
 # Para cada serviço, na ordem dada:
 #   1. docker compose up --no-deps --no-recreate --scale <serviço>=N+1: um contêiner a mais, com a configuração nova;
 #      o antigo continua atendendo
-#   2. espera o novo ficar healthy (o Traefik só balanceia contêiner healthy; teto SWAP_HEALTH_TIMEOUT, padrão 180 s). Sem
+#   2. espera o novo ficar healthy (o Traefik só balanceia contêiner healthy; teto SWAP_HEALTH_TIMEOUT, padrão 240 s). Sem
 #      healthcheck (a configuração de um SHA antigo, na volta de versão): basta estar rodando depois de SWAP_SETTLE_S
 #   3. SWAP_SETTLE_S (padrão 3 s) para o Traefik pôr o novo no balanceamento, e docker stop no antigo: ele para de
 #      aceitar conexão no SIGTERM, e o gsports-retry do Traefik manda a requisição recusada para o novo
@@ -39,7 +39,7 @@
 set -euo pipefail
 export PULL_POLICY="${PULL_POLICY:-missing}"
 
-TIMEOUT="${SWAP_HEALTH_TIMEOUT:-180}"
+TIMEOUT="${SWAP_HEALTH_TIMEOUT:-240}"
 SETTLE="${SWAP_SETTLE_S:-3}"
 STOP_GRACE="${SWAP_STOP_GRACE_S:-30}"
 LEADER_TIMEOUT="${SWAP_LEADER_TIMEOUT:-60}"

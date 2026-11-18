@@ -324,7 +324,7 @@ if [ "${SKIP_PRE_MIGRATE_DUMP:-}" = 1 ]; then
   echo "WARN  SKIP_PRE_MIGRATE_DUMP=1: sem dump antes do migrate"
 elif [ "${DUMP_MODE:-vps}" = nas ]; then
   # sem pg_dump na VPS: a prova é o dump da réplica do NAS ou um dump local recente (docs/runbooks/replica-no-nas.md)
-  if out="$(ssh "$VPS" "cd $DIR && NAS_DUMP_MAX_AGE_MIN='${NAS_DUMP_MAX_AGE_MIN:-120}' NAS_DUMP_WAIT_MIN='${NAS_DUMP_WAIT_MIN:-20}' bash -s -- '$journal' 'dev-${OLD:0:7}-${SHA:0:7}'" < "$ROOT/infra/vps-telemetry/nas-dump-check.sh")"; then
+  if out="$(ssh "$VPS" "cd $DIR && NAS_DUMP_MAX_AGE_MIN='${NAS_DUMP_MAX_AGE_MIN:-120}' NAS_DUMP_WAIT_MIN='${NAS_DUMP_WAIT_MIN:-30}' bash -s -- '$journal' 'dev-${OLD:0:7}-${SHA:0:7}'" < "$ROOT/infra/vps-telemetry/nas-dump-check.sh")"; then
     printf '%s\n' "$out"
   else
     printf '%s\n' "$out"

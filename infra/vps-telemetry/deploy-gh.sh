@@ -12,7 +12,7 @@
 # Ambiente: SHA (obrigatório); VPS (padrão root@145.223.94.149) e VPS_DIR; IMAGE_PREFIX (padrão
 # ghcr.io/galaxie-works/galaxie-sports); GHCR_USER e GHCR_TOKEN (token que lê os pacotes; vazio = pacotes públicos);
 # FORCE=1 publica de novo um SHA que já está no ar; ON_SKIP=fail faz o SHA já no ar sem FORCE sair com 1 em vez de 0
-# (disparo manual: nunca verde sem publicar). SWAP_HEALTH_TIMEOUT (padrão 180 s) é o teto para um serviço trocado ficar
+# (disparo manual: nunca verde sem publicar). SWAP_HEALTH_TIMEOUT (padrão 240 s) é o teto para um serviço trocado ficar
 # healthy. A chave SSH e o known_hosts vêm do workflow.
 #
 # Só troca o que mudou. Cada imagem tem a própria tag no .env da VPS (TAG_API, TAG_DEMO, TAG_INGESTOR, TAG_BACKUP,
@@ -35,7 +35,7 @@
 #      DUMP_MODE=nas (vars.DUMP_MODE no Actions; padrão vps), em vez do pg_dump na VPS confere a prova de um dump feito
 #      fora dela (nas-dump-check.sh: o recibo .nas_last_dump da réplica do NAS ou um dump local, com até
 #      NAS_DUMP_MAX_AGE_MIN min, padrão 120; docs/runbooks/replica-no-nas.md); sem prova, deixa o pedido de dump na VPS
-#      e espera o NAS atender (até NAS_DUMP_WAIT_MIN, padrão 20); sem recibo no prazo, para sem tocar no banco.
+#      e espera o NAS atender (até NAS_DUMP_WAIT_MIN, padrão 30); sem recibo no prazo, para sem tocar no banco.
 #      SKIP_PRE_MIGRATE_DUMP=1 pula os dois. Depois o migrate com saída 0 antes de qualquer
 #      troca (a versão no ar segue, sobre o schema novo), só se a imagem ou a configuração dele mudou, se há migration
 #      nova ou com FORCE
@@ -415,7 +415,7 @@ elif [ "$DUMP_MODE" = nas ]; then
   # (sem recibo recente nem dump local, o nas-dump-check.sh deixa o pedido na VPS e espera o NAS dumpar: até
   # NAS_DUMP_WAIT_MIN, dentro do teto do passo do deploy no workflow)
   NAS_MAX_AGE="${NAS_DUMP_MAX_AGE_MIN:-120}"
-  NAS_WAIT="${NAS_DUMP_WAIT_MIN:-20}"
+  NAS_WAIT="${NAS_DUMP_WAIT_MIN:-30}"
   [[ "$NAS_MAX_AGE" =~ ^[0-9]+$ && "$NAS_WAIT" =~ ^[0-9]+$ ]] || { echo "FAIL  NAS_DUMP_MAX_AGE_MIN='$NAS_MAX_AGE' ou NAS_DUMP_WAIT_MIN='$NAS_WAIT' inválido (minutos)"; exit 1; }
   if out="$(ssh "$VPS" "cd $DIR && NAS_DUMP_MAX_AGE_MIN='$NAS_MAX_AGE' NAS_DUMP_WAIT_MIN='$NAS_WAIT' bash -s -- '$journal' 'gha-$RUN_ID-${OLD:0:7}-${SHA:0:7}'" < "$HERE/nas-dump-check.sh")"; then
     printf '%s\n' "$out" | grep -v '^NAS_DUMP=' || true
@@ -577,10 +577,10 @@ up_wait() {
     if [ -n "${ONE_SHOT[$s]:-}" ]; then once+=("$s"); else long+=("$s"); fi
   done
   if [ "${#long[@]}" -gt 0 ]; then
-    ssh "$VPS" "$CD && $DC up -d --no-deps --wait --wait-timeout ${SWAP_HEALTH_TIMEOUT:-180} $scale --quiet-pull ${long[*]} </dev/null" || return $?
+    ssh "$VPS" "$CD && $DC up -d --no-deps --wait --wait-timeout ${SWAP_HEALTH_TIMEOUT:-240} $scale --quiet-pull ${long[*]} </dev/null" || return $?
   fi
   for s in "${once[@]}"; do
-    rc="$(ssh "$VPS" "$CD && $DC up -d --no-deps --quiet-pull $s </dev/null 2>/dev/null && timeout ${SWAP_HEALTH_TIMEOUT:-180} docker wait \$($DC ps -aq $s </dev/null)")" || return $?
+    rc="$(ssh "$VPS" "$CD && $DC up -d --no-deps --quiet-pull $s </dev/null 2>/dev/null && timeout ${SWAP_HEALTH_TIMEOUT:-240} docker wait \$($DC ps -aq $s </dev/null)")" || return $?
     if [ "$rc" != 0 ]; then
       echo "FAIL  $s terminou com código $rc"
       return 1
