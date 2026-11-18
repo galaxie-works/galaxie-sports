@@ -257,6 +257,7 @@ export {
   readLedger,
   readWallets,
   levelForPoints,
+  peakPoints,
   type FanLevel,
   revertPoints,
   type FanCreditReason,

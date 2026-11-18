@@ -39,6 +39,7 @@ import {
   readFanAchievements,
   readFanCards,
   levelForPoints,
+  peakPoints,
   readWallets,
   readMyRanking,
   readPredictions,
@@ -83,11 +84,15 @@ function view(row: GamePredictionRow): PredictionView {
   };
 }
 
-/** Chave secreta do servidor do cliente, com o módulo ligado (não vale a publicável nem o token do torcedor). */
+/**
+ * Chave secreta do servidor do cliente (não vale a publicável nem o token do torcedor), com a Gamificação no que a
+ * chave alcança: o escopo da chave e o acordo comercial já estão em `request.tenant.modules`.
+ */
 function secretTenantId(request: FastifyRequest): string {
   const t = request.tenant;
   if (!t || t.keyKind !== 'secret' || !t.keyPrefix)
     throw problems.invalidKey('Use a chave secreta no header x-galaxie-key, no seu servidor.');
+  if (!t.modules.includes('gamification')) throw problems.moduleNotInPlan('gamification');
   return t.tenantId;
 }
 
@@ -295,6 +300,8 @@ export async function gameRoutes(app: FastifyInstance, deps: GameRoutesDeps): Pr
       if (!(await tenantHasGamification(db(), tenantId))) throw problems.moduleNotInPlan('gamification');
       const fan = await findFanByExternal(db(), { tenantId, ...params });
       if (!fan) throw problems.notFound('Perfil');
+      // menor de 13 fica fora da Gamificação, também na leitura pelo servidor
+      if (fan.ageBand === 'under13') throw problems.fanAgeRestricted('Perfil abaixo de 13 anos.');
       const program = await resolveProgram(db(), tenantId, fan.country);
       const key = { ...program, profileId: fan.profileId };
       const [rows, active, cards, wallets] = await Promise.all([
@@ -304,7 +311,10 @@ export async function gameRoutes(app: FastifyInstance, deps: GameRoutesDeps): Pr
         readWallets(db(), tenantId, fan.profileId),
       ]);
       const wallet = wallets.find((w) => w.programCountry === program.programCountry);
-      const level = await levelForPoints(db(), wallet?.points ?? 0);
+      const level = await levelForPoints(
+        db(),
+        Math.max(wallet?.points ?? 0, await peakPoints(db(), { ...program, profileId: fan.profileId })),
+      );
       reply.header('cache-control', 'no-store');
       const out: FanGameSummary = {
         data: {

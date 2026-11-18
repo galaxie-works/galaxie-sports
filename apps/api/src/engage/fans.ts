@@ -341,9 +341,9 @@ export async function readFan(
 export async function findFanByExternal(
   db: Database,
   input: { tenantId: string; externalAccountId: string; externalProfileId: string },
-): Promise<{ profileId: string; country: string } | null> {
+): Promise<{ profileId: string; country: string; ageBand: string } | null> {
   const [row] = await db
-    .select({ profileId: fanProfile.id, country: fanProfile.country })
+    .select({ profileId: fanProfile.id, country: fanProfile.country, ageBand: fanProfile.ageBand })
     .from(fanProfile)
     .innerJoin(
       fanAccount,

@@ -207,9 +207,9 @@ const ENGAGE_TOPICS: WebhookTopicDef[] = [
     status: 'live',
     label: { pt: 'Nível alcançado', es: 'Nivel alcanzado', en: 'Level reached' },
     description:
-      'Os Pontos de um torcedor no programa passaram do mínimo de um Nível novo. Os Pontos só sobem (o estorno de ' +
-      'um Palpite corrigido é a única exceção), então o Nível nunca é tirado. Use para entregar o que o seu ' +
-      'programa prende ao Nível.',
+      'Os Pontos de um torcedor no programa passaram do mínimo de um Nível novo. O Nível vem do maior total de ' +
+      'Pontos que ele já teve: o estorno de um Palpite corrigido não tira Nível, e o mesmo Nível nunca é avisado ' +
+      'duas vezes. Use para entregar o que o seu programa prende ao Nível.',
     payload: engageEnvelope('WebhookGameLevelReached', 'game.level.reached', {
       profile_id: profileId,
       program_country: z.string().length(2),

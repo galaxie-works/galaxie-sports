@@ -236,7 +236,11 @@ export const FanWallet = z
             min_points: z.number().int().nonnegative(),
             next_min_points: z.number().int().positive().nullable(),
           })
-          .meta({ description: 'Nível pelos Pontos e o mínimo do próximo (null no último).' }),
+          .meta({
+            description:
+              'Nível pelo maior total de Pontos já alcançado (o estorno não tira Nível) e o mínimo do próximo ' +
+              '(null no último).',
+          }),
       }),
     ),
   })
