@@ -5,11 +5,13 @@ import {
   GS_CHAT_REACTIONS,
   GS_CHAT_REACTION_EMOJI,
   PUBLISHABLE_KEY_HEADER,
+  chatRetryMs,
   fillText,
   maxReactionTotals,
   mergeChatMessages,
   mergeGameMessages,
   parseSse,
+  safeImageUrl,
   type GsChatGameMessage,
   type GsChatMessage,
   type GsChatReaction,
@@ -45,10 +47,9 @@ export interface LiveChatProps {
 const enc = encodeURIComponent;
 /** Mensagens guardadas na tela (as mais antigas saem). */
 const MAX_MESSAGES = 200;
-/** Espera entre reconexões do stream: dobra a cada falha, até o teto. */
-const RECONNECT_MIN_MS = 1_000;
-const RECONNECT_MAX_MS = 30_000;
 const HIDDEN_KEY = 'gs-live-chat-hidden';
+/** Releitura da sala (estado, fixada) enquanto o stream não manda a mudança: a cada minuto. */
+const ROOM_REFRESH_MS = 60_000;
 
 type Item =
   | { type: 'message'; at: string; message: GsChatMessage; held: boolean }
@@ -71,12 +72,31 @@ function writeHidden(hidden: boolean): void {
   }
 }
 
+/** Quando reler a sala: na abertura (sala ainda fechada), no fim da janela, ou a cada minuto. */
+function roomRefreshMs(body: { data: GsChatRoom }): number | null {
+  const room = body.data;
+  const now = Date.now();
+  const next =
+    room.state === 'scheduled'
+      ? Date.parse(room.opens_at)
+      : room.state === 'closed'
+        ? null
+        : Math.min(Date.parse(room.closes_at), now + ROOM_REFRESH_MS);
+  if (next === null || !Number.isFinite(next)) return room.state === 'closed' ? null : ROOM_REFRESH_MS;
+  return Math.min(Math.max(next - now + 1_000, 5_000), ROOM_REFRESH_MS * 5);
+}
+
 /**
  * Chat ao vivo da sala do jogo (#976): as mensagens chegam em lotes pelo stream da sala, com o jogo dentro do chat e
  * as reações. Ler não exige login; escrever, o token do torcedor `18plus`; `13_17` lê e reage. Nada da conversa é
  * renderizado no servidor (só depois de montar no navegador), e o torcedor pode esconder o chat.
  */
-export function LiveChat({
+export function LiveChat(props: LiveChatProps) {
+  // outro jogo, outra sala: o estado inteiro recomeça (nada da conversa anterior fica na tela)
+  return <LiveChatRoom key={props.eventId} {...props} />;
+}
+
+function LiveChatRoom({
   eventId,
   height = 420,
   showGame = true,
@@ -89,7 +109,7 @@ export function LiveChat({
   const fan = useFanSession();
   const fmt = useFormatters();
   const path = eventId ? `/v1/chat/rooms/${enc(eventId)}` : null;
-  const query = useGalaxieQuery<{ data: GsChatRoom }>(path);
+  const query = useGalaxieQuery<{ data: GsChatRoom }>(path, {}, roomRefreshMs);
   const room = query.data?.data ?? null;
 
   const [mounted, setMounted] = useState(false);
@@ -106,24 +126,26 @@ export function LiveChat({
   const [state, setState] = useState<GsChatRoomState | null>(null);
   const [pinned, setPinned] = useState<GsChatMessage | null>(null);
   const [reconnecting, setReconnecting] = useState(false);
+  const [unavailable, setUnavailable] = useState(false);
 
   // a leitura da sala (e a releitura depois de um `chat.reset`) é a base; o stream soma por cima
   useEffect(() => {
     if (!room) return;
-    setMessages((cur) => mergeChatMessages(room.messages, cur, MAX_MESSAGES));
+    setMessages((cur) => mergeChatMessages(cur, room.messages, MAX_MESSAGES));
     setGame((cur) => mergeGameMessages(cur, room.game_messages));
     setReactions((cur) => maxReactionTotals(cur, room.reactions));
     setState(room.state);
     setPinned(room.pinned ?? null);
   }, [room]);
 
-  // stream SSE sobre fetch: a chave publicável vai no header, nunca na URL
+  // cursor do stream fora do efeito: esconder e mostrar, ou reconectar, emenda de onde parou
+  const lastIdRef = useRef<string | null>(null);
+  const connectedOnce = useRef(false);
   const retryRoom = query.retry;
   useEffect(() => {
     if (!mounted || !path || hidden) return;
     const controller = new AbortController();
-    let lastId: string | null = null;
-    let wait = RECONNECT_MIN_MS;
+    let failures = 0;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const doFetch = fetchImpl ?? globalThis.fetch;
 
@@ -136,42 +158,62 @@ export function LiveChat({
       }
       const p = payload as Record<string, unknown> | null;
       if (event === 'chat.batch' && p && Array.isArray(p.messages)) {
-        if (id) lastId = id;
-        setMessages((cur) => mergeChatMessages(cur, p.messages as GsChatMessage[], MAX_MESSAGES));
+        if (id) lastIdRef.current = id;
+        const batch = p.messages as GsChatMessage[];
+        // a retida que a moderação liberou chega no lote: deixa de ser "só você vê"
+        setHeld((cur) =>
+          batch.some((m) => cur.has(m.id))
+            ? new Set([...cur].filter((x) => !batch.some((m) => m.id === x)))
+            : cur,
+        );
+        setMessages((cur) => mergeChatMessages(cur, batch, MAX_MESSAGES));
       } else if (event === 'chat.state' && p && typeof p.state === 'string') {
         setState(p.state as GsChatRoomState);
       } else if (event === 'chat.game' && p && Array.isArray(p.messages)) {
-        setGame((cur) => mergeGameMessages(cur, p.messages as GsChatGameMessage[]));
+        const list = p.messages as GsChatGameMessage[];
+        // a abertura manda a lista inteira: troca (o lance que saiu da linha do tempo some)
+        setGame((cur) => (p.snapshot === true ? mergeGameMessages([], list) : mergeGameMessages(cur, list)));
       } else if (event === 'chat.reactions' && p && p.total && typeof p.total === 'object') {
         setReactions((cur) => maxReactionTotals(cur, p.total as Partial<Record<GsChatReaction, number>>));
       } else if (event === 'ready' && p && typeof p.last_event_id === 'string') {
-        lastId = p.last_event_id;
+        lastIdRef.current = p.last_event_id || lastIdRef.current;
       } else if (event === 'chat.reset') {
-        lastId = null;
+        lastIdRef.current = null;
         retryRoom();
       }
+    };
+
+    const schedule = (retryAfter: string | null) => {
+      setReconnecting(true);
+      failures += 1;
+      timer = setTimeout(() => void connect(), chatRetryMs(failures, retryAfter));
     };
 
     const connect = async () => {
       try {
         const headers: Record<string, string> = { accept: 'text/event-stream' };
         if (publishableKey) headers[PUBLISHABLE_KEY_HEADER] = publishableKey;
-        if (lastId) headers['last-event-id'] = lastId;
+        if (lastIdRef.current) headers['last-event-id'] = lastIdRef.current;
+        // sem cursor depois da primeira conexão (ainda sem lote, ou depois de um reset): relê a sala para não perder
+        else if (connectedOnce.current) retryRoom();
         const res = await doFetch(`${baseUrl}${path}/stream`, {
           headers,
           signal: controller.signal,
           credentials: 'omit',
         });
+        if (res.status >= 500 || res.status === 429) return schedule(res.headers.get('retry-after'));
         // sem stream (prévia com dados de exemplo, chave sem o módulo): fica com a leitura da sala
         if (!res.ok || !res.body || !(res.headers.get('content-type') ?? '').includes('text/event-stream')) {
-          if (res.status >= 500 || res.status === 429) throw new Error(String(res.status));
+          if (res.status === 401 || res.status === 403) setUnavailable(true);
           return;
         }
+        connectedOnce.current = true;
         setReconnecting(false);
-        wait = RECONNECT_MIN_MS;
+        setUnavailable(false);
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
         let buffer = '';
+        let gotEvent = false;
         for (;;) {
           const { done, value } = await reader.read();
           if (done) break;
@@ -179,16 +221,20 @@ export function LiveChat({
           const parsed = parseSse(buffer);
           buffer = parsed.rest;
           for (const e of parsed.events) {
-            if (e.event === 'access_revoked') return;
+            if (e.event === 'access_revoked') {
+              setUnavailable(true);
+              return;
+            }
+            gotEvent = true;
             handle(e.event, e.data, e.id);
           }
         }
-        throw new Error('closed');
+        // a conexão rendeu: a próxima espera recomeça do mínimo
+        if (gotEvent) failures = 0;
+        schedule(null);
       } catch {
         if (controller.signal.aborted) return;
-        setReconnecting(true);
-        timer = setTimeout(() => void connect(), wait);
-        wait = Math.min(wait * 2, RECONNECT_MAX_MS);
+        schedule(null);
       }
     };
     void connect();
@@ -199,7 +245,7 @@ export function LiveChat({
   }, [mounted, path, hidden, baseUrl, publishableKey, fetchImpl, retryRoom]);
 
   // rolagem: segue o fim da conversa enquanto a pessoa está lá embaixo
-  const logRef = useRef<HTMLOListElement | null>(null);
+  const logRef = useRef<HTMLDivElement | null>(null);
   const atBottom = useRef(true);
   const items = useMemo<Item[]>(() => {
     const list: Item[] = messages.map((m) => ({
@@ -220,6 +266,8 @@ export function LiveChat({
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
+  const roomState = state ?? room?.state ?? null;
+  useEffect(() => setSendError(null), [roomState]);
   const maxChars = room?.settings.max_chars ?? 280;
   const send = useCallback(
     async (e: FormEvent) => {
@@ -237,6 +285,7 @@ export function LiveChat({
         const json = (await res.json().catch(() => null)) as {
           data?: GsChatMessage & { status?: 'published' | 'held' };
           detail?: string;
+          errors?: Array<{ path?: string; message?: string }>;
         } | null;
         if (res.status === 201 && json?.data) {
           const msg = json.data;
@@ -248,8 +297,12 @@ export function LiveChat({
           return;
         }
         const retry = res.headers.get('retry-after');
+        // o aviso do filtro sai no idioma do torcedor em `errors` (o `detail` de algumas recusas é fixo)
+        const fieldMessage = json?.errors?.find((x) => x.path === 'body')?.message;
         setSendError(
-          json?.detail ?? (res.status === 429 && retry ? fillText(T.slowMode, { s: retry }) : T.sendError),
+          res.status === 429 && retry && !json?.errors?.some((x) => x.message === 'flood')
+            ? fillText(T.slowMode, { s: retry })
+            : (fieldMessage ?? json?.detail ?? T.sendError),
         );
       } catch {
         setSendError(T.sendError);
@@ -298,8 +351,12 @@ export function LiveChat({
   const header = (
     <div className="gs-header">
       <h3 className="gs-title gs-grow">{T.title}</h3>
-      {reconnecting && !hidden ? <span className="gs-small">{T.reconnecting}</span> : null}
-      <button type="button" className="gs-button" aria-pressed={hidden} onClick={toggleHidden}>
+      {reconnecting && !hidden ? (
+        <span className="gs-small" role="status">
+          {T.reconnecting}
+        </span>
+      ) : null}
+      <button type="button" className="gs-button" onClick={toggleHidden}>
         {hidden ? T.show : T.hide}
       </button>
     </div>
@@ -312,43 +369,69 @@ export function LiveChat({
       </WidgetFrame>
     );
 
-  const roomState = state ?? room.state;
-  const notice = T.states[roomState];
-  const canReact = fan.status === 'ready' && roomState !== 'scheduled' && roomState !== 'closed';
-  const canWriteHere = roomState === 'open';
+  // menor de 13 identificado não entra em recurso social nenhum: nem a conversa aparece
+  if (fan.status === 'ready' && !fan.can('read'))
+    return (
+      <WidgetFrame kind="live_chat">
+        {header}
+        <p className="gs-chat-note">{texts.fan.restricted}</p>
+      </WidgetFrame>
+    );
+
+  const current = roomState ?? room.state;
+  const notice = unavailable ? T.unavailable : T.states[current];
+  const canReact =
+    fan.status === 'ready' &&
+    fan.can('read') &&
+    current !== 'scheduled' &&
+    current !== 'closed' &&
+    !unavailable;
+  const canWriteHere = current === 'open' && !unavailable;
   const lang = locale === 'pt-BR' || locale === 'es' || locale === 'en' ? locale : 'pt-BR';
 
-  const composer = readOnly ? null : (
-    <FanGate need="write">
-      {canWriteHere ? (
-        <form className="gs-chat-form" onSubmit={send}>
-          <textarea
-            className="gs-chat-input"
-            rows={2}
-            value={draft}
-            maxLength={maxChars}
-            placeholder={T.placeholder}
-            aria-label={T.placeholder}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                e.currentTarget.form?.requestSubmit();
-              }
-            }}
-          />
-          <button type="submit" className="gs-button" disabled={sending || !draft.trim()}>
-            {T.send}
-          </button>
-        </form>
-      ) : null}
-      {sendError ? (
-        <p className="gs-chat-error" role="alert">
-          {sendError}
-        </p>
-      ) : null}
-    </FanGate>
-  );
+  // a chave presa a um widget lê a sala, mas não leva o torcedor: explica em vez do erro genérico
+  const keyHint = fan.status === 'unavailable' ? <p className="gs-chat-note">{T.siteKey}</p> : null;
+  const composer =
+    readOnly || !canWriteHere ? null : (
+      <>
+        {keyHint ?? (
+          <FanGate need="write">
+            <form className="gs-chat-form" onSubmit={send}>
+              <textarea
+                className="gs-chat-input"
+                rows={2}
+                value={draft}
+                maxLength={maxChars}
+                placeholder={T.placeholder}
+                aria-label={T.placeholder}
+                onChange={(e) => setDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+                    e.preventDefault();
+                    e.currentTarget.form?.requestSubmit();
+                  }
+                }}
+              />
+              <button type="submit" className="gs-button" disabled={sending || !draft.trim()}>
+                {T.send}
+              </button>
+            </form>
+          </FanGate>
+        )}
+        {sendError ? (
+          <p className="gs-chat-error" role="alert">
+            {sendError}
+          </p>
+        ) : null}
+      </>
+    );
+
+  const avatar = (url: string | null) => {
+    const src = safeImageUrl(url);
+    return src ? (
+      <img className="gs-chat-avatar" src={src} alt="" loading="lazy" referrerPolicy="no-referrer" />
+    ) : null;
+  };
 
   return (
     <WidgetFrame kind="live_chat">
@@ -365,7 +448,7 @@ export function LiveChat({
             </span>
           </div>
         ) : null}
-        <ol
+        <div
           ref={logRef}
           className="gs-chat-log"
           role="log"
@@ -378,46 +461,41 @@ export function LiveChat({
             atBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
           }}
         >
-          {items.length === 0 ? <li className="gs-chat-note">{T.empty}</li> : null}
-          {items.map((item) =>
-            item.type === 'game' ? (
-              <li
-                key={`g${item.game.id}`}
-                className="gs-chat-game"
-                data-gs-cancelled={item.game.cancelled || undefined}
-              >
-                {item.game.minute !== null ? (
-                  <span className="gs-small gs-muted">
-                    {item.game.minute}
-                    {item.game.extra ? `+${item.game.extra}` : ''}'
+          {items.length === 0 ? <p className="gs-chat-note">{T.empty}</p> : null}
+          <ol className="gs-chat-list">
+            {items.map((item) =>
+              item.type === 'game' ? (
+                <li
+                  key={`g${item.game.id}`}
+                  className="gs-chat-game"
+                  data-gs-cancelled={item.game.cancelled || undefined}
+                >
+                  {item.game.minute !== null ? (
+                    <span className="gs-small gs-muted">
+                      {item.game.minute}
+                      {item.game.extra ? `+${item.game.extra}` : ''}&apos;
+                    </span>
+                  ) : null}
+                  <span className="gs-chat-body">{item.game.text[lang]}</span>
+                  {item.game.cancelled ? <span className="gs-small gs-muted">{T.cancelled}</span> : null}
+                </li>
+              ) : (
+                <li key={item.message.id} className="gs-chat-msg" data-gs-held={item.held || undefined}>
+                  {avatar(item.message.author.avatar_url)}
+                  <span className="gs-chat-body">
+                    <span className="gs-chat-author">{item.message.author.nickname ?? T.unknownAuthor}</span>
+                    {item.message.body}
+                    <span className="gs-small gs-muted">
+                      {' · '}
+                      <time dateTime={item.message.created_at}>{fmt.time(item.message.created_at)}</time>
+                      {item.held ? ` · ${T.onlyYou}` : ''}
+                    </span>
                   </span>
-                ) : null}
-                <span className="gs-chat-body">{item.game.text[lang]}</span>
-                {item.game.cancelled ? <span className="gs-small gs-muted">{T.cancelled}</span> : null}
-              </li>
-            ) : (
-              <li key={item.message.id} className="gs-chat-msg" data-gs-held={item.held || undefined}>
-                {item.message.author.avatar_url ? (
-                  <img
-                    className="gs-chat-avatar"
-                    src={item.message.author.avatar_url}
-                    alt=""
-                    loading="lazy"
-                  />
-                ) : null}
-                <span className="gs-chat-body">
-                  <span className="gs-chat-author">{item.message.author.nickname ?? T.unknownAuthor}</span>
-                  {item.message.body}
-                  <span className="gs-small gs-muted">
-                    {' · '}
-                    <time dateTime={item.message.created_at}>{fmt.time(item.message.created_at)}</time>
-                    {item.held ? ` · ${T.onlyYou}` : ''}
-                  </span>
-                </span>
-              </li>
-            ),
-          )}
-        </ol>
+                </li>
+              ),
+            )}
+          </ol>
+        </div>
         {showReactions ? (
           <div className="gs-chat-reactions" role="group" aria-label={T.reactionsLabel}>
             {GS_CHAT_REACTIONS.map((r) => (
@@ -426,11 +504,14 @@ export function LiveChat({
                 type="button"
                 className="gs-chat-reaction"
                 disabled={!canReact}
-                aria-label={T.reactions[r]}
+                aria-label={fillText(T.reactionCount, {
+                  reaction: T.reactions[r],
+                  n: fmt.integer(reactions[r] ?? 0),
+                })}
                 onClick={() => react(r)}
               >
                 <span aria-hidden="true">{GS_CHAT_REACTION_EMOJI[r]}</span>
-                <span>{fmt.integer(reactions[r] ?? 0)}</span>
+                <span aria-hidden="true">{fmt.integer(reactions[r] ?? 0)}</span>
               </button>
             ))}
           </div>

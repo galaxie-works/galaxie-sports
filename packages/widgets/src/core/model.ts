@@ -1980,7 +1980,8 @@ a.gs-tile:hover{border-color:var(--gs-primary)}
 .gs-shop-item .gs-button{flex:none;text-decoration:none}
 .gs-shop-note{margin:var(--gs-gap) 0 0;font-size:.72em;color:var(--gs-muted-foreground)}
 .gs-chat{display:flex;flex-direction:column;gap:var(--gs-gap);min-height:0}
-.gs-chat-log{display:flex;flex-direction:column;gap:6px;overflow-y:auto;min-height:120px;margin:0;padding:0;list-style:none;overscroll-behavior:contain}
+.gs-chat-log{display:flex;flex-direction:column;gap:6px;overflow-y:auto;min-height:120px;overscroll-behavior:contain}
+.gs-chat-list{display:flex;flex-direction:column;gap:6px;margin:0;padding:0;list-style:none}
 .gs-chat-msg{display:flex;gap:8px;align-items:flex-start;min-width:0}
 .gs-chat-msg[data-gs-held]{opacity:.7}
 .gs-chat-avatar{flex:none;width:24px;height:24px;border-radius:999px;object-fit:cover;background:var(--gs-border)}
@@ -2599,6 +2600,12 @@ export interface WidgetTexts {
     slowMode: string;
     reactionsLabel: string;
     reactions: Record<GsChatReaction, string>;
+    /** Rótulo do botão de reação com a contagem ("Fogo, 12"). */
+    reactionCount: string;
+    /** Stream recusado ou acesso revogado: a conversa não atualiza mais. */
+    unavailable: string;
+    /** Chave presa a um widget: lê a sala, mas o torcedor precisa da chave do site. */
+    siteKey: string;
   };
 }
 
@@ -3248,6 +3255,9 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
         angry: 'Raiva',
         ball: 'Bola',
       },
+      reactionCount: '{reaction}, {n}',
+      unavailable: 'O chat não está disponível agora. As mensagens param de atualizar.',
+      siteKey: 'Para participar do chat, o site precisa da chave publicável do site (sem widget).',
     },
   },
   es: {
@@ -3900,6 +3910,9 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
         angry: 'Enojo',
         ball: 'Pelota',
       },
+      reactionCount: '{reaction}, {n}',
+      unavailable: 'El chat no está disponible ahora. Los mensajes dejan de actualizarse.',
+      siteKey: 'Para participar del chat, el sitio necesita la clave publicable del sitio (sin widget).',
     },
   },
   en: {
@@ -4539,6 +4552,9 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
         angry: 'Anger',
         ball: 'Ball',
       },
+      reactionCount: '{reaction}, {n}',
+      unavailable: 'The chat is not available right now. Messages stop updating.',
+      siteKey: "To join the chat, the site needs the site's publishable key (not a widget key).",
     },
   },
 };
@@ -5182,9 +5198,11 @@ export interface SseEvent {
  * incompleto para juntar com o próximo pedaço. Comentários (`:`) e campos desconhecidos ficam de fora.
  */
 export function parseSse(buffer: string): { events: SseEvent[]; rest: string } {
-  const normalized = buffer.replace(/\r\n?/g, '\n');
+  // um \r no fim pode ser a metade de um \r\n que vem no próximo pedaço: fica no resto, sem normalizar
+  const tailCr = buffer.endsWith('\r');
+  const normalized = (tailCr ? buffer.slice(0, -1) : buffer).replace(/\r\n?/g, '\n');
   const blocks = normalized.split('\n\n');
-  const rest = blocks.pop() ?? '';
+  const rest = (blocks.pop() ?? '') + (tailCr ? '\r' : '');
   const events: SseEvent[] = [];
   for (const block of blocks) {
     let event = 'message';
@@ -5197,6 +5215,7 @@ export function parseSse(buffer: string): { events: SseEvent[]; rest: string } {
       const value = colon < 0 ? '' : line.slice(colon + 1).replace(/^ /, '');
       if (field === 'event') event = value;
       else if (field === 'data') data.push(value);
+      // `id:` vazio zera o cursor (especificação do SSE): vira string vazia, não "sem id"
       else if (field === 'id') id = value;
     }
     if (data.length || event !== 'message') events.push({ event, data: data.join('\n'), id });
@@ -5204,8 +5223,11 @@ export function parseSse(buffer: string): { events: SseEvent[]; rest: string } {
   return { events, rest };
 }
 
-/** Junta mensagens novas às da tela, sem repetir (pelo id) e mantendo as últimas `max`, da mais antiga para a mais nova. */
-export function mergeChatMessages<T extends { id: string }>(
+/**
+ * Junta mensagens novas às da tela, sem repetir (pelo id), em ordem de horário (quando há `created_at`), e mantém
+ * as últimas `max`: o corte nunca abre buraco no meio da conversa.
+ */
+export function mergeChatMessages<T extends { id: string; created_at?: string }>(
   current: readonly T[],
   incoming: readonly T[],
   max = 200,
@@ -5217,9 +5239,34 @@ export function mergeChatMessages<T extends { id: string }>(
       seen.add(m.id);
       next.push(m);
     }
+  if (next.every((m) => typeof m.created_at === 'string'))
+    next.sort((a, b) => a.created_at!.localeCompare(b.created_at!));
   return next.length > max ? next.slice(next.length - max) : next;
 }
 
+/**
+ * Espera antes de reconectar o stream: o `Retry-After` do servidor quando vem (segundos), senão de 1 s dobrando
+ * até 30 s, sempre com um acréscimo aleatório para milhares de telas não voltarem juntas (deploy, pico).
+ */
+export function chatRetryMs(
+  failures: number,
+  retryAfter: string | null,
+  random: () => number = Math.random,
+): number {
+  const server = retryAfter !== null && /^\d+$/.test(retryAfter) ? Number(retryAfter) * 1000 : null;
+  const base = server ?? Math.min(1_000 * 2 ** Math.max(0, failures - 1), 30_000);
+  return Math.round(base + base * random());
+}
+
+/** Imagem de terceiros só por https (avatar do torcedor); qualquer outra coisa some. */
+export function safeImageUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  try {
+    return new URL(url).protocol === 'https:' ? url : null;
+  } catch {
+    return null;
+  }
+}
 /** Mensagens do jogo: a versão nova de uma mensagem (gol anulado pelo VAR) troca a antiga pelo id. */
 export function mergeGameMessages(
   current: readonly GsChatGameMessage[],

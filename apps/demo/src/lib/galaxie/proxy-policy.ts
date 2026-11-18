@@ -15,6 +15,8 @@
  */
 export const PROXY_RESOURCES: ReadonlySet<string> = new Set([
   'broadcasters',
+  // chat ao vivo na página do jogo (#977): a sala e o stream dela
+  'chat',
   'competitions',
   'copy',
   'countries',

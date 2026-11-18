@@ -3,10 +3,12 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   DEFAULT_THEMES,
+  chatRetryMs,
   maxReactionTotals,
   mergeChatMessages,
   mergeGameMessages,
   parseSse,
+  safeImageUrl,
   textsFor,
   type GsChatGameMessage,
   type GsChatRoom,
@@ -143,6 +145,43 @@ describe('chat ao vivo: utilitários', () => {
   });
 });
 
+describe('chat ao vivo: casos de borda', () => {
+  it('\\r\\n partido entre dois pedaços não vira linha em branco falsa', () => {
+    const a = parseSse('event: chat.state\r');
+    expect(a.events).toEqual([]);
+    const b = parseSse(`${a.rest}\ndata: {"state":"open"}\r\n\r\n`);
+    expect(b.events).toEqual([{ event: 'chat.state', data: '{"state":"open"}', id: null }]);
+  });
+
+  it('ordena pelo horário antes de cortar (sem buraco no meio)', () => {
+    const at = (m: number) => `2026-11-18T19:${String(m).padStart(2, '0')}:00Z`;
+    const cur = [{ id: 'c', created_at: at(30) }];
+    const merged = mergeChatMessages(
+      cur,
+      [
+        { id: 'a', created_at: at(10) },
+        { id: 'b', created_at: at(20) },
+      ],
+      2,
+    );
+    expect(merged.map((m) => m.id)).toEqual(['b', 'c']);
+  });
+
+  it('reconecta respeitando o Retry-After, com acréscimo aleatório e teto', () => {
+    expect(chatRetryMs(1, '5', () => 0)).toBe(5_000);
+    expect(chatRetryMs(1, null, () => 0)).toBe(1_000);
+    expect(chatRetryMs(3, null, () => 0.5)).toBe(6_000);
+    expect(chatRetryMs(20, null, () => 0)).toBe(30_000);
+  });
+
+  it('avatar só por https', () => {
+    expect(safeImageUrl('https://cdn.exemplo.test/a.png')).toBe('https://cdn.exemplo.test/a.png');
+    expect(safeImageUrl('http://cdn.exemplo.test/a.png')).toBeNull();
+    expect(safeImageUrl('javascript:alert(1)')).toBeNull();
+    expect(safeImageUrl(null)).toBeNull();
+  });
+});
+
 describe('chat ao vivo: widget', () => {
   it('mostra a sala, junta o lote do stream e o jogo dentro do chat', async () => {
     const goal = {
@@ -194,11 +233,14 @@ describe('chat ao vivo: widget', () => {
     setup(fetchImpl);
     expect(await screen.findByText('Vamos, time!')).toBeTruthy();
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: T.reactions.fire })).toHaveProperty('disabled', false),
+      expect(screen.getByRole('button', { name: new RegExp(`^${T.reactions.fire}, `) })).toHaveProperty(
+        'disabled',
+        false,
+      ),
     );
     expect(screen.queryByLabelText(T.placeholder)).toBeNull();
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: T.reactions.fire }));
+      fireEvent.click(screen.getByRole('button', { name: new RegExp(`^${T.reactions.fire}, `) }));
     });
     expect(calls.some((c) => c.url.endsWith('/reactions'))).toBe(true);
   });
@@ -208,7 +250,10 @@ describe('chat ao vivo: widget', () => {
     setup(fetchImpl, { token: null });
     expect(await screen.findByText(T.states.frozen)).toBeTruthy();
     expect(screen.queryByLabelText(T.placeholder)).toBeNull();
-    expect(screen.getByRole('button', { name: T.reactions.fire })).toHaveProperty('disabled', true);
+    expect(screen.getByRole('button', { name: new RegExp(`^${T.reactions.fire}, `) })).toHaveProperty(
+      'disabled',
+      true,
+    );
   });
 
   it('o torcedor esconde o chat, e a escolha fica', async () => {
