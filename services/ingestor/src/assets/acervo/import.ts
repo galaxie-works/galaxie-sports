@@ -4,7 +4,8 @@
  * `custom_logo_asset_id` do time ou da competição — o logo do fornecedor (`logo_asset_id`) nunca é
  * tocado. Os outros formatos do mesmo escudo (SVG, PNG e WebP do pacote) vão para o storage com a mesma
  * nomenclatura e ficam em `core.asset.variants`, publicados pela API em `logo_formats`; do PNG saem
- * PNG e WebP em 64, 128 e 256 px (`variants.sizes`, `logo_sizes` na API). Idempotente: o mesmo manifesto roda de novo sem regravar nada; logo que perdeu o vínculo no
+ * PNG e WebP em 64, 128, 256 e 512 px (`variants.sizes`, `logo_sizes` na API; o 512 só quando o PNG do pacote
+ * não é já um quadrado de 512). Idempotente: o mesmo manifesto roda de novo sem regravar nada; logo que perdeu o vínculo no
  * manifesto sai do time (o asset fica, sem apagar nada). A API só mostra esses logos com a flag
  * ASSETS_CUSTOM_LOGOS ligada.
  */
@@ -28,11 +29,14 @@ import {
 import { PANEL_ACERVO, panelCrestTargets } from '@galaxie/db/crests';
 import { publishTeamLogoChanges, teamsUsing } from '../asset-store.js';
 import {
+  CREST_RASTER_PX,
+  crestPng512,
   crestStorageKey,
   imageInfo,
   paletteFromPng,
   paletteFromSvg,
   sizedLogos,
+  squareLogo512,
   unsafeSvgReason,
   type AssetPalette,
 } from '@galaxie/crests';
@@ -378,10 +382,29 @@ export async function importLot(
       };
       if (format === 'png') pngBody = vBody;
     }
-    // tamanhos fixos (64/128/256) do PNG em PNG e WebP: falha aqui não derruba o logo
-    if (pngBody) {
+    // tamanhos fixos (64/128/256/512) do PNG em PNG e WebP: falha aqui não derruba o logo. Quando o pacote tem
+    // SVG e um PNG que não é um quadrado de 512, a fonte é o SVG renderizado em 512: o 512 sai do tamanho certo
+    // em vez de ficar sem, e os menores saem nítidos. Logo só em SVG segue sem tamanhos, como antes.
+    const svgBody =
+      variants.svg &&
+      variants.png &&
+      (variants.png.width !== CREST_RASTER_PX || variants.png.height !== CREST_RASTER_PX)
+        ? new Uint8Array(readFileSync(join(options.dir, logoFormats(logo).svg!)))
+        : null;
+    let sizeSource = pngBody;
+    if (svgBody) {
       try {
-        for (const sized of await sizedLogos(pngBody)) {
+        sizeSource = await crestPng512(svgBody, 'image/svg+xml');
+      } catch (err) {
+        emit({ type: 'skipped', key: `${logo.key}.svg512`, reason: `SVG não renderizado: ${String(err)}` });
+      }
+    }
+    if (sizeSource) {
+      try {
+        const sizedList = await sizedLogos(sizeSource);
+        // o PNG do SVG já é o quadrado de 512: entra como o 512, em PNG e WebP
+        if (sizeSource !== pngBody) sizedList.push(...(await squareLogo512(sizeSource)));
+        for (const sized of sizedList) {
           const sHash = sha256(sized.body);
           const sKey = acervoStorageKey(logo.kind, logo.target_id, sHash, sized.contentType)!;
           if ((await objects.head(sKey))?.sha256 !== sHash) {

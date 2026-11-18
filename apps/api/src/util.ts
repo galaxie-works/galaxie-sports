@@ -36,17 +36,24 @@ export function logoFormats(
   return { svg: url('svg'), png: url('png'), webp: url('webp') };
 }
 
-type SizedVariant = Partial<Record<'png' | 'webp', { storage_key: string }>>;
+type StoredVariant = { storage_key: string; width?: number | null; height?: number | null };
+type SizedVariant = Partial<Record<'png' | 'webp', StoredVariant>>;
+
+const LOGO_512 = 512;
+/** O `png`/`webp` do escudo só vale como 512 quando é de fato um quadrado de 512 px. */
+const isSquare512 = (v: StoredVariant | undefined) => v?.width === LOGO_512 && v?.height === LOGO_512;
 
 /**
- * `logo_sizes`: o escudo do acervo em PNG e WebP nos tamanhos fixos (64/128/256 de `variants.sizes`; o
- * 512 é o `png`/`webp` de `variants`). null fora do acervo ou sem nenhum tamanho publicado.
+ * `logo_sizes`: o escudo do acervo em PNG e WebP nos tamanhos fixos 64/128/256/512 de `variants.sizes`. O 512
+ * cai no `png`/`webp` de `variants` só quando ele já é 512×512 (o pacote e o painel gravam assim, e aí o
+ * tamanho não é refeito); um escudo menor que 512 fica sem 512, porque não ampliamos. null fora do acervo ou
+ * sem nenhum tamanho publicado.
  */
 export function logoSizes(
   baseUrl: string | undefined,
   variants:
-    | (Partial<Record<'png' | 'webp', { storage_key: string }>> & {
-        sizes?: Partial<Record<'64' | '128' | '256', SizedVariant>>;
+    | (Partial<Record<'png' | 'webp', StoredVariant>> & {
+        sizes?: Partial<Record<'64' | '128' | '256' | '512', SizedVariant>>;
       })
     | null
     | undefined,
@@ -61,7 +68,12 @@ export function logoSizes(
     '64': pair(variants.sizes?.['64']),
     '128': pair(variants.sizes?.['128']),
     '256': pair(variants.sizes?.['256']),
-    '512': pair(variants),
+    '512':
+      pair(variants.sizes?.['512']) ??
+      pair({
+        ...(isSquare512(variants.png) ? { png: variants.png } : {}),
+        ...(isSquare512(variants.webp) ? { webp: variants.webp } : {}),
+      }),
   };
   return Object.values(out).some(Boolean) ? out : null;
 }
