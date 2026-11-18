@@ -9,6 +9,7 @@ import {
   loadCountries,
   loadTargets,
 } from '../src/assets/acervo/import.js';
+import { imageInfo } from '@galaxie/crests';
 import { PANEL_ACERVO, revertPanelCrest, setPanelCrest } from '@galaxie/db/crests';
 import type { AcervoManifest } from '../src/assets/acervo/manifest.js';
 import { planManifest } from '../src/assets/acervo/plan.js';
@@ -118,8 +119,9 @@ describe('assets:acervo (importação idempotente)', () => {
 
   it('espelha, grava a origem e a paleta e liga sem tocar no logo do fornecedor', async () => {
     const report = await importAcervo({ db, objects, manifest, dir: EXEMPLO, batchSize: 3 });
-    // 7 logos, e o Palmeiras também em PNG e WebP (128 px) e no tamanho fixo de 64 px nos dois formatos
-    expect(report).toMatchObject({ linked: 7, uploaded: 11, changed: 7, detached: 0, skipped: 0 });
+    // 7 logos, e o Palmeiras também em PNG e WebP (128 px) e nos tamanhos fixos 64/128/256/512 nos dois
+    // formatos, tirados do SVG renderizado em 512 (o PNG do pacote tem só 128)
+    expect(report).toMatchObject({ linked: 7, uploaded: 17, changed: 7, detached: 0, skipped: 0 });
     const palSha = manifest.logos.find((l) => l.key === 'teams/br/palmeiras')!.sha256;
     const palKey = `acervo/football/teams/${ids.get('Palmeiras')}.${palSha.slice(0, 12)}.svg`;
     expect(acervoStorageKey('team', ids.get('Palmeiras')!, palSha, 'image/svg+xml')).toBe(palKey);
@@ -145,13 +147,16 @@ describe('assets:acervo (importação idempotente)', () => {
     expect(row!.palette).toMatchObject({ dominant: '#0b6e3a', monochrome: false });
     // os três formatos do mesmo escudo, cada um com a nossa nomenclatura
     expect(Object.keys(row!.variants ?? {}).sort()).toEqual(['png', 'sizes', 'svg', 'webp']);
-    // tamanhos fixos menores que o PNG do pacote (128 px): só o de 64, em PNG e WebP
-    expect(Object.keys(row!.variants!.sizes ?? {})).toEqual(['64']);
-    for (const format of ['png', 'webp'] as const) {
-      const v = row!.variants!.sizes!['64']![format]!;
-      expect(v).toMatchObject({ width: 64, height: 64 });
-      expect(objects.objects.get(v.storage_key)?.contentType).toBe(`image/${format}`);
-    }
+    // o PNG do pacote tem 128 px, mas há SVG: os tamanhos saem do SVG em 512, inclusive o 512 de verdade
+    expect(Object.keys(row!.variants!.sizes ?? {}).sort()).toEqual(['128', '256', '512', '64']);
+    for (const size of ['64', '128', '256', '512'] as const)
+      for (const format of ['png', 'webp'] as const) {
+        const v = row!.variants!.sizes![size]![format]!;
+        expect(v).toMatchObject({ width: Number(size), height: Number(size) });
+        expect(objects.objects.get(v.storage_key)?.contentType).toBe(`image/${format}`);
+        const info = imageInfo(objects.objects.get(v.storage_key)!.body);
+        expect([info.width, info.height]).toEqual([Number(size), Number(size)]);
+      }
     expect(row!.variants!.svg).toMatchObject({ storage_key: palKey, width: 512 });
     for (const format of ['png', 'webp'] as const) {
       const v = row!.variants![format]!;

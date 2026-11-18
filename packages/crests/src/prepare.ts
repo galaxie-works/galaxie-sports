@@ -94,7 +94,7 @@ const TRANSPARENT = { r: 0, g: 0, b: 0, alpha: 0 };
  * PNG de 512×512 com o escudo encaixado sem cortar e sobra transparente, como o 512 de `logo_sizes` promete.
  * O SVG é renderizado direto em 512; PNG/WebP menor não é ampliado, fica centralizado na tela de 512.
  */
-async function rasterPng(body: Uint8Array, contentType: string): Promise<Uint8Array> {
+export async function crestPng512(body: Uint8Array, contentType: string): Promise<Uint8Array> {
   if (contentType === 'image/svg+xml') {
     // densidade que leva o lado maior do SVG a 512 px: renderiza nítido em vez de ampliar um bitmap pequeno
     const meta = await sharp(body).metadata();
@@ -156,7 +156,7 @@ export async function prepareCrest(
           `Imagem de ${meta.width}×${meta.height}: o mínimo é ${CREST_MIN_PX} px no lado maior.`,
         );
     }
-    png = await rasterPng(input, info.contentType);
+    png = await crestPng512(input, info.contentType);
     // effort 4 (o padrão): o 6 leva ~3 s num 512 com alfa para ~1% de arquivo a menos, e o envio espera por ele
     webp = new Uint8Array(await sharp(png).webp({ quality: 90, alphaQuality: 100, effort: 4 }).toBuffer());
     const meta = await sharp(png).metadata();
