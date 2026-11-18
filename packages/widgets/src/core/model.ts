@@ -1268,6 +1268,7 @@ const ZONE_TONE_BY_CODE: Record<string, StandingsZoneTone> = {
   playoffs: 'direct',
   liguilla: 'direct',
   quadrangulars: 'direct',
+  championship_group: 'direct',
   libertadores_qualifying: 'qualifying',
   champions_league_qualifying: 'qualifying',
   knockout_playoff: 'qualifying',
@@ -2699,6 +2700,7 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       playoffs: 'Playoffs',
       liguilla: 'Liguilla',
       quadrangulars: 'Quadrangulares',
+      championship_group: 'Grupo do título',
       play_in: 'Play-in',
     },
     media: {
@@ -3349,6 +3351,7 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       playoffs: 'Playoffs',
       liguilla: 'Liguilla',
       quadrangulars: 'Cuadrangulares',
+      championship_group: 'Grupo por el título',
       play_in: 'Play-in',
     },
     media: {
@@ -4004,6 +4007,7 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       playoffs: 'Play-offs',
       liguilla: 'Liguilla',
       quadrangulars: 'Quadrangulars',
+      championship_group: 'Championship group',
       play_in: 'Play-in',
     },
     media: {
