@@ -69,11 +69,16 @@ function useFanJson<T>(path: string | null, refreshMs?: number): FanJson<T> {
   });
   const [tick, setTick] = useState(0);
   const reload = useCallback(() => setTick((t) => t + 1), []);
+  const loadedPath = useRef<string | null>(null);
 
   useEffect(() => {
     if (!path) return;
     let cancelled = false;
-    setState((s) => ({ ...s, loading: s.data === null }));
+    if (loadedPath.current !== path) {
+      // outro recorte: o dado anterior sai da tela (não fica com o rótulo novo se a leitura falhar)
+      loadedPath.current = path;
+      setState({ data: null, error: false, loading: true });
+    } else setState((s) => ({ ...s, loading: s.data === null }));
     fetchRef
       .current(path)
       .then(async (res) => {
@@ -135,9 +140,18 @@ function ShelfBody({
     if (view !== 'both') setTab(view);
   }, [view]);
   const show = view === 'both' ? tab : view;
+  const [toast, setToast] = useState<string | null>(null);
+  useEffect(() => {
+    if (!toast) return;
+    const timer = setTimeout(() => setToast(null), TOAST_MS);
+    return () => clearTimeout(timer);
+  }, [toast]);
 
   return (
     <div className="gs-group">
+      <div aria-live="polite" role="status">
+        {toast ? <div className="gs-ach-toast">{toast}</div> : null}
+      </div>
       {view === 'both' ? (
         <span className="gs-seg" role="group" aria-label={T.title}>
           {(['shelf', 'ranking'] as const).map((k) => (
@@ -147,16 +161,27 @@ function ShelfBody({
           ))}
         </span>
       ) : null}
-      {/* a estante fica montada na aba do Ranking, para o aviso de Degrau novo continuar valendo */}
-      <div hidden={show !== 'shelf'}>
-        <Shelf sport={sport} showLocked={showLocked} />
-      </div>
+      {/* com as duas abas, a estante fica montada na do Ranking para o aviso de Degrau novo continuar valendo;
+          só o Ranking, a estante nem monta (nada de reler Conquistas que ninguém vê) */}
+      {view === 'ranking' ? null : (
+        <div hidden={show !== 'shelf'}>
+          <Shelf sport={sport} showLocked={showLocked} onReached={setToast} />
+        </div>
+      )}
       {show === 'ranking' ? <Ranking period={rankingPeriod} size={rankingSize} /> : null}
     </div>
   );
 }
 
-function Shelf({ sport, showLocked }: { sport: string | undefined; showLocked: boolean }) {
+function Shelf({
+  sport,
+  showLocked,
+  onReached,
+}: {
+  sport: string | undefined;
+  showLocked: boolean;
+  onReached: (message: string) => void;
+}) {
   const { texts, locale } = useGalaxieWidget();
   const T = texts.achievements;
   const fmt = useFormatters();
@@ -166,7 +191,19 @@ function Shelf({ sport, showLocked }: { sport: string | undefined; showLocked: b
   const mine = useFanJson<{ achievements: GsFanAchievement[] }>('/v1/fans/me/achievements', SHELF_REFRESH_MS);
   const [season, setSeason] = useState('all');
   const [open, setOpen] = useState<string | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
+  const lastOpen = useRef<string | null>(null);
+  // fechar o detalhe devolve o foco à Conquista que o abriu
+  useEffect(() => {
+    if (open) {
+      lastOpen.current = open;
+      return;
+    }
+    const id = lastOpen.current;
+    if (!id) return;
+    lastOpen.current = null;
+    gridRef.current?.querySelector<HTMLButtonElement>(`[data-gs-ach="${CSS.escape(id)}"]`)?.focus();
+  }, [open]);
 
   const rows = mine.data?.achievements;
   const entries = catalog.data?.achievements;
@@ -175,7 +212,8 @@ function Shelf({ sport, showLocked }: { sport: string | undefined; showLocked: b
   // Degrau novo entre duas leituras: aviso na tela (e para o leitor de tela), uma Conquista por vez
   const previous = useRef<GsFanAchievement[] | null>(null);
   useEffect(() => {
-    if (!rows) return;
+    // sem o Catálogo ainda, a leitura não vira base: o Degrau novo é comparado quando os nomes chegarem
+    if (!rows || !entries) return;
     const before = previous.current;
     previous.current = rows;
     if (!before) return;
@@ -183,13 +221,8 @@ function Shelf({ sport, showLocked }: { sport: string | undefined; showLocked: b
     if (!reached) return;
     const name = gameText(byId.get(reached.achievementId)?.name, locale);
     const step = stepName(reached.step);
-    setToast(fillText(T.reached, { step: step ? T.steps[step] : String(reached.step), name }));
-  }, [rows, byId, locale, T]);
-  useEffect(() => {
-    if (!toast) return;
-    const timer = setTimeout(() => setToast(null), TOAST_MS);
-    return () => clearTimeout(timer);
-  }, [toast]);
+    onReached(fillText(T.reached, { step: step ? T.steps[step] : String(reached.step), name }));
+  }, [rows, entries, byId, locale, T, onReached]);
 
   if (catalog.loading || mine.loading) return <LoadingState lines={4} />;
   if (catalog.error || mine.error || !entries || !rows)
@@ -210,10 +243,7 @@ function Shelf({ sport, showLocked }: { sport: string | undefined; showLocked: b
   const selected = open ? groups.flatMap((g) => g.items).find((i) => i.achievement.id === open) : undefined;
 
   return (
-    <div className="gs-group">
-      <div aria-live="polite" role="status">
-        {toast ? <div className="gs-ach-toast">{toast}</div> : null}
-      </div>
+    <div className="gs-group" ref={gridRef}>
       <div className="gs-ach-top">
         <span className="gs-small gs-muted">
           {fillText(T.earned, { n: fmt.integer(earned), total: fmt.integer(total) })}
@@ -231,7 +261,7 @@ function Shelf({ sport, showLocked }: { sport: string | undefined; showLocked: b
           </label>
         ) : null}
       </div>
-      {earned === 0 ? <p className="gs-chat-note">{T.empty}</p> : null}
+      {earned === 0 && season === 'all' ? <p className="gs-chat-note">{T.empty}</p> : null}
       {selected ? (
         <Detail item={selected} season={season} onClose={() => setOpen(null)} />
       ) : (
@@ -270,6 +300,13 @@ function ShelfTile({ item, onOpen }: { item: GsShelfItem; onOpen: () => void }) 
   const status = metal ? T.steps[metal] : T.locked;
   const pct = rarityPercent(item.rarity);
   const color = stepColor(item.steps) ?? stepColor(1);
+  const progress =
+    item.next !== null && item.achievement.stepped
+      ? fillText(T.progress, { count: fmt.integer(item.count), next: fmt.integer(item.next) })
+      : item.next === null
+        ? T.complete
+        : null;
+  const rarity = pct && item.steps > 0 ? fillText(T.rarity, { pct }) : null;
   return (
     <button
       type="button"
@@ -277,7 +314,8 @@ function ShelfTile({ item, onOpen }: { item: GsShelfItem; onOpen: () => void }) 
       data-locked={item.steps === 0 || undefined}
       style={{ ['--gs-ach-color' as string]: color }}
       onClick={onOpen}
-      aria-label={`${name}, ${status}`}
+      data-gs-ach={item.achievement.id}
+      aria-label={[name, status, progress, rarity].filter(Boolean).join(', ')}
     >
       <span className="gs-ach-medal" aria-hidden="true">
         {item.steps > 0 ? item.steps : '?'}
@@ -286,17 +324,7 @@ function ShelfTile({ item, onOpen }: { item: GsShelfItem; onOpen: () => void }) 
       <span className="gs-small gs-muted">{status}</span>
       {item.next !== null && item.achievement.stepped ? (
         <>
-          <span
-            className="gs-ach-bar"
-            role="progressbar"
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={Math.round(shelfProgress(item) * 100)}
-            aria-label={fillText(T.progress, {
-              count: fmt.integer(item.count),
-              next: fmt.integer(item.next),
-            })}
-          >
+          <span className="gs-ach-bar" aria-hidden="true">
             <span style={{ width: `${Math.round(shelfProgress(item) * 100)}%` }} />
           </span>
           <span className="gs-small gs-muted">

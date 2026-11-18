@@ -200,8 +200,12 @@ export function previewEarners(achievementId: string, season: string): GsAchieve
   };
 }
 
-/** Respostas da prévia para as rotas da Gamificação (null = não é rota daqui). */
-export function gamePreviewBody(url: URL): unknown {
+/**
+ * Respostas da prévia para as rotas da Gamificação (null = não é rota daqui). Só com o token de exemplo: sem ele,
+ * a prévia segue sem torcedor (os outros widgets não ganham um torcedor de mentira).
+ */
+export function gamePreviewBody(url: URL, init?: RequestInit): unknown {
+  if (new Headers(init?.headers).get('authorization') !== `Bearer ${PREVIEW_FAN_TOKEN}`) return null;
   const path = url.pathname.replace(/\/+$/, '');
   if (path.endsWith('/v1/fans/me')) return { data: PREVIEW_FAN };
   if (path.endsWith('/v1/fans/me/achievements'))

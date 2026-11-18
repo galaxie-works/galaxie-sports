@@ -1077,7 +1077,7 @@ export const WIDGET_CATALOG: { [K in WidgetKind]: WidgetCatalogEntry<K> } = {
     requiredProps: [],
     optionalProps: ['view', 'sport', 'showLocked', 'rankingPeriod', 'rankingSize'],
     exampleProps: {},
-    // relê a estante sozinha a cada minuto (aviso de Degrau novo)
+    // não segue o ao vivo do jogo: a estante relê as Conquistas sozinha a cada minuto (aviso de Degrau novo)
     polling: false,
     sports: [],
   },

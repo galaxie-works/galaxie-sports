@@ -822,7 +822,7 @@ export function createPreviewFetch(options: { now?: Date; sport?: string } = {})
 }
 
 function samplePreviewFetch(options: { now?: Date; sport?: string }): typeof fetch {
-  return async (input) => {
+  return async (input, init) => {
     const raw = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
     const url = new URL(raw, 'http://preview.local');
     const path = url.pathname.replace(/\/+$/, '');
@@ -843,7 +843,7 @@ function samplePreviewFetch(options: { now?: Date; sport?: string }): typeof fet
     const chat = chatPreviewBody(path, now);
     if (chat) return json(chat);
     // estante de Conquistas e Ranking (#919): só com o token de exemplo (PREVIEW_FAN_TOKEN)
-    const game = gamePreviewBody(url);
+    const game = gamePreviewBody(url, init);
     if (game) return json(game);
     const racing = createRacingFixtures(now);
     const fights = createFightFixtures(now);

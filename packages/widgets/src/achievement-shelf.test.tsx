@@ -164,15 +164,15 @@ describe('<AchievementShelf>', () => {
 
   it('mostra a estante com ganhas e bloqueadas, e o detalhe com quem já ganhou', async () => {
     renderShelf();
-    const fiel = await screen.findByRole('button', { name: `Fiel, ${T.steps.gold}` });
-    expect(screen.getByRole('button', { name: `Explorador, ${T.locked}` })).toBeTruthy();
+    const fiel = await screen.findByRole('button', { name: new RegExp(`^Fiel, ${T.steps.gold}`) });
+    expect(screen.getByRole('button', { name: new RegExp(`^Explorador, ${T.locked}`) })).toBeTruthy();
     expect(screen.getByText('Fidelidade')).toBeTruthy();
     expect(screen.getByText('21 de 38')).toBeTruthy();
     fireEvent.click(fiel);
     expect(await screen.findByText('1.284 torcedores já ganharam')).toBeTruthy();
     expect(screen.getByRole('button', { name: T.share })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: T.close }));
-    expect(await screen.findByRole('button', { name: `Fiel, ${T.steps.gold}` })).toBeTruthy();
+    expect(await screen.findByRole('button', { name: new RegExp(`^Fiel, ${T.steps.gold}`) })).toBeTruthy();
   });
 
   it('o esporte filtra o Catálogo (as comuns ficam)', async () => {
@@ -182,7 +182,7 @@ describe('<AchievementShelf>', () => {
       seen.push(String(input));
       return base(input, init);
     });
-    await screen.findByRole('button', { name: `Fiel, ${T.steps.gold}` });
+    await screen.findByRole('button', { name: new RegExp(`^Fiel, ${T.steps.gold}`) });
     expect(seen.some((u) => u.endsWith('/v1/achievements?sport=basketball'))).toBe(true);
     expect(screen.queryByText('Gol nos acréscimos')).toBeNull();
     expect(screen.queryByRole('group', { name: T.title })).toBeNull();
@@ -223,7 +223,7 @@ describe('<AchievementShelf>', () => {
       return base(input, init);
     };
     renderShelf({ view: 'shelf' }, fetchImpl);
-    await screen.findByRole('button', { name: `Fiel, ${T.steps.gold}` });
+    await screen.findByRole('button', { name: new RegExp(`^Fiel, ${T.steps.gold}`) });
     steps = 4;
     await act(async () => {
       await vi.advanceTimersByTimeAsync(61_000);
@@ -234,5 +234,32 @@ describe('<AchievementShelf>', () => {
   it('o Catálogo de exemplo e o torcedor de exemplo batem com os tipos', () => {
     expect(PREVIEW_FAN.capabilities).toContain('read');
     expect(PREVIEW_ACHIEVEMENT_CATALOG.every((a) => a.steps.length >= 1)).toBe(true);
+  });
+});
+
+describe('<AchievementShelf> (revisão)', () => {
+  it('só o Ranking: a estante nem lê as Conquistas', async () => {
+    const seen: string[] = [];
+    const base = createPreviewFetch();
+    renderShelf({ view: 'ranking' }, (input, init) => {
+      seen.push(String(input));
+      return base(input, init);
+    });
+    await screen.findByText('Ana_FC');
+    expect(seen.some((u) => u.includes('/v1/fans/me/achievements'))).toBe(false);
+    expect(seen.some((u) => /\/v1\/achievements(\?|$)/.test(u))).toBe(false);
+  });
+
+  it('fechar o detalhe devolve o foco à Conquista', async () => {
+    renderShelf({ view: 'shelf' });
+    fireEvent.click(await screen.findByRole('button', { name: new RegExp(`^Fiel, ${T.steps.gold}`) }));
+    fireEvent.click(await screen.findByRole('button', { name: T.close }));
+    const tile = await screen.findByRole('button', { name: new RegExp(`^Fiel, ${T.steps.gold}`) });
+    await waitFor(() => expect(document.activeElement).toBe(tile));
+  });
+
+  it('a prévia não inventa torcedor sem o token de exemplo', async () => {
+    const res = await createPreviewFetch()('https://api.test/v1/fans/me');
+    expect(res.status).not.toBe(200);
   });
 });
