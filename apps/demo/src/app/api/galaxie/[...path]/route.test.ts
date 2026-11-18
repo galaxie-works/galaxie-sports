@@ -126,3 +126,87 @@ describe('proxy /api/galaxie: escrita do chat (#977)', () => {
     expect((await get(['v1', 'chat', 'rooms', ROOM, 'stream'])).status).toBe(200);
   });
 });
+
+describe('proxy /api/galaxie: torcedor e stream do chat (#977)', () => {
+  const ROOM = '0190f000-0000-7000-8000-00000000f001';
+  const fanGet = (path: string[], headers: Record<string, string> = {}) =>
+    route.GET(
+      new Request(`http://demo.test/api/galaxie/${path.join('/')}`, {
+        headers: {
+          cookie: 'better-auth.session_token=sessao-f.assinatura',
+          'sec-fetch-site': 'same-origin',
+          ...headers,
+        },
+      }),
+      { params: Promise.resolve({ path }) },
+    );
+
+  it('o Perfil do torcedor vai com o token dele e sem a chave da demo', async () => {
+    const res = await fanGet(['v1', 'fans', 'me'], { authorization: 'Bearer gft_abc.def' });
+    expect(res.status).toBe(200);
+    const [, init] = upstream.mock.calls[0] as unknown as [URL, RequestInit];
+    const headers = new Headers(init.headers);
+    expect(headers.get('authorization')).toBe('Bearer gft_abc.def');
+    expect(headers.get('x-galaxie-key')).toBeNull();
+  });
+
+  it('sem o token, de outra origem ou em outra rota do torcedor: recusa sem chamar a API', async () => {
+    expect((await fanGet(['v1', 'fans', 'me'])).status).toBe(401);
+    expect(
+      (
+        await fanGet(['v1', 'fans', 'me'], {
+          authorization: 'Bearer gft_a.b',
+          'sec-fetch-site': 'cross-site',
+        })
+      ).status,
+    ).toBe(404);
+    expect((await fanGet(['v1', 'fans', 'tokens'], { authorization: 'Bearer gft_a.b' })).status).toBe(404);
+    expect(upstream).not.toHaveBeenCalled();
+  });
+
+  it('a configuração do chat do tenant não passa (só a sala e o stream)', async () => {
+    expect((await get(['v1', 'chat', 'config'])).status).toBe(404);
+    expect((await get(['v1', 'chat', 'rooms', 'nao-uuid'])).status).toBe(404);
+    expect((await get(['v1', 'chat', 'rooms', ROOM, 'messages'])).status).toBe(404);
+    expect(upstream).not.toHaveBeenCalled();
+  });
+
+  it('teto de streams do chat abertos por sessão; a vaga volta quando o stream fecha', async () => {
+    upstream.mockImplementation(
+      async () =>
+        new Response('event: ready\ndata: {}\n\n', {
+          headers: { 'content-type': 'text/event-stream' },
+        }) as never,
+    );
+    const controllers = [new AbortController(), new AbortController(), new AbortController()];
+    const open = (signal?: AbortSignal) =>
+      route.GET(
+        new Request(`http://demo.test/api/galaxie/v1/chat/rooms/${ROOM}/stream`, {
+          headers: { cookie: 'better-auth.session_token=sessao-s.assinatura' },
+          ...(signal ? { signal } : {}),
+        }),
+        { params: Promise.resolve({ path: ['v1', 'chat', 'rooms', ROOM, 'stream'] }) },
+      );
+    for (const c of controllers) expect((await open(c.signal)).status).toBe(200);
+    expect((await open()).status).toBe(429);
+    controllers[0]!.abort();
+    expect((await open()).status).toBe(200);
+  });
+
+  it('corpo grande demais: 413 antes de chamar a API', async () => {
+    const res = await route.POST(
+      new Request(`http://demo.test/api/galaxie/v1/chat/rooms/${ROOM}/messages`, {
+        method: 'POST',
+        body: 'x'.repeat(9_000),
+        headers: {
+          cookie: 'better-auth.session_token=sessao-a.assinatura',
+          'sec-fetch-site': 'same-origin',
+          authorization: 'Bearer gft_abc.def',
+        },
+      }),
+      { params: Promise.resolve({ path: ['v1', 'chat', 'rooms', ROOM, 'messages'] }) },
+    );
+    expect(res.status).toBe(413);
+    expect(upstream).not.toHaveBeenCalled();
+  });
+});
