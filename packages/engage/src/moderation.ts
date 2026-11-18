@@ -52,12 +52,22 @@ export const TENANT_LISTS: readonly ModerationListName[] = [
 ];
 
 export type ScreenReason =
-  'link' | 'personal_data' | 'betting' | 'abuse' | 'profanity' | 'slow_mode' | 'too_long' | 'empty';
+  | 'link'
+  | 'personal_data'
+  | 'contact'
+  | 'betting'
+  | 'abuse'
+  | 'profanity'
+  | 'slow_mode'
+  | 'too_long'
+  | 'empty';
 
 export interface ModerationListSet {
   /** Termos por categoria e idioma. Termo com `*` no fim casa com o começo da palavra (`macac*`). */
   terms: Partial<Record<TermCategory, Partial<Record<ListLocale, string[]>>>>;
   allowedDomains?: string[];
+  /** Perfis oficiais liberados (`@clube`, `@emissora`), sem o `@`: o cliente libera os dele (#1373). */
+  allowedHandles?: string[];
   betDomains?: string[];
   exceptions?: string[];
 }
@@ -278,6 +288,8 @@ const emptyTerms = (): CompiledTerms => ({ exact: new Map(), prefixes: [], phras
 export interface CompiledLists {
   byCategory: Map<TermCategory, { any: CompiledTerms; byLocale: Map<ListLocale, CompiledTerms> }>;
   allowedDomains: string[];
+  /** Perfis liberados, em minúsculas e sem o `@`. */
+  allowedHandles: Set<string>;
   betDomains: string[];
   exceptions: Set<string>;
 }
@@ -331,6 +343,11 @@ export function compileLists(base: ModerationListSet, tenant?: ModerationListSet
   return {
     byCategory,
     allowedDomains: domains([...(base.allowedDomains ?? []), ...(tenant?.allowedDomains ?? [])]),
+    allowedHandles: new Set(
+      [...(base.allowedHandles ?? []), ...(tenant?.allowedHandles ?? [])]
+        .map(normalizeHandle)
+        .filter(Boolean),
+    ),
     betDomains: domains([...(base.betDomains ?? []), ...(tenant?.betDomains ?? [])]),
     exceptions: new Set((base.exceptions ?? []).map(normalizeTerm).filter(Boolean)),
   };
@@ -436,6 +453,46 @@ function hasPersonalData(text: string): boolean {
   return false;
 }
 
+// ---------------------------------------------------------------------------------------------------------------
+// Contato fora da sala (#1373): `@perfil` de rede social e convite para levar a conversa a outro app
+
+/** Perfil liberado na forma comparável: minúsculas, sem o `@`. */
+export function normalizeHandle(handle: string): string {
+  return fold(handle.trim())
+    .replace(/^@+/, '')
+    .replace(/[^a-z0-9_.]/g, '');
+}
+
+/**
+ * `@perfil`: o `@` no começo de uma palavra (não no meio, como no e-mail), seguido de 2 a 30 letras, números,
+ * `_` ou `.`, com pelo menos uma letra. Ponto final de frase não conta como parte do perfil.
+ */
+const HANDLE_RE = /(?<![\p{L}\p{N}_.@])@([a-z0-9_.]{2,30})/gu;
+
+function handlesIn(folded: string): string[] {
+  const out: string[] = [];
+  for (const m of folded.matchAll(HANDLE_RE)) {
+    const h = m[1]!.replace(/\.+$/, '');
+    if (h.length >= 2 && /[a-z]/.test(h)) out.push(h);
+  }
+  return out;
+}
+
+/** Apps e redes para onde levar a conversa (na forma do caminho do drible: `z4p` → `zap`, `1nsta` → `insta`). */
+const CONTACT_APPS =
+  '(?:insta|instagram|ig|zap|zapzap|whats|whatsapp|wpp|wsp|watsap|tiktok|tik tok|discord|dc|telegram|telegrama|tg|snap|snapchat|kik|twitter|face|facebook|messenger|signal|threads|onlyfans)';
+/** Chamada para fora: verbo de contato perto do app ("me chama no insta", "add no discord", "hit me up on snap"). */
+const CONTACT_CALL = new RegExp(
+  ` (?:chama|chamem|chamar|me chama|me add|add|adiciona|adicionem|segue|sigam|siga|seguir|manda|mande|me manda|fala|fale|me acha|me encontra|me procura|procura|chamame|escribeme|escribime|agregame|agregame|seguime|sigueme|hablame|hablame|dm|pv|inbox|hit me up|text me|message me|msg me|follow me|find me|add me|dm me)(?: [a-z0-9]+){0,3} (?:no|na|nos|pelo|pela|por|en|el|al|on|in|at|via)? ?${CONTACT_APPS} `,
+);
+/** Perfil próprio anunciado: "meu insta é", "mi zap", "my snap". O "x" fica de fora (é letra comum demais). */
+const CONTACT_MINE = new RegExp(` (?:meu|minha|mi|mis|my) ${CONTACT_APPS} `);
+/** O app no fim depois de "no"/"pelo" e um número ou perfil: "me chama no zap 11…" já cai no telefone; aqui só o texto. */
+
+function invitesOut(t: Text): boolean {
+  return CONTACT_CALL.test(t.joined) || CONTACT_MINE.test(t.joined);
+}
+
 function hostOf(url: string): string {
   return normalizeDomain(url.replace(/^[a-z]+:\/\//i, ''));
 }
@@ -513,6 +570,7 @@ const ORDER: ScreenReason[] = [
   'abuse',
   'betting',
   'personal_data',
+  'contact',
   'link',
   'profanity',
   'slow_mode',
@@ -600,6 +658,13 @@ export function screen(text: string, ctx: ScreenContext, lists: CompiledLists): 
   if (betHost || categories.has('betting')) reasons.add('betting');
   if (hosts.some((h) => !domainIn(h, lists.allowedDomains))) reasons.add('link');
   if (hasPersonalData(trimmed)) reasons.add('personal_data');
+  // perfil de rede social (menos os oficiais que o cliente liberou) e convite para sair da sala
+  if (
+    handlesIn(folded).some((h) => !lists.allowedHandles.has(h)) ||
+    invitesOut(textOf(plainWords)) ||
+    invitesOut(leet)
+  )
+    reasons.add('contact');
   if ([...categories].some((c) => ABUSE.has(c))) reasons.add('abuse');
   if (categories.has('profanity')) reasons.add('profanity');
 
@@ -637,6 +702,7 @@ const NOTICES: Record<NoticeLocale, Record<ScreenReason, string>> = {
     abuse: 'Sua mensagem fere as regras da comunidade.',
     betting: 'Não é permitido divulgar apostas.',
     personal_data: 'Não compartilhe telefone, e-mail, CPF ou chave Pix.',
+    contact: 'Não compartilhe redes sociais nem convide para outros apps aqui.',
     link: 'Links para fora não são permitidos aqui.',
     profanity: 'Escolha outras palavras.',
     slow_mode: 'Modo lento: espere {s} s para mandar de novo.',
@@ -647,6 +713,7 @@ const NOTICES: Record<NoticeLocale, Record<ScreenReason, string>> = {
     abuse: 'Tu mensaje no cumple las reglas de la comunidad.',
     betting: 'No se permite promocionar apuestas.',
     personal_data: 'No compartas teléfono, correo ni documentos.',
+    contact: 'No compartas redes sociales ni invites a otras apps aquí.',
     link: 'No se permiten enlaces externos aquí.',
     profanity: 'Elige otras palabras.',
     slow_mode: 'Modo lento: espera {s} s para volver a enviar.',
@@ -657,6 +724,7 @@ const NOTICES: Record<NoticeLocale, Record<ScreenReason, string>> = {
     abuse: 'Your message breaks the community rules.',
     betting: 'Betting promotion is not allowed.',
     personal_data: "Don't share phone numbers, emails or IDs.",
+    contact: "Don't share social media handles or invite people to other apps here.",
     link: 'External links are not allowed here.',
     profanity: 'Please choose other words.',
     slow_mode: 'Slow mode: wait {s} s before sending again.',

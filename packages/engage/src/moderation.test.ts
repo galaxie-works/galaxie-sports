@@ -482,3 +482,77 @@ describe('desempenho', () => {
     for (const kind of SCREEN_KINDS) expect(screen('ola', { kind }, lists).action).toBe('allow');
   });
 });
+
+describe('screen: contato fora da sala (#1373)', () => {
+  it.each([
+    'me segue no @fulano_10',
+    '@fulano manda dm',
+    'olha o @joao.silva',
+    'me chama no insta',
+    'chama no zap',
+    'me chama no z4p',
+    'me add no discord',
+    'segue lá no tiktok',
+    'meu insta é fulano10',
+    'meu snap é tal',
+    'manda msg no wpp',
+    'me chama no telegram',
+    'add no 1nsta',
+  ])('barra e avisa: %s', (text) => {
+    const r = chat(text);
+    expect(r.action).toBe('block');
+    expect(r.reasons).toContain('contact');
+    expect(screenNotice(r, 'pt-BR')).toBe('Não compartilhe redes sociais nem convide para outros apps aqui.');
+  });
+
+  it.each([
+    ['es', 'escribime por insta', 'No compartas redes sociales ni invites a otras apps aquí.'],
+    ['es', 'mi insta es fulano', 'No compartas redes sociales ni invites a otras apps aquí.'],
+    ['en', 'hit me up on snap', "Don't share social media handles or invite people to other apps here."],
+    ['en', 'add me on discord', "Don't share social media handles or invite people to other apps here."],
+  ])('em %s: %s', (locale, text, notice) => {
+    const r = chat(text, locale);
+    expect(r.reasons).toContain('contact');
+    expect(screenNotice(r, locale)).toBe(notice);
+  });
+
+  it.each([
+    'Vamos Calleri, decide hoje!',
+    'que jogo do Neymar',
+    'o zagueiro segue firme na área',
+    'chama o técnico no vestiário',
+    'joguei no x da questão',
+    'manda bala time',
+    'quem viu o lance no replay?',
+    'placar 2@1 hoje',
+    'golaço!!! @ 45 do segundo tempo',
+  ])('não barra: %s', (text) => {
+    expect(chat(text).reasons).not.toContain('contact');
+  });
+
+  it('e-mail continua dado pessoal, não perfil', () => {
+    const r = chat('fulano@exemplo.com');
+    expect(r.reasons).toContain('personal_data');
+    expect(r.reasons).not.toContain('contact');
+  });
+
+  it('perfil oficial liberado pelo cliente passa', () => {
+    const tenant = compileLists(DEFAULT_MODERATION_LISTS, {
+      terms: {},
+      allowedHandles: ['@SaoPauloFC', 'galaxiesports'],
+    });
+    expect(
+      screen('segue o @saopaulofc', { kind: 'chat_message', locale: 'pt-BR' }, tenant).reasons,
+    ).not.toContain('contact');
+    expect(
+      screen('olha o @galaxiesports.', { kind: 'chat_message', locale: 'pt-BR' }, tenant).reasons,
+    ).not.toContain('contact');
+    // liberar um perfil não libera o convite para sair da sala
+    expect(screen('me chama no zap', { kind: 'chat_message', locale: 'pt-BR' }, tenant).reasons).toContain(
+      'contact',
+    );
+    expect(screen('segue o @outro', { kind: 'chat_message', locale: 'pt-BR' }, tenant).reasons).toContain(
+      'contact',
+    );
+  });
+});
