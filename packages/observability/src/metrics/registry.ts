@@ -50,7 +50,7 @@ export interface MetricsOptions {
   freshnessWindowHours?: number | undefined;
   /**
    * Piso (ms) do cache das consultas ao banco entre coletas: cada coletor tem o próprio intervalo (`DB_COLLECTOR_TTL_MS`,
-   * de 30 s a 10 min), e este valor só o aumenta. Sem valor, vale o intervalo de cada coletor.
+   * de 25 s a 10 min), e este valor só o aumenta. Sem valor, vale o intervalo de cada coletor.
    */
   cacheMs?: number | undefined;
   /** Métricas padrão do Node (CPU, memória, event loop). Padrão: true. */
@@ -84,9 +84,9 @@ export interface GalaxieMetrics {
  * Intervalo mínimo (ms) entre duas leituras do banco por coletor, por mais scrapers que haja. Só a API registra estes
  * coletores (que varrem o banco inteiro): os schedulers (ingestor, live, agents) e o worker expõem no /metrics só as
  * métricas do próprio processo (ritmo do ao vivo, fila em memória, build_info), então cada consulta roda num processo
- * só, no ritmo do scrape da API (30 s, infra/observability/prometheus/prometheus.yml). Critério: nenhum abaixo de 30 s;
- * os alertas que usam cada métrica toleram o atraso (o mais curto, LiveEventStale, compara a idade do jogo com dois
- * intervalos do poller e espera 1 min).
+ * só, no ritmo do scrape da API (30 s, infra/observability/prometheus/prometheus.yml). Critério: nenhum abaixo de 25 s
+ * (no máximo uma leitura por scrape); os alertas que usam cada métrica toleram o atraso (o mais curto, LiveEventStale,
+ * compara a idade do jogo com dois intervalos do poller e espera 1 min).
  */
 export const DB_COLLECTOR_TTL_MS = {
   /** Cota do dia: painel e alertas de 5 min ou mais. */
@@ -97,8 +97,12 @@ export const DB_COLLECTOR_TTL_MS = {
   freshness: 60_000,
   /** Frescor por endpoint: os alertas são de dias. */
   endpoint_freshness: 300_000,
-  /** Jogos em andamento: o SLO e o LiveEventStale olham a idade do jogo em segundos; fica no ritmo do scrape. */
-  live: 30_000,
+  /**
+   * Jogos em andamento: o SLO e o LiveEventStale olham a idade do jogo em segundos; fica no ritmo do scrape. Um pouco
+   * abaixo dos 30 s do scrape: o prazo conta do início da leitura anterior, e com 30 s exatos um scrape que chegasse
+   * alguns ms antes reaproveitaria a leitura velha (idade do jogo atrasada até 60 s).
+   */
+  live: 25_000,
   /** Tamanho do banco e das tabelas: muda devagar (alertas de 24 h e de tendência de 12 h). */
   db_size: 600_000,
   /** Atraso dos consumidores do change feed: alerta acima de 10 min. */

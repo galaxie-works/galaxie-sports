@@ -34,8 +34,10 @@ describe('createMetrics sem banco', () => {
 });
 
 describe('intervalo dos coletores de banco', () => {
-  it('nenhum lê o banco mais de uma vez a cada 30 s; jobs a cada minuto e tamanho a cada 10 min', () => {
-    for (const ms of Object.values(DB_COLLECTOR_TTL_MS)) expect(ms).toBeGreaterThanOrEqual(30_000);
+  it('nenhum lê o banco mais de uma vez por scrape (30 s); jobs a cada minuto e tamanho a cada 10 min', () => {
+    for (const ms of Object.values(DB_COLLECTOR_TTL_MS)) expect(ms).toBeGreaterThanOrEqual(25_000);
+    // o ao vivo renova a cada scrape: com o prazo igual ao intervalo, parte das coletas reaproveitaria a anterior
+    expect(DB_COLLECTOR_TTL_MS.live).toBeLessThan(30_000);
     expect(DB_COLLECTOR_TTL_MS.jobs).toBeGreaterThanOrEqual(60_000);
     expect(DB_COLLECTOR_TTL_MS.db_size).toBeGreaterThanOrEqual(600_000);
   });
