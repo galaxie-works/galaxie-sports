@@ -28,10 +28,17 @@ interface Row {
 }
 
 function toSet(rows: Row[]): ModerationListSet {
-  const set: ModerationListSet = { terms: {}, allowedDomains: [], betDomains: [], exceptions: [] };
+  const set: ModerationListSet = {
+    terms: {},
+    allowedDomains: [],
+    betDomains: [],
+    exceptions: [],
+    allowedHandles: [],
+  };
   for (const r of rows) {
     const list = r.list as ModerationListName;
     if (list === 'allowed_domains') set.allowedDomains!.push(...r.terms);
+    else if (list === 'allowed_handles') set.allowedHandles!.push(...r.terms);
     else if (list === 'bet_domains') set.betDomains!.push(...r.terms);
     else if (list === 'exceptions') set.exceptions!.push(...r.terms);
     else {

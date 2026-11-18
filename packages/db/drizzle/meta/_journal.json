@@ -946,6 +946,13 @@
       "when": 1794957887666,
       "tag": "0192_busca_trigram_pessoa",
       "breakpoints": true
+    },
+    {
+      "idx": 135,
+      "version": "7",
+      "when": 1795021466527,
+      "tag": "0195_moderacao_perfis_liberados",
+      "breakpoints": true
     }
   ]
 }

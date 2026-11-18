@@ -57,6 +57,9 @@ export default defineMessages(
       slowMode: 'Modo lento (s)',
       floodMax: 'Anti-flood: mensagens por minuto (3 a 60)',
       floodBlock: 'Anti-flood: bloqueio (s, 30 a 1800)',
+      allowedHandles: 'Perfis oficiais liberados',
+      allowedHandlesHint:
+        'Um por linha (@seuclube, @suaemissora). O filtro barra @perfil e convite para outros apps; os daqui passam.',
       strictness: 'Rigor',
       strictnessDefault: 'Padrão',
       strict: 'Rigoroso (palavrão leve também volta)',
@@ -178,6 +181,9 @@ export default defineMessages(
         slowMode: 'Slow mode (s)',
         floodMax: 'Anti-flood: messages per minute (3 to 60)',
         floodBlock: 'Anti-flood: block (s, 30 to 1800)',
+        allowedHandles: 'Allowed official handles',
+        allowedHandlesHint:
+          'One per line (@yourclub, @yourbroadcaster). The filter blocks @handles and invitations to other apps; these go through.',
         strictness: 'Strictness',
         strictnessDefault: 'Default',
         strict: 'Strict (mild profanity is also sent back)',
@@ -298,6 +304,9 @@ export default defineMessages(
         slowMode: 'Modo lento (s)',
         floodMax: 'Anti-flood: mensajes por minuto (3 a 60)',
         floodBlock: 'Anti-flood: bloqueo (s, 30 a 1800)',
+        allowedHandles: 'Perfiles oficiales permitidos',
+        allowedHandlesHint:
+          'Uno por línea (@tuclub, @tuemisora). El filtro bloquea @perfiles e invitaciones a otras apps; estos pasan.',
         strictness: 'Rigor',
         strictnessDefault: 'Predeterminado',
         strict: 'Riguroso (la grosería leve también vuelve)',

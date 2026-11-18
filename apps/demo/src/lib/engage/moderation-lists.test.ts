@@ -18,13 +18,28 @@ describe('listas da moderação (#969)', () => {
     ).toEqual(['clube.com.br']);
   });
 
+  it('perfil oficial: sem @, em minúsculas, e descarta o que não é perfil (#1373)', () => {
+    expect(
+      canonicalTerms('allowed_handles', [
+        '@SaoPauloFC',
+        ' saopaulofc ',
+        '@galaxie.sports',
+        '@',
+        'não é perfil',
+        'a',
+      ]),
+    ).toEqual(['galaxie.sports', 'saopaulofc']);
+  });
+
   it('monta o conjunto de listas a partir das linhas', () => {
     const set = toListSet([
       { list: 'hate', locale: 'pt', terms: ['a'] },
       { list: 'hate', locale: 'all', terms: ['b'] },
       { list: 'bet_domains', locale: 'all', terms: ['x.bet'] },
       { list: 'exceptions', locale: 'all', terms: ['macae'] },
+      { list: 'allowed_handles', locale: 'all', terms: ['saopaulofc'] },
     ]);
+    expect(set.allowedHandles).toEqual(['saopaulofc']);
     expect(set.terms.hate).toEqual({ pt: ['a'], all: ['b'] });
     expect(set.betDomains).toEqual(['x.bet']);
     expect(set.exceptions).toEqual(['macae']);

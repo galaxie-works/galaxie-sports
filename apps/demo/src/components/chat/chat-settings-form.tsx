@@ -6,9 +6,10 @@ import { toast } from 'sonner';
 import { Frame, FrameDescription, FrameHeader, FramePanel, FrameTitle } from '@/components/reui/frame';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
+import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 import { saveChatSettingsAction } from '@/lib/chat/panel-actions';
 import type { ChatTenantSettings } from '@/lib/chat/panel-data';
 import { sortByLabel } from '@/lib/alphabetical';
@@ -28,6 +29,7 @@ export function ChatSettingsForm({ initial }: { initial: ChatTenantSettings }) {
   const [kinds, setKinds] = useState<string[]>(initial.eventKinds ?? [...KINDS]);
   const [floodMax, setFloodMax] = useState(initial.floodMaxPerMinute?.toString() ?? '');
   const [floodBlock, setFloodBlock] = useState(initial.floodBlockSeconds?.toString() ?? '');
+  const [handles, setHandles] = useState(initial.allowedHandles.map((h) => `@${h}`).join('\n'));
   const [pending, start] = useTransition();
 
   const save = () =>
@@ -41,6 +43,7 @@ export function ChatSettingsForm({ initial }: { initial: ChatTenantSettings }) {
         eventKinds: kinds.length === KINDS.length ? null : kinds,
         floodMaxPerMinute: num(floodMax),
         floodBlockSeconds: num(floodBlock),
+        allowedHandles: handles.split('\n'),
       });
       if (!r.ok) return void toast.error(r.error ?? t.chatPanel.errors.generic);
       toast.success(T.saved);
@@ -133,6 +136,17 @@ export function ChatSettingsForm({ initial }: { initial: ChatTenantSettings }) {
             ))}
           </div>
         </fieldset>
+        <Field className="mt-4">
+          <FieldLabel htmlFor="chat-handles">{T.allowedHandles}</FieldLabel>
+          <Textarea
+            id="chat-handles"
+            rows={3}
+            value={handles}
+            placeholder="@seuclube"
+            onChange={(e) => setHandles(e.target.value)}
+          />
+          <FieldDescription>{T.allowedHandlesHint}</FieldDescription>
+        </Field>
         <div className="mt-4 flex justify-end">
           <Button onClick={save} disabled={pending}>
             {T.save}

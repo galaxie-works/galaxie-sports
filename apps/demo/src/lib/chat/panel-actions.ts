@@ -18,6 +18,7 @@ import { getDictionary } from '@/lib/i18n/dictionary';
 import { getRequestLocale } from '@/lib/i18n/server';
 import { clocksFor, NoPolicyError, policyFor } from '@/lib/moderation/clocks';
 
+import { canonicalTerms } from '@/lib/engage/moderation-lists';
 import { loadChatSettings, loadRoomMessages, profileInRoom, type PanelMessage } from './panel-data';
 import {
   AUTHOR_ACTION_RULE,
@@ -366,6 +367,47 @@ export async function authorAction(input: {
   }
 }
 
+/** Perfis oficiais por cliente: bem menos que o teto das listas (cada um é um `@` liberado à mão). */
+const MAX_HANDLES = 200;
+
+/** Lista `allowed_handles` do cliente: cria ou troca, com a versão e o histórico na mesma transação. */
+async function saveTenantHandles(tenantId: string, handles: string[], by: string): Promise<void> {
+  const client = await pool.connect();
+  try {
+    await client.query('begin');
+    const { rows } = await client.query<{ id: string; version: number; terms: string[] }>(
+      `select id, version, terms from engage.moderation_list
+        where tenant_id = $1 and list = 'allowed_handles' and locale = 'all' for update`,
+      [tenantId],
+    );
+    const prev = rows[0] ?? null;
+    if (prev && prev.terms.join('\n') === handles.join('\n')) {
+      await client.query('rollback');
+      return;
+    }
+    const version = (prev?.version ?? 0) + 1;
+    const { rows: saved } = await client.query<{ id: string }>(
+      prev
+        ? `update engage.moderation_list set terms = $2::text[], version = $3, updated_by = $4, updated_at = now()
+            where id = $1 returning id`
+        : `insert into engage.moderation_list (tenant_id, list, locale, terms, version, updated_by)
+            values ($1, 'allowed_handles', 'all', $2::text[], $3, $4) returning id`,
+      prev ? [prev.id, handles, version, by] : [tenantId, handles, version, by],
+    );
+    await client.query(
+      `insert into engage.moderation_list_log (list_id, tenant_id, list, locale, version, terms, changed_by, reason)
+       values ($1, $2, 'allowed_handles', 'all', $3, $4::text[], $5, 'chat.settings')`,
+      [saved[0]!.id, tenantId, version, handles, by],
+    );
+    await client.query('commit');
+  } catch (err) {
+    await client.query('rollback').catch(() => {});
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
 /** Padrão do cliente para as salas (janela, modo lento, rigor, tipos de lance do jogo). `null` volta ao padrão. */
 export async function saveChatSettingsAction(input: {
   openBeforeMinutes: number | null;
@@ -375,6 +417,8 @@ export async function saveChatSettingsAction(input: {
   eventKinds: string[] | null;
   floodMaxPerMinute: number | null;
   floodBlockSeconds: number | null;
+  /** Perfis oficiais liberados (`@clube`); ausente não muda a lista. */
+  allowedHandles?: string[];
 }): Promise<ChatActionResult> {
   const s = await session();
   if ('error' in s) return { ok: false, error: s.error };
@@ -400,8 +444,17 @@ export async function saveChatSettingsAction(input: {
     !within(input.floodBlockSeconds, 30, 1800)
   )
     return { ok: false, error: T.invalid };
+  if (
+    input.allowedHandles !== undefined &&
+    (!Array.isArray(input.allowedHandles) || input.allowedHandles.length > MAX_HANDLES * 2)
+  )
+    return { ok: false, error: T.invalid };
+  const handles =
+    input.allowedHandles === undefined ? undefined : canonicalTerms('allowed_handles', input.allowedHandles);
+  if (handles && handles.length > MAX_HANDLES) return { ok: false, error: T.invalid };
   const before = await loadChatSettings(ctx.tenant.id);
   const by = actor.kind === 'galaxie' ? actor.id : `tenant:${actor.id}`;
+  if (handles) await saveTenantHandles(ctx.tenant.id, handles, by);
   await pool.query(
     `insert into chat.tenant_config
        (tenant_id, open_before_minutes, close_after_minutes, slow_mode_seconds, strictness, event_kinds,
@@ -431,7 +484,7 @@ export async function saveChatSettingsAction(input: {
       action: 'chat.settings',
       clocks: await clocksFor(ctx.tenant.id, null),
       reason: 'chat.settings',
-      rules: { before, after: input },
+      rules: { before, after: { ...input, ...(handles ? { allowedHandles: handles } : {}) } },
     });
   } catch (err) {
     // sem ficha do país do cliente: o padrão vale (não é decisão sobre torcedor), e fica o registro no log
