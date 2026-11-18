@@ -8,7 +8,7 @@
  * uma vez só, a participação que entra uma vez por partida). Reprocessar o mesmo fato não chega aqui de novo, e o
  * Degrau e a Carta têm chave única de qualquer forma.
  */
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, isNull, or, sql } from 'drizzle-orm';
 import type { Database } from './client.js';
 import { creditPoints } from './fan-wallet.js';
 import { appendGameAudit, type GameProgramKey } from './game.js';
@@ -543,4 +543,83 @@ export async function readAchievementEarners(
       step: r.step,
     })),
   };
+}
+
+export interface GameCatalogEntry {
+  id: string;
+  sport: string | null;
+  category: string;
+  family: string;
+  stepped: boolean;
+  seasonal: boolean;
+  name: Partial<Record<'pt' | 'es' | 'en', string>>;
+  description: Partial<Record<'pt' | 'es' | 'en', string>>;
+  /** Degraus em ordem, com o limite do programa (o do cliente quando ele ajustou) e a Carta de cada um. */
+  steps: { step: number; threshold: number; cardKey: string | null }[];
+}
+
+/**
+ * Catálogo ativo do programa (#919, a estante mostra também as bloqueadas): as Conquistas ativas que o cliente não
+ * desligou, com nome, descrição e os Degraus. `sport` filtra as do esporte e as comuns a todos (sport nulo).
+ */
+export async function readProgramCatalog(
+  db: Pick<Database, 'select'>,
+  key: GameProgramKey & { sport?: string | undefined },
+): Promise<GameCatalogEntry[]> {
+  const rows = await db
+    .select({
+      id: gameCatalogAchievement.id,
+      sport: gameCatalogAchievement.sport,
+      category: gameCatalogAchievement.category,
+      family: gameCatalogAchievement.family,
+      stepped: gameCatalogAchievement.stepped,
+      seasonal: gameCatalogAchievement.seasonal,
+      name: gameCatalogAchievement.name,
+      description: gameCatalogAchievement.description,
+      enabled: gameProgramAchievement.enabled,
+      thresholds: gameProgramAchievement.thresholds,
+      step: gameCatalogStep.step,
+      threshold: gameCatalogStep.threshold,
+      card: gameCatalogStep.cardKey,
+    })
+    .from(gameCatalogAchievement)
+    .innerJoin(gameCatalogStep, eq(gameCatalogStep.achievementId, gameCatalogAchievement.id))
+    .leftJoin(
+      gameProgramAchievement,
+      and(
+        eq(gameProgramAchievement.tenantId, key.tenantId),
+        eq(gameProgramAchievement.programCountry, key.programCountry),
+        eq(gameProgramAchievement.achievementId, gameCatalogAchievement.id),
+      ),
+    )
+    .where(
+      and(
+        eq(gameCatalogAchievement.active, true),
+        key.sport
+          ? or(isNull(gameCatalogAchievement.sport), eq(gameCatalogAchievement.sport, key.sport))
+          : undefined,
+      ),
+    )
+    .orderBy(gameCatalogAchievement.family, gameCatalogAchievement.id, gameCatalogStep.step);
+  const out = new Map<string, GameCatalogEntry>();
+  for (const r of rows) {
+    if (r.enabled === false) continue;
+    let a = out.get(r.id);
+    if (!a) {
+      a = {
+        id: r.id,
+        sport: r.sport,
+        category: r.category,
+        family: r.family,
+        stepped: r.stepped,
+        seasonal: r.seasonal,
+        name: r.name,
+        description: r.description,
+        steps: [],
+      };
+      out.set(r.id, a);
+    }
+    a.steps.push({ step: r.step, threshold: r.thresholds?.[r.step - 1] ?? r.threshold, cardKey: r.card });
+  }
+  return [...out.values()];
 }

@@ -2,6 +2,7 @@
 // da API (@galaxie/contracts): se um contrato mudar, o typecheck daqui acusa.
 import { channelGuidePreviewBody } from './fixtures-channel-guide.js';
 import { shopPreviewBody } from './fixtures-shop.js';
+import { gamePreviewBody } from './fixtures-game.js';
 import { localizeSample } from './fixtures-locale.js';
 import type {
   Event,
@@ -841,6 +842,9 @@ function samplePreviewFetch(options: { now?: Date; sport?: string }): typeof fet
     if (shop) return json(shop);
     const chat = chatPreviewBody(path, now);
     if (chat) return json(chat);
+    // estante de Conquistas e Ranking (#919): só com o token de exemplo (PREVIEW_FAN_TOKEN)
+    const game = gamePreviewBody(url);
+    if (game) return json(game);
     const racing = createRacingFixtures(now);
     const fights = createFightFixtures(now);
     const id = (re: RegExp) => {

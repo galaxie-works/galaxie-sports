@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  AchievementShelf,
   AiContext,
   ChannelGuide,
   GalaxieWidgetProvider,
@@ -42,6 +43,8 @@ import {
   UpcomingDerbies,
   ShopTheGame,
   LiveChat,
+  PREVIEW_FAN_TOKEN,
+  useGalaxieWidget,
   PREVIEW_IDS,
   RaceResult,
   RaceWeekend,
@@ -327,6 +330,8 @@ function PreviewWidget({
         return <ShopPreview o={o} />;
       case 'live_chat':
         return <LiveChat {...o} {...WIDGET_CATALOG.live_chat.exampleProps} />;
+      case 'fan_achievements':
+        return <FanShelfPreview o={o} sport={sport} />;
     }
   }
   switch (kind) {
@@ -421,7 +426,33 @@ function PreviewWidget({
       return <ShopPreview o={o} />;
     case 'live_chat':
       return <LiveChat {...o} eventId={entity.id} />;
+    case 'fan_achievements':
+      return <FanShelfPreview o={o} sport={sport} />;
   }
+}
+
+/** Exemplo da estante, também na prévia com dados reais: a demo não tem torcedor logado (o Builder é do cliente). */
+const fanPreviewFetch = createPreviewFetch();
+
+/**
+ * Prévia da estante de Conquistas e do Ranking (#919): sempre um torcedor de exemplo (token só da prévia), com o
+ * tema, o idioma e o mercado do editor.
+ */
+function FanShelfPreview({ o, sport }: { o: Record<string, unknown>; sport: string | null }) {
+  const ctx = useGalaxieWidget();
+  return (
+    <GalaxieWidgetProvider
+      baseUrl={ctx.baseUrl}
+      publishableKey=""
+      fetch={fanPreviewFetch}
+      theme={ctx.theme}
+      locale={ctx.locale}
+      market={ctx.market}
+      fanToken={PREVIEW_FAN_TOKEN}
+    >
+      <AchievementShelf {...o} sport={sport ?? undefined} />
+    </GalaxieWidgetProvider>
+  );
 }
 
 /**

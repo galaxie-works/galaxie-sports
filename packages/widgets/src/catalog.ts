@@ -31,6 +31,7 @@ import type { SidelinedProps } from './widgets/sidelined.js';
 import type { ChampionsGalleryProps } from './widgets/champions-gallery.js';
 import type { CountdownProps } from './widgets/countdown.js';
 import type { LiveChatProps } from './widgets/live-chat.js';
+import type { AchievementShelfProps } from './widgets/achievement-shelf.js';
 import type { TeamSquadProps } from './widgets/team-squad.js';
 import type { PlayerProfileProps } from './widgets/player-profile.js';
 import type { LineupsProps } from './widgets/lineups.js';
@@ -91,6 +92,7 @@ export interface WidgetPropsByKind {
   upcoming_derbies: UpcomingDerbiesProps;
   shop_the_game: ShopTheGameProps;
   live_chat: LiveChatProps;
+  fan_achievements: AchievementShelfProps;
 }
 
 export interface WidgetCatalogEntry<K extends WidgetKind = WidgetKind> {
@@ -140,7 +142,8 @@ export interface WidgetCatalogEntry<K extends WidgetKind = WidgetKind> {
     | 'ChannelGuide'
     | 'UpcomingDerbies'
     | 'ShopTheGame'
-    | 'LiveChat';
+    | 'LiveChat'
+    | 'AchievementShelf';
   /** Componente que o arquivo instalado pelo registry exporta (com provider e tema embutidos). */
   registryComponent: string;
   name: Record<WidgetLocale, string>;
@@ -1057,6 +1060,24 @@ export const WIDGET_CATALOG: { [K in WidgetKind]: WidgetCatalogEntry<K> } = {
     optionalProps: ['height', 'showGame', 'showReactions', 'inputPosition', 'readOnly'],
     exampleProps: { eventId: PREVIEW_IDS.liveEvent },
     // o stream da sala substitui a releitura
+    polling: false,
+    sports: [],
+  },
+  fan_achievements: {
+    kind: 'fan_achievements',
+    component: 'AchievementShelf',
+    registryComponent: 'GalaxieAchievementShelf',
+    name: { 'pt-BR': 'Conquistas e Ranking', es: 'Logros y ranking', en: 'Achievements and leaderboard' },
+    description: {
+      'pt-BR':
+        'A estante do torcedor: Conquistas ganhas e bloqueadas, o Degrau de cada uma (Bronze a Lendário), quanto falta para o próximo, a raridade e o Ranking do programa. Precisa do login do torcedor.',
+      es: 'La vitrina del hincha: logros ganados y bloqueados, el escalón de cada uno (Bronce a Legendario), cuánto falta para el siguiente, la rareza y el ranking del programa. Requiere la sesión del hincha.',
+      en: "The fan's shelf: earned and locked achievements, each one's tier (Bronze to Legendary), progress to the next, rarity and the program leaderboard. Needs the fan's sign-in.",
+    },
+    requiredProps: [],
+    optionalProps: ['view', 'sport', 'showLocked', 'rankingPeriod', 'rankingSize'],
+    exampleProps: {},
+    // relê a estante sozinha a cada minuto (aviso de Degrau novo)
     polling: false,
     sports: [],
   },

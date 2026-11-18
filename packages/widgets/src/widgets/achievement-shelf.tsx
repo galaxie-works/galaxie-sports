@@ -1,0 +1,491 @@
+'use client';
+
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  GS_STEP_COLORS,
+  achievementShareSvg,
+  buildShelf,
+  fillText,
+  gameText,
+  newlyReached,
+  rankingPeriodKey,
+  rarityPercent,
+  shelfEarned,
+  shelfProgress,
+  shelfSeasons,
+  stepName,
+  type GsAchievementCatalogEntry,
+  type GsAchievementEarners,
+  type GsFanAchievement,
+  type GsMyRanking,
+  type GsRanking,
+  type GsShelfItem,
+} from '../core/model.js';
+import {
+  ErrorState,
+  FanGate,
+  LoadingState,
+  WidgetFrame,
+  useFanSession,
+  useFormatters,
+  useGalaxieWidget,
+} from '../core/react.js';
+
+export interface AchievementShelfProps {
+  /** O que mostrar: a estante, o Ranking ou os dois em abas (padrão). */
+  view?: 'both' | 'shelf' | 'ranking' | undefined;
+  /** Só as Conquistas deste esporte e as comuns a todos (padrão: o Catálogo inteiro do programa). */
+  sport?: string | undefined;
+  /** Mostra também as que o torcedor ainda não ganhou (padrão: sim). */
+  showLocked?: boolean | undefined;
+  /** Período do Ranking: o mês ou o ano corrente (padrão: o mês). */
+  rankingPeriod?: 'month' | 'year' | undefined;
+  /** Quantos aparecem no Ranking (padrão 10). */
+  rankingSize?: number | undefined;
+}
+
+const enc = encodeURIComponent;
+/** Releitura da estante, para o aviso de Degrau novo durante o jogo: a cada minuto, com a aba visível. */
+const SHELF_REFRESH_MS = 60_000;
+/** Quanto o aviso de Degrau novo fica na tela. */
+const TOAST_MS = 6_000;
+
+interface FanJson<T> {
+  data: T | null;
+  error: boolean;
+  loading: boolean;
+  reload: () => void;
+}
+
+/** Leitura de uma rota do torcedor com o token (`fan.fetch`), relida a cada `refreshMs` com a aba visível. */
+function useFanJson<T>(path: string | null, refreshMs?: number): FanJson<T> {
+  const fan = useFanSession();
+  const fetchRef = useRef(fan.fetch);
+  fetchRef.current = fan.fetch;
+  const [state, setState] = useState<{ data: T | null; error: boolean; loading: boolean }>({
+    data: null,
+    error: false,
+    loading: Boolean(path),
+  });
+  const [tick, setTick] = useState(0);
+  const reload = useCallback(() => setTick((t) => t + 1), []);
+
+  useEffect(() => {
+    if (!path) return;
+    let cancelled = false;
+    setState((s) => ({ ...s, loading: s.data === null }));
+    fetchRef
+      .current(path)
+      .then(async (res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const body = (await res.json()) as { data?: T };
+        if (!cancelled) setState({ data: body.data ?? null, error: false, loading: false });
+      })
+      .catch(() => {
+        // a releitura que falha mantém o que já estava na tela
+        if (!cancelled) setState((s) => ({ data: s.data, error: s.data === null, loading: false }));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [path, tick]);
+
+  useEffect(() => {
+    if (!path || !refreshMs) return;
+    const timer = setInterval(() => {
+      if (typeof document === 'undefined' || document.visibilityState !== 'hidden') reload();
+    }, refreshMs);
+    return () => clearInterval(timer);
+  }, [path, refreshMs, reload]);
+
+  return { ...state, reload };
+}
+
+/**
+ * Estante de Conquistas e Ranking do torcedor (#919): as Conquistas ganhas e bloqueadas por família, o Degrau em
+ * metal (Bronze a Lendário), a barra até o próximo, a raridade e "quem já ganhou"; o Ranking do programa com o
+ * torcedor destacado. Precisa do token do torcedor; a faixa etária segue a da API (13 anos ou mais lê).
+ */
+export function AchievementShelf(props: AchievementShelfProps) {
+  const { texts } = useGalaxieWidget();
+  const T = texts.achievements;
+  return (
+    <WidgetFrame kind="fan_achievements">
+      <div className="gs-header">
+        <h3 className="gs-title gs-grow">{T.title}</h3>
+      </div>
+      <FanGate need="read">
+        <ShelfBody {...props} />
+      </FanGate>
+    </WidgetFrame>
+  );
+}
+
+function ShelfBody({
+  view = 'both',
+  sport,
+  showLocked = true,
+  rankingPeriod = 'month',
+  rankingSize = 10,
+}: AchievementShelfProps) {
+  const { texts } = useGalaxieWidget();
+  const T = texts.achievements;
+  const [tab, setTab] = useState<'shelf' | 'ranking'>(view === 'ranking' ? 'ranking' : 'shelf');
+  useEffect(() => {
+    if (view !== 'both') setTab(view);
+  }, [view]);
+  const show = view === 'both' ? tab : view;
+
+  return (
+    <div className="gs-group">
+      {view === 'both' ? (
+        <span className="gs-seg" role="group" aria-label={T.title}>
+          {(['shelf', 'ranking'] as const).map((k) => (
+            <button key={k} type="button" aria-pressed={tab === k} onClick={() => setTab(k)}>
+              {k === 'shelf' ? T.tabShelf : T.tabRanking}
+            </button>
+          ))}
+        </span>
+      ) : null}
+      {/* a estante fica montada na aba do Ranking, para o aviso de Degrau novo continuar valendo */}
+      <div hidden={show !== 'shelf'}>
+        <Shelf sport={sport} showLocked={showLocked} />
+      </div>
+      {show === 'ranking' ? <Ranking period={rankingPeriod} size={rankingSize} /> : null}
+    </div>
+  );
+}
+
+function Shelf({ sport, showLocked }: { sport: string | undefined; showLocked: boolean }) {
+  const { texts, locale } = useGalaxieWidget();
+  const T = texts.achievements;
+  const fmt = useFormatters();
+  const catalog = useFanJson<{ achievements: GsAchievementCatalogEntry[] }>(
+    `/v1/achievements${sport ? `?sport=${enc(sport)}` : ''}`,
+  );
+  const mine = useFanJson<{ achievements: GsFanAchievement[] }>('/v1/fans/me/achievements', SHELF_REFRESH_MS);
+  const [season, setSeason] = useState('all');
+  const [open, setOpen] = useState<string | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+
+  const rows = mine.data?.achievements;
+  const entries = catalog.data?.achievements;
+  const byId = useMemo(() => new Map((entries ?? []).map((a) => [a.id, a])), [entries]);
+
+  // Degrau novo entre duas leituras: aviso na tela (e para o leitor de tela), uma Conquista por vez
+  const previous = useRef<GsFanAchievement[] | null>(null);
+  useEffect(() => {
+    if (!rows) return;
+    const before = previous.current;
+    previous.current = rows;
+    if (!before) return;
+    const reached = newlyReached(before, rows).find((r) => byId.has(r.achievementId));
+    if (!reached) return;
+    const name = gameText(byId.get(reached.achievementId)?.name, locale);
+    const step = stepName(reached.step);
+    setToast(fillText(T.reached, { step: step ? T.steps[step] : String(reached.step), name }));
+  }, [rows, byId, locale, T]);
+  useEffect(() => {
+    if (!toast) return;
+    const timer = setTimeout(() => setToast(null), TOAST_MS);
+    return () => clearTimeout(timer);
+  }, [toast]);
+
+  if (catalog.loading || mine.loading) return <LoadingState lines={4} />;
+  if (catalog.error || mine.error || !entries || !rows)
+    return (
+      <ErrorState
+        error={null}
+        onRetry={() => {
+          catalog.reload();
+          mine.reload();
+        }}
+      />
+    );
+
+  const seasons = shelfSeasons(rows);
+  const groups = buildShelf(entries, rows, season, { showLocked, locale });
+  const total = groups.reduce((n, g) => n + g.items.length, 0);
+  const earned = shelfEarned(groups);
+  const selected = open ? groups.flatMap((g) => g.items).find((i) => i.achievement.id === open) : undefined;
+
+  return (
+    <div className="gs-group">
+      <div aria-live="polite" role="status">
+        {toast ? <div className="gs-ach-toast">{toast}</div> : null}
+      </div>
+      <div className="gs-ach-top">
+        <span className="gs-small gs-muted">
+          {fillText(T.earned, { n: fmt.integer(earned), total: fmt.integer(total) })}
+        </span>
+        {seasons.length > 1 ? (
+          <label className="gs-small gs-muted">
+            {T.seasonLabel}{' '}
+            <select value={season} onChange={(e) => setSeason(e.target.value)}>
+              {seasons.map((s) => (
+                <option key={s} value={s}>
+                  {s === 'all' ? T.lifetime : fillText(T.season, { season: s })}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
+      </div>
+      {earned === 0 ? <p className="gs-chat-note">{T.empty}</p> : null}
+      {selected ? (
+        <Detail item={selected} season={season} onClose={() => setOpen(null)} />
+      ) : (
+        groups.map((g) => (
+          <section key={g.family} aria-label={familyLabel(g.family, T)}>
+            <h4 className="gs-ach-family">{familyLabel(g.family, T)}</h4>
+            <ul className="gs-ach-grid">
+              {g.items.map((item) => (
+                <li key={item.achievement.id}>
+                  <ShelfTile item={item} onOpen={() => setOpen(item.achievement.id)} />
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))
+      )}
+    </div>
+  );
+}
+
+function familyLabel(family: string, T: { families: Record<string, string>; otherFamily: string }): string {
+  return T.families[family] ?? T.otherFamily;
+}
+
+function stepColor(steps: number): string | undefined {
+  const name = stepName(steps);
+  return name ? GS_STEP_COLORS[name] : undefined;
+}
+
+function ShelfTile({ item, onOpen }: { item: GsShelfItem; onOpen: () => void }) {
+  const { texts, locale } = useGalaxieWidget();
+  const T = texts.achievements;
+  const fmt = useFormatters();
+  const name = gameText(item.achievement.name, locale);
+  const metal = stepName(item.steps);
+  const status = metal ? T.steps[metal] : T.locked;
+  const pct = rarityPercent(item.rarity);
+  const color = stepColor(item.steps) ?? stepColor(1);
+  return (
+    <button
+      type="button"
+      className="gs-ach-item"
+      data-locked={item.steps === 0 || undefined}
+      style={{ ['--gs-ach-color' as string]: color }}
+      onClick={onOpen}
+      aria-label={`${name}, ${status}`}
+    >
+      <span className="gs-ach-medal" aria-hidden="true">
+        {item.steps > 0 ? item.steps : '?'}
+      </span>
+      <span className="gs-ach-name">{name}</span>
+      <span className="gs-small gs-muted">{status}</span>
+      {item.next !== null && item.achievement.stepped ? (
+        <>
+          <span
+            className="gs-ach-bar"
+            role="progressbar"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={Math.round(shelfProgress(item) * 100)}
+            aria-label={fillText(T.progress, {
+              count: fmt.integer(item.count),
+              next: fmt.integer(item.next),
+            })}
+          >
+            <span style={{ width: `${Math.round(shelfProgress(item) * 100)}%` }} />
+          </span>
+          <span className="gs-small gs-muted">
+            {fillText(T.progress, { count: fmt.integer(item.count), next: fmt.integer(item.next) })}
+          </span>
+        </>
+      ) : item.next === null ? (
+        <span className="gs-small">{T.complete}</span>
+      ) : null}
+      {pct && item.steps > 0 ? (
+        <span className="gs-small gs-muted">{fillText(T.rarity, { pct })}</span>
+      ) : null}
+    </button>
+  );
+}
+
+function Detail({ item, season, onClose }: { item: GsShelfItem; season: string; onClose: () => void }) {
+  const { texts, locale } = useGalaxieWidget();
+  const fan = useFanSession();
+  const T = texts.achievements;
+  const fmt = useFormatters();
+  const a = item.achievement;
+  const name = gameText(a.name, locale);
+  const description = gameText(a.description, locale);
+  const earners = useFanJson<GsAchievementEarners>(
+    `/v1/achievements/${enc(a.id)}/earners?season=${enc(season)}&limit=12`,
+  );
+  const closeRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => closeRef.current?.focus(), []);
+  const metal = stepName(item.steps);
+
+  const share = async () => {
+    const svg = achievementShareSvg({
+      name,
+      stepLabel: metal ? T.steps[metal] : T.locked,
+      step: item.steps,
+      nickname: fan.me?.nickname ?? null,
+      caption: T.shareCaption,
+    });
+    const blob = new Blob([svg], { type: 'image/svg+xml' });
+    const fileName = `${a.id.replace(/\./g, '-')}.svg`;
+    try {
+      const file = new File([blob], fileName, { type: blob.type });
+      if (navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ files: [file], title: name });
+        return;
+      }
+    } catch {
+      // compartilhar recusado ou indisponível: cai no download
+    }
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1_000);
+  };
+
+  return (
+    <div
+      className="gs-ach-detail"
+      role="region"
+      aria-label={name}
+      style={{ ['--gs-ach-color' as string]: stepColor(item.steps) ?? stepColor(1) }}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') onClose();
+      }}
+    >
+      <div className="gs-header">
+        <span className="gs-ach-medal" aria-hidden="true">
+          {item.steps > 0 ? item.steps : '?'}
+        </span>
+        <h4 className="gs-title gs-grow">{name}</h4>
+        <button ref={closeRef} type="button" className="gs-button" onClick={onClose}>
+          {T.close}
+        </button>
+      </div>
+      {description ? <p className="gs-small">{description}</p> : null}
+      {a.stepped ? (
+        <ol className="gs-ach-steps">
+          {a.steps.map((s) => {
+            const n = stepName(s.step);
+            return (
+              <li key={s.step} data-done={s.step <= item.steps || undefined}>
+                {fillText(T.stepLine, {
+                  step: n ? T.steps[n] : String(s.step),
+                  threshold: fmt.integer(s.threshold),
+                })}
+              </li>
+            );
+          })}
+        </ol>
+      ) : (
+        <p className="gs-small gs-muted">{T.unique}</p>
+      )}
+      <div className="gs-group">
+        <strong className="gs-small">{T.earners}</strong>
+        {earners.loading ? (
+          <LoadingState lines={1} />
+        ) : earners.data ? (
+          earners.data.total === 0 ? (
+            <p className="gs-small gs-muted">{T.earnersNone}</p>
+          ) : (
+            <>
+              <p className="gs-small gs-muted">
+                {fillText(T.earnersTotal, { n: fmt.integer(earners.data.total) })}
+              </p>
+              {earners.data.earners.length ? (
+                <ul className="gs-ach-earners">
+                  {earners.data.earners.map((e) => (
+                    <li key={e.profile_id} className="gs-chip">
+                      {e.nickname ?? T.anonymous}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </>
+          )
+        ) : null}
+      </div>
+      {item.steps > 0 ? (
+        <div>
+          <button type="button" className="gs-button" onClick={() => void share()}>
+            {T.share}
+          </button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function Ranking({ period, size }: { period: 'month' | 'year'; size: number }) {
+  const { texts, timeZone } = useGalaxieWidget();
+  const fan = useFanSession();
+  const T = texts.achievements;
+  const fmt = useFormatters();
+  const [kind, setKind] = useState(period);
+  useEffect(() => setKind(period), [period]);
+  const key = rankingPeriodKey(kind, new Date(), timeZone);
+  const limit = Math.min(Math.max(Math.round(size) || 10, 3), 100);
+  const list = useFanJson<GsRanking>(`/v1/rankings/${enc(key)}?limit=${limit}`, SHELF_REFRESH_MS);
+  const me = useFanJson<GsMyRanking>(`/v1/rankings/${enc(key)}/me`, SHELF_REFRESH_MS);
+  const myId = fan.me?.profile_id;
+
+  const segment = (
+    <span className="gs-seg" role="group" aria-label={T.tabRanking}>
+      {(['month', 'year'] as const).map((k) => (
+        <button key={k} type="button" aria-pressed={kind === k} onClick={() => setKind(k)}>
+          {k === 'month' ? T.rankingMonth : T.rankingYear}
+        </button>
+      ))}
+    </span>
+  );
+
+  if (list.loading) return <LoadingState lines={5} />;
+  if (list.error || !list.data) return <ErrorState error={null} onRetry={list.reload} />;
+  const entries = list.data.entries;
+  const inList = entries.some((e) => e.profile_id === myId);
+
+  return (
+    <div className="gs-group">
+      {segment}
+      {entries.length === 0 ? (
+        <p className="gs-chat-note">{T.rankingEmpty}</p>
+      ) : (
+        <ol className="gs-list" aria-label={T.tabRanking}>
+          {entries.map((e) => (
+            <li key={e.profile_id} className="gs-rank-row" data-me={e.profile_id === myId || undefined}>
+              <span className="gs-rank-pos">{e.position}</span>
+              <span>
+                {e.nickname ?? T.anonymous}
+                {e.profile_id === myId ? <span className="gs-small gs-muted"> ({T.you})</span> : null}
+              </span>
+              <span>{fillText(T.points, { n: fmt.integer(e.points) })}</span>
+            </li>
+          ))}
+        </ol>
+      )}
+      {!inList && me.data ? (
+        me.data.position === null ? (
+          <p className="gs-small gs-muted">{T.noPosition}</p>
+        ) : (
+          <div className="gs-rank-row" data-me>
+            <span className="gs-rank-pos">{me.data.position}</span>
+            <span>{fillText(T.yourPosition, { position: fmt.integer(me.data.position) })}</span>
+            <span>{fillText(T.points, { n: fmt.integer(me.data.points) })}</span>
+          </div>
+        )
+      ) : null}
+    </div>
+  );
+}

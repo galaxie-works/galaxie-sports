@@ -4,6 +4,7 @@
  * - `GET /v1/predictions/open?event_id=`: prazo, tipos, Piso e os Palpites do torcedor no jogo.
  * - `PUT /v1/predictions/{eventId}`: grava ou troca até o prazo (relógio do banco). Grátis, sem compra.
  * - `GET /v1/rankings/{period}` e `.../me`: Ranking único do cliente no país, pelos Pontos definitivos.
+ * - `GET /v1/achievements`: o Catálogo ativo do programa, para a estante mostrar também as bloqueadas (#919).
  *
  * Esportes do MVP: futebol, basquete (e NBA) e futebol americano. Menor de 13 fica fora (portão de idade da rota,
  * capacidade `predict`); 13 a 17 palpita e pontua.
@@ -15,8 +16,10 @@ import {
   PredictionsBody,
   RankingParams,
   RankingQuery,
+  AchievementCatalogQuery,
   AchievementEarnersParams,
   AchievementEarnersQuery,
+  type AchievementCatalog,
   type AchievementEarners,
   type FanAchievements,
   type FanCards,
@@ -35,6 +38,7 @@ import {
   readFanCards,
   readMyRanking,
   readPredictions,
+  readProgramCatalog,
   readRanking,
   savePredictions,
   type Database,
@@ -256,6 +260,31 @@ export async function gameRoutes(app: FastifyInstance, deps: GameRoutesDeps): Pr
           season: c.season,
           step: c.step,
           granted_at: c.grantedAt.toISOString(),
+        })),
+      },
+    };
+    return out;
+  });
+
+  app.get('/v1/achievements', { config: { fan: true, age: 'read' } }, async (request, reply) => {
+    const fan = request.fan!;
+    const { sport } = parseInput(AchievementCatalogQuery, request.query);
+    const program = await fanProgram(fan.tenantId, fan.profileId);
+    const rows = await readProgramCatalog(db(), { ...program, sport });
+    reply.header('cache-control', 'private, max-age=300');
+    const out: AchievementCatalog = {
+      data: {
+        program_country: program.programCountry,
+        achievements: rows.map((a) => ({
+          id: a.id,
+          sport: a.sport,
+          category: a.category as AchievementCatalog['data']['achievements'][number]['category'],
+          family: a.family,
+          stepped: a.stepped,
+          seasonal: a.seasonal,
+          name: a.name,
+          description: a.description,
+          steps: a.steps.map((s) => ({ step: s.step, threshold: s.threshold, card_key: s.cardKey })),
         })),
       },
     };
