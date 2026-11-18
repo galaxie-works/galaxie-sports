@@ -48,7 +48,10 @@ export interface MetricsOptions {
   livePollIntervalSeconds?: number | undefined;
   /** Janela (h) olhada para o frescor do raw. Padrão: 7 dias. */
   freshnessWindowHours?: number | undefined;
-  /** Cache das consultas ao banco entre coletas (ms) — protege o Postgres de vários scrapers. Padrão: 5 s. */
+  /**
+   * Piso (ms) do cache das consultas ao banco entre coletas: cada coletor tem o próprio intervalo (`DB_COLLECTOR_TTL_MS`,
+   * de 25 s a 10 min), e este valor só o aumenta. Sem valor, vale o intervalo de cada coletor.
+   */
   cacheMs?: number | undefined;
   /** Métricas padrão do Node (CPU, memória, event loop). Padrão: true. */
   defaultMetrics?: boolean | undefined;
@@ -76,6 +79,45 @@ export interface GalaxieMetrics {
   /** Latência das consultas aos conectores do Shopping por loja (só as que foram à loja). */
   shopConnectorDuration: Histogram<'store'>;
 }
+
+/**
+ * Intervalo mínimo (ms) entre duas leituras do banco por coletor, por mais scrapers que haja. Só a API registra estes
+ * coletores (que varrem o banco inteiro): os schedulers (ingestor, live, agents) e o worker expõem no /metrics só as
+ * métricas do próprio processo (ritmo do ao vivo, fila em memória, build_info), então cada consulta roda num processo
+ * só, no ritmo do scrape da API (30 s, infra/observability/prometheus/prometheus.yml). Critério: nenhum abaixo de 25 s
+ * (no máximo uma leitura por scrape); os alertas que usam cada métrica toleram o atraso (o mais curto, LiveEventStale,
+ * compara a idade do jogo com dois intervalos do poller e espera 1 min).
+ */
+export const DB_COLLECTOR_TTL_MS = {
+  /** Cota do dia: painel e alertas de 5 min ou mais. */
+  quota: 60_000,
+  /** ops.job_run: o dado é por minuto (agendas de 1 min ou mais) e os alertas são de 10 min ou mais. */
+  jobs: 60_000,
+  /** Frescor do raw por esporte: alerta de 26 h. */
+  freshness: 60_000,
+  /** Frescor por endpoint: os alertas são de dias. */
+  endpoint_freshness: 300_000,
+  /**
+   * Jogos em andamento: o SLO e o LiveEventStale olham a idade do jogo em segundos; fica no ritmo do scrape. Um pouco
+   * abaixo dos 30 s do scrape: o prazo conta do início da leitura anterior, e com 30 s exatos um scrape que chegasse
+   * alguns ms antes reaproveitaria a leitura velha (idade do jogo atrasada até 60 s).
+   */
+  live: 25_000,
+  /** Tamanho do banco e das tabelas: muda devagar (alertas de 24 h e de tendência de 12 h). */
+  db_size: 600_000,
+  /** Atraso dos consumidores do change feed: alerta acima de 10 min. */
+  change_feed: 60_000,
+  /** Configuração efetiva, sinais de vida (relato a cada 30 s, alerta com 10 min) e crédito da IA (checagem horária). */
+  ops: 60_000,
+  /** Webhooks: atraso acima de 5 min, falhas por 15 min. */
+  webhooks: 60_000,
+  /** Fila de tarefas: alerta com 1 h de espera. */
+  queue: 60_000,
+  /** Idade do resumo do Explorar: alerta com 30 min. */
+  explore: 60_000,
+  /** Lances de VAR sem veredito: muda devagar. */
+  var_details: 300_000,
+} as const;
 
 /** Buckets alinhados ao NFR de p95 ≤ 150 ms (docs/02 §7). */
 export const HTTP_BUCKETS = [0.005, 0.01, 0.025, 0.05, 0.1, 0.15, 0.25, 0.5, 1, 2.5, 5, 10];
@@ -242,7 +284,8 @@ export function createMetrics(options: MetricsOptions = {}): GalaxieMetrics {
   if (!policyFor) throw new Error('createMetrics: informe policyFor quando houver banco.');
   const apis = options.apis ?? API_SPORTS;
   const now = options.now ?? (() => new Date());
-  const ttl = Math.max(1_000, options.cacheMs ?? 5_000);
+  const ttl = (collector: keyof typeof DB_COLLECTOR_TTL_MS) =>
+    Math.max(DB_COLLECTOR_TTL_MS[collector], options.cacheMs ?? 0);
   const windowHours = options.freshnessWindowHours ?? 24 * 7;
   const onError = options.onCollectorError;
 
@@ -264,36 +307,34 @@ export function createMetrics(options: MetricsOptions = {}): GalaxieMetrics {
         states: computeQuotaStates(apis, dayUtc, policyFor, ledger, snapshots, budgets),
       };
     },
-    ttl,
+    ttl('quota'),
     onError,
   );
-  const jobs = new CollectorGroup<JobStatsRow[]>('jobs', () => jobStats(db), ttl, onError);
+  const jobs = new CollectorGroup<JobStatsRow[]>('jobs', () => jobStats(db), ttl('jobs'), onError);
   const freshness = new CollectorGroup<FreshnessRow[]>(
     'freshness',
     () => rawFreshness(db, apis, windowHours),
-    ttl,
+    ttl('freshness'),
     onError,
   );
-  // frescor por endpoint: os alertas são de dias, uma leitura a cada 5 min basta
   const endpointFreshness = new CollectorGroup<EndpointFreshnessRow[]>(
     'endpoint_freshness',
     () => rawEndpointFreshness(db, RAW_CADENCE),
-    Math.max(ttl, 300_000),
+    ttl('endpoint_freshness'),
     onError,
   );
   // eventos em andamento e estado do Live Scheduler na mesma coleta (em sequência: não aumenta a concorrência no banco)
   const live = new CollectorGroup<{ events: LiveRow[]; scheduler: LiveSchedulerRow[] }>(
     'live',
     async () => ({ events: await liveEvents(db), scheduler: await liveSchedulerStates(db) }),
-    ttl,
+    ttl('live'),
     onError,
   );
-  // tamanho muda devagar: no máximo uma leitura por minuto, por mais scrapers que haja
-  const sizes = new CollectorGroup<DbSizeData>('db_size', () => dbSizes(db), Math.max(ttl, 60_000), onError);
+  const sizes = new CollectorGroup<DbSizeData>('db_size', () => dbSizes(db), ttl('db_size'), onError);
   const changeFeed = new CollectorGroup<ChangeFeedConsumerRow[]>(
     'change_feed',
     () => changeFeedConsumers(db),
-    ttl,
+    ttl('change_feed'),
     onError,
   );
   // configuração efetiva (agendas, teto da IA), sinais de vida dos schedulers e crédito/gasto da IA
@@ -311,17 +352,27 @@ export function createMetrics(options: MetricsOptions = {}): GalaxieMetrics {
         ai: { ...budget, spentUsd: await aiSpendUsd(db, budget.budgetDay) },
       };
     },
-    ttl,
+    ttl('ops'),
     onError,
   );
-  const webhooks = new CollectorGroup<WebhookStats>('webhooks', () => webhookStats(db), ttl, onError);
-  const queue = new CollectorGroup<QueueStats>('queue', () => queueStats(db), ttl, onError);
-  const explore = new CollectorGroup<number | null>('explore', () => exploreSummaryAge(db), ttl, onError);
-  // vereditos de VAR que o contrato ainda não conhece: muda devagar, uma leitura a cada 5 min basta
+  const webhooks = new CollectorGroup<WebhookStats>(
+    'webhooks',
+    () => webhookStats(db),
+    ttl('webhooks'),
+    onError,
+  );
+  const queue = new CollectorGroup<QueueStats>('queue', () => queueStats(db), ttl('queue'), onError);
+  const explore = new CollectorGroup<number | null>(
+    'explore',
+    () => exploreSummaryAge(db),
+    ttl('explore'),
+    onError,
+  );
+  // vereditos de VAR que o contrato ainda não conhece
   const varDetails = new CollectorGroup<{ detail: string; n: number }[]>(
     'var_details',
     () => recentVarDetails(db),
-    Math.max(ttl, 300_000),
+    ttl('var_details'),
     onError,
   );
   const groups = [
