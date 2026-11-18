@@ -404,6 +404,13 @@ export async function importLot(
         const sizedList = await sizedLogos(sizeSource);
         // o PNG do SVG já é o quadrado de 512: entra como o 512, em PNG e WebP
         if (sizeSource !== pngBody) sizedList.push(...(await squareLogo512(sizeSource)));
+        // PNG do pacote já é o 512, mas o WebP não: o WebP de 512 sai do PNG, para o 512 ter os dois formatos
+        else if (
+          variants.png?.width === CREST_RASTER_PX &&
+          variants.png?.height === CREST_RASTER_PX &&
+          (variants.webp?.width !== CREST_RASTER_PX || variants.webp?.height !== CREST_RASTER_PX)
+        )
+          sizedList.push(...(await squareLogo512(sizeSource)).filter((l) => l.format === 'webp'));
         for (const sized of sizedList) {
           const sHash = sha256(sized.body);
           const sKey = acervoStorageKey(logo.kind, logo.target_id, sHash, sized.contentType)!;

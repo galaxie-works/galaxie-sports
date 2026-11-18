@@ -49,6 +49,16 @@ describe('logo_sizes', () => {
     ).toEqual({ png: `${BASE}/t/512.png`, webp: `${BASE}/t/512.webp` });
   });
 
+  it('512 por formato: PNG do escudo de 512 com o WebP de 512 gerado', () => {
+    expect(
+      logoSizes(BASE, {
+        png: sq('t/a.png', 512),
+        webp: sq('t/a.webp', 128),
+        sizes: { '512': { webp: v('t/512.webp') } },
+      })?.['512'],
+    ).toEqual({ png: `${BASE}/t/a.png`, webp: `${BASE}/t/512.webp` });
+  });
+
   it('null fora do acervo, sem storage publicado ou só com SVG', () => {
     expect(logoSizes(BASE, null)).toBeNull();
     expect(logoSizes(undefined, { png: v('t/a.png') })).toBeNull();

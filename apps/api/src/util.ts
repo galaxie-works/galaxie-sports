@@ -68,12 +68,19 @@ export function logoSizes(
     '64': pair(variants.sizes?.['64']),
     '128': pair(variants.sizes?.['128']),
     '256': pair(variants.sizes?.['256']),
-    '512':
-      pair(variants.sizes?.['512']) ??
-      pair({
-        ...(isSquare512(variants.png) ? { png: variants.png } : {}),
-        ...(isSquare512(variants.webp) ? { webp: variants.webp } : {}),
-      }),
+    // por formato: o gerado em `sizes` (ou só o WebP, quando o PNG do pacote já era o 512) e, na falta, o do escudo
+    '512': pair({
+      ...(variants.sizes?.['512']?.png
+        ? { png: variants.sizes['512'].png }
+        : isSquare512(variants.png)
+          ? { png: variants.png }
+          : {}),
+      ...(variants.sizes?.['512']?.webp
+        ? { webp: variants.sizes['512'].webp }
+        : isSquare512(variants.webp)
+          ? { webp: variants.webp }
+          : {}),
+    }),
   };
   return Object.values(out).some(Boolean) ? out : null;
 }
