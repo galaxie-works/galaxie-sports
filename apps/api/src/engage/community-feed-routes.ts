@@ -29,7 +29,6 @@ import {
 import {
   activeSanctions,
   communityOfPost,
-  hiddenProfilesFor,
   insertComment,
   insertPost,
   lastWriteAt,
@@ -251,8 +250,6 @@ export async function communityFeedRoutes(
         limit: q.limit,
         since: windowStart(c, at),
         now: at,
-        // bloqueio vale nos dois sentidos (#953): quem bloqueou não vê, e quem foi bloqueado também não
-        hiddenAuthors: await hiddenProfilesFor(db(), fan.tenantId, fan.profileId),
       });
       reply.header('x-robots-tag', 'noindex, nofollow');
       return {
@@ -297,7 +294,6 @@ export async function communityFeedRoutes(
       after: q.after ?? null,
       limit: q.limit,
       now: now(),
-      hiddenAuthors: await hiddenProfilesFor(db(), fan.tenantId, fan.profileId),
     });
     return { data: rows.map(commentView), next: rows.length === q.limit ? rows[rows.length - 1]!.id : null };
   });

@@ -7,6 +7,7 @@
  * gravação, sempre filtradas pelo tenant.
  */
 import { and, desc, eq, gt, gte, isNotNull, isNull, lt, notInArray, or, sql } from 'drizzle-orm';
+import type { SQLWrapper } from 'drizzle-orm';
 import type { Database } from './client.js';
 import { fanAvatarPublicUrl } from './fan-avatar-public.js';
 import {
@@ -79,6 +80,17 @@ const visibleTo = (
   viewer: string,
 ) => or(eq(col.visibility, 'public'), and(eq(col.visibility, 'shadow'), eq(col.profileId, viewer)));
 
+/**
+ * Bloqueio entre torcedores (#953), nos dois sentidos: o autor bloqueou quem vê, ou quem vê bloqueou o autor. Vai no
+ * SQL como `not exists` (sem lista de ids: um torcedor bloqueado por muitos não infla a consulta). Autor nulo (equipe,
+ * sistema) nunca é bloqueado.
+ */
+const notBlocked = (tenantCol: SQLWrapper, authorCol: SQLWrapper, viewer: string) =>
+  sql`not exists (select 1 from engage.fan_block fb
+    where fb.tenant_id = ${tenantCol}
+      and ((fb.blocker_profile_id = ${viewer} and fb.blocked_profile_id = ${authorCol})
+        or (fb.blocker_profile_id = ${authorCol} and fb.blocked_profile_id = ${viewer})))`;
+
 const postCols = (viewer: string) => ({
   id: communityPost.id,
   communityId: communityPost.communityId,
@@ -98,10 +110,12 @@ const postCols = (viewer: string) => ({
   createdAt: communityPost.createdAt,
   likes: sql<number>`(select count(*)::int from ${communityReaction} r
     join fan.profile rp on rp.tenant_id = r.tenant_id and rp.id = r.profile_id and rp.deleted_at is null
-    where r.tenant_id = ${communityPost.tenantId} and r.post_id = ${communityPost.id})`,
+    where r.tenant_id = ${communityPost.tenantId} and r.post_id = ${communityPost.id}
+      and ${notBlocked(sql.raw('r.tenant_id'), sql.raw('r.profile_id'), viewer)})`,
   comments: sql<number>`(select count(*)::int from ${communityComment} c
     join fan.profile cp on cp.tenant_id = c.tenant_id and cp.id = c.profile_id and cp.deleted_at is null
-    where c.tenant_id = ${communityPost.tenantId} and c.post_id = ${communityPost.id} and c.visibility = 'public')`,
+    where c.tenant_id = ${communityPost.tenantId} and c.post_id = ${communityPost.id} and c.visibility = 'public'
+      and ${notBlocked(sql.raw('c.tenant_id'), sql.raw('c.profile_id'), viewer)})`,
   likedByMe: sql<boolean>`exists (select 1 from ${communityReaction} r
     where r.tenant_id = ${communityPost.tenantId} and r.post_id = ${communityPost.id} and r.profile_id = ${viewer})`,
 });
@@ -159,8 +173,6 @@ export async function listFeed(
     limit: number;
     since?: Date | null;
     now: Date;
-    /** Perfis bloqueados nos dois sentidos (`hiddenProfilesFor`): os posts deles não aparecem. */
-    hiddenAuthors?: readonly string[];
   },
 ): Promise<{ pinned: CommunityPostRow[]; posts: CommunityPostRow[] }> {
   const { tenantId, communityId, viewerProfileId: viewer } = input;
@@ -171,9 +183,7 @@ export async function listFeed(
     authorAlive,
     notExpired(input.now),
     input.since ? gte(communityPost.createdAt, input.since) : undefined,
-    input.hiddenAuthors?.length
-      ? or(isNull(communityPost.profileId), notInArray(communityPost.profileId, [...input.hiddenAuthors]))
-      : undefined,
+    notBlocked(communityPost.tenantId, communityPost.profileId, viewer),
   );
   const [posts, pinned] = await Promise.all([
     selectPosts(db, viewer)
@@ -216,6 +226,7 @@ export async function readPost(
         authorAlive,
         notExpired(opts.now),
         opts.since ? gte(communityPost.createdAt, opts.since) : undefined,
+        notBlocked(communityPost.tenantId, communityPost.profileId, viewerProfileId),
       ),
     )
     .limit(1);
@@ -298,8 +309,6 @@ export async function listComments(
     after?: string | null;
     limit: number;
     now: Date;
-    /** Perfis bloqueados nos dois sentidos: os comentários deles não aparecem. */
-    hiddenAuthors?: readonly string[];
   },
 ): Promise<CommunityCommentRow[]> {
   const rows = await db
@@ -332,9 +341,7 @@ export async function listComments(
           ),
         ),
         gt(communityComment.purgeAt, input.now),
-        input.hiddenAuthors?.length
-          ? notInArray(communityComment.profileId, [...input.hiddenAuthors])
-          : undefined,
+        notBlocked(communityComment.tenantId, communityComment.profileId, input.viewerProfileId),
         input.after ? gt(communityComment.id, input.after) : undefined,
       ),
     )

@@ -9,6 +9,7 @@ import {
   createDb,
   createInvite,
   decideJoinRequest,
+  insertPost,
   listCommunities,
   listJoinRequests,
   pinPost,
@@ -537,24 +538,65 @@ describe('Feed da Comunidade (#946)', () => {
     expect(terms.json().errors[0].message).toBe('terms_required');
   });
 
-  it('bloqueio vale nos dois sentidos no Feed e nos comentários', async () => {
-    const { t, c, adult } = await member('feed-block');
-    const other = await fan(t.key);
-    await post(other.token, `/v1/communities/${c.id}/join`);
-    const p = (await post(adult.token, `/v1/communities/${c.id}/posts`, { body: 'Post do primeiro' })).json()
-      .data;
-    expect(
-      (await post(other.token, `/v1/posts/${p.id}/comments`, { body: 'Comentário do segundo' })).statusCode,
-    ).toBe(201);
+  it('bloqueio vale nos dois sentidos: Feed, comentários, contadores e acesso pelo id', async () => {
+    const { t, c, adult: a } = await member('feed-block');
+    const b = await fan(t.key);
+    await post(b.token, `/v1/communities/${c.id}/join`);
+    const pa = (await post(a.token, `/v1/communities/${c.id}/posts`, { body: 'Post de A' })).json().data;
+    const pb = (await post(b.token, `/v1/communities/${c.id}/posts`, { body: 'Post de B' })).json().data;
+    const staff = await insertPost(db, {
+      tenantId: t.id,
+      communityId: c.id,
+      author: 'staff',
+      profileId: null,
+      staffBy: 'panel:1',
+      body: 'Aviso da equipe',
+      attachment: null,
+      visibility: 'public',
+      flags: [],
+      purgeAt: new Date(Date.now() + 86_400_000),
+    });
+    await new Promise((r) => setTimeout(r, 10_100)); // intervalo entre envios do mesmo torcedor
+    expect((await post(b.token, `/v1/posts/${pa.id}/comments`, { body: 'B comenta em A' })).statusCode).toBe(
+      201,
+    );
+    expect((await post(a.token, `/v1/posts/${pb.id}/comments`, { body: 'A comenta em B' })).statusCode).toBe(
+      201,
+    );
+    const ids = async (token: string) =>
+      (await get(token, `/v1/communities/${c.id}/posts`))
+        .json()
+        .data.posts.map((x: { id: string }) => x.id)
+        .sort();
+    // antes do bloqueio, cada um vê tudo
+    expect(await ids(a.token)).toEqual([pa.id, pb.id, staff.id].sort());
+    expect((await get(a.token, `/v1/posts/${pa.id}/comments`)).json().data).toHaveLength(1);
+
     const blocked = await app.inject({
       method: 'PUT',
-      url: `/v1/fans/me/blocks/${other.profileId}`,
-      headers: { authorization: `Bearer ${adult.token}` },
+      url: `/v1/fans/me/blocks/${b.profileId}`,
+      headers: { authorization: `Bearer ${a.token}` },
     });
     expect(blocked.statusCode).toBe(204);
-    expect((await get(adult.token, `/v1/posts/${p.id}/comments`)).json().data).toEqual([]);
-    expect((await get(other.token, `/v1/communities/${c.id}/posts`)).json().data.posts).toEqual([]);
-  });
+
+    // quem bloqueou (A) e quem foi bloqueado (B) não se veem; o post da equipe continua para os dois
+    expect(await ids(a.token)).toEqual([pa.id, staff.id].sort());
+    expect(await ids(b.token)).toEqual([pb.id, staff.id].sort());
+    expect((await get(a.token, `/v1/posts/${pa.id}/comments`)).json().data).toEqual([]);
+    const mineForA = (await get(a.token, `/v1/communities/${c.id}/posts`))
+      .json()
+      .data.posts.find((x: { id: string }) => x.id === pa.id);
+    expect(mineForA.comments).toBe(0);
+    // pelo id, o post do outro não abre comentário nem curtida
+    expect((await get(b.token, `/v1/posts/${pa.id}/comments`)).statusCode).toBe(404);
+    expect((await post(b.token, `/v1/posts/${pa.id}/comments`, { body: 'oi' })).statusCode).toBe(404);
+    const like = await app.inject({
+      method: 'PUT',
+      url: `/v1/posts/${pa.id}/like`,
+      headers: { authorization: `Bearer ${b.token}` },
+    });
+    expect(like.statusCode).toBe(404);
+  }, 30_000);
 
   it('o fixado sai só em pinned, sem repetir em posts', async () => {
     const { t, c, adult } = await member('feed-pin');
