@@ -24,7 +24,7 @@
     "@galaxie/db": "workspace:*",
     "@galaxie/observability": "workspace:*",
     "@galaxie/runtime-config": "workspace:*",
-    "croner": "^11.0.0",
+    "croner": "^11.0.1",
     "drizzle-orm": "^0.45.4"
   }
 }
