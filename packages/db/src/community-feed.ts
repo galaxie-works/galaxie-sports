@@ -483,7 +483,8 @@ export async function setContentVisibility(
 
 /**
  * Posts e comentários vencidos pelo relógio de conteúdo da ficha (#954). Apaga em lotes até zerar (ou até `maxBatches`,
- * para não prender a conexão); devolve quantos saíram. A leitura já esconde o vencido antes do expurgo.
+ * para não prender a conexão); devolve quantos saíram. A leitura já esconde o vencido antes do expurgo. O que está sob
+ * guarda legal (#1289) fica até a guarda vencer.
  */
 export async function purgeCommunityContent(
   db: Database,
@@ -498,7 +499,9 @@ export async function purgeCommunityContent(
       const [row] = await db.execute<{ n: number }>(sql`
         with gone as (
           delete from ${sql.raw(table)} where ctid in (
-            select ctid from ${sql.raw(table)} where purge_at <= ${at}::timestamptz limit ${batch})
+            select ctid from ${sql.raw(table)} where purge_at <= ${at}::timestamptz
+              and (legal_hold_until is null or legal_hold_until <= ${at}::timestamptz)
+            limit ${batch})
           returning 1)
         select count(*)::int as n from gone`);
       const n = row?.n ?? 0;

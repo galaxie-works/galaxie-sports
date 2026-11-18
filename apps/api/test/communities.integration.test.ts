@@ -12,7 +12,9 @@ import {
   insertPost,
   listCommunities,
   listJoinRequests,
+  flagChildSafety,
   pinPost,
+  purgeCommunityContent,
   publishTerms,
   removeMember,
   removeScopeRule,
@@ -26,6 +28,7 @@ import { sql } from 'drizzle-orm';
 import { generateAdminKey, hashAdminKey } from '../src/admin/guard.js';
 import { loadPlans } from '../src/admin/plans.js';
 import { FanTokenSigner } from '../src/engage/fan-token.js';
+import { clocksFor } from '../src/engage/moderation-routes.js';
 import { buildServer } from '../src/server.js';
 
 const adminUrl = process.env.DATABASE_URL;
@@ -597,6 +600,44 @@ describe('Feed da Comunidade (#946)', () => {
     });
     expect(like.statusCode).toBe(404);
   }, 30_000);
+
+  it('suspeita de abuso infantil tira o post do ar e o expurgo não apaga durante a guarda (#1289)', async () => {
+    const { t, c, adult } = await member('feed-hold');
+    const p = (await post(adult.token, `/v1/communities/${c.id}/posts`, { body: 'Post denunciado' })).json()
+      .data;
+    const reporter = await fan(t.key);
+    await post(reporter.token, `/v1/communities/${c.id}/join`);
+    const report = await post(reporter.token, '/v1/moderation/reports', {
+      targetType: 'post',
+      targetId: p.id,
+      targetProfileId: adult.profileId,
+      module: 'communities',
+      community: c.id,
+      reason: 'sexual',
+    });
+    expect(report.statusCode).toBe(201);
+    const now = new Date();
+    const until = new Date(now.getTime() + 365 * 86_400_000);
+    const flagged = await db.transaction(async (tx) =>
+      flagChildSafety(tx as unknown as Database, {
+        tenantId: t.id,
+        caseId: report.json().data.case_id,
+        actor: { id: 'galaxie:1', kind: 'galaxie' },
+        holdUntil: until,
+        clocks: await clocksFor(db, t.id, 'BR', now),
+        now,
+      }),
+    );
+    expect(flagged).toBe(true);
+    expect((await get(adult.token, `/v1/communities/${c.id}/posts`)).json().data.posts).toEqual([]);
+    // o relógio da ficha venceu, mas a guarda segura o post
+    await db.execute(sql`update community.post set purge_at = now() - interval '1 day' where id = ${p.id}`);
+    await purgeCommunityContent(db, new Date());
+    const [row] = await db.execute<{ visibility: string }>(
+      sql`select visibility from community.post where id = ${p.id}`,
+    );
+    expect(row?.visibility).toBe('hidden');
+  });
 
   it('o fixado sai só em pinned, sem repetir em posts', async () => {
     const { t, c, adult } = await member('feed-pin');
