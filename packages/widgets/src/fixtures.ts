@@ -755,6 +755,59 @@ const json = (body: unknown, status = 200) =>
  * `fetch` que responde como a API pública com os dados de exemplo — para o preview do Builder sem chave
  * e para os testes. Passe em `<GalaxieWidgetProvider fetch={createPreviewFetch()}>`.
  */
+/** Sala de exemplo do chat ao vivo (#976): algumas mensagens, um gol e reações. O stream não existe na prévia. */
+function chatPreviewBody(path: string, now: Date): unknown {
+  const m = /^\/v1\/chat\/rooms\/([^/]+)$/.exec(path);
+  if (!m) return null;
+  const at = (min: number) => new Date(now.getTime() - min * 60_000).toISOString();
+  const msg = (id: number, nickname: string, body: string, min: number) => ({
+    id: `00000000-0000-7000-8000-${String(id).padStart(12, '0')}`,
+    body,
+    author: {
+      profile_id: `00000000-0000-7000-8000-${String(100 + id).padStart(12, '0')}`,
+      nickname,
+      avatar_url: null,
+    },
+    created_at: at(min),
+  });
+  return {
+    data: {
+      room_id: '00000000-0000-7000-8000-00000000c0de',
+      fixture_id: decodeURIComponent(m[1]!),
+      state: 'open',
+      opens_at: at(120),
+      closes_at: new Date(now.getTime() + 90 * 60_000).toISOString(),
+      settings: { slow_mode_seconds: 3, strictness: 'standard', max_chars: 280 },
+      messages: [
+        msg(1, 'Tricolor_77', 'Vamos, time! Hoje é dia!', 18),
+        msg(2, 'Ana_FC', 'Que defesa do goleiro 😱', 9),
+        msg(3, 'Joao10', 'GOOOOL! Que golaço!', 4),
+      ],
+      pinned: msg(4, 'Moderação', 'Bem-vindos à sala do jogo. Respeito sempre.', 30),
+      reactions: { fire: 128, clap: 64, shock: 12, laugh: 7, ball: 40 },
+      game_messages: [
+        {
+          id: '00000000-0000-7000-8000-0000000g0001',
+          kind: 'goal',
+          minute: 23,
+          extra: null,
+          team: null,
+          player: null,
+          score: { home: 1, away: 0 },
+          cancelled: false,
+          text: {
+            'pt-BR': '⚽ Gol! 1 a 0 aos 23 minutos.',
+            es: '⚽ ¡Gol! 1 a 0 a los 23 minutos.',
+            en: '⚽ Goal! 1-0 after 23 minutes.',
+          },
+          created_at: at(5),
+          updated_at: at(5),
+        },
+      ],
+    },
+  };
+}
+
 export function createPreviewFetch(options: { now?: Date; sport?: string } = {}): typeof fetch {
   const sample = samplePreviewFetch(options);
   // a resposta sai no idioma pedido (`?locale`), como a API real
@@ -786,6 +839,8 @@ function samplePreviewFetch(options: { now?: Date; sport?: string }): typeof fet
     if (guide) return json(guide);
     const shop = shopPreviewBody(url, now);
     if (shop) return json(shop);
+    const chat = chatPreviewBody(path, now);
+    if (chat) return json(chat);
     const racing = createRacingFixtures(now);
     const fights = createFightFixtures(now);
     const id = (re: RegExp) => {

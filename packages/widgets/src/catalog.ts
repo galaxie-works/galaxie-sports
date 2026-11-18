@@ -30,6 +30,7 @@ import type { MedalHistoryProps } from './widgets/medal-history.js';
 import type { SidelinedProps } from './widgets/sidelined.js';
 import type { ChampionsGalleryProps } from './widgets/champions-gallery.js';
 import type { CountdownProps } from './widgets/countdown.js';
+import type { LiveChatProps } from './widgets/live-chat.js';
 import type { TeamSquadProps } from './widgets/team-squad.js';
 import type { PlayerProfileProps } from './widgets/player-profile.js';
 import type { LineupsProps } from './widgets/lineups.js';
@@ -89,6 +90,7 @@ export interface WidgetPropsByKind {
   match_stats: MatchStatsProps;
   upcoming_derbies: UpcomingDerbiesProps;
   shop_the_game: ShopTheGameProps;
+  live_chat: LiveChatProps;
 }
 
 export interface WidgetCatalogEntry<K extends WidgetKind = WidgetKind> {
@@ -137,7 +139,8 @@ export interface WidgetCatalogEntry<K extends WidgetKind = WidgetKind> {
     | 'Bracket'
     | 'ChannelGuide'
     | 'UpcomingDerbies'
-    | 'ShopTheGame';
+    | 'ShopTheGame'
+    | 'LiveChat';
   /** Componente que o arquivo instalado pelo registry exporta (com provider e tema embutidos). */
   registryComponent: string;
   name: Record<WidgetLocale, string>;
@@ -1036,6 +1039,24 @@ export const WIDGET_CATALOG: { [K in WidgetKind]: WidgetCatalogEntry<K> } = {
     requiredProps: ['widgetId'],
     optionalProps: ['eventId', 'teamId', 'competitionId', 'personId', 'perTeam', 'showPrice'],
     exampleProps: { widgetId: PREVIEW_IDS.shopWidget, eventId: PREVIEW_IDS.scheduledEvent },
+    polling: false,
+    sports: [],
+  },
+  live_chat: {
+    kind: 'live_chat',
+    component: 'LiveChat',
+    registryComponent: 'GalaxieLiveChat',
+    name: { 'pt-BR': 'Chat ao vivo', es: 'Chat en vivo', en: 'Live chat' },
+    description: {
+      'pt-BR':
+        'A sala do jogo: torcedores conversam ao vivo, com o jogo dentro do chat e as reações. Ler não exige login; escrever, o login do torcedor.',
+      es: 'La sala del partido: los hinchas conversan en vivo, con el partido dentro del chat y las reacciones. Leer no requiere iniciar sesión; escribir, la sesión del hincha.',
+      en: "The match room: fans chat live, with the match inside the chat and reactions. Reading needs no sign-in; writing needs the fan's sign-in.",
+    },
+    requiredProps: ['eventId'],
+    optionalProps: ['height', 'showGame', 'showReactions', 'inputPosition', 'readOnly'],
+    exampleProps: { eventId: PREVIEW_IDS.liveEvent },
+    // o stream da sala substitui a releitura
     polling: false,
     sports: [],
   },

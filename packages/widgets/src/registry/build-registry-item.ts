@@ -182,6 +182,8 @@ function defaultProps(
     // Shopping: a entidade da página (o jogo, ou o time, o campeonato ou o atleta)
     case 'shop_the_game':
       return pick(['eventId', 'teamId', 'competitionId', 'personId']);
+    case 'live_chat':
+      return pick(['eventId']);
   }
 }
 
@@ -291,6 +293,12 @@ export function buildRegistryItem(input: BuildRegistryItemInput): RegistryItem {
     '  market?: string;',
     '  theme?: Partial<WidgetTheme>;',
     '  className?: string;',
+    '  /** Token do torcedor (`gft_`), emitido pelo servidor do site com a chave secreta. */',
+    '  fanToken?: string | null;',
+    '  /** Busca um token novo no servidor do site (antes de vencer e quando a API recusa). */',
+    '  getFanToken?: () => string | null | undefined | Promise<string | null | undefined>;',
+    '  /** "Entrar" num recurso do torcedor: o site abre o login dele. */',
+    '  onFanSignIn?: () => void;',
     '};',
     '',
     `export function ${component}({`,
@@ -300,6 +308,9 @@ export function buildRegistryItem(input: BuildRegistryItemInput): RegistryItem {
     '  market,',
     '  theme,',
     '  className,',
+    '  fanToken,',
+    '  getFanToken,',
+    '  onFanSignIn,',
     '  ...props',
     `}: ${component}Props) {`,
     `  const widgetProps = { ...GALAXIE_DEFAULTS, ...props${marketProp} } as ${props};`,
@@ -311,6 +322,9 @@ export function buildRegistryItem(input: BuildRegistryItemInput): RegistryItem {
     '      locale={locale ?? GALAXIE_LOCALE}',
     '      market={market ?? GALAXIE_MARKET}',
     '      className={className}',
+    '      fanToken={fanToken}',
+    '      getFanToken={getFanToken}',
+    '      onFanSignIn={onFanSignIn}',
     '    >',
     `      <${widget.component} {...widgetProps} />`,
     '    </GalaxieWidgetProvider>',

@@ -41,6 +41,7 @@ import {
   Bracket,
   UpcomingDerbies,
   ShopTheGame,
+  LiveChat,
   PREVIEW_IDS,
   RaceResult,
   RaceWeekend,
@@ -324,6 +325,8 @@ function PreviewWidget({
         return <UpcomingDerbies {...o} />;
       case 'shop_the_game':
         return <ShopPreview o={o} />;
+      case 'live_chat':
+        return <LiveChat {...o} {...WIDGET_CATALOG.live_chat.exampleProps} />;
     }
   }
   switch (kind) {
@@ -416,6 +419,8 @@ function PreviewWidget({
       return <ChannelGuidePreview o={o} sport={sport} />;
     case 'shop_the_game':
       return <ShopPreview o={o} />;
+    case 'live_chat':
+      return <LiveChat {...o} eventId={entity.id} />;
   }
 }
 

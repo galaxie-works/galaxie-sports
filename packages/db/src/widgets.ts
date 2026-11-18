@@ -81,6 +81,8 @@ export const WIDGET_KIND_MODULES: Record<WidgetKind, readonly ApiModule[]> = {
   upcoming_derbies: ['core_data', 'semantic', 'where_to_watch'],
   // Shopping (#925): produtos oficiais das entidades da página, por afiliado
   shop_the_game: ['core_data', 'shopping'],
+  // chat ao vivo da sala do jogo (#976): ler a sala e o stream
+  live_chat: ['core_data', 'live_chat'],
 };
 
 export function isWidgetKind(value: unknown): value is WidgetKind {
