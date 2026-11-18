@@ -5,8 +5,8 @@
  * As escolhas e as contas (a parte pesada: um ano de jogos) vêm prontas de `core.explore_summary`, gravado pelo job
  * `explore-summary` do ingestor (#596) com o código de `@galaxie/explore`. Aqui a API aplica o recorte do plano e junta
  * o que depende da requisição: nomes no idioma, logos (acervo do tenant), bandeiras e os eventos dos destaques, tudo
- * por id. Sem o pré-calculado (primeira subida) ou com ele velho (mais de 30 min), faz a mesma conta na hora, com o
- * `statement_timeout` de sempre, e registra um aviso.
+ * por id. Com o pré-calculado velho (mais de 30 min) serve ele mesmo assim, com um aviso; só faz a mesma conta na hora
+ * sem pré-calculado (primeira subida, outra versão do formato) ou com ele acima de 24 h (ver `exploreSnapshotFor`).
  */
 import { eq, inArray, notInArray, sql, type SQL } from 'drizzle-orm';
 import type { FastifyBaseLogger } from 'fastify';
@@ -16,6 +16,7 @@ import {
   computeExploreSnapshot,
   continentalSlugs,
   EXPLORE_MAX_AGE_MS,
+  EXPLORE_STALE_MAX_AGE_MS,
   loadExploreSnapshot,
   selectForScope,
   selectWindowEvents as selectWindowRows,
@@ -85,8 +86,15 @@ export async function selectWindowEvents(
 }
 
 /**
- * O resumo pré-calculado, se está em dia (até `EXPLORE_MAX_AGE_MS`); senão a mesma conta feita agora. A leitura que
- * falha (tabela ainda sem a migration, banco ocupado) também cai na conta da hora.
+ * O resumo pré-calculado, mesmo velho; a mesma conta feita agora só sem ele.
+ *
+ * Calcular na requisição é a consulta pesada: `topTeams` mediu 24,6 s na produção em 17/11 (CPU limitada), acima do
+ * `statement_timeout` de 10 s do perfil `api`, e a home respondia 500 sempre que o job `explore-summary` ficava parado
+ * mais de 30 min (deploys com os serviços de fundo parados). Por isso o pré-calculado acima de `EXPLORE_MAX_AGE_MS`
+ * (30 min) continua servido, com um aviso no log (o alerta `ExploreSummaryStale` olha a mesma idade pela métrica);
+ * só acima de `EXPLORE_STALE_MAX_AGE_MS` (24 h), quando o dado está mesmo inútil, ou sem pré-calculado (primeira
+ * subida, outra versão do formato), a API faz a conta na hora. A leitura que falha (tabela ainda sem a migration,
+ * banco ocupado) também cai na conta da hora.
  */
 export async function exploreSnapshotFor(
   bctx: Pick<BuildContext, 'db' | 'now'>,
@@ -99,15 +107,22 @@ export async function exploreSnapshotFor(
   } catch (err) {
     log?.warn({ err }, 'resumo do Explorar: leitura do pré-calculado falhou; calculando na requisição');
   }
-  const ageMs = stored ? bctx.now.getTime() - stored.generatedAt.getTime() : null;
-  if (stored && ageMs !== null && ageMs <= EXPLORE_MAX_AGE_MS)
-    return { snapshot: stored, source: 'precomputed' };
-  if (stored)
+  if (stored) {
+    const ageMs = bctx.now.getTime() - stored.generatedAt.getTime();
+    if (ageMs <= EXPLORE_MAX_AGE_MS) return { snapshot: stored, source: 'precomputed' };
+    const age = { age_seconds: Math.round(ageMs / 1000), generated_at: stored.generatedAt.toISOString() };
+    if (ageMs <= EXPLORE_STALE_MAX_AGE_MS) {
+      log?.warn(
+        age,
+        `resumo do Explorar pré-calculado com mais de 30 min (${Math.round(ageMs / 60_000)} min; job explore-summary parado?); servindo assim mesmo`,
+      );
+      return { snapshot: stored, source: 'precomputed' };
+    }
     log?.warn(
-      { age_seconds: Math.round(ageMs! / 1000), generated_at: stored.generatedAt.toISOString() },
-      'resumo do Explorar pré-calculado com mais de 30 min (job explore-summary parado?); calculando na requisição',
+      age,
+      `resumo do Explorar pré-calculado com mais de 24 h (${Math.round(ageMs / 3_600_000)} h; job explore-summary parado?); calculando na requisição`,
     );
-  else
+  } else
     log?.warn(
       'resumo do Explorar sem pré-cálculo (job explore-summary ainda não rodou?); calculando na requisição',
     );

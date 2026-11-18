@@ -477,7 +477,7 @@ describe('resumo pré-calculado (job explore-summary, #596)', () => {
     }
   });
 
-  it('jogo novo só entra depois do job; resumo com mais de 30 min volta à conta da hora', async () => {
+  it('jogo novo só entra depois do job; resumo velho ainda serve, e só acima de 24 h volta à conta da hora', async () => {
     const before = upcomingBr(await summary());
     const [extra] = await db
       .insert(event)
@@ -492,8 +492,12 @@ describe('resumo pré-calculado (job explore-summary, #596)', () => {
     ids.extra = extra!.id;
     // a API lê o pré-calculado: o jogo novo ainda não aparece (prova de que não contou na requisição)
     expect(upcomingBr(await summary())).toBe(before);
-    // velho (31 min): a API ignora o pré-calculado e conta na hora
+    // velho (31 min): a API segue servindo o pré-calculado, com aviso (a conta na hora não cabe no statement_timeout
+    // da API com a CPU limitada; medição de 17/11/2026)
     await db.update(exploreSummary).set({ generatedAt: new Date(NOW.getTime() - 31 * 60_000) });
+    expect(upcomingBr(await summary())).toBe(before);
+    // velho demais (25 h, acima de EXPLORE_STALE_MAX_AGE_MS): aí a API ignora o pré-calculado e conta na hora
+    await db.update(exploreSummary).set({ generatedAt: new Date(NOW.getTime() - 25 * 3_600_000) });
     expect(upcomingBr(await summary())).toBe(before + 1);
     // o job vê o resumo velho (passou de 10 min) e refaz
     const again = await refreshExploreSummary(db, geo, { now: NOW });

@@ -706,7 +706,7 @@ tests:
               job: galaxie-api
             exp_annotations:
               summary: 'Resumo da home Explorar sem recálculo há 37m 0s'
-              description: 'Acima de 30 min a API calcula a home na requisição (lenta a frio). Veja o job explore-summary em ops.job_run e os logs do ingestor; rode-o com "rodar agora" no painel ou com node dist/cli/explore-summary.js --forcar no ingestor.'
+              description: 'Acima de 30 min a API serve o resumo velho (até 24 h; depois calcula na requisição, a consulta pesada que estoura o statement_timeout). Veja o job explore-summary em ops.job_run e os logs do ingestor; rode-o com "rodar agora" no painel ou com node dist/cli/explore-summary.js --forcar no ingestor.'
 
   - name: resumo da home Explorar nunca gravado (+Inf) também dispara
     interval: 1m
@@ -723,7 +723,7 @@ tests:
               job: galaxie-api
             exp_annotations:
               summary: 'Resumo da home Explorar sem recálculo há +Inf'
-              description: 'Acima de 30 min a API calcula a home na requisição (lenta a frio). Veja o job explore-summary em ops.job_run e os logs do ingestor; rode-o com "rodar agora" no painel ou com node dist/cli/explore-summary.js --forcar no ingestor.'
+              description: 'Acima de 30 min a API serve o resumo velho (até 24 h; depois calcula na requisição, a consulta pesada que estoura o statement_timeout). Veja o job explore-summary em ops.job_run e os logs do ingestor; rode-o com "rodar agora" no painel ou com node dist/cli/explore-summary.js --forcar no ingestor.'
 
   - name: p99 por rota acima de 1 s com tráfego dispara depois de 15 min; rota fria e /internal não
     interval: 1m

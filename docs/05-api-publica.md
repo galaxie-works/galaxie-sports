@@ -286,7 +286,7 @@ curl -H "x-galaxie-key: $KEY" "http://localhost:8080/v1/countries/BR/competition
 
 #### 3.1.2 Resumo da home "Explorar" (`apps/api/src/routes/v1/explore.ts`)
 
-`GET /v1/explore/summary?locale=&tz=` alimenta a primeira tela da demo sem N+1: uma chamada traz, para os 12 esportes e os 17 países da navegação (§3.1.1), tudo o que os cards mostram. As escolhas e as contas vêm pré-calculadas de `core.explore_summary` (#596; job `explore-summary` do ingestor, código em `packages/explore`, com as escolhas em funções puras e testadas); a rota lê numa consulta, aplica o recorte de esportes do plano e junta por id nomes, logos e os jogos em destaque (`apps/api/src/explore/summary.ts`). Sem pré-cálculo ou com ele velho (mais de 30 min), faz a mesma conta na requisição: sete consultas em lote, nenhuma por esporte ou por país ([docs/04 §2.3](04-modelo-de-dados.md#23-derivados-para-leitura)).
+`GET /v1/explore/summary?locale=&tz=` alimenta a primeira tela da demo sem N+1: uma chamada traz, para os 12 esportes e os 17 países da navegação (§3.1.1), tudo o que os cards mostram. As escolhas e as contas vêm pré-calculadas de `core.explore_summary` (#596; job `explore-summary` do ingestor, código em `packages/explore`, com as escolhas em funções puras e testadas); a rota lê numa consulta, aplica o recorte de esportes do plano e junta por id nomes, logos e os jogos em destaque (`apps/api/src/explore/summary.ts`). Com o pré-cálculo velho (mais de 30 min) segue servindo ele, com um aviso; sem pré-cálculo ou com ele acima de 24 h, faz a mesma conta na requisição: sete consultas em lote, nenhuma por esporte ou por país ([docs/04 §2.3](04-modelo-de-dados.md#23-derivados-para-leitura)).
 
 | Campo | Conteúdo |
 |---|---|
