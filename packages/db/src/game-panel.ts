@@ -109,7 +109,8 @@ export async function listGameCatalog(db: Database, key: GameProgramKey): Promis
     available: r.active,
     inactiveReason: r.inactive_reason,
     enabled: r.enabled ?? true,
-    thresholds: r.thresholds ?? r.catalog_thresholds,
+    // por Degrau, como o motor (`activeAchievements`): o limite do cliente onde houver, senão o do Catálogo
+    thresholds: r.catalog_thresholds.map((t, i) => r.thresholds?.[i] ?? t),
     holders: Number(r.holders),
   }));
 }
@@ -202,4 +203,16 @@ export async function gameProgramReport(db: Database, key: GameProgramKey): Prom
     cards: Number(r?.cards ?? 0),
     pointsIssued: Number(r?.points ?? 0),
   };
+}
+
+/**
+ * O país pode virar programa deste cliente? Com países-alvo cadastrados, só eles; sem nenhum, qualquer país (a API
+ * usa o país do Perfil nesse caso).
+ */
+export async function gameCountryAllowed(db: Database, tenantId: string, country: string): Promise<boolean> {
+  const rows = await db
+    .select({ country: tenantCountry.country })
+    .from(tenantCountry)
+    .where(eq(tenantCountry.tenantId, tenantId));
+  return rows.length === 0 || rows.some((r) => r.country === country);
 }

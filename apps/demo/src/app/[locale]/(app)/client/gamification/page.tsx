@@ -14,7 +14,10 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: t.gamification.meta.title };
 }
 
-async function Gamification({ country }: { country: string | undefined }) {
+async function Gamification({ searchParams }: { searchParams: Promise<{ country?: string | string[] }> }) {
+  // o searchParams é lido aqui, dentro do Suspense (cacheComponents: dado da requisição fora dele quebra o build)
+  const raw = (await searchParams).country;
+  const country = typeof raw === 'string' ? raw.toUpperCase() : undefined;
   return (
     <ClientArea section="gamification">
       {async ({ tenant }) => {
@@ -29,10 +32,9 @@ async function Gamification({ country }: { country: string | undefined }) {
 export default async function ClientGamificationPage({
   searchParams,
 }: {
-  searchParams: Promise<{ country?: string }>;
+  searchParams: Promise<{ country?: string | string[] }>;
 }) {
   const t = await getT();
-  const { country } = await searchParams;
   return (
     <>
       <PageHeader
@@ -49,7 +51,7 @@ export default async function ClientGamificationPage({
             </LoadingStatus>
           }
         >
-          <Gamification country={country?.toUpperCase()} />
+          <Gamification searchParams={searchParams} />
         </Suspense>
       </div>
     </>

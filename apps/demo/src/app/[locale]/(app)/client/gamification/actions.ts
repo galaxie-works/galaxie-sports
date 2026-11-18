@@ -4,7 +4,7 @@
  * Ações da Gamificação no painel do cliente (#917). O tenant sai sempre da sessão (`readClientContext`), nunca do
  * navegador. Configurar exige `settings.manage` (#1019) e o módulo ligado.
  */
-import { ensureGameProgram, setGameAchievementEnabled } from '@galaxie/db/game';
+import { ensureGameProgram, gameCountryAllowed, setGameAchievementEnabled } from '@galaxie/db/game';
 import { DEFAULT_POINTS_SCALE, countryTimeZone } from '@galaxie/game-rules';
 import { revalidatePath } from 'next/cache';
 
@@ -49,6 +49,9 @@ export const activateProgramAction = withStaffAudit(
     const country = String(input.country ?? '').toUpperCase();
     if (!COUNTRY.test(country)) return { ok: false, error: c.t.errors.country };
     try {
+      // só um país-alvo do cliente vira programa (a API nunca usaria outro)
+      if (!(await gameCountryAllowed(gameDb(), c.tenantId, country)))
+        return { ok: false, error: c.t.errors.country };
       await ensureGameProgram(gameDb(), {
         tenantId: c.tenantId,
         programCountry: country,

@@ -180,9 +180,7 @@ export function GamificationPanel({ data }: { data: GamificationOverview }) {
                         <div className="flex flex-col gap-0.5">
                           <span className="font-medium">{a.name[lang] ?? a.id}</span>
                           <span className="text-muted-foreground text-xs">
-                            {a.available
-                              ? (a.description[lang] ?? '')
-                              : fill(T.catalog.unavailableHint, { reason: a.inactiveReason ?? '' })}
+                            {a.available ? (a.description[lang] ?? '') : T.catalog.unavailableHint}
                           </span>
                         </div>
                       </TableCell>

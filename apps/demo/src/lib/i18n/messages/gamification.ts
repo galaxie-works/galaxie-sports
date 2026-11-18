@@ -39,7 +39,7 @@ export default defineMessages(
       holders: 'Torcedores',
       enabled: 'No programa',
       unavailable: 'Indisponível',
-      unavailableHint: 'A Galaxie ainda não liberou esta Conquista: {reason}',
+      unavailableHint: 'Em breve: a Galaxie ainda não liberou esta Conquista.',
       empty: 'O Catálogo ainda está vazio.',
       saved: 'Conquista atualizada.',
       families: {
@@ -95,7 +95,7 @@ export default defineMessages(
         holders: 'Fans',
         enabled: 'In program',
         unavailable: 'Unavailable',
-        unavailableHint: 'Galaxie has not released this achievement yet: {reason}',
+        unavailableHint: 'Coming soon: Galaxie has not released this achievement yet.',
         empty: 'The catalog is still empty.',
         saved: 'Achievement updated.',
         families: {
@@ -150,7 +150,7 @@ export default defineMessages(
         holders: 'Aficionados',
         enabled: 'En el programa',
         unavailable: 'No disponible',
-        unavailableHint: 'Galaxie todavía no liberó este logro: {reason}',
+        unavailableHint: 'Próximamente: Galaxie todavía no liberó este logro.',
         empty: 'El catálogo todavía está vacío.',
         saved: 'Logro actualizado.',
         families: {
