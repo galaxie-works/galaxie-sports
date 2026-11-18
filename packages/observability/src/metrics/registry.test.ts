@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createMetrics } from './registry.js';
+import { createMetrics, DB_COLLECTOR_TTL_MS } from './registry.js';
 
 describe('createMetrics sem banco', () => {
   it('expõe latência HTTP, intervalo ao vivo e métricas do processo', async () => {
@@ -30,5 +30,13 @@ describe('createMetrics sem banco', () => {
 
   it('exige a política de cota quando há banco', () => {
     expect(() => createMetrics({ db: {} as never, defaultMetrics: false })).toThrow(/policyFor/);
+  });
+});
+
+describe('intervalo dos coletores de banco', () => {
+  it('nenhum lê o banco mais de uma vez a cada 30 s; jobs a cada minuto e tamanho a cada 10 min', () => {
+    for (const ms of Object.values(DB_COLLECTOR_TTL_MS)) expect(ms).toBeGreaterThanOrEqual(30_000);
+    expect(DB_COLLECTOR_TTL_MS.jobs).toBeGreaterThanOrEqual(60_000);
+    expect(DB_COLLECTOR_TTL_MS.db_size).toBeGreaterThanOrEqual(600_000);
   });
 });
