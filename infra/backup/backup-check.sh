@@ -116,4 +116,6 @@ if [ -n "$problems" ]; then
   exit 1
 fi
 job_finish "$run_id" ok "" "$stats"
+# marcador do healthcheck da imagem (healthcheck.sh): só a verificação que passa o renova
+printf '%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >"$BACKUP_DIR/.last_check_ok"
 log info "verificação do backup OK: $(basename "${dump:-nenhum dump local}") há $((dump_age / 60)) min$([ "$nas_dump_age" -ge 0 ] && echo "; dump do NAS $nas_dump_name há $((nas_dump_age / 60)) min")$([ "$nas_age" -ge 0 ] && echo "; NAS há $((nas_age / 60)) min")$([ "$s3_age" -ge 0 ] && echo "; sync do S3 há $((s3_age / 60)) min")"
