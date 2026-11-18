@@ -469,22 +469,34 @@ export const participantPhoto = core.table(
   ],
 );
 
-export const person = core.table('person', {
-  id: pkUuidV7(),
-  name: text('name').notNull(),
-  firstName: text('first_name'),
-  lastName: text('last_name'),
-  birthDate: date('birth_date'),
-  nationality: text('nationality'),
-  heightCm: integer('height_cm'),
-  weightKg: integer('weight_kg'),
-  /** Local e país de nascimento (`players`: birth.place / birth.country). */
-  birthPlace: text('birth_place'),
-  birthCountry: text('birth_country'),
-  photoAssetId: uuid('photo_asset_id').references(() => asset.id),
-  createdAt: createdAt(),
-  updatedAt: updatedAt(),
-});
+export const person = core.table(
+  'person',
+  {
+    id: pkUuidV7(),
+    name: text('name').notNull(),
+    firstName: text('first_name'),
+    lastName: text('last_name'),
+    birthDate: date('birth_date'),
+    nationality: text('nationality'),
+    heightCm: integer('height_cm'),
+    weightKg: integer('weight_kg'),
+    /** Local e país de nascimento (`players`: birth.place / birth.country). */
+    birthPlace: text('birth_place'),
+    birthCountry: text('birth_country'),
+    photoAssetId: uuid('photo_asset_id').references(() => asset.id),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    // Busca global de pessoas (GET /v1/search): trigram sobre nome, primeiro nome e sobrenome. A expressão é
+    // imutável (sem concat_ws, que é STABLE) e tem de ser idêntica à do pré-filtro em
+    // apps/api/src/search/match.ts (personSearchMatchSql), senão o planner não usa o índice.
+    index('person_search_trgm_idx').using(
+      'gin',
+      sql`(coalesce(${t.name}, '') || ' ' || coalesce(${t.firstName}, '') || ' ' || coalesce(${t.lastName}, '')) gin_trgm_ops`,
+    ),
+  ],
+);
 
 export const roster = core.table(
   'roster',
