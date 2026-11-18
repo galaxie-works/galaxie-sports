@@ -46,3 +46,4 @@ export * from './chat.js';
 export * from './shop.js';
 export * from './communities.js';
 export * from './community-feed.js';
+export * from './community-polls.js';
