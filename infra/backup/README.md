@@ -14,8 +14,8 @@ A cópia para o NAS fica em [`infra/nas-backup`](../nas-backup); o verificador e
 |---|---|
 | `backup.sh` | Um backup agora (o `entrypoint.sh` agenda um por dia às `BACKUP_TIME` UTC e um na partida) |
 | `s3-sync.sh` | Cópia opcional dos prefixos do bucket de assets (RustFS) para o volume e o bucket remoto |
-| `backup-check.sh` | Verificador: acusa (`BackupCheckFailed`) sem prova de backup com até 26 h (dump local, ou o recibo do dump feito na réplica do NAS com `BACKUP_DUMP_SOURCE=nas`), sem cópia do NAS ou sync do S3 recentes; quando passa, renova `.last_check_ok` |
-| `healthcheck.sh` | Healthcheck da imagem: _unhealthy_ se a última verificação que passou tiver mais de `BACKUP_CHECK_INTERVAL_H` + 1 h |
+| `backup-check.sh` | Verificador: acusa (`BackupCheckFailed`) sem prova de backup com até 26 h (dump local, ou o recibo do dump feito na réplica do NAS com `BACKUP_DUMP_SOURCE=nas`, mais o dump local semanal com até `BACKUP_LOCAL_MAX_AGE_H`), sem cópia do NAS ou sync do S3 recentes; quando passa, renova `.last_check_ok` |
+| `healthcheck.sh` | Healthcheck da imagem: _unhealthy_ se a última verificação que passou tiver mais de `BACKUP_CHECK_INTERVAL_H` + `BACKUP_HEALTH_GRACE_H` horas (6 + 3; a folga cobre o dia do dump) |
 | `restore.sh` | Lista, ensaia (`--verify`) ou restaura (`--yes`) um dump |
 | `restore-drill.sh` | Ensaio de restauração completo, com conferência |
 | `e2e-test.sh` · `local-test.sh` | Ciclo backup → perda → ensaio → restore → conferência (o primeiro roda no CI) |

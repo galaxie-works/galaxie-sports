@@ -144,8 +144,10 @@ jobs:
             if grep -q '^TAG_BACKUP=' .env; then sed -i 's|^TAG_BACKUP=.*|TAG_BACKUP=$TAG|' .env; else echo 'TAG_BACKUP=$TAG' >> .env; fi
             docker compose -f compose.dados.yml config -q </dev/null
             DOCKER_CONFIG=$CFG docker compose -f compose.dados.yml pull --quiet backup </dev/null
-            DOCKER_CONFIG=$CFG docker compose -f compose.dados.yml up -d --no-deps --wait --wait-timeout 180 backup </dev/null
-            # o backup não tem healthcheck: --wait só espera running. Meio minuto depois ele tem de seguir de pé, sem reinício
+            # --wait espera o healthcheck: a última verificação (backup-check.sh) com menos de 9 h, ou a partida (espera do
+            # Postgres, sync do S3 se o recibo estiver velho, verificador) passar dentro do prazo. Meio minuto depois ele
+            # tem de seguir de pé, sem reinício
+            DOCKER_CONFIG=$CFG docker compose -f compose.dados.yml up -d --no-deps --wait --wait-timeout 600 backup </dev/null
             id=\$(docker compose -f compose.dados.yml ps -q backup </dev/null)
             sleep 30
             state=\$(docker inspect -f '{{.State.Status}} {{.RestartCount}}' \"\$id\")

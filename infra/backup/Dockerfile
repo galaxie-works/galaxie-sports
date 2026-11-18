@@ -18,8 +18,9 @@ ENV BACKUP_DIR=/backups BACKUP_KEEP_DAILY=7 BACKUP_TIME=03:30 BACKUP_ON_START=tr
 RUN mkdir -p /backups && chown postgres:postgres /backups
 VOLUME ["/backups"]
 USER postgres
-# Saudável enquanto a última verificação (backup-check.sh) tiver passado há menos de BACKUP_CHECK_INTERVAL_H + 1 h:
-# é ela que sabe o que cobrar em cada modo (dump local, ou o recibo do dump feito na réplica do NAS).
+# Saudável enquanto a última verificação (backup-check.sh) tiver passado há menos de BACKUP_CHECK_INTERVAL_H +
+# BACKUP_HEALTH_GRACE_H horas (6 + 3): é ela que sabe o que cobrar em cada modo (dump local, ou o recibo do dump feito
+# na réplica do NAS); a folga cobre o dia do dump, em que o verificador só roda depois do dump e do sync.
 HEALTHCHECK --interval=5m --timeout=10s --start-period=30m --retries=1 \
   CMD backup-healthcheck.sh || exit 1
 ENTRYPOINT ["/sbin/tini", "--"]
