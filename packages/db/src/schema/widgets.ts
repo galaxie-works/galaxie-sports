@@ -50,6 +50,7 @@ export const WIDGET_KINDS = [
   'match_stats',
   'upcoming_derbies',
   'shop_the_game',
+  'live_chat',
 ] as const;
 export type WidgetKind = (typeof WIDGET_KINDS)[number];
 

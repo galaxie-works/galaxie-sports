@@ -1,0 +1,71 @@
+# Úrvalsdeild (Islândia). Desde 2022: 12 clubes em turno e returno (22 rodadas); depois, a liga se divide
+# em Championship Group e Relegation Group, de 6 clubes cada, com 5 rodadas e os pontos levados da fase
+# regular. O fornecedor manda as três tabelas ("Urvalsdeild: Regular season", "...: Championship Group",
+# "...: Relegation Group"). Recalculamos só a fase regular; as duas finais, que somam as fases, ficam do
+# fornecedor até o motor suportar pontos levados (#1187). Conferido em 2026; antes de 2022, genérico.
+slug: iceland-urvalsdeild-164
+name: Úrvalsdeild
+format: league
+
+standings:
+  points: { win: 3, draw: 1, loss: 0 }
+  # Desempate das federações (KSÍ e Palloliitto): saldo, gols pró e confronto direto; depois, sorteio.
+  tie_breakers:
+    - goal_difference
+    - goals_for
+    - h2h_points
+    - h2h_goal_difference
+    - drawing_of_lots
+
+league:
+  meetings_per_pair: 2
+  title: true
+  zones: []
+
+knockout:
+  default: { legs: 1, extra_time: false, penalties: true }
+
+overrides:
+  - seasons: { from: 2022 }
+    league:
+      teams: 12
+      matches_per_team: 22
+      title: false
+    tables:
+      - key: regular
+        kind: phase
+        name: { pt-BR: Fase regular, es: Fase regular, en: Regular season }
+        groups: 'regular season'
+        rounds: '^regular season - \d+$'
+        league:
+          teams: 12
+          matches_per_team: 22
+          title: false
+          zones:
+            - { id: championship_group, kind: playoff, from: 1, to: 6 }
+      - key: championship
+        kind: phase
+        name: { pt-BR: Grupo do título, es: Grupo por el título, en: Championship group }
+        groups: 'championship'
+        rounds: '^championship group'
+        computed: false
+        league:
+          teams: 6
+          matches_per_team: 27
+          title: true
+          zones: []
+      - key: relegation
+        kind: phase
+        name: { pt-BR: Grupo do rebaixamento, es: Grupo por el descenso, en: Relegation group }
+        groups: 'relegation'
+        rounds: '^relegation group'
+        computed: false
+        league:
+          teams: 6
+          matches_per_team: 27
+          title: false
+          zones:
+            - { id: relegation, kind: relegation, from: 5, to: 6 }
+
+sources:
+  - https://www.ksi.is/

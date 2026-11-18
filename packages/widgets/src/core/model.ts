@@ -49,6 +49,7 @@ export const WIDGET_KINDS = [
   'match_stats',
   'upcoming_derbies',
   'shop_the_game',
+  'live_chat',
 ] as const;
 export type WidgetKind = (typeof WIDGET_KINDS)[number];
 
@@ -1267,6 +1268,7 @@ const ZONE_TONE_BY_CODE: Record<string, StandingsZoneTone> = {
   playoffs: 'direct',
   liguilla: 'direct',
   quadrangulars: 'direct',
+  championship_group: 'direct',
   libertadores_qualifying: 'qualifying',
   champions_league_qualifying: 'qualifying',
   knockout_playoff: 'qualifying',
@@ -1978,6 +1980,24 @@ a.gs-tile:hover{border-color:var(--gs-primary)}
 .gs-shop-info{display:flex;flex-direction:column;flex:1;min-width:0}
 .gs-shop-item .gs-button{flex:none;text-decoration:none}
 .gs-shop-note{margin:var(--gs-gap) 0 0;font-size:.72em;color:var(--gs-muted-foreground)}
+.gs-chat{display:flex;flex-direction:column;gap:var(--gs-gap);min-height:0}
+.gs-chat-log{display:flex;flex-direction:column;gap:6px;overflow-y:auto;min-height:120px;overscroll-behavior:contain}
+.gs-chat-list{display:flex;flex-direction:column;gap:6px;margin:0;padding:0;list-style:none}
+.gs-chat-msg{display:flex;gap:8px;align-items:flex-start;min-width:0}
+.gs-chat-msg[data-gs-held]{opacity:.7}
+.gs-chat-avatar{flex:none;width:24px;height:24px;border-radius:999px;object-fit:cover;background:var(--gs-border)}
+.gs-chat-body{min-width:0;overflow-wrap:anywhere}
+.gs-chat-author{font-weight:600;margin-right:6px}
+.gs-chat-game{display:flex;gap:8px;align-items:center;padding:6px 8px;border-radius:calc(var(--gs-radius)/1.5);background:var(--gs-background);font-size:.85em}
+.gs-chat-game[data-gs-cancelled] .gs-chat-body{text-decoration:line-through}
+.gs-chat-pinned{display:flex;gap:6px;padding:6px 8px;border-left:3px solid var(--gs-primary);background:var(--gs-background);font-size:.85em}
+.gs-chat-form{display:flex;gap:8px;align-items:flex-end}
+.gs-chat-input{flex:1;min-width:0;resize:none;padding:6px 10px;border:1px solid var(--gs-border);border-radius:calc(var(--gs-radius)/1.5);background:var(--gs-background);color:var(--gs-foreground);font:inherit}
+.gs-chat-reactions{display:flex;flex-wrap:wrap;gap:4px}
+.gs-chat-reaction{appearance:none;display:inline-flex;gap:4px;align-items:center;padding:2px 8px;border:1px solid var(--gs-border);border-radius:999px;background:transparent;color:var(--gs-foreground);font:inherit;font-size:.85em;cursor:pointer}
+.gs-chat-reaction:disabled{cursor:default;opacity:.6}
+.gs-chat-note{margin:0;font-size:.8em;color:var(--gs-muted-foreground)}
+.gs-chat-error{margin:0;font-size:.8em;color:var(--gs-danger,#d33)}
 `;
 
 // ─── textos ──────────────────────────────────────────────────────────────────────────────────────
@@ -2557,6 +2577,37 @@ export interface WidgetTexts {
     draws: string;
     scopes: Record<GsDerbyScope, string>;
   };
+  /** Chat ao vivo da sala do jogo (#976). */
+  liveChat: {
+    title: string;
+    /** Rótulo da lista de mensagens (leitor de tela). */
+    log: string;
+    empty: string;
+    placeholder: string;
+    send: string;
+    hide: string;
+    show: string;
+    hidden: string;
+    pinned: string;
+    /** Mensagem retida pela moderação: só o autor vê. */
+    onlyYou: string;
+    unknownAuthor: string;
+    reconnecting: string;
+    cancelled: string;
+    states: Record<GsChatRoomState, string>;
+    /** Erro genérico ao enviar. */
+    sendError: string;
+    /** "Espere {s} s para mandar outra mensagem." */
+    slowMode: string;
+    reactionsLabel: string;
+    reactions: Record<GsChatReaction, string>;
+    /** Rótulo do botão de reação com a contagem ("Fogo, 12"). */
+    reactionCount: string;
+    /** Stream recusado ou acesso revogado: a conversa não atualiza mais. */
+    unavailable: string;
+    /** Chave presa a um widget: lê a sala, mas o torcedor precisa da chave do site. */
+    siteKey: string;
+  };
 }
 
 const TEXTS: Record<WidgetLocale, WidgetTexts> = {
@@ -2649,6 +2700,7 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       playoffs: 'Playoffs',
       liguilla: 'Liguilla',
       quadrangulars: 'Quadrangulares',
+      championship_group: 'Grupo do título',
       play_in: 'Play-in',
     },
     media: {
@@ -3173,6 +3225,42 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
         international: 'Internacional',
       },
     },
+    liveChat: {
+      title: 'Chat do jogo',
+      log: 'Mensagens do chat',
+      empty: 'Ninguém escreveu ainda. Comece a conversa!',
+      placeholder: 'Escreva uma mensagem',
+      send: 'Enviar',
+      hide: 'Esconder o chat',
+      show: 'Mostrar o chat',
+      hidden: 'Chat escondido.',
+      pinned: 'Fixada',
+      onlyYou: 'Só você vê esta mensagem',
+      unknownAuthor: 'Torcedor',
+      reconnecting: 'Reconectando…',
+      cancelled: 'Anulado',
+      states: {
+        scheduled: 'A sala abre perto do início do jogo.',
+        open: '',
+        frozen: 'A moderação congelou a sala. Você pode continuar lendo.',
+        read_only_peak: 'A sala está cheia e ficou só leitura.',
+        closed: 'A sala foi encerrada. As mensagens ficam para leitura.',
+      },
+      sendError: 'Não deu para enviar agora. Tente de novo.',
+      slowMode: 'Espere {s} s para mandar outra mensagem.',
+      reactionsLabel: 'Reagir ao jogo',
+      reactions: {
+        fire: 'Fogo',
+        clap: 'Aplausos',
+        shock: 'Susto',
+        laugh: 'Risada',
+        angry: 'Raiva',
+        ball: 'Bola',
+      },
+      reactionCount: '{reaction}, {n}',
+      unavailable: 'O chat não está disponível agora. As mensagens param de atualizar.',
+      siteKey: 'Para participar do chat, o site precisa da chave publicável do site (sem widget).',
+    },
   },
   es: {
     status: {
@@ -3263,6 +3351,7 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       playoffs: 'Playoffs',
       liguilla: 'Liguilla',
       quadrangulars: 'Cuadrangulares',
+      championship_group: 'Grupo por el título',
       play_in: 'Play-in',
     },
     media: {
@@ -3792,6 +3881,42 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
         international: 'Internacional',
       },
     },
+    liveChat: {
+      title: 'Chat del partido',
+      log: 'Mensajes del chat',
+      empty: 'Nadie escribió todavía. ¡Empieza la conversación!',
+      placeholder: 'Escribe un mensaje',
+      send: 'Enviar',
+      hide: 'Ocultar el chat',
+      show: 'Mostrar el chat',
+      hidden: 'Chat oculto.',
+      pinned: 'Fijado',
+      onlyYou: 'Solo tú ves este mensaje',
+      unknownAuthor: 'Hincha',
+      reconnecting: 'Reconectando…',
+      cancelled: 'Anulado',
+      states: {
+        scheduled: 'La sala abre cerca del inicio del partido.',
+        open: '',
+        frozen: 'La moderación congeló la sala. Puedes seguir leyendo.',
+        read_only_peak: 'La sala está llena y quedó solo de lectura.',
+        closed: 'La sala cerró. Los mensajes quedan para lectura.',
+      },
+      sendError: 'No se pudo enviar ahora. Inténtalo de nuevo.',
+      slowMode: 'Espera {s} s para enviar otro mensaje.',
+      reactionsLabel: 'Reaccionar al partido',
+      reactions: {
+        fire: 'Fuego',
+        clap: 'Aplausos',
+        shock: 'Susto',
+        laugh: 'Risa',
+        angry: 'Enojo',
+        ball: 'Pelota',
+      },
+      reactionCount: '{reaction}, {n}',
+      unavailable: 'El chat no está disponible ahora. Los mensajes dejan de actualizarse.',
+      siteKey: 'Para participar del chat, el sitio necesita la clave publicable del sitio (sin widget).',
+    },
   },
   en: {
     status: {
@@ -3882,6 +4007,7 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       playoffs: 'Play-offs',
       liguilla: 'Liguilla',
       quadrangulars: 'Quadrangulars',
+      championship_group: 'Championship group',
       play_in: 'Play-in',
     },
     media: {
@@ -4397,6 +4523,42 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
         continental: 'Continental',
         international: 'International',
       },
+    },
+    liveChat: {
+      title: 'Match chat',
+      log: 'Chat messages',
+      empty: 'Nobody has written yet. Start the conversation!',
+      placeholder: 'Write a message',
+      send: 'Send',
+      hide: 'Hide the chat',
+      show: 'Show the chat',
+      hidden: 'Chat hidden.',
+      pinned: 'Pinned',
+      onlyYou: 'Only you can see this message',
+      unknownAuthor: 'Fan',
+      reconnecting: 'Reconnecting…',
+      cancelled: 'Disallowed',
+      states: {
+        scheduled: 'The room opens close to kickoff.',
+        open: '',
+        frozen: 'Moderators froze the room. You can keep reading.',
+        read_only_peak: 'The room is full and became read-only.',
+        closed: 'The room is closed. Messages stay available to read.',
+      },
+      sendError: "Couldn't send right now. Please try again.",
+      slowMode: 'Wait {s} s before sending another message.',
+      reactionsLabel: 'React to the match',
+      reactions: {
+        fire: 'Fire',
+        clap: 'Applause',
+        shock: 'Shock',
+        laugh: 'Laugh',
+        angry: 'Anger',
+        ball: 'Ball',
+      },
+      reactionCount: '{reaction}, {n}',
+      unavailable: 'The chat is not available right now. Messages stop updating.',
+      siteKey: "To join the chat, the site needs the site's publishable key (not a widget key).",
     },
   },
 };
@@ -4976,6 +5138,160 @@ export interface GsAgeVerification {
   created_at: string;
   url?: string;
   expires_at?: string;
+}
+
+// ─── chat ao vivo (#976) ─────────────────────────────────────────────────────────────────────────
+
+export const GS_CHAT_ROOM_STATES = ['scheduled', 'open', 'frozen', 'read_only_peak', 'closed'] as const;
+export type GsChatRoomState = (typeof GS_CHAT_ROOM_STATES)[number];
+export const GS_CHAT_REACTIONS = ['fire', 'clap', 'shock', 'laugh', 'angry', 'ball'] as const;
+export type GsChatReaction = (typeof GS_CHAT_REACTIONS)[number];
+export const GS_CHAT_REACTION_EMOJI: Record<GsChatReaction, string> = {
+  fire: '🔥',
+  clap: '👏',
+  shock: '😱',
+  laugh: '😂',
+  angry: '😡',
+  ball: '⚽',
+};
+
+export interface GsChatMessage {
+  id: string;
+  body: string;
+  author: { profile_id: string; nickname: string | null; avatar_url: string | null };
+  created_at: string;
+}
+
+export interface GsChatGameMessage {
+  id: string;
+  kind: 'kickoff' | 'goal' | 'red_card' | 'var' | 'half_time' | 'full_time';
+  minute: number | null;
+  extra: number | null;
+  team: { id: string; name: string; crest_url: string | null } | null;
+  player: string | null;
+  score: { home: number; away: number } | null;
+  cancelled: boolean;
+  text: { 'pt-BR': string; es: string; en: string };
+  created_at: string;
+  updated_at: string;
+}
+
+/** `GET /v1/chat/rooms/{jogo}`. */
+export interface GsChatRoom {
+  room_id: string | null;
+  fixture_id: string;
+  state: GsChatRoomState;
+  opens_at: string;
+  closes_at: string;
+  settings: { slow_mode_seconds: number; strictness: 'standard' | 'strict'; max_chars: number };
+  messages: GsChatMessage[];
+  pinned?: GsChatMessage | null;
+  reactions: Partial<Record<GsChatReaction, number>>;
+  game_messages: GsChatGameMessage[];
+}
+
+/** Um evento do SSE (`event:`, `data:` e `id:`). */
+export interface SseEvent {
+  event: string;
+  data: string;
+  id: string | null;
+}
+
+/**
+ * Lê os eventos completos de um pedaço do stream SSE (separados por linha em branco) e devolve o que sobrou
+ * incompleto para juntar com o próximo pedaço. Comentários (`:`) e campos desconhecidos ficam de fora.
+ */
+export function parseSse(buffer: string): { events: SseEvent[]; rest: string } {
+  // um \r no fim pode ser a metade de um \r\n que vem no próximo pedaço: fica no resto, sem normalizar
+  const tailCr = buffer.endsWith('\r');
+  const normalized = (tailCr ? buffer.slice(0, -1) : buffer).replace(/\r\n?/g, '\n');
+  const blocks = normalized.split('\n\n');
+  const rest = (blocks.pop() ?? '') + (tailCr ? '\r' : '');
+  const events: SseEvent[] = [];
+  for (const block of blocks) {
+    let event = 'message';
+    let id: string | null = null;
+    const data: string[] = [];
+    for (const line of block.split('\n')) {
+      if (!line || line.startsWith(':')) continue;
+      const colon = line.indexOf(':');
+      const field = colon < 0 ? line : line.slice(0, colon);
+      const value = colon < 0 ? '' : line.slice(colon + 1).replace(/^ /, '');
+      if (field === 'event') event = value;
+      else if (field === 'data') data.push(value);
+      // `id:` vazio zera o cursor (especificação do SSE): vira string vazia, não "sem id"
+      else if (field === 'id') id = value;
+    }
+    if (data.length || event !== 'message') events.push({ event, data: data.join('\n'), id });
+  }
+  return { events, rest };
+}
+
+/**
+ * Junta mensagens novas às da tela, sem repetir (pelo id), em ordem de horário (quando há `created_at`), e mantém
+ * as últimas `max`: o corte nunca abre buraco no meio da conversa.
+ */
+export function mergeChatMessages<T extends { id: string; created_at?: string }>(
+  current: readonly T[],
+  incoming: readonly T[],
+  max = 200,
+): T[] {
+  const seen = new Set(current.map((m) => m.id));
+  const next = [...current];
+  for (const m of incoming)
+    if (!seen.has(m.id)) {
+      seen.add(m.id);
+      next.push(m);
+    }
+  if (next.every((m) => typeof m.created_at === 'string'))
+    next.sort((a, b) => a.created_at!.localeCompare(b.created_at!));
+  return next.length > max ? next.slice(next.length - max) : next;
+}
+
+/**
+ * Espera antes de reconectar o stream: o `Retry-After` do servidor quando vem (segundos), senão de 1 s dobrando
+ * até 30 s, sempre com um acréscimo aleatório para milhares de telas não voltarem juntas (deploy, pico).
+ */
+export function chatRetryMs(
+  failures: number,
+  retryAfter: string | null,
+  random: () => number = Math.random,
+): number {
+  const server = retryAfter !== null && /^\d+$/.test(retryAfter) ? Number(retryAfter) * 1000 : null;
+  const base = server ?? Math.min(1_000 * 2 ** Math.max(0, failures - 1), 30_000);
+  return Math.round(base + base * random());
+}
+
+/** Imagem de terceiros só por https (avatar do torcedor); qualquer outra coisa some. */
+export function safeImageUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  try {
+    return new URL(url).protocol === 'https:' ? url : null;
+  } catch {
+    return null;
+  }
+}
+/** Mensagens do jogo: a versão nova de uma mensagem (gol anulado pelo VAR) troca a antiga pelo id. */
+export function mergeGameMessages(
+  current: readonly GsChatGameMessage[],
+  incoming: readonly GsChatGameMessage[],
+): GsChatGameMessage[] {
+  const byId = new Map(current.map((m) => [m.id, m] as const));
+  for (const m of incoming) byId.set(m.id, m);
+  return [...byId.values()].sort((a, b) => a.created_at.localeCompare(b.created_at));
+}
+
+/** Total das reações: o maior visto por reação (eventos de instâncias diferentes chegam fora de ordem). */
+export function maxReactionTotals(
+  current: Partial<Record<GsChatReaction, number>>,
+  incoming: Partial<Record<GsChatReaction, number>>,
+): Partial<Record<GsChatReaction, number>> {
+  const out = { ...current };
+  for (const k of GS_CHAT_REACTIONS) {
+    const v = incoming[k];
+    if (typeof v === 'number' && v > (out[k] ?? 0)) out[k] = v;
+  }
+  return out;
 }
 
 export const FAN_TOKEN_PREFIX = 'gft_';

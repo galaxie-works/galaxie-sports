@@ -2,6 +2,7 @@ import { randomBytes, randomUUID } from 'node:crypto';
 import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
+  activeAchievements,
   appendGameAudit,
   applyRoles,
   changeGameRules,
@@ -12,6 +13,12 @@ import {
   runMigrations,
   type Database,
 } from '../src/index.js';
+import {
+  gameProgramReport,
+  listGameCatalog,
+  listGamePrograms,
+  setGameAchievementEnabled,
+} from '../src/game-panel.js';
 
 const adminUrl = process.env.DATABASE_URL;
 if (!adminUrl) throw new Error('DATABASE_URL é obrigatória para os testes de integração (pnpm infra:up).');
@@ -202,6 +209,57 @@ describe('schema game', () => {
       (select count(*) from game.period_points where profile_id = ${p})::int as pts,
       (select count(*) from game.audit_log where profile_id = ${p})::int as audit`;
     expect(left).toEqual({ preds: 0, pts: 0, audit: 1 });
+  });
+});
+
+describe('painel do cliente (#917)', () => {
+  it('lista os programas, liga e desliga Conquista e o motor respeita', async () => {
+    const programs = await listGamePrograms(db, tenantA);
+    expect(programs.map((p) => p.country).sort()).toEqual(['AR', 'BR']);
+    const key = { tenantId: tenantA, programCountry: 'BR' };
+    const before = await activeAchievements(db, key);
+    expect(before.some((a) => a.id === 'predictions.correct')).toBe(true);
+    expect(
+      await setGameAchievementEnabled(db, {
+        ...key,
+        achievementId: 'predictions.correct',
+        enabled: false,
+        changedBy: 'panel:1',
+      }),
+    ).toBe(true);
+    expect((await activeAchievements(db, key)).some((a) => a.id === 'predictions.correct')).toBe(false);
+    // o outro país do mesmo cliente não muda
+    expect(
+      (await activeAchievements(db, { tenantId: tenantA, programCountry: 'AR' })).some(
+        (a) => a.id === 'predictions.correct',
+      ),
+    ).toBe(true);
+    const catalog = await listGameCatalog(db, key);
+    expect(catalog.find((c) => c.id === 'predictions.correct')).toMatchObject({
+      enabled: false,
+      available: true,
+    });
+    expect(catalog.find((c) => c.id === 'knowledge.trivia')).toMatchObject({ available: false });
+    // Conquista que não existe e programa de outro cliente: nada muda
+    expect(
+      await setGameAchievementEnabled(db, {
+        ...key,
+        achievementId: 'nope.nope',
+        enabled: false,
+        changedBy: 'panel:1',
+      }),
+    ).toBe(false);
+    expect(
+      await setGameAchievementEnabled(db, {
+        tenantId: tenantB,
+        programCountry: 'AR',
+        achievementId: 'predictions.correct',
+        enabled: false,
+        changedBy: 'panel:1',
+      }),
+    ).toBe(false);
+    const report = await gameProgramReport(db, key);
+    expect(report.predictions).toBeGreaterThan(0);
   });
 });
 

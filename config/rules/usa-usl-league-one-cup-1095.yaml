@@ -1,0 +1,32 @@
+# USL Jägermeister Cup (USL League One Cup), fase de grupos. O fornecedor manda uma tabela única,
+# "Group Stage", com todos os clubes (4 jogos cada). Não há empate: empatou no tempo normal, vai aos
+# pênaltis. Vitória no tempo normal 3, nos pênaltis 2, derrota nos pênaltis 1, derrota 0 (regulamento da
+# USL). O fornecedor conta a vitória nos pênaltis como vitória (3) e a derrota como derrota (0), então a
+# nossa tabela diverge da dele de propósito (#1187). Desempate oficial: gols pró, confronto direto,
+# vitórias, gols sofridos, saldo, disciplina, sorteio.
+# Mata-mata: jogo único, sem prorrogação, empate direto aos pênaltis.
+slug: usa-usl-league-one-cup-1095
+name: USL League One Cup
+format: groups_and_knockout
+
+standings:
+  points: { win: 3, draw: 1, loss: 0, shootout: { win: 2, loss: 1 } }
+  tie_breakers:
+    - goals_for
+    - h2h_points
+    - wins
+    - fewest_goals_against
+    - goal_difference
+    - fair_play
+    - drawing_of_lots
+
+league:
+  meetings_per_pair: 1
+  title: false
+  zones: []
+
+knockout:
+  default: { legs: 1, extra_time: false, penalties: true }
+
+sources:
+  - https://www.uslleagueone.com/
