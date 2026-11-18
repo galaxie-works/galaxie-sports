@@ -180,6 +180,9 @@ HAS_CANDIDATE=1
 for svc in api "${WEB[@]}"; do
   grep -qx -- "$svc-candidate" <<< "$candidates" || HAS_CANDIDATE=""
 done
+# a lista vai ao candidate.sh em cada chamada: ele a confere contra o compose.yml.new da VPS em vez de descobrir sozinho
+# a cada invocação (em 18/11/2026 o `up` listou dois e o `smoke` três)
+CAND_LIST="api ${WEB[*]}"
 # --services: só a lista acima (o CI confere que ela, nos três projetos, bate com as imagens que o docker.yml publica)
 [ -z "$ONLY_SERVICES" ] || exit 0
 
@@ -269,7 +272,7 @@ on_exit() {
   fi
   # candidato que ficou no ar (job cancelado no meio do smoke)
   if [ -n "$CAND_UP" ]; then
-    ssh -o ConnectTimeout=20 "$VPS" "cd $DIR && bash -s -- down" < "$HERE/candidate.sh" ||
+    ssh -o ConnectTimeout=20 "$VPS" "cd $DIR && bash -s -- down ${CAND_LIST:-}" < "$HERE/candidate.sh" ||
       echo "WARN  candidato não foi removido; confira: ssh $VPS 'cd $DIR && docker compose --profile candidate ps -a'"
   fi
   # credencial, trava, .env da versão nova (tem os segredos) e o smoke copiado: saem mesmo com o job cancelado (o
@@ -475,9 +478,9 @@ elif in_troca api || web_in_troca; then
   ssh "$VPS" "cat > $DIR/.smoke-$RUN_ID.mjs" < "$STACK/smoke.mjs"
   cand_smoke=""
   [ -z "$HAS_VERSION" ] || cand_smoke="SMOKE_API_IMAGE=${IMAGE_TAG_OF[api]} SMOKE_DEMO_IMAGE=${IMAGE_TAG_OF[demo]}"
-  if ! ssh "$VPS" "cd $DIR && bash -s -- up" < "$HERE/candidate.sh" ||
-    ! ssh "$VPS" "cd $DIR && bash -s -- smoke .smoke-$RUN_ID.mjs $cand_smoke" < "$HERE/candidate.sh"; then
-    ssh "$VPS" "cd $DIR && bash -s -- down" < "$HERE/candidate.sh" || true
+  if ! ssh "$VPS" "cd $DIR && bash -s -- up $CAND_LIST" < "$HERE/candidate.sh" ||
+    ! ssh "$VPS" "cd $DIR && bash -s -- smoke .smoke-$RUN_ID.mjs $CAND_LIST $cand_smoke" < "$HERE/candidate.sh"; then
+    ssh "$VPS" "cd $DIR && bash -s -- down $CAND_LIST" < "$HERE/candidate.sh" || true
     CAND_UP=""
     echo "FAIL  candidato da ${SHA:0:7} reprovado (acima): sem troca, a ${OLD:0:7} segue no ar"
     if [ -n "$EARLY_MIG" ]; then
@@ -485,7 +488,7 @@ elif in_troca api || web_in_troca; then
     fi
     exit 1
   fi
-  ssh "$VPS" "cd $DIR && bash -s -- down" < "$HERE/candidate.sh"
+  ssh "$VPS" "cd $DIR && bash -s -- down $CAND_LIST" < "$HERE/candidate.sh"
   CAND_UP=""
   echo "candidato aprovado no smoke: trocando"
 fi
