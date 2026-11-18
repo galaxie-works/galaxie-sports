@@ -338,6 +338,25 @@ describe('empate decidido nos pênaltis (Leagues Cup)', () => {
     expect(order(t).slice(0, 2)).toEqual(['B', 'A']);
   });
 
+  it('no confronto direto, pênaltis empatados ou ausentes valem empate; sem shootout, idem (#1364)', () => {
+    const tb = ['goals_for', 'h2h_points', 'drawing_of_lots'];
+    const games = (pen: [number, number] | null) => [
+      pen ? pens(match('A', 'B', 1, 1), ...pen) : match('A', 'B', 1, 1),
+      match('A', 'C', 1, 0),
+      match('B', 'C', 1, 0),
+    ];
+    for (const pen of [null, [3, 3] as [number, number]]) {
+      const t = computeTable({
+        rules: rulesFrom({ standings: { points: shootout, tie_breakers: tb } }),
+        matches: games(pen),
+      });
+      // empate de 1 a 1 no confronto: o sorteio (por id) põe A na frente
+      expect(order(t).slice(0, 2)).toEqual(['A', 'B']);
+    }
+    const plain = rulesFrom({ standings: { points: { win: 3, draw: 1, loss: 0 }, tie_breakers: tb } });
+    expect(order(computeTable({ rules: plain, matches: games([4, 5]) })).slice(0, 2)).toEqual(['A', 'B']);
+  });
+
   it('sem `shootout` no regulamento, a disputa de pênaltis não muda o empate', () => {
     const r = rulesFrom({ standings: { points: { win: 3, draw: 1, loss: 0 } } });
     const t = computeTable({ rules: r, matches: [pens(match('A', 'B', 1, 1), 4, 3)] });
