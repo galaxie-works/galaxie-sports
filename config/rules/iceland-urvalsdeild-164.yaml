@@ -9,10 +9,12 @@ format: league
 
 standings:
   points: { win: 3, draw: 1, loss: 0 }
+  # Desempate das federações (KSÍ e Palloliitto): saldo, gols pró e confronto direto; depois, sorteio.
   tie_breakers:
     - goal_difference
     - goals_for
-    - wins
+    - h2h_points
+    - h2h_goal_difference
     - drawing_of_lots
 
 league:
