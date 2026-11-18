@@ -69,10 +69,6 @@ export const CHAT_STREAMS_PER_SESSION = 3;
 export const isProxyFanRead = (path: readonly string[]) =>
   path.length === 3 && path[0] === 'v1' && path[1] === 'fans' && path[2] === 'me';
 
-/** Formato do header do torcedor que o proxy repassa (`Bearer gft_…`). */
-export const isFanAuthorization = (value: string) =>
-  value.length <= 4096 && /^Bearer gft_[A-Za-z0-9._~+/=-]+$/.test(value);
-
 /** Escritas do torcedor por sessão por minuto (mensagens e reações): balde próprio, sem gastar o da leitura. */
 export const PROXY_WRITES_PER_MINUTE = 120;
 
