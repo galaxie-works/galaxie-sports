@@ -2,14 +2,15 @@
 # Agenda do serviço de backup (UTC):
 #   - um dump por dia em BACKUP_TIME (HH:MM) e, por padrão, um na partida (prova cedo que credenciais, disco e
 #     destino remoto funcionam) quando o último bem-sucedido tem mais de BACKUP_ON_START_MIN_AGE_H horas (padrão 20;
-#     BACKUP_ON_START=always faz sempre). Todo deploy recria este serviço (a imagem leva a tag do deploy): o dump
+#     BACKUP_ON_START=always faz sempre). O deploy da imagem (dados-backup.yml) recria este serviço: o dump
 #     completo, com o COPY do raw, disputava disco e cache com o pós-deploy e o smoke, e vários deploys num dia
 #     giravam os 7 diários. Com BACKUP_DAYS (dias da semana, 0 = domingo … 6, vírgula entre eles), o dump só sai nesses
 #     dias: é o dump semanal da VPS quando o diário vem da réplica do NAS (docs/runbooks/replica-no-nas.md), o pior caso
 #     de NAS e disco da VPS perdidos na mesma semana. Nesse modo o dump de partida só sai com o último mais velho que
 #     BACKUP_LOCAL_MAX_AGE_H (padrão 192 h), e não que BACKUP_ON_START_MIN_AGE_H: senão cada deploy faria um dump completo;
 #   - com BACKUP_S3_SYNC_PREFIXES ou BACKUP_S3_SYNC_TASKS_BUCKET=true, o sync do S3 (s3-sync.sh) logo depois de cada
-#     dump e, se o recibo estiver velho, na partida;
+#     dump, na hora do dump nos dias sem dump (BACKUP_DAYS: o verificador cobra o recibo com até 26 h todo dia) e, se o
+#     recibo estiver velho, na partida;
 #   - o verificador (backup-check.sh) a cada BACKUP_CHECK_INTERVAL_H horas (padrão 6) e depois de cada dump;
 #   - o ensaio de restauração (restore-drill.sh) no dia RESTORE_DRILL_DAY de cada mês (padrão 1), logo depois do
 #     dump do dia; RESTORE_DRILL_DAY=off desliga.
@@ -72,6 +73,8 @@ daily() {
     backup.sh || log error "backup falhou"
   else
     log info "sem dump hoje (BACKUP_DAYS=$BACKUP_DAYS, hoje é $(date -u +%w)); o diário vem da réplica do NAS"
+    # o sync do S3 é diário mesmo sem dump: o backup-check.sh cobra o recibo com até 26 h e o NAS copia a pasta s3/
+    if s3_sync_enabled; then s3-sync.sh || log error "sync do S3 falhou"; fi
   fi
   backup-check.sh || true
   # dia do mês sem zero à esquerda (busybox date não tem %-d)
