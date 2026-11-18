@@ -537,6 +537,25 @@ describe('Feed da Comunidade (#946)', () => {
     expect(terms.json().errors[0].message).toBe('terms_required');
   });
 
+  it('bloqueio vale nos dois sentidos no Feed e nos comentários', async () => {
+    const { t, c, adult } = await member('feed-block');
+    const other = await fan(t.key);
+    await post(other.token, `/v1/communities/${c.id}/join`);
+    const p = (await post(adult.token, `/v1/communities/${c.id}/posts`, { body: 'Post do primeiro' })).json()
+      .data;
+    expect(
+      (await post(other.token, `/v1/posts/${p.id}/comments`, { body: 'Comentário do segundo' })).statusCode,
+    ).toBe(201);
+    const blocked = await app.inject({
+      method: 'PUT',
+      url: `/v1/fans/me/blocks/${other.profileId}`,
+      headers: { authorization: `Bearer ${adult.token}` },
+    });
+    expect(blocked.statusCode).toBe(204);
+    expect((await get(adult.token, `/v1/posts/${p.id}/comments`)).json().data).toEqual([]);
+    expect((await get(other.token, `/v1/communities/${c.id}/posts`)).json().data.posts).toEqual([]);
+  });
+
   it('o fixado sai só em pinned, sem repetir em posts', async () => {
     const { t, c, adult } = await member('feed-pin');
     const p = (await post(adult.token, `/v1/communities/${c.id}/posts`, { body: 'Regras da casa' })).json()

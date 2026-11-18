@@ -159,6 +159,8 @@ export async function listFeed(
     limit: number;
     since?: Date | null;
     now: Date;
+    /** Perfis bloqueados nos dois sentidos (`hiddenProfilesFor`): os posts deles não aparecem. */
+    hiddenAuthors?: readonly string[];
   },
 ): Promise<{ pinned: CommunityPostRow[]; posts: CommunityPostRow[] }> {
   const { tenantId, communityId, viewerProfileId: viewer } = input;
@@ -169,6 +171,9 @@ export async function listFeed(
     authorAlive,
     notExpired(input.now),
     input.since ? gte(communityPost.createdAt, input.since) : undefined,
+    input.hiddenAuthors?.length
+      ? or(isNull(communityPost.profileId), notInArray(communityPost.profileId, [...input.hiddenAuthors]))
+      : undefined,
   );
   const [posts, pinned] = await Promise.all([
     selectPosts(db, viewer)
@@ -293,6 +298,8 @@ export async function listComments(
     after?: string | null;
     limit: number;
     now: Date;
+    /** Perfis bloqueados nos dois sentidos: os comentários deles não aparecem. */
+    hiddenAuthors?: readonly string[];
   },
 ): Promise<CommunityCommentRow[]> {
   const rows = await db
@@ -325,6 +332,9 @@ export async function listComments(
           ),
         ),
         gt(communityComment.purgeAt, input.now),
+        input.hiddenAuthors?.length
+          ? notInArray(communityComment.profileId, [...input.hiddenAuthors])
+          : undefined,
         input.after ? gt(communityComment.id, input.after) : undefined,
       ),
     )
