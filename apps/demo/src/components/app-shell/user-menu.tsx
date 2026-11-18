@@ -27,6 +27,7 @@ import type { Locale } from '@/lib/i18n/config';
 import { clearTrail, topLevelClick } from '@/lib/trail';
 
 import { FanProfileDialog } from './fan-profile-dialog';
+import { FAN_TOKEN_CHANGED_EVENT } from '@galaxie/widgets';
 import { LanguageSelect } from './language-select';
 
 /**
@@ -142,7 +143,11 @@ export function UserMenu() {
             open
             onOpenChange={(open) => {
               setFanOpen(open);
-              if (!open) refetch();
+              if (!open) {
+                refetch();
+                // os widgets pedem o token de novo (perfil novo, faixa nova)
+                document.dispatchEvent(new Event(FAN_TOKEN_CHANGED_EVENT));
+              }
             }}
             initial={{
               nickname: user.fanNickname ?? undefined,
