@@ -42,7 +42,7 @@ describe('config/rules — todos os YAML do repositório', () => {
     // fora do catálogo curado, só competição do catálogo automático da api-sports, com o id da liga no fim
     // do slug (`finland-kakkonen-lohko-a-247`, #1187)
     for (const slug of (await loadAllCompetitionRules()).keys()) {
-      if (slug !== 'default') expect(slugs.has(slug) || /-\d+$/.test(slug), slug).toBe(true);
+      if (slug !== 'default') expect(slugs.has(slug) || /^[a-z0-9]+(-[a-z0-9]+)+-\d+$/.test(slug), slug).toBe(true);
     }
   });
 

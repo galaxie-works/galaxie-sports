@@ -1,6 +1,7 @@
-# Kakkonen (Finlândia, 4ª divisão), Lohko B — turno e returno de 10 clubes (18 rodadas,
-# "Group B - N" no fornecedor). Depois da 18ª rodada vem uma segunda fase com rodadas sem número
-# ("Group B"), que o fornecedor não soma à tabela da temporada: ela fica fora do recálculo (#1187).
+# Kakkonen (Finlândia, 4ª divisão), Lohko B. Em 2026: turno e returno de 10 clubes (18 rodadas,
+# "Group B - N" no fornecedor, grupo "Group B"). Depois da 18ª rodada vem uma segunda fase com rodadas
+# sem número ("Group B"), que o fornecedor não soma à tabela da temporada: ela fica fora do recálculo
+# (#1187). Conferido só em 2026 (prévia igual à do fornecedor); as outras temporadas seguem o genérico.
 slug: finland-kakkonen-lohko-b-248
 name: Kakkonen - Lohko B
 format: league
@@ -14,8 +15,6 @@ standings:
     - drawing_of_lots
 
 league:
-  teams: 10
-  matches_per_team: 18
   meetings_per_pair: 2
   title: false
   zones: []
@@ -23,18 +22,23 @@ league:
 knockout:
   default: { legs: 1, extra_time: false, penalties: true }
 
-tables:
-  - key: regular
-    kind: phase
-    name: { pt-BR: Fase de pontos corridos, es: Fase regular, en: Regular season }
-    groups: '.'
-    rounds: '^group b - \d+$'
-  - key: second_phase
-    kind: phase
-    name: { pt-BR: Segunda fase, es: Segunda fase, en: Second phase }
-    groups: 'sem-grupo-proprio'
-    rounds: '^group b$'
-    computed: false
+overrides:
+  - seasons: { from: 2026 }
+    league:
+      teams: 10
+      matches_per_team: 18
+    tables:
+      - key: regular
+        kind: phase
+        name: { pt-BR: Fase de pontos corridos, es: Fase regular, en: Regular season }
+        groups: 'group b$'
+        rounds: '^group b - \d+$'
+      - key: second_phase
+        kind: phase
+        name: { pt-BR: Segunda fase, es: Segunda fase, en: Second phase }
+        groups: 'sem-grupo-proprio'
+        rounds: '^group b$'
+        computed: false
 
 sources:
   - https://www.palloliitto.fi/
