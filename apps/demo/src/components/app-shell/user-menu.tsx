@@ -3,7 +3,7 @@
 import { Blocks, ChevronsUpDown, Languages, LogOut, SlidersHorizontal, Trophy, Users } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { LoadingStatus } from '@/components/app-shell/loading-status';
 import { AvatarInfoSkeleton } from '@/components/app-shell/skeletons';
@@ -27,6 +27,8 @@ import type { Locale } from '@/lib/i18n/config';
 import { clearTrail, topLevelClick } from '@/lib/trail';
 
 import { FanProfileDialog } from './fan-profile-dialog';
+import { FAN_TOKEN_CHANGED_EVENT } from '@galaxie/widgets';
+import { OPEN_FAN_PROFILE_EVENT } from '@/lib/fan/client';
 import { LanguageSelect } from './language-select';
 
 /**
@@ -44,6 +46,12 @@ export function UserMenu() {
   const { t } = useI18n();
   const { data, isPending, refetch } = authClient.useSession();
   const [fanOpen, setFanOpen] = useState(false);
+  // o "Entrar" dos widgets do torcedor (chat da página do jogo) abre o perfil de torcedor daqui
+  useEffect(() => {
+    const open = () => setFanOpen(true);
+    window.addEventListener(OPEN_FAN_PROFILE_EVENT, open);
+    return () => window.removeEventListener(OPEN_FAN_PROFILE_EVENT, open);
+  }, []);
 
   // Skeleton de largura fixa: o SidebarMenuSkeleton sorteia a largura (Math.random), o que o Next 16 não
   // aceita no prerender e que diverge na hidratação.
@@ -142,7 +150,11 @@ export function UserMenu() {
             open
             onOpenChange={(open) => {
               setFanOpen(open);
-              if (!open) refetch();
+              if (!open) {
+                refetch();
+                // os widgets pedem o token de novo (perfil novo, faixa nova)
+                document.dispatchEvent(new Event(FAN_TOKEN_CHANGED_EVENT));
+              }
             }}
             initial={{
               nickname: user.fanNickname ?? undefined,

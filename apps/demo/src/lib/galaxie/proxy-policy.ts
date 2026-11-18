@@ -15,6 +15,8 @@
  */
 export const PROXY_RESOURCES: ReadonlySet<string> = new Set([
   'broadcasters',
+  // chat ao vivo na página do jogo (#977): a sala e o stream dela
+  'chat',
   'competitions',
   'copy',
   'countries',
@@ -42,6 +44,22 @@ export function isProxyPathAllowed(path: readonly string[]): boolean {
   // vídeos relacionados: a vitrine lê no servidor; o navegador não alcança a rota pela chave da demo
   if (path[1] === 'events' && path[3] === 'related') return false;
   return PROXY_RESOURCES.has(path[1]!);
+}
+
+/**
+ * Escrita que o proxy repassa (#977): só enviar mensagem e reagir no chat de um jogo, com o token do torcedor da
+ * pessoa logada. A chave da demo não vai junto: quem autentica é o token (a API não aceita escrita sem ele).
+ */
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export function isProxyWriteAllowed(path: readonly string[]): boolean {
+  return (
+    path.length === 5 &&
+    path[0] === 'v1' &&
+    path[1] === 'chat' &&
+    path[2] === 'rooms' &&
+    UUID.test(path[3] ?? '') &&
+    (path[4] === 'messages' || path[4] === 'reactions')
+  );
 }
 
 /** Leituras por sessão por minuto: folga para a navegação (busca a cada tecla, Builder, ao vivo). */

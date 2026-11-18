@@ -76,3 +76,53 @@ describe('proxy /api/galaxie', () => {
     expect(upstream).toHaveBeenCalledTimes(PROXY_REQUESTS_PER_MINUTE + 1);
   });
 });
+
+describe('proxy /api/galaxie: escrita do chat (#977)', () => {
+  const ROOM = '0190f000-0000-7000-8000-00000000f001';
+  const post = (path: string[], headers: Record<string, string> = {}) =>
+    route.POST(
+      new Request(`http://demo.test/api/galaxie/${path.join('/')}`, {
+        method: 'POST',
+        body: JSON.stringify({ body: 'Vamos!' }),
+        headers: {
+          cookie: 'better-auth.session_token=sessao-a.assinatura',
+          'sec-fetch-site': 'same-origin',
+          authorization: 'Bearer gft_abc.def',
+          ...headers,
+        },
+      }),
+      { params: Promise.resolve({ path }) },
+    );
+
+  it('repassa a mensagem e a reação com o token do torcedor, sem a chave da demo', async () => {
+    for (const kind of ['messages', 'reactions']) {
+      upstream.mockClear();
+      const res = await post(['v1', 'chat', 'rooms', ROOM, kind]);
+      expect(res.status).toBe(200);
+      const [url, init] = upstream.mock.calls[0] as unknown as [string, RequestInit];
+      expect(String(url)).toBe(`http://api.test/v1/chat/rooms/${ROOM}/${kind}`);
+      const headers = new Headers(init.headers);
+      expect(headers.get('authorization')).toBe('Bearer gft_abc.def');
+      expect(headers.get('x-galaxie-key')).toBeNull();
+      expect(init.method).toBe('POST');
+    }
+  });
+
+  it('recusa outro caminho, outra origem e pedido sem o token, sem chamar a API', async () => {
+    expect((await post(['v1', 'chat', 'config'])).status).toBe(404);
+    expect((await post(['v1', 'chat', 'rooms', 'nao-uuid', 'messages'])).status).toBe(404);
+    expect((await post(['v1', 'fans', 'tokens'])).status).toBe(404);
+    expect(
+      (await post(['v1', 'chat', 'rooms', ROOM, 'messages'], { 'sec-fetch-site': 'cross-site' })).status,
+    ).toBe(404);
+    expect(
+      (await post(['v1', 'chat', 'rooms', ROOM, 'messages'], { authorization: 'Bearer gs_sk_x' })).status,
+    ).toBe(401);
+    expect(upstream).not.toHaveBeenCalled();
+  });
+
+  it('a leitura da sala e o stream passam pelo GET', async () => {
+    expect((await get(['v1', 'chat', 'rooms', ROOM])).status).toBe(200);
+    expect((await get(['v1', 'chat', 'rooms', ROOM, 'stream'])).status).toBe(200);
+  });
+});
