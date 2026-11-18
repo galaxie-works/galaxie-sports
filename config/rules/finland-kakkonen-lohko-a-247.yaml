@@ -1,0 +1,40 @@
+# Kakkonen (Finlândia, 4ª divisão), Lohko A — turno e returno de 10 clubes (18 rodadas,
+# "Group A - N" no fornecedor). Depois da 18ª rodada vem uma segunda fase com rodadas sem número
+# ("Group A"), que o fornecedor não soma à tabela da temporada: ela fica fora do recálculo (#1187).
+slug: finland-kakkonen-lohko-a-247
+name: Kakkonen - Lohko A
+format: league
+
+standings:
+  points: { win: 3, draw: 1, loss: 0 }
+  tie_breakers:
+    - goal_difference
+    - goals_for
+    - wins
+    - drawing_of_lots
+
+league:
+  teams: 10
+  matches_per_team: 18
+  meetings_per_pair: 2
+  title: false
+  zones: []
+
+knockout:
+  default: { legs: 1, extra_time: false, penalties: true }
+
+tables:
+  - key: regular
+    kind: phase
+    name: { pt-BR: Fase de pontos corridos, es: Fase regular, en: Regular season }
+    groups: '.'
+    rounds: '^group a - \d+$'
+  - key: second_phase
+    kind: phase
+    name: { pt-BR: Segunda fase, es: Segunda fase, en: Second phase }
+    groups: 'sem-grupo-proprio'
+    rounds: '^group a$'
+    computed: false
+
+sources:
+  - https://www.palloliitto.fi/
