@@ -142,7 +142,7 @@ export function ChatSettingsForm({ initial }: { initial: ChatTenantSettings }) {
             id="chat-handles"
             rows={3}
             value={handles}
-            placeholder="@seuclube"
+            placeholder={T.allowedHandlesPlaceholder}
             onChange={(e) => setHandles(e.target.value)}
           />
           <FieldDescription>{T.allowedHandlesHint}</FieldDescription>

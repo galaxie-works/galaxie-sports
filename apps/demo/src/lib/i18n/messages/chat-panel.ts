@@ -58,6 +58,7 @@ export default defineMessages(
       floodMax: 'Anti-flood: mensagens por minuto (3 a 60)',
       floodBlock: 'Anti-flood: bloqueio (s, 30 a 1800)',
       allowedHandles: 'Perfis oficiais liberados',
+      allowedHandlesPlaceholder: '@seuclube',
       allowedHandlesHint:
         'Um por linha (@seuclube, @suaemissora). O filtro barra @perfil e convite para outros apps; os daqui passam. Vale em até 1 minuto.',
       strictness: 'Rigor',
@@ -182,6 +183,7 @@ export default defineMessages(
         floodMax: 'Anti-flood: messages per minute (3 to 60)',
         floodBlock: 'Anti-flood: block (s, 30 to 1800)',
         allowedHandles: 'Allowed official handles',
+        allowedHandlesPlaceholder: '@yourclub',
         allowedHandlesHint:
           'One per line (@yourclub, @yourbroadcaster). The filter blocks @handles and invitations to other apps; these go through. Takes effect within 1 minute.',
         strictness: 'Strictness',
@@ -305,6 +307,7 @@ export default defineMessages(
         floodMax: 'Anti-flood: mensajes por minuto (3 a 60)',
         floodBlock: 'Anti-flood: bloqueo (s, 30 a 1800)',
         allowedHandles: 'Perfiles oficiales permitidos',
+        allowedHandlesPlaceholder: '@tuclub',
         allowedHandlesHint:
           'Uno por línea (@tuclub, @tuemisora). El filtro bloquea @perfiles e invitaciones a otras apps; estos pasan. Se aplica en hasta 1 minuto.',
         strictness: 'Rigor',
