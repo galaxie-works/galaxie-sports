@@ -153,6 +153,14 @@ o que faltar.
      roda o `smoke.mjs` contra um servidor local que responde 500 e depois 200.
 10. Falha, do menor para o maior:
     - **Migrate**: nada foi trocado; a versão anterior segue no ar.
+    - **Candidato: `console-candidate` não subiu / `service "console-candidate" is not running`** (18/11/2026): o
+      `candidate.sh` roda em chamadas separadas (`up`, `smoke`, `down`) e cada uma listava os candidatos de novo com
+      `docker compose config --services`; uma leitura veio sem o console, sem erro, o `up` subiu só a API e o site e o
+      `smoke` procurou o console. Agora o deploy passa a lista (`up api site console`), o `up` só aceita a listagem
+      repetida em duas leituras seguidas (até 3) e para com `FAIL  candidato: o compose.yml.new não lista
+      <x>-candidate (config --services devolveu: …)` antes de subir qualquer coisa, com a saída do `config -q` no log;
+      o `smoke` e o `down` usam a lista que o `up` gravou em `.candidates`. Nada foi trocado: confira o
+      `compose.yml.new` do SHA (perfil `candidate`) e dispare de novo.
     - **Um serviço não troca**: volta só ele (e os da mesma tag), com a tag e a configuração anteriores. Os outros ficam
       na versão nova, o deploy segue até o smoke e o job fica vermelho, com `FAIL  deploy parcial …`. O `DEPLOY_SHA`
       fica o anterior, então o deploy seguinte, mesmo do mesmo SHA, compara e tenta de novo.
