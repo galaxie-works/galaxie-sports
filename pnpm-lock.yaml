@@ -149,6 +149,9 @@ importers:
       '@galaxie/engage':
         specifier: workspace:*
         version: link:../../packages/engage
+      '@galaxie/game-rules':
+        specifier: workspace:*
+        version: link:../../packages/game-rules
       '@galaxie/net-guard':
         specifier: workspace:*
         version: link:../../packages/net-guard
