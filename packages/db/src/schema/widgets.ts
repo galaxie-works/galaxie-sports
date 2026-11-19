@@ -211,6 +211,11 @@ export const publishableKey = ops.table(
     env: text('env').$type<'live' | 'test'>().notNull().default('live'),
     /** Origens aceitas (`https://app.exemplo.com`, `https://*.exemplo.com`). */
     allowedOrigins: text('allowed_origins').array().notNull(),
+    /**
+     * Idioma padrão das respostas desta chave (o site em que ela roda, #1445): vale antes do padrão do tenant quando o
+     * pedido não traz `?locale` nem `Accept-Language` compatível. null = o do tenant.
+     */
+    defaultLocale: text('default_locale'),
     /** Restringe a chave a um widget; null = qualquer widget do tenant. Apagar o widget apaga a chave. */
     widgetId: uuid('widget_id').references(() => widget.id, { onDelete: 'cascade' }),
     createdAt: createdAt(),

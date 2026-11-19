@@ -30,6 +30,7 @@ export async function memoryTenant(
       state: overrides.state ?? (overrides.status === 'suspended' ? 'suspended' : 'active'),
       dailyRequestQuota: overrides.dailyRequestQuota ?? null,
       trialEndsAt: overrides.trialEndsAt ?? null,
+      defaultLocale: overrides.defaultLocale ?? null,
     },
   });
   return { store, key: generated.key, prefix: generated.prefix };

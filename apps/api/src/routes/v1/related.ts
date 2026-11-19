@@ -23,7 +23,7 @@ import { requireDb, type AppContext } from '../../context.js';
 import { problems } from '../../errors.js';
 import { eventHead } from '../../events/queries.js';
 import { resolveMarket } from '../../events/relevance.js';
-import { formatInstant, resolveLocale } from '../../i18n.js';
+import { formatInstant, requestLocale } from '../../i18n.js';
 import { parseInput } from '../../util.js';
 
 const MODULE = { module: 'related_content' } as const;
@@ -140,7 +140,7 @@ export async function relatedRoutes(app: FastifyInstance, ctx: AppContext): Prom
   app.get('/v1/events/:id/related', { config: MODULE }, async (request, reply) => {
     const params = parseInput(EventParams, request.params);
     const query = parseInput(RelatedQuery, request.query);
-    const locale = resolveLocale(query.locale, request.headers['accept-language']);
+    const locale = requestLocale(request, query.locale);
     const tz = query.tz ?? 'UTC';
     // público: o país pedido ou o mercado único do plano; vídeos no idioma dele, os do próprio país primeiro
     const country = resolveMarket(request, query.country);

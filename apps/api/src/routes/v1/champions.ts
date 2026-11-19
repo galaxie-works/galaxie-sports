@@ -6,7 +6,7 @@ import { sendCached } from '../../cache/http.js';
 import { CACHE_TTL } from '../../cache/policy.js';
 import { requireDb, type AppContext } from '../../context.js';
 import { problems } from '../../errors.js';
-import { competitionName, resolveLocale } from '../../i18n.js';
+import { competitionName, requestLocale } from '../../i18n.js';
 import { competitionLogoId, teamLogoId } from '../../assets/custom-logos.js';
 import { assetUrl, parseInput, UUID_RE } from '../../util.js';
 import { loadTeamNames, teamNameOptions } from '../../teams/display-name.js';
@@ -26,7 +26,7 @@ export async function championRoutes(app: FastifyInstance, ctx: AppContext): Pro
   app.get('/v1/competitions/:id/champions', { config: MODULE }, async (request, reply) => {
     const params = parseInput(ChampionsParams, request.params);
     const query = parseInput(ChampionsQuery, request.query);
-    const locale = resolveLocale(query.locale, request.headers['accept-language']);
+    const locale = requestLocale(request, query.locale);
     reply.header('content-language', locale);
     const withRunnerUp = query.runner_up === true;
     return sendCached(request, reply, ctx.cache, {

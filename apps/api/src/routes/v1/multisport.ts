@@ -47,7 +47,7 @@ import { sendCached } from '../../cache/http.js';
 import { CACHE_TTL } from '../../cache/policy.js';
 import { requireDb, type AppContext } from '../../context.js';
 import { problems } from '../../errors.js';
-import { competitionName, formatInstant, pickText, resolveLocale } from '../../i18n.js';
+import { competitionName, formatInstant, pickText, requestLocale } from '../../i18n.js';
 import { decodeCursor, encodeCursor, parseInput, UUID_RE } from '../../util.js';
 
 const MODULE = { module: 'multisport' } as const;
@@ -282,7 +282,7 @@ const participantName = sql<string>`coalesce(${msPerson.fullName}, ${msParticipa
 /** Rotas /v1/multisport (docs/08 §4) — módulo `multisport`. */
 export async function multisportRoutes(app: FastifyInstance, ctx: AppContext): Promise<void> {
   const localeOf = (request: FastifyRequest, query: { locale?: Locale | undefined }) =>
-    resolveLocale(query.locale, request.headers['accept-language']);
+    requestLocale(request, query.locale);
 
   // ─── /v1/multisport/games ────────────────────────────────────────────────────────────────────
   app.get('/v1/multisport/games', { config: MODULE }, async (request, reply) => {

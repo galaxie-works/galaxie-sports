@@ -17,6 +17,8 @@ export interface TenantRecord {
   dailyRequestQuota?: number | null;
   /** Prazo do estado `trial`; vencido, nenhuma chave do tenant autentica (fallback até o `tenant.lifecycle` rodar). */
   trialEndsAt?: Date | null;
+  /** Idioma padrão das respostas das chaves do tenant (#1445); null = o da API. */
+  defaultLocale?: string | null;
 }
 
 export interface KeyRecord {
@@ -70,6 +72,7 @@ export class PgTenantStore implements TenantStore {
         state: row.tenant.state,
         dailyRequestQuota: row.tenant.dailyRequestQuota,
         trialEndsAt: row.tenant.trialEndsAt,
+        defaultLocale: row.tenant.defaultLocale,
       },
     };
   }

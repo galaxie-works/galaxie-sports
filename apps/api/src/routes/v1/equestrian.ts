@@ -47,7 +47,7 @@ import { sendCached } from '../../cache/http.js';
 import { CACHE_TTL } from '../../cache/policy.js';
 import { requireDb, type AppContext } from '../../context.js';
 import { problems } from '../../errors.js';
-import { pickText, resolveLocale } from '../../i18n.js';
+import { pickText, requestLocale } from '../../i18n.js';
 import { assetUrl, decodeCursor, encodeCursor, likeEscape, parseInput } from '../../util.js';
 
 const MODULE = { module: 'core_data' } as const;
@@ -461,7 +461,7 @@ const pageOf = <T>(rows: T[], limit: number, offset: number) => ({
 
 export async function equestrianRoutes(app: FastifyInstance, ctx: AppContext): Promise<void> {
   const localeOf = (request: FastifyRequest, query: { locale?: Locale | undefined }) =>
-    resolveLocale(query.locale, request.headers['accept-language']);
+    requestLocale(request, query.locale);
   const context = async (locale: Locale): Promise<Ctx> => {
     const db = requireDb(ctx);
     return { db, locale, countries: await countries(db, ctx.assetsBaseUrl) };

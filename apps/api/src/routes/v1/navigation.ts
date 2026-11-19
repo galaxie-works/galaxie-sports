@@ -28,7 +28,7 @@ import { sendCached } from '../../cache/http.js';
 import { CACHE_TTL } from '../../cache/policy.js';
 import { requireDb, type AppContext } from '../../context.js';
 import { problems } from '../../errors.js';
-import { competitionName, pickList, pickText, resolveLocale } from '../../i18n.js';
+import { competitionName, pickList, pickText, requestLocale } from '../../i18n.js';
 import { competitionLogoId } from '../../assets/custom-logos.js';
 import { assetUrl, parseInput } from '../../util.js';
 import { OFF_CATALOG_SPORTS } from '../../off-catalog.js';
@@ -89,7 +89,7 @@ export async function navigationRoutes(
   // ─── /v1/navigation ──────────────────────────────────────────────────────────────────────────
   app.get('/v1/navigation', { config: MODULE }, async (request, reply) => {
     const query = parseInput(LocaleQuery, request.query);
-    const locale = resolveLocale(query.locale, request.headers['accept-language']);
+    const locale = requestLocale(request, query.locale);
     reply.header('content-language', locale);
     return sendCached(request, reply, ctx.cache, {
       ttl: CACHE_TTL.catalog,
@@ -166,7 +166,7 @@ export async function navigationRoutes(
   app.get('/v1/countries/:code', { config: MODULE }, async (request, reply) => {
     const params = parseInput(CountryParams, request.params);
     const query = parseInput(LocaleQuery, request.query);
-    const locale = resolveLocale(query.locale, request.headers['accept-language']);
+    const locale = requestLocale(request, query.locale);
     reply.header('content-language', locale);
     return sendCached(request, reply, ctx.cache, {
       ttl: CACHE_TTL.catalog,
@@ -182,7 +182,7 @@ export async function navigationRoutes(
   app.get('/v1/countries/:code/competitions', { config: MODULE }, async (request, reply) => {
     const params = parseInput(CountryParams, request.params);
     const query = parseInput(CountryCompetitionsQuery, request.query);
-    const locale = resolveLocale(query.locale, request.headers['accept-language']);
+    const locale = requestLocale(request, query.locale);
     reply.header('content-language', locale);
     return sendCached(request, reply, ctx.cache, {
       ttl: CACHE_TTL.catalog,

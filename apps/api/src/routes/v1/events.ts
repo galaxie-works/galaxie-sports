@@ -42,7 +42,7 @@ import {
   type EventFilters,
   type EventOrder,
 } from '../../events/queries.js';
-import { formatInstant, pickText, resolveLocale } from '../../i18n.js';
+import { formatInstant, pickText, requestLocale } from '../../i18n.js';
 import { scheduleWindow } from '../../time.js';
 import { teamLogoId } from '../../assets/custom-logos.js';
 import { assetUrl, parseInput } from '../../util.js';
@@ -51,7 +51,7 @@ import { loadTeamNames, teamNameOptions } from '../../teams/display-name.js';
 const MODULE = { module: 'core_data' } as const;
 
 export function localeOf(request: FastifyRequest, query: { locale?: SupportedLocale | undefined }) {
-  return resolveLocale(query.locale, request.headers['accept-language']);
+  return requestLocale(request, query.locale);
 }
 
 /** Garante que o esporte do recurso (guardado nos metadados do cache) está no plano do tenant. */

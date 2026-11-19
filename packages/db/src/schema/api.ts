@@ -138,6 +138,11 @@ export const tenant = api.table(
      * Aviso a partir de 80% e 429 QUOTA_EXCEEDED a partir de 110%, até a virada do dia UTC.
      */
     dailyRequestQuota: integer('daily_request_quota'),
+    /**
+     * Idioma padrão das respostas das chaves deste tenant quando o pedido não traz `?locale` nem `Accept-Language`
+     * compatível (#1445). null = o padrão da API (`pt-BR`).
+     */
+    defaultLocale: text('default_locale'),
     /** Fim do trial (plano `trial`): depois dele nenhuma chave do tenant autentica. null = sem prazo. */
     trialEndsAt: timestamp('trial_ends_at', { withTimezone: true }),
     status: tenantStatus('status').notNull().default('active'),

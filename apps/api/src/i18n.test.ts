@@ -6,10 +6,27 @@ import {
   parseAcceptLanguage,
   pickList,
   pickText,
+  requestLocale,
   resolveLocale,
 } from './i18n.js';
 
 describe('locale', () => {
+  // #1445: ?locale > Accept-Language > padrão da chave/tenant > pt-BR
+  it('padrão da chave ou do tenant só vale sem ?locale nem Accept-Language compatível', () => {
+    expect(resolveLocale(undefined, undefined, 'es-AR')).toBe('es-AR');
+    expect(resolveLocale(undefined, 'fr-FR', 'en')).toBe('en');
+    expect(resolveLocale(undefined, 'pt', 'es-AR')).toBe('pt-BR');
+    expect(resolveLocale('es-MX', undefined, 'en')).toBe('es-MX');
+    expect(resolveLocale(undefined, undefined)).toBe('pt-BR');
+    const req = (tenant: { defaultLocale?: 'en' } | null, accept?: string) => ({
+      headers: accept ? { 'accept-language': accept } : {},
+      tenant,
+    });
+    expect(requestLocale(req({ defaultLocale: 'en' }), undefined)).toBe('en');
+    expect(requestLocale(req({ defaultLocale: 'en' }, 'es-AR'), undefined)).toBe('es-AR');
+    expect(requestLocale(req(null), undefined)).toBe('pt-BR');
+  });
+
   it('?locale tem precedência sobre Accept-Language', () => {
     expect(resolveLocale('es-MX', 'pt-BR')).toBe('es-MX');
   });

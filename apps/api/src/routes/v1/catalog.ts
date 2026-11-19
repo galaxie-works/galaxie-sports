@@ -37,7 +37,7 @@ import { sendCached } from '../../cache/http.js';
 import { CACHE_TTL, STALE_SEC } from '../../cache/policy.js';
 import { requireDb, type AppContext } from '../../context.js';
 import { problems } from '../../errors.js';
-import { competitionName, formatInstant, pickList, pickText, resolveLocale } from '../../i18n.js';
+import { competitionName, formatInstant, pickList, pickText, requestLocale } from '../../i18n.js';
 import { competitionLogoId, teamLogoId } from '../../assets/custom-logos.js';
 import {
   assetUrl,
@@ -79,7 +79,7 @@ type CountryRow = { code: string; name: I18nText } | null;
 
 /** Locale e fuso da requisição; registra Content-Language. */
 function localeOf(request: FastifyRequest, query: { locale?: z.infer<typeof LocaleQuery>['locale'] }) {
-  return resolveLocale(query.locale, request.headers['accept-language']);
+  return requestLocale(request, query.locale);
 }
 
 /** Rotas do catálogo (docs/05 §3.1). Todas exigem o módulo core_data. */

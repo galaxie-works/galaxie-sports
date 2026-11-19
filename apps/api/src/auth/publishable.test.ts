@@ -53,6 +53,21 @@ const code = async (p: Promise<unknown>) => {
 };
 
 describe('PublishableAuthenticator', () => {
+  // #1445: idioma padrão da chave (o site) antes do do tenant; sem nenhum, o contexto não traz idioma
+  it('idioma padrão: o da chave vale antes do do tenant', async () => {
+    const { key } = generatePublishableKey();
+    const base = record();
+    const both = record({ defaultLocale: 'es-AR', tenant: { ...base.tenant, defaultLocale: 'en' } });
+    const tenantOnly = record({ tenant: { ...base.tenant, defaultLocale: 'en' } });
+    const invalid = record({ defaultLocale: 'fr-FR' });
+    const ctxOf = async (r: VerifiedPublishableKey) =>
+      new PublishableAuthenticator(store({ [key]: r }).s).authenticate(key, 'https://app.exemplo.test');
+    expect((await ctxOf(both)).defaultLocale).toBe('es-AR');
+    expect((await ctxOf(tenantOnly)).defaultLocale).toBe('en');
+    expect((await ctxOf(invalid)).defaultLocale).toBeUndefined();
+    expect((await ctxOf(base)).defaultLocale).toBeUndefined();
+  });
+
   it('monta o contexto do tenant e marca como publicável', async () => {
     const { key } = generatePublishableKey();
     const { s, calls } = store({ [key]: record() });

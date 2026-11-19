@@ -63,7 +63,7 @@ import {
   hintLocales,
   pickList,
   pickText,
-  resolveLocale,
+  requestLocale,
 } from '../../i18n.js';
 import { teamLogoId } from '../../assets/custom-logos.js';
 import { assetUrl, parseInput, UUID_RE } from '../../util.js';
@@ -248,7 +248,7 @@ async function profilesBySlug(db: Database, slugs: string[]): Promise<Map<string
 }
 
 function localeOf(request: FastifyRequest, query: { locale?: SupportedLocale | undefined }) {
-  return resolveLocale(query.locale, request.headers['accept-language']);
+  return requestLocale(request, query.locale);
 }
 
 /** Item existe, mas abaixo do status editorial mínimo: 404 com o motivo. */

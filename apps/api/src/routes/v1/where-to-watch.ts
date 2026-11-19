@@ -6,7 +6,7 @@ import { sendCached } from '../../cache/http.js';
 import { CACHE_TTL } from '../../cache/policy.js';
 import { requireDb, type AppContext } from '../../context.js';
 import { problems } from '../../errors.js';
-import { formatInstant, resolveLocale } from '../../i18n.js';
+import { formatInstant, requestLocale } from '../../i18n.js';
 import { channelListVary } from '../../channel-list/lists.js';
 import { buildAvailability, lineupTags, operatorVary } from '../../lineup/availability.js';
 import { assetUrl, parseInput } from '../../util.js';
@@ -22,7 +22,7 @@ export async function whereToWatchRoutes(app: FastifyInstance, ctx: AppContext):
     const params = parseInput(WhereToWatchParams, request.params);
     const query = parseInput(WhereToWatchQuery, request.query);
     if (request.tenant) assertMarket(request.tenant, query.country);
-    const locale = resolveLocale(query.locale, request.headers['accept-language']);
+    const locale = requestLocale(request, query.locale);
     const tz = query.tz ?? 'UTC';
     reply.header('content-language', locale);
     // a operadora do tenant muda `availability` (a dele em `your_operator`; sem as concorrentes, se pedir)

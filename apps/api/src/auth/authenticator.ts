@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { isSupportedLocale, type SupportedLocale } from '@galaxie/contracts';
 import type { AccessErrorReason, ApiModule, ApiPlan } from '@galaxie/db';
 import { problems, type ProblemError } from '../errors.js';
 import { parseApiKey, verifySecret } from './keys.js';
@@ -35,6 +36,11 @@ export interface TenantContext {
   rateLimitPerMinute: number;
   /** Cota diária de produção que vale; null/ausente = sem cota (docs/politica-de-chaves.md §4). */
   dailyRequestQuota?: number | null;
+  /**
+   * Idioma das respostas quando o pedido não traz `?locale` nem `Accept-Language` compatível (#1445): o da chave
+   * publicável (o site dela), senão o do tenant. Ausente = o padrão da API.
+   */
+  defaultLocale?: SupportedLocale;
   /** Features ligadas pelos direitos do tenant (presente quando a API resolve os direitos). */
   features?: string[];
   /** Faixas dos direitos (`core_data.sse_connections` → 5 no trial); presente quando a API resolve os direitos. */
@@ -370,7 +376,14 @@ function contextOf(record: KeyRecord, prefix: string): TenantContext {
     sports: record.tenant.sports,
     rateLimitPerMinute: record.tenant.rateLimitPerMinute,
     dailyRequestQuota: record.tenant.dailyRequestQuota ?? null,
+    ...localeOf(record.tenant.defaultLocale),
   };
+}
+
+/** Idioma padrão gravado → campo do contexto; valor fora dos locales da API é ignorado (cai no padrão). */
+export function localeOf(...candidates: (string | null | undefined)[]): { defaultLocale?: SupportedLocale } {
+  const locale = candidates.find((c): c is SupportedLocale => !!c && isSupportedLocale(c));
+  return locale ? { defaultLocale: locale } : {};
 }
 
 /**
