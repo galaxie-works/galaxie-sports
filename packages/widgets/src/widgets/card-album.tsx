@@ -61,9 +61,13 @@ function AlbumBody({ sport, show = 'all' }: CardAlbumProps) {
     `/v1/achievements${sport ? `?sport=${enc(sport)}` : ''}`,
   );
   const cards = useFanJson<{ cards: GsFanCard[] }>('/v1/fans/me/cards', ALBUM_REFRESH_MS);
-  const [filter, setFilter] = useState(show);
-  useEffect(() => setFilter(show), [show]);
+  const [filter, setFilterState] = useState(show);
   const [open, setOpen] = useState<string | null>(null);
+  const setFilter = (next: typeof show) => {
+    setFilterState(next);
+    setOpen(null);
+  };
+  useEffect(() => setFilterState(show), [show]);
   const gridRef = useRef<HTMLDivElement>(null);
   const lastOpen = useRef<string | null>(null);
   // fechar o detalhe devolve o foco à Carta que o abriu
@@ -93,8 +97,11 @@ function AlbumBody({ sport, show = 'all' }: CardAlbumProps) {
     );
 
   const groups = buildAlbum(entries, mine, { show: filter, locale });
+  // o álbum inteiro (sem filtro): totais por família e o detalhe aberto, que não some quando a Carta muda de grupo
+  const everything = buildAlbum(entries, mine, { locale });
+  const familyTotal = new Map(everything.map((g) => [g.family, g.cards.length]));
   const totals = albumTotals(entries, mine);
-  const selected = open ? groups.flatMap((g) => g.cards).find((c) => c.cardKey === open) : undefined;
+  const selected = open ? everything.flatMap((g) => g.cards).find((c) => c.cardKey === open) : undefined;
 
   return (
     <div className="gs-group" ref={gridRef}>
@@ -118,11 +125,6 @@ function AlbumBody({ sport, show = 'all' }: CardAlbumProps) {
         groups.map((g) => {
           const family = texts.achievements.families[g.family as keyof typeof texts.achievements.families];
           const label = family ?? texts.achievements.otherFamily;
-          const all = buildAlbum(
-            entries.filter((a) => a.family === g.family),
-            mine,
-            { locale },
-          )[0];
           return (
             <section key={g.family} aria-label={label}>
               <h4 className="gs-ach-family">
@@ -131,7 +133,7 @@ function AlbumBody({ sport, show = 'all' }: CardAlbumProps) {
                   ·{' '}
                   {fillText(T.familyCount, {
                     n: fmt.integer(g.owned),
-                    total: fmt.integer(all?.cards.length ?? g.cards.length),
+                    total: fmt.integer(familyTotal.get(g.family) ?? g.cards.length),
                   })}
                 </span>
               </h4>
@@ -171,7 +173,13 @@ function CardTile({ card, onOpen }: { card: GsAlbumCard; onOpen: () => void }) {
       data-missing={owned ? undefined : true}
       style={{ ['--gs-ach-color' as string]: cardColor(card.step) }}
       onClick={onOpen}
-      aria-label={`${fillText(T.cardLabel, { name, step: stepLabel })}${owned ? '' : `, ${T.missing}`}`}
+      aria-label={[
+        fillText(T.cardLabel, { name, step: stepLabel }),
+        owned ? null : T.missing,
+        card.copies > 1 ? fillText(T.copies, { n: card.copies }) : null,
+      ]
+        .filter(Boolean)
+        .join(', ')}
     >
       {card.copies > 1 ? (
         <span className="gs-album-copies" aria-hidden="true">
@@ -179,7 +187,7 @@ function CardTile({ card, onOpen }: { card: GsAlbumCard; onOpen: () => void }) {
         </span>
       ) : null}
       <strong>{name}</strong>
-      <span>{owned ? stepLabel : T.missing}</span>
+      <span>{owned ? stepLabel : `${stepLabel} · ${T.missing}`}</span>
     </button>
   );
 }

@@ -1098,7 +1098,7 @@ export const WIDGET_CATALOG: { [K in WidgetKind]: WidgetCatalogEntry<K> } = {
     requiredProps: [],
     optionalProps: ['sport', 'show'],
     exampleProps: {},
-    // relê as Cartas sozinho a cada 5 min (a Carta sai com o Degrau, no resultado definitivo)
+    // não segue o ao vivo do jogo: relê as Cartas sozinho a cada 5 min (a Carta sai com o Degrau, no definitivo)
     polling: false,
     sports: [],
   },

@@ -103,7 +103,7 @@ describe('<CardAlbum>', () => {
   it('mostra as que tem e as que faltam, com cópias e como ganhar', async () => {
     renderAlbum();
     expect(await screen.findByText('4 de 16 Cartas')).toBeTruthy();
-    const owned = screen.getByRole('button', { name: `Fiel, ${A.steps.bronze}` });
+    const owned = screen.getByRole('button', { name: `Fiel, ${A.steps.bronze}, x2` });
     expect(owned.textContent).toContain('x2');
     const missing = screen.getByRole('button', { name: `Fiel, ${A.steps.platinum}, ${T.missing}` });
     fireEvent.click(missing);
@@ -117,8 +117,12 @@ describe('<CardAlbum>', () => {
   it('o filtro mostra só as que faltam', async () => {
     renderAlbum({ show: 'missing' });
     await screen.findByText('4 de 16 Cartas');
-    expect(screen.queryByRole('button', { name: `Fiel, ${A.steps.bronze}` })).toBeNull();
+    expect(screen.queryByRole('button', { name: `Fiel, ${A.steps.bronze}, x2` })).toBeNull();
+    // abrir uma Carta e trocar o filtro fecha o detalhe (não volta sozinho depois)
+    fireEvent.click(screen.getByRole('button', { name: `Fiel, ${A.steps.platinum}, ${T.missing}` }));
+    expect(await screen.findByRole('button', { name: T.close })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: T.filters.all }));
-    expect(screen.getByRole('button', { name: `Fiel, ${A.steps.bronze}` })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: T.close })).toBeNull();
+    expect(screen.getByRole('button', { name: `Fiel, ${A.steps.bronze}, x2` })).toBeTruthy();
   });
 });
