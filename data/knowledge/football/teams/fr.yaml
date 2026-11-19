@@ -1,6 +1,6 @@
 # Base semântica — clubes da França (inclui AS Monaco, que disputa a liga francesa) (schema v1, ver data/knowledge/SCHEMA.md)
 # labels/copy_hints: nomes e apelidos como usados na imprensa do Brasil (pt-BR) e da América Latina hispânica (es).
-# api_sports.team_id: null — nenhuma fonte consultada exibiu o ID; resolver no bootstrap por match.name + country.
+# api_sports.team_id: resolvido por `pnpm resolve:ids` (match.name + country) contra o banco em 19/11/2026 (issue #17).
 schema_version: 1
 country: FR
 teams:
@@ -11,7 +11,7 @@ teams:
     abbreviation: PSG
   labels: {pt-BR: PSG, es: PSG, en: Paris Saint-Germain}
   api_sports:
-    team_id: null
+    team_id: 85
     match: {name: Paris Saint Germain, country: France}
   founded: 1970-08-12
   city: Paris
@@ -64,7 +64,7 @@ teams:
     abbreviation: OM
   labels: {pt-BR: Olympique de Marselha, es: Olympique de Marsella, en: Marseille}
   api_sports:
-    team_id: null
+    team_id: 81
     match: {name: Marseille, country: France}
   founded: 1899-08-31
   city: Marselha
@@ -116,7 +116,7 @@ teams:
     abbreviation: OL
   labels: {pt-BR: Lyon, es: Olympique de Lyon, en: Lyon}
   api_sports:
-    team_id: null
+    team_id: 80
     match: {name: Lyon, country: France}
   founded: null
   city: Lyon
@@ -165,7 +165,7 @@ teams:
     abbreviation: ASM
   labels: {pt-BR: Monaco, es: Mónaco, en: Monaco}
   api_sports:
-    team_id: null
+    team_id: 91
     match: {name: Monaco, country: France}
   founded: 1924-08-23
   city: Mônaco
@@ -209,7 +209,7 @@ teams:
     abbreviation: LOSC
   labels: {pt-BR: Lille, es: Lille, en: Lille}
   api_sports:
-    team_id: null
+    team_id: 79
     match: {name: Lille, country: France}
   founded: null
   city: Lille

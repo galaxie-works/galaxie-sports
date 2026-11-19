@@ -98,7 +98,7 @@ describe('resolver de IDs contra o banco', () => {
       .values({ sport: 'football', kind: 'club', name: 'Corinthians', countryCode: 'BR' })
       .returning();
 
-    const pool = await loadCandidatePool(db);
+    const pool = await loadCandidatePool(db, { includeFixtures: true });
     expect([...pool.coveredCountries]).toEqual(['brazil']);
     const fromCore = pool.candidates.find((c) => c.apiId === 121);
     expect(fromCore).toMatchObject({ participantId: palmeiras!.id, countryCode: 'BR', source: 'teams' });

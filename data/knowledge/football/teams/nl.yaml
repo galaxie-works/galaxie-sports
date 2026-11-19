@@ -1,6 +1,6 @@
 # Base semântica — clubes dos Países Baixos (schema v1, ver data/knowledge/SCHEMA.md)
 # labels/copy_hints: nomes e apelidos como usados na imprensa do Brasil (pt-BR) e da América Latina hispânica (es).
-# api_sports.team_id: null — nenhuma fonte consultada exibiu o ID; resolver no bootstrap por match.name + country.
+# api_sports.team_id: resolvido por `pnpm resolve:ids` (match.name + country) contra o banco em 19/11/2026 (issue #17).
 schema_version: 1
 country: NL
 teams:
@@ -11,7 +11,7 @@ teams:
     abbreviation: AJA
   labels: {pt-BR: Ajax, es: Ajax, en: Ajax}
   api_sports:
-    team_id: null
+    team_id: 194
     match: {name: Ajax, country: Netherlands}
   founded: 1900-03-18
   city: Amsterdã
@@ -58,7 +58,7 @@ teams:
     abbreviation: PSV
   labels: {pt-BR: PSV, es: PSV, en: PSV Eindhoven}
   api_sports:
-    team_id: null
+    team_id: 197
     match: {name: PSV Eindhoven, country: Netherlands}
   founded: 1913-08-31
   city: Eindhoven
@@ -102,7 +102,7 @@ teams:
     abbreviation: FEY
   labels: {pt-BR: Feyenoord, es: Feyenoord, en: Feyenoord}
   api_sports:
-    team_id: null
+    team_id: 209
     match: {name: Feyenoord, country: Netherlands}
   founded: 1908-07-19
   city: Roterdã
