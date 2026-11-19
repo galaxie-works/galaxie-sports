@@ -118,7 +118,7 @@ services:
     ports: ['6379:6379']
     volumes: ['valkeydata:/data']
   s3:
-    image: rustfs/rustfs:1.0.5
+    image: rustfs/rustfs:1.0.6
     restart: unless-stopped
     environment:
       RUSTFS_ACCESS_KEY: ${S3_ACCESS_KEY:?defina S3_ACCESS_KEY}

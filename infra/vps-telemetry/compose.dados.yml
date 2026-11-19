@@ -99,7 +99,7 @@ services:
 
   # Object storage S3-compatível (assets espelhados). O RustFS usa ~0,5–1 GB em uso normal: 256m causa OOM. Exposto pelo Traefik só para leitura (GET/HEAD) do bucket.
   s3:
-    image: rustfs/rustfs:1.0.5
+    image: rustfs/rustfs:1.0.6
     restart: unless-stopped
     # memória presa de 924 MiB medida no limite de 1 g, e OOM em 29/10 (#533); pico 973 × 1,4
     mem_limit: 1344m
