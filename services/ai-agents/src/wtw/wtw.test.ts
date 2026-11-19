@@ -6,6 +6,7 @@ import {
   teamNames,
   type BroadcastOptionRow,
   type BroadcastRightsRow,
+  type Candidate,
 } from '@galaxie/where-to-watch';
 import { importance } from '@galaxie/providers';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -13,7 +14,7 @@ import { FakeLlmClient } from '../llm/fake.js';
 import { strictSchemaProblems } from '../llm/json-schema.js';
 import { allocationPurpose, rightsPurpose, WhereToWatchAgent } from './agent.js';
 import type { EventInfo } from './event-info.js';
-import { recheckRightsRow, rowToCandidate, verifyCandidates } from './evidence.js';
+import { recheckRightsRow, refutedBySource, rowToCandidate, verifyCandidates } from './evidence.js';
 import {
   CachingPageFetcher,
   contentHash,
@@ -895,5 +896,24 @@ describe('verificação das evidências', () => {
     expect(ok.holders[0]!.evidence[0]!.contentHash).toBe(contentHash('A Globo segue com os direitos'));
     const gone = await recheckRightsRow(rights, br, new FakePageFetcher({}), NOW);
     expect(gone).toMatchObject({ supported: false, reasons: ['Globo: fontes não sustentam mais'] });
+  });
+});
+
+describe('refutedBySource (#1400)', () => {
+  const ev = (over: object) => ({ url: 'https://ge.globo.com/a', excerpt: 'Globo transmite', ...over });
+  const cand = (evidence: object[]) => ({ broadcaster: 'TV Globo', evidence }) as Candidate;
+  it('só a fonte que já sustentou o canal refuta', () => {
+    const page = { accessible: true, matchOnPage: true, excerptFound: false };
+    expect(refutedBySource(cand([ev({ ...page, excerptVerified: true })]))).toBe(true);
+    // página nova, que nunca sustentou o canal, não refuta
+    expect(refutedBySource(cand([ev(page)]))).toBe(false);
+    // o jogo saiu da página (o guia do dia seguinte): não refuta
+    expect(refutedBySource(cand([ev({ ...page, matchOnPage: false, excerptVerified: true })]))).toBe(false);
+    // outra evidência ainda sustenta: não refuta
+    expect(
+      refutedBySource(
+        cand([ev({ ...page, excerptVerified: true }), ev({ url: 'https://x.test', excerptFound: true })]),
+      ),
+    ).toBe(false);
   });
 });

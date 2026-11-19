@@ -88,6 +88,14 @@ export interface RunOutcome {
 
 /** Motivos de descarte que refutam um canal (os outros só dizem que a fonte não foi achada de novo). */
 const REFUTING = new Set(['denied_by_primary', 'blocked', 'not_a_rights_holder']);
+/** A opção salva caiu na lista de bloqueio (nome, canal, link ou a emissora do dicionário)? */
+function isBlocked(directory: CountryDirectory, c: Candidate): boolean {
+  const b = directory.blocklist;
+  if (b.isBlockedName(c.broadcaster) || (c.channel && b.isBlockedName(c.channel))) return true;
+  if (c.watchUrl && b.isBlockedUrl(c.watchUrl)) return true;
+  const resolved = directory.resolve(c.broadcaster) ?? (c.channel ? directory.resolve(c.channel) : null);
+  return !!resolved && b.isBlockedName(resolved.entry.name);
+}
 const ACTIVE = new Set(['confirmed', 'pending', 'omitted']);
 
 interface RunCtx {
@@ -560,6 +568,8 @@ export class WtwRunner {
         refutedProviders: [
           ...report.discarded.filter((d) => REFUTING.has(d.reason)).map((d) => d.broadcaster),
           ...verified.candidates.filter(refutedBySource).map((c) => c.broadcaster),
+          // o validador esconde o nome do bloqueado ("[bloqueado]"): a opção salva bloqueada sai pelo nome dela
+          ...saved.filter((c) => isBlocked(directory, c)).map((c) => c.broadcaster),
         ],
         runId: run.id,
         now: this.now(),

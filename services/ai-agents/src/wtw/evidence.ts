@@ -226,12 +226,15 @@ export async function recheckRightsRow(
 }
 
 /**
- * A fonte refuta o canal? A página respondeu, o jogo continua nela (os dois times), mas a emissora não
+ * A fonte refuta o canal? Uma página que já o sustentou respondeu, o jogo continua nela (os dois times), mas a emissora não
  * aparece mais junto dele, e nenhuma outra evidência ainda o sustenta. Página que mudou de assunto (o
  * guia do dia seguinte) ou que não abriu não refuta: o canal confirmado fica (#1400).
  */
 export function refutedBySource(c: Candidate): boolean {
-  const checked = c.evidence.filter((e) => e.accessible === true && e.matchOnPage === true);
+  // só a fonte que já sustentou o canal (trecho conferido antes) pode refutá-lo
+  const checked = c.evidence.filter(
+    (e) => e.excerptVerified === true && e.accessible === true && e.matchOnPage === true,
+  );
   if (!checked.length) return false;
   if (c.evidence.some((e) => e.excerptFound === true)) return false;
   return checked.some((e) => e.excerptFound === false || e.mentionsBroadcaster === false);
