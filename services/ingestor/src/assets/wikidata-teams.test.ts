@@ -387,7 +387,8 @@ describe('casamento estrito pelo time no Wikidata', () => {
     expect(nationalityOf(p!)).toBeNull();
     expect(nationalityOf({ ...p!, countries: ['Colombia'] })).toBe('Colombia');
     expect(asPhotoMatch({ candidate: cand({}), player: { ...p!, image: null } })).toBeNull();
-    expect(teamPlayersQuery(['Q100'])).toContain('YEAR(?end) >= 2026');
+    expect(teamPlayersQuery(['Q100'], 2026)).toContain('YEAR(?end) >= 2026');
+    expect(teamPlayersQuery(['Q100'], 2027)).toContain('YEAR(?start) <= 2027');
   });
 
   it('nascimento com a precisão e do melhor rank; data só com o ano fica no casamento, sem ser exata', () => {

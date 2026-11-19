@@ -63,7 +63,7 @@ export async function platformRoutes(app: FastifyInstance, ctx: AppContext): Pro
           minReview: ctx.lineup.minReview,
         });
         // operadora concorrente escondida do tenant: o mesmo 404 de uma plataforma que não existe
-        if (!row || !visibleTo(operator, row.platform)) throw problems.notFound('Plataforma');
+        if (!row || !visibleTo(operator, row.platform)) throw problems.notFound('Platform');
         const ids = row.plans.flatMap((p) => [
           ...p.channels.map((c) => c.channelId),
           ...p.services.map((s) => s.serviceId),

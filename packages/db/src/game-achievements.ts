@@ -228,7 +228,7 @@ export async function applyAchievementProgress(
           ruleVersion: input.ruleVersion,
           detail,
         });
-        if (card)
+        if (card) {
           await appendGameAudit(tx, {
             tenantId: input.tenantId,
             programCountry: input.programCountry,
@@ -238,6 +238,21 @@ export async function applyAchievementProgress(
             sourceEvent: input.sourceEvent,
             ruleVersion: input.ruleVersion,
           });
+          await publishWebhookEvent(tx, {
+            tenantId: input.tenantId,
+            topic: 'game.card.granted',
+            data: {
+              profile_id: input.profileId,
+              program_country: input.programCountry,
+              card_key: card,
+              achievement_id: a.id,
+              season,
+              step,
+              rule_version: input.ruleVersion,
+              source_event: input.sourceEvent,
+            },
+          });
+        }
         await publishWebhookEvent(tx, {
           tenantId: input.tenantId,
           topic: 'game.achievement.step_reached',
@@ -249,6 +264,8 @@ export async function applyAchievementProgress(
             step,
             completed,
             card_key: card ?? null,
+            rule_version: input.ruleVersion,
+            source_event: input.sourceEvent,
           },
         });
       }

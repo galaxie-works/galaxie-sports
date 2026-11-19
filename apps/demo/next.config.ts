@@ -27,7 +27,7 @@ const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: '**.galaxie.works', pathname: ACERVO },
-      { protocol: 'https', hostname: '**.galaxie.sports', pathname: ACERVO },
+      { protocol: 'https', hostname: '**.galaxiesports.com', pathname: ACERVO },
       ...(devAssets
         ? [
             {

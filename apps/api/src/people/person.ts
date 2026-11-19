@@ -48,7 +48,7 @@ export async function loadPerson(
     .leftJoin(asset, eq(asset.id, person.photoAssetId))
     .where(eq(person.id, id))
     .limit(1);
-  if (!row) throw problems.notFound('Pessoa');
+  if (!row) throw problems.notFound('Person');
   const teams = await db
     .select({
       r: roster,

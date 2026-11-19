@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { MODULE_LIMITS } from '@galaxie/db/schema';
-import { loadCatalog } from '../catalog/catalog.js';
-import { assessUsage, levelOf, TIER_USAGE, usageAlerts } from './assess.js';
+import { loadCatalog, tierUsage } from '../catalog/catalog.js';
+import { assessUsage, levelOf, usageAlerts } from './assess.js';
 
 const catalog = loadCatalog();
+const usage = tierUsage(catalog);
 
 const ent = {
   modules: ['core_data', 'where_to_watch', 'live_chat'] as const,
@@ -23,12 +23,16 @@ describe('assessUsage (F6, #1138)', () => {
   });
 
   it('faixas dos módulos e capacidade da organização', () => {
-    const checks = assessUsage({ ...ent, modules: [...ent.modules] }, [
-      { module: 'where_to_watch', metric: 'active_markets', value: 4 },
-      { module: 'live_chat', metric: 'peak_connections', value: 4_200 },
-      { module: 'core_data', metric: 'widget_views', value: 700_000 },
-      { module: 'where_to_watch', metric: 'widget_views', value: 450_000 },
-    ]);
+    const checks = assessUsage(
+      { ...ent, modules: [...ent.modules] },
+      [
+        { module: 'where_to_watch', metric: 'active_markets', value: 4 },
+        { module: 'live_chat', metric: 'peak_connections', value: 4_200 },
+        { module: 'core_data', metric: 'widget_views', value: 700_000 },
+        { module: 'where_to_watch', metric: 'widget_views', value: 450_000 },
+      ],
+      usage,
+    );
     expect(checks).toEqual([
       { key: 'capacity.peakConcurrent', used: 4_200, limit: 5_000, level: 'warn', overage: 0 },
       { key: 'capacity.viewsPerMonth', used: 1_150_000, limit: 1_000_000, level: 'over', overage: 150_000 },
@@ -40,22 +44,24 @@ describe('assessUsage (F6, #1138)', () => {
 
   it('tenant da Galaxie não tem faixa nem excedente', () => {
     expect(
-      assessUsage({ ...ent, modules: [...ent.modules], isGalaxie: true }, [
-        { module: 'core_data', metric: 'widget_views', value: 10 ** 9 },
-      ]),
+      assessUsage(
+        { ...ent, modules: [...ent.modules], isGalaxie: true },
+        [{ module: 'core_data', metric: 'widget_views', value: 10 ** 9 }],
+        usage,
+      ),
     ).toEqual([]);
   });
 
   it('faixa de módulo que o tenant não tem fica de fora', () => {
-    const checks = assessUsage({ ...ent, modules: ['core_data'] }, []);
+    const checks = assessUsage({ ...ent, modules: ['core_data'] }, [], usage);
     expect(checks.map((c) => c.key)).toEqual(['capacity.peakConcurrent', 'capacity.viewsPerMonth']);
   });
 
-  it('toda faixa ligada a uma medida existe no catálogo, no módulo certo', () => {
-    for (const [key, src] of Object.entries(TIER_USAGE)) {
-      expect(catalog.modules[src.module].tiers[key], key).toBeDefined();
-    }
-    // a faixa do chat é a mesma que o engajamento já usa
-    expect(MODULE_LIMITS['live_chat.peak_connections']).toBeDefined();
+  it('as medidas vêm do metric das faixas no modules.yaml', () => {
+    expect(usage).toEqual({
+      'live_chat.peak_connections': { module: 'live_chat', metric: 'peak_connections' },
+      'where_to_watch.markets': { module: 'where_to_watch', metric: 'active_markets' },
+      'live_intelligence.enriched_games': { module: 'live_intelligence', metric: 'enriched_games' },
+    });
   });
 });

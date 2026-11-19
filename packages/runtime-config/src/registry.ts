@@ -12,6 +12,7 @@ import {
   checkBandShares,
   isTimeZone,
 } from './ai-policy.js';
+import { AI_DEFAULT_MODELS, AI_PROVIDERS, AI_TIERS } from './ai-catalog.js';
 import {
   FOOTBALL_MIRROR_GROUPS,
   MIRROR_APIS,
@@ -230,42 +231,16 @@ export function postgameIntervalKey(api: string): string {
   return `${postgameModeKey(api)}_MIN`;
 }
 
-/** Mercados do Onde Assistir (ISO 3166-1 alfa-2; o mesmo de WTW_COUNTRIES). */
+/**
+ * Mercados do Onde Assistir (ISO 3166-1 alfa-2). A fonte é `wtw_markets` em config/geo/confederations.yaml; esta
+ * cópia existe porque o runtime-config (camada base) não lê yaml e roda no navegador. O teste do packages/geo
+ * reprova se as duas divergirem.
+ */
 export const WTW_MARKET_CODES = ['BR', 'AR', 'MX', 'CO', 'CL', 'PE', 'UY', 'EC'] as const;
 
-export const AI_PROVIDERS = ['openai', 'anthropic', 'gemini', 'deepseek'] as const;
-export type AiProvider = (typeof AI_PROVIDERS)[number];
-/** Variável da chave de cada provedor (espelho de API_KEY_ENV em services/ai-agents). */
-export const AI_PROVIDER_KEY_ENV: Readonly<Record<AiProvider, string>> = {
-  openai: 'OPENAI_API_KEY',
-  anthropic: 'ANTHROPIC_API_KEY',
-  gemini: 'GEMINI_API_KEY',
-  deepseek: 'DEEPSEEK_API_KEY',
-};
+export { AI_DEFAULT_MODELS, AI_PROVIDERS, AI_PROVIDER_KEY_ENV, type AiProvider } from './ai-catalog.js';
 /** AI_STATUS: ligada ou desligada (literal; nenhum teto numérico desliga a IA). */
 export const AI_STATUSES = ['on', 'off'] as const;
-
-/** Modelos padrão por nível e provedor (espelho de DEFAULT_MODELS em services/ai-agents). */
-export const AI_DEFAULT_MODELS = {
-  light: {
-    openai: 'gpt-6-luna',
-    anthropic: 'claude-haiku-5-5',
-    gemini: 'gemini-3.5-flash-lite',
-    deepseek: 'deepseek-flash',
-  },
-  standard: {
-    openai: 'gpt-6.1-sol',
-    anthropic: 'claude-sonnet-5-5',
-    gemini: 'gemini-3.8-flash',
-    deepseek: 'deepseek-flash',
-  },
-  research: {
-    openai: 'gpt-6.1-sol',
-    anthropic: 'claude-sonnet-5-5',
-    gemini: 'gemini-3.8-flash',
-    deepseek: 'deepseek-v4-pro',
-  },
-} as const satisfies Record<'light' | 'standard' | 'research', Record<AiProvider, string>>;
 
 /**
  * AI_MODEL_PRICES: `modelo=entrada/cache/saída[/gravação]` (US$ por 1 milhão de tokens) separados por
@@ -470,7 +445,7 @@ export const SETTINGS: readonly SettingDef[] = [
     default: 'openai',
     critical: true,
   }),
-  ...(['light', 'standard', 'research'] as const).map((tier) =>
+  ...AI_TIERS.map((tier) =>
     agents('ai', {
       key: `AI_MODEL_${tier.toUpperCase()}`,
       type: 'text',

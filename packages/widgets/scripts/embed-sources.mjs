@@ -59,6 +59,7 @@ const WIDGETS = {
   shop_the_game: { file: 'src/widgets/shop-the-game.tsx', component: 'ShopTheGame' },
   live_chat: { file: 'src/widgets/live-chat.tsx', component: 'LiveChat' },
   fan_achievements: { file: 'src/widgets/achievement-shelf.tsx', component: 'AchievementShelf' },
+  fan_cards: { file: 'src/widgets/card-album.tsx', component: 'CardAlbum' },
 };
 
 const IMPORT_RE = /^import\s+(type\s+)?\{([^}]*)\}\s+from\s+'([^']+)';\n/gm;

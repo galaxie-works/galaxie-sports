@@ -324,7 +324,7 @@ describe('rotas da F1 (HTTP)', () => {
     expect(res.statusCode).toBe(403);
     expect(res.json()).toMatchObject({
       code: 'MODULE_NOT_IN_PLAN',
-      title: 'Plano não inclui o esporte formula-1',
+      title: 'Plan does not include sport formula-1',
     });
   });
 

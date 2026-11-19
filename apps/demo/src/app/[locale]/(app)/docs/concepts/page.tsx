@@ -205,8 +205,8 @@ if not resp.ok:
 }
 
 const NOT_FOUND_SAMPLE = `{
-  "type": "https://docs.galaxie.sports/errors/not-found",
-  "title": "Evento não encontrado",
+  "type": "https://docs.galaxiesports.com/errors/not-found",
+  "title": "Event not found",
   "status": 404,
   "code": "NOT_FOUND",
   "instance": "/v1/events/01a163b8-0000-7000-8000-000000000000"

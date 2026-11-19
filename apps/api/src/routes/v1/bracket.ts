@@ -51,7 +51,7 @@ export async function bracketRoutes(app: FastifyInstance, ctx: AppContext): Prom
           .where(UUID_RE.test(params.id) ? eq(competition.id, params.id) : eq(competition.slug, params.id))
           .orderBy(sql`(${competition.sport} = 'football') desc`)
           .limit(1);
-        if (!c) throw problems.notFound('Competição');
+        if (!c) throw problems.notFound('Competition');
         const [s] = await db
           .select()
           .from(season)
@@ -63,7 +63,7 @@ export async function bracketRoutes(app: FastifyInstance, ctx: AppContext): Prom
           )
           .orderBy(desc(season.year))
           .limit(1);
-        if (!s) throw problems.notFound('Temporada');
+        if (!s) throw problems.notFound('Season');
 
         const stages = (
           await db

@@ -3,10 +3,11 @@
  * tipos das linhas. Sem banco, para os componentes de cliente de Ajustes importarem sem puxar o Postgres para o
  * navegador; as consultas e escritas vivem em `organizations.ts`, só no servidor.
  */
+import { CAPACITY_TIERS, type CapacityTier } from '@galaxie/db/engage-modules';
 import type { TenantState } from '@galaxie/db/schema';
 
-export const CAPACITY_TIERS = ['C1', 'C2', 'C3', 'C4'] as const;
-export type CapacityTier = (typeof CAPACITY_TIERS)[number];
+// a lista é a do @galaxie/db (arquivo sem banco), a mesma do catálogo e do check constraint (#1446)
+export { CAPACITY_TIERS, type CapacityTier };
 export const REVIEW_STATUSES = ['none', 'pending', 'approved', 'rejected'] as const;
 export type ReviewStatus = (typeof REVIEW_STATUSES)[number];
 

@@ -5,6 +5,7 @@ import type {
   GsAchievementCatalogEntry,
   GsAchievementEarners,
   GsFanAchievement,
+  GsFanCard,
   GsFanMe,
   GsMyRanking,
   GsRanking,
@@ -38,7 +39,7 @@ export const PREVIEW_FAN: GsFanMe = {
 const steps = (thresholds: number[], card = true) =>
   thresholds.map((threshold, i) => ({ step: i + 1, threshold, card_key: card ? `preview.${i + 1}` : null }));
 
-export const PREVIEW_ACHIEVEMENT_CATALOG: GsAchievementCatalogEntry[] = [
+const CATALOG: GsAchievementCatalogEntry[] = [
   {
     id: 'loyalty.watched',
     sport: null,
@@ -116,6 +117,12 @@ export const PREVIEW_ACHIEVEMENT_CATALOG: GsAchievementCatalogEntry[] = [
   },
 ];
 
+/** A Carta de cada Degrau tem a chave da Conquista e do Degrau, como no Catálogo real. */
+export const PREVIEW_ACHIEVEMENT_CATALOG: GsAchievementCatalogEntry[] = CATALOG.map((a) => ({
+  ...a,
+  steps: a.steps.map((s) => ({ ...s, card_key: s.card_key ? `${a.id}.${s.step}` : null })),
+}));
+
 export const PREVIEW_FAN_ACHIEVEMENTS: GsFanAchievement[] = [
   { achievement_id: 'loyalty.watched', season: 'all', count: 21, steps: 3, next_threshold: 38, rarity: 0.18 },
   {
@@ -157,6 +164,45 @@ export const PREVIEW_FAN_ACHIEVEMENTS: GsFanAchievement[] = [
     steps: 0,
     next_threshold: 2,
     rarity: null,
+  },
+];
+
+/** Cartas do torcedor de exemplo: os Degraus que ele tem no PREVIEW_FAN_ACHIEVEMENTS (a Fiel também na temporada). */
+export const PREVIEW_FAN_CARDS: GsFanCard[] = [
+  {
+    card_key: 'loyalty.watched.1',
+    achievement_id: 'loyalty.watched',
+    season: 'all',
+    step: 1,
+    granted_at: '2026-08-02T21:10:00Z',
+  },
+  {
+    card_key: 'loyalty.watched.1',
+    achievement_id: 'loyalty.watched',
+    season: '2026',
+    step: 1,
+    granted_at: '2026-08-02T21:10:00Z',
+  },
+  {
+    card_key: 'loyalty.watched.2',
+    achievement_id: 'loyalty.watched',
+    season: 'all',
+    step: 2,
+    granted_at: '2026-09-14T22:00:00Z',
+  },
+  {
+    card_key: 'loyalty.watched.3',
+    achievement_id: 'loyalty.watched',
+    season: 'all',
+    step: 3,
+    granted_at: '2026-10-30T23:40:00Z',
+  },
+  {
+    card_key: 'football.moments.stoppage_time_goal.1',
+    achievement_id: 'football.moments.stoppage_time_goal',
+    season: 'all',
+    step: 1,
+    granted_at: '2026-11-08T21:52:00Z',
   },
 ];
 
@@ -208,6 +254,8 @@ export function gamePreviewBody(url: URL, init?: RequestInit): unknown {
   if (new Headers(init?.headers).get('authorization') !== `Bearer ${PREVIEW_FAN_TOKEN}`) return null;
   const path = url.pathname.replace(/\/+$/, '');
   if (path.endsWith('/v1/fans/me')) return { data: PREVIEW_FAN };
+  if (path.endsWith('/v1/fans/me/cards'))
+    return { data: { program_country: 'BR', cards: PREVIEW_FAN_CARDS } };
   if (path.endsWith('/v1/fans/me/achievements'))
     return { data: { program_country: 'BR', achievements: PREVIEW_FAN_ACHIEVEMENTS } };
   if (path.endsWith('/v1/achievements')) {

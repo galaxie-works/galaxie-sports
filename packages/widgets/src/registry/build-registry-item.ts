@@ -28,7 +28,7 @@ export interface BuildRegistryItemInput {
   /** Nome do widget no Builder (vira o `name` do item e o nome do arquivo, em kebab-case). */
   name: string;
   theme: WidgetTheme;
-  /** Base da API pública, ex.: https://api.galaxie.sports */
+  /** Base da API pública, ex.: https://api.exemplo.com */
   apiBaseUrl: string;
   locale?: WidgetLocale | undefined;
   /** País ISO2. */
@@ -186,6 +186,7 @@ function defaultProps(
       return pick(['eventId']);
     // estante do torcedor: o esporte escolhido no Builder (ou nenhum = o Catálogo inteiro)
     case 'fan_achievements':
+    case 'fan_cards':
       return pick(['sport']);
   }
 }

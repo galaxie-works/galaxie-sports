@@ -21,35 +21,49 @@ export const isEngageModule = (m: string): m is EngageModule =>
   (ENGAGE_MODULES as readonly string[]).includes(m);
 
 /**
- * Faixas por módulo de engajamento (#1018): a Galaxie define padrão e teto; cada tenant tem o valor dele em
- * `api.tenant_module_limit`. `tiers` = só esses valores valem (ex.: pico do chat); sem `tiers`, qualquer inteiro
- * entre `min` e `max`. Valores iniciais, revisados por contrato; preço nunca fica aqui (repo privada).
+ * Faixas de capacidade da organização (`config/catalog/capacity.yaml`; C3 e C4 só por proposta, PL7, R3). Definição
+ * única (#1446), aqui por ser arquivo sem banco: a tela de cliente da demo importa sem levar o Postgres. O check
+ * constraint `organization_capacity_tier` repete a lista (faixa nova = migration) e um teste confere os dois; o
+ * catálogo recusa subir sem cada faixa.
  */
-export const MODULE_LIMITS = {
+export const CAPACITY_TIERS = ['C1', 'C2', 'C3', 'C4'] as const;
+export type CapacityTier = (typeof CAPACITY_TIERS)[number];
+
+/**
+ * Faixas por módulo de engajamento (#1018) que o tenant ajusta em `api.tenant_module_limit`: a chave e o módulo dono.
+ * Os **valores** (padrão, mínimo, máximo e faixas fixas) moram em `config/catalog/modules.yaml` (`tiers` do módulo) e
+ * chegam pelo `@galaxie/billing` (`moduleLimitDefs(catalog)`, #1446): mudar um teto é editar o yaml, não o código. A
+ * chave fica aqui porque o código a lê (o chat conta o pico, as Comunidades contam o teto); o catálogo recusa subir
+ * sem cada chave desta lista.
+ */
+export const MODULE_LIMIT_MODULES = {
   /** Pico de conexões simultâneas no Chat ao vivo; acima dele a sala vira só leitura para quem entra (D6). */
-  'live_chat.peak_connections': {
-    module: 'live_chat',
-    min: 5_000,
-    max: 100_000,
-    default: 5_000,
-    tiers: [5_000, 25_000, 100_000],
-  },
+  'live_chat.peak_connections': 'live_chat',
   /** Comunidades ativas no tenant (uma por Âncora). */
-  'communities.max_communities': { module: 'communities', min: 1, max: 500, default: 5, tiers: null },
+  'communities.max_communities': 'communities',
   /** Programas de Gamificação (um por país do tenant). */
-  'gamification.max_programs': { module: 'gamification', min: 1, max: 20, default: 1, tiers: null },
-} as const satisfies Record<
-  string,
-  { module: EngageModule; min: number; max: number; default: number; tiers: readonly number[] | null }
->;
-export type ModuleLimitKey = keyof typeof MODULE_LIMITS;
-export const MODULE_LIMIT_KEYS = Object.keys(MODULE_LIMITS) as ModuleLimitKey[];
+  'gamification.max_programs': 'gamification',
+} as const satisfies Record<string, EngageModule>;
+export type ModuleLimitKey = keyof typeof MODULE_LIMIT_MODULES;
+export const MODULE_LIMIT_KEYS = Object.keys(MODULE_LIMIT_MODULES) as ModuleLimitKey[];
+
+/**
+ * Definição de uma faixa, como o catálogo a entrega: `tiers` = só esses valores valem (ex.: pico do chat); `null` =
+ * qualquer inteiro entre `min` e `max`.
+ */
+export interface ModuleLimitDef {
+  module: EngageModule;
+  min: number;
+  max: number;
+  default: number;
+  tiers: readonly number[] | null;
+}
+export type ModuleLimitDefs = Readonly<Record<ModuleLimitKey, ModuleLimitDef>>;
 
 /** Valor aceito para a faixa? (dentro do teto e, quando há faixas fixas, uma delas). */
-export function isValidModuleLimit(key: ModuleLimitKey, value: number): boolean {
-  const def = MODULE_LIMITS[key];
+export function isValidModuleLimit(def: ModuleLimitDef, value: number): boolean {
   if (!Number.isInteger(value) || value < def.min || value > def.max) return false;
-  return def.tiers ? (def.tiers as readonly number[]).includes(value) : true;
+  return def.tiers ? def.tiers.includes(value) : true;
 }
 
 /**

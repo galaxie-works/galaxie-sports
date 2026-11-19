@@ -219,7 +219,7 @@ export async function eventRoutes(app: FastifyInstance, ctx: AppContext): Promis
       load: async () => {
         const bctx = buildCtx(ctx, locale, tz, query.stakes);
         const [built] = await buildEvents(bctx, [params.id]);
-        if (!built) throw problems.notFound('Evento');
+        if (!built) throw problems.notFound('Event');
         const e = built.dto;
         if (!ics) await applyRelevanceByMarket(bctx, [e], markets, market);
         const tags = [`event:${e.id}`, ...(e.competition ? [`competition:${e.competition.id}`] : [])];
@@ -247,7 +247,7 @@ export async function eventRoutes(app: FastifyInstance, ctx: AppContext): Promis
         const body = buildIcs(
           [
             {
-              uid: `${e.id}@galaxie.sports`,
+              uid: `${e.id}@galaxiesports.com`,
               start: head.startsAt,
               end: head.endsAtExpected,
               summary: e.competition && names.length === 2 ? `${title} · ${e.competition.name}` : title,

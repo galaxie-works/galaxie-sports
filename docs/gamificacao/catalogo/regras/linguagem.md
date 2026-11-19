@@ -153,7 +153,7 @@ Não existe `fan.time_zone` no Perfil (o [contrato](contrato-dados.md) corrige i
    { "input": "prediction", "count": { "mode": "distinct", "key": "competition" } }
    ```
 
-5. **Madrugador: assistiu jogo que começou entre 0h e 6h** (janela local):
+5. **Na madrugada (antes "Madrugador"): assistiu jogo que começou entre 0h e 6h** (janela local):
 
    ```json
    { "input": "participation", "action": "watched", "where": { "local_hour": { "from": "00:00", "to": "06:00" } } }

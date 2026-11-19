@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   GS_STEP_COLORS,
   achievementShareSvg,
@@ -25,6 +25,7 @@ import {
   FanGate,
   LoadingState,
   WidgetFrame,
+  useFanJson,
   useFanSession,
   useFormatters,
   useGalaxieWidget,
@@ -51,74 +52,6 @@ const enc = encodeURIComponent;
 const SHELF_REFRESH_MS = 5 * 60_000;
 /** Quanto o aviso de Degrau novo fica na tela. */
 const TOAST_MS = 6_000;
-
-interface FanJson<T> {
-  data: T | null;
-  error: boolean;
-  loading: boolean;
-  reload: () => void;
-}
-
-/** Leitura de uma rota do torcedor com o token (`fan.fetch`), relida a cada `refreshMs` com a aba visível. */
-function useFanJson<T>(path: string | null, refreshMs?: number): FanJson<T> {
-  const fan = useFanSession();
-  const fetchRef = useRef(fan.fetch);
-  fetchRef.current = fan.fetch;
-  const [state, setState] = useState<{ data: T | null; error: boolean; loading: boolean }>({
-    data: null,
-    error: false,
-    loading: Boolean(path),
-  });
-  const [tick, setTick] = useState(0);
-  const reload = useCallback(() => setTick((t) => t + 1), []);
-  const loadedPath = useRef<string | null>(null);
-
-  useEffect(() => {
-    if (!path) return;
-    let cancelled = false;
-    if (loadedPath.current !== path) {
-      // outro recorte: o dado anterior sai da tela (não fica com o rótulo novo se a leitura falhar)
-      loadedPath.current = path;
-      setState({ data: null, error: false, loading: true });
-    } else setState((s) => ({ ...s, loading: s.data === null }));
-    fetchRef
-      .current(path)
-      .then(async (res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const body = (await res.json()) as { data?: T };
-        if (!cancelled) setState({ data: body.data ?? null, error: false, loading: false });
-      })
-      .catch(() => {
-        // a releitura que falha mantém o que já estava na tela
-        if (!cancelled) setState((s) => ({ data: s.data, error: s.data === null, loading: false }));
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [path, tick]);
-
-  useEffect(() => {
-    if (!path || !refreshMs) return;
-    let last = Date.now();
-    const tick = () => {
-      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
-      last = Date.now();
-      reload();
-    };
-    const timer = setInterval(tick, refreshMs);
-    // aba que volta depois de um tempo escondida relê na hora (sem esperar o próximo ciclo)
-    const onVisible = () => {
-      if (document.visibilityState === 'visible' && Date.now() - last >= refreshMs) tick();
-    };
-    document.addEventListener('visibilitychange', onVisible);
-    return () => {
-      clearInterval(timer);
-      document.removeEventListener('visibilitychange', onVisible);
-    };
-  }, [path, refreshMs, reload]);
-
-  return { ...state, reload };
-}
 
 /**
  * Estante de Conquistas e Ranking do torcedor (#919): as Conquistas ganhas e bloqueadas por família, o Degrau em

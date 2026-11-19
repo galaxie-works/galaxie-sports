@@ -1,5 +1,8 @@
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { LATAM_NOCS } from '@galaxie/db';
+import { LATAM_COUNTRIES } from '@galaxie/engage';
+import { WTW_MARKET_CODES } from '@galaxie/runtime-config';
 import { parse } from 'yaml';
 import { describe, expect, it } from 'vitest';
 import { audienceFor } from './audience.js';
@@ -79,6 +82,28 @@ describe('config/geo do repositório', () => {
     expect(main('Netherlands')).toBe('eredivisie');
     expect(main('USA')).toBe('mls');
     expect(main('Brazil')).toBe('brasileirao-serie-a');
+  });
+
+  it('mercados do Onde Assistir: subconjunto dos mercados, cada um com dicionário de emissoras', () => {
+    expect(geo.wtwMarkets).toEqual(['BR', 'AR', 'MX', 'CO', 'CL', 'PE', 'UY', 'EC']);
+    for (const code of geo.wtwMarkets) {
+      expect(geo.markets, code).toContain(code);
+      expect(
+        existsSync(new URL(`../../../config/broadcasters/${code.toLowerCase()}.yaml`, import.meta.url)),
+        code,
+      ).toBe(true);
+    }
+  });
+
+  it('o espelho WTW_MARKET_CODES do runtime-config (painel e navegador) é igual a wtw_markets', () => {
+    expect([...WTW_MARKET_CODES]).toEqual(geo.wtwMarkets);
+  });
+
+  it('América Latina: códigos do COI na ordem de prioridade, iguais aos espelhos do db e do engage', () => {
+    expect(geo.latamNocs).toEqual([...LATAM_NOCS]);
+    expect([...geo.latamCountries].sort()).toEqual([...LATAM_COUNTRIES].sort());
+    for (const market of geo.markets.filter((m) => m !== 'US' && m !== 'CA'))
+      expect(geo.latamCountries, market).toContain(market);
   });
 
   it('mercados ativos da relevância por país: os 10 da CONMEBOL + México, EUA e Canadá', () => {
@@ -284,6 +309,12 @@ describe('parseGeoConfig', () => {
     expect(cfg.scopeEntries('football')[0]).toMatchObject({ countries: [], apiSportsId: null, order: 0 });
     expect(cfg.country('ar')!.ioc).toBeNull();
     expect(cfg.markets).toEqual([]);
+    expect(cfg.wtwMarkets).toEqual([]);
+  });
+
+  it('lê wtw_markets na ordem do arquivo', () => {
+    const cfg = parseGeoConfig(geo({ markets: ['BR', 'AR'], wtw_markets: ['AR', 'BR'] }), scope());
+    expect(cfg.wtwMarkets).toEqual(['AR', 'BR']);
   });
 
   it.each([
@@ -304,6 +335,10 @@ describe('parseGeoConfig', () => {
     ],
     ['mercado fora das confederações', geo({ markets: ['US'] }), scope()],
     ['mercado repetido', geo({ markets: ['BR', 'BR'] }), scope()],
+    ['mercado do Onde Assistir fora dos mercados', geo({ markets: ['BR'], wtw_markets: ['AR'] }), scope()],
+    ['mercado do Onde Assistir repetido', geo({ markets: ['BR'], wtw_markets: ['BR', 'BR'] }), scope()],
+    ['país latino-americano sem código do COI', geo({ latam: ['AR'] }), scope()],
+    ['país latino-americano desconhecido', geo({ latam: ['MX'] }), scope()],
     [
       'confederação inexistente no escopo',
       geo(),

@@ -2,6 +2,7 @@
 
 import {
   AchievementShelf,
+  CardAlbum,
   AiContext,
   ChannelGuide,
   GalaxieWidgetProvider,
@@ -332,6 +333,8 @@ function PreviewWidget({
         return <LiveChat {...o} {...WIDGET_CATALOG.live_chat.exampleProps} />;
       case 'fan_achievements':
         return <FanShelfPreview o={o} sport={sport} />;
+      case 'fan_cards':
+        return <FanShelfPreview o={o} sport={sport} album />;
     }
   }
   switch (kind) {
@@ -428,6 +431,8 @@ function PreviewWidget({
       return <LiveChat {...o} eventId={entity.id} />;
     case 'fan_achievements':
       return <FanShelfPreview o={o} sport={sport} />;
+    case 'fan_cards':
+      return <FanShelfPreview o={o} sport={sport} album />;
   }
 }
 
@@ -438,7 +443,15 @@ const fanPreviewFetch = createPreviewFetch();
  * Prévia da estante de Conquistas e do Ranking (#919): sempre um torcedor de exemplo (token só da prévia), com o
  * tema, o idioma e o mercado do editor.
  */
-function FanShelfPreview({ o, sport }: { o: Record<string, unknown>; sport: string | null }) {
+function FanShelfPreview({
+  o,
+  sport,
+  album = false,
+}: {
+  o: Record<string, unknown>;
+  sport: string | null;
+  album?: boolean;
+}) {
   const ctx = useGalaxieWidget();
   return (
     <GalaxieWidgetProvider
@@ -450,7 +463,11 @@ function FanShelfPreview({ o, sport }: { o: Record<string, unknown>; sport: stri
       market={ctx.market}
       fanToken={PREVIEW_FAN_TOKEN}
     >
-      <AchievementShelf {...o} sport={sport ?? undefined} />
+      {album ? (
+        <CardAlbum {...o} sport={sport ?? undefined} />
+      ) : (
+        <AchievementShelf {...o} sport={sport ?? undefined} />
+      )}
     </GalaxieWidgetProvider>
   );
 }

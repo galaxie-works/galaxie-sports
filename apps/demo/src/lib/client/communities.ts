@@ -13,6 +13,8 @@ import {
   type CommunityRow,
 } from '@galaxie/db/community';
 
+import { moduleLimits } from '@/lib/client/entitlements';
+
 declare global {
   var __galaxieCommunityDb: Database | undefined;
 }
@@ -78,7 +80,7 @@ export async function communitiesOverview(tenantId: string, locale: string): Pro
     describeScopeRules(db, tenantId, locale),
     listCommunities(db, tenantId, { locale }),
     listSportsForScope(db, locale),
-    communityLimit(db, tenantId),
+    communityLimit(db, tenantId, moduleLimits()['communities.max_communities']),
   ]);
   const withApproval = rows.filter((c) => c.joinMode === 'approval' && c.state === 'active');
   const requests = (

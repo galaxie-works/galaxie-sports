@@ -4,6 +4,18 @@ Documento de trabalho interno. Reúne o que os 13 pacotes ([common](common.md), 
 
 Legenda dos esportes: FUT futebol, BAS basquete, NBA, FAM futebol americano, BEI beisebol, HOQ hóquei, VOL vôlei, HAN handebol, RUG rugby, AFL futebol australiano, F1, MMA, COM comuns.
 
+## 0. Respostas do dono (19/11/2026)
+
+Respondidas pelo Wagner nos cartões da thread da Gamificação, em 19/11/2026 (#1274). Valem sobre o texto das perguntas abaixo.
+
+- **1 (`event.derby_id`):** só os grandes clássicos, a mesma lista que o widget Clássicos da semana usa. Toda Conquista de clássico lê essa marca.
+- **2 (final em série ou ida e volta):** conta cada jogo de final vencido ("vitória em jogo de final"), com o dado de hoje. Não espera `event.series_winner` nem agregado.
+- **19 (`fan.favorite_team_id` aceita seleção):** sim. As Conquistas de `team: favorite` valem também para seleção (Liga das Nações, Mundiais, Olímpicos e Pan).
+- **26 e as 7 exceções da seção 3 (régua de raridade):** aprovadas em bloco, repetíveis com 5 Degraus, como estão nos pacotes.
+- **Gênero de "Rei do placar exato" e "Madrugador":** nomes neutros. O título virou "Placar exato"; a Conquista comum, a Carta do basquete e o título viraram "Na madrugada"; as Cartas da F1 e do MMA viraram "Madrugada nas pistas" e "Madrugada na gaiola".
+- **Tema por cliente (arte nas cores da operadora):** argumento de venda até o primeiro contrato pedir. Não entra na #1282 por ora.
+- **Todas as outras perguntas (3 a 50):** valem as suposições escritas em cada pergunta ou no pacote. O que depende de dado novo do fornecedor (lance a lance, estatística de jogador, `proposed.*`) fica como "depois", com a Conquista inativa até o dado existir.
+
 ## 1. Perguntas para o dono
 
 Cada pergunta traz o texto, os pacotes que a levantaram (entre parênteses, o número da pergunta no pacote) e o que muda conforme a resposta.

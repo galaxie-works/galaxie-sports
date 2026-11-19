@@ -15,7 +15,8 @@ const { values, positionals } = parseArgs({
   allowPositionals: true,
   options: {
     theme: { type: 'string', default: 'dark' },
-    api: { type: 'string', default: 'https://api.galaxie.sports' },
+    // padrão: a API pública do .env (NEXT_PUBLIC_GALAXIE_DOCS_API_URL, a mesma das docs da demo), sem host no código (#626)
+    api: { type: 'string', default: process.env.NEXT_PUBLIC_GALAXIE_DOCS_API_URL },
     locale: { type: 'string', default: 'pt-BR' },
     market: { type: 'string', default: 'BR' },
     event: { type: 'string' },
@@ -28,6 +29,10 @@ const { values, positionals } = parseArgs({
 const [kind, name] = positionals;
 if (!kind || !name) {
   console.error('uso: registry-item.mjs <match_card|live_list|standings|where_to_watch> <nome> [opções]');
+  process.exit(1);
+}
+if (!values.api) {
+  console.error('defina --api URL (ou NEXT_PUBLIC_GALAXIE_DOCS_API_URL no ambiente)');
   process.exit(1);
 }
 const theme = DEFAULT_THEMES[values.theme];

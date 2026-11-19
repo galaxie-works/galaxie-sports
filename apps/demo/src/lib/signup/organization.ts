@@ -4,9 +4,10 @@
  * partir do nome e os limites dos campos. Sem banco: o assistente (componente de cliente) importa daqui.
  */
 import type { BillingEntity, OrganizationCurrency } from '@galaxie/db/schema';
+import { WTW_MARKET_CODES } from '@galaxie/runtime-config';
 
-/** Países que o cadastro aceita como mercado principal: os do Onde Assistir (ISO2). */
-export const SIGNUP_MARKETS = ['BR', 'AR', 'MX', 'CO', 'CL', 'PE', 'UY', 'EC'] as const;
+/** Países que o cadastro aceita como mercado principal: os do Onde Assistir (ISO2, `wtw_markets` de config/geo). */
+export const SIGNUP_MARKETS = WTW_MARKET_CODES;
 export type SignupMarket = (typeof SIGNUP_MARKETS)[number];
 export const isSignupMarket = (value: unknown): value is SignupMarket =>
   typeof value === 'string' && (SIGNUP_MARKETS as readonly string[]).includes(value);

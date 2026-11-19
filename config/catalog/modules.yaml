@@ -15,11 +15,14 @@
 #                  modules    todos estes módulos
 #                  anyModule  pelo menos um destes módulos
 #   tiers        faixas do módulo (o tamanho contratado): min, max, padrão e, quando há, os valores fixos aceitos
+#                (values) e a medida de uso do mês que a faixa limita (metric: peak_connections, active_markets...).
+#                As faixas que o tenant ajusta (live_chat.peak_connections, communities.max_communities,
+#                gamification.max_programs) valem daqui: mudar o número aqui muda o que a API e o console aceitam.
 #   features     features do módulo. `plans` limita a feature a esses planos (sem `plans`, vem com o módulo);
 #                `requires` segue a mesma forma do módulo
 #
-# As faixas do engajamento repetem MODULE_LIMITS (@galaxie/db/engage-modules) até o código passar a ler daqui; o teste
-# do pacote @galaxie/billing confere a igualdade.
+# As faixas do engajamento são lidas daqui pelo código (moduleLimitDefs, #1446); o catálogo não sobe sem as chaves que o
+# código usa (MODULE_LIMIT_KEYS em @galaxie/db/engage-modules).
 
 modules:
   core_data:
@@ -49,7 +52,7 @@ modules:
     trialDays: 30
     tiers:
       # países com onde assistir; o tenant pode ter uma lista própria (api.tenant.markets)
-      where_to_watch.markets: { min: 1, max: 250, default: 3 }
+      where_to_watch.markets: { min: 1, max: 250, default: 3, metric: active_markets }
     features:
       where_to_watch.rest: {}
 
@@ -68,7 +71,7 @@ modules:
     trialDays: 14
     tiers:
       # jogos enriquecidos por mês incluídos na franquia; acima dela, add-on medido
-      live_intelligence.enriched_games: { min: 0, max: 1000000, default: 2000 }
+      live_intelligence.enriched_games: { min: 0, max: 1000000, default: 2000, metric: enriched_games }
     features:
       live_intelligence.rest: {}
 
@@ -106,7 +109,8 @@ modules:
       plans: [fan_experience, live_intelligence, enterprise]
     tiers:
       # acima do pico a sala vira só leitura para quem entra (D6)
-      live_chat.peak_connections: { min: 5000, max: 100000, default: 5000, values: [5000, 25000, 100000] }
+      live_chat.peak_connections:
+        { min: 5000, max: 100000, default: 5000, values: [5000, 25000, 100000], metric: peak_connections }
     features:
       live_chat.rooms: {}
       live_chat.tv_mode: {}

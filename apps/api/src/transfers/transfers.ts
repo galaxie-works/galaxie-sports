@@ -225,7 +225,7 @@ export async function loadTeamTransfers(db: Database, teamId: string, opts: Tran
     .from(participant)
     .where(eq(participant.id, teamId))
     .limit(1);
-  if (!team) throw problems.notFound('Time');
+  if (!team) throw problems.notFound('Team');
   const ref = (await clubRefs(db, [team.id], opts)).get(team.id);
   const body = await build(
     db,
@@ -284,7 +284,7 @@ export async function loadCompetitionTransfers(
     .where(UUID_RE.test(idOrSlug) ? eq(competition.id, idOrSlug) : eq(competition.slug, idOrSlug))
     .orderBy(sql`(${competition.sport} = 'football') desc`)
     .limit(1);
-  if (!row) throw problems.notFound('Competição');
+  if (!row) throw problems.notFound('Competition');
   const labels = { ...(row.labels ?? {}), ...(row.profileLabels ?? {}) } as Record<string, string>;
   const teams = await competitionTeams(db, row.id);
   const body = await build(

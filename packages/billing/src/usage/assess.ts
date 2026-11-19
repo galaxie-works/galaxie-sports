@@ -25,14 +25,10 @@ export type UsageCheck = {
 };
 
 /**
- * Qual medida alimenta cada faixa de módulo. Faixa sem medida aqui (ex.: `communities.max_communities`, contada no
- * cadastro e não no uso) fica de fora da avaliação.
+ * Qual medida alimenta cada faixa de módulo: `tierUsage(catalog)`, do `metric` de cada faixa no `modules.yaml` (#1446).
+ * Faixa sem medida (ex.: `communities.max_communities`, contada no cadastro e não no uso) fica de fora da avaliação.
  */
-export const TIER_USAGE: Record<string, { module: ApiModule; metric: ModuleUsageMetric }> = {
-  'live_chat.peak_connections': { module: 'live_chat', metric: 'peak_connections' },
-  'where_to_watch.markets': { module: 'where_to_watch', metric: 'active_markets' },
-  'live_intelligence.enriched_games': { module: 'live_intelligence', metric: 'enriched_games' },
-};
+export type TierUsage = Readonly<Record<string, { module: ApiModule; metric: ModuleUsageMetric }>>;
 
 export function levelOf(used: number, limit: number | null): UsageLevel {
   if (limit === null) return 'ok';
@@ -59,6 +55,7 @@ const check = (key: string, used: number, limit: number | null): UsageCheck => (
 export function assessUsage(
   ent: Pick<Entitlements, 'modules' | 'tiers' | 'capacity'> & Partial<Pick<Entitlements, 'isGalaxie'>>,
   readings: readonly UsageReading[],
+  usage: TierUsage,
 ): UsageCheck[] {
   // o tenant da Galaxie (cliente zero) consome sem cobrança: nada de faixa nem excedente
   if (ent.isGalaxie) return [];
@@ -68,7 +65,7 @@ export function assessUsage(
       .reduce((max, r) => Math.max(max, r.value), 0);
   const out: UsageCheck[] = [];
   for (const [key, limit] of Object.entries(ent.tiers)) {
-    const source = TIER_USAGE[key];
+    const source = usage[key];
     if (!source || !ent.modules.includes(source.module)) continue;
     out.push(check(key, value(source.module, source.metric), limit));
   }

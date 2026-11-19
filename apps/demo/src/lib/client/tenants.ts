@@ -8,7 +8,6 @@ import {
   ENGAGE_MODULES,
   isValidModuleLimit,
   MODULE_LIMIT_KEYS,
-  MODULE_LIMITS,
   type EngageModule,
   type ModuleLimitKey,
   type ModuleUsageMetric,
@@ -18,6 +17,7 @@ import type { TenantState } from '@galaxie/db/schema';
 import { effectiveState } from '@galaxie/billing';
 
 import { pool } from '@/lib/auth/db';
+import { moduleLimits } from '@/lib/client/entitlements';
 
 /** Opção de tenant (seletor de marca da equipe e do cliente com mais de uma marca). */
 export interface TenantOption {
@@ -164,12 +164,13 @@ export async function getEngageModules(
     ),
   ]);
   const byKey = new Map(saved.map((r) => [r.key, r.value]));
+  const defs = moduleLimits();
   return modules.map((module) => ({
     module,
-    limits: MODULE_LIMIT_KEYS.filter((k) => MODULE_LIMITS[k].module === module).map((key) => {
+    limits: MODULE_LIMIT_KEYS.filter((k) => defs[k].module === module).map((key) => {
       const v = byKey.get(key);
-      const ok = v !== undefined && isValidModuleLimit(key, v);
-      return { key, value: ok ? v : MODULE_LIMITS[key].default, custom: ok };
+      const ok = v !== undefined && isValidModuleLimit(defs[key], v);
+      return { key, value: ok ? v : defs[key].default, custom: ok };
     }),
     usage: Object.fromEntries(
       usage.filter((u) => u.module === module).map((u) => [u.metric, Number(u.value)]),

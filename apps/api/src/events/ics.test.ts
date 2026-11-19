@@ -21,7 +21,7 @@ describe('iCalendar (RFC 5545)', () => {
     const ics = buildIcs(
       [
         {
-          uid: 'abc@galaxie.sports',
+          uid: 'abc@galaxiesports.com',
           start: new Date('2026-10-22T00:30:00Z'),
           end: new Date('2026-10-22T02:25:00Z'),
           summary: 'Palmeiras × Fluminense',
@@ -42,7 +42,7 @@ describe('iCalendar (RFC 5545)', () => {
         'CALSCALE:GREGORIAN',
         'METHOD:PUBLISH',
         'BEGIN:VEVENT',
-        'UID:abc@galaxie.sports',
+        'UID:abc@galaxiesports.com',
         'DTSTAMP:20261021T120000Z',
         'DTSTART:20261022T003000Z',
         'DTEND:20261022T022500Z',

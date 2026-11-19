@@ -63,6 +63,10 @@ export const GeoFile = z.strictObject({
   regions: z.record(z.string().regex(/^[A-Z-]+$/), ConfederationCode).default({}),
   /** Mercados ativos (ISO2): relevância por país (`relevance_by_market`) no detalhe do evento. */
   markets: z.array(CountryCode).default([]),
+  /** Mercados do Onde Assistir (subconjunto de `markets`): os que têm emissoras e direitos pesquisados. */
+  wtw_markets: z.array(CountryCode).default([]),
+  /** América Latina e Caribe hispânico, na ordem de prioridade regional; todo país com `ioc`. */
+  latam: z.array(CountryCode).default([]),
   confederations: z.array(Confederation).min(1),
 });
 export type GeoFile = z.output<typeof GeoFile>;

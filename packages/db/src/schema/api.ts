@@ -22,6 +22,7 @@ import { platform } from './lineups.js';
 import {
   ENGAGE_MODULES,
   isEngageModule,
+  type CapacityTier,
   type EngageModule,
   type ModuleLimitKey,
   type ModuleUsageMetric,
@@ -168,7 +169,7 @@ export const tenant = api.table(
      * Faixa de capacidade contratada (C1 a C4, `config/catalog/capacity.yaml`); null = padrão do catálogo. Desde a F2
      * a faixa é da organização (`billing.organization.capacity_tier`, PL23); a coluna fica até a leitura mudar.
      */
-    capacityTier: text('capacity_tier').$type<'C1' | 'C2' | 'C3' | 'C4'>(),
+    capacityTier: text('capacity_tier').$type<CapacityTier>(),
     /**
      * Organização que assina e paga por esta marca (`billing.organization`, F2 #1136). Nula só até a migration de dados
      * (0178) rodar; passa a obrigatória num PR `contrair` futuro.
@@ -330,7 +331,7 @@ export const accessErrorDaily = api.table(
 );
 
 /**
- * Faixa de um módulo de engajamento no tenant (#1018). Sem linha = padrão de `MODULE_LIMITS`. Só a Galaxie
+ * Faixa de um módulo de engajamento no tenant (#1018). Sem linha = padrão do catálogo (`modules.yaml`, #1446). Só a Galaxie
  * grava (rota administrativa); o cliente vê no painel.
  */
 export const tenantModuleLimit = api.table(
@@ -339,7 +340,7 @@ export const tenantModuleLimit = api.table(
     tenantId: uuid('tenant_id')
       .notNull()
       .references(() => tenant.id, { onDelete: 'cascade' }),
-    /** Chave de `MODULE_LIMITS` (`modulo.faixa`). */
+    /** Chave de `MODULE_LIMIT_KEYS` (`modulo.faixa`). */
     key: text('key').$type<ModuleLimitKey>().notNull(),
     value: integer('value').notNull(),
     /** Quem mudou: `admin`, `cli:<comando>`, `panel:<id do usuário>`. */

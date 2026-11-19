@@ -373,7 +373,16 @@ describe('carteira de pontos (#938)', () => {
     const w = await wallet(token);
     expect(w.statusCode).toBe(200);
     expect(w.headers['cache-control']).toBe('no-store');
-    expect(w.json()).toEqual({ data: [{ program_country: 'BR', points: 20, balance: 15 }] });
+    expect(w.json()).toEqual({
+      data: [
+        {
+          program_country: 'BR',
+          points: 20,
+          balance: 15,
+          level: { level: 1, min_points: 0, next_min_points: 100 },
+        },
+      ],
+    });
     const page1 = await wallet(token, '/ledger', '?limit=3');
     expect(page1.statusCode).toBe(200);
     const body = page1.json();

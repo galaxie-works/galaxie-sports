@@ -6,9 +6,11 @@
  * Quem usa depende só destas interfaces; as implementações ficam em ./providers.
  */
 
-/** Provedores com cliente neste pacote. */
-export type LlmProviderId = 'openai' | 'anthropic' | 'gemini' | 'deepseek';
-export const LLM_PROVIDER_IDS: readonly LlmProviderId[] = ['openai', 'anthropic', 'gemini', 'deepseek'];
+import { AI_PROVIDERS, type AiProvider, type AiTier } from '@galaxie/runtime-config';
+
+/** Provedores com cliente neste pacote: os do catálogo único (@galaxie/runtime-config, #1437). */
+export type LlmProviderId = AiProvider;
+export const LLM_PROVIDER_IDS: readonly LlmProviderId[] = AI_PROVIDERS;
 
 export interface LlmMessage {
   role: 'system' | 'user' | 'assistant';
@@ -21,7 +23,7 @@ export interface LlmMessage {
  * - `standard`: redação de cenário/resumo a partir de fatos;
  * - `research`: pesquisa com busca na web (onde assistir, curadoria).
  */
-export type LlmTier = 'light' | 'standard' | 'research';
+export type LlmTier = AiTier;
 
 export interface LlmJsonRequest {
   tier: LlmTier;

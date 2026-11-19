@@ -2,7 +2,18 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parse } from 'yaml';
-import { API_MODULES, API_PLANS, type ApiModule, type ApiPlan } from '@galaxie/db/schema';
+import {
+  API_MODULES,
+  API_PLANS,
+  MODULE_LIMIT_KEYS,
+  MODULE_LIMIT_MODULES,
+  type ApiModule,
+  type ApiPlan,
+  type ModuleLimitDef,
+  type ModuleLimitDefs,
+  type ModuleLimitKey,
+  type ModuleUsageMetric,
+} from '@galaxie/db/schema';
 import { defaultCatalogDir } from './paths.js';
 import { parsePlans, PlansConfigError, type PlanCatalog } from './plans.js';
 import {
@@ -80,6 +91,12 @@ export function parseCatalog(texts: Record<CatalogFile, string>): Catalog {
   if (missingModules.length) problems.push(`modules.yaml sem o(s) módulo(s): ${missingModules.join(', ')}`);
   const missingCapacity = CAPACITY_TIERS.filter((c) => !capacityR.data.tiers[c]);
   if (missingCapacity.length) problems.push(`capacity.yaml sem a(s) faixa(s): ${missingCapacity.join(', ')}`);
+  // as faixas que o código lê (pico do chat, teto de Comunidades...) precisam estar no módulo dono (#1446)
+  for (const key of MODULE_LIMIT_KEYS) {
+    const module = MODULE_LIMIT_MODULES[key];
+    if (modulesR.data.modules[module] && !modulesR.data.modules[module].tiers[key])
+      problems.push(`modules.yaml: ${module}.tiers sem a faixa ${key}`);
+  }
   if (problems.length) throw new CatalogConfigError(problems);
 
   const catalog: Catalog = {
@@ -120,6 +137,34 @@ export function tierIndex(
   for (const m of API_MODULES)
     for (const [k, def] of Object.entries(catalog.modules[m].tiers)) idx.set(k, { module: m, def });
   return idx;
+}
+
+/**
+ * As faixas que o tenant ajusta (`api.tenant_module_limit`), com os valores do `modules.yaml` (#1446). A lista de chaves
+ * é a do código (`MODULE_LIMIT_KEYS`); `parseCatalog` já recusou um catálogo sem alguma delas.
+ */
+export function moduleLimitDefs(catalog: Pick<Catalog, 'modules'>): ModuleLimitDefs {
+  const out = {} as Record<ModuleLimitKey, ModuleLimitDef>;
+  for (const key of MODULE_LIMIT_KEYS) {
+    const module = MODULE_LIMIT_MODULES[key];
+    const t = catalog.modules[module]?.tiers[key];
+    if (!t) throw new CatalogConfigError([`modules.yaml: ${module}.tiers sem a faixa ${key}`]);
+    out[key] = { module, min: t.min, max: t.max, default: t.default, tiers: t.values ?? null };
+  }
+  return out;
+}
+
+/**
+ * Qual medida de uso alimenta cada faixa (`metric` da faixa no `modules.yaml`). Faixa sem `metric` (ex.:
+ * `communities.max_communities`, contada no cadastro e não no uso) fica de fora da avaliação do mês.
+ */
+export function tierUsage(
+  catalog: Pick<Catalog, 'modules'>,
+): Record<string, { module: ApiModule; metric: ModuleUsageMetric }> {
+  const out: Record<string, { module: ApiModule; metric: ModuleUsageMetric }> = {};
+  for (const [key, { module, def }] of tierIndex(catalog))
+    if (def.metric) out[key] = { module, metric: def.metric };
+  return out;
 }
 
 /** Valor aceito para a faixa? (dentro de min e max e, quando há valores fixos, um deles). */

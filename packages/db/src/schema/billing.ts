@@ -12,6 +12,7 @@ import {
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
+import type { CapacityTier } from '../engage-modules.js';
 import { createdAt, pkUuidV7, updatedAt } from './_shared.js';
 import { tenant, type ApiModule, type TenantState } from './api.js';
 
@@ -143,9 +144,8 @@ export type OrganizationCurrency = (typeof ORGANIZATION_CURRENCIES)[number];
 export const BILLING_ENTITIES = ['llc', 'ltda'] as const;
 export type BillingEntity = (typeof BILLING_ENTITIES)[number];
 
-/** Faixas de capacidade (`config/catalog/capacity.yaml`); C3 e C4 só por proposta (PL7, R3). */
-export const CAPACITY_TIERS = ['C1', 'C2', 'C3', 'C4'] as const;
-export type CapacityTier = (typeof CAPACITY_TIERS)[number];
+// Faixas de capacidade (`CAPACITY_TIERS`, `CapacityTier`): definição única em `engage-modules.ts` (arquivo sem banco),
+// exportada pelo `schema/api.ts` (#1446).
 
 /**
  * Revisão manual do cadastro (PL2): `none` = entrou direto (e-mail de empresa); `pending` = caiu numa regra antiabuso

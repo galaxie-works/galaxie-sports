@@ -1,15 +1,27 @@
+import { loadCatalog, moduleLimitDefs } from '@galaxie/billing';
 import {
   ENGAGE_MODULES,
   isValidModuleLimit,
   MODULE_LIMIT_KEYS,
-  MODULE_LIMITS,
   tenantModuleLimit,
   type ApiModule,
   type Database,
   type EngageModule,
+  type ModuleLimitDefs,
   type ModuleLimitKey,
 } from '@galaxie/db';
 import { and, eq, inArray, sql } from 'drizzle-orm';
+
+let cachedDefs: ModuleLimitDefs | undefined;
+
+/**
+ * Padrão, teto e faixas fixas de cada faixa, do `config/catalog/modules.yaml` (#1446). Lido uma vez por processo, como
+ * o resto do catálogo (mudar o yaml vale no próximo deploy ou reinício, igual aos planos).
+ */
+export function moduleLimitCatalog(): ModuleLimitDefs {
+  cachedDefs ??= moduleLimitDefs(loadCatalog());
+  return cachedDefs;
+}
 
 /** Faixa efetiva de um módulo no tenant: o valor gravado ou o padrão da Galaxie. */
 export interface ModuleLimitView {
@@ -29,16 +41,17 @@ export async function moduleLimitsOf(
   db: Database,
   tenantId: string,
   modules: readonly ApiModule[],
+  defs: ModuleLimitDefs = moduleLimitCatalog(),
 ): Promise<ModuleLimitView[]> {
   const rows = await db
     .select({ key: tenantModuleLimit.key, value: tenantModuleLimit.value })
     .from(tenantModuleLimit)
     .where(eq(tenantModuleLimit.tenantId, tenantId));
   const saved = new Map(rows.map((r) => [r.key, r.value]));
-  return MODULE_LIMIT_KEYS.filter((key) => modules.includes(MODULE_LIMITS[key].module)).map((key) => {
-    const def = MODULE_LIMITS[key];
+  return MODULE_LIMIT_KEYS.filter((key) => modules.includes(defs[key].module)).map((key) => {
+    const def = defs[key];
     const value = saved.get(key);
-    const ok = value !== undefined && isValidModuleLimit(key, value);
+    const ok = value !== undefined && isValidModuleLimit(def, value);
     return {
       key,
       module: def.module,
@@ -71,12 +84,13 @@ export async function setModuleLimits(
   tenantId: string,
   limits: Record<string, number | null>,
   by: string,
+  defs: ModuleLimitDefs = moduleLimitCatalog(),
 ): Promise<void> {
   const entries = Object.entries(limits);
   for (const [key, value] of entries) {
-    if (!(key in MODULE_LIMITS)) throw new ModuleLimitError(key, `faixa desconhecida: ${key}`);
-    if (value !== null && !isValidModuleLimit(key as ModuleLimitKey, value)) {
-      const def = MODULE_LIMITS[key as ModuleLimitKey];
+    if (!Object.hasOwn(defs, key)) throw new ModuleLimitError(key, `faixa desconhecida: ${key}`);
+    const def = defs[key as ModuleLimitKey];
+    if (value !== null && !isValidModuleLimit(def, value)) {
       throw new ModuleLimitError(
         key,
         def.tiers
