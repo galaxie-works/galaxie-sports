@@ -20,8 +20,11 @@ describe('mapas de tradução da API', () => {
   });
 
   it('desfalques e sessões da F1 têm en em inglês', () => {
-    for (const r of ['injury', 'knee injury', 'red card', 'illness', 'suspended'])
+    for (const r of ['injury', 'knee injury', 'red card', 'illness', 'suspended', 'hamstring injury']) {
+      // todos estão no mapa: o en não pode ser o próprio texto do fornecedor nem o rótulo em pt
       expect(sidelinedReasonLabel(r, 'en'), r).not.toMatch(PORTUGUESE);
+      expect(sidelinedReasonLabel(r, 'en'), r).not.toBe(sidelinedReasonLabel(r, 'pt-BR'));
+    }
     for (const t of ['practice', 'qualifying', 'sprint_qualifying', 'sprint', 'race'] as const)
       expect(sessionName(t, null, 'en'), t).not.toMatch(PORTUGUESE);
   });
