@@ -100,13 +100,15 @@ const fan = async (key: string, n: number, ageBand = '18plus', acceptGuidelines 
   expect(res.statusCode).toBe(201);
   const token = res.json().data.token as string;
   // as Diretrizes do chat (#957): o adulto aceita antes de escrever (o teste do aceite usa `acceptGuidelines = false`)
-  if (acceptGuidelines && ageBand === '18plus')
-    await app.inject({
+  if (acceptGuidelines && ageBand === '18plus') {
+    const accepted = await app.inject({
       method: 'POST',
       url: '/v1/chat/guidelines/accept',
       headers: { authorization: `Bearer ${token}` },
       payload: { version: CHAT_GUIDELINES_VERSION },
     });
+    expect(accepted.statusCode).toBe(204);
+  }
   return { token, profileId: res.json().data.profile_id as string };
 };
 

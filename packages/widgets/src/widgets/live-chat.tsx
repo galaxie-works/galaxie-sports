@@ -273,12 +273,24 @@ function LiveChatRoom({
   // Diretrizes (#957): a primeira mensagem pede o aceite das regras do chat
   const [guidelines, setGuidelines] = useState<GsChatGuidelines | null>(null);
   const [accepting, setAccepting] = useState(false);
-  const showGuidelines = useCallback(async () => {
-    const res = await fan.fetch('/v1/chat/guidelines');
-    const json = (await res.json().catch(() => null)) as { data?: GsChatGuidelines } | null;
-    if (res.ok && json?.data) setGuidelines(json.data);
-    else setSendError(T.sendError);
-  }, [fan, T]);
+  const guidelinesRef = useRef<HTMLElement | null>(null);
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  // trocou o torcedor ou a sala mudou de estado: as regras abertas não valem mais
+  useEffect(() => setGuidelines(null), [fan.status, roomState]);
+  // as regras abertas recebem o foco (quem usa leitor de tela fica sabendo); depois do aceite, volta ao texto
+  useEffect(() => {
+    if (guidelines) guidelinesRef.current?.focus();
+  }, [guidelines]);
+  const showGuidelines = useCallback(
+    async (detail?: string) => {
+      const res = await fan.fetch('/v1/chat/guidelines');
+      const json = (await res.json().catch(() => null)) as { data?: GsChatGuidelines } | null;
+      if (res.ok && json?.data) setGuidelines(json.data);
+      // sem as regras, o aviso da API diz o que falta
+      else setSendError(detail ?? T.sendError);
+    },
+    [fan, T],
+  );
   const acceptGuidelines = useCallback(async () => {
     if (!guidelines || accepting) return;
     setAccepting(true);
@@ -291,6 +303,7 @@ function LiveChatRoom({
       if (res.ok) {
         setGuidelines(null);
         setSendError(null);
+        inputRef.current?.focus();
       } else if (res.status === 409) await showGuidelines();
       else setSendError(T.sendError);
     } catch {
@@ -331,7 +344,7 @@ function LiveChatRoom({
           res.status === 409 &&
           json?.errors?.some((x) => x.path === 'refusal' && x.message === 'guidelines')
         ) {
-          await showGuidelines();
+          await showGuidelines(json.detail);
           return;
         }
         const retry = res.headers.get('retry-after');
@@ -436,6 +449,7 @@ function LiveChatRoom({
           <FanGate need="write">
             <form className="gs-chat-form" onSubmit={send}>
               <textarea
+                ref={inputRef}
                 className="gs-chat-input"
                 rows={2}
                 value={draft}
@@ -450,18 +464,27 @@ function LiveChatRoom({
                   }
                 }}
               />
-              <button type="submit" className="gs-button" disabled={sending || !draft.trim()}>
+              <button
+                type="submit"
+                className="gs-button"
+                disabled={sending || !draft.trim() || guidelines !== null}
+              >
                 {T.send}
               </button>
             </form>
           </FanGate>
         )}
         {guidelines ? (
-          <section className="gs-chat-guidelines" aria-label={guidelines.title}>
-            <h3>{guidelines.title}</h3>
+          <section
+            className="gs-chat-guidelines"
+            aria-labelledby="gs-chat-guidelines-title"
+            tabIndex={-1}
+            ref={guidelinesRef}
+          >
+            <h3 id="gs-chat-guidelines-title">{guidelines.title}</h3>
             <p>{guidelines.intro}</p>
-            <p>{guidelines.not_allowed_title}</p>
-            <ul>
+            <p id="gs-chat-guidelines-not-allowed">{guidelines.not_allowed_title}</p>
+            <ul aria-labelledby="gs-chat-guidelines-not-allowed">
               {guidelines.not_allowed.map((rule) => (
                 <li key={rule}>{rule}</li>
               ))}
@@ -469,7 +492,7 @@ function LiveChatRoom({
             <p>{guidelines.who_writes}</p>
             <p>{guidelines.consequences}</p>
             <p>{guidelines.report}</p>
-            <button type="button" className="gs-chat-send" disabled={accepting} onClick={acceptGuidelines}>
+            <button type="button" className="gs-button" disabled={accepting} onClick={acceptGuidelines}>
               {guidelines.accept}
             </button>
           </section>

@@ -352,5 +352,8 @@ export async function acceptGuidelines(
     .onConflictDoUpdate({
       target: [chatGuidelinesAcceptance.tenantId, chatGuidelinesAcceptance.profileId],
       set: { version, acceptedAt: at },
+      // a versão só sobe (instância antiga no deploy em rodízio não grava a v1 por cima da v2); reaceite igual não
+      // reescreve a linha
+      setWhere: sql`${chatGuidelinesAcceptance.version} < excluded.version`,
     });
 }

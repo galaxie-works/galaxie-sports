@@ -331,7 +331,9 @@ export const chatPaths: ZodOpenApiPathsObject = {
         '400': problem('Corpo inválido (INVALID_PARAMS)'),
         '401': problem('Token ausente, inválido, vencido ou de Perfil excluído (INVALID_KEY)'),
         '403': problem('Faixa etária (FAN_AGE_RESTRICTED) ou módulo fora do plano (MODULE_NOT_IN_PLAN)'),
-        '409': problem('A versão mudou; releia as Diretrizes (CONFLICT)'),
+        '409': problem(
+          'A versão mudou; releia as Diretrizes (CONFLICT). `errors[path=version]` traz a versão atual',
+        ),
       },
     },
   },
@@ -377,7 +379,9 @@ export const chatPaths: ZodOpenApiPathsObject = {
         '401': problem('Token ausente, inválido, vencido ou de Perfil excluído (INVALID_KEY)'),
         '403': problem('Faixa etária (FAN_AGE_RESTRICTED) ou módulo fora do plano (MODULE_NOT_IN_PLAN)'),
         '404': problem('Jogo não encontrado (NOT_FOUND)'),
-        '409': problem('Sala fechada para envio ou punição ativa (CONFLICT; motivo em `errors`)'),
+        '409': problem(
+          'Sala fechada para envio ou punição ativa (CONFLICT; motivo em `errors`) Também `refusal: guidelines`: Diretrizes não aceitas; integração própria chama `GET /v1/chat/guidelines` e `POST /v1/chat/guidelines/accept`',
+        ),
         '429': problem('Modo lento, anti-flood ou limite do torcedor (RATE_LIMITED)'),
         '503': problem('Ficha do país não configurada para o cliente (DEGRADED)'),
       },
