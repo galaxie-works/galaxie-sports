@@ -950,7 +950,14 @@
     {
       "idx": 135,
       "version": "7",
-      "when": 1795021466527,
+      "when": 1795006330012,
+      "tag": "0193_comunidades_guarda_legal",
+      "breakpoints": true
+    },
+    {
+      "idx": 136,
+      "version": "7",
+      "when": 1795046809743,
       "tag": "0195_moderacao_perfis_liberados",
       "breakpoints": true
     }

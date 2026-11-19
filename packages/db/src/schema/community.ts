@@ -353,6 +353,8 @@ export const communityPost = community.table(
     moderatedBy: text('moderated_by'),
     /** Relógio de conteúdo da ficha do país (#954): depois disso o post é apagado. */
     purgeAt: timestamp('purge_at', { withTimezone: true }).notNull(),
+    /** Guarda legal (#1289): denúncia às autoridades ou suspeita de abuso infantil; o expurgo não apaga antes disso. */
+    legalHoldUntil: timestamp('legal_hold_until', { withTimezone: true }),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -406,6 +408,8 @@ export const communityComment = community.table(
       .default(sql`'{}'::text[]`),
     moderatedBy: text('moderated_by'),
     purgeAt: timestamp('purge_at', { withTimezone: true }).notNull(),
+    /** Guarda legal (#1289): denúncia às autoridades ou suspeita de abuso infantil; o expurgo não apaga antes disso. */
+    legalHoldUntil: timestamp('legal_hold_until', { withTimezone: true }),
     createdAt: createdAt(),
   },
   (t) => [

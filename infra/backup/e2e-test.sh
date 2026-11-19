@@ -99,6 +99,11 @@ fi
 echo "7) verificador (backup-check.sh) com o dump de agora"
 run_role backup-check.sh
 [ "$(psql_e2e "select status from ops.job_run where job = 'backup-check' order by started_at desc limit 1")" = ok ]
+# o verificador que passou renova o marcador que o healthcheck da imagem cobra; sem o marcador, o healthcheck falha
+run_role backup-healthcheck.sh
+run_role sh -c 'mv /backups/.last_check_ok /backups/.last_check_ok.bak'
+if run_role backup-healthcheck.sh >/dev/null 2>&1; then echo "healthcheck sem marcador deveria falhar" >&2; exit 1; fi
+run_role sh -c 'mv /backups/.last_check_ok.bak /backups/.last_check_ok'
 
 echo "8) ensaio de restauração no schema real (banco de CI sem partidas: só ops.job_run e sem a checagem de partida)"
 run_role env RESTORE_DRILL_TABLES=ops.job_run RESTORE_DRILL_EVENT_MAX_AGE_H=0 restore-drill.sh

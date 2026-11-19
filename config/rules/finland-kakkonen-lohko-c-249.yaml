@@ -1,0 +1,46 @@
+# Kakkonen (Finlândia, 4ª divisão), Lohko C. Em 2026: turno e returno de 10 clubes (18 rodadas,
+# "Group C - N" no fornecedor, grupo "Group C"). Depois da 18ª rodada vem uma segunda fase com rodadas
+# sem número ("Group C"), que o fornecedor não soma à tabela da temporada: ela fica fora do recálculo
+# (#1187). Conferido só em 2026 (prévia igual à do fornecedor); as outras temporadas seguem o genérico.
+slug: finland-kakkonen-lohko-c-249
+name: Kakkonen - Lohko C
+format: league
+
+standings:
+  points: { win: 3, draw: 1, loss: 0 }
+  # Desempate das federações (KSÍ e Palloliitto): saldo, gols pró e confronto direto; depois, sorteio.
+  tie_breakers:
+    - goal_difference
+    - goals_for
+    - h2h_points
+    - h2h_goal_difference
+    - drawing_of_lots
+
+league:
+  meetings_per_pair: 2
+  title: false
+  zones: []
+
+knockout:
+  default: { legs: 1, extra_time: false, penalties: true }
+
+overrides:
+  - seasons: { from: 2026 }
+    league:
+      teams: 10
+      matches_per_team: 18
+    tables:
+      - key: regular
+        kind: phase
+        name: { pt-BR: Fase de pontos corridos, es: Fase regular, en: Regular season }
+        groups: 'group c$'
+        rounds: '^group c - \d+$'
+      - key: second_phase
+        kind: phase
+        name: { pt-BR: Segunda fase, es: Segunda fase, en: Second phase }
+        groups: 'sem-grupo-proprio'
+        rounds: '^group c$'
+        computed: false
+
+sources:
+  - https://www.palloliitto.fi/

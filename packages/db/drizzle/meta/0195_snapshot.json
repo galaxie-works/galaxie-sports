@@ -1,6 +1,6 @@
 {
-  "id": "e42c46e9-86bf-4694-97ff-9642f8b2534d",
-  "prevId": "bb2eec61-eec9-4211-aa17-a7c04451019a",
+  "id": "9e416ff0-e0df-4141-a17b-91d5c31416a6",
+  "prevId": "8d5df7fe-634d-431e-b1a4-4c1facd57f1d",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -29146,6 +29146,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "legal_hold_until": {
+          "name": "legal_hold_until",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -30113,6 +30119,12 @@
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true
+        },
+        "legal_hold_until": {
+          "name": "legal_hold_until",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
         },
         "created_at": {
           "name": "created_at",
