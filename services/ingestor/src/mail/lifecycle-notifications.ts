@@ -228,7 +228,8 @@ export function composeLifecycleMail(
 export interface NotificationDeps {
   /** Testes de módulo com prazo até `until`, em tenants com acesso. */
   moduleTrials: (db: Database, now: Date, until: Date) => Promise<(ModuleTrialDue & { slug: string })[]>;
-  audience: (db: Database, tenantId: string) => Promise<TenantNotificationAudience | null>;
+  /** Destinatários do tenant; o convite pendente vale até `expires_at`, comparado com o `now` da rodada. */
+  audience: (db: Database, tenantId: string, now: Date) => Promise<TenantNotificationAudience | null>;
   claim: typeof claimTenantNotification;
   markSent: typeof markTenantNotificationSent;
   release: typeof releaseTenantNotification;
@@ -277,7 +278,7 @@ export const pgNotificationDeps = (
       .orderBy(moduleTrial.endsAt, moduleTrial.id);
     return rows;
   },
-  audience: (db, tenantId) => tenantNotificationAudience(db, tenantId),
+  audience: (db, tenantId, now) => tenantNotificationAudience(db, tenantId, { at: now }),
   claim: claimTenantNotification,
   markSent: markTenantNotificationSent,
   release: releaseTenantNotification,
@@ -336,7 +337,7 @@ export async function sendLifecycleNotifications(
     for (const d of due) {
       const id = await deps.claim(db, { tenantId: d.tenantId, kind: d.kind, ref: d.ref });
       if (!id) continue;
-      if (audience === undefined) audience = await deps.audience(db, t.id);
+      if (audience === undefined) audience = await deps.audience(db, t.id, now);
       const people = audience?.recipients ?? [];
       const recipients = recipientEmails(people);
       const outcome: NotificationOutcome = {
