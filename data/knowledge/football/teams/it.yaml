@@ -1,6 +1,6 @@
 # Base semântica — clubes da Itália (schema v1, ver data/knowledge/SCHEMA.md)
 # labels/copy_hints: nomes e apelidos como usados na imprensa do Brasil (pt-BR) e da América Latina hispânica (es).
-# api_sports.team_id: null — nenhuma fonte consultada exibiu o ID; resolver no bootstrap por match.name + country.
+# api_sports.team_id: resolvido por `pnpm resolve:ids` (match.name + country) contra o banco em 19/11/2026 (issue #17).
 schema_version: 1
 country: IT
 teams:
@@ -11,7 +11,7 @@ teams:
     abbreviation: JUV
   labels: {pt-BR: Juventus, es: Juventus, en: Juventus}
   api_sports:
-    team_id: null
+    team_id: 496
     match: {name: Juventus, country: Italy}
   founded: 1897-11-01
   city: Turim
@@ -69,7 +69,7 @@ teams:
     abbreviation: INT
   labels: {pt-BR: Inter de Milão, es: Inter de Milán, en: Inter Milan}
   api_sports:
-    team_id: null
+    team_id: 505
     match: {name: Inter, country: Italy}
   founded: 1908-03-09
   city: Milão
@@ -120,7 +120,7 @@ teams:
     abbreviation: MIL
   labels: {pt-BR: Milan, es: Milan, en: AC Milan}
   api_sports:
-    team_id: null
+    team_id: 489
     match: {name: AC Milan, country: Italy}
   founded: null
   city: Milão
@@ -171,7 +171,7 @@ teams:
     abbreviation: NAP
   labels: {pt-BR: Napoli, es: Napoli, en: Napoli}
   api_sports:
-    team_id: null
+    team_id: 492
     match: {name: Napoli, country: Italy}
   founded: null
   city: Nápoles
@@ -223,7 +223,7 @@ teams:
     abbreviation: ROM
   labels: {pt-BR: Roma, es: Roma, en: Roma}
   api_sports:
-    team_id: null
+    team_id: 497
     match: {name: AS Roma, country: Italy}
   founded: 1927-06-07
   city: Roma
@@ -275,7 +275,7 @@ teams:
     abbreviation: LAZ
   labels: {pt-BR: Lazio, es: Lazio, en: Lazio}
   api_sports:
-    team_id: null
+    team_id: 487
     match: {name: Lazio, country: Italy}
   founded: 1900-01-09
   city: Roma
@@ -326,7 +326,7 @@ teams:
     abbreviation: ATA
   labels: {pt-BR: Atalanta, es: Atalanta, en: Atalanta}
   api_sports:
-    team_id: null
+    team_id: 499
     match: {name: Atalanta, country: Italy}
   founded: 1907-10-17
   city: Bérgamo
@@ -371,7 +371,7 @@ teams:
     abbreviation: FIO
   labels: {pt-BR: Fiorentina, es: Fiorentina, en: Fiorentina}
   api_sports:
-    team_id: null
+    team_id: 502
     match: {name: Fiorentina, country: Italy}
   founded: 1926-08-29
   city: Florença
@@ -419,7 +419,7 @@ teams:
     abbreviation: TOR
   labels: {pt-BR: Torino, es: Torino, en: Torino}
   api_sports:
-    team_id: null
+    team_id: 503
     match: {name: Torino, country: Italy}
   founded: 1906-12-03
   city: Turim

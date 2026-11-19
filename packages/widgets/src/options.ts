@@ -1365,6 +1365,38 @@ export const WIDGET_OPTIONS: Record<WidgetKind, readonly WidgetOptionSpec[]> = {
     },
     bool('readOnly', l('Só leitura', 'Solo lectura', 'Read-only'), false),
   ],
+  fan_achievements: [
+    {
+      key: 'view',
+      type: 'enum',
+      default: 'both',
+      label: l('O que mostrar', 'Qué mostrar', 'What to show'),
+      values: [
+        { value: 'both', label: l('Estante e Ranking', 'Vitrina y ranking', 'Shelf and leaderboard') },
+        { value: 'shelf', label: l('Só a estante', 'Solo la vitrina', 'Shelf only') },
+        { value: 'ranking', label: l('Só o Ranking', 'Solo el ranking', 'Leaderboard only') },
+      ],
+    },
+    bool('showLocked', l('Mostrar as bloqueadas', 'Mostrar las bloqueadas', 'Show locked ones'), true),
+    {
+      key: 'rankingPeriod',
+      type: 'enum',
+      default: 'month',
+      label: l('Ranking de', 'Ranking de', 'Leaderboard for'),
+      values: [
+        { value: 'month', label: l('Mês', 'Mes', 'Month') },
+        { value: 'year', label: l('Ano', 'Año', 'Year') },
+      ],
+    },
+    {
+      key: 'rankingSize',
+      type: 'number',
+      default: 10,
+      min: 3,
+      max: 50,
+      label: l('Torcedores no Ranking', 'Hinchas en el ranking', 'Fans on the leaderboard'),
+    },
+  ],
 };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

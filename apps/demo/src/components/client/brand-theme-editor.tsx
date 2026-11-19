@@ -71,10 +71,13 @@ export function BrandThemePreview({ theme }: { theme: WidgetTheme }) {
 export function BrandThemeEditor({
   initial,
   cosmos: cosmosAllowed = false,
+  cosmosStaff = false,
 }: {
   initial: BrandThemeItem | null;
   /** Mostra o botão da Cosmos (só no tema novo, para quem usa a Cosmos e salva temas). */
   cosmos?: boolean;
+  /** Equipe Galaxie: a leitura sai da conta da Galaxie, e os avisos dizem isso em vez de créditos do cliente. */
+  cosmosStaff?: boolean;
 }) {
   const router = useRouter();
   const { t } = useI18n();
@@ -98,7 +101,7 @@ export function BrandThemeEditor({
     setCosmos(r);
     setVersion('light');
     setTheme({ ...r.light });
-    toast.success(fill(cc.charged, { credits: r.charged }));
+    toast.success(cosmosStaff ? cc.staffCharged : fill(cc.charged, { credits: r.charged }));
   }
 
   function pickVersion(v: 'light' | 'dark') {
@@ -171,7 +174,7 @@ export function BrandThemeEditor({
               </AlertDialog>
             </>
           ) : cosmosAllowed ? (
-            <BrandbookDialog onResult={fromCosmos} />
+            <BrandbookDialog onResult={fromCosmos} staff={cosmosStaff} />
           ) : null}
           <Button onClick={save} disabled={pending || !name.trim() || (!!initial && !dirty)}>
             {pending ? <Spinner /> : <Save />}

@@ -547,6 +547,17 @@ export async function TeamContent({
                     </Link>
                   ) : null}
                 </div>
+                {/* logo da Commons (ex.: construtores históricos da F1): o crédito que a licença pede */}
+                {team.logo_credit ? (
+                  <a
+                    href={team.logo_credit.page_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-muted-foreground w-fit text-xs hover:underline"
+                  >
+                    {team.logo_credit.text}
+                  </a>
+                ) : null}
                 {nicknames.length ? (
                   <div className="flex flex-wrap gap-1.5">
                     {nicknames.map((n) => (

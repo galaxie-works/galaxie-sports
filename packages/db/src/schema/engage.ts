@@ -95,6 +95,8 @@ const MODERATION_LIST_NAMES = [
   'allowed_domains',
   'bet_domains',
   'exceptions',
+  // perfis oficiais liberados no filtro de contato (#1373): `@clube`, `@emissora`
+  'allowed_handles',
 ];
 const inList = (col: string, list: readonly string[]) =>
   sql.raw(`${col} in (${list.map((v) => `'${v}'`).join(', ')})`);
@@ -132,7 +134,7 @@ export const moderationList = engage.table(
     check('moderation_list_locale', sql`${t.locale} in ('all', 'pt', 'es', 'en')`),
     check(
       'moderation_list_domain_locale',
-      sql`${t.list} not in ('allowed_domains', 'bet_domains', 'exceptions') or ${t.locale} = 'all'`,
+      sql`${t.list} not in ('allowed_domains', 'bet_domains', 'exceptions', 'allowed_handles') or ${t.locale} = 'all'`,
     ),
     check('moderation_list_tenant_exceptions', sql`${t.tenantId} is null or ${t.list} <> 'exceptions'`),
     check('moderation_list_size', sql`cardinality(${t.terms}) <= 5000`),

@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { parse } from 'yaml';
 import { describe, expect, it } from 'vitest';
+import { NO_MATCH_FACTS, rightsAnswer } from '../rights.js';
 import { collapseHosts, normalizeName } from '../normalize.js';
 import { loadWtwConfig, parseBlocklistEnv, parseCountryConfig, WtwConfigError } from './loader.js';
 import { WTW_COUNTRIES } from './types.js';
@@ -141,10 +142,17 @@ describe('config/broadcasters e config/broadcast-rights do repositório', () => 
 
   it('direitos do BR declaram a distribuição; logos só com origem e licença', () => {
     const br = config.directory('BR');
+    // Disney+ com todos os jogos; ESPN e CazéTV só os escolhidos (#1400)
     expect(br.rightsFor('premier-league', new Date('2026-10-24T14:00:00Z'))).toMatchObject({
-      distribution: 'exclusive',
-      holders: ['espn', 'disney_plus'],
+      distribution: 'selected',
+      holders: ['disney_plus', 'espn', 'cazetv'],
+      allMatches: ['disney_plus'],
     });
+    expect(br.rightsFor('serie-a-italia', new Date('2026-10-24T14:00:00Z'))?.allMatches).toEqual(['disney_plus']);
+    // pela tabela, só o Disney+ sai garantido; ESPN e CazéTV dependem da fonte do jogo ou da rodada
+    expect(
+      rightsAnswer(br.rightsFor('premier-league', new Date('2026-10-24T14:00:00Z')), NO_MATCH_FACTS),
+    ).toMatchObject({ deterministic: ['disney_plus'], toAllocate: ['espn', 'cazetv'] });
     expect(br.rightsFor('brasileirao-serie-a', new Date('2026-10-24T14:00:00Z'))?.distribution).toBe('split');
     expect(config.logos.size).toBeGreaterThan(20);
     for (const logo of config.logos.values()) {

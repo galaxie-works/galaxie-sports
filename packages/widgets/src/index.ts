@@ -77,6 +77,15 @@ export {
   type FanStatus,
   type GsAgeVerification,
   type GsFanMe,
+  GS_STEP_NAMES,
+  type GsStepName,
+  type GsAchievementCatalogEntry,
+  type GsFanAchievement,
+  type GsRanking,
+  type GsMyRanking,
+  type GsAchievementEarners,
+  buildShelf,
+  gameText,
 } from './core/model.js';
 
 // componentes (client components)
@@ -178,6 +187,7 @@ export {
 } from './catalog.js';
 export { PREVIEW_CHANNELS } from './fixtures-channel-guide.js';
 export { PREVIEW_IDS, createPreviewFetch, createPreviewFixtures, type PreviewFixtures } from './fixtures.js';
+export { PREVIEW_FAN_TOKEN } from './fixtures-game.js';
 export {
   PUBLISHABLE_KEY_ENV,
   REGISTRY_ITEM_SCHEMA_URL,
@@ -188,3 +198,4 @@ export {
   type RegistryItemFile,
 } from './registry/build-registry-item.js';
 export { LiveChat, type LiveChatProps } from './widgets/live-chat.js';
+export { AchievementShelf, type AchievementShelfProps } from './widgets/achievement-shelf.js';

@@ -184,6 +184,9 @@ function defaultProps(
       return pick(['eventId', 'teamId', 'competitionId', 'personId']);
     case 'live_chat':
       return pick(['eventId']);
+    // estante do torcedor: o esporte escolhido no Builder (ou nenhum = o Catálogo inteiro)
+    case 'fan_achievements':
+      return pick(['sport']);
   }
 }
 

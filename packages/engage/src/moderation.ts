@@ -37,11 +37,16 @@ export type ListLocale = (typeof LIST_LOCALES)[number];
 export const DOMAIN_LISTS = ['allowed_domains', 'bet_domains'] as const;
 export type DomainList = (typeof DOMAIN_LISTS)[number];
 
-export type ModerationListName = TermCategory | DomainList | 'exceptions';
+/** Perfis de rede social liberados no filtro de contato (#1373), sem o `@`. */
+export const HANDLE_LISTS = ['allowed_handles'] as const;
+export type HandleList = (typeof HANDLE_LISTS)[number];
+
+export type ModerationListName = TermCategory | DomainList | HandleList | 'exceptions';
 export const MODERATION_LISTS: readonly ModerationListName[] = [
   ...TERM_CATEGORIES,
   ...DOMAIN_LISTS,
   'exceptions',
+  ...HANDLE_LISTS,
 ];
 
 /** Listas que o cliente pode acrescentar por cima da base. Exceções ficam só com a Galaxie. */
@@ -49,6 +54,7 @@ export const TENANT_LISTS: readonly ModerationListName[] = [
   ...TERM_CATEGORIES,
   'allowed_domains',
   'bet_domains',
+  'allowed_handles',
 ];
 
 export type ScreenReason =
@@ -458,9 +464,7 @@ function hasPersonalData(text: string): boolean {
 
 /** Perfil liberado na forma comparável: minúsculas, sem o `@`. */
 export function normalizeHandle(handle: string): string {
-  return fold(handle.trim())
-    .replace(/^@+/, '')
-    .replace(/[^a-z0-9_.]/g, '');
+  return fold(handle.trim()).replace(/^@+/, '').replace(/\.+$/, '');
 }
 
 /**
@@ -581,6 +585,11 @@ function hostsIn(folded: string): string[] {
       if (h && /\.[a-z]{2,}$/.test(h) && !/^\d+(\.\d+)+$/.test(h)) hosts.add(h);
     }
   return [...hosts];
+}
+
+/** Domínios dos links de um texto, na mesma leitura do filtro (para a detecção de robô, #1290). */
+export function linkHosts(text: string): string[] {
+  return hostsIn(fold(text));
 }
 
 /** Modo lento: quanto falta para o torcedor poder mandar de novo (0 = pode). */

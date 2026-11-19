@@ -1,0 +1,194 @@
+# Logos de times sem logo do fornecedor, vindos da Wikimedia Commons.
+# Consumido por: pnpm --filter @galaxie/ingestor assets:team-logos [--plan]
+#
+# Começou pelos construtores da F1 (id do f1db): a api-sports só tem logo das equipes recentes. Fonte de cada
+# arquivo: o logo (P154) do item do Wikidata da equipe, ligado pelo verbete da Wikipédia que o Jolpica/Ergast
+# publica, ou uma busca na Commons conferida à mão (nome da equipe no título do arquivo). Ficaram de fora fotos
+# do logo no carro, miniaturas pequenas demais e arquivos de outra empresa com o mesmo nome.
+#
+# Só entram arquivos cuja licença permite uso comercial (domínio público, CC0, CC BY, CC BY-SA), conferida no
+# extmetadata da Commons a cada execução; o crédito vai para core.asset_credit e sai na API com o logo
+# (`logo_credit`). Time com logo do fornecedor nunca é tocado. Marca registrada: a licença cobre o direito
+# autoral do arquivo, não a marca; uso editorial (identificar a equipe), nada de sugestão de endosso.
+schema_version: 1
+logos:
+  - sport: formula-1
+    provider: f1db
+    team: arrows
+    file: 'File:Arrows Grand Prix logo.png'
+    wikidata: Q174176
+    note: 'busca na Commons (Public domain)'
+  - sport: formula-1
+    provider: f1db
+    team: ats-wheels
+    file: 'File:Ats logo 2009.svg'
+    wikidata: Q784953
+    note: 'P154 do item; a ATS alemã era da fabricante de rodas ATS (Public domain)'
+  - sport: formula-1
+    provider: f1db
+    team: bmw
+    file: 'File:BMW 1963-1997 Logo.svg'
+    wikidata: Q26678
+    note: 'P154 do item; logo da época das inscrições da BMW (1967-1969) (Public domain)'
+  - sport: formula-1
+    provider: f1db
+    team: bmw-sauber
+    file: 'File:BMW Sauber Logo.svg'
+    wikidata: Q63928692
+    note: 'busca na Commons (Public domain)'
+  - sport: formula-1
+    provider: f1db
+    team: brawn
+    file: 'File:Brawn GP logo.svg'
+    wikidata: Q17596
+    note: 'busca na Commons (Public domain)'
+  - sport: formula-1
+    provider: f1db
+    team: bugatti
+    file: 'File:Bugatti Logo.png'
+    wikidata: Q27401
+    note: 'P154 do item (Public domain)'
+  - sport: formula-1
+    provider: f1db
+    team: coloni
+    file: 'File:Enzo coloni racing logo.svg'
+    wikidata: Q1631454
+    note: 'busca na Commons; nome da equipe na F1: Enzo Coloni Racing Car Systems (Public domain)'
+  - sport: formula-1
+    provider: f1db
+    team: dallara
+    file: 'File:Dallara logo.svg'
+    wikidata: Q1157975
+    note: 'P154 do item (Public domain)'
+  - sport: formula-1
+    provider: f1db
+    team: de-tomaso
+    file: 'File:Detomaso automobili logo.png'
+    wikidata: Q173085
+    note: 'P154 do item (Public domain)'
+  - sport: formula-1
+    provider: f1db
+    team: emw
+    file: 'File:Eisenacher Motorenwerk.svg'
+    wikidata: Q988514
+    note: 'P154 do item (CC BY-SA 4.0)'
+  - sport: formula-1
+    provider: f1db
+    team: fondmetal
+    file: 'File:Fondmetal Logo.png'
+    wikidata: Q173473
+    note: 'busca na Commons (CC BY-SA 4.0)'
+  - sport: formula-1
+    provider: f1db
+    team: gordini
+    file: 'File:Gordini Logo.svg'
+    wikidata: Q173222
+    note: 'P154 do item (Public domain)'
+  - sport: formula-1
+    provider: f1db
+    team: jaguar
+    file: 'File:Panasonic Jaguar Racing logo.png'
+    wikidata: Q55593194
+    note: 'busca na Commons; logo da equipe com o patrocinador-título (Public domain)'
+  - sport: formula-1
+    provider: f1db
+    team: ligier
+    file: 'File:Ligier2017.png'
+    wikidata: Q35931
+    note: 'P154 do item (marca Ligier; o logo da equipe nos anos 1980-1990 não está na Commons) (CC BY-SA 4.0)'
+  - sport: formula-1
+    provider: f1db
+    team: lola
+    file: 'File:Lola Cars logo.png'
+    wikidata: Q1082386
+    note: 'P154 da Lola Cars (P138 do item da equipe) (Public domain)'
+  - sport: formula-1
+    provider: f1db
+    team: maserati
+    file: 'File:Maserati logo 2.svg'
+    wikidata: Q35962
+    note: 'P154 do item (Public domain)'
+  - sport: formula-1
+    provider: f1db
+    team: matra
+    file: 'File:Matra sports logo.svg'
+    wikidata: Q35982
+    note: 'busca na Commons; Matra Sports era a divisão que inscrevia os carros (Public domain)'
+  - sport: formula-1
+    provider: f1db
+    team: minardi
+    file: 'File:Logo Minardi.jpg'
+    wikidata: Q142381
+    note: 'busca na Commons (CC BY 4.0)'
+  - sport: formula-1
+    provider: f1db
+    team: osella
+    file: 'File:Osella.svg'
+    wikidata: Q171506
+    note: 'P154 do item (Public domain)'
+  - sport: formula-1
+    provider: f1db
+    team: penske
+    file: 'File:Team Penske logo.svg'
+    wikidata: Q174144
+    note: 'P154 do item (Public domain)'
+  - sport: formula-1
+    provider: f1db
+    team: racing-point
+    file: 'File:BWT Racing Point Logo.svg'
+    wikidata: Q56245286
+    note: 'P154 do item (Public domain)'
+  - sport: formula-1
+    provider: f1db
+    team: rial
+    file: 'File:Logo Rial.svg'
+    wikidata: Q171974
+    note: 'busca na Commons; a equipe era da fabricante de rodas Rial (Public domain)'
+  - sport: formula-1
+    provider: f1db
+    team: simtek
+    file: 'File:Simtek logo.svg'
+    wikidata: Q172976
+    note: 'busca na Commons (Public domain)'
+  - sport: formula-1
+    provider: f1db
+    team: spyker
+    file: 'File:Logo Spyker.svg'
+    wikidata: Q172765
+    note: 'busca na Commons (marca Spyker) (Public domain)'
+  - sport: formula-1
+    provider: f1db
+    team: stewart
+    file: 'File:Stewart-logo.jpg'
+    wikidata: Q173066
+    note: 'P154 do item (Public domain)'
+  - sport: formula-1
+    provider: f1db
+    team: super-aguri
+    file: 'File:Super Aguri logo.svg'
+    wikidata: Q171326
+    note: 'busca na Commons (Public domain)'
+  - sport: formula-1
+    provider: f1db
+    team: toleman
+    file: 'File:Toleman logo.svg'
+    wikidata: Q172987
+    note: 'P18 do item (CC BY-SA 3.0)'
+  - sport: formula-1
+    provider: f1db
+    team: toyota
+    file: 'File:Panasonic Toyota Racing logo.svg'
+    wikidata: Q92773574
+    note: 'busca na Commons; nome da equipe na F1: Panasonic Toyota Racing (Public domain)'
+  - sport: formula-1
+    provider: f1db
+    team: tyrrell
+    file: 'File:Tyrrell Racing logo.svg'
+    wikidata: Q171992
+    note: 'busca na Commons (Public domain)'
+  - sport: formula-1
+    provider: f1db
+    team: veritas
+    file: 'File:Veritas logo.png'
+    wikidata: Q700373
+    note: 'P154 do item (Public domain)'

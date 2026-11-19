@@ -28,6 +28,7 @@ export default defineMessages(
       allowed_domains: 'Domínios permitidos',
       bet_domains: 'Domínios de aposta',
       exceptions: 'Exceções (falso positivo)',
+      allowed_handles: 'Perfis oficiais liberados',
     },
     locales: { all: 'Todos', pt: 'Português', es: 'Espanhol', en: 'Inglês' },
     form: {
@@ -125,6 +126,7 @@ export default defineMessages(
         allowed_domains: 'Allowed domains',
         bet_domains: 'Betting domains',
         exceptions: 'Exceptions (false positives)',
+        allowed_handles: 'Allowed official handles',
       },
       locales: { all: 'All', pt: 'Portuguese', es: 'Spanish', en: 'English' },
       form: {
@@ -221,6 +223,7 @@ export default defineMessages(
         allowed_domains: 'Dominios permitidos',
         bet_domains: 'Dominios de apuestas',
         exceptions: 'Excepciones (falso positivo)',
+        allowed_handles: 'Perfiles oficiales permitidos',
       },
       locales: { all: 'Todos', pt: 'Portugués', es: 'Español', en: 'Inglés' },
       form: {
