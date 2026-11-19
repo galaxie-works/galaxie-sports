@@ -164,12 +164,19 @@ const ENGAGE_TOPICS: WebhookTopicDef[] = [
         .number()
         .int()
         .positive()
-        .meta({ description: 'Versão das regras do programa que valia quando o fato foi contado.' }),
-      source_event: z.string().meta({
-        description:
-          'Id do fato real que disparou (o Palpite fechado, o jogo assistido), opaco e estável: o mesmo fato nunca ' +
-          'dispara duas vezes.',
-      }),
+        .optional()
+        .meta({
+          description:
+            'Versão das regras do programa que valia quando o fato foi contado. Sempre presente a partir de 19/11/2026.',
+        }),
+      source_event: z
+        .string()
+        .optional()
+        .meta({
+          description:
+            'Id do fato real que disparou (o Palpite fechado, o jogo assistido), opaco e estável: o mesmo fato nunca ' +
+            'dispara duas vezes.',
+        }),
     }),
   },
   {

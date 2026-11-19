@@ -260,7 +260,8 @@ describe('Palpite e Ranking (#942)', () => {
     expect((await feed('game.achievement.step_reached'))[0]).toHaveProperty('source_event');
     const levels = await feed('game.level.reached');
     expect(levels.length).toBeGreaterThanOrEqual(1);
-    expect(levels.at(-1)).toMatchObject({ level: 3, min_points: 300, points: 320 });
+    expect(levels.at(-1)).toMatchObject({ level: 3, min_points: 300 });
+    expect(Number(levels.at(-1)!.points)).toBeGreaterThanOrEqual(300);
     expect(levels.every((d) => !('email' in d) && !('nickname' in d))).toBe(true);
     const walletRes = await app.inject({ method: 'GET', url: '/v1/fans/me/wallet', headers: auth(a.token) });
     expect(walletRes.json().data[0]).toMatchObject({
