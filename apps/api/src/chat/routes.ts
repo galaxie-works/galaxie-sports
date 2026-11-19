@@ -550,21 +550,16 @@ export async function chatRoutes(app: FastifyInstance, deps: ChatRoutesDeps): Pr
       // Cosmos da sala (#981): a mensagem marcada vai ao lote dela, sem atrasar a entrega (só no cliente que a ligou)
       if (deps.cosmos)
         void deps.cosmos
-          .roomConfig(fan.tenantId, room.id)
-          .then(async (cfg) => {
-            if (!cfg.on) return false;
-            const clocks = await clocksFor(db(), fan.tenantId, profile.country, at);
-            return deps.cosmos!.submit({
-              tenantId: fan.tenantId,
-              roomId: room.id,
-              messageId: saved.id,
-              profileId: fan.profileId,
-              text,
-              locale: fan.locale,
-              rules: screened,
-              clocks,
-              source: 'filter',
-            });
+          .submit({
+            tenantId: fan.tenantId,
+            roomId: room.id,
+            messageId: saved.id,
+            profileId: fan.profileId,
+            text,
+            locale: fan.locale,
+            rules: screened,
+            clocks: () => clocksFor(db(), fan.tenantId, profile.country, at),
+            source: 'filter',
           })
           .catch((err: unknown) => request.log.warn({ err }, 'chat: mensagem não foi à Cosmos'));
       // só a mensagem pública entra no lote; a retida fica com o autor (ele a vê pela resposta)

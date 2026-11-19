@@ -72,8 +72,7 @@ export interface ModerationRoutesDeps {
   /** Portão de idade: o texto livre da denúncia e da apelação é escrita, só para quem escreve (#1106). */
   gate?: FanAgeGate | null;
   /** Denúncia de mensagem do chat vai também à Cosmos da sala (#981), quando o cliente a ligou. */
-  onChatReport?:
-    ((input: { tenantId: string; messageId: string; clocks: ModerationClocks }) => Promise<void>) | undefined;
+  onChatReport?: ((input: { tenantId: string; messageId: string }) => Promise<void>) | undefined;
 }
 
 /** Ficha que vale para o torcedor do cliente (com o que o cliente endureceu); null se não há ficha que sirva. */
@@ -251,7 +250,7 @@ export async function moderationRoutes(app: FastifyInstance, deps: ModerationRou
     // mensagem do chat denunciada: a Cosmos da sala olha também (a fila já tem o caso); nunca atrasa a resposta
     if (deps.onChatReport && body.module === 'chat' && body.targetType === 'message' && !res.duplicate)
       void deps
-        .onChatReport({ tenantId: fan.tenantId, messageId: targetId, clocks })
+        .onChatReport({ tenantId: fan.tenantId, messageId: targetId })
         .catch((err: unknown) => request.log.warn({ err }, 'chat: denúncia não foi à Cosmos'));
     reply.header('cache-control', 'no-store');
     const out: ModerationReportResponse = {

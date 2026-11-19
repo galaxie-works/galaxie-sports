@@ -30,7 +30,7 @@ const msg = (over: Partial<ChatCosmosMessage> = {}): ChatCosmosMessage => ({
   text: 'que jogo',
   locale: 'pt-BR',
   rules: { action: 'allow', reasons: [], categories: [], suspect: false, evasion: false },
-  clocks,
+  clocks: async () => clocks,
   source: 'filter',
   ...over,
 });
@@ -93,5 +93,24 @@ describe('ChatCosmos', () => {
     await cosmos.applyDecision(outcome('auto'));
     await cosmos.applyDecision(outcome('notify'));
     expect(executed).toHaveLength(2);
+  });
+
+  it('cada mensagem vai uma vez só (filtro e várias denúncias pagam uma)', async () => {
+    const { cosmos, submitted } = setup();
+    const suspect = msg({ rules: { ...msg().rules, suspect: true } });
+    expect(await cosmos.submit(suspect)).toBe(true);
+    expect(await cosmos.submit({ ...suspect, source: 'report' })).toBe(false);
+    expect(await cosmos.submit({ ...suspect, source: 'report' })).toBe(false);
+    expect(submitted).toHaveLength(1);
+  });
+
+  it('os relógios só são calculados para o que vai ao motor', async () => {
+    const { cosmos } = setup();
+    const clocksFn = vi.fn(async () => clocks);
+    await cosmos.submit(msg({ clocks: clocksFn }));
+    await cosmos.submit(msg({ tenantId: 'off', clocks: clocksFn, rules: { ...msg().rules, suspect: true } }));
+    expect(clocksFn).not.toHaveBeenCalled();
+    await cosmos.submit(msg({ clocks: clocksFn, rules: { ...msg().rules, suspect: true } }));
+    expect(clocksFn).toHaveBeenCalledTimes(1);
   });
 });

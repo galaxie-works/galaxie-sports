@@ -34,6 +34,7 @@ import { ChatGameFeed } from './chat/game.js';
 import { MemoryChatPeak, RedisChatPeak } from './chat/peak.js';
 import { RedisFloodGuard } from './chat/flood.js';
 import { ChatCosmos, type ChatReportInput } from './chat/cosmos.js';
+import { clocksFor } from './engage/moderation-routes.js';
 import { MemoryReactionCounter, RedisReactionCounter } from './chat/reactions.js';
 import type { ChatStreamOptions } from './chat/stream.js';
 import type { FanTokenSigner } from './engage/fan-token.js';
@@ -690,7 +691,10 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
       instance.addHook('onClose', async () => stopModerationPurge());
     }
     // Cosmos da sala do chat (#981): só age no cliente com a função de moderação ligada para o chat
-    const chatCosmos = options.db ? new ChatCosmos(options.db) : undefined;
+    const chatDb = options.db;
+    const chatCosmos = chatDb
+      ? new ChatCosmos(chatDb, { clocksFor: (t, c, at) => clocksFor(chatDb, t, c, at) })
+      : undefined;
     if (chatCosmos) instance.addHook('onClose', async () => chatCosmos.drain());
     await moderationRoutes(instance, {
       db: options.db,
