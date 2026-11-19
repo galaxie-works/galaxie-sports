@@ -90,6 +90,8 @@ describe('Chat ao vivo: detecção de robô no Valkey (#1290)', () => {
     ]);
     // só uma trava e abre o caso; a outra, no mesmo instante, pode passar (a seguinte já pega a trava)
     expect(both.filter((v) => v.blockedNow)).toHaveLength(1);
-    expect((await b.check(input({ tenantId: 't5', now: CADENCE_SAMPLES * 5_000 }))).blockedMs).toBeGreaterThan(0);
+    expect(
+      (await b.check(input({ tenantId: 't5', now: CADENCE_SAMPLES * 5_000 }))).blockedMs,
+    ).toBeGreaterThan(0);
   });
 });
