@@ -107,12 +107,13 @@ export interface TenantNotificationAudience {
 /**
  * Quem recebe os e-mails do tenant e em que idioma: os Donos e o Financeiro da organização da marca, com e-mail, um
  * por endereço (minúsculas). Tenant sem organização (legado) devolve a lista vazia: nada a enviar. null = tenant não
- * existe.
+ * existe. `now` é o relógio de quem chama (o do job): o convite pendente vale até `expires_at` nesse instante; sem ele,
+ * o `now()` do banco.
  */
 export async function tenantNotificationAudience(
   db: Executor,
   tenantId: string,
-  options: { authSchema?: string } = {},
+  options: { authSchema?: string; now?: Date } = {},
 ): Promise<TenantNotificationAudience | null> {
   const schema = options.authSchema ?? DEFAULT_AUTH_SCHEMA;
   if (!/^[a-z_][a-z0-9_]*$/.test(schema)) throw new Error(`Schema do auth inválido: ${schema}`);
@@ -148,7 +149,7 @@ export async function tenantNotificationAudience(
         join ${sql.raw(`"${schema}"."user"`)} u on u.id = om.user_id
        where om.organization_id = ${t.organizationId}
          and om.role in ('owner', 'billing')
-         and (om.accepted_at is not null or om.expires_at is null or om.expires_at > now())
+         and (om.accepted_at is not null or om.expires_at is null or om.expires_at > ${options.now ? sql`${options.now.toISOString()}::timestamptz` : sql`now()`})
        order by case om.role when 'owner' then 0 else 1 end, om.created_at`);
   } catch (err) {
     // banco sem o schema do console (ensaio fora do ambiente da demo): ninguém a avisar, nada a derrubar
