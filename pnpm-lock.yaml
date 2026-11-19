@@ -490,6 +490,9 @@ importers:
       '@galaxie/ai-ledger':
         specifier: workspace:*
         version: link:../ai-ledger
+      '@galaxie/runtime-config':
+        specifier: workspace:*
+        version: link:../runtime-config
       ajv:
         specifier: ^8.20.0
         version: 8.20.0
