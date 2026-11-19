@@ -37,7 +37,11 @@ export const PRICES_CHECKED_AT = Object.values(PRICING_DATA.providers)
 export const tablePricesAt = (at: Date = new Date()): Record<string, ModelPrice> =>
   pricesAt(PRICING_DATA, at);
 
-/** A tabela vigente quando o módulo carregou (processos de vida longa: use `effectiveModelPrices`, que segue o dia). */
+/**
+ * A tabela vigente quando o módulo carregou. Não segue o dia: em processo de vida longa (API, Cosmos) use
+ * `effectiveModelPrices` ou `priceFor`, senão a mudança de preço de `from` não chega.
+ * @deprecated para custo; serve a testes e a listagens.
+ */
 export const MODEL_PRICES: Record<string, ModelPrice> = tablePricesAt();
 
 /**
@@ -49,11 +53,14 @@ export function modelPricingWarnings(
   at: Date = new Date(),
   overrides?: string | null,
 ): PricingWarning[] {
-  const prices =
-    overrides === undefined
-      ? effectiveModelPrices(at)
-      : { ...tablePricesAt(at), ...parseModelPrices(overrides) };
-  return pricingWarnings(PRICING_DATA, at, inUse, prices);
+  const over = overrides === undefined ? modelPriceOverrides() : parseModelPrices(overrides);
+  return pricingWarnings(
+    PRICING_DATA,
+    at,
+    inUse,
+    { ...tablePricesAt(at), ...over },
+    new Set(Object.keys(over)),
+  );
 }
 
 /** Data da conferência da tabela de cada provedor (config/ai-pricing.yaml). */

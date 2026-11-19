@@ -102,13 +102,15 @@ const daysBetween = (a: string, b: string) => Math.round((Date.parse(b) - Date.p
 /**
  * Avisos da tabela no dia: provedor sem conferência há mais de PRICES_STALE_DAYS, preço que muda nos próximos
  * PRICE_CHANGE_NOTICE_DAYS e modelo em uso (`inUse`) sem preço próprio em `prices` (a tabela com AI_MODEL_PRICES por
- * cima; snapshot datado do modelo conta como o modelo).
+ * cima; nome com prefixo `modelo-` da tabela conta como o modelo, como no custo). `overridden`: modelos com preço
+ * em AI_MODEL_PRICES, cuja mudança da tabela não chega (sem aviso de mudança).
  */
 export function pricingWarnings(
   data: PricingData,
   at: Date,
   inUse: readonly string[] = [],
   prices: Record<string, ModelPrice> = pricesAt(data, at),
+  overridden: ReadonlySet<string> = new Set(),
 ): PricingWarning[] {
   const day = utcDay(at);
   const out: PricingWarning[] = [];
@@ -118,6 +120,8 @@ export function pricingWarnings(
   }
   for (const row of data.models) {
     if (row.from === undefined || row.from <= day) continue;
+    // preço do modelo fixado por AI_MODEL_PRICES (`overridden`): a mudança da tabela não chega, então não avisa
+    if (overridden.has(row.model)) continue;
     const days = daysBetween(day, row.from);
     if (days <= PRICE_CHANGE_NOTICE_DAYS)
       out.push({
@@ -128,9 +132,11 @@ export function pricingWarnings(
         price: toPrice(row, data.anthropic_cache_write_multiplier),
       });
   }
-  const DATED = /-(?:\d{4}-\d{2}-\d{2}|\d{8})$/;
+  // mesmo critério do custo (`priceFor`): o nome exato ou um prefixo `modelo-` da tabela
+  const priced = (model: string) =>
+    Boolean(prices[model]) || Object.keys(prices).some((k) => model.startsWith(`${k}-`));
   for (const model of new Set(inUse.map((m) => m.trim()).filter(Boolean)))
-    if (!prices[model] && !prices[model.replace(DATED, '')]) out.push({ kind: 'unpriced', model });
+    if (!priced(model)) out.push({ kind: 'unpriced', model });
   return out;
 }
 

@@ -88,3 +88,15 @@ describe('avisos', () => {
     expect(w.some((x) => x.kind === 'unpriced' && x.model === 'gpt-6-luna-2026-05-18')).toBe(false);
   });
 });
+
+describe('avisos com AI_MODEL_PRICES e prefixo', () => {
+  it('modelo com sufixo da tabela conta como precificado, como no custo', () => {
+    const w = pricingWarnings(PRICING_DATA, at('2026-11-19'), ['gemini-3.8-flash-preview']);
+    expect(w.some((x) => x.kind === 'unpriced')).toBe(false);
+  });
+
+  it('preço fixado por AI_MODEL_PRICES não recebe aviso de mudança', () => {
+    const w = pricingWarnings(PRICING_DATA, at('2026-11-19'), [], undefined, new Set(['gemini-4-argon']));
+    expect(w.some((x) => x.kind === 'change' && x.model === 'gemini-4-argon')).toBe(false);
+  });
+});

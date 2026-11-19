@@ -20,7 +20,8 @@ import { modelsInUseFromEnv } from '../llm/config.js';
 const log = createLogger({ service: 'agents' }).child({ component: 'scheduler' });
 
 // Tabela de preços (config/ai-pricing.yaml, #1438): conferência velha, preço que muda em breve e modelo em uso sem
-// preço saem no log na partida e uma vez por dia (o painel de Ajustes → IA mostra os mesmos avisos).
+// preço saem no log na partida e uma vez por dia. Lê o env do contêiner (modelos e AI_MODEL_PRICES); o cartão de
+// Ajustes → IA usa os valores efetivos do painel, que podem diferir.
 const logPricing = () => {
   for (const w of modelPricingWarnings(modelsInUseFromEnv()))
     log.warn({ pricing: w }, `[preços de IA] ${describePricingWarning(w)}`);
