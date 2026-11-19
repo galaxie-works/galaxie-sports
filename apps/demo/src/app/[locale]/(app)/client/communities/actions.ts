@@ -48,7 +48,9 @@ async function context(opts: { galaxie?: boolean } = {}) {
   if (!ctx.tenant) return { t, error: dict.client.errors.noTenant } as const;
   if (opts.galaxie ? ctx.role !== 'admin' : !can(ctx, 'settings.manage'))
     return { t, error: dict.client.errors.role } as const;
-  if (!ctx.tenant.modules.includes('communities')) return { t, error: t.errors.module } as const;
+  // a equipe Galaxie configura mesmo com o módulo fora do plano (regra do dono, 19/11)
+  if (!isStaffRole(ctx.role) && !ctx.tenant.modules.includes('communities'))
+    return { t, error: t.errors.module } as const;
   return {
     t,
     tenantId: ctx.tenant.id,

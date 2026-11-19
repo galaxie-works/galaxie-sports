@@ -83,7 +83,7 @@ function criterionValues(
     const set = new Set(scope);
     const mini = new Map<TeamId, { pts: number; gf: number; ga: number; away: number }>();
     for (const id of scope) mini.set(id, { pts: 0, gf: 0, ga: 0, away: 0 });
-    const { win, draw, loss } = ctx.rules.points;
+    const { win, draw, loss, shootout } = ctx.rules.points;
     for (const m of between(ctx, set)) {
       const h = mini.get(m.homeId)!;
       const a = mini.get(m.awayId)!;
@@ -99,8 +99,15 @@ function criterionValues(
         h.pts += loss;
         a.pts += win;
       } else {
-        h.pts += draw;
-        a.pts += draw;
+        // empate decidido nos pênaltis vale os pontos do regulamento também no confronto direto (#1364)
+        const pen = shootout ? m.penalties : undefined;
+        if (shootout && pen && pen.home !== pen.away) {
+          h.pts += pen.home > pen.away ? shootout.win : shootout.loss;
+          a.pts += pen.away > pen.home ? shootout.win : shootout.loss;
+        } else {
+          h.pts += draw;
+          a.pts += draw;
+        }
       }
     }
     for (const id of tied) {

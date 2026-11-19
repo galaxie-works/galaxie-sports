@@ -240,8 +240,8 @@ export const INITIAL_CATALOG: readonly CatalogEntry[] = Object.freeze([
     rule: { input: 'participation', action: 'poll' },
     stepped: true,
     seasonal: false,
-    active: false,
-    inactiveReason: 'A enquete ainda não emite o sinal de voto.',
+    // ligada na 0194: o voto passa a contar pelo GameScorer.sweepPolls (#947)
+    active: true,
     name: { pt: 'Voz da torcida', es: 'Voz de la hinchada', en: 'Voice of the fans' },
     description: { pt: 'Vote nas enquetes.', es: 'Vota en las encuestas.', en: 'Vote in polls.' },
     steps: steps('community.poll', [3, 10, 30, 75, 200], []),

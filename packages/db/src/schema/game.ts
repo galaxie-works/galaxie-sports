@@ -547,6 +547,8 @@ export const gameParticipationDaily = game.table(
     }).onDelete('cascade'),
     // soma do dia para o teto
     index('participation_daily_day_idx').on(t.tenantId, t.programCountry, t.profileId, t.day),
+    // "já contou?" sem o país do programa (as varreduras de enquete das Comunidades, #947, e do jogo assistido)
+    index('participation_daily_ref_idx').on(t.tenantId, t.profileId, t.action, t.ref),
     check('participation_daily_action', inList('action', GAME_PARTICIPATION_ACTIONS)),
     check('participation_daily_points', sql`${t.points} >= 0`),
     check('participation_daily_ref_len', sql`length(${t.ref}) between 1 and 200`),

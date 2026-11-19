@@ -1,6 +1,6 @@
 {
-  "id": "9e416ff0-e0df-4141-a17b-91d5c31416a6",
-  "prevId": "8d5df7fe-634d-431e-b1a4-4c1facd57f1d",
+  "id": "e1809ed0-390e-44db-9470-6ef42ddf86ee",
+  "prevId": "f2866628-9ec2-455b-b855-fb605a5d3ec4",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -27850,6 +27850,39 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "participation_daily_ref_idx": {
+          "name": "participation_daily_ref_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "profile_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "action",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "ref",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
@@ -30003,6 +30036,558 @@
           "value": "state in ('active', 'left', 'removed')"
         }
       },
+      "isRLSEnabled": false
+    },
+    "community.poll": {
+      "name": "poll",
+      "schema": "community",
+      "columns": {
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "public.uuid_generate_v7()"
+        },
+        "scope": {
+          "name": "scope",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "community_id": {
+          "name": "community_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "event_id": {
+          "name": "event_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'free'"
+        },
+        "question": {
+          "name": "question",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "closes_at": {
+          "name": "closes_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "closed_at": {
+          "name": "closed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "closed_by": {
+          "name": "closed_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "poll_community_idx": {
+          "name": "poll_community_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "community_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "poll_event_idx": {
+          "name": "poll_event_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "event_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "poll_mom_room_uq": {
+          "name": "poll_mom_room_uq",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "event_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"community\".\"poll\".\"kind\" = 'man_of_match' and \"community\".\"poll\".\"scope\" = 'room'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "poll_mom_community_uq": {
+          "name": "poll_mom_community_uq",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "community_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "event_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"community\".\"poll\".\"kind\" = 'man_of_match' and \"community\".\"poll\".\"scope\" = 'community'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "poll_tenant_id_tenant_id_fk": {
+          "name": "poll_tenant_id_tenant_id_fk",
+          "tableFrom": "poll",
+          "tableTo": "tenant",
+          "schemaTo": "api",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "poll_community_fk": {
+          "name": "poll_community_fk",
+          "tableFrom": "poll",
+          "tableTo": "community",
+          "schemaTo": "community",
+          "columnsFrom": [
+            "tenant_id",
+            "community_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "poll_pkey": {
+          "name": "poll_pkey",
+          "columns": [
+            "tenant_id",
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "poll_scope": {
+          "name": "poll_scope",
+          "value": "scope in ('community', 'room')"
+        },
+        "poll_kind": {
+          "name": "poll_kind",
+          "value": "kind in ('free', 'man_of_match')"
+        },
+        "poll_scope_target": {
+          "name": "poll_scope_target",
+          "value": "(\"community\".\"poll\".\"scope\" = 'community' and \"community\".\"poll\".\"community_id\" is not null) or (\"community\".\"poll\".\"scope\" = 'room' and \"community\".\"poll\".\"community_id\" is null and \"community\".\"poll\".\"event_id\" is not null)"
+        },
+        "poll_mom_event": {
+          "name": "poll_mom_event",
+          "value": "\"community\".\"poll\".\"kind\" <> 'man_of_match' or \"community\".\"poll\".\"event_id\" is not null"
+        },
+        "poll_question": {
+          "name": "poll_question",
+          "value": "\"community\".\"poll\".\"kind\" = 'man_of_match' or \"community\".\"poll\".\"question\" is not null"
+        },
+        "poll_question_len": {
+          "name": "poll_question_len",
+          "value": "\"community\".\"poll\".\"question\" is null or length(\"community\".\"poll\".\"question\") between 1 and 200"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "community.poll_option": {
+      "name": "poll_option",
+      "schema": "community",
+      "columns": {
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "poll_id": {
+          "name": "poll_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "public.uuid_generate_v7()"
+        },
+        "position": {
+          "name": "position",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "label": {
+          "name": "label",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "person_id": {
+          "name": "person_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "participant_id": {
+          "name": "participant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "poll_option_position_uq": {
+          "name": "poll_option_position_uq",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "poll_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "position",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "poll_option_tenant_id_tenant_id_fk": {
+          "name": "poll_option_tenant_id_tenant_id_fk",
+          "tableFrom": "poll_option",
+          "tableTo": "tenant",
+          "schemaTo": "api",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "poll_option_poll_fk": {
+          "name": "poll_option_poll_fk",
+          "tableFrom": "poll_option",
+          "tableTo": "poll",
+          "schemaTo": "community",
+          "columnsFrom": [
+            "tenant_id",
+            "poll_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "poll_option_pkey": {
+          "name": "poll_option_pkey",
+          "columns": [
+            "tenant_id",
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "poll_option_content": {
+          "name": "poll_option_content",
+          "value": "\"community\".\"poll_option\".\"label\" is not null or \"community\".\"poll_option\".\"person_id\" is not null"
+        },
+        "poll_option_label_len": {
+          "name": "poll_option_label_len",
+          "value": "\"community\".\"poll_option\".\"label\" is null or length(\"community\".\"poll_option\".\"label\") between 1 and 120"
+        },
+        "poll_option_position": {
+          "name": "poll_option_position",
+          "value": "\"community\".\"poll_option\".\"position\" between 0 and 59"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "community.poll_vote": {
+      "name": "poll_vote",
+      "schema": "community",
+      "columns": {
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "poll_id": {
+          "name": "poll_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "profile_id": {
+          "name": "profile_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "option_id": {
+          "name": "option_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "poll_vote_option_idx": {
+          "name": "poll_vote_option_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "poll_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "option_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "poll_vote_created_idx": {
+          "name": "poll_vote_created_idx",
+          "columns": [
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "poll_vote_tenant_id_tenant_id_fk": {
+          "name": "poll_vote_tenant_id_tenant_id_fk",
+          "tableFrom": "poll_vote",
+          "tableTo": "tenant",
+          "schemaTo": "api",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "poll_vote_poll_fk": {
+          "name": "poll_vote_poll_fk",
+          "tableFrom": "poll_vote",
+          "tableTo": "poll",
+          "schemaTo": "community",
+          "columnsFrom": [
+            "tenant_id",
+            "poll_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "poll_vote_option_fk": {
+          "name": "poll_vote_option_fk",
+          "tableFrom": "poll_vote",
+          "tableTo": "poll_option",
+          "schemaTo": "community",
+          "columnsFrom": [
+            "tenant_id",
+            "option_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "poll_vote_profile_fk": {
+          "name": "poll_vote_profile_fk",
+          "tableFrom": "poll_vote",
+          "tableTo": "profile",
+          "schemaTo": "fan",
+          "columnsFrom": [
+            "tenant_id",
+            "profile_id"
+          ],
+          "columnsTo": [
+            "tenant_id",
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "poll_vote_pkey": {
+          "name": "poll_vote_pkey",
+          "columns": [
+            "tenant_id",
+            "poll_id",
+            "profile_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "community.post": {

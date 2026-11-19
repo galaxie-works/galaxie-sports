@@ -56,6 +56,9 @@ export default defineMessages(
         'Sua conta ainda não está ligada a um tenant. Fale com o time da Galaxie para liberar o painel.',
       denyTitle: 'Área fora do seu cargo',
       denyBody: 'Seu cargo neste tenant não abre esta área. Fale com o Dono ou o Admin.',
+      moduleDenyTitle: 'Módulo fora do plano',
+      moduleDenyBody:
+        'Este tenant não contratou o módulo desta área. Veja em Planos e módulos ou fale com a Galaxie.',
       status: { active: 'Ativo', suspended: 'Suspenso' },
       states: {
         draft: 'Em criação',
@@ -1144,6 +1147,9 @@ export default defineMessages(
         noneClient: "Your account isn't linked to a tenant yet. Ask the Galaxie team to enable the panel.",
         denyTitle: 'Outside your role',
         denyBody: 'Your role in this tenant does not open this area. Talk to the Owner or an Admin.',
+        moduleDenyTitle: 'Module not in the plan',
+        moduleDenyBody:
+          'This tenant has not purchased the module for this area. Check Plans and modules or talk to Galaxie.',
         status: { active: 'Active', suspended: 'Suspended' },
         states: {
           draft: 'Being created',
@@ -2241,6 +2247,9 @@ export default defineMessages(
           'Tu cuenta todavía no está vinculada a un tenant. Hablá con el equipo de Galaxie para habilitar el panel.',
         denyTitle: 'Área fuera de tu rol',
         denyBody: 'Tu rol en este tenant no abre esta área. Hablá con el Dueño o un Admin.',
+        moduleDenyTitle: 'Módulo fuera del plan',
+        moduleDenyBody:
+          'Este tenant no contrató el módulo de esta área. Mirá Planes y módulos o hablá con Galaxie.',
         status: { active: 'Activo', suspended: 'Suspendido' },
         states: {
           draft: 'En creación',

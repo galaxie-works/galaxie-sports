@@ -13,7 +13,8 @@ vi.mock('./token', () => ({
   issueDemoFanToken: (...a: unknown[]) => issue(...a),
 }));
 
-const { sessionFanAuthorization, clearSessionFanTokens } = await import('./session-token');
+const { sessionFanAuthorization, clearSessionFanTokens, dropSessionFanToken } =
+  await import('./session-token');
 
 const user = (over: Record<string, unknown> = {}) => ({
   user: {
@@ -52,11 +53,11 @@ describe('token do torcedor pela sessão (#1369)', () => {
   it('guarda o token da pessoa e renova perto de vencer ou quando o perfil muda', async () => {
     getSession.mockResolvedValue(user());
     const now = 1_000_000;
-    expect(await sessionFanAuthorization(req(), () => now)).toEqual({
+    expect(await sessionFanAuthorization(req(), () => now)).toMatchObject({
       ok: true,
       authorization: 'Bearer gft_1',
     });
-    expect(await sessionFanAuthorization(req(), () => now + 1000)).toEqual({
+    expect(await sessionFanAuthorization(req(), () => now + 1000)).toMatchObject({
       ok: true,
       authorization: 'Bearer gft_1',
     });
@@ -78,13 +79,44 @@ describe('token do torcedor pela sessão (#1369)', () => {
     expect(issue.mock.calls.map((c) => c[0])).toEqual(['u1', 'u2']);
   });
 
-  it('a API recusou o perfil: 401; fora do ar: 503 ou 502', async () => {
+  it('a API recusou o perfil: 401; chave da demo recusada ou fora do ar: 502/503', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
     getSession.mockResolvedValue(user());
     issue.mockRejectedValueOnce(Object.assign(new Error('x'), { status: 400 }));
     expect(await sessionFanAuthorization(req())).toEqual({ ok: false, status: 401 });
+    issue.mockRejectedValueOnce(Object.assign(new Error('x'), { status: 401 }));
+    expect(await sessionFanAuthorization(req())).toEqual({ ok: false, status: 502 });
+    issue.mockRejectedValueOnce(Object.assign(new Error('x'), { status: 403 }));
+    expect(await sessionFanAuthorization(req())).toEqual({ ok: false, status: 502 });
     issue.mockRejectedValueOnce(Object.assign(new Error('x'), { status: 503 }));
     expect(await sessionFanAuthorization(req())).toEqual({ ok: false, status: 503 });
     issue.mockRejectedValueOnce(new Error('rede'));
     expect(await sessionFanAuthorization(req())).toEqual({ ok: false, status: 502 });
+  });
+
+  it('token recusado pela API sai do cache, e o próximo pedido emite outro', async () => {
+    getSession.mockResolvedValue(user());
+    const first = await sessionFanAuthorization(req(), () => 1_000_000);
+    if (!first.ok) throw new Error('esperava token');
+    // outro token (já trocado) não derruba o atual
+    dropSessionFanToken('u1', 'Bearer gft_outro');
+    await sessionFanAuthorization(req(), () => 1_000_000);
+    expect(issue).toHaveBeenCalledTimes(1);
+    dropSessionFanToken(first.userId, first.authorization);
+    const second = await sessionFanAuthorization(req(), () => 1_000_000);
+    expect(issue).toHaveBeenCalledTimes(2);
+    expect(second).not.toEqual(first);
+  });
+
+  it('pedidos simultâneos da mesma pessoa esperam uma emissão só', async () => {
+    getSession.mockResolvedValue(user());
+    const [a, b, c] = await Promise.all([
+      sessionFanAuthorization(req(), () => 1_000_000),
+      sessionFanAuthorization(req(), () => 1_000_000),
+      sessionFanAuthorization(req(), () => 1_000_000),
+    ]);
+    expect(issue).toHaveBeenCalledTimes(1);
+    expect(b).toEqual(a);
+    expect(c).toEqual(a);
   });
 });

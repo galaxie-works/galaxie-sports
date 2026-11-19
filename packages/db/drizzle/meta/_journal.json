@@ -957,7 +957,14 @@
     {
       "idx": 136,
       "version": "7",
-      "when": 1795046809743,
+      "when": 1795027210897,
+      "tag": "0194_comunidades_enquetes",
+      "breakpoints": true
+    },
+    {
+      "idx": 137,
+      "version": "7",
+      "when": 1795053937318,
       "tag": "0195_moderacao_perfis_liberados",
       "breakpoints": true
     }
