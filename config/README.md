@@ -9,7 +9,7 @@ próximo deploy, porque as imagens copiam esta pasta para `/srv/config`.
 | `rules/*.yaml` | Regulamento de cada competição (desempate, zonas, grupos) e `default.yaml` | `@galaxie/rules` | `RULES_CONFIG_DIR` (API: `RULES_DIR`) |
 | `broadcasters/*.yaml` | Dicionário de emissoras e plataformas por país, logos e política | `@galaxie/where-to-watch` | `WTW_CONFIG_DIR` |
 | `broadcast-rights/*.yaml` | Tabela de direitos por competição e país | `@galaxie/where-to-watch` | `WTW_CONFIG_DIR` |
-| `geo/*.yaml` | Confederações, audiência por mercado e escopo das competições por país | `@galaxie/geo` | `GEO_CONFIG_DIR` |
+| `geo/*.yaml` | Confederações e membros (com `ioc`), mercados (`markets`), mercados do Onde Assistir (`wtw_markets`), América Latina (`latam`), audiência por mercado e escopo das competições por país. Os países do menu do Explorar não ficam aqui: vêm do catálogo no banco | `@galaxie/geo` | `GEO_CONFIG_DIR` |
 | `catalog/*.yaml` | Catálogo comercial: módulos, features e dependências (`modules.yaml`), planos de dados usados ao criar um tenant (`plans.yaml`), faixas de capacidade da organização (`capacity.yaml`) e add-ons (`addons.yaml`). Sem preço: preço fica no banco | `@galaxie/billing` (e `apps/api` pelos planos) | `CATALOG_DIR` (só os planos: `PLANS_CONFIG_PATH`) |
 | `ai-policy.yaml` | Política de execução da IA: faixas do orçamento diário, prioridades | `@galaxie/ai-ledger` | `AI_POLICY_FILE` |
 | `assets/denylist.yaml` | Mídia da api-sports que não pode ser usada | API e ingestor (`assets:mirror`) | API: `MEDIA_DENYLIST_PATH`; ingestor: opção `--denylist` (não lê a variável) |
