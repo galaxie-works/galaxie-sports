@@ -4,7 +4,7 @@
  * (Commons, crédito em core.asset_credit). Não usa a cota da api-sports.
  *   pnpm --filter @galaxie/ingestor pessoas:wikidata-por-time --plan   # casa tudo e só relata, sem gravar
  *   pnpm --filter @galaxie/ingestor pessoas:wikidata-por-time          # grava e baixa as fotos
- * Opções: --desde 2026-01-01 · --tier-max 2 · --limite-times N (amostra)
+ * Opções: --desde AAAA-MM-DD (padrão: 1º/jan do ano anterior, nunca antes de 2026) · --tier-max 2 · --limite-times N (amostra)
  */
 import { parseArgs } from 'node:util';
 import { closeDb, createDb } from '@galaxie/db';
@@ -20,12 +20,13 @@ import {
   type TeamResolution,
 } from '../assets/wikidata-teams.js';
 import { importPeoplePhotos, type PhotoMatch } from '../assets/wikimedia-photos.js';
+import { recentSinceDay } from '../jobs/recent-since.js';
 import { PgSparqlCache, SparqlClient } from '../multisport/wikidata/sparql-client.js';
 
 const { values } = parseArgs({
   options: {
     plan: { type: 'boolean', default: false },
-    desde: { type: 'string', default: '2026-01-01' },
+    desde: { type: 'string', default: recentSinceDay() },
     'tier-max': { type: 'string', default: '2' },
     'limite-times': { type: 'string' },
   },

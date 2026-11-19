@@ -14,6 +14,7 @@ import { jobContextFromEnv, type JobContext } from '../context.js';
 import { detailsJob } from '../jobs/details-job.js';
 import { peopleJob } from '../jobs/people-job.js';
 import { profilesJob, profileTargets } from '../jobs/profiles-job.js';
+import { recentSince } from '../jobs/recent-since.js';
 import { planJob, runJob, type JobReport, type JobSpec } from '../jobs/runtime/runner.js';
 import { seasonsJob } from '../jobs/seasons-job.js';
 import { planDayWithoutLive } from '../cli/job-cli.js';
@@ -136,9 +137,7 @@ export function cargaEnvDeps(): CargaDeps {
         };
       case 'perfis':
         return {
-          spec: profilesJob(() =>
-            profileTargets(c.db, { since: new Date('2026-01-01T00:00:00Z'), maxTier: p.tierMax }),
-          ),
+          spec: profilesJob(() => profileTargets(c.db, { since: recentSince(), maxTier: p.tierMax })),
           normalize: true,
         };
     }
