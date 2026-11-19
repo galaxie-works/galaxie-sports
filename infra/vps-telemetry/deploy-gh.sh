@@ -9,7 +9,7 @@
 # A stack é três projetos na mesma rede (docs/runbooks/stack-em-tres-projetos.md). Dados (compose.dados.yml) não passam por
 # aqui, só por runbook (docs/runbooks/stack-dados-e-observabilidade.md). VPS ainda num projeto só: recusa.
 #
-# Ambiente: SHA (obrigatório); VPS (padrão root@145.223.94.149) e VPS_DIR; IMAGE_PREFIX (padrão
+# Ambiente: SHA, VPS e VPS_DIR (obrigatórios; o deploy.yml passa as vars VPS_SSH_TARGET e VPS_DIR do ambiente producao); IMAGE_PREFIX (padrão
 # ghcr.io/galaxie-works/galaxie-sports); GHCR_USER e GHCR_TOKEN (token que lê os pacotes; vazio = pacotes públicos);
 # FORCE=1 publica de novo um SHA que já está no ar; ON_SKIP=fail faz o SHA já no ar sem FORCE sair com 1 em vez de 0
 # (disparo manual: nunca verde sem publicar). SWAP_HEALTH_TIMEOUT (padrão 240 s) é o teto para um serviço trocado ficar
@@ -111,8 +111,13 @@ DC="docker compose -f $CF"
 
 : "${SHA:?defina SHA}"
 case "${FORCE:-}" in 1 | true | sim | yes) FORCE=1 ;; *) FORCE="" ;; esac
-VPS="${VPS:-root@145.223.94.149}"
-DIR="${VPS_DIR:-/docker/galaxie-sports}"
+# alvo e pasta da VPS vêm do ambiente (vars VPS_SSH_TARGET e VPS_DIR do ambiente producao); sem IP no código (#1429)
+# (--services só lista os serviços e não fala com a VPS: dispensa as duas)
+if [ -z "$ONLY_SERVICES" ]; then
+  : "${VPS:?defina VPS (var VPS_SSH_TARGET do ambiente producao)}"
+  : "${VPS_DIR:?defina VPS_DIR (var VPS_DIR do ambiente producao)}"
+fi
+DIR="${VPS_DIR:-}"
 REG="${IMAGE_PREFIX:-ghcr.io/galaxie-works/galaxie-sports}"
 # Este script e os seus vêm do checkout atual (ROOT, a main); o que descreve a versão publicada (compose.yml,
 # env.example, smoke.mjs) vem do checkout do SHA (TARGET_DIR; padrão: o mesmo). Assim, voltar para um SHA anterior a

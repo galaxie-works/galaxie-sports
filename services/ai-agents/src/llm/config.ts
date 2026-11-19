@@ -1,4 +1,5 @@
 import { ledgerSettingsFromEnv, type LedgerSettings } from '@galaxie/ai-ledger';
+import { AI_PROVIDERS, AI_PROVIDER_KEY_ENV, defaultModelsOf, type AiProvider } from '@galaxie/runtime-config';
 import { LlmError } from './errors.js';
 import type { LlmTier } from './types.js';
 
@@ -23,42 +24,17 @@ export {
   type LedgerSettings,
 } from '@galaxie/ai-ledger';
 
-export type LlmProviderName = 'openai' | 'anthropic' | 'gemini' | 'deepseek';
-export const LLM_PROVIDERS: readonly LlmProviderName[] = ['openai', 'anthropic', 'gemini', 'deepseek'];
+// Provedores, chaves e modelos padrão: catálogo único no registro (@galaxie/runtime-config, #1437).
+export type LlmProviderName = AiProvider;
+export const LLM_PROVIDERS: readonly LlmProviderName[] = AI_PROVIDERS;
 
-/**
- * Modelos padrão por nível (conferidos nas páginas oficiais de modelos/preços em 2026-10-21).
- * Sobrescreva com AI_MODEL_LIGHT / AI_MODEL_STANDARD / AI_MODEL_RESEARCH.
- *
- * OpenAI (padrão):
- * - light → `gpt-6-luna`: o modelo mais eficiente para tarefas focadas e de alto volume (US$ 0,10/0,50 por MTok).
- * - standard → `gpt-6.1-sol`: equilíbrio capacidade × custo, perto do topo de linha (US$ 2/10).
- * - research → `gpt-6.1-sol`: suporta web_search com filtro de domínios e saída estruturada; o topo
- *   de linha (`gpt-6-astra`, US$ 10/50) custa 5× mais sem ganho claro para "achar e citar a grade".
- * Anthropic:
- * - light → `claude-haiku-5-5` (US$ 0,10/0,50) · standard/research → `claude-sonnet-5-5` (US$ 2/10),
- *   o modelo indicado em docs/07 §5 para o onde assistir.
- * Gemini (API Interactions; saída estruturada + Grounding with Google Search só no Gemini 3+):
- * - light → `gemini-3.5-flash-lite` (US$ 0,30/2,50) · standard/research → `gemini-3.8-flash`
- *   (US$ 0,75/3,75 até 31/12/2026), + US$ 14 por 1.000 consultas de busca.
- * DeepSeek (API compatível com a da OpenAI, sem busca na web; conferidos em 2026-11-11):
- * - light/standard → `deepseek-flash` (US$ 0,30/1,20 no pico) · research → `deepseek-v4-pro`
- *   (US$ 1,32/3,96 no pico). Agente que pede busca na web não roda no DeepSeek (erro de configuração).
- */
-export const DEFAULT_MODELS: Record<LlmProviderName, Record<LlmTier, string>> = {
-  openai: { light: 'gpt-6-luna', standard: 'gpt-6.1-sol', research: 'gpt-6.1-sol' },
-  anthropic: { light: 'claude-haiku-5-5', standard: 'claude-sonnet-5-5', research: 'claude-sonnet-5-5' },
-  gemini: { light: 'gemini-3.5-flash-lite', standard: 'gemini-3.8-flash', research: 'gemini-3.8-flash' },
-  deepseek: { light: 'deepseek-flash', standard: 'deepseek-flash', research: 'deepseek-v4-pro' },
-};
+/** Modelos padrão por provedor e nível (do catálogo; sobrescreva com AI_MODEL_LIGHT / _STANDARD / _RESEARCH). */
+export const DEFAULT_MODELS: Record<LlmProviderName, Record<LlmTier, string>> = Object.fromEntries(
+  AI_PROVIDERS.map((p) => [p, defaultModelsOf(p)]),
+) as Record<LlmProviderName, Record<LlmTier, string>>;
 
 /** Variável da chave de cada provedor. */
-export const API_KEY_ENV: Record<LlmProviderName, string> = {
-  openai: 'OPENAI_API_KEY',
-  anthropic: 'ANTHROPIC_API_KEY',
-  gemini: 'GEMINI_API_KEY',
-  deepseek: 'DEEPSEEK_API_KEY',
-};
+export const API_KEY_ENV: Readonly<Record<LlmProviderName, string>> = AI_PROVIDER_KEY_ENV;
 
 /** Buscas na web por chamada (teto do provedor quando existe; senão instrução no prompt + alerta). */
 export const DEFAULT_MAX_SEARCHES_PER_CALL = 5;

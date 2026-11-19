@@ -233,11 +233,12 @@ export function resolveTeam(team: TeamTarget, found: string[], items: Map<string
 }
 
 /**
- * Jogadores com passagem pelos times em 2026 (P54 com início até 2026 e fim a partir de 2026, quando houver). O
+ * Jogadores com passagem pelos times na temporada `season` (padrão: o ano corrente; P54 com início até ela e fim a
+ * partir dela, quando houver). O
  * nascimento vem da afirmação de melhor rank (`wikibase:BestRank`, como o `wdt:`) com a precisão
  * (`timePrecision`): data só com o ano ou o mês não pode ser gravada como 1º de janeiro exato.
  */
-export function teamPlayersQuery(teamQids: string[], season = 2026): string {
+export function teamPlayersQuery(teamQids: string[], season = new Date().getUTCFullYear()): string {
   return `SELECT ?player ?team ?birth ?prec ?image ?label ?country WHERE {
   VALUES ?team { ${teamQids.map((q) => `wd:${q}`).join(' ')} }
   ?player p:P54 ?st. ?st ps:P54 ?team.
@@ -527,14 +528,20 @@ export async function resolveTeams(
 export async function findTeamPlayers(
   sparql: SparqlClient,
   teamQids: string[],
-  options: { teamsPerQuery?: number; onProgress?: (done: number, total: number) => void } = {},
+  options: {
+    teamsPerQuery?: number;
+    /** Temporada da passagem pelo time (padrão: o ano corrente); entra na chave do cache. */
+    season?: number;
+    onProgress?: (done: number, total: number) => void;
+  } = {},
 ): Promise<TeamPlayer[]> {
   const size = options.teamsPerQuery ?? 10;
+  const season = options.season ?? new Date().getUTCFullYear();
   const unique = [...new Set(teamQids)].sort();
   const players = new Map<string, TeamPlayer>();
   for (let i = 0; i < unique.length; i += size) {
     const batch = unique.slice(i, i + size);
-    const { data } = await sparql.query('football-team-players-2026', teamPlayersQuery(batch), {
+    const { data } = await sparql.query(`football-team-players-${season}`, teamPlayersQuery(batch, season), {
       first: batch[0]!,
       n: batch.length,
     });
