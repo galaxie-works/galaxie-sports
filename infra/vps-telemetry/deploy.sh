@@ -45,8 +45,8 @@ set -euo pipefail
 
 # alvo e pasta da VPS: do ambiente ou das vars do ambiente producao do GitHub (as mesmas do deploy.yml); sem IP no
 # código (#1429). Registry: IMAGE_PREFIX, como no deploy-gh.sh.
-VPS="${VPS:-$(gh variable get VPS_SSH_TARGET --env producao 2>/dev/null || true)}"
-VPS_DIR="${VPS_DIR:-$(gh variable get VPS_DIR --env producao 2>/dev/null || true)}"
+VPS="${VPS:-$(gh -R galaxie-works/galaxie-sports variable get VPS_SSH_TARGET --env producao 2>/dev/null || true)}"
+VPS_DIR="${VPS_DIR:-$(gh -R galaxie-works/galaxie-sports variable get VPS_DIR --env producao 2>/dev/null || true)}"
 : "${VPS:?defina VPS ou entre no gh com acesso à var VPS_SSH_TARGET do ambiente producao}"
 : "${VPS_DIR:?defina VPS_DIR ou entre no gh com acesso à var VPS_DIR do ambiente producao}"
 DIR="$VPS_DIR"
