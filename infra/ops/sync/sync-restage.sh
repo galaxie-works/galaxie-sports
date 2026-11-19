@@ -1,5 +1,6 @@
 #!/bin/bash
 # Refaz a rodada a partir do dump do NAS já no VPS (backups/nas-core.dump): monta sync_*, reaponta, backup, aplica.
+# Na VPS: VPS_DIR=<pasta da stack, a var VPS_DIR do ambiente producao> bash /tmp/sync-restage.sh
 cd "${VPS_DIR:?defina VPS_DIR (pasta da stack na VPS)}" || exit 1; P="docker compose -f compose.dados.yml exec -T postgres"; C=$(docker compose -f compose.dados.yml ps -q postgres)
 for f in sync-upsert sync-apply sync-remap sync-orphans; do docker cp /tmp/$f.sql $C:/tmp/; done
 $P psql -U galaxie -d postgres -Atc "drop database if exists galaxie_sync" -c "create database galaxie_sync" >/dev/null

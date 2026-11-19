@@ -4,7 +4,7 @@
 #   GALAXIE_ENV    do ambiente; senão o .env do checkout principal (o primeiro do `git worktree list`)
 #   NAS_PG         host:porta do Postgres do dev, lido do DATABASE_URL desse .env
 #   NAS_S3         host:porta do S3 do dev, lido do S3_ENDPOINT desse .env
-_gh_var() { gh variable get "$1" --env producao 2>/dev/null || true; }
+_gh_var() { gh -R galaxie-works/galaxie-sports variable get "$1" --env producao 2>/dev/null || true; }
 : "${VPS:=${VPS_SSH_TARGET:-$(_gh_var VPS_SSH_TARGET)}}"
 : "${VPS_DIR:=$(_gh_var VPS_DIR)}"
 : "${VPS:?defina VPS ou entre no gh com acesso à var VPS_SSH_TARGET do ambiente producao}"

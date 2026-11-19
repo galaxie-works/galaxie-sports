@@ -1,5 +1,6 @@
 #!/bin/bash
 # Resto da rodada, rodando no VPS (nohup): espera a cópia dos schemas sync_* terminar e segue.
+# Na VPS: VPS_DIR=<pasta da stack, a var VPS_DIR do ambiente producao> bash /tmp/sync-rest.sh
 cd "${VPS_DIR:?defina VPS_DIR (pasta da stack na VPS)}" || exit 1; P="docker compose -f compose.dados.yml exec -T postgres"
 :
 echo "== cópia: $($P psql -U galaxie -d galaxie_sports -Atc "select count(*) from sync_core.event") jogos no sync_core"
