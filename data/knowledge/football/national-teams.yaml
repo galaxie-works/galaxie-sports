@@ -1,7 +1,7 @@
 # Base semântica — seleções nacionais (schema v1 de times, ver data/knowledge/SCHEMA.md)
 # country = ISO 3166-1 alpha-2 (Inglaterra = GB-ENG). world_cup_titles conferido no infobox da Wikipedia (inclui a Copa de 2026).
-# founded = null de propósito (data da federação não é data da seleção). api_sports.team_id: null — nenhuma fonte exibiu o ID,
-# exceto brazil-nt (6), resolvido por `pnpm resolve:ids` no raw /teams?country=Brazil (team.national = true).
+# founded = null de propósito (data da federação não é data da seleção). api_sports.team_id resolvido por `pnpm resolve:ids`
+# no raw /teams (team.national = true): brazil-nt (6) primeiro, as demais em 19/11/2026 (issue #17).
 schema_version: 1
 teams:
 - slug: brazil-nt
@@ -62,7 +62,7 @@ teams:
     abbreviation: ARG
   labels: {pt-BR: Argentina, es: Argentina, en: Argentina}
   api_sports:
-    team_id: null
+    team_id: 26
     match: {name: Argentina, country: Argentina}
   founded: null
   colors:
@@ -104,7 +104,7 @@ teams:
     abbreviation: URU
   labels: {pt-BR: Uruguai, es: Uruguay, en: Uruguay}
   api_sports:
-    team_id: null
+    team_id: 7
     match: {name: Uruguay, country: Uruguay}
   founded: null
   colors:
@@ -153,7 +153,7 @@ teams:
     abbreviation: CHI
   labels: {pt-BR: Chile, es: Chile, en: Chile}
   api_sports:
-    team_id: null
+    team_id: 2383
     match: {name: Chile, country: Chile}
   founded: null
   colors:
@@ -200,7 +200,7 @@ teams:
     abbreviation: COL
   labels: {pt-BR: Colômbia, es: Colombia, en: Colombia}
   api_sports:
-    team_id: null
+    team_id: 8
     match: {name: Colombia, country: Colombia}
   founded: null
   colors:
@@ -247,7 +247,7 @@ teams:
     abbreviation: PER
   labels: {pt-BR: Peru, es: Perú, en: Peru}
   api_sports:
-    team_id: null
+    team_id: 30
     match: {name: Peru, country: Peru}
   founded: null
   colors:
@@ -297,7 +297,7 @@ teams:
     abbreviation: ECU
   labels: {pt-BR: Equador, es: Ecuador, en: Ecuador}
   api_sports:
-    team_id: null
+    team_id: 2382
     match: {name: Ecuador, country: Ecuador}
   founded: null
   colors:
@@ -340,7 +340,7 @@ teams:
     abbreviation: PAR
   labels: {pt-BR: Paraguai, es: Paraguay, en: Paraguay}
   api_sports:
-    team_id: null
+    team_id: 2380
     match: {name: Paraguay, country: Paraguay}
   founded: null
   colors:
@@ -383,7 +383,7 @@ teams:
     abbreviation: BOL
   labels: {pt-BR: Bolívia, es: Bolivia, en: Bolivia}
   api_sports:
-    team_id: null
+    team_id: 2381
     match: {name: Bolivia, country: Bolivia}
   founded: null
   colors:
@@ -420,7 +420,7 @@ teams:
     abbreviation: VEN
   labels: {pt-BR: Venezuela, es: Venezuela, en: Venezuela}
   api_sports:
-    team_id: null
+    team_id: 2379
     match: {name: Venezuela, country: Venezuela}
   founded: null
   colors:
@@ -456,7 +456,7 @@ teams:
     abbreviation: MEX
   labels: {pt-BR: México, es: México, en: Mexico}
   api_sports:
-    team_id: null
+    team_id: 16
     match: {name: Mexico, country: Mexico}
   founded: null
   colors:
@@ -503,7 +503,7 @@ teams:
     abbreviation: USA
   labels: {pt-BR: Estados Unidos, es: Estados Unidos, en: United States}
   api_sports:
-    team_id: null
+    team_id: 2384
     match: {name: USA, country: USA}
   founded: null
   colors:
@@ -548,7 +548,7 @@ teams:
     abbreviation: CAN
   labels: {pt-BR: Canadá, es: Canadá, en: Canada}
   api_sports:
-    team_id: null
+    team_id: 5529
     match: {name: Canada, country: Canada}
   founded: null
   colors:
@@ -587,7 +587,7 @@ teams:
     abbreviation: CRC
   labels: {pt-BR: Costa Rica, es: Costa Rica, en: Costa Rica}
   api_sports:
-    team_id: null
+    team_id: 29
     match: {name: Costa Rica, country: Costa Rica}
   founded: null
   colors:
@@ -632,7 +632,7 @@ teams:
     abbreviation: ESP
   labels: {pt-BR: Espanha, es: España, en: Spain}
   api_sports:
-    team_id: null
+    team_id: 9
     match: {name: Spain, country: Spain}
   founded: null
   colors:
@@ -676,7 +676,7 @@ teams:
     abbreviation: FRA
   labels: {pt-BR: França, es: Francia, en: France}
   api_sports:
-    team_id: null
+    team_id: 2
     match: {name: France, country: France}
   founded: null
   colors:
@@ -721,7 +721,7 @@ teams:
     abbreviation: GER
   labels: {pt-BR: Alemanha, es: Alemania, en: Germany}
   api_sports:
-    team_id: null
+    team_id: 25
     match: {name: Germany, country: Germany}
   founded: null
   colors:
@@ -768,7 +768,7 @@ teams:
     abbreviation: ITA
   labels: {pt-BR: Itália, es: Italia, en: Italy}
   api_sports:
-    team_id: null
+    team_id: 768
     match: {name: Italy, country: Italy}
   founded: null
   colors:
@@ -810,7 +810,7 @@ teams:
     abbreviation: ENG
   labels: {pt-BR: Inglaterra, es: Inglaterra, en: England}
   api_sports:
-    team_id: null
+    team_id: 10
     match: {name: England, country: England}
   founded: null
   colors:
@@ -857,7 +857,7 @@ teams:
     abbreviation: POR
   labels: {pt-BR: Portugal, es: Portugal, en: Portugal}
   api_sports:
-    team_id: null
+    team_id: 27
     match: {name: Portugal, country: Portugal}
   founded: null
   colors:
@@ -899,7 +899,7 @@ teams:
     abbreviation: NED
   labels: {pt-BR: Holanda, es: Países Bajos, en: Netherlands}
   api_sports:
-    team_id: null
+    team_id: 1118
     match: {name: Netherlands, country: Netherlands}
   founded: null
   colors:
@@ -943,7 +943,7 @@ teams:
     abbreviation: BEL
   labels: {pt-BR: Bélgica, es: Bélgica, en: Belgium}
   api_sports:
-    team_id: null
+    team_id: 1
     match: {name: Belgium, country: Belgium}
   founded: null
   colors:
@@ -989,7 +989,7 @@ teams:
     abbreviation: CRO
   labels: {pt-BR: Croácia, es: Croacia, en: Croatia}
   api_sports:
-    team_id: null
+    team_id: 3
     match: {name: Croatia, country: Croatia}
   founded: null
   colors:
@@ -1031,7 +1031,7 @@ teams:
     abbreviation: MAR
   labels: {pt-BR: Marrocos, es: Marruecos, en: Morocco}
   api_sports:
-    team_id: null
+    team_id: 31
     match: {name: Morocco, country: Morocco}
   founded: null
   colors:
@@ -1073,7 +1073,7 @@ teams:
     abbreviation: JPN
   labels: {pt-BR: Japão, es: Japón, en: Japan}
   api_sports:
-    team_id: null
+    team_id: 12
     match: {name: Japan, country: Japan}
   founded: null
   colors:

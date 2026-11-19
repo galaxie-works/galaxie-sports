@@ -239,6 +239,35 @@ describe('Palpite e Ranking (#942)', () => {
       .map((c) => c.card_key)
       .sort();
     expect(keys).toEqual(['predictions.correct.1', 'predictions.exact_score.1']);
+
+    // Catálogo ativo do programa (#919): a estante mostra também as bloqueadas, com nome e Degraus
+    const catalog = await app.inject({ method: 'GET', url: '/v1/achievements', headers: auth(a.token) });
+    expect(catalog.statusCode).toBe(200);
+    const all = catalog.json().data.achievements as {
+      id: string;
+      sport: string | null;
+      name: Record<string, string>;
+      steps: { step: number; threshold: number; card_key: string | null }[];
+    }[];
+    const correct = all.find((x) => x.id === 'predictions.correct');
+    expect(correct?.name.pt).toBeTruthy();
+    expect(correct?.steps[0]).toMatchObject({ step: 1, threshold: 3, card_key: 'predictions.correct.1' });
+    const football = await app.inject({
+      method: 'GET',
+      url: '/v1/achievements?sport=football',
+      headers: auth(a.token),
+    });
+    const sports = new Set(
+      (football.json().data.achievements as { sport: string | null }[]).map((x) => x.sport),
+    );
+    expect([...sports].every((s) => s === null || s === 'football')).toBe(true);
+    const bad = await app.inject({
+      method: 'GET',
+      url: '/v1/achievements?sport=X%20Y',
+      headers: auth(a.token),
+    });
+    expect(bad.statusCode).toBe(400);
+
     const [steps] = await db.execute<{ n: number }>(
       sql`select count(*)::int as n from ops.change_feed where topic = 'game.achievement.step_reached'`,
     );

@@ -685,3 +685,126 @@ describe('Feed da Comunidade (#946)', () => {
     expect((await get(adult.token, `/v1/communities/${c.id}/posts`)).json().data.posts).toEqual([]);
   });
 });
+
+describe('Enquetes (#947)', () => {
+  const secret = (key: string, method: 'POST' | 'PATCH', url: string, payload: object) =>
+    app.inject({ method, url, headers: { 'x-galaxie-key': key }, payload });
+
+  async function setup(slug: string, modules = ['core_data', 'communities']) {
+    const t = await tenantKey(slug, modules);
+    const lg = await league(`liga-${slug}`, ['Time X', 'Time Y']);
+    await addScopeRule(db, { tenantId: t.id, kind: 'competition', target: lg.id, actor: 'tenant:x' });
+    const [c] = await listCommunities(db, t.id);
+    return { t, c: c! };
+  }
+
+  it('enquete da Comunidade: membro vota uma vez, resultado ao vivo, não membro não vota', async () => {
+    const { t, c } = await setup('poll-a');
+    const created = await secret(t.key, 'POST', '/v1/polls', {
+      community_id: c.id,
+      question: 'Quem vence o clássico?',
+      options: ['Time X', 'Time Y', 'Empate'],
+    });
+    expect(created.statusCode).toBe(201);
+    const poll = created.json().data;
+    expect(poll).toMatchObject({ scope: 'community', open: true, total_votes: 0 });
+
+    const member = await fan(t.key);
+    await post(member.token, `/v1/communities/${c.id}/join`);
+    const voted = await post(member.token, `/v1/polls/${poll.id}/votes`, { option_id: poll.options[2].id });
+    expect(voted.statusCode).toBe(201);
+    expect(voted.json().data).toMatchObject({ total_votes: 1, my_option_id: poll.options[2].id });
+    expect(voted.json().data.options[2]).toMatchObject({ votes: 1, share: 1 });
+    const again = await post(member.token, `/v1/polls/${poll.id}/votes`, { option_id: poll.options[0].id });
+    expect(again.json().errors[0].message).toBe('already_voted');
+
+    const outsider = await fan(t.key);
+    const no = await post(outsider.token, `/v1/polls/${poll.id}/votes`, { option_id: poll.options[0].id });
+    expect(no.json().errors[0].message).toBe('not_member');
+
+    const list = await get(member.token, `/v1/communities/${c.id}/polls`);
+    expect(list.json().data.map((p: { id: string }) => p.id)).toEqual([poll.id]);
+  });
+
+  it('13 a 17 vota; enquete fechada não aceita voto; opção de outra enquete é recusada', async () => {
+    const { t, c } = await setup('poll-b');
+    const mk = async (q: string) =>
+      (
+        await secret(t.key, 'POST', '/v1/polls', { community_id: c.id, question: q, options: ['Sim', 'Não'] })
+      ).json().data;
+    const p1 = await mk('Primeira?');
+    const p2 = await mk('Segunda?');
+    const teen = await fan(t.key, '13_17');
+    const join = await post(teen.token, `/v1/communities/${c.id}/join`);
+    if (join.statusCode === 200) {
+      expect(
+        (await post(teen.token, `/v1/polls/${p1.id}/votes`, { option_id: p1.options[0].id })).statusCode,
+      ).toBe(201);
+    }
+    const adult = await fan(t.key);
+    await post(adult.token, `/v1/communities/${c.id}/join`);
+    const bad = await post(adult.token, `/v1/polls/${p1.id}/votes`, { option_id: p2.options[0].id });
+    expect(bad.json().errors[0].message).toBe('bad_option');
+    expect((await secret(t.key, 'PATCH', `/v1/polls/${p2.id}`, { closed: true })).json().data.open).toBe(
+      false,
+    );
+    const closed = await post(adult.token, `/v1/polls/${p2.id}/votes`, { option_id: p2.options[0].id });
+    expect(closed.json().errors[0].message).toBe('closed');
+  });
+
+  it('enquete da Sala do Jogo exige o Chat ao vivo e lista pela chave; craque sem escalação é recusado', async () => {
+    const { t } = await setup('poll-room', ['core_data', 'communities', 'live_chat']);
+    const [ev] = await db.execute<{ id: string }>(
+      sql`select id from core.event order by created_at desc limit 1`,
+    );
+    const room = await secret(t.key, 'POST', '/v1/polls', {
+      fixture_id: ev!.id,
+      question: 'Quem marca primeiro?',
+      options: ['Time X', 'Time Y'],
+    });
+    expect(room.statusCode).toBe(201);
+    expect(room.json().data).toMatchObject({ scope: 'room', community_id: null, fixture_id: ev!.id });
+    const listed = await app.inject({
+      method: 'GET',
+      url: `/v1/chat/rooms/${ev!.id}/polls`,
+      headers: { 'x-galaxie-key': t.key },
+    });
+    expect(listed.json().data.map((p: { id: string }) => p.id)).toEqual([room.json().data.id]);
+    const fanInRoom = await fan(t.key);
+    const v = await post(fanInRoom.token, `/v1/polls/${room.json().data.id}/votes`, {
+      option_id: room.json().data.options[0].id,
+    });
+    expect(v.statusCode).toBe(201);
+    const mom = await secret(t.key, 'POST', '/v1/polls', { fixture_id: ev!.id, kind: 'man_of_match' });
+    expect(mom.statusCode).toBe(400);
+
+    const noChat = await setup('poll-nochat');
+    const refused = await secret(noChat.t.key, 'POST', '/v1/polls', {
+      fixture_id: ev!.id,
+      question: 'Quem marca?',
+      options: ['A', 'B'],
+    });
+    expect(refused.statusCode).toBe(403);
+  });
+
+  it('prazo no passado é recusado', async () => {
+    const { t, c } = await setup('poll-past');
+    const res = await secret(t.key, 'POST', '/v1/polls', {
+      community_id: c.id,
+      question: 'Já fechou?',
+      options: ['Sim', 'Não'],
+      closes_at: new Date(Date.now() - 60_000).toISOString(),
+    });
+    expect(res.statusCode).toBe(400);
+  });
+
+  it('pergunta com aposta é recusada pela base de regras', async () => {
+    const { t, c } = await setup('poll-bet');
+    const res = await secret(t.key, 'POST', '/v1/polls', {
+      community_id: c.id,
+      question: 'Qual a melhor bet para apostar no jogo?',
+      options: ['bet365', 'Outra'],
+    });
+    expect(res.statusCode).toBe(400);
+  });
+});

@@ -5,12 +5,14 @@
  */
 import {
   DOMAIN_LISTS,
+  HANDLE_LISTS,
   LIST_LOCALES,
   MODERATION_LISTS,
   TERM_CATEGORIES,
   compileLists,
   DEFAULT_MODERATION_LISTS,
   normalizeDomain,
+  normalizeHandle,
   normalizeTerm,
   type CompiledLists,
   type ListLocale,
@@ -51,15 +53,18 @@ export class ModerationListError extends Error {
 export const MAX_TERMS = 5000;
 
 const isDomainList = (list: ModerationListName) => (DOMAIN_LISTS as readonly string[]).includes(list);
+const isHandleList = (list: ModerationListName) => (HANDLE_LISTS as readonly string[]).includes(list);
 
 /** Forma canônica, sem repetidos, em ordem alfabética. Domínio inválido e termo vazio saem. */
 export function canonicalTerms(list: ModerationListName, terms: string[]): string[] {
-  const norm = isDomainList(list) ? normalizeDomain : normalizeTerm;
+  const norm = isHandleList(list) ? normalizeHandle : isDomainList(list) ? normalizeDomain : normalizeTerm;
   const out = new Set<string>();
   for (const raw of terms) {
     const v = norm(String(raw).slice(0, 200));
     if (!v) continue;
     if (isDomainList(list) && !/^([a-z0-9-]+\.)*[a-z0-9-]+$/.test(v)) continue;
+    // perfil é uma palavra só: "não é perfil" não vira `naoeperfil`
+    if (isHandleList(list) && !/^[a-z0-9_.]{2,30}$/.test(v)) continue;
     out.add(v);
   }
   return [...out].sort((a, b) => a.localeCompare(b));
@@ -189,9 +194,16 @@ export async function saveBaseList(input: {
 export function toListSet(
   rows: Array<{ list: ModerationListName; locale: ListLocale; terms: string[] }>,
 ): ModerationListSet {
-  const set: ModerationListSet = { terms: {}, allowedDomains: [], betDomains: [], exceptions: [] };
+  const set: ModerationListSet = {
+    terms: {},
+    allowedDomains: [],
+    betDomains: [],
+    exceptions: [],
+    allowedHandles: [],
+  };
   for (const r of rows) {
     if (r.list === 'allowed_domains') set.allowedDomains!.push(...r.terms);
+    else if (r.list === 'allowed_handles') set.allowedHandles!.push(...r.terms);
     else if (r.list === 'bet_domains') set.betDomains!.push(...r.terms);
     else if (r.list === 'exceptions') set.exceptions!.push(...r.terms);
     else {

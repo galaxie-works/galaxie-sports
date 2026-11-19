@@ -65,7 +65,7 @@ export function roomWindow(input: ChatRoomWindowInput): ChatRoomWindow {
 
 /** Por que o envio foi recusado (o widget mostra o aviso e esconde a caixa de texto). */
 export type ChatSendRefusal =
-  'room_scheduled' | 'room_frozen' | 'room_closed' | 'room_read_only_peak' | 'age_band' | 'flood';
+  'room_scheduled' | 'room_frozen' | 'room_closed' | 'room_read_only_peak' | 'age_band' | 'flood' | 'bot';
 
 /**
  * Pode enviar? Só `18plus` escreve (D1); `13_17` lê e reage; `under13` não entra. Sala congelada, encerrada, ainda
@@ -98,6 +98,7 @@ const NOTICES: Record<'pt' | 'es' | 'en', Record<ChatSendRefusal, string>> = {
     room_closed: 'A sala foi encerrada. As mensagens ficam para leitura.',
     room_read_only_peak: 'A sala está cheia e ficou só leitura para quem entrou agora.',
     flood: 'Muitas mensagens em pouco tempo. Espere um pouco para escrever de novo.',
+    bot: 'O envio foi pausado por até 30 minutos porque as mensagens parecem automáticas. A moderação vai revisar.',
   },
   es: {
     age_band: 'Solo los mayores de 18 años escriben en el chat. Puedes leer y reaccionar.',
@@ -106,6 +107,7 @@ const NOTICES: Record<'pt' | 'es' | 'en', Record<ChatSendRefusal, string>> = {
     room_closed: 'La sala cerró. Los mensajes quedan para lectura.',
     room_read_only_peak: 'La sala está llena y quedó solo de lectura para quienes acaban de entrar.',
     flood: 'Demasiados mensajes en poco tiempo. Espera un poco para volver a escribir.',
+    bot: 'El envío quedó en pausa hasta 30 minutos porque los mensajes parecen automáticos. La moderación lo va a revisar.',
   },
   en: {
     age_band: 'Only people aged 18 or over can write in the chat. You can read and react.',
@@ -114,6 +116,7 @@ const NOTICES: Record<'pt' | 'es' | 'en', Record<ChatSendRefusal, string>> = {
     room_closed: 'The room is closed. Messages stay available to read.',
     room_read_only_peak: 'The room is full and became read-only for people who just joined.',
     flood: 'Too many messages in a short time. Wait a moment before writing again.',
+    bot: 'Sending is paused for up to 30 minutes because the messages look automated. Moderators will review it.',
   },
 };
 

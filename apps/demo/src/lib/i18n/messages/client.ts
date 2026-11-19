@@ -56,6 +56,9 @@ export default defineMessages(
         'Sua conta ainda não está ligada a um tenant. Fale com o time da Galaxie para liberar o painel.',
       denyTitle: 'Área fora do seu cargo',
       denyBody: 'Seu cargo neste tenant não abre esta área. Fale com o Dono ou o Admin.',
+      moduleDenyTitle: 'Módulo fora do plano',
+      moduleDenyBody:
+        'Este tenant não contratou o módulo desta área. Veja em Planos e módulos ou fale com a Galaxie.',
       status: { active: 'Ativo', suspended: 'Suspenso' },
       states: {
         draft: 'Em criação',
@@ -338,6 +341,9 @@ export default defineMessages(
         cancel: 'Cancelar',
         creating: 'A Cosmos está lendo o brandbook. Pode levar alguns minutos.',
         charged: 'Tema montado. Foram usados {credits} créditos.',
+        staffCost:
+          'Equipe Galaxie: a leitura sai da conta da Galaxie, não dos créditos do cliente (equivale a cerca de {credits} créditos; páginas: {pages}).',
+        staffCharged: 'Tema montado. A leitura foi lançada na conta da Galaxie; o cliente não pagou nada.',
         pick: 'Versão',
         light: 'Clara',
         dark: 'Escura',
@@ -1144,6 +1150,9 @@ export default defineMessages(
         noneClient: "Your account isn't linked to a tenant yet. Ask the Galaxie team to enable the panel.",
         denyTitle: 'Outside your role',
         denyBody: 'Your role in this tenant does not open this area. Talk to the Owner or an Admin.',
+        moduleDenyTitle: 'Module not in the plan',
+        moduleDenyBody:
+          'This tenant has not purchased the module for this area. Check Plans and modules or talk to Galaxie.',
         status: { active: 'Active', suspended: 'Suspended' },
         states: {
           draft: 'Being created',
@@ -1430,6 +1439,9 @@ export default defineMessages(
           cancel: 'Cancel',
           creating: 'Cosmos is reading the brandbook. This can take a few minutes.',
           charged: 'Theme ready. {credits} credits were used.',
+          staffCost:
+            "Galaxie team: this reading is billed to Galaxie's account, not to the client's credits (worth about {credits} credits; pages: {pages}).",
+          staffCharged: "Theme ready. The reading was billed to Galaxie's account; the client paid nothing.",
           pick: 'Version',
           light: 'Light',
           dark: 'Dark',
@@ -2241,6 +2253,9 @@ export default defineMessages(
           'Tu cuenta todavía no está vinculada a un tenant. Hablá con el equipo de Galaxie para habilitar el panel.',
         denyTitle: 'Área fuera de tu rol',
         denyBody: 'Tu rol en este tenant no abre esta área. Hablá con el Dueño o un Admin.',
+        moduleDenyTitle: 'Módulo fuera del plan',
+        moduleDenyBody:
+          'Este tenant no contrató el módulo de esta área. Mirá Planes y módulos o hablá con Galaxie.',
         status: { active: 'Activo', suspended: 'Suspendido' },
         states: {
           draft: 'En creación',
@@ -2525,6 +2540,9 @@ export default defineMessages(
           cancel: 'Cancelar',
           creating: 'Cosmos está leyendo el brandbook. Puede tardar unos minutos.',
           charged: 'Tema listo. Se usaron {credits} créditos.',
+          staffCost:
+            'Equipo Galaxie: la lectura se carga a la cuenta de Galaxie, no a los créditos del cliente (equivale a unos {credits} créditos; páginas: {pages}).',
+          staffCharged: 'Tema listo. La lectura se cargó a la cuenta de Galaxie; el cliente no pagó nada.',
           pick: 'Versión',
           light: 'Clara',
           dark: 'Oscura',

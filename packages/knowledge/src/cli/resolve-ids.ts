@@ -6,6 +6,7 @@
  *   pnpm resolve:ids --json relatorio.json   # relatório completo em JSON
  *   pnpm resolve:ids --write                 # grava no YAML os IDs resolvidos sem ambiguidade
  *   pnpm resolve:ids --apply-db              # grava provider_map/team_profile.participant_id (participantes existentes)
+ *   pnpm resolve:ids --com-partidas          # também os times do raw /fixtures (lento na base completa; o core já os tem)
  * Casos ambíguos, conflitos e não encontrados nunca são aplicados: ficam no relatório para revisão manual.
  */
 import { readFile, writeFile } from 'node:fs/promises';
@@ -32,7 +33,7 @@ const country = opt('--pais') ?? opt('--country');
 const kb = await loadKnowledge(dir);
 const db = createDb(process.env.DATABASE_URL, { max: 2 });
 try {
-  const pool = await loadCandidatePool(db);
+  const pool = await loadCandidatePool(db, { includeFixtures: args.includes('--com-partidas') });
   // o resolvedor casa com o raw do futebol: perfis de outros esportes ficam de fora
   const refs = kb.teams
     .filter((t) => t.sport === 'football')

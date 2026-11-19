@@ -25,6 +25,7 @@ import {
 import { moderationRoutes } from './engage/moderation-routes.js';
 import { chatRoutes } from './chat/routes.js';
 import { communityFeedRoutes, startCommunityPurge } from './engage/community-feed-routes.js';
+import { communityPollRoutes } from './engage/community-poll-routes.js';
 import { communityRoutes } from './engage/community-routes.js';
 import { ChatHub } from './chat/hub.js';
 import { gameRoutes } from './game/routes.js';
@@ -32,6 +33,7 @@ import { GameScorer, startGameSweep } from './game/scorer.js';
 import { ChatGameFeed } from './chat/game.js';
 import { MemoryChatPeak, RedisChatPeak } from './chat/peak.js';
 import { RedisFloodGuard } from './chat/flood.js';
+import { RedisBotGuard } from './chat/bot.js';
 import { MemoryReactionCounter, RedisReactionCounter } from './chat/reactions.js';
 import type { ChatStreamOptions } from './chat/stream.js';
 import type { FanTokenSigner } from './engage/fan-token.js';
@@ -696,12 +698,15 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
       reactions: chatReactions,
       // anti-flood por pessoa no Valkey (todas as instâncias contam juntas); sem Valkey, em memória
       ...(options.redis ? { flood: new RedisFloodGuard(options.redis, prefix) } : {}),
+      // detecção de robô (#1290), no mesmo Valkey
+      ...(options.redis ? { bot: new RedisBotGuard(options.redis, prefix) } : {}),
       stream: options.chat?.stream,
     });
     // Gamificação (#942): Palpite individual e Ranking
     await gameRoutes(instance, { db: options.db, now: options.now });
     await communityRoutes(instance, { db: options.db, now: options.now });
     await communityFeedRoutes(instance, { db: options.db, now: options.now });
+    await communityPollRoutes(instance, { db: options.db, now: options.now });
     if (options.db) {
       const stopCommunityPurge = startCommunityPurge(options.db, instance.log);
       instance.addHook('onClose', async () => stopCommunityPurge());

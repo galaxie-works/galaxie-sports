@@ -505,6 +505,13 @@ describe('biblioteca de emissoras e "canal a confirmar" na API', () => {
     expect((await getPublicWhereToWatch(db, { eventId, country: 'DE' }, config))!.fromRights).toEqual([]);
   });
 
+  it('direitos com um detentor de todos os jogos: só ele "a confirmar" (#1400)', async () => {
+    const { eventId } = await seedEvent(db, { startsAt: KICKOFF, slug: 'premier-league' });
+    const pub = await getPublicWhereToWatch(db, { eventId, country: 'BR' }, config);
+    // o Disney+ tem os 380 jogos; ESPN e CazéTV, só os escolhidos da rodada, não entram sem fonte do jogo
+    expect(pub!.fromRights.map((o) => o.broadcasterId)).toEqual(['disney_plus']);
+  });
+
   it('acervo oficial: logo já no storage vence o da Commons, com versão escura e logo do canal', async () => {
     const official = officialLogosByBroadcaster(config.officialLogos).get('espn')!;
     const espn2 = official.channels.find((c) => c.channel === 'ESPN 2')!;

@@ -6,6 +6,7 @@
  * - `GET /v1/rankings/{period}` e `.../me`: Ranking único do cliente no país, pelos Pontos definitivos.
  * - Para o servidor do cliente (chave secreta, #913): `GET /v1/fans/{conta}/profiles/{perfil}/game` (Pontos, Nível,
  *   Conquistas e Cartas de um Perfil pelos ids do sistema dele) e `GET /v1/game/rankings/{period}?country=`.
+ * - `GET /v1/achievements`: o Catálogo ativo do programa, para a estante mostrar também as bloqueadas (#919).
  *
  * Esportes do MVP: futebol, basquete (e NBA) e futebol americano. Menor de 13 fica fora (portão de idade da rota,
  * capacidade `predict`); 13 a 17 palpita e pontua.
@@ -17,10 +18,12 @@ import {
   PredictionsBody,
   RankingParams,
   RankingQuery,
+  AchievementCatalogQuery,
   AchievementEarnersParams,
   GameFanParams,
   GameRankingServerQuery,
   AchievementEarnersQuery,
+  type AchievementCatalog,
   type AchievementEarners,
   type FanAchievements,
   type FanCards,
@@ -43,6 +46,7 @@ import {
   readWallets,
   readMyRanking,
   readPredictions,
+  readProgramCatalog,
   readRanking,
   savePredictions,
   type Database,
@@ -50,6 +54,7 @@ import {
 } from '@galaxie/db';
 import {
   PREDICTION_SPORTS,
+  countryTimeZone,
   predictionSubject,
   quantityFloors,
   validatePrediction,
@@ -123,6 +128,19 @@ function cardsView(cards: CardRows): FanCards['data']['cards'] {
     step: c.step,
     granted_at: c.grantedAt.toISOString(),
   }));
+}
+
+/** `current-month` e `current-year` viram o período no fuso do programa (a virada do mês vale lá, não no navegador). */
+export function resolveRankingPeriod(period: string, timeZone: string, now: Date): string {
+  if (period !== 'current-month' && period !== 'current-year') return period;
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+  }).formatToParts(now);
+  const year = parts.find((p) => p.type === 'year')!.value;
+  const month = parts.find((p) => p.type === 'month')!.value;
+  return period === 'current-year' ? year : `${year}-${month}`;
 }
 
 export async function gameRoutes(app: FastifyInstance, deps: GameRoutesDeps): Promise<void> {
@@ -227,9 +245,10 @@ export async function gameRoutes(app: FastifyInstance, deps: GameRoutesDeps): Pr
 
   app.get('/v1/rankings/:period', { config: { fan: true, age: 'read' } }, async (request, reply) => {
     const fan = request.fan!;
-    const { period } = parseInput(RankingParams, request.params);
+    const params = parseInput(RankingParams, request.params);
     const { limit } = parseInput(RankingQuery, request.query);
     const program = await fanProgram(fan.tenantId, fan.profileId);
+    const period = resolveRankingPeriod(params.period, program.timeZone, now());
     const rows = await readRanking(db(), { ...program, period, limit });
     reply.header('cache-control', 'private, max-age=30');
     const out: Ranking = {
@@ -242,6 +261,7 @@ export async function gameRoutes(app: FastifyInstance, deps: GameRoutesDeps): Pr
           nickname: r.nickname,
           points: r.points,
           full_hits: r.fullHits,
+          is_me: r.profileId === fan.profileId,
         })),
       },
     };
@@ -250,8 +270,9 @@ export async function gameRoutes(app: FastifyInstance, deps: GameRoutesDeps): Pr
 
   app.get('/v1/rankings/:period/me', { config: { fan: true, age: 'read' } }, async (request, reply) => {
     const fan = request.fan!;
-    const { period } = parseInput(RankingParams, request.params);
+    const params = parseInput(RankingParams, request.params);
     const program = await fanProgram(fan.tenantId, fan.profileId);
+    const period = resolveRankingPeriod(params.period, program.timeZone, now());
     const me = await readMyRanking(db(), { ...program, period, profileId: fan.profileId });
     reply.header('cache-control', 'no-store');
     const out: MyRanking = {
@@ -333,8 +354,9 @@ export async function gameRoutes(app: FastifyInstance, deps: GameRoutesDeps): Pr
 
   app.get('/v1/game/rankings/:period', { config: { authenticated: true } }, async (request, reply) => {
     const tenantId = secretTenantId(request);
-    const { period } = parseInput(RankingParams, request.params);
+    const params = parseInput(RankingParams, request.params);
     const { limit, country } = parseInput(GameRankingServerQuery, request.query);
+    const period = resolveRankingPeriod(params.period, countryTimeZone(country), now());
     if (!(await tenantHasGamification(db(), tenantId))) throw problems.moduleNotInPlan('gamification');
     // só os países em que o cliente opera (o programa de outro país não existe para ele)
     if ((await programCountryFor(db(), tenantId, country)) !== country)
@@ -351,6 +373,31 @@ export async function gameRoutes(app: FastifyInstance, deps: GameRoutesDeps): Pr
           nickname: r.nickname,
           points: r.points,
           full_hits: r.fullHits,
+        })),
+      },
+    };
+    return out;
+  });
+
+  app.get('/v1/achievements', { config: { fan: true, age: 'read' } }, async (request, reply) => {
+    const fan = request.fan!;
+    const { sport } = parseInput(AchievementCatalogQuery, request.query);
+    const program = await fanProgram(fan.tenantId, fan.profileId);
+    const rows = await readProgramCatalog(db(), { ...program, sport });
+    reply.header('cache-control', 'private, max-age=300');
+    const out: AchievementCatalog = {
+      data: {
+        program_country: program.programCountry,
+        achievements: rows.map((a) => ({
+          id: a.id,
+          sport: a.sport,
+          category: a.category as AchievementCatalog['data']['achievements'][number]['category'],
+          family: a.family,
+          stepped: a.stepped,
+          seasonal: a.seasonal,
+          name: a.name,
+          description: a.description,
+          steps: a.steps.map((s) => ({ step: s.step, threshold: s.threshold, card_key: s.cardKey })),
         })),
       },
     };
@@ -377,6 +424,7 @@ export async function gameRoutes(app: FastifyInstance, deps: GameRoutesDeps): Pr
             nickname: e.nickname,
             avatar_url: e.avatarUrl,
             step: e.step,
+            is_me: e.profileId === fan.profileId,
           })),
         },
       };

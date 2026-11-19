@@ -16,7 +16,7 @@ import {
 import { isHttpUrl } from './normalize.js';
 import { channelKey } from './official-logos.js';
 import { currentResearchedRights, ResearchedRightsIndex } from './rights-research.js';
-import { effectiveRights } from './rights.js';
+import { effectiveRights, NO_MATCH_FACTS, rightsAnswer } from './rights.js';
 import { confirmedWithMatchChannels, sameChannel } from './match-precedence.js';
 import type { BroadcastOptionRow } from './store.js';
 
@@ -129,7 +129,10 @@ export interface PublicRightsOption {
   logo: PublicLogo | null;
 }
 
-/** Detentores dos direitos efetivos do evento no país (curadoria vence; incertos se não há certos). */
+/**
+ * Detentores dos direitos efetivos do evento no país (curadoria vence): os que têm todos os jogos; sem
+ * nenhum, todos os detentores; sem detentor, os incertos.
+ */
 async function rightsToConfirm(
   db: Database,
   config: WtwConfig,
@@ -154,7 +157,10 @@ async function rightsToConfirm(
     researched.get(ev.slug, year, country),
   );
   if (!entry) return [];
-  const ids = entry.holders.length ? entry.holders : entry.uncertainHolders;
+  // Detentor com todos os jogos (exclusive, all_matches) basta; os de jogos escolhidos só entram quando
+  // ninguém tem todos, senão o Disney+ viria acompanhado de ESPN e CazéTV em todo jogo (#1400).
+  const certain = rightsAnswer(entry, NO_MATCH_FACTS).deterministic;
+  const ids = certain.length ? certain : entry.holders.length ? entry.holders : entry.uncertainHolders;
   const sources = entry.sources.map((url) => ({ publisher: new URL(url).hostname, url }));
   return ids.flatMap((id) => {
     const b = directory.byIdOrNull(id);

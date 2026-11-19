@@ -10,7 +10,7 @@
  */
 import { and, count, eq, gt, gte, sql } from 'drizzle-orm';
 import type { Database } from '@galaxie/db/client';
-import { ledger, reservation } from '@galaxie/db/schema';
+import { ledger, reservation, staffUsage } from '@galaxie/db/schema';
 import { estimateCostUsd } from '@galaxie/ai-ledger/pricing';
 import { createCompletionClient, type CompletionClient } from '@galaxie/llm';
 import {
@@ -202,12 +202,18 @@ export async function runBrandbook(
     signal?: AbortSignal;
     /** Esperas entre as tentativas do acerto (testes usam valores curtos). */
     settleBackoffMs?: number[];
+    /**
+     * Equipe Galaxie (#1392): a conta é da Galaxie. Não reserva nem cobra o cliente; o custo real fica em
+     * `cosmos.staff_usage` com esta rota, como no assistente.
+     */
+    staff?: { route: string };
   },
   env: Record<string, string | undefined> = process.env,
 ): Promise<BrandbookRunResult> {
   const { quote } = input;
   const apiKey = cosmosApiKey(quote.provider, env);
   if (!input.client && !apiKey) return { ok: false, error: 'unavailable' };
+  if (input.staff) return runBrandbookAsStaff(db, { ...input, staff: input.staff }, apiKey);
   let reservation: { id: string; credits: number };
   try {
     // limites e reserva na mesma transação, com trava por tenant: duas leituras ao mesmo tempo não veem as mesmas
@@ -241,34 +247,9 @@ export async function runBrandbook(
     throw err;
   }
 
-  const client =
-    input.client ??
-    createCompletionClient(quote.provider, {
-      apiKey: apiKey!,
-      maxRetries: 0,
-      timeoutMs: BRANDBOOK_TIMEOUT_MS,
-    });
-  const prompt = brandbookPrompt(input.locale);
   let result;
   try {
-    result = await client.complete({
-      model: quote.model,
-      system: prompt.system,
-      messages: [{ role: 'user', content: prompt.message }],
-      attachments: [
-        {
-          mediaType: 'application/pdf',
-          data: Buffer.from(input.pdf).toString('base64'),
-          name: input.fileName ?? 'brandbook.pdf',
-        },
-      ],
-      // sem `temperature`: os modelos atuais da Anthropic e os de raciocínio da OpenAI recusam valor fora do padrão,
-      // e a resposta é validada campo a campo de qualquer jeito
-      maxOutputTokens: BRANDBOOK_MAX_OUTPUT_TOKENS,
-      timeoutMs: BRANDBOOK_TIMEOUT_MS,
-      purpose: `cosmos:brandbook:${input.tenantId}`,
-      ...(input.signal ? { signal: input.signal } : {}),
-    });
+    result = await readPdf(input, apiKey);
   } catch (err) {
     // sem a contagem do provedor, a reserva volta inteira; um corte no meio (navegador fechado) pode ter sido cobrado
     // pelo provedor e não aparece no extrato: perda aceita, rara e limitada por uma leitura por vez por pessoa
@@ -322,4 +303,134 @@ export async function runBrandbook(
   }
   if (!usable) return { ok: false, error: 'unreadable', ...(extract?.notes ? { notes: extract.notes } : {}) };
   return { ok: true, extract, themes: buildBrandbookThemes(extract), charged };
+}
+
+type BrandbookCallInput = {
+  tenantId: string;
+  pdf: Uint8Array;
+  fileName?: string;
+  locale: string;
+  quote: BrandbookQuote;
+  client?: CompletionClient;
+  signal?: AbortSignal;
+};
+
+/** Uma chamada ao provedor com o PDF anexado; sem repetição automática (ver `BRANDBOOK_TIMEOUT_MS`). */
+function readPdf(input: BrandbookCallInput, apiKey: string | null) {
+  const { quote } = input;
+  const client =
+    input.client ??
+    createCompletionClient(quote.provider, {
+      apiKey: apiKey!,
+      maxRetries: 0,
+      timeoutMs: BRANDBOOK_TIMEOUT_MS,
+    });
+  const prompt = brandbookPrompt(input.locale);
+  return client.complete({
+    model: quote.model,
+    system: prompt.system,
+    messages: [{ role: 'user', content: prompt.message }],
+    attachments: [
+      {
+        mediaType: 'application/pdf',
+        data: Buffer.from(input.pdf).toString('base64'),
+        name: input.fileName ?? 'brandbook.pdf',
+      },
+    ],
+    // sem `temperature`: os modelos atuais da Anthropic e os de raciocínio da OpenAI recusam valor fora do padrão,
+    // e a resposta é validada campo a campo de qualquer jeito
+    maxOutputTokens: BRANDBOOK_MAX_OUTPUT_TOKENS,
+    timeoutMs: BRANDBOOK_TIMEOUT_MS,
+    purpose: `cosmos:brandbook:${input.tenantId}`,
+    ...(input.signal ? { signal: input.signal } : {}),
+  });
+}
+
+/**
+ * Leitura feita pela equipe Galaxie (#1392): a conta é da Galaxie. Nada de reserva nem de carteira do cliente; uma
+ * linha em `cosmos.staff_usage` nasce antes da chamada (o pedido conta no limite mesmo se cair) e recebe o custo real
+ * no fim. Os limites por pessoa valem para a equipe também: uma leitura por vez e `userPerHour` por hora.
+ */
+async function runBrandbookAsStaff(
+  db: Database,
+  input: BrandbookCallInput & { userId: string; staff: { route: string } },
+  apiKey: string | null,
+  now: Date = new Date(),
+): Promise<BrandbookRunResult> {
+  const route = input.staff.route.slice(0, 200);
+  const { quote } = input;
+  // contagens e linha nova na mesma transação, com trava por pessoa e rota: dois pedidos ao mesmo tempo não veem as
+  // mesmas contagens e passam juntos dos limites (como a reserva do cliente)
+  const admitted = await db.transaction(async (tx) => {
+    await tx.execute(
+      sql`select pg_advisory_xact_lock(hashtextextended(${`cosmos.brandbook.staff:${input.userId}:${route}`}, 0))`,
+    );
+    const mine = and(eq(staffUsage.userId, input.userId), eq(staffUsage.route, route));
+    const [[pending], [hour]] = await Promise.all([
+      tx
+        .select({ n: count() })
+        .from(staffUsage)
+        .where(
+          and(
+            mine,
+            eq(staffUsage.outcome, 'pending'),
+            // linha presa (processo caiu no meio) deixa de travar depois do prazo da leitura
+            gte(staffUsage.createdAt, new Date(now.getTime() - BRANDBOOK_RESERVATION_TTL_SECONDS * 1000)),
+          ),
+        ),
+      tx
+        .select({ n: count() })
+        .from(staffUsage)
+        .where(and(mine, gte(staffUsage.createdAt, new Date(now.getTime() - 3_600_000)))),
+    ]);
+    if ((pending?.n ?? 0) >= BRANDBOOK_LIMITS.userConcurrent) return { limited: 'busy' as const };
+    if ((hour?.n ?? 0) >= BRANDBOOK_LIMITS.userPerHour) return { limited: 'rate_limited' as const };
+    const [inserted] = await tx
+      .insert(staffUsage)
+      .values({
+        tenantId: input.tenantId,
+        userId: input.userId,
+        route,
+        provider: quote.provider,
+        model: quote.model,
+      })
+      .returning({ id: staffUsage.id });
+    return { row: inserted };
+  });
+  if ('limited' in admitted) return { ok: false, error: admitted.limited };
+  const row = admitted.row;
+  const record = (fields: Partial<typeof staffUsage.$inferInsert>) =>
+    row
+      ? db
+          .update(staffUsage)
+          .set(fields)
+          .where(eq(staffUsage.id, row.id))
+          .catch((err) => console.error('[cosmos] uso do brandbook da equipe não foi registrado', err))
+      : Promise.resolve();
+
+  let result;
+  try {
+    result = await readPdf(input, apiKey);
+  } catch (err) {
+    await record({ outcome: 'error', error: String((err as Error)?.message ?? err).slice(0, 500) });
+    console.error('[cosmos] leitura do brandbook da equipe falhou', err);
+    return { ok: false, error: 'failed' };
+  }
+  const costUsd = estimateCostUsd(quote.model, {
+    inputTokens: result.usage.inputTokens,
+    cachedInputTokens: result.usage.cachedInputTokens,
+    cacheWriteTokens: result.usage.cacheWriteTokens,
+    outputTokens: result.usage.outputTokens,
+  });
+  const extract = parseBrandbookResult(result.text);
+  const usable = extract !== null && extract.colors.length > 0;
+  await record({
+    inputTokens: result.usage.inputTokens,
+    outputTokens: result.usage.outputTokens,
+    costUsd: costUsd.toFixed(6),
+    outcome: usable ? 'ok' : 'error',
+    error: usable ? null : 'unreadable',
+  });
+  if (!usable) return { ok: false, error: 'unreadable', ...(extract?.notes ? { notes: extract.notes } : {}) };
+  return { ok: true, extract, themes: buildBrandbookThemes(extract), charged: 0 };
 }

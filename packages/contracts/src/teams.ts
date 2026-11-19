@@ -5,6 +5,7 @@ import {
   AssetUrl,
   CountryRef,
   LocaleQuery,
+  LogoCredit,
   LogoFormats,
   LogoSizes,
   LogoSource,
@@ -41,6 +42,12 @@ export const Team = TeamSummary.extend({
   logo_source: LogoSource,
   logo_formats: LogoFormats,
   logo_sizes: LogoSizes,
+  // cópia sem o id do componente: o Team também aparece em contexto de entrada, e o mesmo id nos dois contextos
+  // faria o gerador separar LogoCredit em LogoCredit e LogoCreditOutput (quebra para as rotas que já o usam)
+  logo_credit: z.object(LogoCredit.shape).nullable().meta({
+    description:
+      'Crédito do logo quando ele vem da Wikimedia Commons (`logo_source` = `commons`, ex.: construtores históricos da F1); null nos demais.',
+  }),
   country_ref: CountryRef.nullable(),
   founded: z.number().int().nullable(),
   venue: z
