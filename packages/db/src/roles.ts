@@ -63,7 +63,7 @@ const GAME_API_WRITE = [
   'game.card_grant',
   'game.participation_daily',
   'game.fraud_signal',
-  // antifraude (#934): congelar e liberar Perfil, pela API e pelo painel (que usa o perfil da API)
+  // antifraude (#934): a API lê o congelamento e a varredura grava o alerta
   'game.profile_freeze',
 ] as const;
 
@@ -121,6 +121,8 @@ export const ROLE_GRANTS: Record<RoleService, RoleGrants> = {
     read: APP_SCHEMAS.filter((s) => s !== 'raw'),
     write: [
       'ops',
+      // antifraude da Gamificação (#934): congelar e liberar Perfil no painel do cliente
+      'game.profile_freeze',
       'semantic',
       'enrich',
       'api',
@@ -177,6 +179,8 @@ export const ROLE_GRANTS: Record<RoleService, RoleGrants> = {
     ],
     // painel do Chat ao vivo (#973): tirar do ar e devolver mensagem (a visibilidade); a mensagem nunca é apagada aqui
     update: [
+      // antifraude da Gamificação (#934): revisar o alerta (confirmar ou descartar); o alerta nunca é apagado
+      'game.fraud_signal',
       'chat.message',
       // Feed das Comunidades (#946): fixar, tirar do ar e devolver post e comentário; nada é apagado aqui
       'community.post',

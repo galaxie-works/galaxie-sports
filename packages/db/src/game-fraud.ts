@@ -3,7 +3,8 @@
  * como alerta: nada é barrado sem uma pessoa revisar (`feedback-validador-sinaliza-humano-decide`).
  *
  * - `prediction_burst`: Perfis da mesma Conta palpitando o mesmo Palpite no mesmo jogo em segundos.
- * - `simultaneous_presence`: um Perfil com presença em muitos jogos ao mesmo tempo.
+ * - `simultaneous_presence`: um Perfil com presença viva em muitos jogos ao mesmo tempo (janelas abertas há minutos e
+ *   com sinal nos últimos 2 min em todos eles; alternar entre jogos da rodada não conta).
  * - `new_profiles_burst`: uma Conta com muitos Perfis novos ganhando Pontos no mesmo dia.
  *
  * Quem revisa (o cliente no painel dele ou a equipe Galaxie): descartar fecha o alerta; confirmar fecha e congela os
@@ -78,7 +79,8 @@ export async function detectFraudSignals(
       select w.tenant_id, w.profile_id, count(distinct w.event_id) as events,
              array_agg(distinct w.event_id) as event_ids
         from fan.presence_window w
-       where w.last_seen_at > ${now}::timestamptz - interval '10 minutes'
+       where w.last_seen_at > ${now}::timestamptz - interval '2 minutes'
+         and w.started_at < ${now}::timestamptz - interval '5 minutes'
        group by w.tenant_id, w.profile_id
       having count(distinct w.event_id) >= ${t.simultaneousEvents}
     ), ins as (

@@ -44,7 +44,7 @@ export interface GamificationOverview {
   /** Antifraude (#934): os alertas abertos e os Perfis congelados do cliente, com o apelido. */
   fraud: {
     signals: (Omit<FraudSignalView, 'createdAt' | 'reviewedAt'> & { createdAt: string })[];
-    frozen: { programCountry: string; profileId: string; frozenBy: string; frozenAt: string }[];
+    frozen: { programCountry: string; profileId: string; frozenBy: 'galaxie' | 'team'; frozenAt: string }[];
     nicknames: Record<string, string | null>;
   };
 }
@@ -83,7 +83,8 @@ async function fraudOverview(db: Database, tenantId: string): Promise<Gamificati
     frozen: frozen.map((f) => ({
       programCountry: f.programCountry,
       profileId: f.profileId,
-      frozenBy: f.frozenBy,
+      // o id interno de quem congelou não vai ao navegador: só se foi a equipe Galaxie ou a do cliente
+      frozenBy: f.frozenBy.startsWith('galaxie:') ? 'galaxie' : 'team',
       frozenAt: f.frozenAt.toISOString(),
     })),
     nicknames: Object.fromEntries(names),

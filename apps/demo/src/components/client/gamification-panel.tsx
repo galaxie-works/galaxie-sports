@@ -274,12 +274,13 @@ export function GamificationPanel({ data }: { data: GamificationOverview }) {
                           variant="destructive"
                           size="sm"
                           disabled={pending}
-                          onClick={() =>
+                          onClick={() => {
+                            if (!window.confirm(F.confirmAsk)) return;
                             run(
                               () => reviewFraudSignalAction({ signalId: s.id, decision: 'confirmed' }),
                               (r) => fill(F.confirmed, { n: f.number(r.frozen ?? 0) }),
-                            )
-                          }
+                            );
+                          }}
                         >
                           {F.confirm}
                         </Button>
@@ -302,7 +303,8 @@ export function GamificationPanel({ data }: { data: GamificationOverview }) {
                     className="flex items-center justify-between gap-2 text-sm"
                   >
                     <span>
-                      {nick(z.profileId)} · {countryName(z.programCountry)} · {F.frozenBy} {z.frozenBy} ·{' '}
+                      {nick(z.profileId)} · {countryName(z.programCountry)} · {F.frozenBy}{' '}
+                      {z.frozenBy === 'galaxie' ? F.byGalaxie : F.byTeam} ·{' '}
                       <span className="tabular-nums">{f.dateTime(z.frozenAt)}</span>
                     </span>
                     <Button

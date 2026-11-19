@@ -71,6 +71,10 @@ export default defineMessages(
       frozenTitle: 'Perfis congelados',
       frozenEmpty: 'Nenhum Perfil congelado.',
       frozenBy: 'Por',
+      byGalaxie: 'equipe Galaxie',
+      byTeam: 'sua equipe',
+      confirmAsk:
+        'Congelar os Perfis deste alerta? Eles deixam de ganhar Pontos, Conquistas e Cartas até serem liberados.',
       release: 'Liberar',
       released: 'Perfil liberado.',
     },
@@ -151,6 +155,10 @@ export default defineMessages(
         frozenTitle: 'Frozen profiles',
         frozenEmpty: 'No frozen profiles.',
         frozenBy: 'By',
+        byGalaxie: 'Galaxie team',
+        byTeam: 'your team',
+        confirmAsk:
+          'Freeze the profiles in this alert? They stop earning points, achievements and cards until released.',
         release: 'Release',
         released: 'Profile released.',
       },
@@ -230,6 +238,10 @@ export default defineMessages(
         frozenTitle: 'Perfiles congelados',
         frozenEmpty: 'No hay perfiles congelados.',
         frozenBy: 'Por',
+        byGalaxie: 'equipo Galaxie',
+        byTeam: 'tu equipo',
+        confirmAsk:
+          '¿Congelar los perfiles de esta alerta? Dejan de ganar puntos, logros y cartas hasta que se liberen.',
         release: 'Liberar',
         released: 'Perfil liberado.',
       },
