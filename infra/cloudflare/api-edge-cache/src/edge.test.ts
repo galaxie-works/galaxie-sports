@@ -43,9 +43,10 @@ describe('locale', () => {
     expect(resolveLocale(null, 'es-ES')).toBe('es-AR');
     expect(resolveLocale(null, 'en-US,en;q=0.9')).toBe('en');
     expect(resolveLocale(null, 'pt-PT')).toBe('pt-BR');
-    expect(resolveLocale(null, 'fr-FR')).toBe('pt-BR');
+    // sem nada que case, a marca própria: a API decide pelo padrão da chave/tenant (#1445), não pt-BR na borda
+    expect(resolveLocale(null, 'fr-FR')).toBe('default');
     expect(resolveLocale(null, 'fr;q=1, es-MX;q=0.5')).toBe('es-MX');
-    expect(resolveLocale(null, null)).toBe('pt-BR');
+    expect(resolveLocale(null, null)).toBe('default');
   });
 
   it('?locale= válido vence o Accept-Language; inválido é ignorado', () => {
