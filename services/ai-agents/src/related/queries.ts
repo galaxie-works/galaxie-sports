@@ -2,6 +2,7 @@
  * Consultas da busca do YouTube montadas a partir dos fatos do core (docs/12 §5): times (rótulos
  * da base semântica), competição, autores de gol, apito. Nada aqui vem de IA.
  */
+import { countryLocale, iberianLanguage } from '@galaxie/geo';
 import { competitionName, teamName, type EventCore } from '../context/event-core.js';
 import type { AgentLocale } from '../guardrails/index.js';
 import type { SearchParams } from './youtube.js';
@@ -14,28 +15,6 @@ export interface RelatedQuery {
   language: RelatedLanguage;
   params: SearchParams;
 }
-
-const PT_COUNTRIES = new Set(['BR', 'PT']);
-const ES_COUNTRIES = new Set([
-  'AR',
-  'MX',
-  'CO',
-  'CL',
-  'PE',
-  'UY',
-  'EC',
-  'PY',
-  'BO',
-  'VE',
-  'ES',
-  'CR',
-  'GT',
-  'HN',
-  'SV',
-  'PA',
-  'DO',
-  'CU',
-]);
 
 export interface LanguagePlan {
   language: RelatedLanguage;
@@ -50,27 +29,24 @@ export interface LanguagePlan {
 export function languagesFor(teamCountries: readonly (string | null)[]): LanguagePlan[] {
   const out: LanguagePlan[] = [];
   const codes = teamCountries.filter((c): c is string => !!c).map((c) => c.toUpperCase());
-  if (codes.some((c) => PT_COUNTRIES.has(c)) || !codes.some((c) => ES_COUNTRIES.has(c)))
-    out.push({ language: 'pt', locale: 'pt-BR', regionCode: 'BR' });
-  const es = codes.find((c) => ES_COUNTRIES.has(c) && c !== 'ES');
-  if (codes.some((c) => ES_COUNTRIES.has(c)))
-    out.push({
-      language: 'es',
-      locale: es === 'MX' ? 'es-MX' : es === 'CO' ? 'es-CO' : es === 'CL' ? 'es-CL' : 'es-AR',
-      regionCode: es ?? 'MX',
-    });
+  const isPt = (c: string) => languageOfCountry(c) === 'pt';
+  const isEs = (c: string) => languageOfCountry(c) === 'es';
+  if (codes.some(isPt) || !codes.some(isEs)) out.push({ language: 'pt', locale: 'pt-BR', regionCode: 'BR' });
+  const es = codes.find((c) => isEs(c) && c !== 'ES');
+  if (codes.some(isEs)) out.push({ language: 'es', locale: spanishLocale(es), regionCode: es ?? 'MX' });
   return out;
 }
 
 /** Idioma dos vídeos de um país (pt para BR/PT, es para os hispânicos); null fora dos dois. */
 export function languageOfCountry(country: string): RelatedLanguage | null {
-  const c = country.toUpperCase();
-  if (PT_COUNTRIES.has(c)) return 'pt';
-  if (ES_COUNTRIES.has(c)) return 'es';
-  return null;
+  return iberianLanguage(country);
 }
 
-const LOCALE_OF: Record<string, AgentLocale> = { MX: 'es-MX', CO: 'es-CO', CL: 'es-CL' };
+/** Locale do espanhol do país (voz própria nos mercados da API, senão es-AR), pelo packages/geo. */
+function spanishLocale(country: string | undefined): AgentLocale {
+  const locale = country ? countryLocale(country) : null;
+  return locale?.startsWith('es-') ? (locale as AgentLocale) : 'es-AR';
+}
 
 /**
  * Idiomas das consultas pelos mercados em que o jogo é relevante (relevância ≥ `min`), do mais
@@ -91,7 +67,7 @@ export function languagesForMarkets(
     out.push(
       language === 'pt'
         ? { language, locale: 'pt-BR', regionCode: market }
-        : { language, locale: LOCALE_OF[market] ?? 'es-AR', regionCode: market },
+        : { language, locale: spanishLocale(market), regionCode: market },
     );
   }
   return out.length ? out : null;

@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { competitionName, countryLanguage, isNationalCompetition } from './language.js';
+import {
+  competitionName,
+  countryLanguage,
+  countryLocale,
+  iberianLanguage,
+  isNationalCompetition,
+  SPANISH_VOICE_COUNTRIES,
+} from './language.js';
 
 describe('countryLanguage', () => {
   it('mapeia país → idioma dos rótulos, inclusive as extensões da api-sports', () => {
@@ -93,5 +100,26 @@ describe('competitionName', () => {
     );
     expect(competitionName({ en: 'Euroleague' }, 'EUROPE', 'Euroleague', 'es-AR')).toBe('Euroleague');
     expect(competitionName(sula, null, 'CONMEBOL Sudamericana', 'es-UY')).toBe('Copa Sudamericana');
+  });
+});
+
+describe('countryLocale e iberianLanguage', () => {
+  it('voz própria nos mercados da API, es-AR nos outros hispânicos, pt-BR nos lusófonos', () => {
+    expect(SPANISH_VOICE_COUNTRIES).toEqual(['AR', 'MX', 'CO', 'CL', 'PE', 'UY', 'EC']);
+    expect(countryLocale('cl')).toBe('es-CL');
+    expect(countryLocale('PY')).toBe('es-AR');
+    expect(countryLocale('ES')).toBe('es-AR');
+    expect(countryLocale('PT')).toBe('pt-BR');
+    expect(countryLocale('AO')).toBe('pt-BR');
+    expect(countryLocale('US')).toBe('en');
+    expect(countryLocale('JP')).toBeNull();
+    expect(countryLocale(null)).toBeNull();
+  });
+
+  it('iberianLanguage só devolve pt ou es', () => {
+    expect(iberianLanguage('BR')).toBe('pt');
+    expect(iberianLanguage('GQ')).toBe('es');
+    expect(iberianLanguage('GB-ENG')).toBeNull();
+    expect(iberianLanguage(undefined)).toBeNull();
   });
 });

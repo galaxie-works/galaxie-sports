@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { SUPPORTED_LOCALES } from '@galaxie/contracts';
 
 import { apiLocale, intlLocale } from './core/model.js';
 import { createPreviewFetch } from './fixtures.js';
@@ -75,5 +76,13 @@ describe('dicionário dos dados de exemplo', () => {
       (k) => !sources.includes(`'${k}'`) && !sources.includes(k),
     );
     expect(missing).toEqual([]);
+  });
+});
+
+describe('voz do espanhol por mercado', () => {
+  it('segue os es-XX de SUPPORTED_LOCALES; outro país cai em es-AR', () => {
+    const voices = SUPPORTED_LOCALES.filter((l) => l.startsWith('es-'));
+    for (const l of voices) expect(apiLocale('es', l.slice(3))).toBe(l);
+    expect(apiLocale('es', 'PY')).toBe('es-AR');
   });
 });

@@ -152,6 +152,9 @@ importers:
       '@galaxie/game-rules':
         specifier: workspace:*
         version: link:../../packages/game-rules
+      '@galaxie/geo':
+        specifier: workspace:*
+        version: link:../../packages/geo
       '@galaxie/net-guard':
         specifier: workspace:*
         version: link:../../packages/net-guard
@@ -456,6 +459,9 @@ importers:
 
   packages/geo:
     dependencies:
+      '@galaxie/contracts':
+        specifier: workspace:*
+        version: link:../contracts
       yaml:
         specifier: ^2.9.1
         version: 2.9.1
