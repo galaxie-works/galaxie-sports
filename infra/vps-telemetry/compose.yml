@@ -407,7 +407,7 @@ services:
       start_period: 10s
       start_interval: 2s
     labels:
-      - works.galaxie.maintenance-rev=ea68f94e0334
+      - works.galaxie.maintenance-rev=e73fb0a1e0a8
       - traefik.enable=true
       # middlewares da borda (infra/traefik/README.md): os mesmos em api, demo, s3 e maintenance; ligados por EDGE_MIDDLEWARES
       - traefik.http.middlewares.gsports-compress.compress.encodings=br,gzip
@@ -765,7 +765,9 @@ networks:
   render: {}
 
 # Página de manutenção (serviço `maintenance`). Conteúdo inline para ir junto com este arquivo no deploy (a VPS só
-# recebe o compose.yml). Aqui `$` precisaria ser `$$` (interpolação do compose): a página e o Caddyfile não usam.
+# recebe o compose.yml). Aqui `$` precisaria ser `$$` (interpolação do compose): a página e o Caddyfile não usam; o
+# problem.json interpola ${DOCS_DOMAIN:-…} de propósito (#1431). O rev é calculado com o env.example: trocar só o
+# DOCS_DOMAIN do .env não recria o `maintenance` (recrie à mão ou mude o rev).
 # Editou? Atualize works.galaxie.maintenance-rev no serviço (o compose não recria por mudança só de conteúdo).
 configs:
   maintenance-caddyfile:
