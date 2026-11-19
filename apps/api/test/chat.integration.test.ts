@@ -352,7 +352,7 @@ describe('Chat ao vivo: salas (#959)', () => {
     const cases = await db.execute<{ reasons: string[]; module: string; target_type: string }>(
       sql`select reasons, module, target_type from engage.moderation_case where tenant_id = ${t.id}`,
     );
-    expect(cases).toEqual([{ reasons: ['bot_cadence'], module: 'chat', target_type: 'profile' }]);
+    expect(cases).toEqual([{ reasons: ['bot_cadence'], module: 'chat', target_type: 'behavior' }]);
     // outro torcedor segue escrevendo
     const g = await fan(t.key, 2);
     expect((await send(g.token, fixture, 'oi')).statusCode).toBe(201);

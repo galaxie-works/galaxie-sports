@@ -66,7 +66,7 @@ import {
 import { ChatSettings, type ChatSettingsValues } from './settings.js';
 import { ChatHub, reactionRoomKey } from './hub.js';
 import { MemoryFloodGuard, type FloodGuard } from './flood.js';
-import { BOT_BLOCK_MS, MemoryBotGuard, type BotGuard } from './bot.js';
+import { BOT_BLOCK_MS, botLinks, MemoryBotGuard, type BotGuard } from './bot.js';
 import { MemoryReactionCounter, type ReactionCounter } from './reactions.js';
 import { gameMessages } from './game.js';
 import { MemoryChatPeak, type ChatPeak } from './peak.js';
@@ -196,7 +196,10 @@ export async function chatRoutes(app: FastifyInstance, deps: ChatRoutesDeps): Pr
     return new Date(at.getTime() + clocks.contentPurgeAt.getTime());
   }
 
-  /** Robô travado (#1290): o caso do Perfil vai para a fila humana, que decide (o validador sinaliza). */
+  /**
+   * Robô travado (#1290): o caso vai para a fila humana, que decide (o validador sinaliza). Alvo próprio
+   * (`behavior`, `chat_bot:<perfil>`): não se mistura com o caso aberto do Perfil por outro motivo (foto, faixa).
+   */
   async function holdBotCase(
     tenantId: string,
     roomId: string,
@@ -208,8 +211,8 @@ export async function chatRoutes(app: FastifyInstance, deps: ChatRoutesDeps): Pr
   ): Promise<void> {
     await holdContent(db(), {
       tenantId,
-      targetType: 'profile',
-      targetId: profileId,
+      targetType: 'behavior',
+      targetId: `chat_bot:${profileId}`,
       targetProfileId: profileId,
       module: 'chat',
       room: roomId,
@@ -563,8 +566,9 @@ export async function chatRoutes(app: FastifyInstance, deps: ChatRoutesDeps): Pr
           roomId: room.id,
           profileId: fan.profileId,
           accountId: profile.accountId,
-          hosts: linkHosts(text),
+          links: botLinks(text, linkHosts(text)),
           verified,
+          slowModeMs: eff.slowModeSeconds * 1000,
           now: at.getTime(),
         })
         .catch((err: unknown) => {

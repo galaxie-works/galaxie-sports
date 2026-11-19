@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   BOT_BLOCK_MS,
+  botLinks,
   CADENCE_SAMPLES,
+  cadenceOf,
   machineCadence,
   MemoryBotGuard,
   SIGNAL_WINDOW_MS,
@@ -15,8 +17,9 @@ const input = (over: Partial<BotInput> = {}): BotInput => ({
   roomId: 'r1',
   profileId: 'p1',
   accountId: 'a1',
-  hosts: [],
+  links: [],
   verified: false,
+  slowModeMs: 0,
   now: 0,
   ...over,
 });
@@ -73,17 +76,17 @@ describe('MemoryBotGuard', () => {
   it('o mesmo link por Perfis diferentes de Contas diferentes: sinaliza a partir do terceiro', async () => {
     const g = new MemoryBotGuard();
     const at = (p: string, now: number) =>
-      g.check(input({ profileId: p, accountId: `a-${p}`, hosts: ['promo.example.com'], now }));
+      g.check(input({ profileId: p, accountId: `a-${p}`, links: ['promo.example.com/oferta'], now }));
     await at('p1', 0);
     await at('p2', 1_000);
     expect((await at('p3', 2_000)).signals).toEqual(['bot_shared_link']);
     // o mesmo Perfil repetindo o link não soma
     const g2 = new MemoryBotGuard();
     for (let i = 0; i < 4; i++)
-      await g2.check(input({ hosts: ['promo.example.com'], now: i * 37_000 + (i % 2) * 9_000 }));
-    expect((await g2.check(input({ hosts: ['promo.example.com'], now: 200_000 }))).signals).not.toContain(
-      'bot_shared_link',
-    );
+      await g2.check(input({ links: ['promo.example.com/oferta'], now: i * 37_000 + (i % 2) * 9_000 }));
+    expect(
+      (await g2.check(input({ links: ['promo.example.com/oferta'], now: 200_000 }))).signals,
+    ).not.toContain('bot_shared_link');
   });
 
   it('torcida cantando o mesmo grito não é sinal (texto igual não entra)', async () => {
@@ -92,5 +95,37 @@ describe('MemoryBotGuard', () => {
       expect(
         (await g.check(input({ profileId: `p${i}`, accountId: `a${i}`, now: i * 300 }))).signals,
       ).toEqual([]);
+  });
+});
+
+describe('caso claro: só o ritmo mecânico de verdade trava (#1290, revisão)', () => {
+  const every = (gap: number, jitter = 0) =>
+    Array.from({ length: CADENCE_SAMPLES }, (_, i) => i * gap + (i % 2 ? jitter : 0));
+
+  it('ritmo regular no degrau do modo lento é gente reenviando: sinaliza, não trava', () => {
+    expect(cadenceOf(every(10_400, 300), 10_000)).toEqual({ signal: true, clear: false });
+    // o mesmo ritmo sem modo lento é robô
+    expect(cadenceOf(every(10_400, 30), 0)).toEqual({ signal: true, clear: true });
+  });
+
+  it('rajada abaixo de 1 s fica com o anti-flood; desvio acima de 250 ms não trava', () => {
+    expect(cadenceOf(every(50), 0)).toEqual({ signal: true, clear: false });
+    expect(cadenceOf(every(15_000, 600), 0)).toEqual({ signal: true, clear: false });
+  });
+
+  it('o modo lento não deixa a pessoa travada no guarda', async () => {
+    const g = new MemoryBotGuard();
+    let last = { blockedMs: 0, blockedNow: false, signals: [] as string[] };
+    for (const t of every(10_400, 300)) last = await g.check(input({ slowModeMs: 10_000, now: t }));
+    expect(last).toEqual({ blockedMs: 0, blockedNow: false, signals: ['bot_cadence'] });
+  });
+});
+
+describe('botLinks', () => {
+  it('domínio e caminho, sem consulta, âncora nem barra final', () => {
+    expect(botLinks('olha https://Promo.example.com/oferta/?x=1 já', ['promo.example.com'])).toEqual([
+      'promo.example.com/oferta',
+    ]);
+    expect(botLinks('site.com', ['site.com'])).toEqual(['site.com']);
   });
 });
