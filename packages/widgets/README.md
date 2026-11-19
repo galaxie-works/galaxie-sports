@@ -126,7 +126,7 @@ const item = buildRegistryItem({
   kind: 'match_card',
   name: 'Placar Operadora Exemplo',
   theme,
-  apiBaseUrl: 'https://api.galaxie.sports',
+  apiBaseUrl: 'https://api.galaxiesports.com',
   locale: 'pt-BR', // opcionais
   market: 'BR',
   defaults: { eventId },

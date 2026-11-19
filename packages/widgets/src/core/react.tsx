@@ -52,7 +52,7 @@ import {
 
 export interface GalaxieWidgetProviderProps {
   /**
-   * Base da API pública, ex.: https://api.galaxie.sports, ou um proxy no backend da operadora
+   * Base da API pública, ex.: https://api.exemplo.com, ou um proxy no backend da operadora
    * (`/api/galaxie`, docs/05 §1.3), que injeta a chave secreta.
    */
   baseUrl: string;

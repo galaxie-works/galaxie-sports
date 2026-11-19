@@ -247,7 +247,7 @@ export async function eventRoutes(app: FastifyInstance, ctx: AppContext): Promis
         const body = buildIcs(
           [
             {
-              uid: `${e.id}@galaxie.sports`,
+              uid: `${e.id}@galaxiesports.com`,
               start: head.startsAt,
               end: head.endsAtExpected,
               summary: e.competition && names.length === 2 ? `${title} · ${e.competition.name}` : title,

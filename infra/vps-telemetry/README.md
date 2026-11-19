@@ -191,7 +191,7 @@ Traefik, só com labels da nossa stack:
   recarrega quando a resposta deixa de ser 503 (sem JavaScript, `meta refresh` de 20 s). O link da página de status
   está escondido até a URL ser decidida (TODO no HTML).
 - **Host da API**: `503` em `application/problem+json`, no formato dos erros da API, com `Retry-After: 30`:
-  `{"type":"https://docs.galaxie.sports/errors/maintenance","title":"Em manutenção","status":503,"code":"MAINTENANCE",…,"retry_after":30}`.
+  `{"type":"https://docs.galaxiesports.com/errors/maintenance","title":"Em manutenção","status":503,"code":"MAINTENANCE",…,"retry_after":30}`.
 - Qualquer caminho e qualquer método, inclusive `/health`, recebem o 503: monitores externos enxergam a manutenção.
 
 **Não é recriado pelos deploys.** Imagem upstream fixa (`caddy:2.11.7-alpine`, `pull_policy: missing`), sem

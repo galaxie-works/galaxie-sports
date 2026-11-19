@@ -15,7 +15,7 @@ const PACKAGE_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 const base = {
   theme: DEFAULT_THEMES.emerald,
-  apiBaseUrl: 'https://api.galaxie.sports/',
+  apiBaseUrl: 'https://api.galaxiesports.com/',
 } as const;
 
 /** Erros de sintaxe do TSX gerado (sem checar tipos: isso fica para o teste com o app Next). */
@@ -61,7 +61,7 @@ describe('buildRegistryItem', () => {
     const widget = item.files[1]!.content;
     expect(item.name).toBe('placar-da-operadora-exemplo');
     expect(widget).toContain(`"primary": "${DEFAULT_THEMES.emerald.primary}"`);
-    expect(widget).toContain('const GALAXIE_API_URL = "https://api.galaxie.sports";');
+    expect(widget).toContain('const GALAXIE_API_URL = "https://api.galaxiesports.com";');
     expect(widget).toContain('const GALAXIE_LOCALE: WidgetLocale = "es";');
     expect(widget).toContain('const GALAXIE_MARKET: string | undefined = "AR";');
     expect(widget).toContain('const GALAXIE_DEFAULTS: Partial<MatchCardProps> = {"eventId":"abc"};');

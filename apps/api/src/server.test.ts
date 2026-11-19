@@ -93,7 +93,7 @@ describe('autenticação e planos', () => {
     const missing = await app.inject({ method: 'GET', url: '/v1/sports' });
     expect(missing.statusCode).toBe(401);
     expect(missing.json()).toMatchObject({
-      type: 'https://docs.galaxie.sports/errors/invalid-key',
+      type: 'https://docs.galaxiesports.com/errors/invalid-key',
       code: 'INVALID_KEY',
       status: 401,
       instance: '/v1/sports',
