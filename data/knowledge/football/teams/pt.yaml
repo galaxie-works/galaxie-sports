@@ -1,6 +1,6 @@
 # Base semântica — clubes de Portugal (schema v1, ver data/knowledge/SCHEMA.md)
 # labels/copy_hints: nomes e apelidos como usados na imprensa do Brasil (pt-BR) e da América Latina hispânica (es).
-# api_sports.team_id: null — nenhuma fonte consultada exibiu o ID; resolver no bootstrap por match.name + country.
+# api_sports.team_id: resolvido por `pnpm resolve:ids` (match.name + country) contra o banco em 19/11/2026 (issue #17).
 schema_version: 1
 country: PT
 teams:
@@ -11,7 +11,7 @@ teams:
     abbreviation: SLB
   labels: {pt-BR: Benfica, es: Benfica, en: Benfica}
   api_sports:
-    team_id: null
+    team_id: 211
     match: {name: Benfica, country: Portugal}
   founded: 1904-02-28
   city: Lisboa
@@ -66,7 +66,7 @@ teams:
     abbreviation: FCP
   labels: {pt-BR: Porto, es: Porto, en: FC Porto}
   api_sports:
-    team_id: null
+    team_id: 212
     match: {name: FC Porto, country: Portugal}
   founded: 1893-09-28
   city: Porto
@@ -114,7 +114,7 @@ teams:
     abbreviation: SCP
   labels: {pt-BR: Sporting, es: Sporting de Lisboa, en: Sporting CP}
   api_sports:
-    team_id: null
+    team_id: 228
     match: {name: Sporting CP, country: Portugal}
   founded: 1906-07-01
   city: Lisboa
@@ -164,7 +164,7 @@ teams:
     abbreviation: SCB
   labels: {pt-BR: Braga, es: Braga, en: Braga}
   api_sports:
-    team_id: null
+    team_id: 217
     match: {name: SC Braga, country: Portugal}
   founded: 1921-01-19
   city: Braga

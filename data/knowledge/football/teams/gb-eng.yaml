@@ -504,7 +504,7 @@ teams:
     abbreviation: SUN
   labels: {pt-BR: Sunderland, es: Sunderland, en: Sunderland}
   api_sports:
-    team_id: null
+    team_id: 746
     match: {name: Sunderland, country: England}
   founded: 1879-10-17
   city: Sunderland
