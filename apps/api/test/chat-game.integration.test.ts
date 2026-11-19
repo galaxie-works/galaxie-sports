@@ -203,7 +203,13 @@ describe('Chat ao vivo: o jogo dentro do chat (#965)', () => {
     // VAR inferido pelo writer e, depois, o do próprio fornecedor: um gol anulado, um VAR só
     await incident(fixture, 'var', 'Goal cancelled', home, null, 24, 100_000);
     await incident(fixture, 'var', 'Goal cancelled', home, null, 25);
-    await reader.waitFor(() => games(reader).some((g) => g.kind === 'goal' && g.cancelled), 4_000);
+    // o gol anulado e a mensagem do VAR podem chegar em lotes diferentes: espera os dois
+    await reader.waitFor(
+      () =>
+        games(reader).some((g) => g.kind === 'goal' && g.cancelled) &&
+        games(reader).some((g) => g.kind === 'var'),
+      4_000,
+    );
     const fixed = games(reader)
       .filter((g) => g.id === goal!.id)
       .at(-1)!;

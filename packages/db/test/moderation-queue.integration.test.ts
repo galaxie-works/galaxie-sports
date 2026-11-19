@@ -1146,3 +1146,65 @@ describe('guarda legal e denúncia às autoridades (#1289)', () => {
     expect(gone).toBeUndefined();
   });
 });
+
+describe('guarda legal fora do chat (#1296)', () => {
+  it('a foto do Perfil denunciado fica no caso como prova, e a auditoria do caso sob guarda não muda', async () => {
+    const author = await profile();
+    const ref = '0190f000-0000-7000-8000-00000000a001';
+    await pg`update fan.profile set avatar_url = 'https://cdn.cliente.test/foto.jpg', avatar_ref = ${ref},
+                avatar_hash = 'abc123', avatar_status = 'pending'
+              where tenant_id = ${tenantId} and id = ${author.id}`;
+    // como a moderação da foto cria o caso: o alvo é a referência da foto
+    const h = await holdContent(db, {
+      tenantId,
+      targetType: 'profile',
+      targetId: ref,
+      targetProfileId: author.id,
+      module: 'profile',
+      room: null,
+      community: null,
+      source: 'filter',
+      reasons: ['sexual'],
+      severity: 90,
+      hide: true,
+      content: null,
+      detail: null,
+      clocks: clocks(),
+    });
+    const until = new Date(Date.now() + 180 * day);
+    expect(
+      await db.transaction((tx) =>
+        flagChildSafety(tx, {
+          tenantId,
+          caseId: h.caseId,
+          actor: person('mod'),
+          holdUntil: until,
+          clocks: clocks(),
+          now: new Date(),
+        }),
+      ),
+    ).toBe(true);
+    // o titular troca a foto depois: a prova no caso continua a da hora da guarda
+    await pg`update fan.profile set avatar_url = null, avatar_ref = null, avatar_hash = null
+              where tenant_id = ${tenantId} and id = ${author.id}`;
+    const [row] =
+      await pg`select detail from engage.moderation_case where tenant_id = ${tenantId} and id = ${h.caseId}`;
+    expect((row!.detail as { evidence?: unknown }).evidence).toMatchObject({
+      avatar_url: 'https://cdn.cliente.test/foto.jpg',
+      avatar_ref: ref,
+      avatar_hash: 'abc123',
+      same_photo: true,
+    });
+    // defesa em profundidade: nem com o apagamento ligado a auditoria do caso sob guarda é alterada ou apagada
+    await expect(
+      pg.begin(async (tx) => {
+        await tx`set local engage.moderation_erasure = 'on'`;
+        await tx`update engage.moderation_audit set content = null
+                  where tenant_id = ${tenantId} and case_id = ${h.caseId}`;
+      }),
+    ).rejects.toThrow(/guarda legal/);
+    await expect(
+      pg`delete from engage.moderation_audit where tenant_id = ${tenantId} and case_id = ${h.caseId}`,
+    ).rejects.toThrow(/guarda legal/);
+  });
+});

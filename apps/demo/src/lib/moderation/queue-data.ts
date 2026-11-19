@@ -57,6 +57,22 @@ export interface DecisionItem {
   module: string | null;
   room: string | null;
   community: string | null;
+  /**
+   * Dá para denunciar às autoridades daqui (#1296): o caso existe, não é de apelação e ainda não foi denunciado (o
+   * servidor confere o cargo de novo). Só na primeira linha do caso, para o botão não se repetir.
+   */
+  reportable: boolean;
+}
+
+/** Casos que ainda podem ser denunciados às autoridades: existem, não são apelação e não foram denunciados. */
+async function reportableCases(tenantId: string, caseIds: string[]): Promise<Set<string>> {
+  if (caseIds.length === 0) return new Set();
+  const { rows } = await pool.query<{ id: string }>(
+    `select id::text from engage.moderation_case
+      where tenant_id = $1 and id = any($2::uuid[]) and source <> 'appeal' and authority_reported_at is null`,
+    [tenantId, caseIds],
+  );
+  return new Set(rows.map((r) => r.id));
 }
 
 export interface QueueFilters {
@@ -121,15 +137,19 @@ export async function loadDecisions(
 ): Promise<{ items: DecisionItem[]; next: string | null }> {
   const limit = 50;
   const rows: DecisionRow[] = await listDecisions(builderDb(), tenantId, { ...filter, limit });
-  const [who, nick] = await Promise.all([
+  const [who, nick, reportable] = await Promise.all([
     people(rows.map((r) => personId(r.actor))),
     nicknames(
       tenantId,
       rows.map((r) => r.subjectProfileId),
     ),
+    reportableCases(tenantId, [...new Set(rows.flatMap((r) => (r.caseId ? [r.caseId] : [])))]),
   ]);
+  const shown = new Set<string>();
   const items = rows.map((r) => {
     const pid = personId(r.actor);
+    const first = !!r.caseId && !shown.has(r.caseId);
+    if (r.caseId) shown.add(r.caseId);
     return {
       id: r.id,
       caseId: r.caseId,
@@ -150,6 +170,7 @@ export async function loadDecisions(
       module: r.module,
       room: r.room,
       community: r.community,
+      reportable: first && reportable.has(r.caseId!),
     };
   });
   return { items, next: rows.length === limit ? rows[rows.length - 1]!.id : null };

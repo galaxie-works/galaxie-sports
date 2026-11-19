@@ -11,7 +11,17 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useI18n } from '@/lib/i18n/client';
 import { fill } from '@/lib/i18n/text';
-import { decideCase, moreDecisions } from '@/lib/moderation/queue-actions';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Field, FieldLabel } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
+import { decideCase, moreDecisions, reportAuthoritiesAction } from '@/lib/moderation/queue-actions';
 import type { DecisionItem } from '@/lib/moderation/queue-data';
 import { HISTORY_FILTERS, type HistoryFilterKey, type HistoryFilters } from '@/lib/moderation/queue-utils';
 
@@ -24,10 +34,13 @@ export function DecisionHistory({
   items: first,
   next: firstNext,
   filters,
+  canReport = false,
 }: {
   items: DecisionItem[];
   next: string | null;
   filters: HistoryFilters;
+  /** Denunciar às autoridades um caso já fechado (#1296); o servidor confere o cargo no lugar do caso. */
+  canReport?: boolean;
 }) {
   const { t, locale } = useI18n();
   const T = t.moderation.history;
@@ -38,6 +51,9 @@ export function DecisionHistory({
   const [items, setItems] = useState(first);
   const [next, setNext] = useState(firstNext);
   const [pending, startTransition] = useTransition();
+  const [reporting, setReporting] = useState<DecisionItem | null>(null);
+  const [reference, setReference] = useState('');
+  const [reported, setReported] = useState<Set<string>>(() => new Set());
   const when = new Intl.DateTimeFormat(locale, { dateStyle: 'short', timeStyle: 'short' });
 
   const labels: Record<HistoryFilterKey, Record<string, string>> = {
@@ -78,6 +94,21 @@ export function DecisionHistory({
       }
       toast.success(Q.done);
       setItems((cur) => cur.map((x) => (x.caseId === d.caseId ? { ...x, undoable: false } : x)));
+      router.refresh();
+    });
+
+  const confirmReport = () =>
+    reporting?.caseId &&
+    startTransition(async () => {
+      const caseId = reporting.caseId!;
+      const r = await reportAuthoritiesAction({ caseId, ...(reference.trim() ? { reference } : {}) });
+      if (!r.ok) toast.error(r.error);
+      else {
+        toast.success(Q.authority.recorded);
+        setReported((cur) => new Set(cur).add(caseId));
+      }
+      setReporting(null);
+      setReference('');
       router.refresh();
     });
 
@@ -139,11 +170,27 @@ export function DecisionHistory({
                 {d.credits ? <span>{fill(T.credits, { credits: d.credits })}</span> : null}
               </div>
               {d.reason ? <p className="text-xs">{d.reason}</p> : null}
-              {d.undoable ? (
-                <div className="flex justify-end">
-                  <Button size="sm" variant="outline" disabled={pending} onClick={() => undo(d)}>
-                    {Q.decisions.undo}
-                  </Button>
+              {d.undoable || (canReport && d.reportable && d.caseId && !reported.has(d.caseId)) ? (
+                <div className="flex justify-end gap-2">
+                  {canReport && d.reportable && d.caseId && !reported.has(d.caseId) ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={pending}
+                      aria-label={`${Q.authority.report}: ${d.subject ?? ''} ${when.format(new Date(d.at))}`.trim()}
+                      onClick={() => {
+                        setReference('');
+                        setReporting(d);
+                      }}
+                    >
+                      {Q.authority.report}
+                    </Button>
+                  ) : null}
+                  {d.undoable ? (
+                    <Button size="sm" variant="outline" disabled={pending} onClick={() => undo(d)}>
+                      {Q.decisions.undo}
+                    </Button>
+                  ) : null}
                 </div>
               ) : null}
             </li>
@@ -157,6 +204,40 @@ export function DecisionHistory({
           </Button>
         </div>
       ) : null}
+      <Dialog
+        open={reporting !== null}
+        onOpenChange={(o) => {
+          if (!o) {
+            setReporting(null);
+            setReference('');
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{Q.authority.report}</DialogTitle>
+            <DialogDescription>{Q.authority.reportHelp}</DialogDescription>
+          </DialogHeader>
+          <Field>
+            <FieldLabel htmlFor="history-authority-reference">{Q.authority.reference}</FieldLabel>
+            <Input
+              id="history-authority-reference"
+              value={reference}
+              maxLength={200}
+              placeholder={Q.authority.referencePlaceholder}
+              onChange={(e) => setReference(e.target.value)}
+            />
+          </Field>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReporting(null)} disabled={pending}>
+              {Q.cancel}
+            </Button>
+            <Button variant="destructive" onClick={confirmReport} disabled={pending}>
+              {Q.confirm}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </SettingsSection>
   );
 }

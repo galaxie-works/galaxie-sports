@@ -101,6 +101,8 @@ async function Moderation({
                   items={decisions.items}
                   next={decisions.next}
                   filters={filters}
+                  // caso já fechado que se revela abuso infantil (#1296): só o admin do cliente e a Galaxie denunciam
+                  canReport={ctx.actor?.kind === 'galaxie_staff' || canSomewhere(ctx, 'moderation.ban')}
                 />
               ) : (
                 <SafetyNote>{t.moderation.history.denied}</SafetyNote>
