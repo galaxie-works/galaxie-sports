@@ -36,8 +36,9 @@ jobs:
       contents: read
       packages: read # a VPS baixa a imagem com o token deste job (vale só enquanto ele roda)
     env:
-      VPS: ${{ vars.VPS_SSH_TARGET || 'root@145.223.94.149' }}
-      DIR: /docker/galaxie-sports
+      # alvo e pasta da stack na VPS: só pelas vars do repositório (Settings › Variables), sem IP de reserva no código
+      VPS: ${{ vars.VPS_SSH_TARGET }}
+      DIR: ${{ vars.VPS_DIR }}
       IMAGE: ghcr.io/galaxie-works/galaxie-sports-backup
     steps:
       # a mesma régua do gate do deploy.yml: o commit tem de estar na main e com o CI e o workflow de imagens verdes
@@ -132,7 +133,7 @@ jobs:
           TAG: ${{ steps.tag.outputs.tag }}
           GHCR_USER: ${{ github.actor }}
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CFG: /docker/galaxie-sports/.ghcr-dados-${{ github.run_id }}
+          CFG: ${{ vars.VPS_DIR }}/.ghcr-dados-${{ github.run_id }}
         run: |
           set -o pipefail
           # credencial temporária (o token chega pelo stdin, nunca na linha de comando; sai no passo de limpeza)
@@ -159,7 +160,7 @@ jobs:
       - name: Limpar a credencial na VPS
         if: always()
         env:
-          CFG: /docker/galaxie-sports/.ghcr-dados-${{ github.run_id }}
+          CFG: ${{ vars.VPS_DIR }}/.ghcr-dados-${{ github.run_id }}
         run: ssh -o ConnectTimeout=20 "$VPS" "rm -rf $CFG" || echo "::warning::não consegui remover $CFG na VPS; remova à mão"
 
       # o pipefail vale no shell remoto (o status do s3-sync.sh, não o do tail); depois o recibo tem de ser deste sync e,

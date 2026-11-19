@@ -5,7 +5,7 @@ name: Diagnóstico de alerta
 # -f alerta="LiveEventStale sport=football" -f issue=513).
 #
 # A chave VPS_DIAG_SSH_KEY (ambiente producao) só roda um comando na VPS: o authorized_keys força
-# /docker/galaxie-sports/diagnostico.sh (infra/vps-telemetry/diagnostico.sh, gravado pelo deploy), com `restrict`. O
+# $VPS_DIR/diagnostico.sh (infra/vps-telemetry/diagnostico.sh, gravado pelo deploy), com `restrict`. O
 # pedido vai como texto (SSH_ORIGINAL_COMMAND), validado aqui e de novo no script; nada dele é executado.
 on:
   workflow_dispatch:
@@ -45,7 +45,9 @@ jobs:
           SSH_KEY: ${{ secrets.VPS_DIAG_SSH_KEY }}
           KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
           ALERTA: ${{ inputs.alerta }}
+          VPS: ${{ vars.VPS_SSH_TARGET }}
         run: |
+          [ -n "$VPS" ] || { echo "::error::var VPS_SSH_TARGET do repositório não configurada"; exit 1; }
           if [ -z "$SSH_KEY" ] || [ -z "$KNOWN_HOSTS" ]; then
             echo "::error::secrets VPS_DIAG_SSH_KEY e VPS_KNOWN_HOSTS do ambiente producao não configurados"
             exit 1
@@ -54,7 +56,7 @@ jobs:
           (umask 077 && printf '%s\n' "$SSH_KEY" > ~/.ssh/id_diag && printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts)
           # o comando é ignorado pelo servidor (o authorized_keys força o script); vai só como o pedido
           ssh -i ~/.ssh/id_diag -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=20 \
-            root@145.223.94.149 "$ALERTA" > diag.txt 2>&1 || echo "(o diagnóstico terminou com erro: $?)" >> diag.txt
+            "$VPS" "$ALERTA" > diag.txt 2>&1 || echo "(o diagnóstico terminou com erro: $?)" >> diag.txt
           cat diag.txt
 
       - name: Comentar na issue

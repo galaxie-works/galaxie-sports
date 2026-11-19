@@ -165,7 +165,9 @@ jobs:
       packages: read # a VPS baixa as imagens com o token deste job (vale só enquanto ele roda)
     env:
       SHA: ${{ needs.gate.outputs.sha }}
-      VPS: ${{ vars.VPS_SSH_TARGET || 'root@145.223.94.149' }}
+      # alvo e pasta da stack na VPS: só pelas vars do repositório (Settings › Variables), sem IP de reserva no código
+      VPS: ${{ vars.VPS_SSH_TARGET }}
+      VPS_DIR: ${{ vars.VPS_DIR }}
     steps:
       # O roteiro vem da main de agora (o checkout padrão); a versão publicada, de um checkout separado no SHA. Voltar
       # para um SHA anterior ao deploy-gh.sh também funciona: só o compose.yml, o env.example e o smoke são dele.
