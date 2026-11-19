@@ -33,6 +33,7 @@ import { GameScorer, startGameSweep } from './game/scorer.js';
 import { ChatGameFeed } from './chat/game.js';
 import { MemoryChatPeak, RedisChatPeak } from './chat/peak.js';
 import { RedisFloodGuard } from './chat/flood.js';
+import { ChatCosmos, type ChatReportInput } from './chat/cosmos.js';
 import { MemoryReactionCounter, RedisReactionCounter } from './chat/reactions.js';
 import type { ChatStreamOptions } from './chat/stream.js';
 import type { FanTokenSigner } from './engage/fan-token.js';
@@ -688,10 +689,21 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
       const stopModerationPurge = startModerationPurge(options.db, instance.log);
       instance.addHook('onClose', async () => stopModerationPurge());
     }
-    await moderationRoutes(instance, { db: options.db, now: options.now, gate: fanAgeGate });
+    // Cosmos da sala do chat (#981): só age no cliente com a função de moderação ligada para o chat
+    const chatCosmos = options.db ? new ChatCosmos(options.db) : undefined;
+    if (chatCosmos) instance.addHook('onClose', async () => chatCosmos.drain());
+    await moderationRoutes(instance, {
+      db: options.db,
+      now: options.now,
+      gate: fanAgeGate,
+      ...(chatCosmos
+        ? { onChatReport: (r: ChatReportInput) => chatCosmos.submitReport(r).then(() => undefined) }
+        : {}),
+    });
     await chatRoutes(instance, {
       db: options.db,
       now: options.now,
+      cosmos: chatCosmos,
       hub: chatHub,
       peak: chatPeak,
       reactions: chatReactions,
