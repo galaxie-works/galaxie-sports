@@ -27,7 +27,7 @@ import { chatRoutes } from './chat/routes.js';
 import { communityFeedRoutes, startCommunityPurge } from './engage/community-feed-routes.js';
 import { communityPollRoutes } from './engage/community-poll-routes.js';
 import { communityRoutes } from './engage/community-routes.js';
-import { ChatHub } from './chat/hub.js';
+import { ChatHub, removedRoomKey } from './chat/hub.js';
 import { gameRoutes } from './game/routes.js';
 import { GameScorer, startGameSweep } from './game/scorer.js';
 import { ChatGameFeed } from './chat/game.js';
@@ -693,7 +693,10 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
     // Cosmos da sala do chat (#981): só age no cliente com a função de moderação ligada para o chat
     const chatDb = options.db;
     const chatCosmos = chatDb
-      ? new ChatCosmos(chatDb, { clocksFor: (t, c, at) => clocksFor(chatDb, t, c, at) })
+      ? new ChatCosmos(chatDb, {
+          clocksFor: (t, c, at) => clocksFor(chatDb, t, c, at),
+          onRemoved: (t, fixtureId, id) => chatHub.broadcast(removedRoomKey(t, fixtureId), { id }),
+        })
       : undefined;
     if (chatCosmos) instance.addHook('onClose', async () => chatCosmos.drain());
     await moderationRoutes(instance, {

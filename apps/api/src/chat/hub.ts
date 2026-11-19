@@ -50,6 +50,9 @@ export function parseCursor(raw: string | undefined): ChatCursor | null | undefi
 /** Sala das reações no hub: a contagem do segundo sai por `broadcast`, sem fila (#967). */
 export const reactionRoomKey = (tenantId: string, fixtureId: string) => `react:${tenantId}:${fixtureId}`;
 
+/** Sala das mensagens tiradas do ar (#981): sai por `broadcast` e o stream manda `chat.removed`. */
+export const removedRoomKey = (tenantId: string, fixtureId: string) => `removed:${tenantId}:${fixtureId}`;
+
 export type ChatBatchListener = (batch: ChatBatch) => void;
 
 export interface ChatHubOptions {

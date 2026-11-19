@@ -24,7 +24,7 @@ import { moduleLimitsOf } from '../engage/module-limits.js';
 import { formatSse, processLimitRetryAfter, SseConnection } from '../realtime/sse.js';
 import { parseInput } from '../util.js';
 import { gameRoomKey } from './game.js';
-import { reactionRoomKey } from './hub.js';
+import { reactionRoomKey, removedRoomKey } from './hub.js';
 import { ChatHub, formatCursor, parseCursor, type ChatBatch, type ChatCursor } from './hub.js';
 import { PEAK_FLAG_MS, type ChatPeak } from './peak.js';
 
@@ -258,6 +258,13 @@ export function registerChatStream(app: FastifyInstance, deps: Deps): void {
         if (!reactionsReady) return void reactionBacklog.push(...b.messages);
         if (!conn.closed) for (const tally of b.messages) conn.write(formatSse('chat.reactions', tally));
       });
+      // mensagem tirada do ar depois de entregue (Cosmos, #981): o widget tira da tela
+      const unsubscribeRemoved = deps.hub.subscribe(removedRoomKey(tenant.tenantId, fixtureId), (b) => {
+        const ids = (b.messages as { id?: unknown }[]).flatMap((m) =>
+          typeof m.id === 'string' ? [m.id] : [],
+        );
+        if (ids.length && !conn.closed) conn.write(formatSse('chat.removed', { ids }));
+      });
       const unsubscribeGame = deps.hub.subscribe(gameRoomKey(fixtureId), (b) => {
         if (!gameReady) return void gameBacklog.push(...b.messages);
         const messages = gameOf(b.messages);
@@ -315,6 +322,7 @@ export function registerChatStream(app: FastifyInstance, deps: Deps): void {
         unsubscribe();
         unsubscribeGame();
         unsubscribeReactions();
+        unsubscribeRemoved();
         open.delete(conn);
         releaseSlot();
         conn.closed = true;

@@ -113,4 +113,28 @@ describe('ChatCosmos', () => {
     await cosmos.submit(msg({ clocks: clocksFn, rules: { ...msg().rules, suspect: true } }));
     expect(clocksFn).toHaveBeenCalledTimes(1);
   });
+
+  it('a mensagem escondida sai da tela de quem está na sala', async () => {
+    const removed: string[] = [];
+    const db = {
+      execute: vi.fn(async () => [{ event_id: 'f1', id: 'm1' }]),
+    } as unknown as Database;
+    const cosmos = new ChatCosmos(db, {
+      batcher: { submit: () => {}, drain: async () => {} },
+      onRemoved: async (t, fixture, id) => void removed.push(`${t}:${fixture}:${id}`),
+    });
+    await cosmos.applyDecision({
+      item: { module: 'chat', targetType: 'message', tenantId: 't1', targetId: 'm1' } as ModerationItem,
+      by: 'cosmos',
+      verdict: null,
+      plan: {
+        allow: false,
+        queue: false,
+        actions: [{ action: 'hide', step: 'auto' }],
+        level: 2,
+        threshold: 2,
+      },
+    });
+    expect(removed).toEqual(['t1:f1:m1']);
+  });
 });

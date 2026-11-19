@@ -64,6 +64,8 @@ export interface ChatCosmosOptions {
   now?: () => number;
   /** Relógios da ficha pelo país do autor (a denúncia usa o do autor, não o de quem denunciou). */
   clocksFor?: (tenantId: string, country: string, at: Date) => Promise<ModerationClocks>;
+  /** Mensagem tirada do ar: avisa quem está na sala (o stream manda `chat.removed`). */
+  onRemoved?: (tenantId: string, fixtureId: string, messageId: string) => Promise<void>;
 }
 
 export class ChatCosmos {
@@ -72,6 +74,7 @@ export class ChatCosmos {
   private readonly batcher: Pick<ModerationBatcher, 'submit' | 'drain'>;
   private readonly now: () => number;
   private readonly clocksFor: ChatCosmosOptions['clocksFor'];
+  private readonly onRemoved: ChatCosmosOptions['onRemoved'];
 
   constructor(
     private readonly db: Database,
@@ -79,6 +82,7 @@ export class ChatCosmos {
   ) {
     this.now = options.now ?? Date.now;
     this.clocksFor = options.clocksFor;
+    this.onRemoved = options.onRemoved;
     this.batcher =
       options.batcher ??
       createModerationBatcher(db, {
@@ -211,18 +215,26 @@ export class ChatCosmos {
     if (o.item.module !== 'chat' || o.item.targetType !== 'message' || !o.plan || o.plan.allow) return;
     const hide = o.plan.actions.some((a) => a.action === 'hide' && a.step !== 'flag');
     if (!hide) return;
-    await this.db.execute(sql`
+    const rows = await this.db.execute<{ event_id: string; id: string }>(sql`
       with hidden as (
         update chat.message
            set visibility = 'hidden',
                flags = case when visibility = 'shadow' then array_append(flags, 'was_shadow') else flags end
          where tenant_id = ${o.item.tenantId} and id = ${o.item.targetId} and visibility <> 'hidden'
            and not ('restored' = any(flags))
-        returning tenant_id, id
+        returning tenant_id, id, room_id
+      ),
+      unpinned as (
+        update chat.room r set pinned_message_id = null
+          from hidden h
+         where r.tenant_id = h.tenant_id and r.pinned_message_id = h.id
+        returning r.id
       )
-      update chat.room r set pinned_message_id = null
+      select r.event_id, h.id
         from hidden h
-       where r.tenant_id = h.tenant_id and r.pinned_message_id = h.id`);
+        join chat.room r on r.tenant_id = h.tenant_id and r.id = h.room_id`);
+    // já entregue na sala: sai da tela de quem está vendo
+    for (const r of rows) await this.onRemoved?.(o.item.tenantId, r.event_id, r.id);
   }
 
   /** Desligamento: manda o que está juntando, sem passar do prazo do processo. */
