@@ -24,7 +24,7 @@ codex_p1() {
            and (.body|test("P1 Badge")))] | length' 2>/dev/null || echo 0
 }
 [ "${BASH_SOURCE[0]}" = "$0" ] || return 0  # carregado pelo teste: só as funções
-cd "${GALAXIE_ROOT:-/g/galaxie-sports}" || exit 1
+cd "${GALAXIE_ROOT:-$(git -C "$(dirname "$0")" worktree list --porcelain 2>/dev/null | sed -n '1s/^worktree //p')}" || exit 1
 merged=()
 for p in "$@"; do
   st=$(gh pr view $p --json state,mergeable --jq '"\(.state) \(.mergeable)"')
