@@ -306,6 +306,9 @@ function sportModules(api: string): ModuleDef[] {
   return [
     { ...fixed('agenda', ['sync-daily'], seasonList), steps: ['outros-esportes'] },
     ...groups.filter(([, list]) => list.length).map(([id, list]) => mirror(api, id, list)),
+    // cenário e resumo de IA (#1489), sem os vídeos do `ai-content` do futebol (#1390): tier 1 ligado por decisão do
+    // Wagner (19/11); o gerador destes esportes vem na #1490 e na #1491
+    job('ai-context', ['recap-run', 'context-run'], [], tiersUpTo(1), { ai: true }),
   ];
 }
 

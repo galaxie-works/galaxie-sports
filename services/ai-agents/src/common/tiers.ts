@@ -5,7 +5,13 @@
  */
 import { eq, gte, lte, or, sql, type SQL } from 'drizzle-orm';
 import { competition } from '@galaxie/db';
-import { AGENT_MAX_TIER, MODULE_TIERS, moduleConfig, type ModuleTier } from '@galaxie/runtime-config';
+import {
+  AGENT_MAX_TIER,
+  MODULE_APIS,
+  MODULE_TIERS,
+  moduleConfig,
+  type ModuleTier,
+} from '@galaxie/runtime-config';
 
 /** Tiers até `maxTier` (2 → 1 e 2; 3 ou mais → todos, com o 3 valendo 3 e acima). */
 export const tiersUpTo = (maxTier: number): ModuleTier[] => MODULE_TIERS.filter((t) => t <= maxTier);
@@ -41,9 +47,25 @@ export function effectiveTiers(opts: {
  */
 export function moduleTiers(
   env: Record<string, string | undefined>,
-  module: 'ai-content' | 'wtw',
+  module: 'ai-content' | 'ai-context' | 'wtw',
+  api = 'football',
 ): ModuleTier[] {
   return moduleConfig((key) => env[key])
-    .api('football')
+    .api(api)
     .tiersOn(module);
+}
+
+/**
+ * Esportes fora do futebol com o cenário e o resumo de IA ligados no painel (`ai-context` de cada API), com os tiers
+ * ligados. Os agentes ainda só geram para o futebol (#1490, #1491): a lista vai para o relatório da execução.
+ */
+export function aiContentSports(env: Record<string, string | undefined>): Record<string, ModuleTier[]> {
+  const config = moduleConfig((key) => env[key]);
+  const out: Record<string, ModuleTier[]> = {};
+  for (const api of MODULE_APIS) {
+    if (api === 'football') continue;
+    const tiers = config.api(api).tiersOn('ai-context');
+    if (tiers.length) out[api] = tiers;
+  }
+  return out;
 }
