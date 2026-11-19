@@ -52,6 +52,8 @@ export const ROLE_ROUTES: readonly RoleRoute[] = [
   // cadastro em autoatendimento (F2): mesmo host do login; o assistente só fala com o banco por ações do servidor
   { path: '/signup', owner: 'comum' },
   { path: '/api/auth', owner: 'comum' },
+  // login das docs (galaxie-sports-docs, #1484): exige a sessão e devolve um passe curto ao site de docs
+  { path: '/docs-handoff', owner: 'comum' },
   // telas do login antigo: redirecionam para o login
   { path: '/definir-senha', owner: 'comum' },
   { path: '/esqueci-senha', owner: 'comum' },
