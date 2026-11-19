@@ -241,6 +241,25 @@ export function mentionsTogether(
   );
 }
 
+/**
+ * O confronto está na página: os dois times a até 6 palavras um do outro, com um único separador ("x",
+ * "vs") entre eles ("Flamengo x Palmeiras"). Times citados em jogos diferentes ou numa tabela não contam.
+ */
+export function mentionsMatch(text: string, teams: readonly [TeamNames, TeamNames], maxWords = 6): boolean {
+  const all = words(text.replace(/×/g, ' x '));
+  const a = teamHits(all, teams[0]);
+  const b = teamHits(all, teams[1]);
+  const seps = all.flatMap((w, i) => (MATCH_SEPARATORS.has(w) ? [i] : []));
+  return a.some((x) =>
+    b.some((y) => {
+      if (x === y || Math.abs(x - y) > maxWords) return false;
+      const lo = Math.min(x, y);
+      const hi = Math.max(x, y);
+      return seps.filter((i) => i > lo && i < hi).length === 1;
+    }),
+  );
+}
+
 // ─── validador ───────────────────────────────────────────────────────────────────────────────────
 
 /** Proposta do modelo para um jogo × país: só ids e a fonte. */

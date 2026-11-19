@@ -77,7 +77,7 @@ export async function broadcasterRoutes(app: FastifyInstance, ctx: AppContext): 
       vary: [locale],
       load: async () => {
         const [row] = await listBroadcasters(requireDb(ctx), { ids: [params.id] });
-        if (!row) throw problems.notFound('Emissora');
+        if (!row) throw problems.notFound('Broadcaster');
         return { body: broadcasterDto(row, ctx.assetsBaseUrl), tags: [`broadcaster:${row.id}`, 'asset'] };
       },
     });

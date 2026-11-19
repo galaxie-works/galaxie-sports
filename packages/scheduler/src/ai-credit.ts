@@ -13,6 +13,8 @@
  * chamada; `is_available: false` (saldo zerado) vale como o 402 de saldo insuficiente da própria API.
  */
 
+import { AI_PROVIDER_KEY_ENV, defaultModelOf, isAiProvider } from '@galaxie/runtime-config';
+
 export type CreditStatus = 'pass' | 'warn' | 'fail';
 
 export interface CreditCheckDetail {
@@ -52,20 +54,6 @@ function failureReason(http: number, codes: string[], message: string): CreditCh
   return undefined;
 }
 
-const LIGHT_DEFAULT: Record<string, string> = {
-  openai: 'gpt-6-luna',
-  anthropic: 'claude-haiku-5-5',
-  gemini: 'gemini-3.5-flash-lite',
-  deepseek: 'deepseek-flash',
-};
-
-const KEY_ENV: Record<string, string> = {
-  openai: 'OPENAI_API_KEY',
-  anthropic: 'ANTHROPIC_API_KEY',
-  gemini: 'GEMINI_API_KEY',
-  deepseek: 'DEEPSEEK_API_KEY',
-};
-
 export const DEEPSEEK_BALANCE_URL = 'https://api.deepseek.com/user/balance';
 
 interface DeepSeekBalance {
@@ -102,10 +90,12 @@ export async function checkAiCredit(
   timeoutMs = 20_000,
 ): Promise<CreditCheckResult> {
   const provider = env.AI_PROVIDER?.trim().toLowerCase() || 'openai';
-  const model = env.AI_MODEL_LIGHT?.trim() || LIGHT_DEFAULT[provider] || '';
+  const model =
+    env.AI_MODEL_LIGHT?.trim() || (isAiProvider(provider) ? defaultModelOf(provider, 'light') : '');
   if (env.AI_STATUS?.trim().toLowerCase() === 'off')
     return { status: 'warn', detail: { code: 'ai_off', provider, model } };
-  const key = env[KEY_ENV[provider] ?? 'OPENAI_API_KEY']?.trim();
+  const key =
+    env[isAiProvider(provider) ? AI_PROVIDER_KEY_ENV[provider] : AI_PROVIDER_KEY_ENV.openai]?.trim();
   if (!key) return { status: 'warn', detail: { code: 'no_key', provider, model } };
 
   const request: [string, RequestInit] =

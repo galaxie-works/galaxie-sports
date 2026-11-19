@@ -66,8 +66,8 @@ export class AuthThrottle {
       throw new ProblemError(
         429,
         'RATE_LIMITED',
-        'Muitas tentativas de autenticação',
-        'Muitas chaves inválidas ou não verificadas a partir deste IP ou para este prefixo; aguarde.',
+        'Too many authentication attempts',
+        'Too many invalid or unverified keys from this IP or for this prefix; wait before retrying.',
         { headers: { 'retry-after': String(retryAfter) } },
       );
     }

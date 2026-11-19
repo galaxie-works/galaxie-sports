@@ -100,7 +100,7 @@ export async function contextRoutes(app: FastifyInstance, ctx: AppContext): Prom
           .where(UUID_RE.test(params.id) ? eq(competition.id, params.id) : eq(competition.slug, params.id))
           .orderBy(sql`(${competition.sport} = 'football') desc`)
           .limit(1);
-        if (!c) throw problems.notFound('Competição');
+        if (!c) throw problems.notFound('Competition');
         const [s] = await db
           .select()
           .from(season)
@@ -112,7 +112,7 @@ export async function contextRoutes(app: FastifyInstance, ctx: AppContext): Prom
           )
           .orderBy(desc(season.year))
           .limit(1);
-        if (!s && query.season !== 'current') throw problems.notFound('Temporada');
+        if (!s && query.season !== 'current') throw problems.notFound('Season');
         const rules = await ctx.rules.get(c.c.slug, s?.year ?? null);
         const labels = { ...(c.c.labels ?? {}), ...(c.profileLabels ?? {}) } as Record<string, string>;
 

@@ -11,34 +11,9 @@
  * acentuado não muda, e "Saoense" não vira "Sãoense". A caixa do original é mantida (SAO → SÃO).
  */
 
-type Lang = 'pt' | 'es';
+import { iberianLanguage } from '@galaxie/geo';
 
-/** Países de língua portuguesa com times na base. */
-const PT_COUNTRIES = new Set(['BR', 'PT', 'AO', 'MZ', 'CV', 'GW', 'ST', 'TL']);
-/** Países de língua espanhola (Espanha e América hispânica). */
-const ES_COUNTRIES = new Set([
-  'ES',
-  'AR',
-  'BO',
-  'CL',
-  'CO',
-  'CR',
-  'CU',
-  'DO',
-  'EC',
-  'GQ',
-  'GT',
-  'HN',
-  'MX',
-  'NI',
-  'PA',
-  'PE',
-  'PR',
-  'PY',
-  'SV',
-  'UY',
-  'VE',
-]);
+type Lang = 'pt' | 'es';
 
 /** Palavras com a mesma grafia no Brasil e em Portugal. */
 const PT_WORDS: Record<string, string> = {
@@ -274,17 +249,15 @@ function dictionaryOf(countryCode: string | null | undefined): Dictionary | null
   const code = countryCode?.toUpperCase();
   if (!code) return null;
   if (code === 'PT') return DICTIONARIES['pt-PT']!;
-  if (PT_COUNTRIES.has(code)) return DICTIONARIES['pt-BR']!;
-  if (ES_COUNTRIES.has(code)) return DICTIONARIES.es!;
+  const lang = iberianLanguage(code);
+  if (lang === 'pt') return DICTIONARIES['pt-BR']!;
+  if (lang === 'es') return DICTIONARIES.es!;
   return null;
 }
 
 /** Idioma do corretor para o país (pt, es) ou null quando ele não se aplica. */
 export function accentLanguage(countryCode: string | null | undefined): Lang | null {
-  const code = countryCode?.toUpperCase();
-  if (!code) return null;
-  if (PT_COUNTRIES.has(code)) return 'pt';
-  return ES_COUNTRIES.has(code) ? 'es' : null;
+  return iberianLanguage(countryCode);
 }
 
 /** Aplica ao acento a caixa do original: tudo maiúsculo, primeira maiúscula ou tudo minúsculo. */

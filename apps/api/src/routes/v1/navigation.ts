@@ -240,7 +240,7 @@ export async function navigationRoutes(
       .where(eq(country.code, code))
       .limit(1);
     const cfg = g.country(code);
-    if (!row && !cfg) throw problems.notFound('País');
+    if (!row && !cfg) throw problems.notFound('Country');
     return {
       code,
       name: pickText(

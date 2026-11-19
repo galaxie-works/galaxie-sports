@@ -11,10 +11,12 @@
  * uso devolvido pelo Gemini depois. Sem orçamento, a chamada não sai (BudgetExceededError).
  */
 import { estimateCostUsd, type TokenBudget } from '@galaxie/ai-ledger';
+import { defaultModelOf } from '@galaxie/runtime-config';
 import type { Ranker } from './map.js';
 import type { AiJudgement } from './select.js';
 
-export const GEMINI_VISION_DEFAULT_MODEL = 'gemini-3.5-flash-lite';
+/** Modelo padrão da visão: o leve do Gemini no catálogo único (GEMINI_MODEL_VISION sobrescreve). */
+export const GEMINI_VISION_DEFAULT_MODEL = defaultModelOf('gemini', 'light');
 const API = 'https://generativelanguage.googleapis.com/v1beta/models';
 
 /** Agente no ledger (prefixo do `purpose`): teto próprio em AI_AGENT_USD_BUDGETS (`assets=1`). */

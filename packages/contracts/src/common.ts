@@ -79,7 +79,7 @@ export const AGE_GATE_NEXT_STEPS = ['verify_age', 'guardian_consent', 'guardian_
 export const Problem = z
   .object({
     type: z.string().meta({ example: 'https://docs.galaxie.sports/errors/invalid-key' }),
-    title: z.string().meta({ example: 'Chave de API ausente ou inválida' }),
+    title: z.string().meta({ example: 'Missing or invalid API key' }),
     status: z.number().int(),
     code: z.enum(ERROR_CODES),
     detail: z.string().optional(),

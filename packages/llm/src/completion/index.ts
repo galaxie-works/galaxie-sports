@@ -1,4 +1,5 @@
 /** Clientes de texto livre (CompletionClient) de cada provedor e a fábrica por nome. */
+import { AI_PROVIDER_KEY_ENV } from '@galaxie/runtime-config';
 import { LlmError } from '../errors.js';
 import type { CompletionClient, LlmProviderId } from '../types.js';
 import { AnthropicCompletionClient } from './anthropic.js';
@@ -11,13 +12,8 @@ export * from './anthropic.js';
 export * from './gemini.js';
 export * from './openai-compatible.js';
 
-/** Variável da chave de cada provedor. */
-export const PROVIDER_KEY_ENV: Readonly<Record<LlmProviderId, string>> = {
-  openai: 'OPENAI_API_KEY',
-  anthropic: 'ANTHROPIC_API_KEY',
-  gemini: 'GEMINI_API_KEY',
-  deepseek: 'DEEPSEEK_API_KEY',
-};
+/** Variável da chave de cada provedor (do catálogo único, @galaxie/runtime-config). */
+export const PROVIDER_KEY_ENV: Readonly<Record<LlmProviderId, string>> = AI_PROVIDER_KEY_ENV;
 
 /** Cliente de texto livre do provedor (ex.: o escolhido por função em Ajustes). */
 export function createCompletionClient(

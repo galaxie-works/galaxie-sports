@@ -53,7 +53,7 @@ export async function leadersRoutes(app: FastifyInstance, ctx: AppContext): Prom
           .where(where)
           .orderBy(sql`(${competition.sport} = 'football') desc`)
           .limit(1);
-        if (!c) throw problems.notFound('Competição');
+        if (!c) throw problems.notFound('Competition');
         const [s] = await db
           .select({ id: season.id, year: season.year, label: season.label })
           .from(season)
@@ -65,7 +65,7 @@ export async function leadersRoutes(app: FastifyInstance, ctx: AppContext): Prom
           )
           .orderBy(desc(season.year))
           .limit(1);
-        if (!s) throw problems.notFound('Temporada');
+        if (!s) throw problems.notFound('Season');
 
         // O banco é a única fonte da ordem e da posição: `rank()` dá a posição pelo valor (empatados dividem:
         // 1, 2, 2, 4) e o corte é pela posição, então quem empata com o último entra junto. O teto de 50 nunca
