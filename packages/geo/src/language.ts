@@ -12,8 +12,6 @@
  * O apelido (`nickname`) segue localizado como antes; a mudança é só na escolha do nome.
  */
 
-import { SUPPORTED_LOCALES } from '@galaxie/contracts';
-
 /** Idiomas em que os rótulos (`labels`) são escritos. */
 export type LabelLanguage = 'pt' | 'es' | 'en';
 
@@ -116,11 +114,10 @@ export function iberianLanguage(countryCode: string | null | undefined): 'pt' | 
 
 /**
  * Países com voz própria em espanhol: os mercados com locale `es-XX` na API (`SUPPORTED_LOCALES` de
- * `@galaxie/contracts`, a fonte). Hispânico fora deles fala `es-AR`, o espanhol padrão do produto.
+ * `@galaxie/contracts`, a fonte). Cópia para este arquivo não importar nada (roda no navegador sem levar os
+ * schemas do contracts); o `language.test.ts` reprova se divergir. Hispânico fora deles fala `es-AR`.
  */
-export const SPANISH_VOICE_COUNTRIES: readonly string[] = SUPPORTED_LOCALES.filter((l) =>
-  l.startsWith('es-'),
-).map((l) => l.slice(3));
+export const SPANISH_VOICE_COUNTRIES: readonly string[] = ['AR', 'MX', 'CO', 'CL', 'PE', 'UY', 'EC'];
 /** Espanhol padrão (hispânico sem voz própria e conteúdo em espanhol sem país). */
 export const DEFAULT_SPANISH_LOCALE = 'es-AR';
 /** Português do produto (todo país lusófono). */

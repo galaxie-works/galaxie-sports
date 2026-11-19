@@ -114,7 +114,6 @@ flowchart TB
   packages_crests --> packages_db
   packages_db --> packages_contracts
   packages_explore --> packages_contracts & packages_db & packages_geo & packages_providers
-  packages_geo --> packages_contracts
   packages_knowledge --> packages_db
   packages_llm --> packages_ai_ledger
   packages_observability --> packages_apisports_client & packages_contracts & packages_db & packages_runtime_config

@@ -1,3 +1,4 @@
+import { SUPPORTED_LOCALES } from '@galaxie/contracts';
 import { describe, expect, it } from 'vitest';
 import {
   competitionName,
@@ -105,7 +106,9 @@ describe('competitionName', () => {
 
 describe('countryLocale e iberianLanguage', () => {
   it('voz própria nos mercados da API, es-AR nos outros hispânicos, pt-BR nos lusófonos', () => {
-    expect(SPANISH_VOICE_COUNTRIES).toEqual(['AR', 'MX', 'CO', 'CL', 'PE', 'UY', 'EC']);
+    expect(SPANISH_VOICE_COUNTRIES).toEqual(
+      SUPPORTED_LOCALES.filter((l) => l.startsWith('es-')).map((l) => l.slice(3)),
+    );
     expect(countryLocale('cl')).toBe('es-CL');
     expect(countryLocale('PY')).toBe('es-AR');
     expect(countryLocale('ES')).toBe('es-AR');
