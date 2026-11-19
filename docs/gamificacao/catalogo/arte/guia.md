@@ -247,7 +247,7 @@ Cor do selo: a cor base da moldura sobre fundo escuro semitransparente. Tamanho:
 | Resultado (vitória, virada, goleada, prorrogação) | **Celebração** (grupo de costas ou de perfil, braços erguidos) ou **placar abstrato** (duas barras, uma maior, sem dígito) | time abraçado visto de trás, barras de luz desequilibradas sobre a arquibancada |
 | Participação (assistir, palpitar, votar) | **Torcedor na arquibancada**: de costas ou 3/4, cachecol liso, plano médio ou geral | uma pessoa de pé no meio de assentos vazios; mão erguida numa fileira cheia |
 | Explorador (ligas, países, esportes) | **Mapa abstrato, estrada ou céu**: linhas de rota, bússola, horizonte com vários estádios como formas; **nunca** contorno de país real | estrada que cruza três horizontes, constelação de pontos ligados |
-| Madrugador | **Céu de amanhecer**: gradiente frio para quente, luz baixa rasante, xícara de chá ou café é permitido, nada de bebida alcoólica | torcedor com cobertor na janela, campo com orvalho |
+| Na madrugada (antes "Madrugador") | **Céu de amanhecer**: gradiente frio para quente, luz baixa rasante, xícara de chá ou café é permitido, nada de bebida alcoólica | torcedor com cobertor na janela, campo com orvalho |
 | Coruja | **Céu noturno**: lua, poucas estrelas, luz de tela ou abajur no rosto em silhueta | sofá no escuro com o brilho da tela, estádio apagado ao fundo com um refletor aceso |
 | Conhecedor (trivia) | lousa com diagramas abstratos, livro aberto sem texto, prancheta tática com setas | |
 | Comunidade (enquete, convite) | **Grupo**: três a cinco torcedores diversos, de costas, cachecóis lisos | |

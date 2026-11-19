@@ -62,7 +62,7 @@ As 112 perguntas dos 13 pacotes estão consolidadas em 50 únicas, por tema, em 
 2. **O que é `final` e como as fases de playoff chegam em `stage.kind`?** Final em série (melhor de 7) ou ida e volta conta por jogo; finais de conferência; etapas de sevens. Afeta toda Conquista com `where.stage` nos dez esportes de time e nas comuns.
 3. **`fan.favorite_team_id` aceita seleção?** Sem isso vôlei, handebol e rugby, onde o público do Brasil e da América hispânica torce por seleção antes de clube, perdem metade do que o pacote calibrou.
 
-Logo atrás: aprovar em bloco as 7 exceções à régua; decidir se "Rei do placar exato" e "Madrugador" ficam no masculino (são os exemplos da missão) ou ganham forma neutra; o estilo de arte já foi decidido: **Galaxie (galáctico)**, provado no lote 0 de 16/11 e aplicado a todos os prompts.
+Logo atrás: aprovar em bloco as 7 exceções à régua; ~~decidir o gênero de "Rei do placar exato" e "Madrugador"~~ (decidido em 19/11: nomes neutros, "Placar exato" e "Na madrugada"); o estilo de arte já foi decidido: **Galaxie (galáctico)**, provado no lote 0 de 16/11 e aplicado a todos os prompts.
 
 ## 5. Arte: lote 0 e estilo padrão (16/11)
 
