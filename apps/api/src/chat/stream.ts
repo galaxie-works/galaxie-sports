@@ -65,6 +65,10 @@ export function registerChatStream(app: FastifyInstance, deps: Deps): void {
   const maxBufferBytes = deps.options.maxBufferBytes ?? 1024 * 1024;
   const retryMs = deps.options.retryMs ?? 3_000;
   const maxPerIp = deps.options.maxPerPublishableIp ?? 20;
+  // padrão do pico (`live_chat.peak_connections` no modules.yaml, #1446), lido na subida: catálogo quebrado derruba a
+  // subida, não cada conexão
+  const fallback =
+    deps.options.peakLimitOverride ?? moduleLimitCatalog()['live_chat.peak_connections'].default;
   const open = new Set<SseConnection>();
   let reserved = 0;
 
@@ -84,8 +88,6 @@ export function registerChatStream(app: FastifyInstance, deps: Deps): void {
     if (deps.options.peakLimitOverride != null) return deps.options.peakLimitOverride;
     const hit = tiers.get(tenantId);
     if (hit && Date.now() - hit.at < 60_000) return hit.value;
-    // padrão do catálogo (`live_chat.peak_connections` no modules.yaml, #1446) até o banco responder
-    const fallback = moduleLimitCatalog()['live_chat.peak_connections'].default;
     let value = hit?.value ?? fallback;
     try {
       if (deps.db) {

@@ -19,6 +19,7 @@ import { builderDb } from '@/lib/builder/store';
 
 declare global {
   var __galaxieCatalog: Catalog | undefined;
+  var __galaxieModuleLimits: ModuleLimitDefs | undefined;
 }
 
 /** Catálogo carregado uma vez por processo (muda só no deploy). */
@@ -29,7 +30,8 @@ export function catalog(): Catalog {
 
 /** Faixas dos módulos de engajamento (padrão, teto, faixas fixas) do `modules.yaml` (#1446). */
 export function moduleLimits(): ModuleLimitDefs {
-  return moduleLimitDefs(catalog());
+  globalThis.__galaxieModuleLimits ??= moduleLimitDefs(catalog());
+  return globalThis.__galaxieModuleLimits;
 }
 
 export interface TenantPlanStore {

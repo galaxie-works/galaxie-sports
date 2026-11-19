@@ -1,4 +1,4 @@
-import { getTableConfig } from 'drizzle-orm/pg-core';
+import { PgDialect, getTableConfig } from 'drizzle-orm/pg-core';
 import { describe, expect, it } from 'vitest';
 import {
   API_PLANS,
@@ -50,8 +50,7 @@ describe('faixas de capacidade (#1446)', () => {
   const tiersInCheck = (table: Parameters<typeof getTableConfig>[0], name: string) => {
     const c = getTableConfig(table).checks.find((x) => x.name === name);
     expect(c, name).toBeDefined();
-    const chunks = (c!.value as unknown as { queryChunks: { value?: unknown }[] }).queryChunks;
-    const text = chunks.map((ch) => (Array.isArray(ch.value) ? ch.value.join('') : '')).join('');
+    const text = new PgDialect().sqlToQuery(c!.value).sql;
     return [...text.matchAll(/'([^']+)'/g)].map((m) => m[1]);
   };
 
