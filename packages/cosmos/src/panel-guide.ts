@@ -7,7 +7,7 @@
  *
  * Mantenha cada trecho fiel à tela: ao mudar uma área do painel, atualize o trecho dela aqui.
  */
-import type { DocChunk } from '@galaxie/cosmos';
+import type { DocChunk } from './assistant.js';
 
 export interface PanelGuideChunk extends DocChunk {
   /** Só para a equipe Galaxie (telas de Ajustes). */

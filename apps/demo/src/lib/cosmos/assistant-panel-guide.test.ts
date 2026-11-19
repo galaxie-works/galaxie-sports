@@ -1,8 +1,7 @@
+import { panelGuideChunks } from '@galaxie/cosmos';
 import { describe, expect, it } from 'vitest';
 
 import { CLIENT_NAV } from '@/components/client/client-nav-shared';
-
-import { panelGuideChunks } from './assistant-panel-guide';
 
 describe('guia do painel para a Cosmos (#1411)', () => {
   it('cobre todas as áreas do menu do cliente', () => {

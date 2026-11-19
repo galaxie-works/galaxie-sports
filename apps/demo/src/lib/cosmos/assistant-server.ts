@@ -19,6 +19,7 @@ import {
   cosmosApiKey,
   type CosmosProvider,
   ASSISTANT_FUNCTION,
+  panelGuideChunks,
   buildPrompt,
   DOCS_BUDGET_CHARS,
   estimateAssistantCredits,
@@ -44,7 +45,6 @@ import { openApiDocument } from '@/lib/openapi-reference';
 import { isStaffRole } from '@/lib/auth/roles';
 
 import { apiChunks, docChunks } from './assistant-docs';
-import { panelGuideChunks } from './assistant-panel-guide';
 
 /**
  * Trechos por idioma e público (guias no idioma da tela, o guia do painel e o contrato da API), montados uma vez por

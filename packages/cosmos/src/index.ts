@@ -13,6 +13,7 @@ export * from './brandbook-run.js';
 export * from './credit-requests.js';
 export * from './credits.js';
 export * from './knowledge.js';
+export * from './panel-guide.js';
 export * from './errors.js';
 export * from './lifecycle.js';
 export * from './models.js';
