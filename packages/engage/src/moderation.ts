@@ -587,6 +587,11 @@ function hostsIn(folded: string): string[] {
   return [...hosts];
 }
 
+/** Domínios dos links de um texto, na mesma leitura do filtro (para a detecção de robô, #1290). */
+export function linkHosts(text: string): string[] {
+  return hostsIn(fold(text));
+}
+
 /** Modo lento: quanto falta para o torcedor poder mandar de novo (0 = pode). */
 export function slowModeWait(rate: { intervalS: number; lastSentAt: number | null; now: number }): number {
   if (!rate.intervalS || rate.lastSentAt === null) return 0;

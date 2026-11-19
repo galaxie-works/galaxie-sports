@@ -50,6 +50,7 @@ export const CHAT_SEND_REFUSALS = [
   'room_read_only_peak',
   'sanctioned',
   'flood',
+  'bot',
 ] as const;
 
 export const ChatRoomParams = z.object({
