@@ -26,6 +26,7 @@ import {
 } from '@galaxie/contracts';
 import {
   asset,
+  assetCredit,
   competition,
   competitionProfile,
   country,
@@ -57,6 +58,7 @@ import { CACHE_TTL } from '../../cache/policy.js';
 import { requireDb, type AppContext } from '../../context.js';
 import { problems } from '../../errors.js';
 import { buildEvents, eventsTtl } from '../../events/builder.js';
+import { participantEventIds } from '../../events/participant-events.js';
 import { constructorEvents, constructorProviderIds } from '../../events/race.js';
 import { assertWindow, competitionCond, IN_PLAY, sportScope } from '../../events/queries.js';
 import { competitionName, pickText } from '../../i18n.js';
@@ -85,6 +87,7 @@ import {
   encodeCursor,
   logoFormats,
   logoSizes,
+  logoCreditText,
   logoSource,
   parseInput,
   UUID_RE,
@@ -134,6 +137,7 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
         logoKey: asset.storageKey,
         logoUrl: asset.sourceUrl,
         logoPalette: asset.palette,
+        logoAssetId: asset.id,
         logoOrigin: asset.origin,
         logoVariants: asset.variants,
       })
@@ -215,11 +219,29 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
       .select({ provider: providerMap.provider, providerId: providerMap.providerId })
       .from(providerMap)
       .where(and(eq(providerMap.entityType, 'participant'), eq(providerMap.entityId, id)));
+    // logo da Commons (time sem logo do fornecedor, ex.: construtores históricos da F1): sai com o crédito
+    const [credit] =
+      row.logoOrigin === 'commons' && row.logoAssetId
+        ? await db.select().from(assetCredit).where(eq(assetCredit.assetId, row.logoAssetId)).limit(1)
+        : [];
     return {
       ...toSummary(row, nick, names),
       logo_source: logoSource(row.logoOrigin),
       logo_formats: logoFormats(ctx.assetsBaseUrl, row.logoVariants),
       logo_sizes: logoSizes(ctx.assetsBaseUrl, row.logoVariants),
+      logo_credit: credit
+        ? {
+            source: 'Wikimedia Commons',
+            title: credit.title,
+            page_url: credit.pageUrl,
+            author: credit.author,
+            license: credit.license,
+            license_url: credit.licenseUrl,
+            attribution_required: credit.attributionRequired,
+            attribution: credit.attribution,
+            text: logoCreditText(credit.author, credit.license, credit.attribution),
+          }
+        : null,
       country_ref: c
         ? { code: c.code, name: pickText(c.name as Record<string, string>, locale, c.code)! }
         : null,
@@ -466,6 +488,8 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
           });
         }
 
+        // últimos, ao vivo e próximo partem do participante (participantEventIds): o join direto com `limit`
+        // descia event_starts_at_idx inteiro para quem parou de competir (500 nas páginas de pilotos lendários)
         const teamEvents = (status: Event['status'][], order: 'asc' | 'desc', limit: number) =>
           constructorIds.length
             ? constructorEvents(
@@ -476,34 +500,23 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
                 order,
                 limit,
               )
-            : db
-                .select({ id: event.id })
-                .from(event)
-                .innerJoin(eventParticipant, eq(eventParticipant.eventId, event.id))
-                .where(
-                  and(eq(eventParticipant.participantId, team.id), inArray(event.status, status), inYear),
-                )
-                .orderBy(order === 'asc' ? asc(event.startsAt) : desc(event.startsAt), asc(event.id))
-                .limit(limit);
+            : participantEventIds(db, team.id, and(inArray(event.status, status), inYear), order, limit);
         const [competitions, lastIds, liveIds, nextIds] = await Promise.all([
           loadTeamCompetitions(bctx, team.id, year),
           teamEvents(['finished'], 'desc', 5),
           upcoming ? teamEvents(IN_PLAY, 'desc', 1) : [],
           !upcoming
             ? []
-            : db
-                .select({ id: event.id })
-                .from(event)
-                .innerJoin(eventParticipant, eq(eventParticipant.eventId, event.id))
-                .where(
-                  and(
-                    eq(eventParticipant.participantId, team.id),
-                    inArray(event.status, ['scheduled', 'starting']),
-                    sql`${event.startsAt} >= ${new Date(bctx.now.getTime() - 3 * 3600_000).toISOString()}::timestamptz`,
-                  ),
-                )
-                .orderBy(asc(event.startsAt), asc(event.id))
-                .limit(1),
+            : participantEventIds(
+                db,
+                team.id,
+                and(
+                  inArray(event.status, ['scheduled', 'starting']),
+                  sql`${event.startsAt} >= ${new Date(bctx.now.getTime() - 3 * 3600_000).toISOString()}::timestamptz`,
+                ),
+                'asc',
+                1,
+              ),
         ]);
         const built = await buildEvents(bctx, [
           ...lastIds.map((r) => r.id),

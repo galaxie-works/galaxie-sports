@@ -236,7 +236,8 @@ export const chatGameMessage = chat.table(
 /**
  * Aceite das Diretrizes do chat (#957, item 6.2 do Contrato base): o Torcedor aceita antes da primeira mensagem, e a
  * versão aceita fica registrada. Versão nova pede aceite de novo antes de escrever. Uma linha por Perfil e cliente
- * (a última versão aceita); o Perfil apagado leva o aceite junto.
+ * (a última versão aceita). Sem chave estrangeira para o Perfil, de propósito: a prova do aceite fica mesmo depois de
+ * o Perfil ser apagado (decisão do Wagner, 19/11).
  */
 export const chatGuidelinesAcceptance = chat.table(
   'guidelines_acceptance',
@@ -248,11 +249,6 @@ export const chatGuidelinesAcceptance = chat.table(
   },
   (t) => [
     primaryKey({ name: 'guidelines_acceptance_pkey', columns: [t.tenantId, t.profileId] }),
-    foreignKey({
-      name: 'guidelines_acceptance_profile_fk',
-      columns: [t.tenantId, t.profileId],
-      foreignColumns: [fanProfile.tenantId, fanProfile.id],
-    }).onDelete('cascade'),
     check('guidelines_acceptance_version', sql`${t.version} >= 1`),
   ],
 );

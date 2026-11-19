@@ -24,12 +24,19 @@ import {
   type ChatReactionResponse,
   type ChatRoom,
 } from '@galaxie/contracts';
-import { activeSanctions, CHAT_GAME_KINDS, type ChatStrictness, type Database } from '@galaxie/db';
+import {
+  activeSanctions,
+  CHAT_GAME_KINDS,
+  holdContent,
+  type ChatStrictness,
+  type Database,
+} from '@galaxie/db';
 import {
   canReadRoom,
   CHAT_GUIDELINES_VERSION,
   chatGuidelines,
   gameKindEnabled,
+  linkHosts,
   roomWindow,
   screen,
   screenNotice,
@@ -65,6 +72,7 @@ import {
 import { ChatSettings, type ChatSettingsValues } from './settings.js';
 import { ChatHub, reactionRoomKey } from './hub.js';
 import { MemoryFloodGuard, type FloodGuard } from './flood.js';
+import { BOT_BLOCK_MS, botLinks, MemoryBotGuard, SIGNAL_WINDOW_MS, type BotGuard } from './bot.js';
 import { MemoryReactionCounter, type ReactionCounter } from './reactions.js';
 import { gameMessages } from './game.js';
 import { MemoryChatPeak, type ChatPeak } from './peak.js';
@@ -85,6 +93,8 @@ export interface ChatRoutesDeps {
   reactionsIntervalMs?: number | undefined;
   /** Anti-flood por pessoa; sem ele, em memória. */
   flood?: FloodGuard | undefined;
+  /** Detecção de robô (#1290); sem ela, em memória. */
+  bot?: BotGuard | undefined;
 }
 
 const MODULE = { module: 'live_chat' as const };
@@ -140,6 +150,18 @@ export async function chatRoutes(app: FastifyInstance, deps: ChatRoutesDeps): Pr
   const reactions = deps.reactions ?? new MemoryReactionCounter();
   const flood = deps.flood ?? new MemoryFloodGuard();
   let floodErrorAt = 0;
+  const bot = deps.bot ?? new MemoryBotGuard();
+  let botErrorAt = 0;
+  // Perfis com caso de dúvida de robô aberto há pouco (por instância): a fila não recebe o mesmo sinal a cada mensagem
+  const botReviews = new Map<string, number>();
+  const firstBotReview = (tenantId: string, profileId: string, at: number): boolean => {
+    const key = `${tenantId}:${profileId}`;
+    const last = botReviews.get(key);
+    if (last !== undefined && at - last < SIGNAL_WINDOW_MS) return false;
+    if (botReviews.size > 10_000) botReviews.clear();
+    botReviews.set(key, at);
+    return true;
+  };
   // Fecha o segundo das reações. Toda instância roda o relógio, mas só uma fecha cada segundo (trava no Valkey) e o
   // script atômico garante que cada reação conta uma vez. Uma rodada por vez; o log de falha sai no máximo por minuto
   let flushing = false;
@@ -188,6 +210,38 @@ export async function chatRoutes(app: FastifyInstance, deps: ChatRoutesDeps): Pr
     if (purgeOffsets.size > 10_000) purgeOffsets.clear();
     purgeOffsets.set(key, { at: at.getTime(), ms: clocks.contentPurgeAt.getTime() });
     return new Date(at.getTime() + clocks.contentPurgeAt.getTime());
+  }
+
+  /**
+   * Robô travado (#1290): o caso vai para a fila humana, que decide (o validador sinaliza). Alvo próprio
+   * (`behavior`, `chat_bot:<perfil>`): não se mistura com o caso aberto do Perfil por outro motivo (foto, faixa).
+   */
+  async function holdBotCase(
+    tenantId: string,
+    roomId: string,
+    profileId: string,
+    country: string,
+    signals: readonly string[],
+    text: string,
+    at: Date,
+  ): Promise<void> {
+    await holdContent(db(), {
+      tenantId,
+      targetType: 'behavior',
+      targetId: `chat_bot:${profileId}`,
+      targetProfileId: profileId,
+      module: 'chat',
+      room: roomId,
+      community: null,
+      source: 'filter',
+      reasons: [...signals],
+      severity: 50,
+      hide: false,
+      content: text,
+      detail: { signals, blocked_minutes: BOT_BLOCK_MS / 60_000 },
+      clocks: await clocksFor(db(), tenantId, country, at),
+      now: at,
+    });
   }
 
   /**
@@ -572,6 +626,58 @@ export async function chatRoutes(app: FastifyInstance, deps: ChatRoutesDeps): Pr
             errors: [{ path: 'refusal', message: 'flood' }],
           },
         );
+      // robô (#1290): ritmo de máquina trava o envio e abre caso na fila; Conta com vários Perfis na sala e o mesmo
+      // link entre Perfis só marcam a mensagem para a Cosmos e a fila. Valkey fora não barra ninguém
+      const verified = profile.ageAssurance === 'verified';
+      const botVerdict = await bot
+        .check({
+          tenantId: fan.tenantId,
+          roomId: room.id,
+          profileId: fan.profileId,
+          accountId: profile.accountId,
+          links: botLinks(text, linkHosts(text)),
+          verified,
+          slowModeMs: eff.slowModeSeconds * 1000,
+          now: at.getTime(),
+        })
+        .catch((err: unknown) => {
+          if (Date.now() - botErrorAt > 60_000) {
+            botErrorAt = Date.now();
+            request.log.warn({ err }, 'detecção de robô do chat indisponível; envio liberado');
+          }
+          return { blockedMs: 0, blockedNow: false, signals: [] };
+        });
+      if (botVerdict.blockedNow)
+        await holdBotCase(
+          fan.tenantId,
+          room.id,
+          fan.profileId,
+          profile.country,
+          botVerdict.signals,
+          text,
+          at,
+        ).catch((err: unknown) => request.log.error({ err }, 'chat: caso de robô não aberto'));
+      if (botVerdict.blockedMs > 0)
+        throw new ProblemError(429, 'RATE_LIMITED', 'Envio pausado', sendRefusalNotice('bot', fan.locale), {
+          headers: { 'retry-after': String(Math.ceil(botVerdict.blockedMs / 1000)) },
+          errors: [{ path: 'refusal', message: 'bot' }],
+        });
+      if (botVerdict.signals.length > 0) {
+        if (!flags.includes('suspect')) flags.push('suspect');
+        flags.push(...botVerdict.signals);
+        // dúvida também vai para a fila humana (o validador sinaliza, a pessoa decide): um caso por Perfil, sem
+        // reabrir a cada mensagem enquanto o sinal dura
+        if (firstBotReview(fan.tenantId, fan.profileId, at.getTime()))
+          void holdBotCase(
+            fan.tenantId,
+            room.id,
+            fan.profileId,
+            profile.country,
+            botVerdict.signals,
+            text,
+            at,
+          ).catch((err: unknown) => request.log.error({ err }, 'chat: caso de robô não aberto'));
+      }
       const saved = await insertMessage(
         database,
         {

@@ -379,7 +379,8 @@ function LiveChatRoom({
         // o aviso do filtro sai no idioma do torcedor em `errors` (o `detail` de algumas recusas é fixo)
         const fieldMessage = json?.errors?.find((x) => x.path === 'body')?.message;
         setSendError(
-          res.status === 429 && retry && !json?.errors?.some((x) => x.message === 'flood')
+          // recusa com motivo (anti-flood, robô) traz o próprio aviso; o 429 sem motivo é o modo lento
+          res.status === 429 && retry && !json?.errors?.some((x) => x.path === 'refusal')
             ? fillText(T.slowMode, { s: retry })
             : (fieldMessage ?? json?.detail ?? T.sendError),
         );

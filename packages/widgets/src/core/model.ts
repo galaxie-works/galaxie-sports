@@ -50,6 +50,7 @@ export const WIDGET_KINDS = [
   'upcoming_derbies',
   'shop_the_game',
   'live_chat',
+  'fan_achievements',
 ] as const;
 export type WidgetKind = (typeof WIDGET_KINDS)[number];
 
@@ -2004,6 +2005,28 @@ a.gs-tile:hover{border-color:var(--gs-primary)}
 .gs-chat-report-form{display:flex;flex-wrap:wrap;gap:.4em;align-items:center;margin:.3em 0 0;font-size:.8em}
 .gs-chat-guidelines p{margin:.3em 0}
 .gs-chat-guidelines ul{margin:.3em 0;padding-left:1.2em}
+.gs-ach-top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px}
+.gs-ach-family{margin:calc(var(--gs-gap)*.6) 0 6px;font-size:.78em;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--gs-muted-foreground)}
+.gs-ach-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin:0;padding:0;list-style:none}
+.gs-ach-item{appearance:none;display:flex;flex-direction:column;gap:6px;width:100%;min-height:100%;padding:10px;border:1px solid var(--gs-border);border-radius:calc(var(--gs-radius)*.75);background:var(--gs-surface);color:var(--gs-foreground);font:inherit;text-align:left;cursor:pointer;transition:border-color .2s cubic-bezier(.22,1,.36,1)}
+.gs-ach-item:hover{border-color:var(--gs-primary)}
+.gs-ach-item:focus-visible{outline:2px solid var(--gs-primary);outline-offset:2px}
+.gs-ach-item[data-locked]{color:var(--gs-muted-foreground)}
+.gs-ach-medal{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:999px;border:3px solid var(--gs-ach-color,var(--gs-border));background:color-mix(in srgb,var(--gs-ach-color,var(--gs-border)) 18%,transparent);font-size:.8em;font-weight:800;color:var(--gs-foreground)}
+.gs-ach-item[data-locked] .gs-ach-medal{border-style:dashed;background:transparent;color:var(--gs-muted-foreground)}
+.gs-ach-name{font-weight:700;font-size:.9em;line-height:1.25}
+.gs-ach-bar{display:block;height:6px;border-radius:999px;background:color-mix(in srgb,var(--gs-foreground) 10%,transparent);overflow:hidden}
+.gs-ach-bar>span{display:block;height:100%;border-radius:inherit;background:var(--gs-ach-color,var(--gs-primary))}
+.gs-ach-detail{display:flex;flex-direction:column;gap:8px;padding:12px;border:1px solid var(--gs-border);border-radius:calc(var(--gs-radius)*.75);background:var(--gs-surface)}
+.gs-ach-steps{display:flex;flex-direction:column;gap:2px;margin:0;padding:0;list-style:none;font-size:.85em}
+.gs-ach-steps li[data-done]{font-weight:700}
+.gs-ach-earners{display:flex;flex-wrap:wrap;gap:6px;margin:0;padding:0;list-style:none}
+.gs-ach-toast{padding:8px 12px;border-radius:calc(var(--gs-radius)*.75);background:var(--gs-primary);color:var(--gs-primary-foreground);font-weight:700;font-size:.85em;animation:gs-ach-in .2s cubic-bezier(.22,1,.36,1)}
+.gs-rank-row{display:grid;grid-template-columns:2.5em 1fr auto;align-items:center;gap:8px;padding:6px 8px;border-radius:calc(var(--gs-radius)/2);font-variant-numeric:tabular-nums}
+.gs-rank-row[data-me]{background:color-mix(in srgb,var(--gs-primary) 14%,transparent);font-weight:700}
+.gs-rank-pos{color:var(--gs-muted-foreground);font-weight:700}
+@keyframes gs-ach-in{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.gs-ach-toast{animation:none}.gs-ach-item{transition:none}}
 `;
 
 // ─── textos ──────────────────────────────────────────────────────────────────────────────────────
@@ -2582,6 +2605,55 @@ export interface WidgetTexts {
     /** "{n} empates". */
     draws: string;
     scopes: Record<GsDerbyScope, string>;
+  };
+  /** Estante de Conquistas e Ranking do torcedor (#919). */
+  achievements: {
+    title: string;
+    tabShelf: string;
+    tabRanking: string;
+    /** Nenhuma Conquista ainda. */
+    empty: string;
+    lifetime: string;
+    /** "Temporada {season}". */
+    season: string;
+    seasonLabel: string;
+    locked: string;
+    complete: string;
+    /** "{count} de {next}". */
+    progress: string;
+    /** "{pct} dos torcedores têm". */
+    rarity: string;
+    /** "{n} de {total} ganhas". */
+    earned: string;
+    steps: Record<GsStepName, string>;
+    families: Record<GsAchievementFamily, string>;
+    /** Família sem nome conhecido. */
+    otherFamily: string;
+    close: string;
+    /** Linha de um Degrau no detalhe: "{step}: {threshold}". */
+    stepLine: string;
+    /** Conquista de momento (Degrau único). */
+    unique: string;
+    earners: string;
+    /** "{n} torcedores já ganharam". */
+    earnersTotal: string;
+    earnersNone: string;
+    share: string;
+    /** Legenda do card compartilhável. */
+    shareCaption: string;
+    /** Aviso ao vivo: "Você chegou a {step} em {name}!" */
+    reached: string;
+    rankingMonth: string;
+    rankingYear: string;
+    /** "{n} pts". */
+    points: string;
+    you: string;
+    /** "Você está em {position}º". */
+    yourPosition: string;
+    /** Ainda sem Pontos no período. */
+    noPosition: string;
+    rankingEmpty: string;
+    anonymous: string;
   };
   /** Chat ao vivo da sala do jogo (#976). */
   liveChat: {
@@ -3242,6 +3314,51 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
         continental: 'Continental',
         international: 'Internacional',
       },
+    },
+    achievements: {
+      title: 'Minhas Conquistas',
+      tabShelf: 'Conquistas',
+      tabRanking: 'Ranking',
+      empty: 'Você ainda não tem Conquistas. Acompanhe os jogos e palpite para ganhar a primeira.',
+      lifetime: 'Todas as temporadas',
+      season: 'Temporada {season}',
+      seasonLabel: 'Período',
+      locked: 'Bloqueada',
+      complete: 'Completa',
+      progress: '{count} de {next}',
+      rarity: '{pct} dos torcedores têm',
+      earned: '{n} de {total} ganhas',
+      steps: { bronze: 'Bronze', silver: 'Prata', gold: 'Ouro', platinum: 'Platina', legendary: 'Lendário' },
+      families: {
+        loyalty: 'Fidelidade',
+        predictions: 'Palpites',
+        results: 'Resultados',
+        moments: 'Momentos',
+        explorer: 'Explorador',
+        rhythm: 'Ritmo',
+        knowledge: 'Conhecimento',
+        community: 'Comunidade',
+        collector: 'Colecionador',
+        consumption: 'Conteúdo',
+      },
+      otherFamily: 'Outras',
+      close: 'Fechar',
+      stepLine: '{step}: {threshold}',
+      unique: 'Conquista única',
+      earners: 'Quem já ganhou',
+      earnersTotal: '{n} torcedores já ganharam',
+      earnersNone: 'Ninguém ganhou ainda. Seja o primeiro!',
+      share: 'Compartilhar',
+      shareCaption: 'Conquista no programa de torcedores',
+      reached: 'Você chegou a {step} em {name}!',
+      rankingMonth: 'Mês',
+      rankingYear: 'Ano',
+      points: '{n} pts',
+      you: 'Você',
+      yourPosition: 'Você está em {position}º',
+      noPosition: 'Você ainda não pontuou neste período.',
+      rankingEmpty: 'Ninguém pontuou neste período ainda.',
+      anonymous: 'Torcedor',
     },
     liveChat: {
       title: 'Chat do jogo',
@@ -3916,6 +4033,51 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
         international: 'Internacional',
       },
     },
+    achievements: {
+      title: 'Mis logros',
+      tabShelf: 'Logros',
+      tabRanking: 'Ranking',
+      empty: 'Todavía no tienes logros. Sigue los partidos y pronostica para ganar el primero.',
+      lifetime: 'Todas las temporadas',
+      season: 'Temporada {season}',
+      seasonLabel: 'Período',
+      locked: 'Bloqueado',
+      complete: 'Completo',
+      progress: '{count} de {next}',
+      rarity: '{pct} de los hinchas lo tienen',
+      earned: '{n} de {total} ganados',
+      steps: { bronze: 'Bronce', silver: 'Plata', gold: 'Oro', platinum: 'Platino', legendary: 'Legendario' },
+      families: {
+        loyalty: 'Fidelidad',
+        predictions: 'Pronósticos',
+        results: 'Resultados',
+        moments: 'Momentos',
+        explorer: 'Explorador',
+        rhythm: 'Ritmo',
+        knowledge: 'Conocimiento',
+        community: 'Comunidad',
+        collector: 'Coleccionista',
+        consumption: 'Contenido',
+      },
+      otherFamily: 'Otros',
+      close: 'Cerrar',
+      stepLine: '{step}: {threshold}',
+      unique: 'Logro único',
+      earners: 'Quién ya lo ganó',
+      earnersTotal: '{n} hinchas ya lo ganaron',
+      earnersNone: 'Nadie lo ganó todavía. ¡Sé el primero!',
+      share: 'Compartir',
+      shareCaption: 'Logro en el programa de hinchas',
+      reached: '¡Llegaste a {step} en {name}!',
+      rankingMonth: 'Mes',
+      rankingYear: 'Año',
+      points: '{n} pts',
+      you: 'Tú',
+      yourPosition: 'Estás en el puesto {position}',
+      noPosition: 'Todavía no sumaste puntos en este período.',
+      rankingEmpty: 'Nadie sumó puntos en este período todavía.',
+      anonymous: 'Hincha',
+    },
     liveChat: {
       title: 'Chat del partido',
       log: 'Mensajes del chat',
@@ -4575,6 +4737,57 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
         continental: 'Continental',
         international: 'International',
       },
+    },
+    achievements: {
+      title: 'My achievements',
+      tabShelf: 'Achievements',
+      tabRanking: 'Leaderboard',
+      empty: 'No achievements yet. Follow the games and make predictions to earn your first one.',
+      lifetime: 'All seasons',
+      season: 'Season {season}',
+      seasonLabel: 'Period',
+      locked: 'Locked',
+      complete: 'Complete',
+      progress: '{count} of {next}',
+      rarity: '{pct} of fans have it',
+      earned: '{n} of {total} earned',
+      steps: {
+        bronze: 'Bronze',
+        silver: 'Silver',
+        gold: 'Gold',
+        platinum: 'Platinum',
+        legendary: 'Legendary',
+      },
+      families: {
+        loyalty: 'Loyalty',
+        predictions: 'Predictions',
+        results: 'Results',
+        moments: 'Moments',
+        explorer: 'Explorer',
+        rhythm: 'Rhythm',
+        knowledge: 'Knowledge',
+        community: 'Community',
+        collector: 'Collector',
+        consumption: 'Content',
+      },
+      otherFamily: 'Other',
+      close: 'Close',
+      stepLine: '{step}: {threshold}',
+      unique: 'One-time achievement',
+      earners: 'Who has it',
+      earnersTotal: '{n} fans have it',
+      earnersNone: 'Nobody has it yet. Be the first!',
+      share: 'Share',
+      shareCaption: 'Achievement in the fan program',
+      reached: 'You reached {step} in {name}!',
+      rankingMonth: 'Month',
+      rankingYear: 'Year',
+      points: '{n} pts',
+      you: 'You',
+      yourPosition: 'You are #{position}',
+      noPosition: 'You have no points in this period yet.',
+      rankingEmpty: 'Nobody has scored in this period yet.',
+      anonymous: 'Fan',
     },
     liveChat: {
       title: 'Match chat',
@@ -5435,4 +5648,282 @@ export function fanGateMessage(
   if (status === 'checking') return 'checking';
   if (capabilities.includes(need)) return null;
   return capabilities.includes('read') ? 'readOnly' : 'restricted';
+}
+
+// ─── Gamificação: estante de Conquistas e Ranking (#919) ───────────────────────────────────────
+/** Texto por idioma do Catálogo (`pt`, `es`, `en`). */
+export type GsGameI18n = Partial<Record<'pt' | 'es' | 'en', string>>;
+
+/** Os cinco Degraus em metal (a raridade da Carta é outra escala, a do álbum). */
+export const GS_STEP_NAMES = ['bronze', 'silver', 'gold', 'platinum', 'legendary'] as const;
+export type GsStepName = (typeof GS_STEP_NAMES)[number];
+
+/** Famílias da estante, na ordem em que aparecem (as desconhecidas vão no fim, pelo nome). */
+export const GS_ACHIEVEMENT_FAMILIES = [
+  'loyalty',
+  'predictions',
+  'results',
+  'moments',
+  'explorer',
+  'rhythm',
+  'knowledge',
+  'community',
+  'collector',
+  'consumption',
+] as const;
+export type GsAchievementFamily = (typeof GS_ACHIEVEMENT_FAMILIES)[number];
+
+/** `GET /v1/achievements` (o Catálogo ativo do programa). */
+export interface GsAchievementCatalogEntry {
+  id: string;
+  sport: string | null;
+  category: 'participation' | 'hit' | 'moment' | 'consumption';
+  family: string;
+  stepped: boolean;
+  seasonal: boolean;
+  name: GsGameI18n;
+  description: GsGameI18n;
+  steps: { step: number; threshold: number; card_key: string | null }[];
+}
+
+/** Uma linha de `GET /v1/fans/me/achievements`. */
+export interface GsFanAchievement {
+  achievement_id: string;
+  season: string;
+  count: number;
+  steps: number;
+  next_threshold: number | null;
+  rarity: number | null;
+}
+
+/** `GET /v1/rankings/{period}`. */
+export interface GsRanking {
+  period: string;
+  program_country: string;
+  entries: {
+    position: number;
+    profile_id: string;
+    nickname: string | null;
+    points: number;
+    full_hits: number;
+    /** A linha é do torcedor do token (API nova; na antiga, compara o profile_id). */
+    is_me?: boolean;
+  }[];
+}
+
+/** `GET /v1/rankings/{period}/me`. */
+export interface GsMyRanking {
+  period: string;
+  program_country: string;
+  position: number | null;
+  points: number;
+  full_hits: number;
+}
+
+/** `GET /v1/achievements/{id}/earners`. */
+export interface GsAchievementEarners {
+  achievement_id: string;
+  season: string;
+  total: number;
+  earners: {
+    profile_id: string;
+    nickname: string | null;
+    avatar_url: string | null;
+    step: number;
+    is_me?: boolean;
+  }[];
+}
+
+/** Texto do Catálogo no idioma do widget, com o português e depois qualquer um como reserva. */
+export function gameText(text: GsGameI18n | null | undefined, locale: WidgetLocale): string {
+  if (!text) return '';
+  const lang = locale === 'pt-BR' ? 'pt' : locale;
+  return text[lang] ?? text.pt ?? text.es ?? text.en ?? '';
+}
+
+/** Nome do metal do Degrau `step` (1 a 5); 0 ou fora da faixa = null. */
+export function stepName(step: number): GsStepName | null {
+  return GS_STEP_NAMES[step - 1] ?? null;
+}
+
+/** Item da estante: a Conquista do Catálogo com o progresso do torcedor na temporada escolhida. */
+export interface GsShelfItem {
+  achievement: GsAchievementCatalogEntry;
+  count: number;
+  /** Degraus alcançados (0 = bloqueada). */
+  steps: number;
+  /** Limite do próximo Degrau (null = completa). */
+  next: number | null;
+  /** Limite do Degrau atual (0 sem Degrau): a barra vai daqui até `next`. */
+  from: number;
+  rarity: number | null;
+}
+
+export interface GsShelfGroup {
+  family: string;
+  items: GsShelfItem[];
+}
+
+/**
+ * Monta a estante: o Catálogo agrupado por família, cada Conquista com o progresso de `season` (`all` = vitalícia).
+ * Na temporada, só as sazonais. Sem `showLocked`, só as que já têm Degrau. Dentro da família, as ganhas primeiro
+ * (Degrau mais alto antes), depois as mais perto do próximo Degrau, depois pelo nome.
+ */
+export function buildShelf(
+  catalog: readonly GsAchievementCatalogEntry[],
+  mine: readonly GsFanAchievement[],
+  season: string,
+  options: { showLocked?: boolean; locale?: WidgetLocale } = {},
+): GsShelfGroup[] {
+  const { showLocked = true, locale = 'pt-BR' } = options;
+  const progress = new Map(mine.filter((m) => m.season === season).map((m) => [m.achievement_id, m]));
+  const groups = new Map<string, GsShelfItem[]>();
+  for (const a of catalog) {
+    if (season !== 'all' && !a.seasonal) continue;
+    const p = progress.get(a.id);
+    const steps = Math.min(p?.steps ?? 0, a.steps.length);
+    if (!showLocked && steps === 0) continue;
+    const thresholds = a.steps.map((s) => s.threshold);
+    const item: GsShelfItem = {
+      achievement: a,
+      count: p?.count ?? 0,
+      steps,
+      next: thresholds[steps] ?? null,
+      from: steps > 0 ? (thresholds[steps - 1] ?? 0) : 0,
+      rarity: p?.rarity ?? null,
+    };
+    const list = groups.get(a.family) ?? [];
+    list.push(item);
+    groups.set(a.family, list);
+  }
+  const order = (f: string) => {
+    const i = (GS_ACHIEVEMENT_FAMILIES as readonly string[]).indexOf(f);
+    return i < 0 ? GS_ACHIEVEMENT_FAMILIES.length : i;
+  };
+  return [...groups.entries()]
+    .sort(([a], [b]) => order(a) - order(b) || a.localeCompare(b))
+    .map(([family, items]) => ({
+      family,
+      items: items.sort(
+        (a, b) =>
+          b.steps - a.steps ||
+          shelfProgress(b) - shelfProgress(a) ||
+          gameText(a.achievement.name, locale).localeCompare(gameText(b.achievement.name, locale), locale),
+      ),
+    }));
+}
+
+/** Fração da barra até o próximo Degrau (0 a 1); completa = 1. */
+export function shelfProgress(item: Pick<GsShelfItem, 'count' | 'from' | 'next'>): number {
+  if (item.next === null) return 1;
+  const span = item.next - item.from;
+  if (span <= 0) return 0;
+  return Math.min(1, Math.max(0, (item.count - item.from) / span));
+}
+
+/** Quantas Conquistas da estante já têm Degrau. */
+export function shelfEarned(groups: readonly GsShelfGroup[]): number {
+  return groups.reduce((n, g) => n + g.items.filter((i) => i.steps > 0).length, 0);
+}
+
+/**
+ * Degraus novos entre duas leituras da estante (o aviso ao vivo): um por Conquista, o mais alto. Vitalícia e
+ * temporada sobem juntas, e o aviso usa a vitalícia.
+ */
+export function newlyReached(
+  before: readonly GsFanAchievement[],
+  after: readonly GsFanAchievement[],
+): { achievementId: string; season: string; step: number }[] {
+  const old = new Map(before.map((b) => [`${b.achievement_id}|${b.season}`, b.steps]));
+  const best = new Map<string, { achievementId: string; season: string; step: number }>();
+  for (const a of after) {
+    const prev = old.get(`${a.achievement_id}|${a.season}`) ?? 0;
+    if (a.steps <= prev) continue;
+    const cur = best.get(a.achievement_id);
+    if (!cur || (a.season === 'all' && cur.season !== 'all'))
+      best.set(a.achievement_id, { achievementId: a.achievement_id, season: a.season, step: a.steps });
+  }
+  return [...best.values()];
+}
+
+/** Temporadas da estante: a vitalícia e as que o torcedor tem, da mais recente para a mais antiga. */
+export function shelfSeasons(mine: readonly GsFanAchievement[]): string[] {
+  const seasons = [...new Set(mine.map((m) => m.season).filter((s) => s !== 'all'))].sort((a, b) =>
+    b.localeCompare(a),
+  );
+  return ['all', ...seasons];
+}
+
+/** Período do Ranking (`2026-11` ou `2026`) no fuso dado (o do programa; sem ele, o do navegador). */
+export function rankingPeriodKey(kind: 'month' | 'year', now: Date, timeZone?: string): string {
+  const format = (tz: string | undefined) =>
+    new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit' }).formatToParts(now);
+  let parts: Intl.DateTimeFormatPart[];
+  try {
+    parts = format(timeZone);
+  } catch {
+    parts = format(undefined);
+  }
+  const year = parts.find((p) => p.type === 'year')?.value ?? String(now.getUTCFullYear());
+  const month =
+    parts.find((p) => p.type === 'month')?.value ?? String(now.getUTCMonth() + 1).padStart(2, '0');
+  return kind === 'year' ? year : `${year}-${month}`;
+}
+
+/** Porcentagem da raridade para mostrar ("3%", "<1%"); null sem dado. */
+export function rarityPercent(rarity: number | null | undefined): string | null {
+  if (rarity === null || rarity === undefined || !Number.isFinite(rarity)) return null;
+  const pct = rarity * 100;
+  if (pct > 0 && pct < 1) return '<1%';
+  return `${Math.round(pct)}%`;
+}
+
+/** Cor do metal do Degrau (estante e card compartilhável; genérica, sem marca). */
+export const GS_STEP_COLORS: Record<GsStepName, string> = {
+  bronze: '#b0703a',
+  silver: '#9aa3ad',
+  gold: '#d4a62a',
+  platinum: '#5fa8bd',
+  legendary: '#8b5cf6',
+};
+
+function svgEscape(s: string): string {
+  return s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+}
+
+/**
+ * Card compartilhável da Conquista (#919): imagem genérica em SVG, sem marca real nem foto, com o nome, o Degrau
+ * e o apelido. O torcedor baixa ou manda pelo compartilhar do aparelho.
+ */
+export function achievementShareSvg(input: {
+  name: string;
+  stepLabel: string;
+  step: number;
+  nickname: string | null;
+  caption: string;
+}): string {
+  const color = GS_STEP_COLORS[stepName(input.step) ?? 'bronze'];
+  const text = (y: number, size: number, fill: string, value: string, weight = 400) =>
+    `<text x="300" y="${y}" text-anchor="middle" font-family="system-ui, sans-serif" font-size="${size}" ` +
+    `font-weight="${weight}" fill="${fill}">${svgEscape(value)}</text>`;
+  const dots = Array.from(
+    { length: 5 },
+    (_, i) =>
+      `<circle cx="${210 + i * 45}" cy="430" r="14" fill="${i < input.step ? color : 'none'}" ` +
+      `stroke="${color}" stroke-width="3"/>`,
+  ).join('');
+  return (
+    '<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600">' +
+    '<rect width="600" height="600" rx="32" fill="#0b1020"/>' +
+    `<circle cx="300" cy="230" r="120" fill="none" stroke="${color}" stroke-width="10"/>` +
+    `<circle cx="300" cy="230" r="92" fill="${color}" opacity="0.18"/>` +
+    '<path d="M300 160 L318 212 L373 212 L329 244 L346 296 L300 264 L254 296 L271 244 L227 212 L282 212 Z" ' +
+    `fill="${color}"/>` +
+    text(390, 30, '#ffffff', input.name.slice(0, 60), 700) +
+    dots +
+    text(490, 22, color, input.stepLabel) +
+    (input.nickname ? text(530, 20, '#c7cbe0', input.nickname.slice(0, 40)) : '') +
+    text(570, 16, '#8088a8', input.caption.slice(0, 60)) +
+    '</svg>'
+  );
 }

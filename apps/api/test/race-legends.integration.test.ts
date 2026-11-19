@@ -4,6 +4,7 @@
  * rotas HTTP sobre o mesmo grid: o plano do tenant nas lendas e as temporadas do construtor no overview.
  */
 import { randomBytes } from 'node:crypto';
+import { sql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { Redis } from 'ioredis';
 import postgres from 'postgres';
@@ -29,6 +30,7 @@ import {
 } from '@galaxie/db';
 import type { LiveryEntry } from '@galaxie/knowledge';
 import { createApiKey, upsertTenant } from '../src/auth/admin.js';
+import { participantEventsQuery } from '../src/events/participant-events.js';
 import { buildServer } from '../src/server.js';
 import { loadRaceLegends } from '../src/teams/legends.js';
 
@@ -342,5 +344,76 @@ describe('rotas da F1 (HTTP)', () => {
     expect(y1988.season).toBe(1988);
     expect(y1988.seasons).toEqual(body.seasons);
     expect(y1988.last_events).toHaveLength(2);
+  });
+
+  it('overview do piloto lendário: últimos eventos dele, mesmo com muitos eventos mais novos de outros', async () => {
+    // piloto de hoje: 200 corridas terminadas depois das do Senna e 3 por vir
+    const [today] = await db
+      .insert(participant)
+      .values({ sport: 'formula-1', kind: 'driver', name: 'Piloto de Hoje' })
+      .returning({ id: participant.id });
+    const at = (i: number) => new Date(Date.UTC(2020, 0, 1) + i * 7 * 86_400_000);
+    const finished = await db
+      .insert(event)
+      .values(
+        Array.from({ length: 200 }, (_, i) => ({
+          sport: 'formula-1',
+          status: 'finished' as const,
+          startsAt: at(i),
+          endsAtExpected: new Date(at(i).getTime() + 2 * 3_600_000),
+        })),
+      )
+      .returning({ id: event.id, startsAt: event.startsAt });
+    const future = Date.now() + 86_400_000;
+    const scheduled = await db
+      .insert(event)
+      .values(
+        [2, 0, 1].map((d) => ({
+          sport: 'formula-1',
+          status: 'scheduled' as const,
+          startsAt: new Date(future + d * 7 * 86_400_000),
+          endsAtExpected: new Date(future + d * 7 * 86_400_000 + 2 * 3_600_000),
+        })),
+      )
+      .returning({ id: event.id, startsAt: event.startsAt });
+    await db.insert(eventParticipant).values(
+      [...finished, ...scheduled].map((e) => ({
+        eventId: e.id,
+        participantId: today!.id,
+        side: 'grid' as const,
+      })),
+    );
+
+    const senna = (await get(`/v1/teams/${ids.senna}/overview`)).json();
+    // as 3 corridas do Senna, da mais recente para a mais antiga; nada ao vivo nem por vir
+    expect(senna.last_events.map((e: { starts_at: string }) => e.starts_at.slice(0, 10))).toEqual([
+      '1989-05-01',
+      '1988-05-02',
+      '1988-05-01',
+    ]);
+    expect(senna.live_event).toBeNull();
+    expect(senna.next_event).toBeNull();
+    const y1988 = (await get(`/v1/teams/${ids.senna}/overview?season=1988`)).json();
+    expect(y1988.last_events).toHaveLength(2);
+
+    // o piloto de hoje: as 5 últimas terminadas e a próxima corrida
+    const now = (await get(`/v1/teams/${today!.id}/overview`)).json();
+    const latest = [...finished].sort((a, b) => b.startsAt.getTime() - a.startsAt.getTime()).slice(0, 5);
+    expect(now.last_events.map((e: { id: string }) => e.id)).toEqual(latest.map((e) => e.id));
+    expect(now.next_event?.id).toBe(scheduled[1]!.id);
+  });
+
+  it('últimos eventos do participante: o plano parte dele mesmo com o planejador empurrado para o índice de horário', async () => {
+    // sem `sort`, o join direto desceria event_starts_at_idx de trás para frente; a CTE materializada só deixa
+    // ordenar as linhas do participante
+    const plan = await db.transaction(async (tx) => {
+      await tx.execute(sql`set local enable_sort = off`);
+      return tx.execute<{ 'QUERY PLAN': string } & Record<string, unknown>>(
+        sql`explain ${participantEventsQuery(ids.senna!, sql`${event.status} = 'finished'`, 'desc', 5)}`,
+      );
+    });
+    const text = plan.map((r) => r['QUERY PLAN']).join('\n');
+    expect(text).toContain('CTE Scan on mine');
+    expect(text).not.toMatch(/Backward/);
   });
 });

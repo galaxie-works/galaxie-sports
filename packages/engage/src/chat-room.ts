@@ -71,6 +71,7 @@ export type ChatSendRefusal =
   | 'room_read_only_peak'
   | 'age_band'
   | 'flood'
+  | 'bot'
   | 'guidelines';
 
 /**
@@ -105,6 +106,7 @@ const NOTICES: Record<'pt' | 'es' | 'en', Record<ChatSendRefusal, string>> = {
     room_read_only_peak: 'A sala está cheia e ficou só leitura para quem entrou agora.',
     flood: 'Muitas mensagens em pouco tempo. Espere um pouco para escrever de novo.',
     guidelines: 'Antes da primeira mensagem, leia e aceite as regras do chat.',
+    bot: 'O envio foi pausado por até 30 minutos porque as mensagens parecem automáticas. A moderação vai revisar.',
   },
   es: {
     age_band: 'Solo los mayores de 18 años escriben en el chat. Puedes leer y reaccionar.',
@@ -114,6 +116,7 @@ const NOTICES: Record<'pt' | 'es' | 'en', Record<ChatSendRefusal, string>> = {
     room_read_only_peak: 'La sala está llena y quedó solo de lectura para quienes acaban de entrar.',
     flood: 'Demasiados mensajes en poco tiempo. Espera un poco para volver a escribir.',
     guidelines: 'Antes del primer mensaje, lee y acepta las reglas del chat.',
+    bot: 'El envío quedó en pausa hasta 30 minutos porque los mensajes parecen automáticos. La moderación lo va a revisar.',
   },
   en: {
     age_band: 'Only people aged 18 or over can write in the chat. You can read and react.',
@@ -123,6 +126,7 @@ const NOTICES: Record<'pt' | 'es' | 'en', Record<ChatSendRefusal, string>> = {
     room_read_only_peak: 'The room is full and became read-only for people who just joined.',
     flood: 'Too many messages in a short time. Wait a moment before writing again.',
     guidelines: 'Before your first message, read and accept the chat rules.',
+    bot: 'Sending is paused for up to 30 minutes because the messages look automated. Moderators will review it.',
   },
 };
 

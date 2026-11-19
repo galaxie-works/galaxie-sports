@@ -107,7 +107,8 @@ const fan = async (key: string, n: number, ageBand = '18plus', acceptGuidelines 
       headers: { authorization: `Bearer ${token}` },
       payload: { version: CHAT_GUIDELINES_VERSION },
     });
-    expect(accepted.statusCode).toBe(204);
+    // sem o módulo live_chat o aceite também recusa (403): o teste do módulo confere o envio
+    expect([204, 403]).toContain(accepted.statusCode);
   }
   return { token, profileId: res.json().data.profile_id as string };
 };
@@ -375,6 +376,37 @@ describe('Chat ao vivo: salas (#959)', () => {
     expect(blocked.statusCode).toBe(429);
     expect(blocked.headers['retry-after']).toBe('60');
     expect(blocked.json().errors[0].message).toBe('flood');
+    // outro torcedor segue escrevendo
+    const g = await fan(t.key, 2);
+    expect((await send(g.token, fixture, 'oi')).statusCode).toBe(201);
+  });
+
+  it('robô (#1290): ritmo de máquina trava o envio e abre caso na fila do Perfil', async () => {
+    clock = Date.now();
+    const t = await tenantKey('chat-bot', ['core_data', 'live_chat']);
+    const fixture = await game(5);
+    await app.inject({
+      method: 'PUT',
+      url: '/v1/chat/config',
+      headers: { 'x-galaxie-key': t.key },
+      payload: { slowModeSeconds: 0, floodMaxPerMinute: 60, floodBlockSeconds: 30 },
+    });
+    const f = await fan(t.key, 1);
+    const codes: number[] = [];
+    let last;
+    for (let i = 0; i < 8; i++) {
+      clock += 4_000;
+      last = await send(f.token, fixture, `mensagem número ${i} do robô`);
+      codes.push(last.statusCode);
+    }
+    expect(codes.slice(0, 7)).toEqual([201, 201, 201, 201, 201, 201, 201]);
+    expect(last!.statusCode).toBe(429);
+    expect(last!.json().errors[0].message).toBe('bot');
+    expect(Number(last!.headers['retry-after'])).toBe(1800);
+    const cases = await db.execute<{ reasons: string[]; module: string; target_type: string }>(
+      sql`select reasons, module, target_type from engage.moderation_case where tenant_id = ${t.id}`,
+    );
+    expect(cases).toEqual([{ reasons: ['bot_cadence'], module: 'chat', target_type: 'behavior' }]);
     // outro torcedor segue escrevendo
     const g = await fan(t.key, 2);
     expect((await send(g.token, fixture, 'oi')).statusCode).toBe(201);

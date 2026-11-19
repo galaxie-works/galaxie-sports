@@ -51,6 +51,7 @@ export const CHAT_SEND_REFUSALS = [
   'sanctioned',
   'flood',
   'guidelines',
+  'bot',
 ] as const;
 
 export const ChatRoomParams = z.object({

@@ -1,6 +1,6 @@
 # Base semântica — clubes da Alemanha (schema v1, ver data/knowledge/SCHEMA.md)
 # labels/copy_hints: nomes e apelidos como usados na imprensa do Brasil (pt-BR) e da América Latina hispânica (es).
-# api_sports.team_id: null — nenhuma fonte consultada exibiu o ID; resolver no bootstrap por match.name + country.
+# api_sports.team_id: resolvido por `pnpm resolve:ids` (match.name + country) contra o banco em 19/11/2026 (issue #17).
 schema_version: 1
 country: DE
 teams:
@@ -11,7 +11,7 @@ teams:
     abbreviation: FCB
   labels: {pt-BR: Bayern de Munique, es: Bayern Múnich, en: Bayern Munich}
   api_sports:
-    team_id: null
+    team_id: 157
     match: {name: Bayern München, country: Germany}
   founded: 1900-02-27
   city: Munique
@@ -61,7 +61,7 @@ teams:
     abbreviation: BVB
   labels: {pt-BR: Borussia Dortmund, es: Borussia Dortmund, en: Borussia Dortmund}
   api_sports:
-    team_id: null
+    team_id: 165
     match: {name: Borussia Dortmund, country: Germany}
   founded: 1909-12-19
   city: Dortmund
@@ -113,7 +113,7 @@ teams:
     abbreviation: B04
   labels: {pt-BR: Bayer Leverkusen, es: Bayer Leverkusen, en: Bayer Leverkusen}
   api_sports:
-    team_id: null
+    team_id: 168
     match: {name: Bayer Leverkusen, country: Germany}
   founded: 1904-07-01
   city: Leverkusen
@@ -154,7 +154,7 @@ teams:
     abbreviation: RBL
   labels: {pt-BR: RB Leipzig, es: RB Leipzig, en: RB Leipzig}
   api_sports:
-    team_id: null
+    team_id: 173
     match: {name: RB Leipzig, country: Germany}
   founded: 2009-05-19
   city: Leipzig
@@ -196,7 +196,7 @@ teams:
     abbreviation: S04
   labels: {pt-BR: Schalke 04, es: Schalke 04, en: Schalke 04}
   api_sports:
-    team_id: null
+    team_id: 174
     match: {name: FC Schalke 04, country: Germany}
   founded: 1904-05-04
   city: Gelsenkirchen
@@ -245,7 +245,7 @@ teams:
     abbreviation: VFB
   labels: {pt-BR: Stuttgart, es: Stuttgart, en: VfB Stuttgart}
   api_sports:
-    team_id: null
+    team_id: 172
     match: {name: VfB Stuttgart, country: Germany}
   founded: 1893-09-09
   city: Stuttgart
@@ -289,7 +289,7 @@ teams:
     abbreviation: SGE
   labels: {pt-BR: Eintracht Frankfurt, es: Eintracht Fráncfort, en: Eintracht Frankfurt}
   api_sports:
-    team_id: null
+    team_id: 169
     match: {name: Eintracht Frankfurt, country: Germany}
   founded: 1899-03-08
   city: Frankfurt

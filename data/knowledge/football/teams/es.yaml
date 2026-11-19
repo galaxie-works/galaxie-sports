@@ -1,6 +1,6 @@
 # Base semântica — clubes da Espanha (schema v1, ver data/knowledge/SCHEMA.md)
 # labels/copy_hints: nomes e apelidos como usados na imprensa do Brasil (pt-BR) e da América Latina hispânica (es).
-# api_sports.team_id: null — nenhuma fonte consultada exibiu o ID; resolver no bootstrap por match.name + country.
+# api_sports.team_id: resolvido por `pnpm resolve:ids` (match.name + country) contra o banco em 19/11/2026 (issue #17).
 # athletic-club (531): resolvido por `pnpm resolve:ids` (nome idêntico em partida de LaLiga no raw /fixtures).
 schema_version: 1
 country: ES
@@ -12,7 +12,7 @@ teams:
     abbreviation: RMA
   labels: {pt-BR: Real Madrid, es: Real Madrid, en: Real Madrid}
   api_sports:
-    team_id: null
+    team_id: 541
     match: {name: Real Madrid, country: Spain}
   founded: 1902-03-06
   city: Madrid
@@ -69,7 +69,7 @@ teams:
     abbreviation: BAR
   labels: {pt-BR: Barcelona, es: Barcelona, en: Barcelona}
   api_sports:
-    team_id: null
+    team_id: 529
     match: {name: Barcelona, country: Spain}
   founded: 1899-11-29
   city: Barcelona
@@ -129,7 +129,7 @@ teams:
     abbreviation: ATM
   labels: {pt-BR: Atlético de Madrid, es: Atlético de Madrid, en: Atlético Madrid}
   api_sports:
-    team_id: null
+    team_id: 530
     match: {name: Atletico Madrid, country: Spain}
   founded: 1903-04-26
   city: Madrid
@@ -186,7 +186,7 @@ teams:
     abbreviation: SEV
   labels: {pt-BR: Sevilla, es: Sevilla, en: Sevilla}
   api_sports:
-    team_id: null
+    team_id: 536
     match: {name: Sevilla, country: Spain}
   founded: 1890-01-25
   city: Sevilha
@@ -241,7 +241,7 @@ teams:
     abbreviation: BET
   labels: {pt-BR: Betis, es: Betis, en: Real Betis}
   api_sports:
-    team_id: null
+    team_id: 543
     match: {name: Real Betis, country: Spain}
   founded: 1907-09-12
   city: Sevilha
@@ -346,7 +346,7 @@ teams:
     abbreviation: RSO
   labels: {pt-BR: Real Sociedad, es: Real Sociedad, en: Real Sociedad}
   api_sports:
-    team_id: null
+    team_id: 548
     match: {name: Real Sociedad, country: Spain}
   founded: 1909-09-07
   city: San Sebastián
@@ -392,7 +392,7 @@ teams:
     abbreviation: VAL
   labels: {pt-BR: Valencia, es: Valencia, en: Valencia}
   api_sports:
-    team_id: null
+    team_id: 532
     match: {name: Valencia, country: Spain}
   founded: 1919-03-18
   city: Valência
@@ -441,7 +441,7 @@ teams:
     abbreviation: VIL
   labels: {pt-BR: Villarreal, es: Villarreal, en: Villarreal}
   api_sports:
-    team_id: null
+    team_id: 533
     match: {name: Villarreal, country: Spain}
   founded: 1923-03-10
   city: Vila-real
