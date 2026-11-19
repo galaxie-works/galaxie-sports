@@ -285,3 +285,4 @@ export * from './shop.js';
 export * from './community.js';
 export * from './community-feed.js';
 export * from './tenant-notifications.js';
+export * from './community-polls.js';

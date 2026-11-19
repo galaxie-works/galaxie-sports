@@ -953,6 +953,13 @@
       "when": 1795006330012,
       "tag": "0193_comunidades_guarda_legal",
       "breakpoints": true
+    },
+    {
+      "idx": 136,
+      "version": "7",
+      "when": 1795027210897,
+      "tag": "0194_comunidades_enquetes",
+      "breakpoints": true
     }
   ]
 }
