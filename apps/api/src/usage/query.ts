@@ -17,12 +17,12 @@ export const UsageQuery = z.object({ from: Day.optional(), to: Day.optional() })
   const to = q.to ?? utcDay();
   const from = q.from ?? utcDay(new Date(Date.parse(`${to}T00:00:00Z`) - 6 * 86_400_000));
   const span = (Date.parse(to) - Date.parse(from)) / 86_400_000 + 1;
-  if (span < 1) ctx.addIssue({ code: 'custom', path: ['from'], message: 'from deve ser ≤ to' });
+  if (span < 1) ctx.addIssue({ code: 'custom', path: ['from'], message: 'from must be ≤ to' });
   else if (span > MAX_USAGE_RANGE_DAYS)
     ctx.addIssue({
       code: 'custom',
       path: ['from'],
-      message: `intervalo máximo de ${MAX_USAGE_RANGE_DAYS} dias`,
+      message: `maximum range of ${MAX_USAGE_RANGE_DAYS} days`,
     });
   return { from, to };
 });

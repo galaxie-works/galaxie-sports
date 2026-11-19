@@ -481,11 +481,11 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
     const origin = pk ? requestOrigin(request) : undefined;
     if (streamToken) {
       if (!authenticator || !streamTokens)
-        throw problems.degraded('Autenticação indisponível: banco de dados não configurado.');
+        throw problems.degraded('Authentication unavailable: database not configured.');
       const claims = streamTokens.verify(streamToken);
       if (!claims)
         throw problems.invalidKey(
-          'Token do stream inválido ou expirado: peça outro em POST /v1/stream/token.',
+          'Invalid or expired stream token: request a new one with POST /v1/stream/token.',
         );
       // o stream aberto revalida a CHAVE que pediu o token (revogação encerra em até 60 s)
       authenticate = async (maxAgeMs?: number) => {
@@ -495,11 +495,10 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
       };
     } else if (pk) {
       assertPublishableRoute(request);
-      if (!publishable) throw problems.degraded('Autenticação indisponível: banco de dados não configurado.');
+      if (!publishable) throw problems.degraded('Authentication unavailable: database not configured.');
       authenticate = () => publishable.authenticate(pk, origin, { ip: request.ip });
     } else {
-      if (!authenticator)
-        throw problems.degraded('Autenticação indisponível: banco de dados não configurado.');
+      if (!authenticator) throw problems.degraded('Authentication unavailable: database not configured.');
       authenticate = (maxAgeMs?: number) =>
         authenticator.authenticate(secretKey, { ip: request.ip, maxAgeMs });
     }

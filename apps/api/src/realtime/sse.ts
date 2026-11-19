@@ -176,9 +176,7 @@ export async function streamRoutes(app: FastifyInstance, deps: StreamDeps): Prom
   app.post('/v1/stream/token', { config: { module: 'core_data' } }, async (request, reply) => {
     const tenant = request.tenant!;
     if (tenant.keyKind !== 'secret' || !tenant.keyPrefix)
-      throw problems.invalidKey(
-        'O token do stream é emitido só para a chave secreta (header x-galaxie-key).',
-      );
+      throw problems.invalidKey('The stream token is only issued for the secret key (x-galaxie-key header).');
     // trial: sem tempo real (docs/politica-de-chaves.md §3)
     if (PLANS_WITHOUT_REALTIME.includes(tenant.plan)) throw problems.realtimeNotInPlan(tenant.plan);
     const { token, expiresAt } = deps.tokens.issue({
@@ -215,7 +213,7 @@ export async function streamRoutes(app: FastifyInstance, deps: StreamDeps): Prom
       const headerId = Array.isArray(header) ? header[0] : header;
       if (headerId != null && headerId !== '' && !/^\d+$/.test(headerId))
         throw problems.invalidParams([
-          { path: 'Last-Event-ID', message: 'deve ser o id numérico de uma mudança' },
+          { path: 'Last-Event-ID', message: 'must be the numeric id of a change' },
         ]);
       const lastEventId = headerId ? Number(headerId) : q.last_event_id;
 

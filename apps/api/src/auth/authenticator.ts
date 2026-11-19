@@ -143,9 +143,9 @@ export class Authenticator {
   }
 
   async authenticate(rawKey: string | undefined, attempt: AuthAttempt = {}): Promise<TenantContext> {
-    if (!rawKey) throw problems.invalidKey('Header x-galaxie-key ausente.');
+    if (!rawKey) throw problems.invalidKey('Missing x-galaxie-key header.');
     const parsed = parseApiKey(rawKey);
-    if (!parsed) throw problems.invalidKey('Formato de chave inválido.');
+    if (!parsed) throw problems.invalidKey('Invalid key format.');
 
     const now = this.now();
     const t = now.getTime();
@@ -188,8 +188,8 @@ export class Authenticator {
     };
     if (!record) return markDead();
     // estado da chave antes do scrypt: chave revogada/expirada não custa CPU a cada tentativa
-    if (record.revokedAt && record.revokedAt <= now) return markDead('Chave revogada.', 'revoked');
-    if (record.expiresAt && record.expiresAt <= now) return markDead('Chave expirada.', 'expired');
+    if (record.revokedAt && record.revokedAt <= now) return markDead('Key revoked.', 'revoked');
+    if (record.expiresAt && record.expiresAt <= now) return markDead('Key expired.', 'expired');
     this.assertKeyEnv(record, parsed.env, reveal, (reason) =>
       this.denied(record.tenant.id, reason, parsed.prefix),
     );
@@ -257,11 +257,11 @@ export class Authenticator {
     // a recusa por este caminho (SSE e revalidação da conexão aberta) também entra no diagnóstico do tenant
     if (record.revokedAt && record.revokedAt <= now) {
       this.denied(record.tenant.id, 'revoked', prefix);
-      throw problems.invalidKey('Chave revogada.');
+      throw problems.invalidKey('Key revoked.');
     }
     if (record.expiresAt && record.expiresAt <= now) {
       this.denied(record.tenant.id, 'expired', prefix);
-      throw problems.invalidKey('Chave expirada.');
+      throw problems.invalidKey('Key expired.');
     }
     const stateProblem = tenantStateProblem(record.tenant, now);
     if (stateProblem) {
@@ -286,7 +286,7 @@ export class Authenticator {
   ): void {
     if (env !== record.env) {
       denied('wrong_env');
-      throw problems.invalidKey(reveal('O ambiente da chave (live/test) não confere com o prefixo.'));
+      throw problems.invalidKey(reveal('The key environment (live/test) does not match the prefix.'));
     }
   }
 
