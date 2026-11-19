@@ -37,13 +37,15 @@ const PAL_FLU_SEMI = process.env.SMOKE_EVENT_ID || '01a163b8-7ca2-71e8-a92e-8dc2
 
 /**
  * Temporada de referência das checagens por temporada (#1434): SMOKE_SEASON, ou a mais recente já encerrada entre as
- * que a API devolve para o time (ano menor que o corrente), ou o ano anterior se a lista não vier. Antes era 2025 fixo.
+ * que a API devolve para o time (sem `current: true` e com ano menor que o corrente: em janeiro o fornecedor ainda pode
+ * marcar a temporada do ano anterior como a corrente), ou o ano anterior se a lista não vier. Antes era 2025 fixo.
  */
 function referenceSeason(seasons, now = new Date()) {
-  const forced = Number.parseInt(process.env.SMOKE_SEASON ?? '', 10);
-  if (Number.isInteger(forced) && forced > 1900) return forced;
+  const forced = process.env.SMOKE_SEASON ?? '';
+  if (/^\d{4}$/.test(forced)) return Number(forced);
   const current = now.getUTCFullYear();
   const past = (Array.isArray(seasons) ? seasons : [])
+    .filter((s) => s?.current !== true)
     .map((s) => s?.year)
     .filter((y) => Number.isInteger(y) && y < current);
   return past.length ? Math.max(...past) : current - 1;

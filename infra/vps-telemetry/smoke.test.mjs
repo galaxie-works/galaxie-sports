@@ -40,7 +40,8 @@ const routes = {
   // 500 sempre: o resumo da home que estourou o statement_timeout em todas as tentativas
   '/v1/explore/summary': (n, res) => json(res, 500, { code: 'INTERNAL' }),
   '/v1/explore/agenda': (n, res) => json(res, 200, { total: 5, days: [{ count: 5 }] }),
-  // temporada de referência (#1434): a API lista a do ano corrente (em andamento) e duas encerradas
+  // temporada de referência (#1434): a API lista o ano corrente e dois anteriores, e ainda marca o anterior como
+  // `current` (o caso de janeiro); a referência é a encerrada mais recente, THIS_YEAR - 2
   [`/v1/teams/${TEAM}/overview`]: (n, res, url) => {
     const season = url.searchParams.get('season');
     if (season) teamSeasons.push(Number(season));
@@ -48,7 +49,7 @@ const routes = {
     json(res, 200, {
       team: { colors: { primary: '#006437' } },
       season: year,
-      seasons: [{ year: THIS_YEAR - 2 }, { year: THIS_YEAR - 1 }, { year: THIS_YEAR }],
+      seasons: [{ year: THIS_YEAR - 2 }, { year: THIS_YEAR - 1, current: true }, { year: THIS_YEAR }],
       competitions: [{ competition: { slug: 'liga' }, season: { year }, campaign: { ongoing: false } }],
       last_events: [{ id: 'jogo' }],
     });
@@ -148,8 +149,8 @@ describe('smoke: retry de 5xx e de tempo esgotado', () => {
     assert.doesNotMatch(agenda, /home 0/);
   });
 
-  test('temporada de referência: a última encerrada que a API lista, não um ano fixo', () => {
-    const ref = THIS_YEAR - 1;
+  test('temporada de referência: a última encerrada que a API lista (sem a marcada como corrente), não um ano fixo', () => {
+    const ref = THIS_YEAR - 2;
     assert.match(line('Time: cores do escudo'), new RegExp(`temporada de referência ${ref}`));
     assert.match(line('Time por temporada'), new RegExp(`^PASS .*competições em ${ref}`));
     assert.ok(teamSeasons.length > 0 && teamSeasons.every((y) => y === ref), `pediu ${teamSeasons}`);
