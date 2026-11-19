@@ -49,7 +49,6 @@ export interface ChatRoomRow {
   strictness: ChatStrictness | null;
   stateBy: string | null;
   pinnedMessageId: string | null;
-  shield: boolean;
 }
 
 const roomCols = {
@@ -60,7 +59,7 @@ const roomCols = {
   strictness: chatRoom.strictness,
   stateBy: chatRoom.stateBy,
   pinnedMessageId: chatRoom.pinnedMessageId,
-  shield: chatRoom.shield,
+  // `shield` (modo escudo) não é mais lida: o anti-flood (#1287) tomou o lugar; a coluna sai num PR `contrair` (#1368)
 };
 
 /** A sala do jogo para o cliente, se já existe (leitura: não cria). */

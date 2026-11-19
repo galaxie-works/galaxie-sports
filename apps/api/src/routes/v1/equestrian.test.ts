@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { countryRef, notice, type CountryInfo } from './equestrian.js';
+import { COVERAGE_NOTE, countryRef, notice, tr, type CountryInfo } from './equestrian.js';
 
 describe('notice', () => {
   it('a categoria fica fora da oferta comercial, com a licença do lote e texto no idioma pedido', () => {
@@ -9,6 +9,14 @@ describe('notice', () => {
     expect(pt.message).toMatch(/não faz parte das ofertas da Galaxie/);
     expect(notice('es-AR', null)).toMatchObject({ license: 'unknown', commercial: false });
     expect(notice('es-AR', null).message).toMatch(/no forma parte de la oferta/);
+  });
+
+  // #1424: locale=en recebia o texto em português
+  it('locale en recebe o aviso em inglês, sem português', () => {
+    const en = notice('en', null).message;
+    expect(en).toMatch(/not part of the Galaxie offer/);
+    expect(en).not.toMatch(/[áéíóúãõçâêôà]/i);
+    for (const t of Object.values(COVERAGE_NOTE)) expect(tr('en', t)).not.toMatch(/[áéíóúãõçâêôà]/i);
   });
 });
 
