@@ -20,7 +20,7 @@ import { ChatRoomParams } from '@galaxie/contracts';
 import type { Database } from '@galaxie/db';
 import type { ChatRoomState } from '@galaxie/engage';
 import { ProblemError, problems } from '../errors.js';
-import { moduleLimitsOf } from '../engage/module-limits.js';
+import { moduleLimitCatalog, moduleLimitsOf } from '../engage/module-limits.js';
 import { formatSse, processLimitRetryAfter, SseConnection } from '../realtime/sse.js';
 import { parseInput } from '../util.js';
 import { gameRoomKey } from './game.js';
@@ -58,7 +58,6 @@ interface Deps {
 
 const StreamQuery = z.object({ last_event_id: z.string().max(40).optional() });
 const REVALIDATE_WITHIN_MS = 60_000;
-const DEFAULT_PEAK = 5_000;
 
 export function registerChatStream(app: FastifyInstance, deps: Deps): void {
   const maxProcess = deps.options.maxConnections ?? 5_000;
@@ -85,11 +84,13 @@ export function registerChatStream(app: FastifyInstance, deps: Deps): void {
     if (deps.options.peakLimitOverride != null) return deps.options.peakLimitOverride;
     const hit = tiers.get(tenantId);
     if (hit && Date.now() - hit.at < 60_000) return hit.value;
-    let value = hit?.value ?? DEFAULT_PEAK;
+    // padrão do catálogo (`live_chat.peak_connections` no modules.yaml, #1446) até o banco responder
+    const fallback = moduleLimitCatalog()['live_chat.peak_connections'].default;
+    let value = hit?.value ?? fallback;
     try {
       if (deps.db) {
         const limits = await moduleLimitsOf(deps.db, tenantId, modules as never);
-        value = limits.find((l) => l.key === 'live_chat.peak_connections')?.value ?? DEFAULT_PEAK;
+        value = limits.find((l) => l.key === 'live_chat.peak_connections')?.value ?? fallback;
       }
     } catch {
       // banco fora: segue com o último valor

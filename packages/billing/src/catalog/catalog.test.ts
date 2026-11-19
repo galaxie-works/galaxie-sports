@@ -6,7 +6,9 @@ import {
   API_PLANS,
   DATA_MODULES,
   ENGAGE_MODULES,
-  MODULE_LIMITS,
+  isValidModuleLimit,
+  MODULE_LIMIT_KEYS,
+  MODULE_LIMIT_MODULES,
   PLAN_MODULES,
   PLANS_WITHOUT_REALTIME,
 } from '@galaxie/db/schema';
@@ -17,6 +19,7 @@ import {
   featuresFor,
   loadCatalog,
   meetsRequirement,
+  moduleLimitDefs,
   parseCatalog,
   type CatalogFile,
 } from './catalog.js';
@@ -81,19 +84,32 @@ describe('config/catalog', () => {
         expect([...catalog.plans[p].modules].sort(), p).toEqual([...PLAN_MODULES[p]].sort());
     });
 
-    it('faixas do engajamento (MODULE_LIMITS)', () => {
-      for (const [key, def] of Object.entries(MODULE_LIMITS)) {
-        const t = catalog.modules[def.module].tiers[key];
-        expect(t, key).toBeDefined();
-        expect({ min: t!.min, max: t!.max, default: t!.default, values: t!.values ?? null }, key).toEqual({
-          min: def.min,
-          max: def.max,
-          default: def.default,
-          values: def.tiers ? [...def.tiers] : null,
+    it('faixas do engajamento: as chaves que o código lê, com os valores do yaml (#1446)', () => {
+      const defs = moduleLimitDefs(catalog);
+      expect(Object.keys(defs).sort()).toEqual([...MODULE_LIMIT_KEYS].sort());
+      for (const key of MODULE_LIMIT_KEYS) {
+        const t = catalog.modules[MODULE_LIMIT_MODULES[key]].tiers[key]!;
+        expect(defs[key], key).toEqual({
+          module: MODULE_LIMIT_MODULES[key],
+          min: t.min,
+          max: t.max,
+          default: t.default,
+          tiers: t.values ?? null,
         });
+        expect(isValidModuleLimit(defs[key], defs[key].default), `${key} padrão válido`).toBe(true);
       }
       const engageTiers = ENGAGE_MODULES.flatMap((m) => Object.keys(catalog.modules[m].tiers));
-      expect(engageTiers.sort()).toEqual(Object.keys(MODULE_LIMITS).sort());
+      expect(engageTiers.sort()).toEqual([...MODULE_LIMIT_KEYS].sort());
+    });
+
+    it('catálogo sem uma faixa que o código lê não sobe', () => {
+      const texts = withFile('modules.yaml', (s) =>
+        s.replace('communities.max_communities: { min: 1', 'communities.outra: { min: 1'),
+      );
+      expect(texts['modules.yaml']).toContain('communities.outra');
+      expect(() => parseCatalog(texts)).toThrow(
+        /communities\.tiers sem a faixa communities\.max_communities/,
+      );
     });
 
     it('tempo real fora do trial (PLANS_WITHOUT_REALTIME)', () => {

@@ -22,6 +22,7 @@ import { revalidatePath } from 'next/cache';
 
 import { isStaffRole } from '@/lib/auth/roles';
 import { communityDb } from '@/lib/client/communities';
+import { moduleLimits } from '@/lib/client/entitlements';
 import { can } from '@/lib/client/permissions';
 import { readClientContext } from '@/lib/client/session';
 import { withStaffAudit } from '@/lib/client/staff';
@@ -90,6 +91,7 @@ export const addScopeRuleAction = withStaffAudit(
         kind: input.kind as CommunityScopeKind,
         target: input.target.trim().slice(0, 80),
         actor: c.actor,
+        limitDef: moduleLimits()['communities.max_communities'],
       });
       revalidatePath(PATH);
       return { ok: true, sync: syncView(r) };
@@ -111,6 +113,7 @@ export const removeScopeRuleAction = withStaffAudit(
         tenantId: c.tenantId,
         ruleId: input.id,
         actor: c.actor,
+        limitDef: moduleLimits()['communities.max_communities'],
       });
       revalidatePath(PATH);
       return { ok: true, sync: syncView(r) };

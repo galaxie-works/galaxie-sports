@@ -7,12 +7,13 @@ import { eq } from 'drizzle-orm';
 import {
   entitlements,
   loadCatalog,
+  moduleLimitDefs,
   storeView,
   type Catalog,
   type Entitlements,
   type StoreItem,
 } from '@galaxie/billing';
-import { moduleTrial } from '@galaxie/db/schema';
+import { moduleTrial, type ModuleLimitDefs } from '@galaxie/db/schema';
 
 import { builderDb } from '@/lib/builder/store';
 
@@ -24,6 +25,11 @@ declare global {
 export function catalog(): Catalog {
   globalThis.__galaxieCatalog ??= loadCatalog();
   return globalThis.__galaxieCatalog;
+}
+
+/** Faixas dos módulos de engajamento (padrão, teto, faixas fixas) do `modules.yaml` (#1446). */
+export function moduleLimits(): ModuleLimitDefs {
+  return moduleLimitDefs(catalog());
 }
 
 export interface TenantPlanStore {
