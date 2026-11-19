@@ -67,7 +67,7 @@ describe('erros escritos nas rotas', () => {
   };
   walk(root);
 
-  it('notFound e títulos de ProblemError em inglês', () => {
+  it('notFound, primeiro argumento de problems.* e títulos de ProblemError em inglês', () => {
     const offenders: string[] = [];
     for (const file of files) {
       const rel = relative(root, file);
@@ -75,6 +75,9 @@ describe('erros escritos nas rotas', () => {
       const src = readFileSync(file, 'utf8');
       for (const m of src.matchAll(/(?:notFound|notPublished)\(\s*'([^']*)'/g))
         if (PORTUGUESE.test(m[1]!)) offenders.push(`${rel}: ${m[1]}`);
+      // primeiro argumento literal de problems.* (detail, nome do recurso), #1422
+      for (const m of src.matchAll(/problems\.\w+\(\s*(['`])([^'`]*)\1/g))
+        if (PORTUGUESE.test(m[2]!)) offenders.push(`${rel}: ${m[2]}`);
       for (const m of src.matchAll(/new ProblemError\(\s*\d+,\s*'[A-Z_]+',\s*(['`])([^'`]*)\1/g))
         if (PORTUGUESE.test(m[2]!)) offenders.push(`${rel}: ${m[2]}`);
     }

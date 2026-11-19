@@ -62,7 +62,7 @@ export async function shopRoutes(
 
   app.get('/v1/shop/:kind/:id', { config: MODULE }, async (request, reply) => {
     requireDb(ctx);
-    if (!opts.offers) throw problems.degraded('Shopping indisponível: banco de dados não configurado.');
+    if (!opts.offers) throw problems.degraded('Shop unavailable: database not configured.');
     const p = parseInput(ShopParams, request.params);
     const q = parseInput(ShopQuery, request.query);
     reply.header('cache-control', 'private, max-age=60');
@@ -124,7 +124,7 @@ export async function shopRoutes(
 
   app.get('/v1/widgets/:id/shop', { config: MODULE }, async (request, reply) => {
     requireDb(ctx);
-    if (!opts.offers) throw problems.degraded('Shopping indisponível: banco de dados não configurado.');
+    if (!opts.offers) throw problems.degraded('Shop unavailable: database not configured.');
     const p = parseInput(WidgetShopParams, request.params);
     const q = parseInput(WidgetShopQuery, request.query);
     const tenant = (request as FastifyRequest & { tenant?: { tenantId: string; widgetId?: string | null } })

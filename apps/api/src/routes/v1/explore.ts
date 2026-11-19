@@ -37,7 +37,7 @@ export async function exploreRoutes(
       return (geo ??= loadGeoConfig());
     } catch (err) {
       app.log.error({ err }, 'config/geo inválida ou ausente');
-      throw problems.degraded('Configuração geográfica (config/geo) indisponível.');
+      throw problems.degraded('Geographic configuration (config/geo) unavailable.');
     }
   };
 

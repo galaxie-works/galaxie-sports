@@ -143,7 +143,7 @@ export async function mirrorRoutes(app: FastifyInstance, ctx: AppContext): Promi
     if (!SPORTS.has(sport)) throw problems.notFound('Mirror sport');
     const path = rest.replace(/\/+$/, '');
     if (!ENDPOINT_RE.test(path))
-      throw problems.invalidParams([{ path: 'endpoint', message: 'endpoint inválido' }]);
+      throw problems.invalidParams([{ path: 'endpoint', message: 'invalid endpoint' }]);
     if (request.tenant) assertSport(request.tenant, sport);
 
     const endpoint = `/${path}`;

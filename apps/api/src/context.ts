@@ -87,6 +87,6 @@ export interface SemanticConfig {
 }
 
 export function requireDb(ctx: AppContext): Database {
-  if (!ctx.db) throw problems.degraded('Banco de dados não configurado.');
+  if (!ctx.db) throw problems.degraded('Database not configured.');
   return ctx.db;
 }

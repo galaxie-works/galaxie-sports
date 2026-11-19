@@ -94,7 +94,7 @@ export async function ageVerificationFanRoutes(
   const client = clientOf(deps.config);
   const now = () => deps.now?.() ?? new Date();
   const db = () => {
-    if (!deps.db) throw problems.degraded('Banco de dados não configurado.');
+    if (!deps.db) throw problems.degraded('Database not configured.');
     return deps.db;
   };
 
@@ -110,14 +110,14 @@ export async function ageVerificationFanRoutes(
       // só o Perfil declarado adulto: a verificação comprova 18+ e não muda a faixa, então o menor passaria o rosto pelo
       // provedor sem ganhar nada (revisão jurídica do #1109). Menor de 13 tem o caminho do responsável (#1108)
       if (fan.ageBand !== '18plus')
-        throw problems.fanAgeRestricted('A verificação de idade só vale para Perfis declarados adultos.');
+        throw problems.fanAgeRestricted('Age verification only applies to Profiles declared as adults.');
       const body = parseInput(AgeVerificationStartBody, request.body);
-      if (!client) throw problems.degraded('Verificação de idade não configurada.');
+      if (!client) throw problems.degraded('Age verification not configured.');
       const profile = await readFan(database, fan.tenantId, fan.profileId);
-      if (!profile) throw problems.invalidFanToken('Perfil excluído.');
+      if (!profile) throw problems.invalidFanToken('Profile deleted.');
       // a faixa gravada vale mais que a do token (o cliente pode ter descido o Perfil depois de emitir)
       if (profile.ageBand !== '18plus')
-        throw problems.fanAgeRestricted('A verificação de idade só vale para Perfis declarados adultos.');
+        throw problems.fanAgeRestricted('Age verification only applies to Profiles declared as adults.');
       // só origem e caminho vão ao provedor: query e fragmento podem levar dado do torcedor
       const back = new URL(body.returnUrl);
       back.search = '';
@@ -139,9 +139,7 @@ export async function ageVerificationFanRoutes(
             { err: err.message, status: err.status },
             'verificação de idade: provedor recusou',
           );
-          throw problems.degraded(
-            'Provedor da verificação de idade indisponível. Tente de novo em instantes.',
-          );
+          throw problems.degraded('Age verification provider unavailable. Try again shortly.');
         }
         throw err;
       }

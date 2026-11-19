@@ -39,7 +39,7 @@ const dto = (row: TenantChannelList) => channelListDto(row, (d) => formatInstant
 export async function channelListRoutes(app: FastifyInstance, ctx: AppContext): Promise<void> {
   const config = () => {
     const c = ctx.wtwConfig?.();
-    if (!c) throw problems.degraded('Dicionário de emissoras indisponível.');
+    if (!c) throw problems.degraded('Broadcaster dictionary unavailable.');
     return c;
   };
   const noStore = {
@@ -62,7 +62,9 @@ export async function channelListRoutes(app: FastifyInstance, ctx: AppContext): 
       const t = secretTenant(request);
       const body = parseInput(ChannelListBody.strict(), request.body ?? {});
       if (body.default_country && !isCountry(body.default_country))
-        throw problems.invalidParams([{ path: 'default_country', message: 'país fora do onde assistir' }]);
+        throw problems.invalidParams([
+          { path: 'default_country', message: 'country outside where-to-watch' },
+        ]);
       let parsed;
       try {
         parsed = parseChannelList(body.content, body.format);

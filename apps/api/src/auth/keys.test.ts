@@ -93,7 +93,7 @@ describe('Authenticator', () => {
     store.keys.get(prefix)!.expiresAt = new Date(Date.now() - 1);
     await expect(auth.authenticate(key)).rejects.toMatchObject({
       code: 'INVALID_KEY',
-      detail: 'Chave expirada.',
+      detail: 'Key expired.',
     });
     // instância que nunca viu o segredo: 401 genérico (não é oráculo de status do prefixo)
     const fresh = await new Authenticator(store).authenticate(key).catch((e: { detail: string }) => e);
@@ -228,7 +228,7 @@ describe('Authenticator sob chaves aleatórias (auditoria API-2)', () => {
     now += 1_000;
     await expect(auth.authenticate(key)).resolves.toBeDefined(); // cache de 60 s
     await expect(auth.authenticate(key, { maxAgeMs: 500 })).rejects.toMatchObject({
-      detail: 'Chave revogada.',
+      detail: 'Key revoked.',
     });
   });
 });

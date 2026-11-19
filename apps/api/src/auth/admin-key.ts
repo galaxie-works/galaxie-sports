@@ -19,10 +19,10 @@ export function assertAdmin(request: FastifyRequest, guard: AdminGuard | undefin
       [
         {
           path: 'x-galaxie-actor',
-          message: 'handle interno obrigatório (letras, números, . _ -; sem e-mail)',
+          message: 'internal handle required (letters, numbers, . _ -; no e-mail)',
         },
       ],
-      'Identifique quem faz a correção.',
+      'Identify who is making the correction.',
     );
   return actor;
 }

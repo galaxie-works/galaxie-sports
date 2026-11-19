@@ -28,7 +28,7 @@ function tenantOf(request: FastifyRequest): TenantContext {
  */
 export async function accountRoutes(app: FastifyInstance, opts: AccountRoutesOptions): Promise<void> {
   const db = () => {
-    if (!opts.db) throw problems.degraded('Banco de dados não configurado.');
+    if (!opts.db) throw problems.degraded('Database not configured.');
     return opts.db;
   };
 
@@ -72,10 +72,10 @@ export async function accountRoutes(app: FastifyInstance, opts: AccountRoutesOpt
         throw err instanceof KeyPolicyError ? problems.conflict(err.message) : err;
       },
     );
-    if (!rotated) throw problems.invalidKey('Chave já revogada ou expirada.');
+    if (!rotated) throw problems.invalidKey('Key already revoked or expired.');
     request.log.info({ tenant: ctx.slug, key: rotated.previous.prefix }, 'chave rotacionada pelo tenant');
     return reply.code(201).send({
-      key: { ...rotated.key, notice: 'Guarde a chave agora: ela não será exibida novamente.' },
+      key: { ...rotated.key, notice: 'Store the key now: it will not be shown again.' },
       previous: rotated.previous,
     });
   });

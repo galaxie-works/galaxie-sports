@@ -129,7 +129,7 @@ const MonthQuery = z.object({
     .optional(),
 });
 
-const SECRET_NOTICE = 'Guarde a chave agora: ela não será exibida novamente.';
+const SECRET_NOTICE = 'Store the key now: it will not be shown again.';
 
 /**
  * Rotas administrativas `/internal/admin/*` (onboarding de tenants, chaves e uso). Protegidas por
@@ -176,7 +176,7 @@ export async function adminRoutes(app: FastifyInstance, opts: AdminRoutesOptions
         return apply('active', 'PATCH /internal/admin/tenants (status: active)');
       if (!stateHasAccess(current.state))
         throw problems.conflict(
-          `O tenant está em ${current.state}: status não reativa este estado; use a máquina de estados (console).`,
+          `The tenant is in ${current.state}: status does not reactivate this state; use the state machine (console).`,
         );
     }
     if (
@@ -203,7 +203,7 @@ export async function adminRoutes(app: FastifyInstance, opts: AdminRoutesOptions
     const bad = body.key ? invalidScopes(modules, body.key.scopes) : [];
     if (bad.length)
       throw problems.invalidParams([
-        { path: 'key.scopes', message: `fora dos módulos do tenant: ${bad.join(', ')}` },
+        { path: 'key.scopes', message: `outside the tenant modules: ${bad.join(', ')}` },
       ]);
     try {
       const { key, ...input } = body;
@@ -254,7 +254,7 @@ export async function adminRoutes(app: FastifyInstance, opts: AdminRoutesOptions
       current.state !== 'draft'
     )
       throw problems.conflict(
-        `O tenant está em ${current.state}: o plano ${body.plan} tem prazo de trial e só vale em trial ou draft.`,
+        `The tenant is in ${current.state}: the ${body.plan} plan has a trial period and only applies in trial or draft.`,
       );
     let updated = Object.keys(body).length ? await updateTenant(db, plans, current.id, body) : current;
     if (!updated) throw problems.notFound('Tenant');
@@ -283,7 +283,7 @@ export async function adminRoutes(app: FastifyInstance, opts: AdminRoutesOptions
     const bad = invalidScopes(t.modules, body.scopes);
     if (bad.length)
       throw problems.invalidParams([
-        { path: 'scopes', message: `fora dos módulos do tenant: ${bad.join(', ')}` },
+        { path: 'scopes', message: `outside the tenant modules: ${bad.join(', ')}` },
       ]);
     const key = await issueKey(db, t.id, body).catch((err) => {
       throw err instanceof KeyPolicyError ? problems.conflict(err.message) : err;
@@ -394,7 +394,7 @@ export async function adminRoutes(app: FastifyInstance, opts: AdminRoutesOptions
   });
 
   app.post('/internal/admin/usage/flush', { config }, async () => {
-    if (!opts.usage) throw problems.degraded('Contadores de uso não configurados.');
+    if (!opts.usage) throw problems.degraded('Usage counters not configured.');
     return persistUsage(db, opts.usage);
   });
 }

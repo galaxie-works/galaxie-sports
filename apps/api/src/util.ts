@@ -143,7 +143,7 @@ export function decodeCursor<T extends z.ZodType>(schema: T, cursor: string): z.
   } catch {
     // cai no erro abaixo
   }
-  throw problems.invalidParams([{ path: 'cursor', message: 'cursor inválido' }]);
+  throw problems.invalidParams([{ path: 'cursor', message: 'invalid cursor' }]);
 }
 
 export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

@@ -120,7 +120,7 @@ export async function internalShopRoutes(
       { config: ADMIN_ROUTE },
       async (request, reply) => {
         requireDb(ctx);
-        if (!deps.offers) throw problems.degraded('Shopping sem banco.');
+        if (!deps.offers) throw problems.degraded('Shop without a database.');
         const p = parseInput(AnchorsParams, request.params);
         const q = parseInput(OffersQuery, request.query);
         const dest: ShopDestination = q.tenant

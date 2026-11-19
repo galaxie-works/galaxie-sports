@@ -93,7 +93,7 @@ export class PublishableAuthenticator {
     origin: string | undefined,
     attempt: AuthAttempt = {},
   ): Promise<TenantContext> {
-    if (!isPublishableKey(rawKey)) throw problems.invalidKey('Formato de chave publicável inválido.');
+    if (!isPublishableKey(rawKey)) throw problems.invalidKey('Invalid publishable key format.');
     const now = this.now();
     const hash = hashPublishableKey(rawKey);
     let entry = this.cache.get(hash);
@@ -106,7 +106,7 @@ export class PublishableAuthenticator {
       if (this.cacheTtlMs > 0) this.cache.set(hash, entry);
     }
     const key = entry.value;
-    if (!key) throw problems.invalidKey('Chave publicável inválida ou revogada.');
+    if (!key) throw problems.invalidKey('Invalid or revoked publishable key.');
     // estado do tenant (F3): a chave publicável é pública, então a recusa já diz o motivo (o widget mostra o aviso)
     const stateProblem = tenantStateProblem(key.tenant, now);
     if (stateProblem) {

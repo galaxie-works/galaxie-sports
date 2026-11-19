@@ -81,7 +81,7 @@ export function filterConds(f: EventFilters): SQL[] {
 
 function marketRequired(param: string) {
   return problems.invalidParams([
-    { path: param, message: 'exige `market` (ou um único mercado no plano do tenant)' },
+    { path: param, message: 'requires `market` (or a single market in the tenant plan)' },
   ]);
 }
 
@@ -161,5 +161,5 @@ export async function eventHead(db: Database, id: string) {
 /** Valida a janela from/to. */
 export function assertWindow(start: Date | null, end: Date | null): void {
   if (start && end && start >= end)
-    throw problems.invalidParams([{ path: 'to', message: '`to` deve ser posterior a `from`' }]);
+    throw problems.invalidParams([{ path: 'to', message: '`to` must be after `from`' }]);
 }
