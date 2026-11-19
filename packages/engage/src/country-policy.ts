@@ -23,7 +23,11 @@ export const isPolicyKey = (value: unknown): value is PolicyKey =>
   typeof value === 'string' &&
   (/^[A-Z]{2}$/.test(value) || value === LATAM_POLICY_KEY || value === DEFAULT_POLICY_KEY);
 
-/** Países da América Latina e do Caribe hispânico que caem na ficha LATAM quando não têm ficha própria. */
+/**
+ * Países da América Latina e do Caribe hispânico que caem na ficha LATAM quando não têm ficha própria. Espelho de
+ * `latam` em config/geo/confederations.yaml (este pacote roda no navegador e não lê yaml); o teste do packages/geo
+ * reprova se divergir.
+ */
 export const LATAM_COUNTRIES: readonly string[] = [
   'AR',
   'BO',

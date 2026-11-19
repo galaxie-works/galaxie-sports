@@ -1,5 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { LATAM_NOCS } from '@galaxie/db';
+import { LATAM_COUNTRIES } from '@galaxie/engage';
 import { WTW_MARKET_CODES } from '@galaxie/runtime-config';
 import { parse } from 'yaml';
 import { describe, expect, it } from 'vitest';
@@ -76,6 +78,13 @@ describe('config/geo do repositório', () => {
 
   it('o espelho WTW_MARKET_CODES do runtime-config (painel e navegador) é igual a wtw_markets', () => {
     expect([...WTW_MARKET_CODES]).toEqual(geo.wtwMarkets);
+  });
+
+  it('América Latina: códigos do COI na ordem de prioridade, iguais aos espelhos do db e do engage', () => {
+    expect(geo.latamNocs).toEqual([...LATAM_NOCS]);
+    expect([...geo.latamCountries].sort()).toEqual([...LATAM_COUNTRIES].sort());
+    for (const market of geo.markets.filter((m) => m !== 'US' && m !== 'CA'))
+      expect(geo.latamCountries, market).toContain(market);
   });
 
   it('mercados ativos da relevância por país: os 10 da CONMEBOL + México, EUA e Canadá', () => {
@@ -314,6 +323,8 @@ describe('parseGeoConfig', () => {
     ['mercado repetido', geo({ markets: ['BR', 'BR'] }), scope()],
     ['mercado do Onde Assistir fora dos mercados', geo({ markets: ['BR'], wtw_markets: ['AR'] }), scope()],
     ['mercado do Onde Assistir repetido', geo({ markets: ['BR'], wtw_markets: ['BR', 'BR'] }), scope()],
+    ['país latino-americano sem código do COI', geo({ latam: ['AR'] }), scope()],
+    ['país latino-americano desconhecido', geo({ latam: ['MX'] }), scope()],
     [
       'confederação inexistente no escopo',
       geo(),

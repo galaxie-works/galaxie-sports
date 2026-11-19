@@ -469,6 +469,12 @@ importers:
       '@galaxie/contracts':
         specifier: workspace:*
         version: link:../contracts
+      '@galaxie/db':
+        specifier: workspace:*
+        version: link:../db
+      '@galaxie/engage':
+        specifier: workspace:*
+        version: link:../engage
       '@galaxie/runtime-config':
         specifier: workspace:*
         version: link:../runtime-config

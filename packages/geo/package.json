@@ -30,6 +30,8 @@
   },
   "devDependencies": {
     "@galaxie/contracts": "workspace:*",
+    "@galaxie/db": "workspace:*",
+    "@galaxie/engage": "workspace:*",
     "@galaxie/runtime-config": "workspace:*"
   }
 }

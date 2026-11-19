@@ -25,6 +25,10 @@
 #                               opções de WTW_MARKETS e RELATED_MARKETS no painel (Ajustes); sem valor no
 #                               painel, o wtw-run usa os mercados dos tenants. O espelho WTW_MARKET_CODES
 #                               do packages/runtime-config é cobrado pelo teste do geo.
+#   latam                     - América Latina e Caribe hispânico (ISO2), na ordem de prioridade regional
+#                               (filtro e destaques "latam" do quadro de medalhas e do hipismo, ficha de
+#                               país LATAM do engajamento). Todo país precisa de `ioc`. Espelhos cobrados
+#                               pelo teste do geo: LATAM_NOCS (@galaxie/db) e LATAM_COUNTRIES (@galaxie/engage).
 #   navigation.countries      - países da navegação da demo, na ordem do menu.
 #   navigation.sports         - os 12 esportes na ordem do menu, com nome localizado (fallback quando
 #                               o banco ainda não tem core.sport).
@@ -35,6 +39,7 @@ schema_version: 1
 
 markets: [BR, AR, UY, CL, CO, PY, PE, EC, BO, VE, MX, US, CA]
 wtw_markets: [BR, AR, MX, CO, CL, PE, UY, EC]
+latam: [BR, AR, MX, CO, CL, PE, UY, EC, CU, DO, VE, PR, PY, BO, GT, CR, PA, SV, HN, NI]
 
 navigation:
   countries: [BR, AR, BO, CL, CO, EC, PY, PE, UY, VE, MX, GB-ENG, ES, IT, DE, FR, PT]
