@@ -25,6 +25,7 @@
     "@galaxie/db": "workspace:*",
     "@galaxie/engage": "workspace:*",
     "@galaxie/game-rules": "workspace:*",
+    "@galaxie/geo": "workspace:*",
     "@galaxie/net-guard": "workspace:*",
     "@galaxie/runtime-config": "workspace:*",
     "@galaxie/where-to-watch": "workspace:*",

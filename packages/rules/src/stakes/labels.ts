@@ -413,7 +413,10 @@ export const STAKE_LABELS: Record<StakeLocale, Record<StakeFamily, LabelTemplate
   en: EN,
 };
 
-/** Nomes das zonas com artigo, para compor `{zone}`. Zona desconhecida usa o id. */
+/**
+ * Nomes das zonas com artigo, para compor `{zone}` e o rótulo das zonas da tabela. Toda zona de `config/rules/*.yaml`
+ * precisa estar nos três mapas (guarda em labels.test.ts, #1425); zona desconhecida ainda cai no id legível.
+ */
 const ZONE_PT: Record<string, string> = {
   libertadores: 'a Libertadores',
   libertadores_group_stage: 'a fase de grupos da Libertadores',
@@ -429,6 +432,15 @@ const ZONE_PT: Record<string, string> = {
   conference_league: 'a Conference League',
   promotion: 'o acesso',
   playoff: 'os playoffs',
+  quarter_finals: 'as quartas de final',
+  playoffs: 'os playoffs',
+  play_in: 'o play-in',
+  liguilla: 'a liguilla',
+  quadrangulars: 'os quadrangulares',
+  championship_group: 'o grupo do título',
+  relegation_playoff: 'a repescagem contra o rebaixamento',
+  relegation: 'o rebaixamento',
+  elimination: 'a eliminação',
 };
 
 const ZONE_ES: Record<string, string> = {
@@ -446,6 +458,15 @@ const ZONE_ES: Record<string, string> = {
   conference_league: 'la Conference League',
   promotion: 'el ascenso',
   playoff: 'los playoffs',
+  quarter_finals: 'los cuartos de final',
+  playoffs: 'los playoffs',
+  play_in: 'el play-in',
+  liguilla: 'la liguilla',
+  quadrangulars: 'los cuadrangulares',
+  championship_group: 'el grupo campeonato',
+  relegation_playoff: 'la promoción por la permanencia',
+  relegation: 'el descenso',
+  elimination: 'la eliminación',
 };
 
 const ZONE_EN: Record<string, string> = {
@@ -463,6 +484,15 @@ const ZONE_EN: Record<string, string> = {
   conference_league: 'the Conference League',
   promotion: 'promotion',
   playoff: 'the play-offs',
+  quarter_finals: 'the quarter-finals',
+  playoffs: 'the play-offs',
+  play_in: 'the play-in',
+  liguilla: 'the Liguilla',
+  quadrangulars: 'the quadrangular round',
+  championship_group: 'the championship group',
+  relegation_playoff: 'the relegation play-off',
+  relegation: 'relegation',
+  elimination: 'elimination',
 };
 
 export const ZONE_LABELS: Record<StakeLocale, Record<string, string>> = {

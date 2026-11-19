@@ -42,7 +42,7 @@ export async function whereToWatchRoutes(app: FastifyInstance, ctx: AppContext):
           { eventId: params.id, country: query.country, region: query.region ?? null },
           ctx.wtwConfig?.() ?? null,
         );
-        if (!data) throw problems.notFound('Evento');
+        if (!data) throw problems.notFound('Event');
         const logo = (l: { storageKey: string | null; sourceUrl: string | null } | null) =>
           l ? assetUrl(ctx.assetsBaseUrl, l.storageKey, l.sourceUrl) : null;
         const logoDark = (l: { darkStorageKey: string | null } | null) =>

@@ -94,8 +94,11 @@ const CHAMPIONSHIPS: Record<string, { pt: string; es: string; en: string }> = {
   },
 };
 
-const tr = (locale: Locale, t: { pt: string; es: string; en?: string }) =>
-  locale.startsWith('es') ? t.es : locale.startsWith('en') ? (t.en ?? t.pt) : t.pt;
+/** Texto nos três idiomas da API: `en` é obrigatório, para `locale=en` nunca receber português (#1424). */
+export type EqText = { pt: string; es: string; en: string };
+
+export const tr = (locale: Locale, t: EqText) =>
+  locale.startsWith('es') ? t.es : locale.startsWith('en') ? t.en : t.pt;
 
 export function notice(locale: Locale, license: string | null): EqAthleteDetail['notice'] {
   return {
@@ -110,24 +113,31 @@ export function notice(locale: Locale, license: string | null): EqAthleteDetail[
         'Estamos gestionando el licenciamiento con la FEI y las federaciones, pero los procesos y accesos son ' +
         'extremadamente difíciles y costosos. Por eso, la hípica no forma parte de la oferta de Galaxie por el ' +
         'momento, pero puede cotizarse si hay interés del socio.',
+      en:
+        'We are working on licensing with the FEI and the national federations, but the processes and access are ' +
+        'extremely difficult and expensive. For that reason, equestrian is not part of the Galaxie offer at the ' +
+        'moment, but it can be quoted if a partner is interested.',
     }),
   };
 }
 
-const COVERAGE_NOTE = {
+export const COVERAGE_NOTE: Record<'complete' | 'partial' | 'not_collected', EqText> = {
   complete: {
     pt: 'Todas as páginas de resultados exibidas pela fonte foram lidas. Isso não garante a carreira inteira.',
     es: 'Se leyeron todas las páginas de resultados que muestra la fuente. Eso no garantiza la carrera completa.',
+    en: 'Every results page shown by the source was read. That does not guarantee the full career.',
   },
   partial: {
     pt: 'Histórico incompleto: só parte das páginas de resultados da fonte foi lida.',
     es: 'Historial incompleto: solo se leyó parte de las páginas de resultados de la fuente.',
+    en: 'Incomplete history: only some of the source results pages were read.',
   },
   not_collected: {
     pt: 'Histórico não coletado: o atleta aparece apenas em classificações de provas presentes na base.',
     es: 'Historial no recolectado: el atleta aparece solo en clasificaciones de pruebas presentes en la base.',
+    en: 'History not collected: the athlete only appears in standings of events present in the database.',
   },
-} as const;
+};
 
 const num = (v: string | number | null | undefined) => (v === null || v === undefined ? null : Number(v));
 const iso = (d: Date | string | null | undefined) =>
@@ -612,6 +622,9 @@ export async function equestrianRoutes(app: FastifyInstance, ctx: AppContext): P
               es:
                 'Base parcial para construir y validar el producto: no es un censo de los países ni de todos los años. ' +
                 'Clasificación general y ronda son registros distintos; un dato ausente no es cero.',
+              en:
+                'Partial dataset for building and validating the product: not a census of the countries or of every year. ' +
+                'Overall standings and rounds are separate records; missing data is not zero.',
             }),
           },
           highlights,
@@ -680,7 +693,7 @@ export async function equestrianRoutes(app: FastifyInstance, ctx: AppContext): P
         const c = await context(locale);
         const { db } = c;
         const [a] = await db.select().from(eqAthlete).where(eq(eqAthlete.id, params.id));
-        if (!a) throw problems.notFound('Atleta');
+        if (!a) throw problems.notFound('Athlete');
         const { license } = await latestLicense(db);
         const [stats] = await db
           .select({
@@ -857,7 +870,7 @@ export async function equestrianRoutes(app: FastifyInstance, ctx: AppContext): P
         const c = await context(locale);
         const { db } = c;
         const [h] = await db.select().from(eqHorse).where(eq(eqHorse.id, params.id));
-        if (!h) throw problems.notFound('Cavalo');
+        if (!h) throw problems.notFound('Horse');
         const { license } = await latestLicense(db);
         const owners = await db
           .select()
@@ -1027,7 +1040,7 @@ export async function equestrianRoutes(app: FastifyInstance, ctx: AppContext): P
       load: async () => {
         const c = await context(locale);
         const [summary] = await competitionSummaries(c, eq(eqCompetition.id, params.id), 1, 0);
-        if (!summary) throw problems.notFound('Prova');
+        if (!summary) throw problems.notFound('Competition');
         const [k] = await c.db.select().from(eqCompetition).where(eq(eqCompetition.id, params.id));
         const { license } = await latestLicense(c.db);
         const rows = await c.db
@@ -1058,10 +1071,12 @@ export async function equestrianRoutes(app: FastifyInstance, ctx: AppContext): P
               ? tr(locale, {
                   pt: 'Classificação completa lida na fonte.',
                   es: 'Clasificación completa leída en la fuente.',
+                  en: 'Full standings read from the source.',
                 })
               : tr(locale, {
                   pt: 'Classificação parcial: só os conjuntos presentes na base aparecem.',
                   es: 'Clasificación parcial: solo aparecen los binomios presentes en la base.',
+                  en: 'Partial standings: only the horse-and-rider pairs present in the database appear.',
                 }),
           },
           standings: await resultsOut(c, rows),
@@ -1107,7 +1122,7 @@ export async function equestrianRoutes(app: FastifyInstance, ctx: AppContext): P
           .from(eqTeamResult)
           .where(eq(eqTeamResult.eventKey, params.key))
           .orderBy(sql`${eqTeamResult.position} asc nulls last`, asc(eqTeamResult.countryCode));
-        if (!rounds.length && !teams.length) throw problems.notFound('Campeonato');
+        if (!rounds.length && !teams.length) throw problems.notFound('Championship');
         const { license } = await latestLicense(db);
         const [comp] = await db
           .select({ id: eqCompetition.id })

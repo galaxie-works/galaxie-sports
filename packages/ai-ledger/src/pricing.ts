@@ -11,6 +11,8 @@
  * Para mudar um preço (ou incluir um modelo) sem deploy: a flag AI_MODEL_PRICES em Ajustes
  * (`modelo=entrada/cache/saída[/gravação]`, US$ por 1 milhão de tokens), que vale por cima desta tabela.
  */
+import { AI_PROVIDER_MODEL_PREFIX, isAiProvider, providerOfModel } from '@galaxie/runtime-config';
+
 /**
  * Tokens de uma chamada (a entrada inclui os lidos e os gravados no cache; `cachedInputTokens` e
  * `cacheWriteTokens` os separam).
@@ -179,22 +181,12 @@ export function priceFor(model: string): ModelPrice | undefined {
   return base ? prices[base] : undefined;
 }
 
-/** Prefixo dos modelos de cada provedor na tabela de preços. */
-const PROVIDER_MODEL_PREFIX: Record<string, string> = {
-  openai: 'gpt-',
-  anthropic: 'claude-',
-  gemini: 'gemini-',
-  deepseek: 'deepseek-',
-};
-
-/** Provedor do modelo pelo nome (o da tabela); undefined fora dos provedores conhecidos. */
-export function providerOfModel(model: string): string | undefined {
-  return Object.entries(PROVIDER_MODEL_PREFIX).find(([, prefix]) => model.startsWith(prefix))?.[0];
-}
+/** Provedor do modelo pelo prefixo do nome (catálogo único, @galaxie/runtime-config); undefined fora dos conhecidos. */
+export { providerOfModel };
 
 /** Maior preço de entrada e de saída entre os modelos do provedor (sem desconto de cache). */
 function highestPriceOf(provider: string): ModelPrice | undefined {
-  const prefix = PROVIDER_MODEL_PREFIX[provider];
+  const prefix = isAiProvider(provider) ? AI_PROVIDER_MODEL_PREFIX[provider] : undefined;
   const prices = Object.entries(effectiveModelPrices())
     .filter(([k]) => prefix && k.startsWith(prefix))
     .map(([, p]) => p);
@@ -212,7 +204,7 @@ const warnedUnpriced = new Set<string>();
 export function budgetPriceFor(model: string, provider?: string): ModelPrice | undefined {
   const known = priceFor(model);
   if (known) return known;
-  const family = provider && PROVIDER_MODEL_PREFIX[provider] ? provider : providerOfModel(model);
+  const family = provider && isAiProvider(provider) ? provider : providerOfModel(model);
   const fallback = family ? highestPriceOf(family) : undefined;
   if (fallback && !warnedUnpriced.has(model)) {
     warnedUnpriced.add(model);

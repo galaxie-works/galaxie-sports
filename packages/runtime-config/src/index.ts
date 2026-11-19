@@ -1,3 +1,4 @@
+export * from './ai-catalog.js';
 export {
   AGENT_STATUS_PATTERN,
   AGENT_USD_BUDGETS_PATTERN,

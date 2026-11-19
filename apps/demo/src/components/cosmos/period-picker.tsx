@@ -11,6 +11,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Separator } from '@/components/ui/separator';
+import { EARLIEST_DAY } from '@/lib/cosmos/data-utils';
 import { periodFromSelector, selectorFromPeriod } from '@/lib/cosmos/period';
 import { useI18n } from '@/lib/i18n/client';
 
@@ -43,6 +44,9 @@ function useSelectorI18n(): Partial<DateSelectorI18nConfig> {
     };
   }, [T, locale]);
 }
+
+/** Anos do seletor: do começo da Cosmos até o corrente (o padrão do componente para em 2026). */
+const FIRST_YEAR = Number(EARLIEST_DAY.slice(0, 4));
 
 /**
  * Período do extrato: o seletor de datas do exemplo ReUI c-date-selector-2 (cópia fiel em
@@ -95,6 +99,8 @@ export function PeriodPicker({
             allowRange={true}
             defaultFilterType="between"
             periodTypes={['day', 'month', 'quarter', 'year']}
+            minYear={FIRST_YEAR}
+            maxYear={new Date().getFullYear()}
             label={T.period}
             inputHint={T.periodHint}
             i18n={i18n}

@@ -9,7 +9,7 @@
 # Uso: infra/ops/deploy-safe.sh <rótulo>   (rode do checkout principal na main)
 set -u
 STATE="${GALAXIE_OPS_STATE:-$HOME/.galaxie-ops}"; mkdir -p "$STATE"
-LOCK="$STATE/deploy.lock"; label="${1:-deploy}"; ROOT="${GALAXIE_ROOT:-/g/galaxie-sports}"
+LOCK="$STATE/deploy.lock"; label="${1:-deploy}"; ROOT="${GALAXIE_ROOT:-$(git -C "$(dirname "$0")" worktree list --porcelain 2>/dev/null | sed -n '1s/^worktree //p')}"
 until mkdir "$LOCK" 2>/dev/null; do sleep 20; done
 trap 'rmdir "$LOCK" 2>/dev/null' EXIT
 cd "$ROOT" || exit 1

@@ -4,8 +4,8 @@
 # normal não é este: confira antes com `pnpm --filter @galaxie/ingestor gs dev:esquema` e o contêiner migrate no
 # Portainer. Runbook: docs/runbooks/ambiente-de-dev.md › Plano B.
 #
-# Lê DATABASE_URL do ambiente ou do .env do checkout principal (GALAXIE_ENV, padrão /g/galaxie-sports/.env) e RECUSA
-# uma URL que não seja a do dev (NAS 192.168.1.34, ou localhost; DEV_HOSTS muda a lista), a não ser com --forcar.
+# Lê DATABASE_URL do ambiente ou do .env do checkout principal (GALAXIE_ENV; padrão: o .env do checkout principal) e RECUSA
+# uma URL que não seja a do dev (DEV_DATABASE_HOST de packages/db, ou localhost; DEV_HOSTS muda a lista), a não ser com --forcar.
 #
 #   infra/ops/migrate-dev.sh                 # a imagem publicada, tag main: docker run …-api:main migrate-cli.js
 #   infra/ops/migrate-dev.sh --tag in-abc1234   # outra tag da imagem (a do SHA ou in-<hash>)
@@ -47,7 +47,8 @@ while [ $# -gt 0 ]; do
 done
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-ENV_FILE="${GALAXIE_ENV:-/g/galaxie-sports/.env}"
+# .env do checkout principal (o primeiro do `git worktree list`), a não ser que GALAXIE_ENV diga outro
+ENV_FILE="${GALAXIE_ENV:-$(git -C "$(dirname "$0")" worktree list --porcelain 2>/dev/null | sed -n '1s/^worktree //p')/.env}"
 URL="${DATABASE_URL:-}"
 if [ -z "$URL" ]; then
   [ -f "$ENV_FILE" ] || { echo "sem DATABASE_URL no ambiente e sem $ENV_FILE (GALAXIE_ENV)" >&2; exit 2; }
@@ -59,7 +60,9 @@ host="$(printf '%s' "$URL" | sed -E 's#^[a-z]+://([^@/]*@)?([^:/?]+).*#\2#')"
 masked="$(printf '%s' "$URL" | sed -E 's#(://[^:/@]+):[^@]*@#\1:***@#')"
 
 dev=0
-for h in ${DEV_HOSTS:-192.168.1.34 localhost 127.0.0.1}; do
+# host do dev: o mesmo DEV_DATABASE_HOST de packages/db/src/dev-database.ts (um lugar só para o IP do NAS)
+DEV_DB_HOST="$(sed -nE "s/^export const DEV_DATABASE_HOST = '([^']+)';/\1/p" "$ROOT/packages/db/src/dev-database.ts")"
+for h in ${DEV_HOSTS:-$DEV_DB_HOST localhost 127.0.0.1}; do
   [ "$host" = "$h" ] && dev=1
 done
 if [ "$dev" != 1 ]; then
@@ -72,7 +75,7 @@ if [ "$dev" != 1 ]; then
 #   host lido: $host
 #   url:       $masked
 #                                                                        #
-#   Este script migra o Postgres de DEV do NAS (192.168.1.34:5433).      #
+#   Este script migra o Postgres de DEV do NAS (DEV_DATABASE_HOST).     #
 #   Para seguir mesmo assim, repita o comando com --forcar.              #
 #                                                                        #
 ##########################################################################

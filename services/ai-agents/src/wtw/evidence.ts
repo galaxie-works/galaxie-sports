@@ -5,7 +5,9 @@
  */
 import type { RightsHolderRecord } from '@galaxie/db';
 import {
+  mentionsMatch,
   mentionsTogether,
+  PAGE_PROXIMITY_WORDS,
   normalizeName,
   type BroadcastOptionRow,
   type BroadcastRightsRow,
@@ -121,6 +123,11 @@ export async function verifyCandidates(
                   sameMatch: true,
                 }))
             : null,
+          matchOnPage: r.ok && opts.teams ? mentionsMatch(r.text, opts.teams) : null,
+          broadcasterNearMatch:
+            r.ok && opts.teams
+              ? mentionsTogether(r.text, opts.teams, words, PAGE_PROXIMITY_WORDS, { sameMatch: true })
+              : null,
           contentHash: r.ok ? contentHash(r.text) : null,
           fetchedAt,
         };
@@ -218,4 +225,19 @@ export async function recheckRightsRow(
     holders.push({ ...h, evidence });
   }
   return { supported: reasons.length === 0, holders, reasons };
+}
+
+/**
+ * A fonte refuta o canal? Uma página que já o sustentou respondeu, o confronto continua nela ("A x B"), mas a
+ * emissora não aparece mais a até 40 palavras dele, e nenhuma outra evidência ainda o sustenta. Página que mudou de assunto (o
+ * guia do dia seguinte) ou que não abriu não refuta: o canal confirmado fica (#1400).
+ */
+export function refutedBySource(c: Candidate): boolean {
+  // só a fonte que já sustentou o canal (trecho conferido antes) pode refutá-lo
+  const checked = c.evidence.filter(
+    (e) => e.excerptVerified === true && e.accessible === true && e.matchOnPage === true,
+  );
+  if (!checked.length) return false;
+  if (c.evidence.some((e) => e.excerptFound === true)) return false;
+  return checked.some((e) => e.mentionsBroadcaster === false || e.broadcasterNearMatch === false);
 }

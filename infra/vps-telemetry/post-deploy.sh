@@ -64,36 +64,24 @@ cache() {
 }
 
 # conta do provedor de IA com crédito? (chamada mínima, ~20 tokens) — só avisa, não derruba o deploy.
-# Com AI_STATUS=off no env do contêiner, não chama o provedor (o scheduler também respeita o painel).
+# A mesma checagem do scheduler (checkAiCredit, @galaxie/scheduler): os quatro provedores, o modelo leve do catálogo
+# único (@galaxie/runtime-config) e AI_STATUS=off sem chamar o provedor. Lê o env do contêiner (o scheduler também
+# aplica o painel e refaz a checagem de hora em hora).
 ai() {
   echo "conta da IA"
-  docker compose exec -T agents node - <<'JS' || echo "WARN  IA: checagem não rodou (contêiner agents fora do ar?)"
-if ((process.env.AI_STATUS || '').trim().toLowerCase() === 'off') {
-  console.log('WARN  IA: desligada (AI_STATUS=off), sem checar o crédito');
-  process.exit(0);
-}
-const p = (process.env.AI_PROVIDER || 'openai').toLowerCase();
-const gem = p === 'gemini';
-const key = gem ? process.env.GEMINI_API_KEY : process.env.OPENAI_API_KEY;
-if (!key || (p !== 'openai' && !gem)) {
-  console.log('WARN  IA: provedor ' + p + ' sem chave configurada');
-  process.exit(0);
-}
-const model = process.env.AI_MODEL_LIGHT || (gem ? 'gemini-3.5-flash-lite' : 'gpt-6-luna');
-const req = gem
-  ? ['https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent', { method: 'POST',
-      headers: { 'x-goog-api-key': key, 'content-type': 'application/json' },
-      body: JSON.stringify({ contents: [{ parts: [{ text: 'ok' }] }], generationConfig: { maxOutputTokens: 1 } }) }]
-  : ['https://api.openai.com/v1/responses', { method: 'POST',
-      headers: { authorization: 'Bearer ' + key, 'content-type': 'application/json' },
-      body: JSON.stringify({ model, input: 'ok', max_output_tokens: 16 }) }];
-fetch(req[0], req[1])
-  .then(async (r) => {
-    const j = await r.json().catch(() => ({}));
-    console.log(r.ok ? 'PASS  IA: conta com crédito (' + p + ')'
-      : 'WARN  IA: ' + r.status + ' ' + (j.error?.status || j.error?.code || j.error?.type || '') + ' — agentes no texto determinístico');
-  })
-  .catch((e) => console.log('WARN  IA: sem conexão com o provedor (' + e.message + ')'));
+  docker compose exec -T -w /srv/services/ai-agents agents node --input-type=module - <<'JS' || echo "WARN  IA: checagem não rodou (contêiner agents fora do ar?)"
+import { checkAiCredit } from '@galaxie/scheduler';
+const { status, detail } = await checkAiCredit(process.env);
+const what = detail.provider + (detail.model ? ' ' + detail.model : '');
+if (status === 'pass') console.log('PASS  IA: conta com crédito (' + what + ')');
+else if (detail.code === 'ai_off') console.log('WARN  IA: desligada (AI_STATUS=off), sem checar o crédito');
+else if (detail.code === 'no_key') console.log('WARN  IA: provedor ' + detail.provider + ' sem chave configurada');
+else if (detail.code === 'network')
+  console.log('WARN  IA: sem conexão com o provedor (' + what + '): ' + (detail.error ?? ''));
+else
+  console.log(
+    'WARN  IA: ' + (detail.http ?? '') + ' ' + (detail.error ?? '') + ' (' + what + ') — agentes no texto determinístico',
+  );
 JS
 }
 

@@ -450,7 +450,7 @@ jobs:
             infra/vps-telemetry/nas-dump-check.sh infra/vps-telemetry/nas-dump-check.test.sh \
             infra/vps-telemetry/candidate.sh infra/vps-telemetry/candidate.test.sh infra/vps-telemetry/maintenance.sh infra/vps-telemetry/migrar-para-tres-projetos.sh infra/vps-telemetry/rolling-swap.sh infra/vps-telemetry/rolling-swap.test.sh infra/vps-telemetry/ligar-webhooks.sh \
             infra/vps-telemetry/prune-images.sh infra/vps-telemetry/prune-images.test.sh infra/ops/vps-stats/*.sh \
-            infra/ops/migrate-dev.sh infra/ops/migrate-dev.test.sh \
+            infra/ops/migrate-dev.sh infra/ops/migrate-dev.test.sh infra/ops/image-pins.test.sh \
             infra/vps-telemetry/ensure-secrets.sh infra/vps-telemetry/ensure-secrets.test.sh \
             infra/healthcheck/selfheal.sh infra/healthcheck/selfheal.test.sh
 
@@ -459,6 +459,9 @@ jobs:
 
       - name: Segredos internos gerados no deploy (ensure-secrets.sh, só o que falta, nunca troca, sem mostrar valor)
         run: bash infra/vps-telemetry/ensure-secrets.test.sh
+
+      - name: Mesma tag de imagem em toda a infra (compose de produção, dev local, NAS e padrões do e2e)
+        run: bash infra/ops/image-pins.test.sh
 
       - name: Trem de merge (cancelado ao lado de verde não reprova; gh falso)
         run: bash infra/ops/merge-train.test.sh
