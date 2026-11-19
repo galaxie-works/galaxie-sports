@@ -32,6 +32,7 @@ import { GameScorer, startGameSweep } from './game/scorer.js';
 import { ChatGameFeed } from './chat/game.js';
 import { MemoryChatPeak, RedisChatPeak } from './chat/peak.js';
 import { RedisFloodGuard } from './chat/flood.js';
+import { RedisBotGuard } from './chat/bot.js';
 import { MemoryReactionCounter, RedisReactionCounter } from './chat/reactions.js';
 import type { ChatStreamOptions } from './chat/stream.js';
 import type { FanTokenSigner } from './engage/fan-token.js';
@@ -696,6 +697,8 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
       reactions: chatReactions,
       // anti-flood por pessoa no Valkey (todas as instâncias contam juntas); sem Valkey, em memória
       ...(options.redis ? { flood: new RedisFloodGuard(options.redis, prefix) } : {}),
+      // detecção de robô (#1290), no mesmo Valkey
+      ...(options.redis ? { bot: new RedisBotGuard(options.redis, prefix) } : {}),
       stream: options.chat?.stream,
     });
     // Gamificação (#942): Palpite individual e Ranking
