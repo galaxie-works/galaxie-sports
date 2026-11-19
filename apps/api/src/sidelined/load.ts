@@ -396,7 +396,7 @@ export async function loadTeamSidelined(
     .from(participant)
     .where(eq(participant.id, teamId))
     .limit(1);
-  if (!team) throw problems.notFound('Time');
+  if (!team) throw problems.notFound('Team');
   const ref = (await teamRefs(c, [team.id])).get(team.id);
   const today = day(c.now);
   const base = {

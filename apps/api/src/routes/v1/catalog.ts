@@ -317,7 +317,7 @@ export async function catalogRoutes(app: FastifyInstance, ctx: AppContext): Prom
           )
           .orderBy(desc(season.year))
           .limit(1);
-        if (!s) throw problems.notFound('Temporada');
+        if (!s) throw problems.notFound('Season');
 
         const rows = await db
           .select({
@@ -503,7 +503,7 @@ export async function catalogRoutes(app: FastifyInstance, ctx: AppContext): Prom
       .where(where)
       .orderBy(sql`(${competition.sport} = 'football') desc`)
       .limit(1);
-    if (!row) throw problems.notFound('Competição');
+    if (!row) throw problems.notFound('Competition');
     return row;
   }
 

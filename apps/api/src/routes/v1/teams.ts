@@ -199,7 +199,7 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
 
   async function loadTeam(db: Database, id: string, locale: string): Promise<Team> {
     const [row] = await selectTeams(db).where(eq(participant.id, id)).limit(1);
-    if (!row) throw problems.notFound('Time');
+    if (!row) throw problems.notFound('Team');
     const [nick, names] = await Promise.all([
       nicknamesOf(db, [id]),
       loadTeamNames(db, [id], teamNameOptions(ctx, locale)),
@@ -592,7 +592,7 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
           .from(participant)
           .where(eq(participant.id, params.id))
           .limit(1);
-        if (!p) throw problems.notFound('Time');
+        if (!p) throw problems.notFound('Team');
         const win = scheduleWindow(query, tz, bctx.now, false);
         assertWindow(win.start, win.end);
         const page = await eventPage(
@@ -633,7 +633,7 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
           .from(participant)
           .where(eq(participant.id, params.id))
           .limit(1);
-        if (!p) throw problems.notFound('Time');
+        if (!p) throw problems.notFound('Team');
         const photos = await loadPhotos(db, [p.id], ctx.assetsBaseUrl, {
           role: query.role,
           season: query.season,
@@ -662,9 +662,9 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
           .from(participant)
           .where(eq(participant.id, params.id))
           .limit(1);
-        if (!p) throw problems.notFound('Time');
+        if (!p) throw problems.notFound('Team');
         if (p.sport !== 'formula-1' || (p.kind !== 'driver' && p.kind !== 'constructor'))
-          throw problems.notFound('Carreira na F1');
+          throw problems.notFound('F1 career');
         const body: RaceCareer = await loadRaceCareer(db, p, locale, ctx.assetsBaseUrl, {
           liveries: await liveries(),
           customLogos: ctx.logos.enabled(),
@@ -692,8 +692,8 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
           .from(participant)
           .where(eq(participant.id, params.id))
           .limit(1);
-        if (!p) throw problems.notFound('Time');
-        if (p.sport !== 'formula-1' || p.kind !== 'driver') throw problems.notFound('Traços do piloto');
+        if (!p) throw problems.notFound('Team');
+        if (p.sport !== 'formula-1' || p.kind !== 'driver') throw problems.notFound('Driver traits');
         const body: DriverTraits = await loadDriverTraits(db, p.id, locale, ctx.assetsBaseUrl);
         return { body, tags: [`team:${p.id}`] };
       },
@@ -740,7 +740,7 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
           .from(participant)
           .where(eq(participant.id, params.id))
           .limit(1);
-        if (!p) throw problems.notFound('Time');
+        if (!p) throw problems.notFound('Team');
         // na temporada corrente, o elenco atual (players/squads) também conta: contratações sem jogo ainda
         const current =
           year !== undefined && (await teamSeasons(db, p.id)).find((s) => s.current)?.year === year;

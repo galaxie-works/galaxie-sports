@@ -281,7 +281,7 @@ export async function semanticRoutes(app: FastifyInstance, ctx: AppContext): Pro
         let teamSlug: string | undefined;
         if (query.team) {
           const p = await findProfile(db, query.team);
-          if (!p) throw problems.notFound('Time');
+          if (!p) throw problems.notFound('Team');
           teamSlug = p.slug;
         }
         const all = await loadDerbies(db, min);
@@ -380,7 +380,7 @@ export async function semanticRoutes(app: FastifyInstance, ctx: AppContext): Pro
       load: async () => {
         const db = requireDb(ctx);
         const [row] = await db.select().from(derby).where(eq(derby.slug, params.slug)).limit(1);
-        if (!row) throw problems.notFound('Clássico');
+        if (!row) throw problems.notFound('Derby');
         if (!meetsReview(row.reviewStatus, min)) throw notPublished('Clássico', min);
         // os dois perfis também passam pelo piso: clássico aprovado com perfil em rascunho não sai
         const [d] = await loadDerbies(db, min, row.id);
@@ -421,7 +421,7 @@ export async function semanticRoutes(app: FastifyInstance, ctx: AppContext): Pro
       load: async () => {
         const db = requireDb(ctx);
         const p = await findProfile(db, params.id);
-        if (!p) throw problems.notFound('Perfil semântico do time');
+        if (!p) throw problems.notFound('Team semantic profile');
         if (!meetsReview(p.reviewStatus, min)) throw notPublished('Perfil semântico do time', min);
         const names = p.names as Names;
         const hints = copyHintsFor(p.copyHints, locale, p.textLocale);
@@ -494,7 +494,7 @@ export async function semanticRoutes(app: FastifyInstance, ctx: AppContext): Pro
       load: async () => {
         const db = requireDb(ctx);
         const p = await findProfile(db, params.id);
-        if (!p) throw problems.notFound('Perfil semântico do time');
+        if (!p) throw problems.notFound('Team semantic profile');
         if (!meetsReview(p.reviewStatus, min)) throw notPublished('Perfil semântico do time', min);
         const body: TeamRivals = { team: teamRef(p, locale), data: await rivalsOf(db, p, locale, min) };
         return { body, tags: [`team_profile:${p.slug}`, 'team_profile', 'derby'] };
@@ -526,7 +526,7 @@ export async function semanticRoutes(app: FastifyInstance, ctx: AppContext): Pro
       load: async () => {
         const db = requireDb(ctx);
         const driver = await driverF1dbId(db, params.id);
-        if (!driver?.participantId) throw problems.notFound('Piloto');
+        if (!driver?.participantId) throw problems.notFound('Driver');
         // o perfil vem do YAML; as edições aprovadas fora dele e o status do painel valem por cima (docs/06 §2.1)
         const [overrides, decisions] = await Promise.all([
           reviewOverrides(db, 'editorial'),
@@ -535,7 +535,7 @@ export async function semanticRoutes(app: FastifyInstance, ctx: AppContext): Pro
         const all = applyEditorialDecisions(applyEditorialOverrides(await editorial(), overrides), decisions);
         const { found, below } = pickEditorial(all, driver.f1dbId, locale, min);
         if (!found)
-          throw below ? notPublished('Perfil editorial', min) : problems.notFound('Perfil editorial');
+          throw below ? notPublished('Perfil editorial', min) : problems.notFound('Editorial profile');
         const body: DriverEditorial = await editorialBody(db, found, driver.participantId, locale);
         return { body, tags: ['f1_editorial', `team:${driver.participantId}`] };
       },
