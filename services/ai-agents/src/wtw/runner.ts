@@ -568,8 +568,12 @@ export class WtwRunner {
         refutedProviders: [
           ...report.discarded.filter((d) => REFUTING.has(d.reason)).map((d) => d.broadcaster),
           ...verified.candidates.filter(refutedBySource).map((c) => c.broadcaster),
-          // o validador esconde o nome do bloqueado ("[bloqueado]"): a opção salva bloqueada sai pelo nome dela
-          ...saved.filter((c) => isBlocked(directory, c)).map((c) => c.broadcaster),
+          // o validador esconde o nome do bloqueado ("[bloqueado]"): a opção vigente bloqueada sai pelo nome dela
+          ...current
+            .filter((r) => r.status !== 'retracted' && isBlocked(directory, rowToCandidate(r)))
+            .map((r) => r.providerName),
+          // a tabela de direitos deixou de ter a emissora (nem incerta): sai
+          ...report.options.filter((o) => o.flags.includes('rights_mismatch')).map((o) => o.providerName),
         ],
         runId: run.id,
         now: this.now(),
@@ -585,6 +589,7 @@ export class WtwRunner {
         inserted: applied.inserted,
         touched: applied.touched,
         retracted: applied.retracted,
+        keptWithoutSource: applied.kept,
         lockedByEditorial: applied.lockedByEditorial,
         publicChanged: applied.publicChanged,
       });

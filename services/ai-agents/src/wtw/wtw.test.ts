@@ -3,6 +3,7 @@ import type { AddressInfo, LookupFunction } from 'node:net';
 import { gzipSync } from 'node:zlib';
 import {
   loadWtwConfig,
+  mentionsMatch,
   teamNames,
   type BroadcastOptionRow,
   type BroadcastRightsRow,
@@ -903,17 +904,30 @@ describe('refutedBySource (#1400)', () => {
   const ev = (over: object) => ({ url: 'https://ge.globo.com/a', excerpt: 'Globo transmite', ...over });
   const cand = (evidence: object[]) => ({ broadcaster: 'TV Globo', evidence }) as Candidate;
   it('só a fonte que já sustentou o canal refuta', () => {
-    const page = { accessible: true, matchOnPage: true, excerptFound: false };
+    const page = { accessible: true, matchOnPage: true, excerptFound: false, broadcasterNearMatch: false };
     expect(refutedBySource(cand([ev({ ...page, excerptVerified: true })]))).toBe(true);
     // página nova, que nunca sustentou o canal, não refuta
     expect(refutedBySource(cand([ev(page)]))).toBe(false);
     // o jogo saiu da página (o guia do dia seguinte): não refuta
     expect(refutedBySource(cand([ev({ ...page, matchOnPage: false, excerptVerified: true })]))).toBe(false);
+    // a emissora continua perto do jogo (página reformatada): não refuta
+    expect(refutedBySource(cand([ev({ ...page, broadcasterNearMatch: true, excerptVerified: true })]))).toBe(
+      false,
+    );
     // outra evidência ainda sustenta: não refuta
     expect(
       refutedBySource(
         cand([ev({ ...page, excerptVerified: true }), ev({ url: 'https://x.test', excerptFound: true })]),
       ),
     ).toBe(false);
+  });
+});
+
+describe('mentionsMatch (#1400)', () => {
+  const teams = [teamNames('Flamengo'), teamNames('Palmeiras')] as const;
+  it('só o confronto conta, não os times em jogos diferentes', () => {
+    expect(mentionsMatch('Hoje: Flamengo x Palmeiras às 16h no Premiere', teams)).toBe(true);
+    expect(mentionsMatch('Amanhã: Flamengo x Bahia; Santos x Palmeiras', teams)).toBe(false);
+    expect(mentionsMatch('Classificação: 1. Palmeiras 70 pts 2. Flamengo 68 pts', teams)).toBe(false);
   });
 });

@@ -636,7 +636,7 @@ describe('onde assistir por rodada', () => {
     const t3 = new Date(KICKOFF.getTime() - 2.5 * H);
     const moved = setup(t3, {
       pages: {
-        [GRADE_BR]: `<p>Grade da rodada: ${home} x ${away} no Streaming B. Outros jogos na Emissora A.</p>`,
+        [GRADE_BR]: `<p>Grade da rodada: ${home} x ${away} no Streaming B; Time Cinco x Time Seis na Emissora A.</p>`,
       },
     });
     await enqueueRuns(

@@ -5,8 +5,9 @@
  */
 import type { RightsHolderRecord } from '@galaxie/db';
 import {
-  mentionsTeam,
+  mentionsMatch,
   mentionsTogether,
+  PAGE_PROXIMITY_WORDS,
   normalizeName,
   type BroadcastOptionRow,
   type BroadcastRightsRow,
@@ -122,9 +123,10 @@ export async function verifyCandidates(
                   sameMatch: true,
                 }))
             : null,
-          matchOnPage:
+          matchOnPage: r.ok && opts.teams ? mentionsMatch(r.text, opts.teams) : null,
+          broadcasterNearMatch:
             r.ok && opts.teams
-              ? mentionsTeam(r.text, opts.teams[0]) && mentionsTeam(r.text, opts.teams[1])
+              ? mentionsTogether(r.text, opts.teams, words, PAGE_PROXIMITY_WORDS, { sameMatch: true })
               : null,
           contentHash: r.ok ? contentHash(r.text) : null,
           fetchedAt,
@@ -226,8 +228,8 @@ export async function recheckRightsRow(
 }
 
 /**
- * A fonte refuta o canal? Uma página que já o sustentou respondeu, o jogo continua nela (os dois times), mas a emissora não
- * aparece mais junto dele, e nenhuma outra evidência ainda o sustenta. Página que mudou de assunto (o
+ * A fonte refuta o canal? Uma página que já o sustentou respondeu, o confronto continua nela ("A x B"), mas a
+ * emissora não aparece mais a até 40 palavras dele, e nenhuma outra evidência ainda o sustenta. Página que mudou de assunto (o
  * guia do dia seguinte) ou que não abriu não refuta: o canal confirmado fica (#1400).
  */
 export function refutedBySource(c: Candidate): boolean {
@@ -237,5 +239,5 @@ export function refutedBySource(c: Candidate): boolean {
   );
   if (!checked.length) return false;
   if (c.evidence.some((e) => e.excerptFound === true)) return false;
-  return checked.some((e) => e.excerptFound === false || e.mentionsBroadcaster === false);
+  return checked.some((e) => e.mentionsBroadcaster === false || e.broadcasterNearMatch === false);
 }

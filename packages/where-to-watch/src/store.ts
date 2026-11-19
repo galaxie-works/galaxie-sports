@@ -131,6 +131,8 @@ export interface ApplyResult {
   inserted: number;
   touched: number;
   retracted: number;
+  /** Confirmadas mantidas sem a fonte de agora (não achada de novo ou velha; ninguém as refutou). */
+  kept: number;
   /** Chaves travadas por correção editorial (o agente não sobrescreve). */
   lockedByEditorial: number;
   publicChanged: boolean;
@@ -146,6 +148,7 @@ export async function applyAgentResult(db: Database, input: ApplyAgentInput): Pr
     inserted: 0,
     touched: 0,
     retracted: 0,
+    kept: 0,
     lockedByEditorial: 0,
     publicChanged: false,
     changeId: null,
@@ -181,7 +184,7 @@ export async function applyAgentResult(db: Database, input: ApplyAgentInput): Pr
         flags: o.flags,
       };
       if (prev && o.status !== 'confirmed' && !o.conflict && keepConfirmed(prev)) {
-        result.touched++;
+        result.kept++;
         continue;
       }
       if (prev && material(prev) === material(next)) {
@@ -225,8 +228,11 @@ export async function applyAgentResult(db: Database, input: ApplyAgentInput): Pr
 
     if (input.retractMissing) {
       for (const prev of current) {
-        if (seen.has(rowKey(prev)) || prev.status === 'retracted' || isEditorial(prev) || keepConfirmed(prev))
+        if (seen.has(rowKey(prev)) || prev.status === 'retracted' || isEditorial(prev)) continue;
+        if (keepConfirmed(prev)) {
+          result.kept++;
           continue;
+        }
         const row = await insertVersion(
           tx,
           {
