@@ -115,7 +115,7 @@ flowchart TB
   packages_db --> packages_contracts
   packages_explore --> packages_contracts & packages_db & packages_geo & packages_providers
   packages_knowledge --> packages_db
-  packages_llm --> packages_ai_ledger
+  packages_llm --> packages_ai_ledger & packages_runtime_config
   packages_observability --> packages_apisports_client & packages_contracts & packages_db & packages_runtime_config
   packages_providers --> packages_apisports_client
   packages_rules --> packages_db

@@ -76,7 +76,8 @@ const what = detail.provider + (detail.model ? ' ' + detail.model : '');
 if (status === 'pass') console.log('PASS  IA: conta com crédito (' + what + ')');
 else if (detail.code === 'ai_off') console.log('WARN  IA: desligada (AI_STATUS=off), sem checar o crédito');
 else if (detail.code === 'no_key') console.log('WARN  IA: provedor ' + detail.provider + ' sem chave configurada');
-else if (detail.code === 'network') console.log('WARN  IA: sem conexão com o provedor (' + what + ')');
+else if (detail.code === 'network')
+  console.log('WARN  IA: sem conexão com o provedor (' + what + '): ' + (detail.error ?? ''));
 else
   console.log(
     'WARN  IA: ' + (detail.http ?? '') + ' ' + (detail.error ?? '') + ' (' + what + ') — agentes no texto determinístico',

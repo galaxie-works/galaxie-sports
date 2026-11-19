@@ -70,7 +70,7 @@ describe('catálogo de provedores e modelos de IA', () => {
         const rel = relative(ROOT, file).split(sep).join('/');
         if (ALLOWED.has(rel)) continue;
         const text = readFileSync(file, 'utf8');
-        const hits = DEFAULT_IDS.filter((id) => text.includes(`'${id}'`) || text.includes(`"${id}"`));
+        const hits = DEFAULT_IDS.filter((id) => ["'", '"', '`'].some((q) => text.includes(`${q}${id}${q}`)));
         if (hits.length) copies.push(`${rel}: ${hits.join(', ')}`);
       }
     expect(copies, 'use AI_DEFAULT_MODELS / defaultModelOf de @galaxie/runtime-config').toEqual([]);
