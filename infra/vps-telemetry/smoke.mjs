@@ -31,9 +31,24 @@ const DEMO = process.env.SMOKE_DEMO_URL ?? 'http://127.0.0.1:3000';
 const MAINT_SITE = process.env.SMOKE_MAINTENANCE_SITE_URL ?? 'http://maintenance:8080';
 const MAINT_API = process.env.SMOKE_MAINTENANCE_API_URL ?? 'http://maintenance:8081';
 
-// IDs canônicos estáveis usados como referência (time e jogo com dados completos)
-const PALMEIRAS = '01a15fba-ec17-7d8b-90d7-47b3ccbe967e';
-const PAL_FLU_SEMI = '01a163b8-7ca2-71e8-a92e-8dc201d5d83a';
+// Time e jogo de referência (IDs canônicos estáveis, com dados completos); SMOKE_TEAM_ID e SMOKE_EVENT_ID trocam
+const PALMEIRAS = process.env.SMOKE_TEAM_ID || '01a15fba-ec17-7d8b-90d7-47b3ccbe967e';
+const PAL_FLU_SEMI = process.env.SMOKE_EVENT_ID || '01a163b8-7ca2-71e8-a92e-8dc201d5d83a';
+
+/**
+ * Temporada de referência das checagens por temporada (#1434): SMOKE_SEASON, ou a mais recente já encerrada entre as
+ * que a API devolve para o time (ano menor que o corrente), ou o ano anterior se a lista não vier. Antes era 2025 fixo.
+ */
+function referenceSeason(seasons, now = new Date()) {
+  const forced = Number.parseInt(process.env.SMOKE_SEASON ?? '', 10);
+  if (Number.isInteger(forced) && forced > 1900) return forced;
+  const current = now.getUTCFullYear();
+  const past = (Array.isArray(seasons) ? seasons : [])
+    .map((s) => s?.year)
+    .filter((y) => Number.isInteger(y) && y < current);
+  return past.length ? Math.max(...past) : current - 1;
+}
+let SEASON = referenceSeason([]);
 
 // Papel do contêiner em que o smoke roda: o site confere a API, o público e a demo; o console, o portal e o painel; sem
 // APP_ROLE (a demo de antes da divisão), tudo. `only(...)` liga e desliga as checagens que vêm depois dele.
@@ -217,51 +232,52 @@ await check('Time: cores do escudo, estádio curado e campanha', async () => {
   if (status !== 200) return fail(`status ${status}`);
   if (!body?.team?.colors?.primary) return fail('sem colors (paleta dos escudos)');
   if (!body?.competitions?.length) return fail('sem campanha nas competições');
-  return `cor ${body.team.colors.primary} · ${body.competitions.length} competições`;
+  SEASON = referenceSeason(body.seasons);
+  return `cor ${body.team.colors.primary} · ${body.competitions.length} competições · temporada de referência ${SEASON}`;
 });
 
-await check('Time por temporada (overview ?season=2025)', async () => {
-  const { status, body } = await api(`/v1/teams/${PALMEIRAS}/overview?season=2025`);
+await check('Time por temporada (overview ?season=<última encerrada>)', async () => {
+  const { status, body } = await api(`/v1/teams/${PALMEIRAS}/overview?season=${SEASON}`);
   if (status !== 200) return fail(`status ${status}`);
-  if (body?.season !== 2025 || !Array.isArray(body?.seasons))
+  if (body?.season !== SEASON || !Array.isArray(body?.seasons))
     return fail('sem season/seasons — API anterior ao seletor?');
-  if (!body.seasons.some((s) => s.year === 2025))
-    return fail('2025 fora de seasons (base sem o histórico do time)');
+  if (!body.seasons.some((s) => s.year === SEASON))
+    return fail(`${SEASON} fora de seasons (base sem o histórico do time)`);
   const comps = body.competitions ?? [];
-  if (!comps.length) return fail('sem campanha nas competições de 2025');
-  if (comps.some((c) => c.season?.year !== 2025)) return fail('campanha fora da temporada pedida');
-  if (!body.last_events?.length) return fail('sem jogos de 2025');
+  if (!comps.length) return fail(`sem campanha nas competições de ${SEASON}`);
+  if (comps.some((c) => c.season?.year !== SEASON)) return fail('campanha fora da temporada pedida');
+  if (!body.last_events?.length) return fail(`sem jogos de ${SEASON}`);
   if (body.next_event) return fail('próximo jogo numa temporada passada');
-  // 2025 já acabou: campanha ainda "em disputa" = jogos pendentes sem atualizar na base
+  // a temporada já acabou: campanha ainda "em disputa" = jogos pendentes sem atualizar na base
   const open = comps.filter((c) => c.campaign?.ongoing).map((c) => c.competition?.slug);
-  if (open.length) return warn(`campanha de 2025 ainda em disputa: ${open.join(', ')}`);
-  return `${body.seasons.length} temporadas · ${comps.length} competições em 2025 · ${body.last_events.length} jogos`;
+  if (open.length) return warn(`campanha de ${SEASON} ainda em disputa: ${open.join(', ')}`);
+  return `${body.seasons.length} temporadas · ${comps.length} competições em ${SEASON} · ${body.last_events.length} jogos`;
 });
 
-// artilheiro do elenco de 2025: vira o jogador de referência do perfil
+// artilheiro do elenco da temporada de referência: vira o jogador de referência do perfil
 let scorer = null;
-await check('Elenco por temporada (squad ?season=2025, com jogos e gols)', async () => {
-  const { status, body } = await api(`/v1/teams/${PALMEIRAS}/squad?season=2025`);
+await check('Elenco por temporada (squad ?season=<última encerrada>, com jogos e gols)', async () => {
+  const { status, body } = await api(`/v1/teams/${PALMEIRAS}/squad?season=${SEASON}`);
   if (status !== 200) return fail(`status ${status}`);
-  if (body?.season !== 2025) return fail('season diferente da pedida');
+  if (body?.season !== SEASON) return fail('season diferente da pedida');
   const players = body?.players ?? [];
-  if (!players.length) return fail('elenco de 2025 vazio');
+  if (!players.length) return fail(`elenco de ${SEASON} vazio`);
   if (!players.some((p) => p.stats !== undefined))
     return fail('sem stats — API anterior ao elenco por temporada?');
   const played = players.filter((p) => (p.stats?.appearances ?? 0) > 0);
   if (!played.length)
-    return warn('ninguém com jogos em 2025 — detalhe das partidas (fixtures/players) ausente?');
+    return warn(`ninguém com jogos em ${SEASON} — detalhe das partidas (fixtures/players) ausente?`);
   scorer = [...played].sort((a, b) => (b.stats.goals ?? 0) - (a.stats.goals ?? 0))[0];
   const flags = players.filter((p) => p.person?.nationality_ref).length;
   return `${players.length} jogadores · ${played.length} com jogos · ${body.coaches?.length ?? 0} técnicos · ${flags} com bandeira`;
 });
 
 await check('Perfil do jogador (people/{id}/overview)', async () => {
-  if (!scorer) return warn('sem jogador de referência (elenco de 2025 sem jogos)');
-  const { status, body } = await api(`/v1/people/${scorer.person.id}/overview?season=2025`);
+  if (!scorer) return warn(`sem jogador de referência (elenco de ${SEASON} sem jogos)`);
+  const { status, body } = await api(`/v1/people/${scorer.person.id}/overview?season=${SEASON}`);
   if (status !== 200) return fail(`status ${status}`);
   if (!Array.isArray(body?.seasons) || !Array.isArray(body?.career)) return fail('sem seasons/career');
-  if (!body.stats?.length || !body.totals) return fail(`sem números de 2025 para ${scorer.person.name}`);
+  if (!body.stats?.length || !body.totals) return fail(`sem números de ${SEASON} para ${scorer.person.name}`);
   if (!body.recent_matches?.length) return fail('sem últimos jogos');
   if (!body.current_team) return warn('sem time atual');
   return `${scorer.person.name}: ${body.totals.appearances} jogos · ${body.totals.goals} gols em ${body.stats.length} competições · ${body.career.length} clubes`;
