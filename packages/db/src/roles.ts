@@ -63,6 +63,8 @@ const GAME_API_WRITE = [
   'game.card_grant',
   'game.participation_daily',
   'game.fraud_signal',
+  // antifraude (#934): congelar e liberar Perfil, pela API e pelo painel (que usa o perfil da API)
+  'game.profile_freeze',
 ] as const;
 
 /** Schema do login da demo (fora das migrations: a demo cria as tabelas na subida). */

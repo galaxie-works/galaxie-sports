@@ -210,6 +210,8 @@ export const gamePrediction = game.table(
     index('prediction_event_idx').on(t.tenantId, t.programCountry, t.eventId, t.state),
     // fechar os Palpites do jogo que começou, em todos os clientes
     index('prediction_lock_idx').on(t.eventId, t.state, t.lockAt),
+    // antifraude (#934): os Palpites da última hora, sem varrer a tabela
+    index('prediction_created_idx').on(t.createdAt),
     check('prediction_kind', inList('kind', GAME_PREDICTION_KINDS)),
     check('prediction_state', inList('state', GAME_PREDICTION_STATES)),
     check(
@@ -600,12 +602,49 @@ export const gameFraudSignal = game.table(
     status: text('status').notNull().default('open'),
     reviewedBy: text('reviewed_by'),
     reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
+    /** Mesma suspeita, mesmo dia: um alerta só (`tipo:alvo:dia`). Nulo nos alertas antigos. */
+    dedupeKey: text('dedupe_key'),
     createdAt: createdAt(),
   },
   (t) => [
     primaryKey({ name: 'fraud_signal_pkey', columns: [t.tenantId, t.id] }),
+    uniqueIndex('fraud_signal_dedupe_uq').on(t.tenantId, t.dedupeKey),
     index('fraud_signal_open_idx').on(t.tenantId, t.programCountry, t.status, t.createdAt),
     check('fraud_signal_status', sql`${t.status} in ('open', 'dismissed', 'confirmed')`),
     check('fraud_signal_target', sql`${t.accountId} is not null or ${t.profileId} is not null`),
+  ],
+);
+
+/**
+ * Perfil congelado na Gamificação do programa (#934, decisão do Wagner de 19/11): quando a equipe (do cliente ou da
+ * Galaxie) confirma um alerta antifraude, o Perfil deixa de ganhar Pontos, Conquistas e Cartas novas no programa até
+ * alguém liberar. O que ele já tem fica. Liberar apaga a linha; o registro de auditoria guarda as duas pontas.
+ */
+export const gameProfileFreeze = game.table(
+  'profile_freeze',
+  {
+    tenantId: tenantRef(),
+    programCountry: programCountry(),
+    profileId: uuid('profile_id').notNull(),
+    /** Alerta que levou ao congelamento (nulo quando foi direto, sem alerta). */
+    signalId: uuid('signal_id'),
+    /** Quem congelou: `panel:<usuário>` (cliente) ou `galaxie:<usuário>` (equipe). */
+    frozenBy: text('frozen_by').notNull(),
+    reason: text('reason'),
+    frozenAt: timestamp('frozen_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ name: 'profile_freeze_pkey', columns: [t.tenantId, t.programCountry, t.profileId] }),
+    foreignKey({
+      name: 'profile_freeze_profile_fk',
+      columns: [t.tenantId, t.profileId],
+      foreignColumns: [fanProfile.tenantId, fanProfile.id],
+    }).onDelete('cascade'),
+    foreignKey({
+      name: 'profile_freeze_program_fk',
+      columns: [t.tenantId, t.programCountry],
+      foreignColumns: [gameProgram.tenantId, gameProgram.programCountry],
+    }).onDelete('cascade'),
+    check('profile_freeze_reason_len', sql`${t.reason} is null or length(${t.reason}) <= 500`),
   ],
 );

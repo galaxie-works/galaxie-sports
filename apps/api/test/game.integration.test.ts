@@ -2,7 +2,20 @@ import { randomBytes } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { closeDb, createDb, event, runMigrations, sport, type Database } from '@galaxie/db';
+import {
+  closeDb,
+  createDb,
+  creditPoints,
+  detectFraudSignals,
+  event,
+  isProfileFrozen,
+  listFraudSignals,
+  releaseProfileFreeze,
+  reviewFraudSignal,
+  runMigrations,
+  sport,
+  type Database,
+} from '@galaxie/db';
 import { INITIAL_CATALOG, LEVELS } from '@galaxie/game-rules';
 import { eq, sql } from 'drizzle-orm';
 import { generateAdminKey, hashAdminKey } from '../src/admin/guard.js';
@@ -436,5 +449,94 @@ describe('Palpite e Ranking (#942)', () => {
       // a emissão de token já recusa menor de 13
       expect([400, 403]).toContain(kid.statusCode);
     }
+  });
+});
+
+describe('Antifraude (#934)', () => {
+  it('Palpites iguais em bloco na mesma Conta viram alerta; confirmar congela e liberar solta', async () => {
+    const t = await tenantKey('game-fraude', ['core_data', 'gamification']);
+    // três Perfis da mesma Conta (a família toda num aparelho, ou uma fazenda de contas)
+    const tokens: string[] = [];
+    for (const p of ['p1', 'p2', 'p3']) {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/v1/fans/tokens',
+        headers: { 'x-galaxie-key': t.key },
+        payload: {
+          externalAccountId: 'acc_fraude',
+          externalProfileId: `prof_fraude_${p}`,
+          nickname: `Fraude${p}`,
+          ageBand: '18plus',
+          country: 'br',
+          locale: 'pt-BR',
+          ageAssurance: { method: 'estimated', at: '2026-11-01' },
+        },
+      });
+      expect(res.statusCode).toBe(201);
+      tokens.push(res.json().data.token as string);
+    }
+    const ev = await game();
+    for (const token of tokens)
+      expect((await put(token, ev, [{ kind: 'exact_score', home: 4, away: 0 }])).statusCode).toBe(200);
+
+    const first = await detectFraudSignals(db);
+    expect(first.predictionBurst).toBe(1);
+    // outra réplica (ou a próxima passada) não repete o alerta do dia
+    expect((await detectFraudSignals(db)).predictionBurst).toBe(0);
+
+    const open = await listFraudSignals(db, { tenantId: t.id, status: 'open' });
+    expect(open).toHaveLength(1);
+    expect(open[0]).toMatchObject({ kind: 'prediction_burst', programCountry: 'BR' });
+    expect(open[0]!.profileIds).toHaveLength(3);
+    // outro cliente não vê o alerta
+    const other = await tenantKey('game-fraude-b', ['core_data', 'gamification']);
+    expect(await listFraudSignals(db, { tenantId: other.id })).toEqual([]);
+
+    const reviewed = await reviewFraudSignal(db, {
+      tenantId: t.id,
+      signalId: open[0]!.id,
+      decision: 'confirmed',
+      actor: 'panel:teste',
+    });
+    expect(reviewed?.frozen).toHaveLength(3);
+    // revisar de novo: já foi revisado
+    expect(
+      await reviewFraudSignal(db, {
+        tenantId: t.id,
+        signalId: open[0]!.id,
+        decision: 'dismissed',
+        actor: 'x',
+      }),
+    ).toBeNull();
+
+    // congelado não ganha Pontos da Gamificação (os de outro módulo seguem)
+    const target = open[0]!.profileIds[0]!;
+    const key = { tenantId: t.id, profileId: target, programCountry: 'BR' };
+    expect(await isProfileFrozen(db, key)).toBe(true);
+    const credit = await creditPoints(db, {
+      ...key,
+      amount: 10,
+      reason: 'prediction',
+      source: 'gamification',
+      sourceEvent: 'teste:fraude:1',
+    });
+    expect(credit).toMatchObject({ ok: false, error: 'frozen' });
+
+    const audit = await db.execute<{ subject: string }>(
+      sql`select subject from game.audit_log where tenant_id = ${t.id} and kind = 'fraud.flagged' order by id`,
+    );
+    expect(audit.map((r) => r.subject)).toEqual([`fraud:confirmed:${open[0]!.id}`]);
+
+    expect(await releaseProfileFreeze(db, { ...key, actor: 'galaxie:teste' })).toBe(true);
+    expect(await isProfileFrozen(db, key)).toBe(false);
+    expect(await releaseProfileFreeze(db, { ...key, actor: 'galaxie:teste' })).toBe(false);
+    const again = await creditPoints(db, {
+      ...key,
+      amount: 10,
+      reason: 'prediction',
+      source: 'gamification',
+      sourceEvent: 'teste:fraude:2',
+    });
+    expect(again.ok).toBe(true);
   });
 });

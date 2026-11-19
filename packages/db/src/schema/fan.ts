@@ -305,6 +305,10 @@ export const fanPointsLedger = fan.table(
       .where(sql`${t.revertsId} is not null`),
     // extrato da carteira em ordem; único para o estorno poder apontar um lançamento da mesma carteira
     uniqueIndex('points_ledger_wallet_uq').on(t.tenantId, t.profileId, t.programCountry, t.id),
+    // antifraude da Gamificação (#934): os créditos recentes, sem varrer o extrato inteiro
+    index('points_ledger_game_recent_idx')
+      .on(t.createdAt)
+      .where(sql`${t.source} = 'gamification' and ${t.pointsDelta} > 0`),
     // estorno aponta um lançamento da mesma carteira (mesmo cliente, Perfil e programa)
     foreignKey({
       name: 'points_ledger_reverts_fk',

@@ -6,6 +6,8 @@ import { toast } from 'sonner';
 
 import {
   activateProgramAction,
+  releaseFreezeAction,
+  reviewFraudSignalAction,
   setAchievementEnabledAction,
   type GamificationActionResult,
 } from '@/app/[locale]/(app)/client/gamification/actions';
@@ -40,17 +42,22 @@ export function GamificationPanel({ data }: { data: GamificationOverview }) {
     }
   };
 
-  function run(action: () => Promise<GamificationActionResult>, ok: string) {
+  function run<R extends GamificationActionResult>(
+    action: () => Promise<R>,
+    ok: string | ((r: R) => string),
+  ) {
     start(async () => {
       const r = await action();
       if (!r.ok) {
         toast.error(r.error ?? T.errors.generic);
         return;
       }
-      toast.success(ok);
+      toast.success(typeof ok === 'string' ? ok : ok(r));
       router.refresh();
     });
   }
+  const nick = (id: string) => data.fraud.nicknames[id] ?? id.slice(0, 8);
+  const F = T.fraud;
 
   const report = data.report;
   const metrics: [string, number][] = report
@@ -219,6 +226,105 @@ export function GamificationPanel({ data }: { data: GamificationOverview }) {
           </FramePanel>
         </Frame>
       ) : null}
+
+      <Frame>
+        <FramePanel className="p-0">
+          <FrameHeader className="flex flex-col gap-1 p-4">
+            <FrameTitle>{F.title}</FrameTitle>
+            <FrameDescription>{F.description}</FrameDescription>
+          </FrameHeader>
+          {data.fraud.signals.length === 0 ? (
+            <p className="text-muted-foreground border-t p-4 text-sm">{F.empty}</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{F.kind}</TableHead>
+                  <TableHead>{F.profiles}</TableHead>
+                  <TableHead>{T.programs.country}</TableHead>
+                  <TableHead>{F.when}</TableHead>
+                  <TableHead className="w-64" />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data.fraud.signals.map((s) => (
+                  <TableRow key={s.id}>
+                    <TableCell className="font-medium">
+                      {F.kinds[s.kind as keyof typeof F.kinds] ?? s.kind}
+                    </TableCell>
+                    <TableCell className="text-sm">{s.profileIds.map(nick).join(', ')}</TableCell>
+                    <TableCell>{countryName(s.programCountry)}</TableCell>
+                    <TableCell className="text-sm tabular-nums">{f.dateTime(s.createdAt)}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={pending}
+                          onClick={() =>
+                            run(
+                              () => reviewFraudSignalAction({ signalId: s.id, decision: 'dismissed' }),
+                              F.dismissed,
+                            )
+                          }
+                        >
+                          {F.dismiss}
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          disabled={pending}
+                          onClick={() =>
+                            run(
+                              () => reviewFraudSignalAction({ signalId: s.id, decision: 'confirmed' }),
+                              (r) => fill(F.confirmed, { n: f.number(r.frozen ?? 0) }),
+                            )
+                          }
+                        >
+                          {F.confirm}
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+          <div className="flex flex-col gap-2 border-t p-4">
+            <h3 className="text-sm font-medium">{F.frozenTitle}</h3>
+            {data.fraud.frozen.length === 0 ? (
+              <p className="text-muted-foreground text-sm">{F.frozenEmpty}</p>
+            ) : (
+              <ul className="flex flex-col gap-2">
+                {data.fraud.frozen.map((z) => (
+                  <li
+                    key={`${z.programCountry}-${z.profileId}`}
+                    className="flex items-center justify-between gap-2 text-sm"
+                  >
+                    <span>
+                      {nick(z.profileId)} · {countryName(z.programCountry)} · {F.frozenBy} {z.frozenBy} ·{' '}
+                      <span className="tabular-nums">{f.dateTime(z.frozenAt)}</span>
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={pending}
+                      onClick={() =>
+                        run(
+                          () => releaseFreezeAction({ country: z.programCountry, profileId: z.profileId }),
+                          F.released,
+                        )
+                      }
+                    >
+                      {F.release}
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </FramePanel>
+      </Frame>
     </div>
   );
 }
