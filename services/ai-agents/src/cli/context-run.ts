@@ -54,9 +54,9 @@ try {
     ...(locales ? { locales } : {}),
   });
   printAgentReport(report, values.plan);
-  // ligado no painel para outros esportes, mas o gerador ainda é só do futebol (#1490, #1491)
+  // na prévia: ligado no painel para outros esportes, mas o gerador ainda é só do futebol (#1490, #1491)
   const pending = Object.entries(aiContentSports(await runtimeEnv(db)));
-  if (pending.length)
+  if (values.plan && pending.length)
     console.log(
       `ai-content ligado sem gerador ainda: ${pending.map(([api, t]) => `${api} (tier ${t.join(', ')})`).join('; ')}`,
     );

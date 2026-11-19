@@ -47,7 +47,7 @@ export function effectiveTiers(opts: {
  */
 export function moduleTiers(
   env: Record<string, string | undefined>,
-  module: 'ai-content' | 'wtw',
+  module: 'ai-content' | 'ai-context' | 'wtw',
   api = 'football',
 ): ModuleTier[] {
   return moduleConfig((key) => env[key])
@@ -56,7 +56,7 @@ export function moduleTiers(
 }
 
 /**
- * Esportes fora do futebol com o cenário e o resumo de IA ligados no painel (`ai-content` de cada API), com os tiers
+ * Esportes fora do futebol com o cenário e o resumo de IA ligados no painel (`ai-context` de cada API), com os tiers
  * ligados. Os agentes ainda só geram para o futebol (#1490, #1491): a lista vai para o relatório da execução.
  */
 export function aiContentSports(env: Record<string, string | undefined>): Record<string, ModuleTier[]> {
@@ -64,7 +64,7 @@ export function aiContentSports(env: Record<string, string | undefined>): Record
   const out: Record<string, ModuleTier[]> = {};
   for (const api of MODULE_APIS) {
     if (api === 'football') continue;
-    const tiers = config.api(api).tiersOn('ai-content');
+    const tiers = config.api(api).tiersOn('ai-context');
     if (tiers.length) out[api] = tiers;
   }
   return out;

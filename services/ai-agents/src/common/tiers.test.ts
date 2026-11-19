@@ -1,6 +1,13 @@
 import { PgDialect } from 'drizzle-orm/pg-core';
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_AGENT_TIERS, effectiveTiers, moduleTiers, tierCondition, tiersUpTo } from './tiers.js';
+import {
+  aiContentSports,
+  DEFAULT_AGENT_TIERS,
+  effectiveTiers,
+  moduleTiers,
+  tierCondition,
+  tiersUpTo,
+} from './tiers.js';
 
 describe('tiers dos agentes', () => {
   it('padrão: tier ≤ 2, como antes do painel', () => {
@@ -30,5 +37,17 @@ describe('tiers dos agentes', () => {
     expect(text([3])).toContain('"tier" >= $1');
     expect(text([1, 3])).toContain(' or ');
     expect(text([1, 3])).not.toContain(' = ');
+  });
+});
+
+describe('aiContentSports (#1489)', () => {
+  it('padrão: as outras 11 APIs no tier 1; desligado sai da lista; o futebol não entra', () => {
+    const def = aiContentSports({});
+    expect(Object.keys(def)).not.toContain('football');
+    expect(Object.keys(def)).toHaveLength(11);
+    expect(def['basketball']).toEqual([1]);
+    const off = aiContentSports({ MODULES_BASKETBALL: 'ai-context=off' });
+    expect(off['basketball']).toBeUndefined();
+    expect(aiContentSports({ MODULES_BASKETBALL: 'ai-context=on' })['basketball']).toEqual([1, 2, 3]);
   });
 });

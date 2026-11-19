@@ -278,11 +278,11 @@ describe('tetos diários (DAILY_*)', () => {
 });
 
 describe('cenário e resumo de IA nos outros esportes (#1489)', () => {
-  it('todo esporte tem o módulo ai-content, com o tier 1 ligado por padrão', () => {
+  it('todo esporte tem o módulo ai-context, com o tier 1 ligado por padrão', () => {
     for (const api of MODULE_APIS) {
       if (api === 'football') continue;
-      expect(moduleDef(api, 'ai-content'), api).toMatchObject({ kind: 'job', ai: true });
-      expect(DEFAULT_MODULE_CONFIG.api(api).tiersOn('ai-content'), api).toEqual([1]);
+      expect(moduleDef(api, 'ai-context'), api).toMatchObject({ kind: 'job', ai: true });
+      expect(DEFAULT_MODULE_CONFIG.api(api).tiersOn('ai-context'), api).toEqual([1]);
     }
   });
 });
