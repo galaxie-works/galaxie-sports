@@ -18,7 +18,17 @@ export {
   type GeoCountry,
   type ScopeEntry,
 } from './config.js';
-export { competitionName, countryLanguage, isNationalCompetition, type LabelLanguage } from './language.js';
+export {
+  competitionName,
+  countryLanguage,
+  countryLocale,
+  DEFAULT_PORTUGUESE_LOCALE,
+  DEFAULT_SPANISH_LOCALE,
+  iberianLanguage,
+  isNationalCompetition,
+  SPANISH_VOICE_COUNTRIES,
+  type LabelLanguage,
+} from './language.js';
 export {
   compareCompetitions,
   groupCompetitions,

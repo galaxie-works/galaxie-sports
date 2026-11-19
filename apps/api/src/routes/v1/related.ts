@@ -1,3 +1,4 @@
+import { iberianLanguage } from '@galaxie/geo';
 import type { FastifyInstance } from 'fastify';
 import {
   EventParams,
@@ -68,34 +69,9 @@ export const RELATED_TYPE_LABELS: Record<'pt' | 'es' | 'en', Record<RelatedConte
   },
 };
 
-const PT_COUNTRIES = new Set(['BR', 'PT']);
-const ES_COUNTRIES = new Set([
-  'AR',
-  'MX',
-  'CO',
-  'CL',
-  'PE',
-  'UY',
-  'EC',
-  'PY',
-  'BO',
-  'VE',
-  'ES',
-  'CR',
-  'GT',
-  'HN',
-  'SV',
-  'PA',
-  'DO',
-  'CU',
-  'NI',
-  'PR',
-]);
-
 /** Idioma dos vídeos para o público do país; null (sem filtro) fora dos países lusófonos e hispânicos. */
 export function relatedLanguageOf(country: string): 'pt' | 'es' | null {
-  const c = country.toUpperCase();
-  return PT_COUNTRIES.has(c) ? 'pt' : ES_COUNTRIES.has(c) ? 'es' : null;
+  return iberianLanguage(country);
 }
 
 export function relatedTypeLabel(type: RelatedContentTypeName, locale: SupportedLocale): string {
