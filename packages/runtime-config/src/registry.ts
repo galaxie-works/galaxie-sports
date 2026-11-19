@@ -231,7 +231,11 @@ export function postgameIntervalKey(api: string): string {
   return `${postgameModeKey(api)}_MIN`;
 }
 
-/** Mercados do Onde Assistir (ISO 3166-1 alfa-2; o mesmo de WTW_COUNTRIES). */
+/**
+ * Mercados do Onde Assistir (ISO 3166-1 alfa-2). A fonte é `wtw_markets` em config/geo/confederations.yaml; esta
+ * cópia existe porque o runtime-config (camada base) não lê yaml e roda no navegador. O teste do packages/geo
+ * reprova se as duas divergirem.
+ */
 export const WTW_MARKET_CODES = ['BR', 'AR', 'MX', 'CO', 'CL', 'PE', 'UY', 'EC'] as const;
 
 export { AI_DEFAULT_MODELS, AI_PROVIDERS, AI_PROVIDER_KEY_ENV, type AiProvider } from './ai-catalog.js';

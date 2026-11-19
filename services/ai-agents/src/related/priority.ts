@@ -5,10 +5,11 @@
  * cada vídeo. O orçamento da cota (dois baldes, reserva por agenda) fica em `budget.ts`. Tudo em código.
  */
 import type { RelatedStatus } from '@galaxie/db';
+import { WTW_MARKET_CODES } from '@galaxie/runtime-config';
 import { DEFAULT_MARKET_WEIGHTS, parseMarketWeights, type QueueGroup } from './budget.js';
 import { languageOfCountry, type RelatedLanguage } from './queries.js';
 
-export const DEFAULT_RELATED_MARKETS = ['BR', 'AR', 'MX', 'CO', 'CL', 'PE', 'UY', 'EC'];
+export const DEFAULT_RELATED_MARKETS: string[] = [...WTW_MARKET_CODES];
 export const DEFAULT_MIN_RELEVANCE = 50;
 /** Buscas por jogo no total (todas as execuções). */
 export const DEFAULT_MAX_SEARCHES_PER_EVENT = 4;
@@ -72,7 +73,7 @@ const int = (raw: string | undefined, fallback: number, min = 0): number => {
   return Number.isFinite(n) && n >= min ? Math.floor(n) : fallback;
 };
 
-/** Mercados: RELATED_MARKETS, senão WTW_MARKETS, senão os 8 da América Latina. */
+/** Mercados: RELATED_MARKETS, senão WTW_MARKETS, senão os do Onde Assistir (config/geo). */
 export function relatedPolicyFromEnv(env: Record<string, string | undefined> = process.env): RelatedPolicy {
   const raw = env.RELATED_MARKETS?.trim() || env.WTW_MARKETS?.trim();
   const markets = raw
