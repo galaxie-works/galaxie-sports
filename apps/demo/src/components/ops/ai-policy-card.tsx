@@ -23,7 +23,12 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Frame, FrameDescription, FrameHeader, FramePanel, FrameTitle } from '@/components/reui/frame';
-import { BudgetRuler, PriorityBandCards, SpendPanel } from '@/components/settings/blocks/ai-usage';
+import {
+  BudgetRuler,
+  PricingNotice,
+  PriorityBandCards,
+  SpendPanel,
+} from '@/components/settings/blocks/ai-usage';
 import { rulerMarks } from '@/components/settings/blocks/logic';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
@@ -270,6 +275,7 @@ export function AiPolicyCard({ llm }: { llm: LlmSpend }) {
         day={llm.day}
         money={money}
       />
+      <PricingNotice pricing={llm.pricing} />
     </div>
   );
 }

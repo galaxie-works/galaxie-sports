@@ -1350,6 +1350,15 @@ export default defineMessages(
         budgetTitle: 'Orçamento da IA interna',
         today: 'Hoje, {day}',
         rulerMarks: 'Marcas de referência',
+        pricingTitle: 'Tabela de preços',
+        pricingChecked: 'Conferida em',
+        pricingOk: 'Nenhum aviso: preços conferidos há menos de 60 dias e sem mudança nos próximos 30.',
+        pricingStale:
+          'Preços de {provider} conferidos há {days} dias ({date}): confira a página oficial e atualize config/ai-pricing.yaml.',
+        pricingChange:
+          '{model} muda de preço em {date} (daqui a {days} dias): US$ {input}/{output} por 1 milhão de tokens. Entra sozinho no dia.',
+        pricingUnpriced:
+          '{model} está em uso sem preço próprio: o teto usa o preço mais caro do provedor. Inclua o preço em AI_MODEL_PRICES.',
         spendTitle: 'Gasto do dia',
         capBadge: 'teto US$ {cap}',
         noCap: 'sem teto',
@@ -3410,6 +3419,15 @@ export default defineMessages(
           budgetTitle: 'Internal AI budget',
           today: 'Today, {day}',
           rulerMarks: 'Reference marks',
+          pricingTitle: 'Price table',
+          pricingChecked: 'Checked on',
+          pricingOk: 'No warnings: prices checked less than 60 days ago and no change in the next 30.',
+          pricingStale:
+            '{provider} prices checked {days} days ago ({date}): check the official page and update config/ai-pricing.yaml.',
+          pricingChange:
+            '{model} changes price on {date} (in {days} days): US$ {input}/{output} per 1 million tokens. It applies on that day automatically.',
+          pricingUnpriced:
+            '{model} is in use without its own price: the cap uses the provider’s most expensive price. Add the price in AI_MODEL_PRICES.',
           spendTitle: 'Spend today',
           capBadge: 'cap US$ {cap}',
           noCap: 'no cap',
@@ -5491,6 +5509,15 @@ export default defineMessages(
           budgetTitle: 'Presupuesto de la IA interna',
           today: 'Hoy, {day}',
           rulerMarks: 'Marcas de referencia',
+          pricingTitle: 'Tabla de precios',
+          pricingChecked: 'Revisada el',
+          pricingOk: 'Sin avisos: precios revisados hace menos de 60 días y sin cambios en los próximos 30.',
+          pricingStale:
+            'Precios de {provider} revisados hace {days} días ({date}): revisa la página oficial y actualiza config/ai-pricing.yaml.',
+          pricingChange:
+            '{model} cambia de precio el {date} (en {days} días): US$ {input}/{output} por 1 millón de tokens. Entra solo ese día.',
+          pricingUnpriced:
+            '{model} está en uso sin precio propio: el tope usa el precio más caro del proveedor. Agrega el precio en AI_MODEL_PRICES.',
           spendTitle: 'Gasto del día',
           capBadge: 'tope US$ {cap}',
           noCap: 'sin tope',

@@ -26,7 +26,8 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run --dir src"
+    "test": "vitest run --dir src",
+    "gen:prices": "node scripts/gen-prices.mjs && prettier --write src/prices.generated.ts"
   },
   "dependencies": {
     "@galaxie/db": "workspace:*",

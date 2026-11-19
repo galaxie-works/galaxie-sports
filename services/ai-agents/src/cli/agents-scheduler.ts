@@ -13,11 +13,25 @@
 import { fileURLToPath } from 'node:url';
 import { createLogger } from '@galaxie/observability';
 import { runScheduler } from '@galaxie/scheduler';
+import { describePricingWarning, modelPricingWarnings } from '../llm/pricing.js';
 import { AGENT_JOBS } from '../scheduler/jobs.js';
+import { modelsInUseFromEnv } from '../llm/config.js';
+
+const log = createLogger({ service: 'agents' }).child({ component: 'scheduler' });
+
+// Tabela de preços (config/ai-pricing.yaml, #1438): conferência velha, preço que muda em breve e modelo em uso sem
+// preço saem no log na partida e uma vez por dia. Lê o env do contêiner (modelos e AI_MODEL_PRICES); o cartão de
+// Ajustes → IA usa os valores efetivos do painel, que podem diferir.
+const logPricing = () => {
+  for (const w of modelPricingWarnings(modelsInUseFromEnv()))
+    log.warn({ pricing: w }, `[preços de IA] ${describePricingWarning(w)}`);
+};
+logPricing();
+setInterval(logPricing, 24 * 60 * 60 * 1000).unref();
 
 await runScheduler({
   profile: 'agents',
   jobs: AGENT_JOBS,
   packageRoot: fileURLToPath(new URL('../../', import.meta.url)),
-  log: createLogger({ service: 'agents' }).child({ component: 'scheduler' }),
+  log,
 });

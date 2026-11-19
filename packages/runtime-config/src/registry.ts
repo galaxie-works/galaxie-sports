@@ -240,7 +240,7 @@ export const AI_STATUSES = ['on', 'off'] as const;
 
 /**
  * AI_MODEL_PRICES: `modelo=entrada/cache/saída[/gravação]` (US$ por 1 milhão de tokens) separados por
- * vírgula. Espelho de MODEL_PRICES_PATTERN em packages/ai-ledger/src/pricing.ts.
+ * vírgula. Único padrão do formato: o ledger (packages/ai-ledger/src/pricing.ts) importa daqui.
  */
 const PRICE_NUM = '\\d+(?:\\.\\d+)?';
 const PRICE_ENTRY = `[a-zA-Z0-9][a-zA-Z0-9._:/-]{0,80}=${PRICE_NUM}/(?:${PRICE_NUM})?/${PRICE_NUM}(?:/(?:${PRICE_NUM})?)?`;

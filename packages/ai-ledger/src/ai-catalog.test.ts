@@ -36,8 +36,11 @@ function sources(dir: string, out: string[] = []): string[] {
 }
 
 const DEFAULT_IDS = [...new Set(AI_TIERS.flatMap((t) => Object.values(AI_DEFAULT_MODELS[t])))];
-/** Onde o nome de um modelo padrão pode aparecer: o catálogo e a tabela de preços. */
-const ALLOWED = new Set(['packages/runtime-config/src/ai-catalog.ts', 'packages/ai-ledger/src/pricing.ts']);
+/** Onde o nome de um modelo padrão pode aparecer: o catálogo e a tabela de preços (gerada de config/ai-pricing.yaml). */
+const ALLOWED = new Set([
+  'packages/runtime-config/src/ai-catalog.ts',
+  'packages/ai-ledger/src/prices.generated.ts',
+]);
 
 describe('catálogo de provedores e modelos de IA', () => {
   it('todo modelo padrão tem preço próprio na tabela e é do provedor certo', () => {
