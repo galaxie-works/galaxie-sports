@@ -3,6 +3,7 @@
  * por `tenant_id`; a chave composta do schema garante o resto (mensagem de um cliente não entra em sala de outro).
  */
 import {
+  chatGuidelinesAcceptance,
   chatMessage,
   chatRoom,
   chatTenantConfig,
@@ -319,4 +320,37 @@ export async function insertMessage(
       .returning({ id: chatMessage.id, createdAt: chatMessage.createdAt });
     return { ok: true as const, ...row! };
   });
+}
+
+/** Última versão das Diretrizes que o Perfil aceitou (#957); null se nunca aceitou. */
+export async function acceptedGuidelines(
+  db: Database,
+  tenantId: string,
+  profileId: string,
+): Promise<number | null> {
+  const [row] = await db
+    .select({ version: chatGuidelinesAcceptance.version })
+    .from(chatGuidelinesAcceptance)
+    .where(
+      and(eq(chatGuidelinesAcceptance.tenantId, tenantId), eq(chatGuidelinesAcceptance.profileId, profileId)),
+    )
+    .limit(1);
+  return row?.version ?? null;
+}
+
+/** Registra o aceite (a última versão vale; a data é a do aceite mais recente). */
+export async function acceptGuidelines(
+  db: Database,
+  tenantId: string,
+  profileId: string,
+  version: number,
+  at: Date,
+): Promise<void> {
+  await db
+    .insert(chatGuidelinesAcceptance)
+    .values({ tenantId, profileId, version, acceptedAt: at })
+    .onConflictDoUpdate({
+      target: [chatGuidelinesAcceptance.tenantId, chatGuidelinesAcceptance.profileId],
+      set: { version, acceptedAt: at },
+    });
 }

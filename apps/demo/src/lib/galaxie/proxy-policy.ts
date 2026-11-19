@@ -67,7 +67,9 @@ export const CHAT_STREAMS_PER_SESSION = 3;
  * token do torcedor e sem a chave da demo, como a escrita do chat.
  */
 export const isProxyFanRead = (path: readonly string[]) =>
-  path.length === 3 && path[0] === 'v1' && path[1] === 'fans' && path[2] === 'me';
+  path.length === 3 &&
+  path[0] === 'v1' &&
+  ((path[1] === 'fans' && path[2] === 'me') || (path[1] === 'chat' && path[2] === 'guidelines'));
 
 /** Escritas do torcedor por sessão por minuto (mensagens e reações): balde próprio, sem gastar o da leitura. */
 export const PROXY_WRITES_PER_MINUTE = 120;
@@ -80,6 +82,8 @@ export const PROXY_WRITE_MAX_BYTES = 8_192;
  * pessoa logada. A chave da demo não vai junto: quem autentica é o token (a API não aceita escrita sem ele).
  */
 export function isProxyWriteAllowed(path: readonly string[]): boolean {
+  // aceite das Diretrizes do chat (#957)
+  if (path.length === 4 && path.join('/') === 'v1/chat/guidelines/accept') return true;
   return (
     path.length === 5 &&
     path[0] === 'v1' &&

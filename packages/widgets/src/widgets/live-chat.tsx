@@ -13,6 +13,7 @@ import {
   parseSse,
   safeImageUrl,
   type GsChatGameMessage,
+  type GsChatGuidelines,
   type GsChatMessage,
   type GsChatReaction,
   type GsChatRoom,
@@ -269,6 +270,35 @@ function LiveChatRoom({
   const roomState = state ?? room?.state ?? null;
   useEffect(() => setSendError(null), [roomState]);
   const maxChars = room?.settings.max_chars ?? 280;
+  // Diretrizes (#957): a primeira mensagem pede o aceite das regras do chat
+  const [guidelines, setGuidelines] = useState<GsChatGuidelines | null>(null);
+  const [accepting, setAccepting] = useState(false);
+  const showGuidelines = useCallback(async () => {
+    const res = await fan.fetch('/v1/chat/guidelines');
+    const json = (await res.json().catch(() => null)) as { data?: GsChatGuidelines } | null;
+    if (res.ok && json?.data) setGuidelines(json.data);
+    else setSendError(T.sendError);
+  }, [fan, T]);
+  const acceptGuidelines = useCallback(async () => {
+    if (!guidelines || accepting) return;
+    setAccepting(true);
+    try {
+      const res = await fan.fetch('/v1/chat/guidelines/accept', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ version: guidelines.version }),
+      });
+      if (res.ok) {
+        setGuidelines(null);
+        setSendError(null);
+      } else if (res.status === 409) await showGuidelines();
+      else setSendError(T.sendError);
+    } catch {
+      setSendError(T.sendError);
+    } finally {
+      setAccepting(false);
+    }
+  }, [guidelines, accepting, fan, showGuidelines, T]);
   const send = useCallback(
     async (e: FormEvent) => {
       e.preventDefault();
@@ -296,6 +326,14 @@ function LiveChatRoom({
           atBottom.current = true;
           return;
         }
+        // sem o aceite das Diretrizes: mostra as regras; o texto fica no rascunho para mandar depois do aceite
+        if (
+          res.status === 409 &&
+          json?.errors?.some((x) => x.path === 'refusal' && x.message === 'guidelines')
+        ) {
+          await showGuidelines();
+          return;
+        }
         const retry = res.headers.get('retry-after');
         // o aviso do filtro sai no idioma do torcedor em `errors` (o `detail` de algumas recusas é fixo)
         const fieldMessage = json?.errors?.find((x) => x.path === 'body')?.message;
@@ -310,7 +348,7 @@ function LiveChatRoom({
         setSending(false);
       }
     },
-    [draft, sending, path, fan, T],
+    [draft, sending, path, fan, T, showGuidelines],
   );
 
   const react = useCallback(
@@ -418,6 +456,24 @@ function LiveChatRoom({
             </form>
           </FanGate>
         )}
+        {guidelines ? (
+          <section className="gs-chat-guidelines" aria-label={guidelines.title}>
+            <h3>{guidelines.title}</h3>
+            <p>{guidelines.intro}</p>
+            <p>{guidelines.not_allowed_title}</p>
+            <ul>
+              {guidelines.not_allowed.map((rule) => (
+                <li key={rule}>{rule}</li>
+              ))}
+            </ul>
+            <p>{guidelines.who_writes}</p>
+            <p>{guidelines.consequences}</p>
+            <p>{guidelines.report}</p>
+            <button type="button" className="gs-chat-send" disabled={accepting} onClick={acceptGuidelines}>
+              {guidelines.accept}
+            </button>
+          </section>
+        ) : null}
         {sendError ? (
           <p className="gs-chat-error" role="alert">
             {sendError}

@@ -63,8 +63,12 @@ const sse = (text: string) =>
     { status: 200, headers: { 'content-type': 'text/event-stream' } },
   );
 
-function api(opts: { band?: '18plus' | '13_17'; stream?: string; room?: GsChatRoom } = {}) {
+function api(
+  opts: { band?: '18plus' | '13_17'; stream?: string; room?: GsChatRoom; guidelines?: boolean } = {},
+) {
   const calls: { url: string; init?: RequestInit | undefined }[] = [];
+  // sem o aceite das Diretrizes (#957), a primeira mensagem volta 409 até o aceite
+  let accepted = !opts.guidelines;
   const fetchImpl = vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
     const u = String(url);
     calls.push({ url: u, init });
@@ -85,6 +89,33 @@ function api(opts: { band?: '18plus' | '13_17'; stream?: string; room?: GsChatRo
         { status: 200 },
       );
     if (u.includes('/stream')) return sse(opts.stream ?? '');
+    if (u.endsWith('/v1/chat/guidelines'))
+      return new Response(
+        JSON.stringify({
+          data: {
+            version: 1,
+            accepted_version: null,
+            title: 'Como funciona o chat',
+            intro: 'O chat é para torcer junto.',
+            not_allowed_title: 'Aqui não pode:',
+            not_allowed: ['ofender', 'ameaçar'],
+            who_writes: 'Só maiores de 18 anos escrevem.',
+            consequences: 'Você sempre vê o motivo.',
+            report: 'Viu algo errado? Denuncie.',
+            accept: 'Li e aceito',
+          },
+        }),
+        { status: 200 },
+      );
+    if (u.endsWith('/v1/chat/guidelines/accept') && init?.method === 'POST') {
+      accepted = true;
+      return new Response(null, { status: 204 });
+    }
+    if (u.endsWith('/messages') && init?.method === 'POST' && !accepted)
+      return new Response(
+        JSON.stringify({ detail: 'Aceite as regras.', errors: [{ path: 'refusal', message: 'guidelines' }] }),
+        { status: 409 },
+      );
     if (u.endsWith('/messages') && init?.method === 'POST') {
       const body = JSON.parse(String(init.body)) as { body: string };
       return new Response(
@@ -226,6 +257,29 @@ describe('chat ao vivo: widget', () => {
     expect(new Headers(post?.init?.headers).get('authorization')).toBe(`Bearer ${TOKEN}`);
     expect(await screen.findByText('Bora!')).toBeTruthy();
     expect(screen.getByText(new RegExp(T.onlyYou))).toBeTruthy();
+  });
+
+  it('Diretrizes (#957): a primeira mensagem mostra as regras; depois do aceite, envia', async () => {
+    const { fetchImpl, calls } = api({ guidelines: true });
+    setup(fetchImpl);
+    const box = await screen.findByLabelText(T.placeholder);
+    fireEvent.change(box, { target: { value: 'Bora!' } });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: T.send }));
+    });
+    expect(await screen.findByText('Como funciona o chat')).toBeTruthy();
+    expect(screen.getByText('ameaçar')).toBeTruthy();
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Li e aceito' }));
+    });
+    const accept = calls.find((c) => c.url.endsWith('/v1/chat/guidelines/accept'));
+    expect(JSON.parse(String(accept?.init?.body))).toEqual({ version: 1 });
+    expect(screen.queryByText('Como funciona o chat')).toBeNull();
+    // o rascunho ficou: o torcedor manda de novo
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: T.send }));
+    });
+    expect(await screen.findByText('Bora!')).toBeTruthy();
   });
 
   it('13_17 lê e reage, mas não tem campo de escrever', async () => {

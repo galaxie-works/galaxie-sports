@@ -1998,6 +1998,10 @@ a.gs-tile:hover{border-color:var(--gs-primary)}
 .gs-chat-reaction:disabled{cursor:default;opacity:.6}
 .gs-chat-note{margin:0;font-size:.8em;color:var(--gs-muted-foreground)}
 .gs-chat-error{margin:0;font-size:.8em;color:var(--gs-danger,#d33)}
+.gs-chat-guidelines{margin:0;padding:.75em;border:1px solid var(--gs-border,#ddd);border-radius:.5em;font-size:.85em;max-height:18em;overflow:auto}
+.gs-chat-guidelines h3{margin:0 0 .4em;font-size:1em}
+.gs-chat-guidelines p{margin:.3em 0}
+.gs-chat-guidelines ul{margin:.3em 0;padding-left:1.2em}
 `;
 
 // ─── textos ──────────────────────────────────────────────────────────────────────────────────────
@@ -5160,6 +5164,20 @@ export interface GsChatMessage {
   body: string;
   author: { profile_id: string; nickname: string | null; avatar_url: string | null };
   created_at: string;
+}
+
+/** Diretrizes do chat (#957): o torcedor aceita antes da primeira mensagem. */
+export interface GsChatGuidelines {
+  version: number;
+  accepted_version: number | null;
+  title: string;
+  intro: string;
+  not_allowed_title: string;
+  not_allowed: string[];
+  who_writes: string;
+  consequences: string;
+  report: string;
+  accept: string;
 }
 
 export interface GsChatGameMessage {
