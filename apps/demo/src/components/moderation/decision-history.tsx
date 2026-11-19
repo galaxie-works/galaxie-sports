@@ -170,10 +170,19 @@ export function DecisionHistory({
                 {d.credits ? <span>{fill(T.credits, { credits: d.credits })}</span> : null}
               </div>
               {d.reason ? <p className="text-xs">{d.reason}</p> : null}
-              {d.undoable || (canReport && d.caseId && !reported.has(d.caseId)) ? (
+              {d.undoable || (canReport && d.reportable && d.caseId && !reported.has(d.caseId)) ? (
                 <div className="flex justify-end gap-2">
-                  {canReport && d.caseId && !reported.has(d.caseId) ? (
-                    <Button size="sm" variant="outline" disabled={pending} onClick={() => setReporting(d)}>
+                  {canReport && d.reportable && d.caseId && !reported.has(d.caseId) ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={pending}
+                      aria-label={`${Q.authority.report}: ${d.subject ?? ''} ${when.format(new Date(d.at))}`.trim()}
+                      onClick={() => {
+                        setReference('');
+                        setReporting(d);
+                      }}
+                    >
                       {Q.authority.report}
                     </Button>
                   ) : null}
@@ -195,7 +204,15 @@ export function DecisionHistory({
           </Button>
         </div>
       ) : null}
-      <Dialog open={reporting !== null} onOpenChange={(o) => !o && setReporting(null)}>
+      <Dialog
+        open={reporting !== null}
+        onOpenChange={(o) => {
+          if (!o) {
+            setReporting(null);
+            setReference('');
+          }
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{Q.authority.report}</DialogTitle>

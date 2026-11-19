@@ -1841,29 +1841,35 @@ async function holdCaseContent(
     await holdChatMessage(tx, tenantId, c.targetId, until);
   if (c.module === 'communities' && (c.targetType === 'post' || c.targetType === 'comment'))
     await holdCommunityContent(tx, tenantId, c.targetType, c.targetId, until);
-  if (caseId && c.targetType === 'profile') await copyProfileEvidence(tx, tenantId, caseId, c.targetId);
+  // a foto do autor vai junto em todo caso com autor (Perfil, foto barrada, mensagem, post)
+  if (caseId && c.targetProfileId) await copyProfileEvidence(tx, tenantId, caseId);
 }
 
 /**
- * Prova fora do chat (#1296): a foto do Perfil denunciado é a prova principal em abuso infantil, mas a troca da foto e
- * a exclusão do titular apagam `avatar_ref`/`avatar_hash`. Na guarda, o caso copia a referência e o hash da foto (e o
- * apelido) para `detail.evidence`, que segue a guarda do caso. A primeira cópia vale: guardar de novo não sobrescreve.
+ * Prova fora do chat (#1296): a foto do Perfil é a prova principal em abuso infantil, mas a troca da foto e a exclusão
+ * do titular apagam a foto do Perfil. Na guarda, o caso copia para `detail.evidence` a URL, a referência, o hash, o
+ * estado da foto e o apelido do autor (`target_profile_id`). `same_photo` diz se é a mesma foto do caso (o caso da
+ * foto barrada guarda a referência dela em `target_id`); a primeira cópia vale, e Perfil sem foto não grava prova vazia.
  */
-async function copyProfileEvidence(tx: Executor, tenantId: string, caseId: string, profileId: string) {
+async function copyProfileEvidence(tx: Executor, tenantId: string, caseId: string) {
   await (tx as Database).execute(sql`
     update engage.moderation_case c
        set detail = coalesce(c.detail, '{}'::jsonb) || jsonb_build_object(
              'evidence',
              jsonb_build_object(
+               'avatar_url', p.avatar_url,
                'avatar_ref', p.avatar_ref,
                'avatar_hash', p.avatar_hash,
+               'avatar_status', p.avatar_status,
+               'same_photo', c.target_type <> 'profile' or p.avatar_ref = c.target_id or p.id::text = c.target_id,
                'nickname', p.nickname,
                'copied_at', now()
              )
            )
       from fan.profile p
      where c.tenant_id = ${tenantId} and c.id = ${caseId}
-       and p.tenant_id = c.tenant_id and p.id::text = ${profileId}
+       and p.tenant_id = c.tenant_id and p.id = c.target_profile_id
+       and (p.avatar_url is not null or p.avatar_ref is not null)
        and not (coalesce(c.detail, '{}'::jsonb) ? 'evidence')`);
 }
 
