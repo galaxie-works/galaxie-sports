@@ -66,7 +66,7 @@ import {
 import { ChatSettings, type ChatSettingsValues } from './settings.js';
 import { ChatHub, reactionRoomKey } from './hub.js';
 import { MemoryFloodGuard, type FloodGuard } from './flood.js';
-import { BOT_BLOCK_MS, botLinks, MemoryBotGuard, type BotGuard } from './bot.js';
+import { BOT_BLOCK_MS, botLinks, MemoryBotGuard, SIGNAL_WINDOW_MS, type BotGuard } from './bot.js';
 import { MemoryReactionCounter, type ReactionCounter } from './reactions.js';
 import { gameMessages } from './game.js';
 import { MemoryChatPeak, type ChatPeak } from './peak.js';
@@ -146,6 +146,16 @@ export async function chatRoutes(app: FastifyInstance, deps: ChatRoutesDeps): Pr
   let floodErrorAt = 0;
   const bot = deps.bot ?? new MemoryBotGuard();
   let botErrorAt = 0;
+  // Perfis com caso de dúvida de robô aberto há pouco (por instância): a fila não recebe o mesmo sinal a cada mensagem
+  const botReviews = new Map<string, number>();
+  const firstBotReview = (tenantId: string, profileId: string, at: number): boolean => {
+    const key = `${tenantId}:${profileId}`;
+    const last = botReviews.get(key);
+    if (last !== undefined && at - last < SIGNAL_WINDOW_MS) return false;
+    if (botReviews.size > 10_000) botReviews.clear();
+    botReviews.set(key, at);
+    return true;
+  };
   // Fecha o segundo das reações. Toda instância roda o relógio, mas só uma fecha cada segundo (trava no Valkey) e o
   // script atômico garante que cada reação conta uma vez. Uma rodada por vez; o log de falha sai no máximo por minuto
   let flushing = false;
@@ -596,6 +606,18 @@ export async function chatRoutes(app: FastifyInstance, deps: ChatRoutesDeps): Pr
       if (botVerdict.signals.length > 0) {
         if (!flags.includes('suspect')) flags.push('suspect');
         flags.push(...botVerdict.signals);
+        // dúvida também vai para a fila humana (o validador sinaliza, a pessoa decide): um caso por Perfil, sem
+        // reabrir a cada mensagem enquanto o sinal dura
+        if (firstBotReview(fan.tenantId, fan.profileId, at.getTime()))
+          void holdBotCase(
+            fan.tenantId,
+            room.id,
+            fan.profileId,
+            profile.country,
+            botVerdict.signals,
+            text,
+            at,
+          ).catch((err: unknown) => request.log.error({ err }, 'chat: caso de robô não aberto'));
       }
       const saved = await insertMessage(
         database,
