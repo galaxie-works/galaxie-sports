@@ -26,6 +26,7 @@ import {
 } from '@galaxie/contracts';
 import {
   asset,
+  assetCredit,
   competition,
   competitionProfile,
   country,
@@ -86,6 +87,7 @@ import {
   encodeCursor,
   logoFormats,
   logoSizes,
+  logoCreditText,
   logoSource,
   parseInput,
   UUID_RE,
@@ -135,6 +137,7 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
         logoKey: asset.storageKey,
         logoUrl: asset.sourceUrl,
         logoPalette: asset.palette,
+        logoAssetId: asset.id,
         logoOrigin: asset.origin,
         logoVariants: asset.variants,
       })
@@ -216,11 +219,29 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
       .select({ provider: providerMap.provider, providerId: providerMap.providerId })
       .from(providerMap)
       .where(and(eq(providerMap.entityType, 'participant'), eq(providerMap.entityId, id)));
+    // logo da Commons (time sem logo do fornecedor, ex.: construtores históricos da F1): sai com o crédito
+    const [credit] =
+      row.logoOrigin === 'commons' && row.logoAssetId
+        ? await db.select().from(assetCredit).where(eq(assetCredit.assetId, row.logoAssetId)).limit(1)
+        : [];
     return {
       ...toSummary(row, nick, names),
       logo_source: logoSource(row.logoOrigin),
       logo_formats: logoFormats(ctx.assetsBaseUrl, row.logoVariants),
       logo_sizes: logoSizes(ctx.assetsBaseUrl, row.logoVariants),
+      logo_credit: credit
+        ? {
+            source: 'Wikimedia Commons',
+            title: credit.title,
+            page_url: credit.pageUrl,
+            author: credit.author,
+            license: credit.license,
+            license_url: credit.licenseUrl,
+            attribution_required: credit.attributionRequired,
+            attribution: credit.attribution,
+            text: logoCreditText(credit.author, credit.license, credit.attribution),
+          }
+        : null,
       country_ref: c
         ? { code: c.code, name: pickText(c.name as Record<string, string>, locale, c.code)! }
         : null,
