@@ -1,5 +1,6 @@
 import type { AccessModel, BroadcastMedium, BroadcasterKind, RightsDistribution } from '@galaxie/db';
 
+import { referenceTimeZone } from '@galaxie/geo/country';
 import { WTW_MARKET_CODES } from '@galaxie/runtime-config';
 
 /** Mercados do onde assistir (docs/research/onde-assistir.md): `wtw_markets` de config/geo. */
@@ -10,16 +11,9 @@ export type WtwCountry = (typeof WTW_COUNTRIES)[number];
  * Fuso de referência de cada mercado: o dia civil local decide vigência de direitos e de nomes (um
  * jogo às 21h30 de Brasília no último dia de vigência já é o dia seguinte em UTC).
  */
-export const WTW_COUNTRY_TIME_ZONES: Record<WtwCountry, string> = {
-  BR: 'America/Sao_Paulo',
-  AR: 'America/Argentina/Buenos_Aires',
-  MX: 'America/Mexico_City',
-  CO: 'America/Bogota',
-  CL: 'America/Santiago',
-  PE: 'America/Lima',
-  UY: 'America/Montevideo',
-  EC: 'America/Guayaquil',
-};
+export const WTW_COUNTRY_TIME_ZONES: Record<WtwCountry, string> = Object.fromEntries(
+  WTW_COUNTRIES.map((c) => [c, referenceTimeZone(c) ?? 'UTC']),
+) as Record<WtwCountry, string>;
 
 /**
  * Apelido com validade: um nome que só vale como esta emissora num período (renomeação de canal, como

@@ -455,7 +455,11 @@ importers:
         specifier: ^0.45.4
         version: 0.45.4(@opentelemetry/api@1.10.0)(@types/pg@8.23.1)(kysely@0.29.9)(pg@8.23.1)(postgres@4.1.1)
 
-  packages/game-rules: {}
+  packages/game-rules:
+    dependencies:
+      '@galaxie/geo':
+        specifier: workspace:*
+        version: link:../geo
 
   packages/geo:
     dependencies:
@@ -597,6 +601,9 @@ importers:
       '@galaxie/db':
         specifier: workspace:*
         version: link:../db
+      '@galaxie/geo':
+        specifier: workspace:*
+        version: link:../geo
       '@galaxie/runtime-config':
         specifier: workspace:*
         version: link:../runtime-config

@@ -14,6 +14,10 @@
     "./language": {
       "types": "./dist/language.d.ts",
       "default": "./dist/language.js"
+    },
+    "./country": {
+      "types": "./dist/country.d.ts",
+      "default": "./dist/country.js"
     }
   },
   "files": [

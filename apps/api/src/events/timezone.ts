@@ -4,46 +4,7 @@
  * local ou, sem ele, do mandante/competição) e, nos países com mais de um fuso, da cidade. Sem certeza
  * (país com vários fusos e cidade desconhecida) → null.
  */
-
-/** País com um fuso só (ou um fuso que cobre praticamente todos os estádios). */
-const COUNTRY_TZ: Readonly<Record<string, string>> = {
-  AR: 'America/Argentina/Buenos_Aires',
-  BO: 'America/La_Paz',
-  CL: 'America/Santiago',
-  CO: 'America/Bogota',
-  EC: 'America/Guayaquil',
-  PY: 'America/Asuncion',
-  PE: 'America/Lima',
-  UY: 'America/Montevideo',
-  VE: 'America/Caracas',
-  CR: 'America/Costa_Rica',
-  GT: 'America/Guatemala',
-  HN: 'America/Tegucigalpa',
-  SV: 'America/El_Salvador',
-  NI: 'America/Managua',
-  PA: 'America/Panama',
-  DO: 'America/Santo_Domingo',
-  JM: 'America/Jamaica',
-  BR: 'America/Sao_Paulo',
-  MX: 'America/Mexico_City',
-  GB: 'Europe/London',
-  IE: 'Europe/Dublin',
-  ES: 'Europe/Madrid',
-  PT: 'Europe/Lisbon',
-  IT: 'Europe/Rome',
-  DE: 'Europe/Berlin',
-  FR: 'Europe/Paris',
-  NL: 'Europe/Amsterdam',
-  BE: 'Europe/Brussels',
-  CH: 'Europe/Zurich',
-  AT: 'Europe/Vienna',
-  GR: 'Europe/Athens',
-  TR: 'Europe/Istanbul',
-  SA: 'Asia/Riyadh',
-  QA: 'Asia/Qatar',
-  AE: 'Asia/Dubai',
-  JP: 'Asia/Tokyo',
-};
+import { singleTimeZone } from '@galaxie/geo';
 
 /**
  * Cidades fora do fuso padrão do país (nome sem acento, minúsculo). Para os EUA (vários fusos e sem
@@ -133,7 +94,8 @@ export function timezoneOf(country: string | null | undefined, city?: string | n
   if (!country) return null;
   const code = country.toUpperCase().startsWith('GB') ? 'GB' : country.toUpperCase();
   const byCity = city ? CITY_TZ[code]?.[cityKey(city)] : undefined;
-  return byCity ?? COUNTRY_TZ[code] ?? null;
+  // país com um fuso só (ou um que cobre praticamente todos os estádios): packages/geo
+  return byCity ?? singleTimeZone(code);
 }
 
 /**
