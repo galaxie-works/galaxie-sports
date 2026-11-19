@@ -54,10 +54,14 @@ export function parseTeamLogos(text: string): TeamLogoEntry[] {
   const doc = parse(text) as { logos?: unknown } | null;
   const items = Array.isArray(doc?.logos) ? doc.logos : [];
   const seen = new Set<string>();
+  const files = new Set<string>();
   return items.map((raw, i) => {
-    const item = raw as Partial<TeamLogoEntry>;
-    for (const field of ['sport', 'provider', 'team'] as const)
+    const item = raw as Partial<Omit<TeamLogoEntry, 'team'>> & { team?: unknown };
+    for (const field of ['sport', 'provider'] as const)
       if (typeof item[field] !== 'string' || !item[field]) throw new Error(`logos[${i}]: falta "${field}"`);
+    // id numérico sem aspas no YAML (api-sports) vale como texto
+    if ((typeof item.team !== 'string' && typeof item.team !== 'number') || item.team === '')
+      throw new Error(`logos[${i}]: falta "team"`);
     if (typeof item.file !== 'string' || !item.file.startsWith('File:'))
       throw new Error(`logos[${i}]: "file" tem de ser o título do arquivo na Commons (File:…)`);
     if (item.wikidata !== undefined && !/^Q\d+$/.test(String(item.wikidata)))
@@ -72,6 +76,10 @@ export function parseTeamLogos(text: string): TeamLogoEntry[] {
     };
     if (seen.has(key(entry))) throw new Error(`logos[${i}]: ${key(entry)} repetido`);
     seen.add(key(entry));
+    // o asset é um por arquivo (source_url único): o mesmo arquivo em dois times trocaria a chave do outro
+    if (files.has(commonsTitle(entry.file)))
+      throw new Error(`logos[${i}]: ${entry.file} já usado em outro time`);
+    files.add(commonsTitle(entry.file));
     return entry;
   });
 }
@@ -129,7 +137,15 @@ export async function runTeamLogos(options: {
         .from(providerMap)
         .innerJoin(participant, eq(participant.id, providerMap.entityId))
         .leftJoin(asset, eq(asset.id, participant.logoAssetId))
-        .where(and(eq(providerMap.entityType, 'participant'), inArray(providerMap.providerId, ids)))
+        .where(
+          // o prefixo da PK (provider, sport, entity_type, provider_id): sem varrer o provider_map inteiro
+          and(
+            inArray(providerMap.provider, [...new Set(options.entries.map((e) => e.provider))]),
+            inArray(providerMap.sport, [...new Set(options.entries.map((e) => e.sport))]),
+            eq(providerMap.entityType, 'participant'),
+            inArray(providerMap.providerId, ids),
+          ),
+        )
     : [];
 
   // metadados de todos os arquivos de uma vez (o cliente pede em lotes de 50 títulos)
@@ -207,7 +223,7 @@ export async function runTeamLogos(options: {
       originalHeight: info.height,
       retrievedAt: new Date(),
     };
-    await db.transaction(async (tx) => {
+    const linkedNow = await db.transaction(async (tx) => {
       const [saved] = await tx
         .insert(asset)
         .values({ kind: 'team_logo', sourceUrl: commonsSourceUrl(info.title), ...stored })
@@ -232,7 +248,13 @@ export async function runTeamLogos(options: {
         tx,
         linked.map((l) => l.id),
       );
+      return linked.length > 0;
     });
+    if (!linkedNow) {
+      // o fornecedor ligou um logo entre a leitura e a escrita: o dele vence
+      done({ team: label, status: 'skipped', reason: 'o fornecedor ligou um logo durante a execução' });
+      continue;
+    }
     done({ team: label, status: 'linked', file: info.title, license: c.license });
   }
   return outcomes;

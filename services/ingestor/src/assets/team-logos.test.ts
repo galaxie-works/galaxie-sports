@@ -40,11 +40,26 @@ describe('lista de logos de time', () => {
     expect(parseTeamLogos('')).toEqual([]);
   });
 
+  it('recusa o mesmo arquivo em dois times e aceita id numérico sem aspas', () => {
+    expect(() =>
+      parseTeamLogos(
+        'logos:\n' +
+          '  - { sport: formula-1, provider: f1db, team: a, file: "File:A.svg" }\n' +
+          '  - { sport: formula-1, provider: f1db, team: b, file: "File:A.svg" }',
+      ),
+    ).toThrow(/outro time/);
+    expect(
+      parseTeamLogos(
+        'logos:\n  - { sport: formula-1, provider: api-sports, team: 13, file: "File:A.svg" }',
+      )[0]!.team,
+    ).toBe('13');
+  });
+
   it('o mesmo time em outro fornecedor ou esporte não é repetição', () => {
     const entries = parseTeamLogos(
       'logos:\n' +
         '  - { sport: formula-1, provider: f1db, team: "1", file: "File:A.svg" }\n' +
-        '  - { sport: formula-1, provider: api-sports, team: "1", file: "File:A.svg" }',
+        '  - { sport: formula-1, provider: api-sports, team: "1", file: "File:B.svg" }',
     );
     expect(entries).toHaveLength(2);
   });
