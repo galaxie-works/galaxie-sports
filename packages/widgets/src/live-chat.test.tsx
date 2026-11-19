@@ -128,6 +128,10 @@ function api(
         { status: 201 },
       );
     }
+    if (u.endsWith('/v1/moderation/reports') && init?.method === 'POST')
+      return new Response(JSON.stringify({ data: { case_id: 'c1', hidden: false, duplicate: false } }), {
+        status: 201,
+      });
     if (u.endsWith('/reactions'))
       return new Response(JSON.stringify({ data: { accepted: true } }), { status: 202 });
     if (u.includes(`/v1/chat/rooms/${FIXTURE}`))
@@ -280,6 +284,24 @@ describe('chat ao vivo: widget', () => {
       fireEvent.click(screen.getByRole('button', { name: T.send }));
     });
     expect(await screen.findByText('Bora!')).toBeTruthy();
+  });
+
+  it('denuncia a mensagem de outro torcedor com o motivo (#971)', async () => {
+    const { fetchImpl, calls } = api();
+    setup(fetchImpl);
+    const button = await screen.findByRole('button', { name: /Denunciar a mensagem de Tricolor_77/ });
+    fireEvent.click(button);
+    fireEvent.change(screen.getByLabelText(T.reportReason), { target: { value: 'threat' } });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: T.reportSend }));
+    });
+    const report = calls.find((c) => c.url.endsWith('/v1/moderation/reports'));
+    expect(JSON.parse(String(report?.init?.body))).toMatchObject({
+      targetType: 'message',
+      module: 'chat',
+      reason: 'threat',
+    });
+    expect(await screen.findByText(T.reportSent)).toBeTruthy();
   });
 
   it('13_17 lê e reage, mas não tem campo de escrever', async () => {

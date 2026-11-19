@@ -2000,6 +2000,8 @@ a.gs-tile:hover{border-color:var(--gs-primary)}
 .gs-chat-error{margin:0;font-size:.8em;color:var(--gs-danger,#d33)}
 .gs-chat-guidelines{margin:0;padding:.75em;border:1px solid var(--gs-border,#ddd);border-radius:.5em;font-size:.85em;max-height:18em;overflow:auto}
 .gs-chat-guidelines h3{margin:0 0 .4em;font-size:1em}
+.gs-chat-report{margin-left:.4em;padding:0;border:0;background:none;color:inherit;font:inherit;font-size:.75em;text-decoration:underline;opacity:.7;cursor:pointer}
+.gs-chat-report-form{display:flex;flex-wrap:wrap;gap:.4em;align-items:center;margin:.3em 0 0;font-size:.8em}
 .gs-chat-guidelines p{margin:.3em 0}
 .gs-chat-guidelines ul{margin:.3em 0;padding-left:1.2em}
 `;
@@ -2595,6 +2597,18 @@ export interface WidgetTexts {
     pinned: string;
     /** Mensagem retida pela moderação: só o autor vê. */
     onlyYou: string;
+    /** Denúncia de mensagem (#971, #957). */
+    report: string;
+    reportLabel: string;
+    reportReason: string;
+    reportSend: string;
+    reportCancel: string;
+    reportSent: string;
+    reportError: string;
+    reportReasons: Record<
+      'hate' | 'harassment' | 'threat' | 'sexual' | 'spam' | 'betting' | 'personal_data' | 'other',
+      string
+    >;
     unknownAuthor: string;
     reconnecting: string;
     cancelled: string;
@@ -3240,6 +3254,23 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       hidden: 'Chat escondido.',
       pinned: 'Fixada',
       onlyYou: 'Só você vê esta mensagem',
+      report: 'Denunciar',
+      reportLabel: 'Denunciar a mensagem de {name}',
+      reportReason: 'Motivo',
+      reportSend: 'Enviar denúncia',
+      reportCancel: 'Cancelar',
+      reportSent: 'Denúncia enviada. A moderação vai olhar.',
+      reportError: 'Não deu para enviar a denúncia. Tente de novo.',
+      reportReasons: {
+        hate: 'Ódio ou discriminação',
+        harassment: 'Assédio',
+        threat: 'Ameaça',
+        sexual: 'Conteúdo sexual',
+        spam: 'Spam',
+        betting: 'Aposta',
+        personal_data: 'Dados pessoais',
+        other: 'Outro motivo',
+      },
       unknownAuthor: 'Torcedor',
       reconnecting: 'Reconectando…',
       cancelled: 'Anulado',
@@ -3896,6 +3927,23 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       hidden: 'Chat oculto.',
       pinned: 'Fijado',
       onlyYou: 'Solo tú ves este mensaje',
+      report: 'Denunciar',
+      reportLabel: 'Denunciar el mensaje de {name}',
+      reportReason: 'Motivo',
+      reportSend: 'Enviar denuncia',
+      reportCancel: 'Cancelar',
+      reportSent: 'Denuncia enviada. La moderación lo va a revisar.',
+      reportError: 'No se pudo enviar la denuncia. Inténtalo de nuevo.',
+      reportReasons: {
+        hate: 'Odio o discriminación',
+        harassment: 'Acoso',
+        threat: 'Amenaza',
+        sexual: 'Contenido sexual',
+        spam: 'Spam',
+        betting: 'Apuestas',
+        personal_data: 'Datos personales',
+        other: 'Otro motivo',
+      },
       unknownAuthor: 'Hincha',
       reconnecting: 'Reconectando…',
       cancelled: 'Anulado',
@@ -4539,6 +4587,23 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
       hidden: 'Chat hidden.',
       pinned: 'Pinned',
       onlyYou: 'Only you can see this message',
+      report: 'Report',
+      reportLabel: 'Report the message from {name}',
+      reportReason: 'Reason',
+      reportSend: 'Send report',
+      reportCancel: 'Cancel',
+      reportSent: 'Report sent. Moderators will review it.',
+      reportError: "Couldn't send the report. Try again.",
+      reportReasons: {
+        hate: 'Hate or discrimination',
+        harassment: 'Harassment',
+        threat: 'Threat',
+        sexual: 'Sexual content',
+        spam: 'Spam',
+        betting: 'Betting',
+        personal_data: 'Personal data',
+        other: 'Other reason',
+      },
       unknownAuthor: 'Fan',
       reconnecting: 'Reconnecting…',
       cancelled: 'Disallowed',

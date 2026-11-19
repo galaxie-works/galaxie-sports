@@ -41,7 +41,7 @@ const TEXT: Record<Locale, Omit<ChatGuidelines, 'version'>> = {
     whoWrites:
       'Só maiores de 18 anos escrevem. De 13 a 17 anos você lê e reage. Menores de 13 anos não entram.',
     consequences:
-      'Se você quebrar uma regra, a mensagem pode ser barrada ou tirada do ar, e você pode ficar sem escrever por um tempo, ser suspenso ou banido. Você sempre vê o motivo e pode pedir revisão pelo seu Perfil.',
+      'Se você quebrar uma regra, a mensagem pode ser barrada ou tirada do ar, e você pode ficar sem escrever por um tempo, ser suspenso ou banido. Você pode ver as punições e pedir revisão pelo seu Perfil.',
     report:
       'Viu algo errado? Toque em "Denunciar" na mensagem. Racismo, ameaça e qualquer coisa envolvendo crianças são tratados primeiro.',
     accept: 'Li e aceito',
@@ -65,7 +65,7 @@ const TEXT: Record<Locale, Omit<ChatGuidelines, 'version'>> = {
     whoWrites:
       'Solo los mayores de 18 años escriben. De 13 a 17 años puedes leer y reaccionar. Los menores de 13 años no entran.',
     consequences:
-      'Si rompes una regla, el mensaje puede bloquearse o quitarse, y puedes quedarte sin escribir por un tiempo, ser suspendido o expulsado. Siempre ves el motivo y puedes pedir una revisión desde tu Perfil.',
+      'Si rompes una regla, el mensaje puede bloquearse o quitarse, y puedes quedarte sin escribir por un tiempo, ser suspendido o expulsado. Puedes ver las sanciones y pedir una revisión desde tu Perfil.',
     report:
       '¿Viste algo mal? Toca "Denunciar" en el mensaje. El racismo, las amenazas y cualquier cosa que involucre a niños se atienden primero.',
     accept: 'Leí y acepto',
@@ -89,7 +89,7 @@ const TEXT: Record<Locale, Omit<ChatGuidelines, 'version'>> = {
     whoWrites:
       "Only people aged 18 or over can write. If you are 13 to 17, you can read and react. Children under 13 can't join.",
     consequences:
-      'If you break a rule, your message may be blocked or removed, and you may be paused from writing for a while, suspended or banned. You always see why, and you can ask for a review from your Profile.',
+      'If you break a rule, your message may be blocked or removed, and you may be paused from writing for a while, suspended or banned. You can see penalties and ask for a review from your Profile.',
     report:
       'Saw something wrong? Tap "Report" on the message. Racism, threats and anything involving children are handled first.',
     accept: 'I have read and accept',

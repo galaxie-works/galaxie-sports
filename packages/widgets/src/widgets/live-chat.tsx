@@ -312,6 +312,34 @@ function LiveChatRoom({
       setAccepting(false);
     }
   }, [guidelines, accepting, fan, showGuidelines, T]);
+  // denúncia de mensagem (#971): o motivo e o envio ficam na própria mensagem
+  const [reporting, setReporting] = useState<string | null>(null);
+  const [reportReason, setReportReason] = useState<keyof typeof T.reportReasons>('hate');
+  const [reportNotice, setReportNotice] = useState<string | null>(null);
+  const sendReport = useCallback(
+    async (m: GsChatMessage) => {
+      try {
+        const res = await fan.fetch('/v1/moderation/reports', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            targetType: 'message',
+            targetId: m.id,
+            targetProfileId: m.author.profile_id,
+            module: 'chat',
+            ...(room?.room_id ? { room: room.room_id } : {}),
+            reason: reportReason,
+          }),
+        });
+        setReportNotice(res.ok ? T.reportSent : T.reportError);
+        if (res.ok) setReporting(null);
+      } catch {
+        setReportNotice(T.reportError);
+      }
+    },
+    [fan, room, reportReason, T],
+  );
+  const canReport = fan.status === 'ready' && fan.me !== null;
   const send = useCallback(
     async (e: FormEvent) => {
       e.preventDefault();
@@ -497,6 +525,11 @@ function LiveChatRoom({
             </button>
           </section>
         ) : null}
+        {reportNotice ? (
+          <p className="gs-small gs-muted" role="status">
+            {reportNotice}
+          </p>
+        ) : null}
         {sendError ? (
           <p className="gs-chat-error" role="alert">
             {sendError}
@@ -569,6 +602,49 @@ function LiveChatRoom({
                       <time dateTime={item.message.created_at}>{fmt.time(item.message.created_at)}</time>
                       {item.held ? ` · ${T.onlyYou}` : ''}
                     </span>
+                    {canReport && item.message.author.profile_id !== fan.me?.profile_id ? (
+                      <button
+                        type="button"
+                        className="gs-chat-report"
+                        aria-label={fillText(T.reportLabel, {
+                          name: item.message.author.nickname ?? T.unknownAuthor,
+                        })}
+                        aria-expanded={reporting === item.message.id}
+                        onClick={() => {
+                          setReportNotice(null);
+                          setReporting((cur) => (cur === item.message.id ? null : item.message.id));
+                        }}
+                      >
+                        {T.report}
+                      </button>
+                    ) : null}
+                    {reporting === item.message.id ? (
+                      <span className="gs-chat-report-form">
+                        <label>
+                          {T.reportReason}{' '}
+                          <select
+                            value={reportReason}
+                            onChange={(e) => setReportReason(e.target.value as keyof typeof T.reportReasons)}
+                          >
+                            {(Object.keys(T.reportReasons) as (keyof typeof T.reportReasons)[]).map((r) => (
+                              <option key={r} value={r}>
+                                {T.reportReasons[r]}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <button
+                          type="button"
+                          className="gs-button"
+                          onClick={() => void sendReport(item.message)}
+                        >
+                          {T.reportSend}
+                        </button>
+                        <button type="button" className="gs-chat-report" onClick={() => setReporting(null)}>
+                          {T.reportCancel}
+                        </button>
+                      </span>
+                    ) : null}
                   </span>
                 </li>
               ),
