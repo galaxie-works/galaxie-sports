@@ -1,4 +1,5 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
+import { parse } from 'yaml';
 import { describe, expect, it } from 'vitest';
 import { makeStake, STAKE_FAMILIES, stakeCode, TITLE_VARIANT_OF, type StakeFamily } from './codes.js';
 import { exampleParams, renderLabelsMarkdown } from './labels-doc.js';
@@ -108,6 +109,27 @@ describe('mapa de rótulos', () => {
     expect(stakeText(makeStake('both', 'specific_draw_goes_to_penalties', { n: 0 }), 'es-AR')).toBe(
       'El 0 a 0 lleva la definición a los penales',
     );
+  });
+
+  // #1425: zona nova no yaml sem nome nos mapas saía com o id cru na API (`zones[].label` do /v1/context e `{zone}`)
+  it('toda zona de config/rules tem nome em pt, es e en', () => {
+    const rulesDir = new URL('../../../../config/rules/', import.meta.url);
+    const ids = new Set<string>();
+    const walk = (node: unknown): void => {
+      if (Array.isArray(node)) return node.forEach(walk);
+      if (!node || typeof node !== 'object') return;
+      const o = node as Record<string, unknown>;
+      if (typeof o.id === 'string' && typeof o.kind === 'string' && 'from' in o && 'to' in o) ids.add(o.id);
+      Object.values(o).forEach(walk);
+    };
+    for (const f of readdirSync(rulesDir).filter((f) => f.endsWith('.yaml')))
+      walk(parse(readFileSync(new URL(f, rulesDir), 'utf8')));
+    expect(ids.size).toBeGreaterThan(10);
+    const missing = [...ids].flatMap((id) =>
+      (['pt-BR', 'es-AR', 'en'] as const).filter((l) => !(id in ZONE_LABELS[l])).map((l) => `${l}:${id}`),
+    );
+    expect(missing).toEqual([]);
+    for (const id of ids) expect(ZONE_LABELS.en[id]).not.toMatch(/[áéíóúãõçâêôà]/i);
   });
 
   it('zona desconhecida cai no id legível', () => {
