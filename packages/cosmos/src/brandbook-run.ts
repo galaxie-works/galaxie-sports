@@ -358,38 +358,47 @@ async function runBrandbookAsStaff(
   now: Date = new Date(),
 ): Promise<BrandbookRunResult> {
   const route = input.staff.route.slice(0, 200);
-  const mine = and(eq(staffUsage.userId, input.userId), eq(staffUsage.route, route));
-  const [[pending], [hour]] = await Promise.all([
-    db
-      .select({ n: count() })
-      .from(staffUsage)
-      .where(
-        and(
-          mine,
-          eq(staffUsage.outcome, 'pending'),
-          // linha presa (processo caiu no meio) deixa de travar depois do prazo da leitura
-          gte(staffUsage.createdAt, new Date(now.getTime() - BRANDBOOK_RESERVATION_TTL_SECONDS * 1000)),
-        ),
-      ),
-    db
-      .select({ n: count() })
-      .from(staffUsage)
-      .where(and(mine, gte(staffUsage.createdAt, new Date(now.getTime() - 3_600_000)))),
-  ]);
-  if ((pending?.n ?? 0) >= BRANDBOOK_LIMITS.userConcurrent) return { ok: false, error: 'busy' };
-  if ((hour?.n ?? 0) >= BRANDBOOK_LIMITS.userPerHour) return { ok: false, error: 'rate_limited' };
-
   const { quote } = input;
-  const [row] = await db
-    .insert(staffUsage)
-    .values({
-      tenantId: input.tenantId,
-      userId: input.userId,
-      route,
-      provider: quote.provider,
-      model: quote.model,
-    })
-    .returning({ id: staffUsage.id });
+  // contagens e linha nova na mesma transação, com trava por pessoa e rota: dois pedidos ao mesmo tempo não veem as
+  // mesmas contagens e passam juntos dos limites (como a reserva do cliente)
+  const admitted = await db.transaction(async (tx) => {
+    await tx.execute(
+      sql`select pg_advisory_xact_lock(hashtextextended(${`cosmos.brandbook.staff:${input.userId}:${route}`}, 0))`,
+    );
+    const mine = and(eq(staffUsage.userId, input.userId), eq(staffUsage.route, route));
+    const [[pending], [hour]] = await Promise.all([
+      tx
+        .select({ n: count() })
+        .from(staffUsage)
+        .where(
+          and(
+            mine,
+            eq(staffUsage.outcome, 'pending'),
+            // linha presa (processo caiu no meio) deixa de travar depois do prazo da leitura
+            gte(staffUsage.createdAt, new Date(now.getTime() - BRANDBOOK_RESERVATION_TTL_SECONDS * 1000)),
+          ),
+        ),
+      tx
+        .select({ n: count() })
+        .from(staffUsage)
+        .where(and(mine, gte(staffUsage.createdAt, new Date(now.getTime() - 3_600_000)))),
+    ]);
+    if ((pending?.n ?? 0) >= BRANDBOOK_LIMITS.userConcurrent) return { limited: 'busy' as const };
+    if ((hour?.n ?? 0) >= BRANDBOOK_LIMITS.userPerHour) return { limited: 'rate_limited' as const };
+    const [inserted] = await tx
+      .insert(staffUsage)
+      .values({
+        tenantId: input.tenantId,
+        userId: input.userId,
+        route,
+        provider: quote.provider,
+        model: quote.model,
+      })
+      .returning({ id: staffUsage.id });
+    return { row: inserted };
+  });
+  if ('limited' in admitted) return { ok: false, error: admitted.limited };
+  const row = admitted.row;
   const record = (fields: Partial<typeof staffUsage.$inferInsert>) =>
     row
       ? db

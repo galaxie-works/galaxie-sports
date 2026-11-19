@@ -46,6 +46,7 @@ export default async function NewBrandThemePage() {
                   can(ctx, 'cosmos.assistant.ask') &&
                   can(ctx, 'builder.manage')
                 }
+                cosmosStaff={isStaffRole(ctx.role)}
               />
             )}
           </ClientArea>
