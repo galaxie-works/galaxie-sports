@@ -563,6 +563,8 @@ export interface CreatePublishableKeyInput {
   widgetId?: string | null;
   /** `live` (padrão): origens públicas; `test`: só localhost/127.0.0.1/[::1]. */
   env?: PublishableKeyEnv;
+  /** Idioma padrão das respostas desta chave (#1445); null/ausente = o do tenant. */
+  defaultLocale?: string | null;
   /** Quem criou, para a auditoria (`panel:<id do usuário>`, `cli:...`). Padrão `panel`. */
   actor?: string;
 }
@@ -623,6 +625,7 @@ export async function createPublishableKey(
         keyHash: generated.keyHash,
         allowedOrigins: origins,
         widgetId: input.widgetId ?? null,
+        defaultLocale: input.defaultLocale ?? null,
       })
       .returning({ id: publishableKey.id });
     await recordKeyEvent(tx, {
@@ -646,6 +649,8 @@ export interface PublishableKeySummary {
   prefix: string;
   allowedOrigins: string[];
   widgetId: string | null;
+  /** Idioma padrão das respostas desta chave (#1445); null = o do tenant. */
+  defaultLocale: string | null;
   createdAt: Date;
   revokedAt: Date | null;
   lastUsedAt: Date | null;
@@ -658,10 +663,33 @@ const summaryColumns = {
   prefix: publishableKey.prefix,
   allowedOrigins: publishableKey.allowedOrigins,
   widgetId: publishableKey.widgetId,
+  defaultLocale: publishableKey.defaultLocale,
   createdAt: publishableKey.createdAt,
   revokedAt: publishableKey.revokedAt,
   lastUsedAt: publishableKey.lastUsedAt,
 };
+
+/** Idioma padrão das respostas das chaves do tenant (#1445); null = o padrão da API (pt-BR). */
+export async function getTenantDefaultLocale(db: Database, tenantId: string): Promise<string | null> {
+  const [row] = await db
+    .select({ locale: tenant.defaultLocale })
+    .from(tenant)
+    .where(eq(tenant.id, tenantId))
+    .limit(1);
+  return row?.locale ?? null;
+}
+
+/** Grava o idioma padrão do tenant (#1445); null volta ao padrão da API. A API lê o novo valor em até 60 s. */
+export async function setTenantDefaultLocale(
+  db: Database,
+  tenantId: string,
+  locale: string | null,
+): Promise<void> {
+  await db
+    .update(tenant)
+    .set({ defaultLocale: locale, updatedAt: sql`now()` })
+    .where(eq(tenant.id, tenantId));
+}
 
 /** Todas as chaves do tenant (inclusive revogadas), das mais novas às mais antigas. */
 export async function listPublishableKeys(db: Database, tenantId: string): Promise<PublishableKeySummary[]> {

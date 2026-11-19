@@ -2,10 +2,11 @@
 
 import { KeyRound, Plus, ShieldAlert } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useState, useTransition } from 'react';
+import { useMemo, useState, useTransition } from 'react';
 import { toast } from 'sonner';
+import { SUPPORTED_LOCALES } from '@galaxie/contracts';
 
-import { createKey, revokeKey } from '@/app/[locale]/(app)/client/actions';
+import { createKey, revokeKey, setDefaultLocale } from '@/app/[locale]/(app)/client/actions';
 import { Alert, AlertDescription } from '@/components/reui/alert';
 import { Badge } from '@/components/reui/badge';
 import { Frame, FrameDescription, FrameHeader, FramePanel, FrameTitle } from '@/components/reui/frame';
@@ -49,11 +50,102 @@ export interface KeyRow {
   prefix: string;
   allowedOrigins: string[];
   widgetId: string | null;
+  /** Idioma padrão das respostas desta chave (#1445); null = o do tenant. */
+  defaultLocale: string | null;
   createdAt: string;
   revokedAt: string | null;
 }
 
 const ANY = '__any__';
+/** Valor do select para "sem idioma próprio" (herda: a chave herda o do tenant; o tenant, o da API). */
+const INHERIT = '__inherit__';
+
+/** Nome de cada locale da API no idioma da tela ("espanhol (Argentina)"), para os selects de idioma. */
+function useLocaleLabels(): (locale: string) => string {
+  const { locale } = useI18n();
+  const names = useMemo(() => new Intl.DisplayNames([locale], { type: 'language' }), [locale]);
+  return (l) => names.of(l) ?? l;
+}
+
+function LocaleSelect({
+  id,
+  value,
+  inheritLabel,
+  onChange,
+  disabled,
+}: {
+  id: string;
+  value: string | null;
+  inheritLabel: string;
+  onChange: (locale: string | null) => void;
+  disabled?: boolean;
+}) {
+  const label = useLocaleLabels();
+  const items = [
+    { value: INHERIT, label: inheritLabel },
+    ...SUPPORTED_LOCALES.map((l) => ({ value: l, label: label(l) })),
+  ];
+  return (
+    <Select
+      items={items}
+      value={value ?? INHERIT}
+      disabled={disabled}
+      onValueChange={(v) => onChange(!v || v === INHERIT ? null : String(v))}
+    >
+      <SelectTrigger id={id} className="w-full">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {items.map((i) => (
+          <SelectItem key={i.value} value={i.value}>
+            {i.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+/** Idioma padrão das respostas de todas as chaves do tenant (#1445). */
+export function TenantLanguagePanel({ value }: { value: string | null }) {
+  const router = useRouter();
+  const { t } = useI18n();
+  const k = t.client.keys;
+  const [current, setCurrent] = useState(value);
+  const [pending, startTransition] = useTransition();
+  function change(locale: string | null) {
+    const previous = current;
+    setCurrent(locale);
+    startTransition(async () => {
+      const res = await setDefaultLocale(locale);
+      if (!res.ok) {
+        setCurrent(previous);
+        return void toast.error(res.error ?? t.client.errors.generic);
+      }
+      toast.success(k.tenantLanguageSaved);
+      router.refresh();
+    });
+  }
+  return (
+    <Frame>
+      <FramePanel>
+        <FrameHeader className="p-0 pb-3">
+          <FrameTitle>{k.tenantLanguageTitle}</FrameTitle>
+          <FrameDescription>{k.tenantLanguageDescription}</FrameDescription>
+        </FrameHeader>
+        <div className="max-w-sm">
+          <LocaleSelect
+            id="tenant-language"
+            value={current}
+            inheritLabel={k.tenantLanguageApi}
+            onChange={change}
+            disabled={pending}
+          />
+        </div>
+      </FramePanel>
+    </Frame>
+  );
+}
 
 function CreateKeyDialog({ widgets }: { widgets: { id: string; name: string }[] }) {
   const router = useRouter();
@@ -64,6 +156,7 @@ function CreateKeyDialog({ widgets }: { widgets: { id: string; name: string }[] 
   const [origins, setOrigins] = useState('');
   const [widgetId, setWidgetId] = useState(ANY);
   const [env, setEnv] = useState<'live' | 'test'>('live');
+  const [language, setLanguage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [key, setKey] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -78,6 +171,7 @@ function CreateKeyDialog({ widgets }: { widgets: { id: string; name: string }[] 
     setOrigins('');
     setWidgetId(ANY);
     setEnv('live');
+    setLanguage(null);
     setError(null);
     setKey(null);
   }
@@ -86,7 +180,13 @@ function CreateKeyDialog({ widgets }: { widgets: { id: string; name: string }[] 
     e.preventDefault();
     setError(null);
     startTransition(async () => {
-      const res = await createKey({ name, origins, env, widgetId: widgetId === ANY ? null : widgetId });
+      const res = await createKey({
+        name,
+        origins,
+        env,
+        widgetId: widgetId === ANY ? null : widgetId,
+        defaultLocale: language,
+      });
       if (!res.ok || !res.key) return void setError(res.error ?? t.client.errors.generic);
       setKey(res.key);
       router.refresh();
@@ -195,6 +295,16 @@ function CreateKeyDialog({ widgets }: { widgets: { id: string; name: string }[] 
                 </Select>
                 <FieldDescription>{k.widgetHint}</FieldDescription>
               </Field>
+              <Field>
+                <FieldLabel htmlFor="key-language">{k.language}</FieldLabel>
+                <LocaleSelect
+                  id="key-language"
+                  value={language}
+                  inheritLabel={k.languageInherit}
+                  onChange={setLanguage}
+                />
+                <FieldDescription>{k.languageHint}</FieldDescription>
+              </Field>
             </FieldGroup>
             {error ? (
               <Alert variant="destructive">
@@ -264,6 +374,7 @@ export function KeysPanel({
   const { t } = useI18n();
   const f = useFormatters(timeZone);
   const k = t.client.keys;
+  const localeLabel = useLocaleLabels();
   const widgetName = (id: string | null) =>
     id ? (widgets.find((w) => w.id === id)?.name ?? id.slice(0, 8)) : k.anyWidget;
   return (
@@ -284,6 +395,7 @@ export function KeysPanel({
                 <TableHead>{k.columns.key}</TableHead>
                 <TableHead>{k.columns.origins}</TableHead>
                 <TableHead>{k.columns.widget}</TableHead>
+                <TableHead>{k.languageColumn}</TableHead>
                 <TableHead>{k.columns.created}</TableHead>
                 <TableHead>{k.columns.status}</TableHead>
                 <TableHead className="pr-4" />
@@ -306,6 +418,9 @@ export function KeysPanel({
                     </div>
                   </TableCell>
                   <TableCell className="text-sm">{widgetName(row.widgetId)}</TableCell>
+                  <TableCell className="text-sm">
+                    {row.defaultLocale ? localeLabel(row.defaultLocale) : k.languageInherit}
+                  </TableCell>
                   <TableCell className="text-muted-foreground text-sm">{f.date(row.createdAt)}</TableCell>
                   <TableCell>
                     {row.revokedAt ? (
