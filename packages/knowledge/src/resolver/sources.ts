@@ -71,9 +71,9 @@ export async function loadCandidatePool(
   }>(sql`
     select distinct on (id) id, name, code, country, founded, national, city
       from (
-        select case when r->'team'->>'id' ~ '^[0-9]+$' then (r->'team'->>'id')::int end as id,
+        select case when r->'team'->>'id' ~ '^[0-9]{1,9}$' then (r->'team'->>'id')::int end as id,
                r->'team'->>'name' as name, r->'team'->>'code' as code, r->'team'->>'country' as country,
-               case when r->'team'->>'founded' ~ '^[0-9]+$' then (r->'team'->>'founded')::int end as founded,
+               case when r->'team'->>'founded' ~ '^[0-9]{1,9}$' then (r->'team'->>'founded')::int end as founded,
                case when jsonb_typeof(r->'team'->'national') = 'boolean' then (r->'team'->>'national')::boolean end
                  as national,
                r->'venue'->>'city' as city, a.fetched_at
@@ -82,7 +82,7 @@ export async function loadCandidatePool(
             case when jsonb_typeof(a.body->'response') = 'array' then a.body->'response' else '[]'::jsonb end) r
          where a.provider = 'api-sports' and a.sport = 'football' and a.endpoint = '/teams' and a.status_code = 200
       ) t
-     where id is not null and coalesce(name, '') <> ''
+     where id is not null and btrim(coalesce(name, '')) <> ''
      order by id, fetched_at desc`);
   for (const t of teams) {
     byApiId.set(t.id, {
@@ -107,7 +107,7 @@ export async function loadCandidatePool(
       select id, (array_agg(name order by fetched_at desc))[1] as name,
              max(country) filter (where country is not null and lower(country) <> 'world') as country
         from (
-          select case when x->>'id' ~ '^[0-9]+$' then (x->>'id')::int end as id, x->>'name' as name,
+          select case when x->>'id' ~ '^[0-9]{1,9}$' then (x->>'id')::int end as id, x->>'name' as name,
                  f->'league'->>'country' as country, a.fetched_at
             from raw.api_response a
             cross join lateral jsonb_array_elements(
@@ -116,7 +116,7 @@ export async function loadCandidatePool(
            where a.provider = 'api-sports' and a.sport = 'football' and a.endpoint = '/fixtures'
              and a.status_code = 200
         ) t
-       where id is not null and coalesce(name, '') <> ''
+       where id is not null and btrim(coalesce(name, '')) <> ''
        group by id`);
     for (const t of fixtureTeams) {
       if (byApiId.has(t.id)) continue;

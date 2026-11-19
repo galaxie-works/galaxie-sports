@@ -98,6 +98,12 @@ describe('resolver de IDs contra o banco', () => {
       .values({ sport: 'football', kind: 'club', name: 'Corinthians', countryCode: 'BR' })
       .returning();
 
+    // padrão da CLI: sem o raw /fixtures; o país coberto sai do /teams igual
+    const lean = await loadCandidatePool(db);
+    expect([...lean.coveredCountries]).toEqual(['brazil']);
+    expect(lean.candidates.some((c) => c.apiId === 531)).toBe(false);
+    expect(lean.candidates.find((c) => c.apiId === 121)).toMatchObject({ source: 'teams' });
+
     const pool = await loadCandidatePool(db, { includeFixtures: true });
     expect([...pool.coveredCountries]).toEqual(['brazil']);
     const fromCore = pool.candidates.find((c) => c.apiId === 121);

@@ -1,6 +1,8 @@
 # Base semântica — clubes da França (inclui AS Monaco, que disputa a liga francesa) (schema v1, ver data/knowledge/SCHEMA.md)
 # labels/copy_hints: nomes e apelidos como usados na imprensa do Brasil (pt-BR) e da América Latina hispânica (es).
 # api_sports.team_id: resolvido por `pnpm resolve:ids` (match.name + country) contra o banco em 19/11/2026 (issue #17).
+# Lyon (80) e Monaco (91) gravados à mão: o resolvedor os deixou ambíguos ("FC Lyon" com 0,97; o raw não tem a lista
+# completa de Mônaco) e os IDs são os do raw /teams de Lyon e Monaco na Ligue 1.
 schema_version: 1
 country: FR
 teams:
