@@ -5,7 +5,7 @@ import { sendCached } from '../../cache/http.js';
 import { CACHE_TTL } from '../../cache/policy.js';
 import { requireDb, type AppContext } from '../../context.js';
 import { problems } from '../../errors.js';
-import { resolveLocale } from '../../i18n.js';
+import { requestLocale } from '../../i18n.js';
 import { assetUrl, parseInput } from '../../util.js';
 
 const MODULE = { module: 'where_to_watch' } as const;
@@ -52,7 +52,7 @@ export function broadcasterDto(row: BroadcasterRow, assetsBaseUrl: string | unde
 export async function broadcasterRoutes(app: FastifyInstance, ctx: AppContext): Promise<void> {
   app.get('/v1/broadcasters', { config: MODULE }, async (request, reply) => {
     const query = parseInput(BroadcastersQuery, request.query);
-    const locale = resolveLocale(query.locale, request.headers['accept-language']);
+    const locale = requestLocale(request, query.locale);
     reply.header('content-language', locale);
     return sendCached(request, reply, ctx.cache, {
       ttl: CACHE_TTL.catalog,
@@ -70,7 +70,7 @@ export async function broadcasterRoutes(app: FastifyInstance, ctx: AppContext): 
   app.get('/v1/broadcasters/:id', { config: MODULE }, async (request, reply) => {
     const params = parseInput(BroadcasterParams, request.params);
     const query = parseInput(LocaleQuery, request.query);
-    const locale = resolveLocale(query.locale, request.headers['accept-language']);
+    const locale = requestLocale(request, query.locale);
     reply.header('content-language', locale);
     return sendCached(request, reply, ctx.cache, {
       ttl: CACHE_TTL.catalog,

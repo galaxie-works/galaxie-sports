@@ -33,7 +33,12 @@ export const SUPPORTED_LOCALES = [
   'es-EC',
   'en',
 ] as const;
-export const DEFAULT_LOCALE = 'pt-BR';
+/**
+ * Marca do locale na chave de cache quando nem `?locale` nem `Accept-Language` casam. A API então usa o padrão da
+ * chave publicável ou do tenant (#1445) e, sem eles, pt-BR; a borda não sabe qual, mas a chave de cache já separa
+ * por chave da API, então uma marca própria basta e nunca mistura essa resposta com a de quem pediu pt-BR.
+ */
+export const UNMATCHED_LOCALE = 'default';
 
 /** Headers que valem só para a requisição que os recebeu: não vão para a cópia guardada. */
 const PER_REQUEST_HEADERS = [
@@ -69,7 +74,8 @@ export function parseAcceptLanguage(header: string | null | undefined): string[]
 
 /**
  * Locale que a API usaria (`resolveLocale` de apps/api/src/i18n.ts): `?locale=` válido primeiro; depois o
- * Accept-Language, pela tag exata (es-AR) ou pelo idioma (es → primeiro es-*, en-US → en); padrão pt-BR. Reduz o
+ * Accept-Language, pela tag exata (es-AR) ou pelo idioma (es → primeiro es-*, en-US → en); sem nada que case,
+ * `UNMATCHED_LOCALE` (o padrão é da chave/tenant, #1445). Reduz o
  * Accept-Language aos 9 valores que mudam a resposta: `es-AR,es;q=0.9` e `es-AR` caem na mesma cópia.
  */
 export function resolveLocale(queryLocale: string | null, acceptLanguage: string | null): string {
@@ -82,7 +88,7 @@ export function resolveLocale(queryLocale: string | null, acceptLanguage: string
     const same = SUPPORTED.get(lang) ?? SUPPORTED_LOCALES.find((l) => l.toLowerCase().startsWith(`${lang}-`));
     if (same) return same;
   }
-  return DEFAULT_LOCALE;
+  return UNMATCHED_LOCALE;
 }
 
 /** Chave da API da requisição, com a mesma precedência da origem: a secreta vence a publicável. */

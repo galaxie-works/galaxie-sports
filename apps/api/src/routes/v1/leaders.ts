@@ -13,7 +13,7 @@ import { sendCached } from '../../cache/http.js';
 import { CACHE_TTL } from '../../cache/policy.js';
 import { requireDb, type AppContext } from '../../context.js';
 import { problems } from '../../errors.js';
-import { formatInstant, resolveLocale } from '../../i18n.js';
+import { formatInstant, requestLocale } from '../../i18n.js';
 import { teamLogoId } from '../../assets/custom-logos.js';
 import { loadTeamNames, teamNameOptions } from '../../teams/display-name.js';
 import { assetUrl, parseInput, UUID_RE } from '../../util.js';
@@ -36,7 +36,7 @@ export async function leadersRoutes(app: FastifyInstance, ctx: AppContext): Prom
   app.get('/v1/competitions/:id/seasons/:season/leaders', { config: MODULE }, async (request, reply) => {
     const params = parseInput(StandingsParams, request.params);
     const query = parseInput(LeadersQuery, request.query);
-    const locale = resolveLocale(query.locale, request.headers['accept-language']);
+    const locale = requestLocale(request, query.locale);
     const tz = query.tz ?? 'UTC';
     reply.header('content-language', locale);
     return sendCached(request, reply, ctx.cache, {

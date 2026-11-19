@@ -13,6 +13,7 @@ import {
 } from '@galaxie/db';
 import { problems } from '../errors.js';
 import {
+  localeOf,
   tenantStateProblem,
   withoutClosedModules,
   type AuthAttempt,
@@ -161,6 +162,7 @@ export class PublishableAuthenticator {
       sports: key.tenant.sports,
       rateLimitPerMinute: key.tenant.rateLimitPerMinute,
       dailyRequestQuota: key.tenant.dailyRequestQuota,
+      ...localeOf(key.defaultLocale, key.tenant.defaultLocale),
     };
   }
 

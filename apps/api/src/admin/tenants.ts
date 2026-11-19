@@ -204,6 +204,7 @@ export interface TenantPatch {
   sports?: string[] | undefined;
   rateLimitPerMinute?: number | undefined;
   dailyRequestQuota?: number | null | undefined;
+  defaultLocale?: string | null | undefined;
   status?: 'active' | 'suspended' | undefined;
 }
 
@@ -230,6 +231,7 @@ export async function updateTenant(
     ...(patch.sports !== undefined ? { sports: patch.sports } : {}),
     ...(patch.rateLimitPerMinute !== undefined ? { rateLimitPerMinute: patch.rateLimitPerMinute } : {}),
     ...(patch.dailyRequestQuota !== undefined ? { dailyRequestQuota: patch.dailyRequestQuota } : {}),
+    ...(patch.defaultLocale !== undefined ? { defaultLocale: patch.defaultLocale } : {}),
     ...(patch.status !== undefined ? { status: patch.status } : {}),
     updatedAt: sql`now()`,
   };

@@ -14,7 +14,7 @@ import { sendCached } from '../../cache/http.js';
 import { CACHE_TTL } from '../../cache/policy.js';
 import { requireDb, type AppContext } from '../../context.js';
 import { eventHead } from '../../events/queries.js';
-import { formatInstant, resolveLocale } from '../../i18n.js';
+import { formatInstant, requestLocale } from '../../i18n.js';
 import { parseInput } from '../../util.js';
 
 const MODULE = { module: 'live_intelligence' } as const;
@@ -79,7 +79,7 @@ export async function eventContextRoutes(app: FastifyInstance, ctx: AppContext):
   app.get('/v1/events/:id/context', { config: MODULE }, async (request, reply) => {
     const params = parseInput(EventParams, request.params);
     const query = parseInput(EventContextQuery, request.query);
-    const locale = resolveLocale(query.locale, request.headers['accept-language']);
+    const locale = requestLocale(request, query.locale);
     const tz = query.tz ?? 'UTC';
     reply.header('content-language', locale);
     return sendCached(request, reply, ctx.cache, {

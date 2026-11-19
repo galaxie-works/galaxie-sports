@@ -22,8 +22,15 @@ export const SUPPORTED_LOCALES = [
 ] as const;
 export type SupportedLocale = (typeof SUPPORTED_LOCALES)[number];
 
-/** Locale usado quando o cliente não informa `?locale` nem `Accept-Language` compatível. */
+/**
+ * Locale usado quando o cliente não informa `?locale` nem `Accept-Language` compatível e nem a chave nem o tenant têm
+ * idioma padrão próprio (#1445).
+ */
 export const DEFAULT_LOCALE: SupportedLocale = 'pt-BR';
+
+export function isSupportedLocale(value: string): value is SupportedLocale {
+  return (SUPPORTED_LOCALES as readonly string[]).includes(value);
+}
 
 /** Códigos de erro (docs/05 §6). */
 export const ERROR_CODES = [

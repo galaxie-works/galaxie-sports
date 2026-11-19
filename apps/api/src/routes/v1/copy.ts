@@ -13,7 +13,7 @@ import { sendCached } from '../../cache/http.js';
 import { CACHE_TTL } from '../../cache/policy.js';
 import { requireDb, type AppContext } from '../../context.js';
 import { problems } from '../../errors.js';
-import { resolveLocale } from '../../i18n.js';
+import { requestLocale } from '../../i18n.js';
 import { parseInput, UUID_RE } from '../../util.js';
 import { loadTeamNames } from '../../teams/display-name.js';
 import { effectiveMinReview, findProfile, meetsReview, nicknamesFor, profileName } from './semantic.js';
@@ -28,7 +28,7 @@ const MODULE = { module: 'semantic' } as const;
 export async function copyRoutes(app: FastifyInstance, ctx: AppContext): Promise<void> {
   app.get('/v1/copy', { config: MODULE }, async (request, reply) => {
     const query = parseInput(CopyQuery, request.query);
-    const locale = resolveLocale(query.locale, request.headers['accept-language']);
+    const locale = requestLocale(request, query.locale);
     const min = effectiveMinReview(ctx, query.min_review_status);
     reply.header('content-language', locale);
     return sendCached(request, reply, ctx.cache, {

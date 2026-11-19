@@ -726,8 +726,12 @@ export interface VerifiedPublishableKey {
     state: TenantState;
     /** Prazo do estado `trial`; a API o usa como fallback até o job `tenant.lifecycle` rodar. */
     trialEndsAt?: Date | null;
+    /** Idioma padrão do tenant (#1445); null = o da API. */
+    defaultLocale?: string | null;
   };
   allowedOrigins: string[];
+  /** Idioma padrão desta chave (o site dela, #1445); vale antes do do tenant. null = o do tenant. */
+  defaultLocale?: string | null;
   /** Widget a que a chave está presa (null = qualquer). */
   widgetId: string | null;
   /** Tipo do widget preso, para a API restringir os módulos (`WIDGET_KIND_MODULES`). */
@@ -750,6 +754,7 @@ export async function verifyPublishableKey(
       env: publishableKey.env,
       revokedAt: publishableKey.revokedAt,
       allowedOrigins: publishableKey.allowedOrigins,
+      keyLocale: publishableKey.defaultLocale,
       widgetId: publishableKey.widgetId,
       widgetKind: widget.kind,
       widgetArchivedAt: widget.archivedAt,
@@ -781,8 +786,10 @@ export async function verifyPublishableKey(
       dailyRequestQuota: row.tenant.dailyRequestQuota,
       state: row.tenant.state,
       trialEndsAt: row.tenant.trialEndsAt,
+      defaultLocale: row.tenant.defaultLocale,
     },
     allowedOrigins: row.allowedOrigins,
+    defaultLocale: row.keyLocale,
     widgetId: row.widgetId,
     widgetKind: row.widgetId ? (row.widgetKind ?? null) : null,
   };

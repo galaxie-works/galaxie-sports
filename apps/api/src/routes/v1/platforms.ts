@@ -5,7 +5,7 @@ import { sendCached } from '../../cache/http.js';
 import { CACHE_TTL } from '../../cache/policy.js';
 import { requireDb, type AppContext } from '../../context.js';
 import { problems } from '../../errors.js';
-import { resolveLocale } from '../../i18n.js';
+import { requestLocale } from '../../i18n.js';
 import { lineupDto, lineupTags, loadLogoBook, operatorVary, visibleTo } from '../../lineup/availability.js';
 import { parseInput } from '../../util.js';
 
@@ -20,7 +20,7 @@ export async function platformRoutes(app: FastifyInstance, ctx: AppContext): Pro
   app.get('/v1/platforms', { config: MODULE }, async (request, reply) => {
     const query = parseInput(PlatformsQuery, request.query);
     if (request.tenant && query.country) assertMarket(request.tenant, query.country);
-    const locale = resolveLocale(query.locale, request.headers['accept-language']);
+    const locale = requestLocale(request, query.locale);
     reply.header('content-language', locale);
     const db = requireDb(ctx);
     const operator = await ctx.lineup.operatorOf(db, request.tenant?.tenantId);
@@ -47,7 +47,7 @@ export async function platformRoutes(app: FastifyInstance, ctx: AppContext): Pro
   app.get('/v1/platforms/:id/lineup', { config: MODULE }, async (request, reply) => {
     const params = parseInput(PlatformParams, request.params);
     const query = parseInput(LocaleQuery, request.query);
-    const locale = resolveLocale(query.locale, request.headers['accept-language']);
+    const locale = requestLocale(request, query.locale);
     reply.header('content-language', locale);
     const db = requireDb(ctx);
     const operator = await ctx.lineup.operatorOf(db, request.tenant?.tenantId);

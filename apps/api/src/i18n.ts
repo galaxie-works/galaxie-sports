@@ -29,11 +29,13 @@ export function parseAcceptLanguage(header: string | undefined): string[] {
 
 /**
  * Locale da resposta: `?locale` (já validado) tem precedência; depois Accept-Language, casando a tag
- * exata (es-AR) ou só o idioma (es → primeiro locale es-* suportado; pt → pt-BR; en-US → en). Padrão: pt-BR.
+ * exata (es-AR) ou só o idioma (es → primeiro locale es-* suportado; pt → pt-BR; en-US → en); depois o padrão
+ * da chave/tenant (`fallback`, #1445); por fim `DEFAULT_LOCALE` (pt-BR).
  */
 export function resolveLocale(
   queryLocale: SupportedLocale | undefined,
   acceptLanguage?: string,
+  fallback?: SupportedLocale,
 ): SupportedLocale {
   if (queryLocale) return queryLocale;
   for (const tag of parseAcceptLanguage(acceptLanguage)) {
@@ -44,7 +46,26 @@ export function resolveLocale(
       SUPPORTED.get(lang) ?? SUPPORTED_LOCALES.find((l) => l.toLowerCase().startsWith(`${lang}-`));
     if (sameLang) return sameLang;
   }
-  return DEFAULT_LOCALE;
+  return fallback ?? DEFAULT_LOCALE;
+}
+
+/**
+ * Locale da requisição: `?locale`, `Accept-Language`, o padrão da chave publicável ou do tenant autenticado
+ * (`request.tenant.defaultLocale`, #1445) e por fim pt-BR. Toda rota que monta texto usa isto.
+ */
+export function requestLocale(
+  request: {
+    headers: Record<string, string | string[] | undefined>;
+    tenant?: { defaultLocale?: SupportedLocale } | null;
+  },
+  queryLocale: SupportedLocale | undefined,
+): SupportedLocale {
+  const accept = request.headers['accept-language'];
+  return resolveLocale(
+    queryLocale,
+    Array.isArray(accept) ? accept[0] : accept,
+    request.tenant?.defaultLocale,
+  );
 }
 
 /**

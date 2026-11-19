@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import * as z from 'zod';
+import { SUPPORTED_LOCALES } from '@galaxie/contracts';
 import {
   API_MODULES,
   API_PLANS,
@@ -99,6 +100,8 @@ const PatchTenantBody = z
     sports: Sports.optional(),
     rateLimitPerMinute: RateLimit.optional(),
     dailyRequestQuota: Quota.optional(),
+    /** Idioma padrão das respostas das chaves do tenant (#1445); null volta ao padrão da API. */
+    defaultLocale: z.enum(SUPPORTED_LOCALES).nullable().optional(),
     status: z.enum(['active', 'suspended']).optional(),
   })
   .strict()

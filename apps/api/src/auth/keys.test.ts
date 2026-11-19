@@ -295,6 +295,17 @@ describe('trial (docs/politica-de-chaves.md §3)', () => {
   });
 });
 
+describe('idioma padrão do tenant (#1445)', () => {
+  it('a chave secreta leva o idioma padrão do tenant; valor desconhecido é ignorado', async () => {
+    const withLocale = await memoryTenant({ defaultLocale: 'es-AR' });
+    expect((await new Authenticator(withLocale.store).authenticate(withLocale.key)).defaultLocale).toBe(
+      'es-AR',
+    );
+    const unknown = await memoryTenant({ defaultLocale: 'fr-FR' });
+    expect((await new Authenticator(unknown.store).authenticate(unknown.key)).defaultLocale).toBeUndefined();
+  });
+});
+
 describe('estado do tenant (plataforma comercial F3, doc 02 "O que cada estado permite")', () => {
   const cases = [
     ['draft', 401, 'TENANT_PENDING_REVIEW'],
