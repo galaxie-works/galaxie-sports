@@ -228,7 +228,7 @@ export function tieLegs(sport: string, ruleLegs: number | undefined, tieSize: nu
   return ruleLegs ?? (tieSize === 2 ? 2 : 1);
 }
 
-const LEG_NAMES: Record<string, [string, string]> = {
+const LEG_NAMES: Record<'pt' | 'es' | 'en', [string, string]> = {
   pt: ['Ida', 'Volta'],
   es: ['Ida', 'Vuelta'],
   en: ['1st leg', '2nd leg'],
@@ -818,7 +818,7 @@ export async function buildEvents(ctx: BuildContext, ids: string[]): Promise<Bui
     const stageName = r.st
       ? pickText(r.st.name as Record<string, string>, locale, r.st.providerLabel ?? '')
       : null;
-    const legName = leg ? (LEG_NAMES[lang] ?? LEG_NAMES.es!)[leg - 1] : null;
+    const legName = leg ? (LEG_NAMES[lang as keyof typeof LEG_NAMES] ?? LEG_NAMES.es)[leg - 1] : null;
     const pair = (p: Pair | null | undefined): Pair | null =>
       p && (p.home != null || p.away != null) ? { home: p.home ?? null, away: p.away ?? null } : null;
     const participants = (partsBy.get(id) ?? [])

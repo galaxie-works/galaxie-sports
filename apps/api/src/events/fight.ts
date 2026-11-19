@@ -2,9 +2,9 @@ import { eq, inArray, or } from 'drizzle-orm';
 import type { EventFight } from '@galaxie/contracts';
 import { event, sportEventDetail, type Database } from '@galaxie/db';
 import { mmaCardPlacement, mmaFightResult, mmaWeightClass, type MmaMethod } from '@galaxie/providers';
-import { pickText } from '../i18n.js';
+import { pickText, type Tri } from '../i18n.js';
 
-const METHOD_NAMES: Readonly<Record<Exclude<MmaMethod, 'other'>, Record<string, string>>> = {
+const METHOD_NAMES: Readonly<Record<Exclude<MmaMethod, 'other'>, Tri>> = {
   ko: { 'pt-BR': 'Nocaute', es: 'Nocaut', en: 'Knockout' },
   submission: { 'pt-BR': 'Finalização', es: 'Sumisión', en: 'Submission' },
   decision_unanimous: { 'pt-BR': 'Decisão unânime', es: 'Decisión unánime', en: 'Unanimous decision' },

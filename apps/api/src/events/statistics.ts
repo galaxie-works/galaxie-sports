@@ -1,11 +1,9 @@
 import type { TeamStatistic, TeamStatisticCode } from '@galaxie/contracts';
 import { normalizeTeamStatistics } from '@galaxie/providers';
-import { pickText } from '../i18n.js';
-
-type I18n = Record<string, string>;
+import { pickText, type Tri } from '../i18n.js';
 
 /** Rótulo de cada estatística de time (docs/05 §3.2): pt-BR, espanhol neutro e inglês (fallback). */
-export const TEAM_STATISTIC_LABELS: Record<TeamStatisticCode, I18n> = {
+export const TEAM_STATISTIC_LABELS: Record<TeamStatisticCode, Tri> = {
   possession_pct: { 'pt-BR': 'Posse de bola', es: 'Posesión', en: 'Possession' },
   shots_total: { 'pt-BR': 'Chutes', es: 'Remates', en: 'Shots' },
   shots_on_goal: { 'pt-BR': 'Chutes no gol', es: 'Remates al arco', en: 'Shots on target' },

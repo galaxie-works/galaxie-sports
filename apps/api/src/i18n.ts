@@ -10,6 +10,12 @@ export { fallbackChain };
  */
 export { competitionName };
 
+/**
+ * Rótulo fixo da API nos três idiomas (#1426): `en` é obrigatório no tipo, para chave nova sem inglês não compilar
+ * nem cair em português para quem pede `locale=en`. Os `es-*` usam `es`.
+ */
+export type Tri = { 'pt-BR': string; es: string; en: string };
+
 const SUPPORTED = new Map(SUPPORTED_LOCALES.map((l) => [l.toLowerCase(), l]));
 
 /** Accept-Language → tags ordenadas por preferência (q). */
