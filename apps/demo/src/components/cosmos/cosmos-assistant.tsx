@@ -93,6 +93,7 @@ import { useI18n } from '@/lib/i18n/client';
 import { fill } from '@/lib/i18n/text';
 
 import { CosmosIcon } from './cosmos-icon';
+import { CosmosMarkdown } from './cosmos-markdown';
 
 /** Mesmo limite do servidor (`QUESTION_MAX`). */
 const QUESTION_MAX = 2000;
@@ -849,9 +850,7 @@ function AnswerMessage({
                     </CodeBlockHeader>
                   </CodeBlock>
                 ) : (
-                  <p key={i} className="whitespace-pre-wrap">
-                    {part.content}
-                  </p>
+                  <CosmosMarkdown key={i} text={part.content} onNavigate={onNavigate} />
                 ),
               )
             )}
