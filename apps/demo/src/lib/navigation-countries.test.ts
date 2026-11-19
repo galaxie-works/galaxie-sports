@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { fetchNavigationCountries } from './navigation-countries';
+import { FALLBACK_COUNTRIES } from './navigation';
+import { fetchNavigationCountries, menuCountries } from './navigation-countries';
 
 describe('países do menu lateral', () => {
   it('vêm de /v1/navigation (do banco), com o nome no idioma pedido e a confederação', async () => {
@@ -34,5 +35,19 @@ describe('países do menu lateral', () => {
     await expect(fetchNavigationCountries(fetchImpl as unknown as typeof fetch, 'es')).rejects.toThrow(
       'navigation 503',
     );
+  });
+});
+
+describe('o que o menu mostra', () => {
+  const us = { code: 'US', group: 'CONCACAF', href: '/countries/us', name: 'Estados Unidos' };
+
+  it('a resposta da API, mesmo vazia: sucesso sem países não volta para a reserva', () => {
+    expect(menuCountries([us], true)).toEqual([us]);
+    expect(menuCountries([], true)).toEqual([]);
+  });
+
+  it('a reserva só sem resposta de sucesso (carregando, com erro) ou antes de hidratar', () => {
+    expect(menuCountries(undefined, true)).toBe(FALLBACK_COUNTRIES);
+    expect(menuCountries([us], false)).toBe(FALLBACK_COUNTRIES);
   });
 });

@@ -5,7 +5,7 @@
  */
 import type { Navigation } from '@galaxie/contracts';
 
-import { countryNav, type CountryNav } from './navigation';
+import { countryNav, FALLBACK_COUNTRIES, type CountryNav } from './navigation';
 
 /** Chave do react-query (com o idioma: o nome do país vem traduzido pela API). */
 export const NAV_COUNTRIES_QUERY_KEY = 'navigation-countries';
@@ -23,4 +23,15 @@ export async function fetchNavigationCountries(
   if (!res.ok) throw new Error(`navigation ${res.status}`);
   const body = (await res.json()) as Pick<Navigation, 'countries'>;
   return body.countries.map((c) => ({ ...countryNav(c.code, c.confederation.code), name: c.name }));
+}
+
+/**
+ * O que o menu mostra: a resposta da API sempre que ela veio com sucesso (mesmo vazia: catálogo sem liga nacional é
+ * menu sem países, não os 17 de reserva); a reserva só antes de hidratar, enquanto carrega ou com a consulta em erro.
+ */
+export function menuCountries(
+  data: NavCountry[] | undefined,
+  hydrated: boolean,
+): (CountryNav & { name?: string })[] {
+  return hydrated && data !== undefined ? data : FALLBACK_COUNTRIES;
 }

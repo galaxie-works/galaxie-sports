@@ -38,16 +38,8 @@ import { DOCS_NAV } from '@/lib/docs';
 import { useHydrated } from '@/hooks/use-hydrated';
 import { useI18n } from '@/lib/i18n/client';
 import { fill } from '@/lib/i18n/text';
-import {
-  countryName,
-  EQUESTRIAN_NAV,
-  FALLBACK_COUNTRIES,
-  FAMILIES,
-  MULTISPORT_NAV,
-  type CountryNav,
-  type NavItem,
-} from '@/lib/navigation';
-import { fetchNavigationCountries, NAV_COUNTRIES_QUERY_KEY } from '@/lib/navigation-countries';
+import { countryName, EQUESTRIAN_NAV, FAMILIES, MULTISPORT_NAV, type NavItem } from '@/lib/navigation';
+import { fetchNavigationCountries, menuCountries, NAV_COUNTRIES_QUERY_KEY } from '@/lib/navigation-countries';
 import { topLevelClick } from '@/lib/trail';
 
 import { UserMenu } from './user-menu';
@@ -221,7 +213,7 @@ function useNavCountries() {
     retry: 1,
     enabled: !inExample,
   });
-  const list: (CountryNav & { name?: string })[] = hydrated && data?.length ? data : FALLBACK_COUNTRIES;
+  const list = menuCountries(data, hydrated);
   return list.map((c) => ({ ...c, label: countryName(t, locale, c.code, c.name) }));
 }
 
