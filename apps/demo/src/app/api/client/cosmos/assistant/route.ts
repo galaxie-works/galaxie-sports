@@ -92,6 +92,7 @@ export async function POST(request: Request) {
     semantic: true,
     signal: request.signal,
     files,
+    staff: isStaffRole(ctx.role),
   });
   if (prepared === 'attachment_unsupported') return fail(prepared);
   if (!prepared) return fail('unavailable');

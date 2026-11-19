@@ -19,6 +19,7 @@ import {
   cosmosApiKey,
   type CosmosProvider,
   ASSISTANT_FUNCTION,
+  panelGuideChunks,
   buildPrompt,
   DOCS_BUDGET_CHARS,
   estimateAssistantCredits,
@@ -45,13 +46,21 @@ import { isStaffRole } from '@/lib/auth/roles';
 
 import { apiChunks, docChunks } from './assistant-docs';
 
-/** Trechos por idioma (guias no idioma da tela e o contrato da API), montados uma vez por processo. */
-const corpus = new Map<Locale, DocChunk[]>();
-function knowledgeFor(locale: Locale): DocChunk[] {
-  let chunks = corpus.get(locale);
+/**
+ * Trechos por idioma e público (guias no idioma da tela, o guia do painel e o contrato da API), montados uma vez por
+ * processo. As telas de Ajustes da equipe Galaxie só entram para a equipe.
+ */
+const corpus = new Map<string, DocChunk[]>();
+function knowledgeFor(locale: Locale, staff: boolean): DocChunk[] {
+  const key = `${locale}:${staff ? 'staff' : 'client'}`;
+  let chunks = corpus.get(key);
   if (!chunks) {
-    chunks = [...docChunks(getDictionary(locale).docs), ...apiChunks(openApiDocument())];
-    corpus.set(locale, chunks);
+    chunks = [
+      ...panelGuideChunks(staff),
+      ...docChunks(getDictionary(locale).docs),
+      ...apiChunks(openApiDocument()),
+    ];
+    corpus.set(key, chunks);
   }
   return chunks;
 }
@@ -191,6 +200,8 @@ export async function prepareQuestion(
   options: {
     semantic?: boolean;
     signal?: AbortSignal;
+    /** Equipe Galaxie: a busca também lê o guia das telas de Ajustes. */
+    staff?: boolean;
     /** Anexos lidos (a pergunta de verdade). */
     files?: readonly PromptAttachment[];
     /** Só o tipo e o tamanho (a estimativa da tela, que não manda o conteúdo). */
@@ -217,7 +228,7 @@ export async function prepareQuestion(
   }));
   if (metas.some((m) => m.kind !== 'text') && !ASSISTANT_FILE_PROVIDERS.includes(fn.provider))
     return 'attachment_unsupported';
-  const docs = await searchKnowledge(req.question, knowledgeFor(locale), {
+  const docs = await searchKnowledge(req.question, knowledgeFor(locale, options.staff ?? false), {
     db,
     client: options.semantic ? embeddingClientFor(embeddings, process.env, { preferred: fn.provider }) : null,
     ...(options.signal ? { signal: options.signal } : {}),
