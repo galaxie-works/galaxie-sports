@@ -6,6 +6,15 @@ import { PROXY_REQUESTS_PER_MINUTE } from '@/lib/galaxie/proxy-policy';
 
 vi.mock('@/lib/i18n/server', () => ({ getRequestLocale: async () => 'pt-BR' }));
 
+/** O token do torcedor sai da sessão (#1369): aqui, um falso por padrão válido. */
+const sessionFan = vi.fn(
+  async (): Promise<{ ok: true; authorization: string } | { ok: false; status: 401 | 502 | 503 }> => ({
+    ok: true,
+    authorization: 'Bearer gft_sessao.x',
+  }),
+);
+vi.mock('@/lib/fan/session-token', () => ({ sessionFanAuthorization: () => sessionFan() }));
+
 const upstream = vi.fn(async (url: URL) =>
   Response.json({ data: [], url: url.toString() }, { headers: { 'content-type': 'application/json' } }),
 );
@@ -18,6 +27,7 @@ beforeEach(async () => {
   vi.stubEnv('GALAXIE_DEMO_KEY', 'gs_demo_chave');
   vi.stubGlobal('fetch', upstream);
   upstream.mockClear();
+  sessionFan.mockClear();
   route = await import('./route');
 });
 afterEach(() => {
@@ -94,7 +104,7 @@ describe('proxy /api/galaxie: escrita do chat (#977)', () => {
       { params: Promise.resolve({ path }) },
     );
 
-  it('repassa a mensagem e a reação com o token do torcedor, sem a chave da demo', async () => {
+  it('repassa a mensagem e a reação com o token da sessão (não o do navegador), sem a chave da demo', async () => {
     for (const kind of ['messages', 'reactions']) {
       upstream.mockClear();
       const res = await post(['v1', 'chat', 'rooms', ROOM, kind]);
@@ -102,22 +112,23 @@ describe('proxy /api/galaxie: escrita do chat (#977)', () => {
       const [url, init] = upstream.mock.calls[0] as unknown as [string, RequestInit];
       expect(String(url)).toBe(`http://api.test/v1/chat/rooms/${ROOM}/${kind}`);
       const headers = new Headers(init.headers);
-      expect(headers.get('authorization')).toBe('Bearer gft_abc.def');
+      expect(headers.get('authorization')).toBe('Bearer gft_sessao.x');
       expect(headers.get('x-galaxie-key')).toBeNull();
       expect(init.method).toBe('POST');
     }
   });
 
-  it('recusa outro caminho, outra origem e pedido sem o token, sem chamar a API', async () => {
+  it('recusa outro caminho, outra origem e sessão sem token de torcedor, sem chamar a API', async () => {
     expect((await post(['v1', 'chat', 'config'])).status).toBe(404);
     expect((await post(['v1', 'chat', 'rooms', 'nao-uuid', 'messages'])).status).toBe(404);
     expect((await post(['v1', 'fans', 'tokens'])).status).toBe(404);
     expect(
       (await post(['v1', 'chat', 'rooms', ROOM, 'messages'], { 'sec-fetch-site': 'cross-site' })).status,
     ).toBe(404);
-    expect(
-      (await post(['v1', 'chat', 'rooms', ROOM, 'messages'], { authorization: 'Bearer gs_sk_x' })).status,
-    ).toBe(401);
+    sessionFan.mockResolvedValueOnce({ ok: false, status: 401 });
+    expect((await post(['v1', 'chat', 'rooms', ROOM, 'messages'])).status).toBe(401);
+    sessionFan.mockResolvedValueOnce({ ok: false, status: 503 });
+    expect((await post(['v1', 'chat', 'rooms', ROOM, 'messages'])).status).toBe(503);
     expect(upstream).not.toHaveBeenCalled();
   });
 
@@ -141,16 +152,17 @@ describe('proxy /api/galaxie: torcedor e stream do chat (#977)', () => {
       { params: Promise.resolve({ path }) },
     );
 
-  it('o Perfil do torcedor vai com o token dele e sem a chave da demo', async () => {
-    const res = await fanGet(['v1', 'fans', 'me'], { authorization: 'Bearer gft_abc.def' });
+  it('o Perfil do torcedor vai com o token da sessão e sem a chave da demo', async () => {
+    const res = await fanGet(['v1', 'fans', 'me'], { authorization: 'Bearer gft_de.outra_pessoa' });
     expect(res.status).toBe(200);
     const [, init] = upstream.mock.calls[0] as unknown as [URL, RequestInit];
     const headers = new Headers(init.headers);
-    expect(headers.get('authorization')).toBe('Bearer gft_abc.def');
+    expect(headers.get('authorization')).toBe('Bearer gft_sessao.x');
     expect(headers.get('x-galaxie-key')).toBeNull();
   });
 
   it('sem o token, de outra origem ou em outra rota do torcedor: recusa sem chamar a API', async () => {
+    sessionFan.mockResolvedValueOnce({ ok: false, status: 401 });
     expect((await fanGet(['v1', 'fans', 'me'])).status).toBe(401);
     expect(
       (

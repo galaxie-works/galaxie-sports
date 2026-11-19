@@ -68,6 +68,8 @@ rm -f "$dir/${db}_202001"*
 echo "2) verificador: dump recente passa; dump velho e recibo do NAS ausente acusam"
 "$here/backup-check.sh" >/dev/null
 expect "$(last backup-check)" "ok " "verificador ok"
+[ -f "$dir/.last_check_ok" ] || { echo "verificação OK deveria renovar .last_check_ok" >&2; exit 1; }
+"$here/healthcheck.sh" || { echo "healthcheck com verificação recente deveria passar" >&2; exit 1; }
 if BACKUP_NAS_RECEIPT=true "$here/backup-check.sh" >/dev/null 2>&1; then echo "sem recibo do NAS deveria falhar" >&2; exit 1; fi
 expect "$(last backup-check)" "error sem recibo da cópia do NAS ($dir/.nas_last_pull)" "recibo ausente"
 touch "$dir/.nas_last_pull"
@@ -75,8 +77,15 @@ BACKUP_NAS_RECEIPT=true "$here/backup-check.sh" >/dev/null
 expect "$(last backup-check)" "ok " "recibo recente"
 dump="$(ls "$dir"/*.dump)"
 touch -d '30 hours ago' "$dump"
+touch -d '10 hours ago' "$dir/.last_check_ok"
 if "$here/backup-check.sh" >/dev/null 2>&1; then echo "dump de 30 h deveria falhar" >&2; exit 1; fi
 expect_prefix "$(last backup-check)" "error último dump ($(basename "$dump")) tem 30 h" "dump velho"
+find "$dir/.last_check_ok" -mmin +540 | grep -q . || { echo "verificação com erro não pode renovar .last_check_ok" >&2; exit 1; }
+if "$here/healthcheck.sh"; then echo "healthcheck com a última verificação há 10 h (limite 6 + 3) deveria falhar" >&2; exit 1; fi
+BACKUP_CHECK_INTERVAL_H=12 "$here/healthcheck.sh" || { echo "healthcheck com intervalo de 12 h e verificação há 10 h deveria passar" >&2; exit 1; }
+BACKUP_HEALTH_GRACE_H=5 "$here/healthcheck.sh" || { echo "healthcheck com folga de 5 h e verificação há 10 h deveria passar" >&2; exit 1; }
+: >"$dir/.last_check_ok"
+if "$here/healthcheck.sh"; then echo "healthcheck com marcador vazio deveria falhar" >&2; exit 1; fi
 
 echo "3) ensaio de restauração: dump velho falha, recente passa e o temporário some"
 if "$here/restore-drill.sh" >/dev/null 2>&1; then echo "ensaio com dump de 30 h deveria falhar" >&2; exit 1; fi
