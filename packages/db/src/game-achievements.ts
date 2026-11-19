@@ -265,45 +265,76 @@ export interface GameAchievementView {
   rarity: number | null;
 }
 
+/** A raridade do programa muda devagar: é recalculada no máximo a cada 10 min por réplica da API. */
+const RARITY_TTL_MS = 10 * 60_000;
+const RARITY_CACHE_MAX = 500;
+const rarityCache = new Map<string, { at: number; profiles: number; holders: Map<string, number> }>();
+
 /**
- * Estante do torcedor: progresso por Conquista e temporada, Degraus alcançados e a raridade (fração dos Perfis do
- * programa com pelo menos o primeiro Degrau, calculada na leitura).
+ * Raridade do programa (#919, P1 da fila): quantos Perfis têm o primeiro Degrau de cada Conquista e temporada, e
+ * quantos Perfis têm algum progresso. Duas leituras agregadas por programa, guardadas em memória por 10 min, em vez
+ * de contar o programa inteiro a cada leitura da estante.
+ */
+export async function programRarity(
+  db: Pick<Database, 'execute'>,
+  key: GameProgramKey,
+  now = Date.now(),
+): Promise<{ profiles: number; holders: Map<string, number> }> {
+  const cacheKey = `${key.tenantId}|${key.programCountry}`;
+  const hit = rarityCache.get(cacheKey);
+  if (hit && now - hit.at < RARITY_TTL_MS) return hit;
+  const [total] = await db.execute<{ n: string }>(sql`
+    select count(distinct profile_id) as n from game.achievement_progress
+     where tenant_id = ${key.tenantId} and program_country = ${key.programCountry}`);
+  const rows = await db.execute<{ achievement_id: string; season: string; n: string }>(sql`
+    select achievement_id, season, count(*) as n from game.step_grant
+     where tenant_id = ${key.tenantId} and program_country = ${key.programCountry} and step = 1
+     group by achievement_id, season`);
+  const value = {
+    at: now,
+    profiles: Number(total?.n ?? 0),
+    holders: new Map(rows.map((r) => [`${r.achievement_id}|${r.season}`, Number(r.n)])),
+  };
+  if (rarityCache.size >= RARITY_CACHE_MAX) rarityCache.clear();
+  rarityCache.set(cacheKey, value);
+  return value;
+}
+
+/** Esquece a raridade guardada (testes). */
+export function clearRarityCache(): void {
+  rarityCache.clear();
+}
+
+/**
+ * Estante do torcedor: progresso por Conquista e temporada e os Degraus alcançados (só as linhas dele, pela chave
+ * primária), com a raridade do programa (`programRarity`, guardada por 10 min).
  */
 export async function readFanAchievements(
   db: Pick<Database, 'execute'>,
   key: GameProgramKey & { profileId: string },
 ): Promise<GameAchievementView[]> {
-  const rows = await db.execute<{
-    achievement_id: string;
-    season: string;
-    count: number;
-    steps: number;
-    holders: string;
-    profiles: string;
-  }>(sql`
-    with mine as (
-      select achievement_id, season, count from game.achievement_progress
-       where tenant_id = ${key.tenantId} and program_country = ${key.programCountry} and profile_id = ${key.profileId}
-    ), total as (
-      select count(distinct profile_id) as n from game.achievement_progress
-       where tenant_id = ${key.tenantId} and program_country = ${key.programCountry}
-    )
-    select m.achievement_id, m.season, m.count,
-           (select count(*)::int from game.step_grant g
-             where g.tenant_id = ${key.tenantId} and g.program_country = ${key.programCountry}
-               and g.profile_id = ${key.profileId} and g.achievement_id = m.achievement_id and g.season = m.season) as steps,
-           (select count(distinct g.profile_id) from game.step_grant g
-             where g.tenant_id = ${key.tenantId} and g.program_country = ${key.programCountry}
-               and g.achievement_id = m.achievement_id and g.season = m.season and g.step = 1) as holders,
-           (select n from total) as profiles
-      from mine m
-     order by m.achievement_id, m.season`);
+  const [rows, rarity] = await Promise.all([
+    db.execute<{ achievement_id: string; season: string; count: number; steps: number }>(sql`
+      select p.achievement_id, p.season, p.count,
+             (select count(*)::int from game.step_grant g
+               where g.tenant_id = p.tenant_id and g.program_country = p.program_country
+                 and g.profile_id = p.profile_id and g.achievement_id = p.achievement_id and g.season = p.season)
+               as steps
+        from game.achievement_progress p
+       where p.tenant_id = ${key.tenantId} and p.program_country = ${key.programCountry}
+         and p.profile_id = ${key.profileId}
+       order by p.achievement_id, p.season`),
+    programRarity(db, key),
+  ]);
   return rows.map((r) => ({
     achievementId: r.achievement_id,
     season: r.season,
     count: r.count,
     steps: r.steps,
-    rarity: Number(r.profiles) > 0 ? Number(r.holders) / Number(r.profiles) : null,
+    rarity:
+      rarity.profiles > 0
+        ? (rarity.holders.get(`${r.achievement_id}|${r.season}`) ?? 0) / rarity.profiles
+        : null,
   }));
 }
 

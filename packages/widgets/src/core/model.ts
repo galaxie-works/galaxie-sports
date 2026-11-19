@@ -5623,6 +5623,8 @@ export interface GsRanking {
     nickname: string | null;
     points: number;
     full_hits: number;
+    /** A linha é do torcedor do token (API nova; na antiga, compara o profile_id). */
+    is_me?: boolean;
   }[];
 }
 
@@ -5640,7 +5642,13 @@ export interface GsAchievementEarners {
   achievement_id: string;
   season: string;
   total: number;
-  earners: { profile_id: string; nickname: string | null; avatar_url: string | null; step: number }[];
+  earners: {
+    profile_id: string;
+    nickname: string | null;
+    avatar_url: string | null;
+    step: number;
+    is_me?: boolean;
+  }[];
 }
 
 /** Texto do Catálogo no idioma do widget, com o português e depois qualquer um como reserva. */

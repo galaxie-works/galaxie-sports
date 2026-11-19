@@ -85,8 +85,12 @@ export type SavedPredictions = z.infer<typeof SavedPredictions>;
 export const RankingParams = z.object({
   period: z
     .string()
-    .regex(/^\d{4}(-(0[1-9]|1[0-2]))?$/)
-    .meta({ description: 'Mês (`2026-11`) ou ano (`2026`), no fuso do país do programa.' }),
+    .regex(/^(\d{4}(-(0[1-9]|1[0-2]))?|current-month|current-year)$/)
+    .meta({
+      description:
+        'Mês (`2026-11`) ou ano (`2026`), no fuso do país do programa; `current-month` e `current-year` usam o ' +
+        'período corrente nesse fuso.',
+    }),
 });
 export const RankingQuery = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(50),
@@ -99,6 +103,10 @@ export const RankingEntryView = z
     nickname: z.string().nullable(),
     points: z.number().int(),
     full_hits: z.number().int(),
+    is_me: z
+      .boolean()
+      .optional()
+      .meta({ description: 'A linha é do torcedor do token (só nas rotas do torcedor).' }),
   })
   .meta({ id: 'RankingEntry' });
 
@@ -202,6 +210,7 @@ export const AchievementEarners = z
             nickname: z.string().nullable(),
             avatar_url: z.string().nullable(),
             step: z.number().int().min(1).max(5),
+            is_me: z.boolean().optional().meta({ description: 'É o torcedor do token.' }),
           }),
         )
         .meta({

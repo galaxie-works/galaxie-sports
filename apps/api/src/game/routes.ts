@@ -80,6 +80,19 @@ function view(row: GamePredictionRow): PredictionView {
   };
 }
 
+/** `current-month` e `current-year` viram o período no fuso do programa (a virada do mês vale lá, não no navegador). */
+export function resolveRankingPeriod(period: string, timeZone: string, now: Date): string {
+  if (period !== 'current-month' && period !== 'current-year') return period;
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+  }).formatToParts(now);
+  const year = parts.find((p) => p.type === 'year')!.value;
+  const month = parts.find((p) => p.type === 'month')!.value;
+  return period === 'current-year' ? year : `${year}-${month}`;
+}
+
 export async function gameRoutes(app: FastifyInstance, deps: GameRoutesDeps): Promise<void> {
   const db = () => {
     if (!deps.db) throw problems.degraded('Banco de dados não configurado.');
@@ -182,9 +195,10 @@ export async function gameRoutes(app: FastifyInstance, deps: GameRoutesDeps): Pr
 
   app.get('/v1/rankings/:period', { config: { fan: true, age: 'read' } }, async (request, reply) => {
     const fan = request.fan!;
-    const { period } = parseInput(RankingParams, request.params);
+    const params = parseInput(RankingParams, request.params);
     const { limit } = parseInput(RankingQuery, request.query);
     const program = await fanProgram(fan.tenantId, fan.profileId);
+    const period = resolveRankingPeriod(params.period, program.timeZone, now());
     const rows = await readRanking(db(), { ...program, period, limit });
     reply.header('cache-control', 'private, max-age=30');
     const out: Ranking = {
@@ -197,6 +211,7 @@ export async function gameRoutes(app: FastifyInstance, deps: GameRoutesDeps): Pr
           nickname: r.nickname,
           points: r.points,
           full_hits: r.fullHits,
+          is_me: r.profileId === fan.profileId,
         })),
       },
     };
@@ -205,8 +220,9 @@ export async function gameRoutes(app: FastifyInstance, deps: GameRoutesDeps): Pr
 
   app.get('/v1/rankings/:period/me', { config: { fan: true, age: 'read' } }, async (request, reply) => {
     const fan = request.fan!;
-    const { period } = parseInput(RankingParams, request.params);
+    const params = parseInput(RankingParams, request.params);
     const program = await fanProgram(fan.tenantId, fan.profileId);
+    const period = resolveRankingPeriod(params.period, program.timeZone, now());
     const me = await readMyRanking(db(), { ...program, period, profileId: fan.profileId });
     reply.header('cache-control', 'no-store');
     const out: MyRanking = {
@@ -311,6 +327,7 @@ export async function gameRoutes(app: FastifyInstance, deps: GameRoutesDeps): Pr
             nickname: e.nickname,
             avatar_url: e.avatarUrl,
             step: e.step,
+            is_me: e.profileId === fan.profileId,
           })),
         },
       };

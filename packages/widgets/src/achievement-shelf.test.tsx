@@ -226,7 +226,7 @@ describe('<AchievementShelf>', () => {
     await screen.findByRole('button', { name: new RegExp(`^Fiel, ${T.steps.gold}`) });
     steps = 4;
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(61_000);
+      await vi.advanceTimersByTimeAsync(301_000);
     });
     await waitFor(() => expect(screen.getByText(`Você chegou a ${T.steps.platinum} em Fiel!`)).toBeTruthy());
   });

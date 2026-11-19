@@ -8,7 +8,6 @@ import {
   fillText,
   gameText,
   newlyReached,
-  rankingPeriodKey,
   rarityPercent,
   shelfEarned,
   shelfProgress,
@@ -45,8 +44,11 @@ export interface AchievementShelfProps {
 }
 
 const enc = encodeURIComponent;
-/** Releitura da estante, para o aviso de Degrau novo durante o jogo: a cada minuto, com a aba visível. */
-const SHELF_REFRESH_MS = 60_000;
+/**
+ * Releitura da estante (aviso de Degrau novo) e do Ranking: a cada 5 min com a aba visível, e quando a aba volta a
+ * ficar visível. A Conquista só conta no resultado definitivo do jogo, então não há o que ganhar mais rápido que isso.
+ */
+const SHELF_REFRESH_MS = 5 * 60_000;
 /** Quanto o aviso de Degrau novo fica na tela. */
 const TOAST_MS = 6_000;
 
@@ -97,10 +99,22 @@ function useFanJson<T>(path: string | null, refreshMs?: number): FanJson<T> {
 
   useEffect(() => {
     if (!path || !refreshMs) return;
-    const timer = setInterval(() => {
-      if (typeof document === 'undefined' || document.visibilityState !== 'hidden') reload();
-    }, refreshMs);
-    return () => clearInterval(timer);
+    let last = Date.now();
+    const tick = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+      last = Date.now();
+      reload();
+    };
+    const timer = setInterval(tick, refreshMs);
+    // aba que volta depois de um tempo escondida relê na hora (sem esperar o próximo ciclo)
+    const onVisible = () => {
+      if (document.visibilityState === 'visible' && Date.now() - last >= refreshMs) tick();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
   }, [path, refreshMs, reload]);
 
   return { ...state, reload };
@@ -457,13 +471,14 @@ function Detail({ item, season, onClose }: { item: GsShelfItem; season: string; 
 }
 
 function Ranking({ period, size }: { period: 'month' | 'year'; size: number }) {
-  const { texts, timeZone } = useGalaxieWidget();
+  const { texts } = useGalaxieWidget();
   const fan = useFanSession();
   const T = texts.achievements;
   const fmt = useFormatters();
   const [kind, setKind] = useState(period);
   useEffect(() => setKind(period), [period]);
-  const key = rankingPeriodKey(kind, new Date(), timeZone);
+  // o período corrente é resolvido pela API no fuso do programa (a virada do mês vale lá, não no navegador)
+  const key = kind === 'year' ? 'current-year' : 'current-month';
   const limit = Math.min(Math.max(Math.round(size) || 10, 3), 100);
   const list = useFanJson<GsRanking>(`/v1/rankings/${enc(key)}?limit=${limit}`, SHELF_REFRESH_MS);
   const me = useFanJson<GsMyRanking>(`/v1/rankings/${enc(key)}/me`, SHELF_REFRESH_MS);
@@ -482,7 +497,8 @@ function Ranking({ period, size }: { period: 'month' | 'year'; size: number }) {
   if (list.loading) return <LoadingState lines={5} />;
   if (list.error || !list.data) return <ErrorState error={null} onRetry={list.reload} />;
   const entries = list.data.entries;
-  const inList = entries.some((e) => e.profile_id === myId);
+  const isMe = (e: GsRanking['entries'][number]) => e.is_me ?? e.profile_id === myId;
+  const inList = entries.some(isMe);
 
   return (
     <div className="gs-group">
@@ -492,11 +508,11 @@ function Ranking({ period, size }: { period: 'month' | 'year'; size: number }) {
       ) : (
         <ol className="gs-list" aria-label={T.tabRanking}>
           {entries.map((e) => (
-            <li key={e.profile_id} className="gs-rank-row" data-me={e.profile_id === myId || undefined}>
+            <li key={`${e.position}-${e.profile_id}`} className="gs-rank-row" data-me={isMe(e) || undefined}>
               <span className="gs-rank-pos">{e.position}</span>
               <span>
                 {e.nickname ?? T.anonymous}
-                {e.profile_id === myId ? <span className="gs-small gs-muted"> ({T.you})</span> : null}
+                {isMe(e) ? <span className="gs-small gs-muted"> ({T.you})</span> : null}
               </span>
               <span>{fillText(T.points, { n: fmt.integer(e.points) })}</span>
             </li>
