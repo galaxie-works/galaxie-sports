@@ -176,7 +176,7 @@ s3_net=(--network "$DOCKER_NETWORK")
 s3_ep="http://localhost:$s3_port"
 # fora do modo host (rede da stack), o RustFS fala pelo nome do contêiner
 [ "$DOCKER_NETWORK" = host ] || s3_ep="http://$s3_name:$s3_port"
-docker run -d --rm --name "$s3_name" "${s3_net[@]}" -e RUSTFS_ACCESS_KEY="$s3_key" -e RUSTFS_SECRET_KEY="$s3_secret"   -e RUSTFS_CONSOLE_ENABLE=false -e RUSTFS_ADDRESS=":$s3_port" "${E2E_RUSTFS_IMAGE:-rustfs/rustfs:1.0.4}" >/dev/null
+docker run -d --rm --name "$s3_name" "${s3_net[@]}" -e RUSTFS_ACCESS_KEY="$s3_key" -e RUSTFS_SECRET_KEY="$s3_secret"   -e RUSTFS_CONSOLE_ENABLE=false -e RUSTFS_ADDRESS=":$s3_port" "${E2E_RUSTFS_IMAGE:-rustfs/rustfs:1.0.5}" >/dev/null
 trap 'docker rm -f "$s3_name" >/dev/null 2>&1 || true; cleanup' EXIT
 # o aws da própria imagem de backup, com as chaves do RustFS do teste
 aws_e2e() {
