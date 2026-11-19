@@ -67,9 +67,10 @@ describe('config/geo do repositório', () => {
     expect(geo.wtwMarkets).toEqual(['BR', 'AR', 'MX', 'CO', 'CL', 'PE', 'UY', 'EC']);
     for (const code of geo.wtwMarkets) {
       expect(geo.markets, code).toContain(code);
-      expect(existsSync(new URL(`../../../config/broadcasters/${code.toLowerCase()}.yaml`, import.meta.url)), code).toBe(
-        true,
-      );
+      expect(
+        existsSync(new URL(`../../../config/broadcasters/${code.toLowerCase()}.yaml`, import.meta.url)),
+        code,
+      ).toBe(true);
     }
   });
 
