@@ -82,6 +82,7 @@ export default defineMessages(
     reasons: {
       link: 'Link fora da lista',
       personal_data: 'Dado pessoal (telefone, e-mail, CPF)',
+      contact: 'Contato fora da sala (rede social, outro app)',
       betting: 'Aposta',
       abuse: 'Ódio, ameaça ou assédio',
       profanity: 'Palavrão',
@@ -178,6 +179,7 @@ export default defineMessages(
       reasons: {
         link: 'Link not on the list',
         personal_data: 'Personal data (phone, email, ID number)',
+        contact: 'Contact outside the room (social media, other apps)',
         betting: 'Betting',
         abuse: 'Hate, threat or harassment',
         profanity: 'Profanity',
@@ -274,6 +276,7 @@ export default defineMessages(
       reasons: {
         link: 'Link fuera de la lista',
         personal_data: 'Dato personal (teléfono, e-mail, documento)',
+        contact: 'Contacto fuera de la sala (redes sociales, otra app)',
         betting: 'Apuestas',
         abuse: 'Odio, amenaza o acoso',
         profanity: 'Insulto',

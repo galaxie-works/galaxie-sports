@@ -13,7 +13,7 @@ async function png(width: number, height: number): Promise<Uint8Array> {
 }
 
 describe('tamanhos fixos do acervo', () => {
-  it('do PNG de 512 saem PNG e WebP em 64, 128 e 256, quadrados e com transparência', async () => {
+  it('do PNG retangular de 512 saem PNG e WebP em 64, 128, 256 e 512, quadrados e com transparência', async () => {
     const out = await sizedLogos(await png(400, 512));
     expect(out.map((o) => `${o.size}.${o.format}`)).toEqual([
       '64.png',
@@ -22,6 +22,8 @@ describe('tamanhos fixos do acervo', () => {
       '128.webp',
       '256.png',
       '256.webp',
+      '512.png',
+      '512.webp',
     ]);
     for (const o of out) {
       const meta = await sharp(o.body).metadata();
@@ -33,6 +35,14 @@ describe('tamanhos fixos do acervo', () => {
     const { data, info } = await sharp(out[4]!.body).raw().toBuffer({ resolveWithObject: true });
     expect(data[3]).toBe(0);
     expect(data[(info.height / 2) * info.width * 4 + (info.width / 2) * 4 + 3]).toBe(255);
+  });
+
+  it('PNG quadrado de 512 não é refeito no 512; maior que 512 ganha o 512', async () => {
+    expect([...new Set((await sizedLogos(await png(512, 512))).map((o) => o.size))]).toEqual([64, 128, 256]);
+    const big = await sizedLogos(await png(1024, 800));
+    expect([...new Set(big.map((o) => o.size))]).toEqual([64, 128, 256, 512]);
+    const meta = await sharp(big.find((o) => o.size === 512)!.body).metadata();
+    expect([meta.width, meta.height]).toEqual([512, 512]);
   });
 
   it('não amplia um PNG menor que o tamanho', async () => {

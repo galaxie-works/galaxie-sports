@@ -196,7 +196,7 @@ export const LogoSizes = z
   .meta({
     id: 'LogoSizes',
     description:
-      'O escudo do acervo em PNG e WebP nos tamanhos fixos 64, 128, 256 e 512 px (quadrado, o logo encaixado sem corte, sobra transparente). O 512 é o mesmo arquivo de `logo_formats`. Tamanho ausente vem null; null inteiro fora do acervo (`logo_source` diferente de `acervo`).',
+      'O escudo do acervo em PNG e WebP nos tamanhos fixos 64, 128, 256 e 512 px (quadrado, o logo encaixado sem corte, sobra transparente). Todo tamanho tem de fato o lado anunciado: o 512 é o `png`/`webp` de `logo_formats` quando ele já tem 512×512, senão um arquivo gerado nesse tamanho; escudo original menor que um tamanho não é ampliado e esse tamanho vem null. Tamanho ausente vem null; null inteiro fora do acervo (`logo_source` diferente de `acervo`).',
     example: {
       '64': {
         png: 'https://assets.galaxie.sports/acervo/football/teams/01a15fc2-0000-7000-8000-000000000000.1f0c55e3b2a1.png',
