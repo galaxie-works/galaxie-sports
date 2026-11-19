@@ -121,7 +121,8 @@ export const setMessageHiddenAction = withStaffAudit(
         : await tx.execute(sql`
           update chat.message
              set visibility = case when 'was_shadow' = any(flags) then 'shadow' else 'public' end,
-                 flags = array_remove(flags, 'was_shadow')
+                 -- devolvida pela equipe: a decisão atrasada da Cosmos (#981) não esconde de novo
+                 flags = array_append(array_remove(array_remove(flags, 'was_shadow'), 'restored'), 'restored')
            where tenant_id = ${ctx.tenant.id} and room_id = ${roomId} and id = ${input.messageId}
              and visibility = 'hidden'
              -- guarda legal (#1289): denunciada às autoridades não volta ao ar

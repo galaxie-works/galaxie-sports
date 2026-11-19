@@ -66,6 +66,7 @@ import {
 import { ChatSettings, type ChatSettingsValues } from './settings.js';
 import { ChatHub, reactionRoomKey } from './hub.js';
 import { MemoryFloodGuard, type FloodGuard } from './flood.js';
+import type { ChatCosmos } from './cosmos.js';
 import { BOT_BLOCK_MS, botLinks, MemoryBotGuard, SIGNAL_WINDOW_MS, type BotGuard } from './bot.js';
 import { MemoryReactionCounter, type ReactionCounter } from './reactions.js';
 import { gameMessages } from './game.js';
@@ -87,6 +88,8 @@ export interface ChatRoutesDeps {
   reactionsIntervalMs?: number | undefined;
   /** Anti-flood por pessoa; sem ele, em memória. */
   flood?: FloodGuard | undefined;
+  /** Cosmos da sala (#981): sem ela, só o filtro e a fila. */
+  cosmos?: ChatCosmos | undefined;
   /** Detecção de robô (#1290); sem ela, em memória. */
   bot?: BotGuard | undefined;
 }
@@ -650,6 +653,21 @@ export async function chatRoutes(app: FastifyInstance, deps: ChatRoutesDeps): Pr
         avatarVisibility: profile.visibility.avatar,
         createdAt: saved.createdAt,
       });
+      // Cosmos da sala (#981): a mensagem marcada vai ao lote dela, sem atrasar a entrega (só no cliente que a ligou)
+      if (deps.cosmos)
+        void deps.cosmos
+          .submit({
+            tenantId: fan.tenantId,
+            roomId: room.id,
+            messageId: saved.id,
+            profileId: fan.profileId,
+            text,
+            locale: fan.locale,
+            rules: screened,
+            clocks: () => clocksFor(db(), fan.tenantId, profile.country, at),
+            source: 'filter',
+          })
+          .catch((err: unknown) => request.log.warn({ err }, 'chat: mensagem não foi à Cosmos'));
       // só a mensagem pública entra no lote; a retida fica com o autor (ele a vê pela resposta)
       // Valkey fora: a mensagem já está gravada e aparece pelo GET; o envio não volta com erro (o torcedor não repete)
       if (visibility === 'public')

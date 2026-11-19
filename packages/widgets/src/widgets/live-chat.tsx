@@ -169,6 +169,10 @@ function LiveChatRoom({
         setMessages((cur) => mergeChatMessages(cur, batch, MAX_MESSAGES));
       } else if (event === 'chat.state' && p && typeof p.state === 'string') {
         setState(p.state as GsChatRoomState);
+      } else if (event === 'chat.removed' && p && Array.isArray(p.ids)) {
+        // tirada do ar depois de entregue (moderação): sai da tela
+        const gone = new Set((p.ids as unknown[]).filter((id): id is string => typeof id === 'string'));
+        setMessages((cur) => cur.filter((m) => !gone.has(m.id)));
       } else if (event === 'chat.game' && p && Array.isArray(p.messages)) {
         const list = p.messages as GsChatGameMessage[];
         // a abertura manda a lista inteira: troca (o lance que saiu da linha do tempo some)

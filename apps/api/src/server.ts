@@ -27,12 +27,14 @@ import { chatRoutes } from './chat/routes.js';
 import { communityFeedRoutes, startCommunityPurge } from './engage/community-feed-routes.js';
 import { communityPollRoutes } from './engage/community-poll-routes.js';
 import { communityRoutes } from './engage/community-routes.js';
-import { ChatHub } from './chat/hub.js';
+import { ChatHub, removedRoomKey } from './chat/hub.js';
 import { gameRoutes } from './game/routes.js';
 import { GameScorer, startGameSweep } from './game/scorer.js';
 import { ChatGameFeed } from './chat/game.js';
 import { MemoryChatPeak, RedisChatPeak } from './chat/peak.js';
 import { RedisFloodGuard } from './chat/flood.js';
+import { ChatCosmos, type ChatReportInput } from './chat/cosmos.js';
+import { clocksFor } from './engage/moderation-routes.js';
 import { RedisBotGuard } from './chat/bot.js';
 import { MemoryReactionCounter, RedisReactionCounter } from './chat/reactions.js';
 import type { ChatStreamOptions } from './chat/stream.js';
@@ -689,10 +691,27 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
       const stopModerationPurge = startModerationPurge(options.db, instance.log);
       instance.addHook('onClose', async () => stopModerationPurge());
     }
-    await moderationRoutes(instance, { db: options.db, now: options.now, gate: fanAgeGate });
+    // Cosmos da sala do chat (#981): só age no cliente com a função de moderação ligada para o chat
+    const chatDb = options.db;
+    const chatCosmos = chatDb
+      ? new ChatCosmos(chatDb, {
+          clocksFor: (t, c, at) => clocksFor(chatDb, t, c, at),
+          onRemoved: (t, fixtureId, id) => chatHub.broadcast(removedRoomKey(t, fixtureId), { id }),
+        })
+      : undefined;
+    if (chatCosmos) instance.addHook('onClose', async () => chatCosmos.drain());
+    await moderationRoutes(instance, {
+      db: options.db,
+      now: options.now,
+      gate: fanAgeGate,
+      ...(chatCosmos
+        ? { onChatReport: (r: ChatReportInput) => chatCosmos.submitReport(r).then(() => undefined) }
+        : {}),
+    });
     await chatRoutes(instance, {
       db: options.db,
       now: options.now,
+      cosmos: chatCosmos,
       hub: chatHub,
       peak: chatPeak,
       reactions: chatReactions,

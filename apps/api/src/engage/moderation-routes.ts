@@ -71,6 +71,8 @@ export interface ModerationRoutesDeps {
   now?: (() => Date) | undefined;
   /** Portão de idade: o texto livre da denúncia e da apelação é escrita, só para quem escreve (#1106). */
   gate?: FanAgeGate | null;
+  /** Denúncia de mensagem do chat vai também à Cosmos da sala (#981), quando o cliente a ligou. */
+  onChatReport?: ((input: { tenantId: string; messageId: string }) => Promise<void>) | undefined;
 }
 
 /** Ficha que vale para o torcedor do cliente (com o que o cliente endureceu); null se não há ficha que sirva. */
@@ -218,6 +220,7 @@ export async function moderationRoutes(app: FastifyInstance, deps: ModerationRou
     if (targetProfileId && !(await profileExists(fan.tenantId, targetProfileId)))
       throw problems.notFound('Perfil');
     const at = now();
+    const clocks = await clocksFor(db(), fan.tenantId, profile.country, at);
     const res = await fileReport(db(), {
       tenantId: fan.tenantId,
       targetType: body.targetType,
@@ -231,7 +234,7 @@ export async function moderationRoutes(app: FastifyInstance, deps: ModerationRou
       note: body.note ?? null,
       // o texto denunciado vem do módulo (chat, mural), nunca do torcedor que denuncia
       content: null,
-      clocks: await clocksFor(db(), fan.tenantId, profile.country, at),
+      clocks,
       rules: {
         perHour: REPORTS_PER_HOUR,
         hideAt: hideThreshold(null),
@@ -244,6 +247,11 @@ export async function moderationRoutes(app: FastifyInstance, deps: ModerationRou
       if (res.reason === 'rate_limited') throw problems.rateLimited(3600);
       throw problems.conflict('Não dá para denunciar o próprio conteúdo.');
     }
+    // mensagem do chat denunciada: a Cosmos da sala olha também (a fila já tem o caso); nunca atrasa a resposta
+    if (deps.onChatReport && body.module === 'chat' && body.targetType === 'message' && !res.duplicate)
+      void deps
+        .onChatReport({ tenantId: fan.tenantId, messageId: targetId })
+        .catch((err: unknown) => request.log.warn({ err }, 'chat: denúncia não foi à Cosmos'));
     reply.header('cache-control', 'no-store');
     const out: ModerationReportResponse = {
       data: { case_id: res.caseId, hidden: res.hidden, duplicate: res.duplicate },
