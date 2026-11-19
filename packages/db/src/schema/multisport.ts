@@ -481,7 +481,10 @@ export const gamesCompetition = multisport.table(
 /** Licença de cada fonte usada no módulo (gravada em source_ref). */
 export const MEDAL_SOURCE_LICENSES = { wikidata: 'CC0-1.0' } as const;
 
-/** Prioridade de ordenação regional padrão para a América Latina. */
+/**
+ * Prioridade de ordenação regional padrão para a América Latina. Espelho de `latam` em
+ * config/geo/confederations.yaml (o db é camada base e não lê o geo); o teste do packages/geo reprova se divergir.
+ */
 export const LATAM_NOCS = [
   'BRA',
   'ARG',

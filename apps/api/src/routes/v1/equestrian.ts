@@ -40,6 +40,7 @@ import {
   eqRound,
   eqSourceDisagreement,
   eqTeamResult,
+  LATAM_NOCS,
   noc,
   type Database,
 } from '@galaxie/db';
@@ -54,29 +55,11 @@ const MODULE = { module: 'core_data' } as const;
 type Locale = SupportedLocale;
 type I18n = Record<string, string> | null;
 
-/** Códigos FEI/COI da América Latina (destaques e filtro `latam`). */
-const LATAM = [
-  'ARG',
-  'BRA',
-  'CHI',
-  'URU',
-  'PAR',
-  'BOL',
-  'PER',
-  'ECU',
-  'COL',
-  'VEN',
-  'MEX',
-  'GUA',
-  'CRC',
-  'PAN',
-  'DOM',
-  'PUR',
-  'CUB',
-  'ESA',
-  'HON',
-  'NCA',
-];
+/**
+ * Códigos FEI/COI da América Latina (destaques e filtro `latam`): `latam` de config/geo pelo espelho `LATAM_NOCS`
+ * do @galaxie/db (a FEI usa os códigos do COI).
+ */
+const LATAM: string[] = [...LATAM_NOCS];
 /** Atletas em destaque fixo na página do esporte (pedido editorial), antes do ranking por resultados recentes. */
 const FEATURED_FEI_IDS = ['10000380'];
 

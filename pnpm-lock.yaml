@@ -463,6 +463,12 @@ importers:
         specifier: ^4.6.7
         version: 4.6.7
     devDependencies:
+      '@galaxie/db':
+        specifier: workspace:*
+        version: link:../db
+      '@galaxie/engage':
+        specifier: workspace:*
+        version: link:../engage
       '@galaxie/runtime-config':
         specifier: workspace:*
         version: link:../runtime-config
