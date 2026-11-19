@@ -25,7 +25,7 @@
 #
 # TODO(direitos): competições tier ≤ 2 com jogos no BR sem linha aqui (aguardam curadoria ou a
 # pesquisa por temporada): brasileirao-serie-b, brasileirao-serie-c, pernambucano,
-# uefa-europa-league, uefa-conference-league, serie-a-italia, bundesliga, ligue-1, copa-del-rey,
+# uefa-europa-league, uefa-conference-league, bundesliga, ligue-1, copa-del-rey,
 # dfb-pokal, primeira-liga, eredivisie, efl-championship, mls, saudi-pro-league e as ligas
 # sul-americanas (argentina, colômbia, chile, peru, uruguai, equador, paraguai, bolívia, venezuela).
 #
@@ -105,15 +105,29 @@ rights:
     season: 2026
     valid_from: 2026-08-01
     valid_to: 2027-06-30
-    per_round_selection: false
-    # "ESPN/Disney+ com os 380 jogos": todos os jogos no grupo (o canal ESPN de cada jogo fica a
-    # confirmar; a opção sai sem canal).
-    distribution: exclusive
-    holders: [espn, disney_plus]
-    uncertain_holders: [cazetv]
-    notes: ESPN/Disney+ com os 380 jogos.
+    per_round_selection: true
+    # O Disney+ tem os 380 jogos; o canal ESPN e a CazéTV (1 jogo por rodada) só os escolhidos de cada
+    # rodada. Medição de 19/11 (#1400): com "exclusive", todo jogo do Disney+ saía também na ESPN.
+    distribution: selected
+    holders: [disney_plus, espn, cazetv]
+    all_matches: [disney_plus]
+    notes: Disney+ com os 380 jogos; ESPN e CazéTV com jogos escolhidos por rodada.
     sources:
       - https://es.digitaltrends.com/deportes/derechos-transmision-ligas-europeas-2026-27-america-latina/
+      - https://natelinha.uol.com.br/televisao/2026/08/21/com-760-jogos-espn-e-disney-retomam-transmissao-da-premier-league-e-da-serie-a-246523.php
+  - competition: serie-a-italia
+    season: 2026
+    valid_from: 2026-08-01
+    valid_to: 2027-06-30
+    per_round_selection: true
+    # Mesmo modelo da Premier League: Disney+ com todos os jogos; ESPN e SportyNet (76 jogos
+    # sublicenciados em 2026/27) só os escolhidos. Curada em 19/11 no lugar da pesquisada (#1400).
+    distribution: selected
+    holders: [disney_plus, espn, sportynet]
+    all_matches: [disney_plus]
+    notes: Disney+ com os 380 jogos; ESPN e SportyNet com jogos escolhidos por rodada.
+    sources:
+      - https://natelinha.uol.com.br/televisao/2026/08/21/com-760-jogos-espn-e-disney-retomam-transmissao-da-premier-league-e-da-serie-a-246523.php
   - competition: laliga
     season: 2026
     valid_from: 2026-08-01
