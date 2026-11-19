@@ -1,3 +1,4 @@
+import { countryLanguage, countryLocale } from '@galaxie/geo';
 import {
   checkChant,
   checkProse,
@@ -58,39 +59,10 @@ export interface ResolveIdNote extends ProposalBase {
 
 export type CuratorProposal = AddTeamProposal | UpdateStadiumProposal | ResolveIdNote;
 
-const HISPANIC = new Set([
-  'AR',
-  'BO',
-  'CL',
-  'CO',
-  'CR',
-  'EC',
-  'ES',
-  'GT',
-  'HN',
-  'MX',
-  'PA',
-  'PE',
-  'PY',
-  'SV',
-  'UY',
-  'VE',
-]);
-const LOCALE_BY_COUNTRY: Record<string, string> = {
-  AR: 'es-AR',
-  MX: 'es-MX',
-  CO: 'es-CO',
-  CL: 'es-CL',
-  PE: 'es-PE',
-  UY: 'es-UY',
-  EC: 'es-EC',
-};
-
 /** Locale do texto da entrada: espanhol para países hispânicos, português para o resto (padrão da base). */
 export function entryLocale(countryCode: string | null): string {
-  const cc = (countryCode ?? '').toUpperCase();
-  if (LOCALE_BY_COUNTRY[cc]) return LOCALE_BY_COUNTRY[cc]!;
-  return HISPANIC.has(cc) ? 'es-AR' : 'pt-BR';
+  const locale = countryLocale(countryCode);
+  return locale?.startsWith('es-') ? locale : 'pt-BR';
 }
 
 /**
@@ -101,7 +73,7 @@ export function entryTextLocale(countryCode: string | null): TextLocale {
   const cc = (countryCode ?? '').toUpperCase();
   const own = `es-${cc}`;
   if ((TEXT_LOCALES as readonly string[]).includes(own)) return own as TextLocale;
-  return HISPANIC.has(cc) ? 'es' : 'pt-BR';
+  return countryLanguage(cc) === 'es' ? 'es' : 'pt-BR';
 }
 
 export function teamsFileFor(countryCode: string): string {

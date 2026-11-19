@@ -6,6 +6,7 @@
  * Módulo puro: serve ao proxy, ao servidor, ao navegador e aos testes.
  */
 import type { SupportedLocale } from '@galaxie/contracts';
+import { SPANISH_VOICE_COUNTRIES } from '@galaxie/geo/language';
 
 export const LOCALES = ['pt-BR', 'en', 'es-AR'] as const;
 export type Locale = (typeof LOCALES)[number];
@@ -78,17 +79,6 @@ export function apiLocale(locale: ContentLocale): SupportedLocale {
   return locale;
 }
 
-/** Variante de espanhol de cada mercado da API (a voz local: voseo, "hinchada", "afición"…). */
-const SPANISH_BY_COUNTRY: Record<string, SupportedLocale> = {
-  AR: 'es-AR',
-  MX: 'es-MX',
-  CO: 'es-CO',
-  CL: 'es-CL',
-  PE: 'es-PE',
-  UY: 'es-UY',
-  EC: 'es-EC',
-};
-
 /**
  * Locale do conteúdo de um time, jogo, clássico ou competição: o contexto vem do país de origem, no
  * idioma da tela. Em espanhol, um time chileno sai na voz do Chile (`es-CL`) e o Boca na da Argentina;
@@ -99,7 +89,9 @@ const SPANISH_BY_COUNTRY: Record<string, SupportedLocale> = {
 export function contentLocale(locale: Locale, country: string | null | undefined): SupportedLocale {
   const base = apiLocale(locale);
   if (base === 'pt-BR' || base === 'en') return base;
-  return SPANISH_BY_COUNTRY[(country ?? '').toUpperCase()] ?? base;
+  // a voz do país (es-CL, es-MX…) vem do packages/geo; fora dos mercados com voz própria, o espanhol da tela
+  const code = (country ?? '').toUpperCase();
+  return SPANISH_VOICE_COUNTRIES.includes(code) ? (`es-${code}` as SupportedLocale) : base;
 }
 
 const TIME_ZONE_BY_LOCALE: Partial<Record<SupportedLocale, string>> = {

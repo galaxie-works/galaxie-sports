@@ -17,7 +17,8 @@ export type LabelLanguage = 'pt' | 'es' | 'en';
 
 /**
  * Idioma dos nomes de competição por país (código da api-sports: ISO 3166-1 alfa-2 ou extensão como GB-ENG).
- * Um só lugar: a API e os agentes de IA leem daqui.
+ * Um só lugar: a API, os agentes de IA e a demo leem daqui (`countryLanguage`, `iberianLanguage`,
+ * `countryLocale`). Este arquivo não lê yaml: roda no navegador pelo subcaminho `@galaxie/geo/language`.
  */
 const COUNTRIES_BY_LANGUAGE: Record<LabelLanguage, readonly string[]> = {
   pt: ['BR', 'PT', 'AO', 'MZ', 'CV', 'GW', 'ST', 'TL'],
@@ -103,6 +104,37 @@ const NATIONAL_CODE = /^[A-Z]{2}(-[A-Z]{3})?$/;
 export function countryLanguage(countryCode: string | null | undefined): LabelLanguage | null {
   if (!countryCode) return null;
   return LANGUAGE_BY_COUNTRY.get(countryCode.toUpperCase()) ?? null;
+}
+
+/** Países de língua portuguesa ou espanhola (para quem só trata esses dois idiomas: vídeos, acentos). */
+export function iberianLanguage(countryCode: string | null | undefined): 'pt' | 'es' | null {
+  const lang = countryLanguage(countryCode);
+  return lang === 'pt' || lang === 'es' ? lang : null;
+}
+
+/**
+ * Países com voz própria em espanhol: os mercados com locale `es-XX` na API (`SUPPORTED_LOCALES` de
+ * `@galaxie/contracts`, a fonte). Cópia para este arquivo não importar nada (roda no navegador sem levar os
+ * schemas do contracts); o `language.test.ts` reprova se divergir. Hispânico fora deles fala `es-AR`.
+ */
+export const SPANISH_VOICE_COUNTRIES: readonly string[] = ['AR', 'MX', 'CO', 'CL', 'PE', 'UY', 'EC'];
+/** Espanhol padrão (hispânico sem voz própria e conteúdo em espanhol sem país). */
+export const DEFAULT_SPANISH_LOCALE = 'es-AR';
+/** Português do produto (todo país lusófono). */
+export const DEFAULT_PORTUGUESE_LOCALE = 'pt-BR';
+
+/**
+ * Locale do conteúdo para o público de um país, entre os locales da API: lusófono → `pt-BR`; hispânico →
+ * `es-XX` quando o país tem voz própria, senão `es-AR`; anglófono → `en`; sem idioma mapeado → null (quem
+ * chama decide o padrão).
+ */
+export function countryLocale(countryCode: string | null | undefined): string | null {
+  const lang = countryLanguage(countryCode);
+  if (lang === 'pt') return DEFAULT_PORTUGUESE_LOCALE;
+  if (lang === 'en') return 'en';
+  if (lang !== 'es') return null;
+  const code = countryCode!.toUpperCase();
+  return SPANISH_VOICE_COUNTRIES.includes(code) ? `es-${code}` : DEFAULT_SPANISH_LOCALE;
 }
 
 /** A competição é de um país (doméstica)? `WORLD`, regiões e sem país contam como internacional. */

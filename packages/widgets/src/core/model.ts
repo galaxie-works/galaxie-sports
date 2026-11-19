@@ -4782,6 +4782,11 @@ export function textsFor(locale: WidgetLocale): WidgetTexts {
 
 // ─── locale, fuso e datas ────────────────────────────────────────────────────────────────────────
 
+/**
+ * Mercados com voz própria em espanhol: os `es-XX` de `SUPPORTED_LOCALES` (@galaxie/contracts), os mesmos de
+ * `SPANISH_VOICE_COUNTRIES` (@galaxie/geo). Cópia porque este arquivo vai sozinho para o app da operadora;
+ * o `locale.test.ts` reprova se divergir.
+ */
 const SPANISH_MARKETS = ['AR', 'MX', 'CO', 'CL', 'PE', 'UY', 'EC'];
 
 /**

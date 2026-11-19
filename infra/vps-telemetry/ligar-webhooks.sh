@@ -20,7 +20,9 @@
 # NÃO mexe em: banco além dos webhooks, outros serviços, imagens, volumes. O resumo vai para /tmp/webhooks.txt (sem a
 # KEK nem segredos).
 set -uo pipefail
-cd /docker/galaxie-sports || exit 1
+# roda na pasta da stack (a de onde é chamado, ou VPS_DIR) (#1429)
+cd "${VPS_DIR:-.}" || exit 1
+[ -f compose.yml ] || { echo "rode na pasta da stack da VPS (ou defina VPS_DIR)" >&2; exit 1; }
 
 TESTE_TENANT="" TESTE_URL=""
 if [ "${1:-}" = --teste ]; then

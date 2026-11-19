@@ -158,7 +158,9 @@ api-sports); os logos enviados à mão em Ajustes → Grades e ofertas e os do a
 
 - Ambiente `producao` do repositório: `VPS_KNOWN_HOSTS` com a chave de host nova (`ssh-keyscan -t ed25519 <ip>`,
   conferida com a impressão digital mostrada no console do provedor); `VPS_SSH_KEY` igual. IP novo: variável
-  `VPS_SSH_TARGET` (`root@<ip>`).
+  `VPS_SSH_TARGET` (`root@<ip>`); pasta da stack diferente: variável `VPS_DIR` (hoje `/docker/galaxie-sports`). As
+  duas são do ambiente `producao` e não têm reserva no código: o Deploy, o backup de dados, o Diagnóstico e o
+  `deploy.sh` da máquina leem só delas (#1429).
 - NAS: `ssh/known_hosts` com a chave de host nova e, com IP novo, `VPS_HOST` da stack `galaxie-sports-backup-nas`
   ([exercicio-dr.md › Cópia no NAS](exercicio-dr.md)) e da stack `nas-replica` (o `known_hosts` dela também; a réplica
   se refaz numa VPS nova: `preparar-replica.sh` e [replica-no-nas.md › Refazer](replica-no-nas.md#refazer-a-réplica)).

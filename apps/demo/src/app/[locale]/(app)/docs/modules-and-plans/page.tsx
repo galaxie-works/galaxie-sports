@@ -86,7 +86,7 @@ const PLANS: [string, string, string[] | null][] = [
 
 const FORBIDDEN_SAMPLE = `{
   "type": "https://docs.galaxiesports.com/errors/module-not-in-plan",
-  "title": "Plano não inclui o módulo where_to_watch",
+  "title": "Plan does not include the where_to_watch module",
   "status": 403,
   "code": "MODULE_NOT_IN_PLAN"
 }`;

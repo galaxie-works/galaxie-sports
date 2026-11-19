@@ -56,7 +56,7 @@ export async function championRoutes(app: FastifyInstance, ctx: AppContext): Pro
           .where(where)
           .orderBy(sql`(${competition.sport} = 'football') desc`)
           .limit(1);
-        if (!row) throw problems.notFound('Competição');
+        if (!row) throw problems.notFound('Competition');
         const c = row.c;
 
         const { rows, coverage } = await loadTitles(db, c.id);

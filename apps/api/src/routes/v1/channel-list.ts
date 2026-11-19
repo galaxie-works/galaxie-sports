@@ -51,7 +51,7 @@ export async function channelListRoutes(app: FastifyInstance, ctx: AppContext): 
   app.get('/v1/channel-list', { config: MODULE, ...noStore }, async (request) => {
     const t = secretTenant(request);
     const row = await getChannelList(requireDb(ctx), t.tenantId);
-    if (!row) throw problems.notFound('Lista de canais');
+    if (!row) throw problems.notFound('Channel list');
     return dto(row);
   });
 
@@ -100,7 +100,7 @@ export async function channelListRoutes(app: FastifyInstance, ctx: AppContext): 
     const t = secretTenant(request);
     const db = requireDb(ctx);
     const current = await getChannelList(db, t.tenantId);
-    if (!current) throw problems.notFound('Lista de canais');
+    if (!current) throw problems.notFound('Channel list');
     const row = await storeChannelList(db, config(), t.tenantId, {
       source: current.source,
       channels: current.channels,
@@ -116,7 +116,7 @@ export async function channelListRoutes(app: FastifyInstance, ctx: AppContext): 
     const t = secretTenant(request);
     const db = requireDb(ctx);
     const row = await confirmChannelList(db, t.tenantId, `api:${t.keyId}`);
-    if (!row) throw problems.notFound('Lista de canais');
+    if (!row) throw problems.notFound('Channel list');
     ctx.channelLists.invalidate(t.tenantId);
     return dto(row);
   });

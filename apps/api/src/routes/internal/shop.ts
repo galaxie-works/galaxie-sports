@@ -84,7 +84,7 @@ export async function internalShopRoutes(
         const p = parseInput(AnchorsParams, request.params);
         const q = parseInput(AnchorsQuery, request.query);
         const r = await shopAnchors(db, { kind: p.kind, id: p.id }, { store: q.store, country: q.country });
-        if (!r) throw problems.notFound('Cadastro no Shopping');
+        if (!r) throw problems.notFound('Shop registration');
         noStore(reply);
         return {
           data: {
@@ -133,7 +133,7 @@ export async function internalShopRoutes(
             }
           : { kind: 'galaxie' };
         const r = await deps.offers.entityOffers({ kind: p.kind, id: p.id }, dest, { country: q.country });
-        if (!r) throw problems.notFound('Cadastro no Shopping');
+        if (!r) throw problems.notFound('Shop registration');
         noStore(reply);
         return {
           data: r.map((s) => ({

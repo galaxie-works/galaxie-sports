@@ -5,7 +5,7 @@
  */
 import { effectiveModelPrices } from '@galaxie/ai-ledger/pricing';
 import { COSMOS_PROVIDERS, type CosmosProvider } from '@galaxie/db/schema';
-import { AI_DEFAULT_MODELS } from '@galaxie/runtime-config';
+import { AI_PROVIDER_MODEL_PREFIX, defaultModelOf } from '@galaxie/runtime-config';
 
 export { COSMOS_PROVIDERS, type CosmosProvider };
 
@@ -13,7 +13,7 @@ export { COSMOS_PROVIDERS, type CosmosProvider };
 export const COSMOS_DEFAULT_PROVIDER: CosmosProvider = 'anthropic';
 
 /** Modelo leve de cada provedor (o mesmo nível dos agentes internos, pelo registro). */
-export const defaultModelFor = (provider: CosmosProvider): string => AI_DEFAULT_MODELS.light[provider];
+export const defaultModelFor = (provider: CosmosProvider): string => defaultModelOf(provider, 'light');
 
 export const isCosmosProvider = (value: unknown): value is CosmosProvider =>
   typeof value === 'string' && (COSMOS_PROVIDERS as readonly string[]).includes(value);
@@ -49,16 +49,9 @@ export function isPricedModel(model: string): boolean {
   return DATED.test(model) && Boolean(prices[model.replace(DATED, '')]);
 }
 
-/** Prefixo dos modelos de cada provedor: modelo de um provedor chamado no outro sempre falha. */
-const PROVIDER_PREFIX: Record<CosmosProvider, string> = {
-  anthropic: 'claude-',
-  deepseek: 'deepseek-',
-  gemini: 'gemini-',
-  openai: 'gpt-',
-};
-
+/** Modelo de um provedor chamado no outro sempre falha (prefixo do catálogo único). */
 export const modelMatchesProvider = (model: string, provider: CosmosProvider): boolean =>
-  model.startsWith(PROVIDER_PREFIX[provider]);
+  model.startsWith(AI_PROVIDER_MODEL_PREFIX[provider]);
 
 /** Variável com a chave da Cosmos no provedor (separada das chaves da IA interna). */
 export const cosmosApiKeyEnv = (provider: CosmosProvider) => `COSMOS_${provider.toUpperCase()}_API_KEY`;

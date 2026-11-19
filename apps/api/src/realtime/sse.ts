@@ -233,8 +233,8 @@ export async function streamRoutes(app: FastifyInstance, deps: StreamDeps): Prom
         throw new ProblemError(
           503,
           'DEGRADED',
-          'Limite de conexões de tempo real desta instância atingido',
-          'Tente reconectar após o Retry-After; enquanto isso, o estado pode ser lido pela API REST.',
+          'Real-time connection limit of this instance reached',
+          'Reconnect after Retry-After; meanwhile the state can be read from the REST API.',
           { headers: { 'retry-after': String(processLimitRetryAfter()) } },
         );
       }
@@ -276,8 +276,8 @@ export async function streamRoutes(app: FastifyInstance, deps: StreamDeps): Prom
         throw new ProblemError(
           429,
           'RATE_LIMITED',
-          'Limite de conexões simultâneas do tenant atingido',
-          `Máximo de ${tenantMax} conexões SSE abertas por tenant.`,
+          'Tenant concurrent connection limit reached',
+          `At most ${tenantMax} open SSE connections per tenant.`,
           { headers: { 'retry-after': '30' } },
         );
       }
