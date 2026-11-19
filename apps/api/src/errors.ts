@@ -1,7 +1,7 @@
 import type { FastifyError, FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type { ErrorCode, Problem } from '@galaxie/contracts';
 import type { ZodError } from 'zod';
-import { QUOTA_BLOCK_RATIO } from './usage/quota.js';
+import { QUOTA_BLOCK_RATIO } from './usage/ratios.js';
 
 export const PROBLEM_CONTENT_TYPE = 'application/problem+json; charset=utf-8';
 const TYPE_BASE = 'https://docs.galaxie.sports/errors/';
@@ -105,7 +105,7 @@ export const problems = {
     new ProblemError(
       403,
       'MODULE_NOT_IN_PLAN',
-      'Plan does not include real time',
+      'Plan does not include real-time delivery',
       `The ${plan} plan does not include SSE (/v1/stream) or webhooks.`,
     ),
   moduleNotInPlan: (module: string) => {
@@ -119,9 +119,9 @@ export const problems = {
     );
   },
   sportNotInPlan: (sport: string) =>
-    new ProblemError(403, 'MODULE_NOT_IN_PLAN', `Plan does not include the sport ${sport}`),
+    new ProblemError(403, 'MODULE_NOT_IN_PLAN', `Plan does not include sport ${sport}`),
   marketNotInPlan: (market: string) =>
-    new ProblemError(403, 'MARKET_NOT_IN_PLAN', `Plan does not include the market ${market}`),
+    new ProblemError(403, 'MARKET_NOT_IN_PLAN', `Plan does not include market ${market}`),
   originNotAllowed: (origin: string | undefined) =>
     new ProblemError(
       403,

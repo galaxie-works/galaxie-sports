@@ -146,7 +146,7 @@ describe('GET /v1/stream — teto de conexões do tenant pelos direitos (F3, dec
     const c = connect(url);
     await expect.poll(() => c.ended()).toBe(true);
     expect(c.res()!.statusCode).toBe(429);
-    expect(c.body()).toContain('Máximo de 5 conexões');
+    expect(c.body()).toContain('At most 5 open SSE connections');
     expect(limits).toEqual([5]);
   });
 

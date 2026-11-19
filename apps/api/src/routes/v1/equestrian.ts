@@ -1027,7 +1027,7 @@ export async function equestrianRoutes(app: FastifyInstance, ctx: AppContext): P
       load: async () => {
         const c = await context(locale);
         const [summary] = await competitionSummaries(c, eq(eqCompetition.id, params.id), 1, 0);
-        if (!summary) throw problems.notFound('Event');
+        if (!summary) throw problems.notFound('Competition');
         const [k] = await c.db.select().from(eqCompetition).where(eq(eqCompetition.id, params.id));
         const { license } = await latestLicense(c.db);
         const rows = await c.db
