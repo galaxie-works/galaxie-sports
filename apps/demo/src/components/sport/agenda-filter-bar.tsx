@@ -25,7 +25,7 @@ import { sortByLabel } from '@/lib/alphabetical';
 import { agendaHref, type AgendaParams } from '@/lib/explore-index';
 import { useI18n } from '@/lib/i18n/client';
 import { plural } from '@/lib/i18n/text';
-import { COUNTRIES, SPORTS, sportBySlug } from '@/lib/navigation';
+import { countryName, SPORTS, sportBySlug } from '@/lib/navigation';
 
 type AgendaFilterField = 'sport' | 'country' | 'competition';
 const FIELDS: readonly AgendaFilterField[] = ['sport', 'country', 'competition'];
@@ -110,7 +110,6 @@ export function AgendaFilterBar({
         : options,
     );
 
-  const countryCount = new Map(facets.countries.map((c) => [c.code, c.count]));
   const fields: FilterField[] = [
     {
       ...base('sport', tf.fields.sport),
@@ -135,11 +134,12 @@ export function AgendaFilterBar({
       ...base('country', tf.fields.country),
       icon: <Flag aria-hidden />,
       placeholder: tf.search.country,
+      // os países da agenda são os da navegação, do banco (os mesmos do resumo do Explorar)
       options: sortByLabel(
-        COUNTRIES.map((c) => ({
+        facets.countries.map((c) => ({
           value: c.code,
-          label: t.nav.countries[c.code],
-          description: games(countryCount.get(c.code) ?? 0),
+          label: countryName(t, locale, c.code),
+          description: games(c.count),
           icon: <CountryFlag code={c.code} />,
           keywords: [c.code],
         })),

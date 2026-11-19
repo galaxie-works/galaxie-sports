@@ -79,6 +79,11 @@ async function seed() {
   await db.insert(country).values([
     { code: 'BR', name: { en: 'Brazil' }, flagAssetId: flagBr!.id },
     { code: 'AR', name: { en: 'Argentina' } },
+    { code: 'PT', name: { en: 'Portugal' } },
+    { code: 'US', name: { en: 'USA' } },
+    { code: 'NL', name: { en: 'Netherlands' } },
+    // país do catálogo sem liga nacional: não entra na navegação
+    { code: 'UY', name: { en: 'Uruguay' } },
     { code: 'WORLD', name: { en: 'World' } },
   ]);
 
@@ -127,6 +132,41 @@ async function seed() {
         type: 'league',
         tier: 1,
       },
+      // Portugal: as duas divisões no tier 2, e a Liga Portugal 2 com mais jogos no ano (o caso que fazia dela a
+      // "liga principal"); EUA e Holanda entram pela liga do catálogo, sem lista fixa
+      {
+        sport: 'football',
+        slug: 'primeira-liga',
+        name: 'Primeira Liga',
+        countryCode: 'PT',
+        type: 'league',
+        tier: 2,
+      },
+      {
+        sport: 'football',
+        slug: 'liga-portugal-2',
+        name: 'Segunda Liga',
+        countryCode: 'PT',
+        type: 'league',
+        tier: 2,
+      },
+      {
+        sport: 'football',
+        slug: 'mls',
+        name: 'Major League Soccer',
+        countryCode: 'US',
+        type: 'league',
+        tier: 2,
+      },
+      {
+        sport: 'football',
+        slug: 'eredivisie',
+        name: 'Eredivisie',
+        countryCode: 'NL',
+        type: 'league',
+        tier: 2,
+      },
+      { sport: 'football', slug: 'copa-uruguay', name: 'Copa AUF', countryCode: 'UY', type: 'cup', tier: 2 },
       {
         sport: 'football',
         slug: 'conmebol-libertadores',
@@ -195,6 +235,21 @@ async function seed() {
     ]);
     return e!.id;
   };
+
+  // jogos passados de Portugal, sem participantes: a Liga Portugal 2 com mais jogos no ano que a Primeira Liga
+  await db.insert(event).values(
+    [
+      ['liga-portugal-2', 40],
+      ['liga-portugal-2', 41],
+      ['primeira-liga', 42],
+    ].map(([slug, days]) => ({
+      sport: 'football',
+      competitionId: ids[slug as string]!,
+      startsAt: hours(-24 * (days as number)),
+      endsAtExpected: hours(-24 * (days as number) + 2),
+      status: 'finished' as const,
+    })),
+  );
 
   // passado (ranking dos clubes): Mirassol soma mais importância, mas não tem perfil semântico
   await game('brasileirao-serie-a', 'Mirassol', 'Corinthians', hours(-24 * 30), {
@@ -296,7 +351,7 @@ describe('GET /v1/explore/summary', () => {
     expect(football).toMatchObject({
       slug: 'football',
       name: 'Futebol',
-      competitions: 6, // tier 1–2 (a Série D, tier 3, fica de fora)
+      competitions: 11, // tier 1–2 (a Série D, tier 3, fica de fora)
       participants: 6,
       upcoming: 3, // sem o adiado e sem o que está fora da janela
       live: 1, // o "ao vivo" sem dado fresco não conta
@@ -325,8 +380,13 @@ describe('GET /v1/explore/summary', () => {
 
   it('resume os países: liga principal, clubes em destaque, jogos e o jogo de maior relevância', async () => {
     const body = (await get('/v1/explore/summary?locale=pt-BR&tz=America/Sao_Paulo')).json<ExploreSummary>();
-    expect(body.countries.map((c) => c.code).slice(0, 3)).toEqual(['BR', 'AR', 'BO']);
-    expect(body.confederations.map((c) => c.code)).toEqual(['CONMEBOL', 'CONCACAF', 'UEFA']);
+    // só os países com liga nacional no catálogo, por confederação e pelo peso da liga principal (tier, featured)
+    expect(body.countries.map((c) => c.code)).toEqual(['BR', 'AR', 'US', 'PT', 'NL']);
+    expect(body.confederations).toEqual([
+      { code: 'CONMEBOL', name: 'CONMEBOL (América do Sul)', countries: ['BR', 'AR'] },
+      { code: 'CONCACAF', name: 'CONCACAF (Américas do Norte e Central e Caribe)', countries: ['US'] },
+      { code: 'UEFA', name: 'UEFA (Europa)', countries: ['PT', 'NL'] },
+    ]);
 
     const br = body.countries.find((c) => c.code === 'BR')!;
     expect(br).toMatchObject({
@@ -366,13 +426,30 @@ describe('GET /v1/explore/summary', () => {
     expect(ar.highlight).toMatchObject({ id: ids.lib, relevance: { market: 'AR' } });
     expect(ar.top_teams.map((t) => t.name)).toEqual(['Boca Juniors', 'River Plate']);
 
-    const uy = body.countries.find((c) => c.code === 'UY')!;
-    expect(uy).toMatchObject({ competitions: 0, main_competition: null, top_teams: [], highlight: null });
+    // Portugal mostra a Primeira Liga, não a Liga Portugal 2 (que tem mais jogos no ano)
+    expect(body.countries.find((c) => c.code === 'PT')).toMatchObject({
+      name: 'Portugal',
+      confederation: { code: 'UEFA' },
+      competitions: 2,
+      main_competition: { slug: 'primeira-liga', tier: 2 },
+    });
+    expect(body.countries.find((c) => c.code === 'US')).toMatchObject({
+      name: 'Estados Unidos',
+      confederation: { code: 'CONCACAF' },
+      main_competition: { slug: 'mls' },
+    });
+    expect(body.countries.find((c) => c.code === 'NL')).toMatchObject({
+      name: 'Holanda',
+      confederation: { code: 'UEFA' },
+      main_competition: { slug: 'eredivisie' },
+    });
+    // Uruguai só com copa no catálogo: sem liga nacional, fora da navegação
+    expect(body.countries.find((c) => c.code === 'UY')).toBeUndefined();
   });
 
   it('respeita os esportes do plano: fora dele, nenhum jogo nem destaque', async () => {
     const body = (await get('/v1/explore/summary', basketballKey)).json<ExploreSummary>();
-    expect(body.sports[0]).toMatchObject({ slug: 'football', competitions: 6, upcoming: 0, live: 0 });
+    expect(body.sports[0]).toMatchObject({ slug: 'football', competitions: 11, upcoming: 0, live: 0 });
     const br = body.countries.find((c) => c.code === 'BR')!;
     expect(br).toMatchObject({ upcoming: 0, live: 0, highlight: null });
   });
@@ -451,7 +528,10 @@ describe('resumo pré-calculado (job explore-summary, #596)', () => {
     await db.update(event).set({ createdAt: new Date(NOW.getTime() - 3_600_000) });
     const first = await refreshExploreSummary(db, geo, { now: NOW });
     expect(first.reason).toBe('sem resumo gravado');
-    expect(first.rows).toBeGreaterThan(geo.navigationCountries.length);
+    // a linha de controle, as dos esportes e uma por país da navegação (BR, AR, US, PT, NL), no mínimo
+    expect(first.rows).toBeGreaterThan(5);
+    const countryRows = await db.select().from(exploreSummary).where(eq(exploreSummary.sport, '*'));
+    expect(countryRows.map((r) => r.market).sort()).toEqual(['*', 'AR', 'BR', 'NL', 'PT', 'US']);
     const rows = await db.select().from(exploreSummary);
     expect(rows.find((r) => r.sport === '*' && r.market === '*')?.generatedAt).toEqual(NOW);
     expect(new Set(rows.map((r) => r.generatedAt.getTime()))).toEqual(new Set([NOW.getTime()]));

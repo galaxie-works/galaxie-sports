@@ -76,7 +76,7 @@ Esportes                     Países
 ```
 
 - **Esportes**: os 12, sempre na mesma ordem (futebol primeiro). `has_data: false` deixa o item esmaecido (sem competições nem eventos no banco); as contagens viram badge.
-- **Países**: 17 na primeira versão (os 10 da CONMEBOL, México, Inglaterra, Espanha, Itália, Alemanha, França e Portugal), agrupados por confederação (`confederations[]`), com bandeira do nosso storage. A lista e a ordem vêm de `config/geo/confederations.yaml` — incluir um país é editar o YAML (e rodar `geo:seed`).
+- **Países**: os que têm liga nacional de primeira divisão no catálogo ativo (tier 1–2), agrupados por confederação (`confederations[]`), com bandeira do nosso storage. A lista e a ordem vêm da API (`/v1/explore/summary` na home e no índice de países, `/v1/navigation` no menu lateral, `facets.countries` na agenda), que lê o banco: incluir um país é pôr a liga dele no catálogo (`config/competitions`) com a primeira divisão em `featured` (`config/geo/competition-scope.yaml`). A demo só guarda uma lista de reserva (`FALLBACK_COUNTRIES`) para quando a API não responde.
 
 A **página do país** chama `GET /v1/countries/{code}/competitions?locale=` (opcional `sport=`) e desenha, por esporte, até quatro seções:
 

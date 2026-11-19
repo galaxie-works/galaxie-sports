@@ -21,6 +21,16 @@ export {
   type MarketRelevance,
   type WindowEvent,
 } from './choices.js';
+export {
+  CATALOG_MAX_TIER,
+  compareCountries,
+  loadNavigationCountries,
+  mainLeagues,
+  type CountryOrderKey,
+  type LeagueCandidate,
+  type NavigationCountry,
+  type NavigationGeo,
+} from './countries.js';
 export { actuallyLiveCond, IN_PLAY, SUSPENDED_LIVE_GRACE_MS } from './live.js';
 export {
   audienceOf,
@@ -40,6 +50,7 @@ export {
   computeExploreSnapshot,
   EXPLORE_SNAPSHOT_VERSION,
   selectForScope,
+  snapshotCountryCodes,
   sportOf,
   type CountryEntry,
   type CountrySelection,

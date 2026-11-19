@@ -81,7 +81,9 @@ export const ExploreCountry = z
       example: 14,
     }),
     main_competition: ExploreCompetition.nullable().meta({
-      description: 'Liga principal do futebol (a primeira em `featured` de config/geo, senão a liga tier 1).',
+      description:
+        'Liga principal do futebol: a liga nacional de menor tier e, nele, a primeira divisão (a primeira em ' +
+        '`featured` de config/geo, que marca as divisões em ordem).',
     }),
     top_teams: z.array(ExploreTeam).meta({
       description:
@@ -114,7 +116,11 @@ export const ExploreSummary = z
       })
       .meta({ description: `Janela de \`upcoming\` (${EXPLORE_WINDOW_DAYS} dias).` }),
     sports: z.array(ExploreSport).meta({ description: 'Os esportes da navegação, na ordem do menu.' }),
-    countries: z.array(ExploreCountry).meta({ description: 'Os países da navegação, na ordem do menu.' }),
+    countries: z.array(ExploreCountry).meta({
+      description:
+        'Os países com liga nacional de primeira divisão no catálogo ativo (tier 1–2), na ordem do menu: por ' +
+        'confederação, pelo peso da liga principal (tier e ordem editorial), jogos nos próximos 7 dias e nome.',
+    }),
     confederations: z
       .array(ConfederationRef.extend({ countries: z.array(z.string()).meta({ example: ['BR', 'AR'] }) }))
       .meta({ description: 'Países da navegação agrupados por confederação (como em /v1/navigation).' }),

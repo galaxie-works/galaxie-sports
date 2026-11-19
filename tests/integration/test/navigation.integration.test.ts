@@ -211,7 +211,7 @@ afterAll(async () => {
 });
 
 describe('GET /v1/navigation', () => {
-  it('devolve os 12 esportes (futebol primeiro, contagens e has_data) e os 17 países com bandeira', async () => {
+  it('devolve os 12 esportes (futebol primeiro, contagens e has_data) e os países com liga nacional no catálogo', async () => {
     const res = await get('/v1/navigation?locale=pt-BR');
     expect(res.statusCode).toBe(200);
     expect(res.headers['content-language']).toBe('pt-BR');
@@ -239,25 +239,8 @@ describe('GET /v1/navigation', () => {
       has_data: false,
     });
 
-    expect(body.countries.map((c) => c.code)).toEqual([
-      'BR',
-      'AR',
-      'BO',
-      'CL',
-      'CO',
-      'EC',
-      'PY',
-      'PE',
-      'UY',
-      'VE',
-      'MX',
-      'GB-ENG',
-      'ES',
-      'IT',
-      'DE',
-      'FR',
-      'PT',
-    ]);
+    // do banco, não de lista fixa: só quem tem liga nacional (tier 1–2) no catálogo; os EUA, sem liga, ficam fora
+    expect(body.countries.map((c) => c.code)).toEqual(['BR', 'AR', 'MX', 'GB-ENG']);
     expect(body.countries[0]).toEqual({
       code: 'BR',
       name: 'Brasil',
@@ -265,10 +248,10 @@ describe('GET /v1/navigation', () => {
       confederation: { code: 'CONMEBOL', name: 'CONMEBOL (América do Sul)' },
     });
     expect(body.countries.find((c) => c.code === 'GB-ENG')).toMatchObject({ name: 'Inglaterra', flag: null });
-    expect(body.confederations.map((c) => [c.code, c.countries.length])).toEqual([
-      ['CONMEBOL', 10],
-      ['CONCACAF', 1],
-      ['UEFA', 6],
+    expect(body.confederations.map((c) => [c.code, c.countries])).toEqual([
+      ['CONMEBOL', ['BR', 'AR']],
+      ['CONCACAF', ['MX']],
+      ['UEFA', ['GB-ENG']],
     ]);
   });
 
@@ -276,7 +259,7 @@ describe('GET /v1/navigation', () => {
     const body = (await get('/v1/navigation', { 'accept-language': 'es-AR' })).json<Navigation>();
     expect(body.sports[0]!.name).toBe('Fútbol');
     expect(body.countries.find((c) => c.code === 'GB-ENG')!.name).toBe('Inglaterra');
-    expect(body.countries.find((c) => c.code === 'DE')!.name).toBe('Alemania');
+    expect(body.countries.find((c) => c.code === 'MX')!.name).toBe('México');
     expect(body.confederations[0]!.name).toBe('CONMEBOL (Sudamérica)');
   });
 });
@@ -295,7 +278,7 @@ describe('GET /v1/countries/{code}', () => {
     });
   });
 
-  it('país da navegação ainda sem linha no catálogo vem do config/geo; fora de tudo → 404; inválido → 400', async () => {
+  it('nome e confederação completados pelo config/geo; sem liga no catálogo, fora da navegação; 404 e 400', async () => {
     expect((await get('/v1/countries/GB-ENG')).json<CountryDetail>()).toMatchObject({
       name: 'Inglaterra',
       confederation: { code: 'UEFA' },

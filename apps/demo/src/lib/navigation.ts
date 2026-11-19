@@ -78,16 +78,32 @@ export const EQUESTRIAN_NAV: NavItem & { slug: string } = {
   slug: 'equestrian',
 };
 
+/** Países com nome no dicionário da demo (os da lista de reserva). */
 export type CountryCode = keyof Dictionary['nav']['countries'];
 
 export interface CountryNav {
-  code: CountryCode;
-  group: 'CONMEBOL' | 'CONCACAF' | 'UEFA';
+  /** Código da api-sports (ISO2 ou extensão, como GB-ENG). */
+  code: string;
+  /** Confederação (CONMEBOL, CONCACAF, UEFA, AFC, CAF, OFC). */
+  group: string;
   href: string;
 }
 
-/** Países com navegação própria (decisão de UI/UX); a lista definitiva virá de `/v1/navigation`. */
-export const COUNTRIES: CountryNav[] = (
+export const countryNav = (code: string, group: string): CountryNav => ({
+  code,
+  group,
+  href: `/countries/${code.toLowerCase()}`,
+});
+
+/** Ordem das confederações na reserva (a da API segue config/geo, a mesma). */
+export const FALLBACK_CONFEDERATIONS = ['CONMEBOL', 'CONCACAF', 'UEFA'] as const;
+
+/**
+ * Reserva para quando a API não responde: os países da navegação vêm do banco (`/v1/explore/summary` e
+ * `/v1/navigation`, os que têm liga nacional de primeira divisão no catálogo). Esta lista só aparece com a API fora
+ * do ar (e no exemplo público, sem sessão); nunca é a fonte principal.
+ */
+export const FALLBACK_COUNTRIES: CountryNav[] = (
   [
     ['BR', 'CONMEBOL'],
     ['AR', 'CONMEBOL'],
@@ -107,11 +123,61 @@ export const COUNTRIES: CountryNav[] = (
     ['FR', 'UEFA'],
     ['PT', 'UEFA'],
   ] as const
-).map(([code, group]) => ({ code, group, href: `/countries/${code.toLowerCase()}` }));
+).map(([code, group]) => countryNav(code, group));
+
+/** Uma confederação com os seus países, na ordem da resposta. */
+export interface CountryGroup {
+  code: string;
+  countries: CountryNav[];
+}
+
+/**
+ * Países por confederação a partir da resposta da API (`confederations` do resumo do Explorar ou de
+ * `/v1/navigation`), na ordem dela; sem resposta (API fora do ar), a lista de reserva.
+ */
+export function countryGroups(
+  source: { confederations: { code: string; countries: string[] }[] } | null | undefined,
+): CountryGroup[] {
+  if (source)
+    return source.confederations
+      .filter((c) => c.countries.length > 0)
+      .map((c) => ({ code: c.code, countries: c.countries.map((code) => countryNav(code, c.code)) }));
+  return FALLBACK_CONFEDERATIONS.map((code) => ({
+    code,
+    countries: FALLBACK_COUNTRIES.filter((c) => c.group === code),
+  }));
+}
+
+/**
+ * Nome do país no idioma da tela: o do dicionário (os países de sempre, iguais em toda a demo), senão o que a API
+ * devolveu no idioma pedido, senão o nome da região pelo navegador (`Intl.DisplayNames`), senão o código.
+ */
+export function countryName(
+  t: { nav: Pick<Dictionary['nav'], 'countries'> },
+  locale: string,
+  code: string,
+  apiName?: string | null,
+): string {
+  const known = (t.nav.countries as Record<string, string | undefined>)[code];
+  if (known) return known;
+  if (apiName) return apiName;
+  try {
+    return new Intl.DisplayNames([locale], { type: 'region' }).of(code) ?? code;
+  } catch {
+    // extensões da api-sports (GB-SCT) não são regiões ISO
+    return code;
+  }
+}
+
+/** Subtítulo da confederação ("América do Sul"); o código sozinho quando o dicionário não tem. */
+export function confederationLabel(
+  t: { nav: Pick<Dictionary['nav'], 'groups'> },
+  code: string,
+): string | null {
+  return (t.nav.groups as Record<string, string | undefined>)[code] ?? null;
+}
 
 export const sportBySlug = (slug: string) => SPORTS.find((s) => s.slug === slug);
-export const countryByCode = (code: string) =>
-  COUNTRIES.find((c) => c.code.toLowerCase() === code.toLowerCase());
 
 /**
  * Página de país para um código da API, ou null quando o código não é de país (a API devolve "World"

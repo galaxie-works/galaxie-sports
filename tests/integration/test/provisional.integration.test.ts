@@ -8,6 +8,7 @@ import type { Event, ExploreSummary, SearchResponse, TeamOverview } from '@galax
 import {
   closeDb,
   competition,
+  country,
   createDb,
   participant,
   runMigrations,
@@ -136,6 +137,31 @@ beforeAll(async () => {
     .update(competition)
     .set({ slug: 'conmebol-libertadores', tier: 1, prestige: 10, labels: { 'pt-BR': 'Copa Libertadores' } })
     .where(eq(competition.sport, 'football'));
+  // os países entram no Explorar pela liga nacional do catálogo (não há lista fixa): Brasil, Argentina e Chile
+  await db
+    .insert(country)
+    .values([
+      { code: 'BR', name: { en: 'Brazil' } },
+      { code: 'AR', name: { en: 'Argentina' } },
+      { code: 'CL', name: { en: 'Chile' } },
+    ])
+    .onConflictDoNothing();
+  await db.insert(competition).values(
+    (
+      [
+        ['brasileirao-serie-a', 'BR'],
+        ['argentina-liga-profesional', 'AR'],
+        ['chile-primera-division', 'CL'],
+      ] as const
+    ).map(([slug, countryCode]) => ({
+      sport: 'football',
+      slug,
+      name: slug,
+      countryCode,
+      type: 'league' as const,
+      tier: 1,
+    })),
+  );
   for (const [name, code] of [
     ['Palmeiras', 'BR'],
     ['Estudiantes L.P.', 'AR'],

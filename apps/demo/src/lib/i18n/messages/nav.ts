@@ -57,6 +57,9 @@ export default defineMessages(
       CONMEBOL: 'América do Sul',
       CONCACAF: 'América do Norte',
       UEFA: 'Europa',
+      AFC: 'Ásia',
+      CAF: 'África',
+      OFC: 'Oceania',
     },
     explore: {
       title: 'Explorar',
@@ -187,6 +190,9 @@ export default defineMessages(
         CONMEBOL: 'South America',
         CONCACAF: 'North America',
         UEFA: 'Europe',
+        AFC: 'Asia',
+        CAF: 'Africa',
+        OFC: 'Oceania',
       },
       explore: {
         title: 'Explore',
@@ -318,6 +324,9 @@ export default defineMessages(
         CONMEBOL: 'Sudamérica',
         CONCACAF: 'Norteamérica',
         UEFA: 'Europa',
+        AFC: 'Asia',
+        CAF: 'África',
+        OFC: 'Oceanía',
       },
       explore: {
         title: 'Explorar',

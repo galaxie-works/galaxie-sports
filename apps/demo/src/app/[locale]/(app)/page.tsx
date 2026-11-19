@@ -6,7 +6,7 @@ import { Suspense } from 'react';
 import { PageHeader } from '@/components/app-shell/page-header';
 import { CountryCard, CountryRow } from '@/components/explore/country-card';
 import { ExploreSkeleton } from '@/components/explore/explore-skeleton';
-import { CONFEDERATIONS, COUNTRY_GRID, FEATURED_SPORT_SPAN, SPORT_GRID } from '@/components/explore/layout';
+import { COUNTRY_GRID, FEATURED_SPORT_SPAN, SPORT_GRID } from '@/components/explore/layout';
 import { LivePill, MultisportCard, SportCard } from '@/components/explore/sport-card';
 import { LiveDot } from '@/components/live/live-nav-item';
 import { Section } from '@/components/sport/section';
@@ -17,7 +17,7 @@ import { defaultMarket, type Locale } from '@/lib/i18n/config';
 import type { Dictionary } from '@/lib/i18n/dictionary';
 import { getFormatters, getI18n } from '@/lib/i18n/server';
 import { plural } from '@/lib/i18n/text';
-import { COUNTRIES, MULTISPORT_NAV, SPORTS } from '@/lib/navigation';
+import { confederationLabel, countryGroups, countryName, MULTISPORT_NAV, SPORTS } from '@/lib/navigation';
 import { cn } from '@/lib/utils';
 
 /**
@@ -119,16 +119,20 @@ async function Content() {
 
       <Section title={te.countries} description={te.countriesDescription} api={api}>
         <div className="flex flex-col gap-8">
-          {CONFEDERATIONS.map((group) => {
-            const countries = COUNTRIES.filter((c) => c.group === group);
+          {/* países e confederações do banco (os que têm liga nacional no catálogo), na ordem da API; sem ela, a reserva */}
+          {countryGroups(summary).map(({ code: group, countries }, index) => {
             const data = countries.map((c) => countryData.get(c.code));
+            const nameOf = (code: string) => countryName(t, locale, code, countryData.get(code)?.name);
+            const subtitle = confederationLabel(t, group);
             const upcoming = data.reduce((n, d) => n + (d?.upcoming ?? 0), 0);
             const live = data.reduce((n, d) => n + (d?.live ?? 0), 0);
             const header = (
               <>
                 <h3 className="flex items-baseline gap-2">
                   <span className="text-base font-semibold tracking-wide">{group}</span>
-                  <span className="text-muted-foreground text-sm font-medium">{t.nav.groups[group]}</span>
+                  {subtitle ? (
+                    <span className="text-muted-foreground text-sm font-medium">{subtitle}</span>
+                  ) : null}
                 </h3>
                 <span className="text-muted-foreground flex items-center gap-3 text-xs">
                   {plural(locale, countries.length, te.countriesCount)}
@@ -139,8 +143,8 @@ async function Content() {
             );
             return (
               <div key={group} className="flex flex-col gap-3">
-                {/* celular: uma linha por país, e só a América do Sul aberta (as outras, um toque) */}
-                <details className="group/conf sm:hidden" open={group === CONFEDERATIONS[0]}>
+                {/* celular: uma linha por país, e só a primeira confederação aberta (as outras, um toque) */}
+                <details className="group/conf sm:hidden" open={index === 0}>
                   <summary className="flex cursor-pointer list-none flex-wrap items-end justify-between gap-x-4 gap-y-1 border-b pb-2.5 [&::-webkit-details-marker]:hidden">
                     {header}
                     <ChevronDown
@@ -153,7 +157,7 @@ async function Content() {
                       <CountryRow
                         key={c.code}
                         country={c}
-                        name={t.nav.countries[c.code]}
+                        name={nameOf(c.code)}
                         data={countryData.get(c.code)}
                         t={t}
                         locale={locale}
@@ -172,7 +176,7 @@ async function Content() {
                     <CountryCard
                       key={code}
                       country={countries.find((c) => c.code === code)!}
-                      name={t.nav.countries[code]}
+                      name={nameOf(code)}
                       data={countryData.get(code)}
                       wide={wide}
                       t={t}

@@ -20,7 +20,7 @@
 #   markets                   - mercados ativos (ISO2): a API calcula a relevância por país de cada jogo
 #                               nesses mercados (`relevance_by_market` no detalhe do evento, docs/06 §3.2),
 #                               somados aos mercados dos planos dos tenants.
-#   wtw_markets               - mercados do Onde Assistir (subconjunto de `markets`): os que têm pesquisa
+#   wtw_markets              - mercados do Onde Assistir (subconjunto de `markets`): os que têm pesquisa
 #                               de emissoras e direitos (config/broadcasters/<país>.yaml). São as
 #                               opções de WTW_MARKETS e RELATED_MARKETS no painel (Ajustes); sem valor no
 #                               painel, o wtw-run usa os mercados dos tenants. O espelho WTW_MARKET_CODES
@@ -29,7 +29,10 @@
 #                               (filtro e destaques "latam" do quadro de medalhas e do hipismo, ficha de
 #                               país LATAM do engajamento). Todo país precisa de `ioc`. Espelhos cobrados
 #                               pelo teste do geo: LATAM_NOCS (@galaxie/db) e LATAM_COUNTRIES (@galaxie/engage).
-#   navigation.countries      - países da navegação da demo, na ordem do menu.
+#   (países da navegação)     - não ficam aqui: vêm do catálogo no banco, os que têm liga nacional de
+#                               primeira divisão (packages/explore, countries.ts), agrupados pela confederação
+#                               deste arquivo e ordenados pelo peso da liga (tier e `featured` de
+#                               competition-scope.yaml).
 #   navigation.sports         - os 12 esportes na ordem do menu, com nome localizado (fallback quando
 #                               o banco ainda não tem core.sport).
 # Fontes: estatutos e listas de associações-membro da FIFA e das seis confederações (conferência
@@ -42,7 +45,6 @@ wtw_markets: [BR, AR, MX, CO, CL, PE, UY, EC]
 latam: [BR, AR, MX, CO, CL, PE, UY, EC, CU, DO, VE, PR, PY, BO, GT, CR, PA, SV, HN, NI]
 
 navigation:
-  countries: [BR, AR, BO, CL, CO, EC, PY, PE, UY, VE, MX, GB-ENG, ES, IT, DE, FR, PT]
   sports:
     - { slug: football, name: { en: Football, pt-BR: Futebol, es: Fútbol } }
     - { slug: basketball, name: { en: Basketball, pt-BR: Basquete, es: Básquetbol } }

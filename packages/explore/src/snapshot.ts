@@ -19,12 +19,12 @@ import {
   isUpcoming,
   MAIN_SPORT,
   pickAnnounced,
-  pickMainCompetition,
   rankTopCompetitions,
   TOP_TEAMS,
   type CountryCandidate,
   type HighlightCandidate,
 } from './choices.js';
+import { CATALOG_MAX_TIER, mainLeagues } from './countries.js';
 import { IN_PLAY } from './live.js';
 import { continentalSlugs } from './market.js';
 import { DAY_MS, exploreWindow, selectWindowEvents } from './window.js';
@@ -64,7 +64,10 @@ export interface ExploreSnapshot {
   window: { from: Date; to: Date };
   /** Por slug do esporte: os da tabela de esportes e os da navegação (config/geo). */
   sports: Record<string, SportEntry>;
-  /** Por código dos países da navegação (config/geo). */
+  /**
+   * Por código dos países da navegação: os que têm liga nacional do esporte principal no catálogo ativo
+   * (mainLeagues), cada um com a liga principal. É daqui que a API tira a lista de países da home.
+   */
   countries: Record<string, CountryEntry>;
   /** País → esporte → jogos; só os pares com algum jogo. */
   countrySports: Record<string, Record<string, CountrySportEntry>>;
@@ -91,26 +94,35 @@ export async function computeExploreSnapshot(
   const window = exploreWindow(now);
   const recentFrom = new Date(now.getTime() - 365 * DAY_MS);
   const recentTo = new Date(now.getTime() + 30 * DAY_MS);
-  const codes = geo.navigationCountries;
   const eventRows = (where: Parameters<typeof selectWindowEvents>[2]) =>
     selectWindowEvents(db, now, where, null);
 
-  const [sportRows, participantCounts, catalogRows, recentRows, windowRows, teamRows, provisionalRows] =
-    await Promise.all([
+  // o catálogo antes (dezenas de linhas, milissegundos): os países da navegação saem dele, e os clubes em destaque
+  // (a consulta pesada, abaixo em paralelo) são só os desses países
+  const catalogRows = await db
+    .select({
+      id: competition.id,
+      sport: competition.sport,
+      slug: competition.slug,
+      type: competition.type,
+      tier: competition.tier,
+      prestige: competition.prestige,
+      countryCode: competition.countryCode,
+    })
+    .from(competition)
+    .where(lte(competition.tier, CATALOG_MAX_TIER));
+  // quem entra não depende dos jogos recentes (só o desempate da liga principal fora de `featured`)
+  const codes = [
+    ...mainLeagues(
+      catalogRows.map((r) => ({ ...r, recent: 0 })),
+      geo,
+    ).keys(),
+  ];
+
+  const [sportRows, participantCounts, recentRows, windowRows, teamRows, provisionalRows] = await Promise.all(
+    [
       db.select({ slug: sport.slug }).from(sport),
       db.select({ sport: participant.sport, n: count() }).from(participant).groupBy(participant.sport),
-      db
-        .select({
-          id: competition.id,
-          sport: competition.sport,
-          slug: competition.slug,
-          type: competition.type,
-          tier: competition.tier,
-          prestige: competition.prestige,
-          countryCode: competition.countryCode,
-        })
-        .from(competition)
-        .where(lte(competition.tier, 2)),
       db
         .select({ id: event.competitionId, n: count() })
         .from(event)
@@ -132,7 +144,8 @@ export async function computeExploreSnapshot(
           lt(event.startsAt, new Date(now.getTime() + ANNOUNCED_DAYS * DAY_MS)),
         ),
       ),
-    ]);
+    ],
+  );
 
   // ── catálogo: destaques por esporte, liga principal e contagem por país
   const recent = new Map(recentRows.map((r) => [r.id, Number(r.n)]));
@@ -164,11 +177,9 @@ export async function computeExploreSnapshot(
   const countries: Record<string, CountryEntry> = {};
   const countrySports: ExploreSnapshot['countrySports'] = {};
   const eventSports = new Set([...windowBySport.keys(), ...provisionalBySport.keys()]);
+  const mains = mainLeagues(catalog, geo);
   for (const code of codes) {
-    const main = pickMainCompetition(
-      catalog.filter((c) => c.sport === MAIN_SPORT && c.countryCode === code),
-      (s, slug) => geo.featuredOrder(s, slug),
-    );
+    const main = mains.get(code);
     const teams = teamRows.filter((t) => t.country_code === code).map((t) => t.id);
     countries[code] = {
       competitions: catalog.filter((c) => c.countryCode === code).length,
@@ -255,6 +266,16 @@ export function selectForScope(
     });
   }
   return { generatedAt: snapshot.generatedAt, window: snapshot.window, sports, countries };
+}
+
+/**
+ * Os países da navegação no resumo: os que têm liga principal. O resumo gravado antes desta regra (países de uma lista
+ * fixa) também serve: o país sem liga no catálogo fica de fora, e a próxima conta do job já traz a lista do banco.
+ */
+export function snapshotCountryCodes(snapshot: Pick<ExploreSnapshot, 'countries'>): string[] {
+  return Object.entries(snapshot.countries)
+    .filter(([, c]) => c.mainCompetition !== null)
+    .map(([code]) => code);
 }
 
 /** Os números do esporte no recorte (zerados quando o esporte não está no resumo). */

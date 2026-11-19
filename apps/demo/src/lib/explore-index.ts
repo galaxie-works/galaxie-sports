@@ -5,7 +5,7 @@
  */
 import type { ExploreSport, ExploreSummary } from '@galaxie/contracts';
 
-import { COUNTRIES, SPORTS } from './navigation';
+import { FALLBACK_COUNTRIES, SPORTS } from './navigation';
 import { SPORT_FAMILIES, familyHref, type SportFamily } from './sport-families';
 
 /** Para onde cada número da home leva. */
@@ -28,7 +28,8 @@ export interface ExploreTotals {
 export function exploreTotals(summary: ExploreSummary | null): ExploreTotals {
   return {
     sports: SPORTS.length,
-    countries: summary?.countries.length ?? COUNTRIES.length,
+    // os países vêm do resumo (do banco); a reserva só sem a API
+    countries: summary?.countries.length ?? FALLBACK_COUNTRIES.length,
     upcoming: summary ? summary.sports.reduce((n, s) => n + s.upcoming, 0) : null,
     live: summary ? summary.sports.reduce((n, s) => n + s.live, 0) : null,
   };

@@ -2,8 +2,12 @@ import { describe, expect, it } from 'vitest';
 
 import { getDictionary } from './i18n/dictionary';
 import {
+  FALLBACK_COUNTRIES,
   SPORTS,
+  confederationLabel,
+  countryGroups,
   countryHref,
+  countryName,
   eventCompetitionHref,
   idFromSlug,
   participantHref,
@@ -67,5 +71,54 @@ describe('rotas de piloto e lutador', () => {
     expect(idFromSlug('max-verstappen-01a16675-379b-7b21-bf12-33042e33ebad')).toBe(max.id);
     expect(idFromSlug(max.id)).toBe(max.id);
     expect(idFromSlug('max-verstappen')).toBeNull();
+  });
+});
+
+describe('países da navegação: do banco (resposta da API), não da lista fixa', () => {
+  // a resposta como a API monta: os países com liga nacional no catálogo, por confederação, na ordem dela
+  const summary = {
+    confederations: [
+      { code: 'CONMEBOL', name: 'CONMEBOL (América do Sul)', countries: ['BR', 'AR', 'VE'] },
+      { code: 'CONCACAF', name: 'CONCACAF', countries: ['MX', 'US'] },
+      { code: 'UEFA', name: 'UEFA (Europa)', countries: ['GB-ENG', 'PT', 'NL'] },
+      { code: 'AFC', name: 'AFC (Ásia)', countries: ['SA'] },
+    ],
+  };
+
+  it('a lista e os grupos vêm da resposta, inclusive países fora da lista de reserva (EUA, Holanda)', () => {
+    const groups = countryGroups(summary);
+    expect(groups.map((g) => [g.code, g.countries.map((c) => c.code)])).toEqual([
+      ['CONMEBOL', ['BR', 'AR', 'VE']],
+      ['CONCACAF', ['MX', 'US']],
+      ['UEFA', ['GB-ENG', 'PT', 'NL']],
+      ['AFC', ['SA']],
+    ]);
+    const all = groups.flatMap((g) => g.countries);
+    // não é a constante: tem país que ela não tem e não tem os que a resposta não trouxe
+    expect(all.map((c) => c.code)).not.toEqual(FALLBACK_COUNTRIES.map((c) => c.code));
+    expect(all.find((c) => c.code === 'US')).toEqual({
+      code: 'US',
+      group: 'CONCACAF',
+      href: '/countries/us',
+    });
+    expect(all.find((c) => c.code === 'NL')).toEqual({ code: 'NL', group: 'UEFA', href: '/countries/nl' });
+    expect(all.some((c) => c.code === 'UY')).toBe(false);
+  });
+
+  it('sem a API, a lista de reserva nas três confederações de sempre', () => {
+    const groups = countryGroups(null);
+    expect(groups.map((g) => g.code)).toEqual(['CONMEBOL', 'CONCACAF', 'UEFA']);
+    expect(groups.flatMap((g) => g.countries)).toHaveLength(FALLBACK_COUNTRIES.length);
+  });
+
+  it('nome: o do dicionário, senão o da API, senão o do navegador; confederações novas têm subtítulo', () => {
+    const pt = getDictionary('pt-BR');
+    expect(countryName(pt, 'pt-BR', 'GB-ENG', 'England')).toBe('Inglaterra');
+    expect(countryName(pt, 'pt-BR', 'NL', 'Holanda')).toBe('Holanda');
+    expect(countryName(getDictionary('es-AR'), 'es-AR', 'US')).toBe('Estados Unidos');
+    expect(countryName(pt, 'pt-BR', 'GB-SCT')).toBe('GB-SCT');
+    for (const locale of ['pt-BR', 'en', 'es-AR'] as const)
+      for (const code of ['CONMEBOL', 'CONCACAF', 'UEFA', 'AFC', 'CAF', 'OFC'])
+        expect(confederationLabel(getDictionary(locale), code), `${locale} ${code}`).toBeTruthy();
   });
 });

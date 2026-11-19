@@ -9,6 +9,12 @@ competições com jogos recentes) sai do caminho da requisição (#596): o job `
 
 ## O que tem
 
+- `countries`: os países da navegação vêm do catálogo, não de lista fixa. Um país entra quando tem liga nacional
+  do futebol no catálogo ativo (tier 1–2 de `core.competition`, sem os estaduais e regionais); a liga principal é a de
+  menor tier e, nele, a primeira de `featured` (config/geo), a marcação editorial das divisões. `compareCountries`
+  ordena por confederação, tier e `featured` da liga principal, jogos em 7 dias e nome. O job grava a lista no resumo
+  (`snapshotCountryCodes`); o menu, a agenda e `/v1/navigation` usam `loadNavigationCountries` (só as ligas do
+  catálogo, sem tocar em `core.event`).
 - `choices`: as escolhas em funções puras (`rankTopCompetitions`, `pickMainCompetition`, `countryActivity`,
   `announcedCandidates`, `pickAnnounced`, `compareHighlight`). A relevância sai com os códigos e os pontos dos motivos;
   os textos, no idioma pedido, são da API.
@@ -41,10 +47,19 @@ produção em 17/11, acima do `statement_timeout` de 10 s da API). A idade apare
 ## Como usar
 
 ```ts
-import { computeExploreSnapshot, loadExploreSnapshot, saveExploreSnapshot, selectForScope } from '@galaxie/explore';
+import {
+  computeExploreSnapshot,
+  loadExploreSnapshot,
+  loadNavigationCountries,
+  saveExploreSnapshot,
+  selectForScope,
+  snapshotCountryCodes,
+} from '@galaxie/explore';
 
 await saveExploreSnapshot(db, await computeExploreSnapshot(db, geo, new Date())); // ingestor
-const selection = selectForScope((await loadExploreSnapshot(db))!, geo.navigationCountries, tenantSports); // API
+const snapshot = (await loadExploreSnapshot(db))!;
+const selection = selectForScope(snapshot, snapshotCountryCodes(snapshot), tenantSports); // API
+const countries = await loadNavigationCountries(db, geo); // menu, agenda e /v1/navigation (consulta leve)
 ```
 
 ```bash

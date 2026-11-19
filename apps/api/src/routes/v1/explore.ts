@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { ExploreAgendaQuery, ExploreSummaryQuery } from '@galaxie/contracts';
+import { loadNavigationCountries } from '@galaxie/explore';
 import { loadGeoConfig, type GeoConfig } from '@galaxie/geo';
 import { sendCached } from '../../cache/http.js';
 import type { AppContext } from '../../context.js';
@@ -78,10 +79,13 @@ export async function exploreRoutes(
       ttl: EXPLORE_TTL,
       vary: [locale, tz, `market:${market ?? ''}`, ...(sports ?? [])],
       load: async () => {
-        const body = await loadExploreAgenda(buildCtx(ctx, locale, tz), {
+        const bctx = buildCtx(ctx, locale, tz);
+        // os mesmos países do resumo: os que têm liga nacional de primeira divisão no catálogo (consulta leve, sem jogos)
+        const countries = (await loadNavigationCountries(bctx.db, geoConfig())).map((c) => c.code);
+        const body = await loadExploreAgenda(bctx, {
           sports,
           filters: { sport: query.sport, country: query.country, competition: query.competition },
-          countries: geoConfig().navigationCountries,
+          countries,
           market,
           day: query.day,
           limit: query.limit,

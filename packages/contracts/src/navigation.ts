@@ -39,7 +39,10 @@ export const CountryDetail = z
     ioc_code: z.string().nullable().meta({ example: 'BRA' }),
     flag: AssetUrl,
     confederation: ConfederationRef.nullable(),
-    in_navigation: z.boolean().meta({ description: 'O país está no menu de navegação da demo.' }),
+    in_navigation: z.boolean().meta({
+      description:
+        'O país está na navegação: tem liga nacional de primeira divisão no catálogo ativo (tier 1–2).',
+    }),
   })
   .meta({ id: 'CountryDetail' });
 export type CountryDetail = z.infer<typeof CountryDetail>;
@@ -120,7 +123,11 @@ export type NavigationCountry = z.infer<typeof NavigationCountry>;
 export const Navigation = z
   .object({
     sports: z.array(NavigationSport),
-    countries: z.array(NavigationCountry),
+    countries: z.array(NavigationCountry).meta({
+      description:
+        'Países com liga nacional de primeira divisão no catálogo ativo (tier 1–2), por confederação e, dentro dela, ' +
+        'pelo peso da liga principal (tier e a ordem editorial das divisões), depois pelo nome.',
+    }),
     confederations: z
       .array(ConfederationRef.extend({ countries: z.array(z.string()).meta({ example: ['BR', 'AR'] }) }))
       .meta({ description: 'Seções do menu: países da navegação agrupados por confederação.' }),

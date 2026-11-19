@@ -1,10 +1,10 @@
 import { LoadingStatus } from '@/components/app-shell/loading-status';
 import { Skeleton } from '@/components/ui/skeleton';
 import { countryLayout, FEATURED_SPORT } from '@/lib/explore';
-import { COUNTRIES, SPORTS } from '@/lib/navigation';
+import { countryGroups, SPORTS } from '@/lib/navigation';
 import { cn } from '@/lib/utils';
 
-import { CONFEDERATIONS, COUNTRY_GRID, FEATURED_SPORT_SPAN, SPORT_GRID } from './layout';
+import { COUNTRY_GRID, FEATURED_SPORT_SPAN, SPORT_GRID } from './layout';
 
 /** Esqueleto da home com a mesma grade bento dos cards, para nada pular quando os dados chegam. */
 export function ExploreSkeleton() {
@@ -30,12 +30,13 @@ export function ExploreSkeleton() {
           <Skeleton className="min-h-44 rounded-xl" />
         </div>
       </div>
-      {CONFEDERATIONS.map((group) => (
-        <div key={group} className="flex flex-col gap-3">
+      {/* forma aproximada (a lista de reserva): os países de verdade chegam com o resumo */}
+      {countryGroups(null).map((group) => (
+        <div key={group.code} className="flex flex-col gap-3">
           <Skeleton className="h-6 w-56" />
           <div className={COUNTRY_GRID}>
             {countryLayout(
-              COUNTRIES.filter((c) => c.group === group).map((c) => c.code),
+              group.countries.map((c) => c.code),
               'BR',
             ).map(({ code, wide }) => (
               <Skeleton key={code} className={cn('min-h-60 rounded-xl', wide && 'sm:col-span-2')} />

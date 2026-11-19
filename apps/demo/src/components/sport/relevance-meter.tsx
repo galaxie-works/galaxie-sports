@@ -8,17 +8,14 @@ import { relevanceMarket, type Locale } from '@/lib/i18n/config';
 import type { Dictionary } from '@/lib/i18n/dictionary';
 import { getI18n } from '@/lib/i18n/server';
 import { fill } from '@/lib/i18n/text';
-import { COUNTRIES } from '@/lib/navigation';
+import { countryName } from '@/lib/navigation';
 
-/** País do mercado na navegação da demo (GB = Inglaterra). */
-function marketCountry(code: string) {
-  return COUNTRIES.find((x) => x.code === code || (code === 'GB' && x.code === 'GB-ENG'));
-}
+/** Código do país do mercado como a api-sports grava (o mercado GB é a Inglaterra, GB-ENG). */
+const marketCountry = (code: string) => (code === 'GB' ? 'GB-ENG' : code);
 
-function marketName(code: string, t: Dictionary): string {
-  const c = marketCountry(code);
-  return c ? t.nav.countries[c.code] : code;
-}
+/** Nome do mercado no idioma da tela: qualquer país, não só os da lista de reserva da navegação. */
+const marketName = (code: string, locale: Locale, t: Dictionary): string =>
+  countryName(t, locale, marketCountry(code));
 
 function Line({ label, value, detail }: { label: string; value: number; detail?: string | undefined }) {
   return (
@@ -85,13 +82,13 @@ function rowsOf(event: Event, locale: Locale, t: Dictionary): CountryRelevanceRo
   const mine = relevanceMarket(locale);
   return (event.relevance_by_market ?? []).map((r) => ({
     market: r.market,
-    flag: marketCountry(r.market)?.code ?? r.market,
-    name: marketName(r.market, t),
+    flag: marketCountry(r.market),
+    name: marketName(r.market, locale, t),
     score: r.score,
     bonus: r.bonus,
     reasons: r.details.map((d) => ({ code: d.code, points: d.points, text: reasonText(d, locale, t) })),
     highlighted: r.market === mine,
-    label: fill(t.event.relevance.marketLabel, { market: marketName(r.market, t) }),
+    label: fill(t.event.relevance.marketLabel, { market: marketName(r.market, locale, t) }),
   }));
 }
 

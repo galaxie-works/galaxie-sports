@@ -21,7 +21,9 @@
 #                     (Copa América) ou recortes (Leagues Cup = México e EUA).
 #   featured        - domésticas nacionais em destaque: vêm primeiro no grupo do país, nesta ordem e antes
 #                     do tier — as divisões em ordem, depois as copas nacionais (Série A, B, C, D, Copa do
-#                     Brasil). A primeira de cada país é a liga principal.
+#                     Brasil). A primeira de cada país é a liga principal: todo país com liga nacional
+#                     no catálogo (tier 1–2) precisa dela aqui, e é essa liga que põe o país na
+#                     navegação (home Explorar, menu, /v1/navigation; o teste de packages/geo cobra).
 #   regional        - domésticas estaduais ou regionais (Carioca, Copa do Nordeste): saem das nacionais e
 #                     formam o grupo "Estaduais e regionais" da página do país, nesta ordem (dentro do
 #                     mesmo tier); na API, `level: regional`. As demais domésticas são `national`.
@@ -104,6 +106,22 @@ sports:
         dfb-pokal,
         ligue-1,
         coupe-de-france,
+        # a primeira de cada país é a liga principal (home Explorar): sem ela, duas ligas do mesmo tier caíam no
+        # desempate por jogos no ano, e a Liga Portugal 2 e a Segunda División venezuelana passavam à frente
+        peru-liga-1,
+        peru-segunda-division,
+        ecuador-ligapro-serie-a,
+        ecuador-liga-pro-serie-b,
+        bolivia-primera-division,
+        bolivia-nacional-b,
+        venezuela-primera-division,
+        venezuela-segunda-division,
+        primeira-liga,
+        liga-portugal-2,
+        taca-de-portugal,
+        eredivisie,
+        mls,
+        saudi-pro-league,
       ]
     regional:
       [

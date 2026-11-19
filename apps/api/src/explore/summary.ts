@@ -13,13 +13,16 @@ import type { FastifyBaseLogger } from 'fastify';
 import type { Event, ExploreCompetition, ExploreSummary, ExploreTeam } from '@galaxie/contracts';
 import { asset, competition, competitionProfile, country, sport, type AssetPalette } from '@galaxie/db';
 import {
+  compareCountries,
   computeExploreSnapshot,
   continentalSlugs,
   EXPLORE_MAX_AGE_MS,
   EXPLORE_STALE_MAX_AGE_MS,
   loadExploreSnapshot,
+  MAIN_SPORT,
   selectForScope,
   selectWindowEvents as selectWindowRows,
+  snapshotCountryCodes,
   sportOf,
   type CountryCandidate,
   type ExploreSnapshot,
@@ -150,8 +153,9 @@ export async function loadExploreSummary(
   log?: Log,
 ): Promise<ExploreSummary> {
   const { db, locale } = bctx;
-  const codes = geo.navigationCountries;
   const { snapshot } = await exploreSnapshotFor(bctx, geo, log);
+  // os países vêm do catálogo (os que têm liga nacional de primeira divisão), já escolhidos pelo job: nada de lista fixa
+  const codes = snapshotCountryCodes(snapshot);
   const selection = selectForScope(snapshot, codes, sports);
 
   const competitionIds = [
@@ -295,7 +299,7 @@ export async function loadExploreSummary(
       },
     };
   };
-  const countriesDto: ExploreSummary['countries'] = codes.map((code) => {
+  const unordered: ExploreSummary['countries'] = codes.map((code) => {
     const cfg = geo.country(code);
     const row = dbCountry.get(code);
     const c = selection.countries.get(code)!;
@@ -318,6 +322,27 @@ export async function loadExploreSummary(
       announced: c.announced.flatMap((a) => withRelevance(code, a) ?? []),
     };
   });
+  // ordem estável: confederação (config/geo), peso da liga principal no catálogo (tier e `featured`), jogos em 7 dias
+  // e o nome no idioma da resposta
+  const order = compareCountries(
+    geo.confederations.map((c) => c.code),
+    locale,
+  );
+  const keyOf = (c: ExploreSummary['countries'][number]) => {
+    const main = c.main_competition;
+    return {
+      code: c.code,
+      confederation: c.confederation.code,
+      tier: main?.tier ?? Number.MAX_SAFE_INTEGER,
+      featured: main ? geo.featuredOrder(MAIN_SPORT, main.slug) : null,
+      upcoming: c.upcoming,
+      name: c.name,
+    };
+  };
+  const countriesDto = unordered
+    .map((c) => ({ c, key: keyOf(c) }))
+    .sort((a, b) => order(a.key, b.key))
+    .map(({ c }) => c);
   const confederations: ExploreSummary['confederations'] = [];
   for (const c of countriesDto) {
     let section = confederations.find((s) => s.code === c.confederation.code);
