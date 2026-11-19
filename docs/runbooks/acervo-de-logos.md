@@ -188,6 +188,31 @@ A pasta de origem pode crescer e mudar à vontade: o fluxo inteiro é idempotent
 3. Rode o `--mapear` contra o manifesto versionado: os vínculos `manual` e `rejected` ficam, os logos novos entram, e os que saíram da pasta somem do manifesto (o time volta ao logo do fornecedor na importação).
 4. Revise o relatório `<id>.cobertura.md` e os ambíguos, versione o manifesto e importe. Logo que não mudou não é regravado, e um asset importado antes da `0062` ganha os formatos na primeira reimportação.
 
+## Logos de time da Wikimedia Commons (construtores da F1)
+
+Não é acervo: é o mesmo caminho do logo da F1 (`assets:competition-logos`), para **time** sem logo do fornecedor. A
+api-sports só tem logo das 20 equipes recentes da F1; os construtores históricos (do f1db) chegam sem imagem.
+
+| Peça | Onde |
+| --- | --- |
+| Lista curada | `config/assets/commons/team-logos.yaml`: time (esporte, fornecedor e id, ex.: `f1db`/`lola`) → arquivo `File:` da Commons, com o QID do Wikidata e a origem da escolha |
+| Fonte | O logo (P154) do item do Wikidata da equipe, achado pelo verbete da Wikipédia que o Jolpica/Ergast publica, ou uma busca na Commons conferida à mão (prancha com as miniaturas). Fora: foto do logo no carro, miniatura pequena, outra empresa com o mesmo nome, licença duvidosa (ex.: CC BY-SA com autor "freepng") |
+| Licença | Conferida no `extmetadata` a cada execução (domínio público, CC0, CC BY, CC BY-SA; CC BY exige autor). Crédito em `core.asset_credit`; a API publica em `logo_credit` do `/v1/teams/{id}` |
+| Storage | `commons/teams/<id do time>.<sha256[0:12]>.png` (miniatura PNG de 512 px da Commons; o SVG nunca é servido), `core.asset` com `origin = commons`, `kind = team_logo` e a paleta do PNG (cores do time) |
+| Vínculo | `core.participant.logo_asset_id`, só quando está vazio (ou já é da Commons). Logo do fornecedor nunca é trocado. A troca sai no change feed e a API purga o time |
+| Flag | Nenhuma: vale com `ASSETS_CUSTOM_LOGOS` desligada, porque a licença do arquivo permite o uso |
+
+```bash
+# prévia (não grava nada; só lê o banco e a Commons)
+docker compose run --rm --no-deps ingestor node dist/cli/team-logos.js --plan
+# gravar (idempotente; rodar de novo não regrava). --refazer baixa de novo o que já veio da Commons
+docker compose run --rm --no-deps ingestor node dist/cli/team-logos.js
+```
+
+São ~2 requisições de metadados à Commons e um download por logo (dezenas de arquivos, segundos de CPU). Zero
+chamadas ao fornecedor. Marca registrada: a licença cobre o direito autoral do arquivo, não a marca; uso editorial
+(identificar a equipe), sem sugerir endosso.
+
 ## Produção (VPS)
 
 O pacote e o manifesto da produção moram no S3 da stack, e a importação roda como **contêiner avulso**. Nada vai para o

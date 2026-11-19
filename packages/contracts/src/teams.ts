@@ -5,6 +5,7 @@ import {
   AssetUrl,
   CountryRef,
   LocaleQuery,
+  LogoCredit,
   LogoFormats,
   LogoSizes,
   LogoSource,
@@ -41,6 +42,10 @@ export const Team = TeamSummary.extend({
   logo_source: LogoSource,
   logo_formats: LogoFormats,
   logo_sizes: LogoSizes,
+  logo_credit: LogoCredit.nullable().meta({
+    description:
+      'Crédito do logo quando ele vem da Wikimedia Commons (`logo_source` = `commons`, ex.: construtores históricos da F1); null nos demais.',
+  }),
   country_ref: CountryRef.nullable(),
   founded: z.number().int().nullable(),
   venue: z
