@@ -9,7 +9,10 @@
  * - Perfil excluído não recebe lançamento novo;
  * - o estorno tira o que o lançamento deu; se parte do Saldo já foi gasta, tira só o que sobrou (os Pontos saem
  *   inteiros, porque nunca foram gastos);
- * - evento estornado não credita mais, nem quando o estorno chega antes do crédito (`fan.points_revoked_event`).
+ * - evento estornado não credita mais, nem quando o estorno chega antes do crédito (`fan.points_revoked_event`);
+ * - o Nível vem do maior total de Pontos que o torcedor já teve no programa (o estorno não tira Nível); o crédito
+ *   que passa desse maior total e do mínimo de um Nível novo (`game.level_def`) avisa o cliente
+ *   (`game.level.reached`), na mesma transação, uma vez por Nível.
  */
 import { and, desc, eq, lt, sql } from 'drizzle-orm';
 import type { Database } from './client.js';
@@ -23,6 +26,7 @@ import {
   type FanPointsReason,
   type FanPointsSource,
 } from './schema/fan.js';
+import { publishWebhookEvent } from './webhooks.js';
 
 /** Motivos que creditam (o resgate e o estorno têm função própria). */
 export type FanCreditReason = Exclude<FanPointsReason, 'redeem' | 'revert'>;
@@ -211,6 +215,8 @@ async function apply(
 ): Promise<FanLedgerEntry> {
   const pointsAfter = current.points + entry.pointsDelta;
   const balanceAfter = current.balance + entry.balanceDelta;
+  // o maior total antes deste lançamento (um estorno seguido de crédito novo não avisa o mesmo Nível duas vezes)
+  const peakBefore = entry.pointsDelta > 0 ? Math.max(current.points, await peakPoints(tx, key)) : 0;
   await tx
     .update(fanWallet)
     .set({ points: pointsAfter, balance: balanceAfter, updatedAt: sql`now()` })
@@ -238,7 +244,81 @@ async function apply(
       note: entry.note ?? null,
     })
     .returning(entryColumns);
+  if (entry.pointsDelta > 0 && pointsAfter > peakBefore)
+    await announceLevel(tx, key, peakBefore, pointsAfter, entry.sourceEvent);
   return row!;
+}
+
+/** Nível de uma quantidade de Pontos e o mínimo do próximo (`game.level_def`, igual para todos os clientes). */
+export interface FanLevel {
+  level: number;
+  minPoints: number;
+  /** Mínimo do próximo Nível; null no último. */
+  nextMinPoints: number | null;
+}
+
+/** Níveis por Pontos: o maior com mínimo até `points`. Sem Nível cadastrado, o 1 a partir de zero. */
+export async function levelForPoints(db: Pick<Database, 'execute'>, points: number): Promise<FanLevel> {
+  const [row] = await db.execute<{
+    level: number | null;
+    min_points: string | null;
+    next_min: string | null;
+  }>(sql`
+    select (select level from game.level_def where min_points <= ${points} order by min_points desc limit 1) as level,
+           (select min_points from game.level_def where min_points <= ${points} order by min_points desc limit 1)
+             as min_points,
+           (select min(min_points) from game.level_def where min_points > ${points}) as next_min`);
+  return {
+    level: row?.level ?? 1,
+    minPoints: row?.min_points === null || row?.min_points === undefined ? 0 : Number(row.min_points),
+    nextMinPoints: row?.next_min === null || row?.next_min === undefined ? null : Number(row.next_min),
+  };
+}
+
+/** Maior total de Pontos que o Perfil já teve no programa (o extrato guarda os Pontos depois de cada lançamento). */
+export async function peakPoints(db: Pick<Database, 'execute'>, key: FanWalletKey): Promise<number> {
+  const [row] = await db.execute<{ peak: string | null }>(sql`
+    select max(points_after) as peak from fan.points_ledger
+     where tenant_id = ${key.tenantId} and profile_id = ${key.profileId} and program_country = ${key.programCountry}`);
+  return row?.peak === null || row?.peak === undefined ? 0 : Number(row.peak);
+}
+
+/**
+ * Crédito que passou do maior total anterior: avisa se entrou num Nível novo (uma leitura só; um crédito grande
+ * pode pular Níveis e o aviso traz o mais alto).
+ */
+async function announceLevel(
+  tx: Tx,
+  key: FanWalletKey,
+  before: number,
+  after: number,
+  sourceEvent: string,
+): Promise<void> {
+  const [row] = await tx.execute<{
+    level: number | null;
+    min_points: string | null;
+    previous: number | null;
+  }>(sql`
+    select n.level, n.min_points,
+           (select level from game.level_def where min_points <= ${before} order by min_points desc limit 1)
+             as previous
+      from (select level, min_points from game.level_def
+             where min_points > ${before} and min_points <= ${after}
+             order by min_points desc limit 1) n`);
+  if (!row || row.level === null) return;
+  await publishWebhookEvent(tx, {
+    tenantId: key.tenantId,
+    topic: 'game.level.reached',
+    data: {
+      profile_id: key.profileId,
+      program_country: key.programCountry,
+      level: row.level,
+      previous_level: row.previous ?? 1,
+      points: after,
+      min_points: Number(row.min_points),
+      source_event: sourceEvent,
+    },
+  });
 }
 
 /**

@@ -273,6 +273,54 @@ describe('Palpite e Ranking (#942)', () => {
     );
     expect(steps!.n).toBe(4); // vitalícia e temporada de cada um
 
+    // webhooks do #913: a Carta de cada Degrau e o Nível pelos Pontos (320 = Nível 3), com a regra e o fato
+    const feed = async (topic: string) =>
+      (
+        await db.execute<{ data: Record<string, unknown> }>(
+          sql`select payload->'data' as data from ops.change_feed where topic = ${topic} order by id`,
+        )
+      ).map((r) => r.data);
+    const granted = await feed('game.card.granted');
+    expect(granted.map((d) => d.card_key).sort()).toEqual(
+      expect.arrayContaining(['predictions.correct.1', 'predictions.exact_score.1']),
+    );
+    expect(granted[0]).toMatchObject({ rule_version: 1, program_country: 'BR' });
+    expect(typeof granted[0]!.source_event).toBe('string');
+    expect((await feed('game.achievement.step_reached'))[0]).toHaveProperty('source_event');
+    const levels = await feed('game.level.reached');
+    expect(levels.length).toBeGreaterThanOrEqual(1);
+    expect(levels.at(-1)).toMatchObject({ level: 3, min_points: 300 });
+    expect(Number(levels.at(-1)!.points)).toBeGreaterThanOrEqual(300);
+    expect(levels.every((d) => !('email' in d) && !('nickname' in d))).toBe(true);
+    const walletRes = await app.inject({ method: 'GET', url: '/v1/fans/me/wallet', headers: auth(a.token) });
+    expect(walletRes.json().data[0]).toMatchObject({
+      points: 320,
+      level: { level: 3, min_points: 300, next_min_points: 700 },
+    });
+
+    // leitura pelo servidor do cliente (chave secreta), pelos ids do sistema dele
+    const summary = await app.inject({
+      method: 'GET',
+      url: `/v1/fans/${a.account}/profiles/${a.profile}/game`,
+      headers: { 'x-galaxie-key': t.key },
+    });
+    expect(summary.statusCode).toBe(200);
+    expect(summary.json().data).toMatchObject({ program_country: 'BR', points: 320, level: { level: 3 } });
+    expect((summary.json().data.cards as unknown[]).length).toBeGreaterThanOrEqual(2);
+    // o token do torcedor não serve nessa rota
+    const asFan = await app.inject({
+      method: 'GET',
+      url: `/v1/fans/${a.account}/profiles/${a.profile}/game`,
+      headers: auth(a.token),
+    });
+    expect(asFan.statusCode).toBe(401);
+    const missing = await app.inject({
+      method: 'GET',
+      url: `/v1/fans/${a.account}/profiles/nao_existe/game`,
+      headers: { 'x-galaxie-key': t.key },
+    });
+    expect(missing.statusCode).toBe(404);
+
     // quem já ganhou: o total conta todos; a lista só mostra quem deixou as Conquistas públicas
     const earners = () =>
       app.inject({
@@ -322,6 +370,30 @@ describe('Palpite e Ranking (#942)', () => {
       headers: auth(o.token),
     });
     expect(otherRanking.json().data.entries).toEqual([]);
+    // outro cliente, pela chave secreta dele, não acha o Perfil deste
+    const crossTenant = await app.inject({
+      method: 'GET',
+      url: `/v1/fans/${a.account}/profiles/${a.profile}/game`,
+      headers: { 'x-galaxie-key': other.key },
+    });
+    expect(crossTenant.statusCode).toBe(404);
+
+    // Ranking pelo servidor do cliente: o mesmo do torcedor
+    const serverRanking = await app.inject({
+      method: 'GET',
+      url: `/v1/game/rankings/${period}?country=BR`,
+      headers: { 'x-galaxie-key': t.key },
+    });
+    expect(serverRanking.statusCode).toBe(200);
+    expect((serverRanking.json().data.entries as { points: number }[]).map((e) => e.points)).toEqual([
+      320, 40,
+    ]);
+    const noCountry = await app.inject({
+      method: 'GET',
+      url: `/v1/game/rankings/${period}`,
+      headers: { 'x-galaxie-key': t.key },
+    });
+    expect(noCountry.statusCode).toBe(400);
 
     // exclusão do torcedor tira do Ranking
     await eraseFan(db, {
