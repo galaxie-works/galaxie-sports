@@ -341,6 +341,9 @@ export default defineMessages(
         cancel: 'Cancelar',
         creating: 'A Cosmos está lendo o brandbook. Pode levar alguns minutos.',
         charged: 'Tema montado. Foram usados {credits} créditos.',
+        staffCost:
+          'Equipe Galaxie: a leitura sai da conta da Galaxie, não dos créditos do cliente (equivale a cerca de {credits} créditos; páginas: {pages}).',
+        staffCharged: 'Tema montado. A leitura foi lançada na conta da Galaxie; o cliente não pagou nada.',
         pick: 'Versão',
         light: 'Clara',
         dark: 'Escura',
@@ -1436,6 +1439,9 @@ export default defineMessages(
           cancel: 'Cancel',
           creating: 'Cosmos is reading the brandbook. This can take a few minutes.',
           charged: 'Theme ready. {credits} credits were used.',
+          staffCost:
+            "Galaxie team: this reading is billed to Galaxie's account, not to the client's credits (worth about {credits} credits; pages: {pages}).",
+          staffCharged: "Theme ready. The reading was billed to Galaxie's account; the client paid nothing.",
           pick: 'Version',
           light: 'Light',
           dark: 'Dark',
@@ -2534,6 +2540,9 @@ export default defineMessages(
           cancel: 'Cancelar',
           creating: 'Cosmos está leyendo el brandbook. Puede tardar unos minutos.',
           charged: 'Tema listo. Se usaron {credits} créditos.',
+          staffCost:
+            'Equipo Galaxie: la lectura se carga a la cuenta de Galaxie, no a los créditos del cliente (equivale a unos {credits} créditos; páginas: {pages}).',
+          staffCharged: 'Tema listo. La lectura se cargó a la cuenta de Galaxie; el cliente no pagó nada.',
           pick: 'Versión',
           light: 'Clara',
           dark: 'Oscura',

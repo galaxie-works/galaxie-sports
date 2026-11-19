@@ -39,7 +39,14 @@ type Quote = { credits: number; pages: number };
  * "Criar com a Cosmos" (#1004): envia o PDF, mostra o custo estimado e, com a confirmação, devolve os temas para o
  * editor. O mesmo arquivo vai nas duas etapas (o servidor não guarda o PDF entre elas).
  */
-export function BrandbookDialog({ onResult }: { onResult: (r: BrandbookResult) => void }) {
+export function BrandbookDialog({
+  onResult,
+  staff = false,
+}: {
+  onResult: (r: BrandbookResult) => void;
+  /** Equipe Galaxie: a leitura sai da conta da Galaxie, não dos créditos do cliente (#1392). */
+  staff?: boolean;
+}) {
   const { t } = useI18n();
   const c = t.client.themes.cosmos;
   const [open, setOpen] = useState(false);
@@ -126,7 +133,7 @@ export function BrandbookDialog({ onResult }: { onResult: (r: BrandbookResult) =
         {quote ? (
           <Alert>
             <AlertDescription>
-              {fill(c.cost, { credits: quote.credits, pages: quote.pages })}
+              {fill(staff ? c.staffCost : c.cost, { credits: quote.credits, pages: quote.pages })}
             </AlertDescription>
           </Alert>
         ) : null}
