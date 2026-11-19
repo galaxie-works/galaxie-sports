@@ -61,23 +61,28 @@ export async function ClientArea({
 }) {
   const [ctx, t, fmt] = await Promise.all([requireClientContext(), getT(), getFormatters()]);
   const { tenant } = ctx;
-  const byState = tenant ? sectionsForState(tenant.state) : null;
-  // áreas que o estado da conta (F3), o cargo (#1019) e os módulos do tenant (#1018) abrem; o resto some do menu e a
-  // página mostra o aviso
-  const opens = (id: ClientSection) => {
-    if (byState && !byState.includes(id)) return false;
-    const req = navRequirement(id);
-    if (req.action && !(req.scoped ? canSomewhere(ctx, req.action) : can(ctx, req.action))) return false;
-    if (req.module && !tenant?.modules.includes(req.module)) return false;
-    return true;
-  };
-  const visible = tenant ? CLIENT_NAV.map((i) => i.id).filter(opens) : undefined;
-  const denied = tenant ? !opens(section) : false;
   const staff = isStaffRole(ctx.role);
+  // a equipe Galaxie entra em toda área de qualquer tenant, em qualquer estado da conta (regra do dono, 19/11: corrigir,
+  // configurar e monitorar o app todo); o aviso do estado continua aparecendo para ela
+  const byState = tenant && !staff ? sectionsForState(tenant.state) : null;
+  // áreas que o estado da conta (F3), o cargo (#1019) e os módulos do tenant (#1018) abrem; o resto some do menu e a
+  // página mostra o aviso com o motivo. A equipe Galaxie entra em toda área de qualquer tenant para corrigir,
+  // configurar e monitorar (regra do dono, 19/11), mesmo com o módulo fora do plano
+  const blockedBy = (id: ClientSection): 'state' | 'role' | 'module' | null => {
+    if (byState && !byState.includes(id)) return 'state';
+    const req = navRequirement(id);
+    if (req.action && !(req.scoped ? canSomewhere(ctx, req.action) : can(ctx, req.action))) return 'role';
+    if (req.module && !staff && !tenant?.modules.includes(req.module)) return 'module';
+    return null;
+  };
+  const opens = (id: ClientSection) => blockedBy(id) === null;
+  const visible = tenant ? CLIENT_NAV.map((i) => i.id).filter(opens) : undefined;
+  const denial = tenant ? blockedBy(section) : null;
+  const denied = denial !== null;
   // a equipe num tenant de cliente escreve só com motivo (PL17): a moldura mostra o motivo em vigor ou cobra um
   const staffOnClient = staff && tenant !== null && !tenant.isGalaxie;
   // só a tela do estado: nada da página renderiza
-  const noticeOnly = tenant ? STATES_WITH_NOTICE_ONLY.includes(tenant.state) : false;
+  const noticeOnly = tenant && !staff ? STATES_WITH_NOTICE_ONLY.includes(tenant.state) : false;
   const banner = tenant && STATES_WITH_BANNER.includes(tenant.state) ? (tenant.state as NoticeState) : null;
   return (
     <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:gap-6">
@@ -121,8 +126,20 @@ export async function ClientArea({
           />
         ) : tenant && denied ? (
           <EmptyState
-            title={byState ? t.client.tenant.stateDenyTitle : t.client.tenant.denyTitle}
-            description={byState ? t.client.tenant.stateDenyBody : t.client.tenant.denyBody}
+            title={
+              denial === 'state'
+                ? t.client.tenant.stateDenyTitle
+                : denial === 'module'
+                  ? t.client.tenant.moduleDenyTitle
+                  : t.client.tenant.denyTitle
+            }
+            description={
+              denial === 'state'
+                ? t.client.tenant.stateDenyBody
+                : denial === 'module'
+                  ? t.client.tenant.moduleDenyBody
+                  : t.client.tenant.denyBody
+            }
           />
         ) : tenant ? (
           await children({ ...ctx, tenant })
