@@ -306,6 +306,8 @@ function sportModules(api: string): ModuleDef[] {
   return [
     { ...fixed('agenda', ['sync-daily'], seasonList), steps: ['outros-esportes'] },
     ...groups.filter(([, list]) => list.length).map(([id, list]) => mirror(api, id, list)),
+    // cenário e resumo de IA (#1489): tier 1 ligado por decisão do Wagner (19/11); vídeos só no futebol (#1390)
+    job('ai-content', ['recap-run', 'context-run'], [], tiersUpTo(1), { ai: true }),
   ];
 }
 

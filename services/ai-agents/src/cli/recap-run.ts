@@ -17,7 +17,7 @@ import {
   budgetDayFor,
   runtimeEnv,
 } from './common.js';
-import { moduleTiers } from '../common/tiers.js';
+import { aiContentSports, moduleTiers } from '../common/tiers.js';
 
 const { values } = parseArgs({
   options: {
@@ -58,6 +58,12 @@ try {
     inputMaxAgeMs: recapInputMaxAgeMs(env),
   });
   printAgentReport(report, values.plan);
+  // ligado no painel para outros esportes, mas o gerador ainda é só do futebol (#1490, #1491)
+  const pending = Object.entries(aiContentSports(env));
+  if (pending.length)
+    console.log(
+      `ai-content ligado sem gerador ainda: ${pending.map(([api, t]) => `${api} (tier ${t.join(', ')})`).join('; ')}`,
+    );
 } finally {
   await closeDb(db);
 }

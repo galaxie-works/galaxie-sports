@@ -90,8 +90,8 @@ describe('rascunho dos módulos por tier', () => {
     const draft = initialModuleDraft('football', null, null);
     expect(draft.predictions).toEqual([true, true, false]);
     expect(rowSummary('football', draft, 3)).toMatchObject({ on: 9 });
-    // outras APIs: o tier 3+ da temporada e da classificação tem switch (nasce desligado); o resto segue a temporada
-    expect(modulesOfRow('basketball', 3).map((d) => d.id)).toEqual(['season', 'standings']);
+    // outras APIs: o tier 3+ da temporada, da classificação e do cenário e resumo de IA (#1489) tem switch (nasce desligado); o resto segue a temporada
+    expect(modulesOfRow('basketball', 3).map((d) => d.id)).toEqual(['season', 'standings', 'ai-content']);
     expect(initialModuleDraft('basketball', null, null).season).toEqual([true, true, false]);
   });
 
