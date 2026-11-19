@@ -7,6 +7,7 @@
  * (ops.runtime_env.value fica nulo; na SETTINGS_KEK, só os ids das KEKs) e as da própria demo passam pelo mesmo
  * `envReportWithKek`.
  */
+import { modelPricingWarnings, PRICES_CHECKED_BY_PROVIDER } from '@galaxie/ai-ledger/pricing';
 import {
   AI_CREDIT_CHECK,
   API_PLAN_DAILY_LIMITS,
@@ -418,6 +419,17 @@ function budgetDaySetting(settings: OpsSetting[]) {
   };
 }
 
+/** Chaves cujo valor efetivo é um modelo usado pelos agentes (avisos da tabela de preços). */
+const AI_MODELS_IN_USE_KEYS = [
+  'AI_MODEL_LIGHT',
+  'AI_MODEL_STANDARD',
+  'AI_MODEL_RESEARCH',
+  'AI_REVIEW_MODEL',
+  'AI_CHANNELS_MODEL',
+  'AI_MATCH_CHANNEL_MODEL',
+  'AI_RIGHTS_MODEL',
+] as const;
+
 async function readLlm(now: Date, settings: OpsSetting[]): Promise<LlmSpend> {
   const day = budgetDaySetting(settings);
   // o mesmo dia que o ledger usa nos tetos (vira em AI_BUDGET_DAY_START no fuso AI_BUDGET_TIMEZONE)
@@ -491,7 +503,21 @@ async function readLlm(now: Date, settings: OpsSetting[]): Promise<LlmSpend> {
     }),
     { calls: 0, inputTokens: 0, outputTokens: 0, webSearches: 0, costUsd: 0, errors: 0, overSearchCap: 0 },
   );
+  // modelos em uso (os níveis e as funções com provedor próprio, já resolvidos pelo provedor) contra a tabela vigente
+  // com o AI_MODEL_PRICES do painel por cima
+  const modelsInUse = AI_MODELS_IN_USE_KEYS.map((k) =>
+    settings.find((s) => s.key === k)?.value?.trim(),
+  ).filter((v): v is string => Boolean(v));
+  const pricing = {
+    checkedAt: { ...PRICES_CHECKED_BY_PROVIDER },
+    warnings: modelPricingWarnings(
+      modelsInUse,
+      now,
+      settings.find((s) => s.key === 'AI_MODEL_PRICES')?.value ?? null,
+    ),
+  };
   return {
+    pricing,
     totals,
     byAgent,
     status,

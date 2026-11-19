@@ -154,3 +154,20 @@ function agentLlmEnv(
     [modelKey]: model || undefined,
   };
 }
+
+/**
+ * Modelos que os agentes usam com este ambiente: os três níveis do AI_PROVIDER e os modelos das funções com provedor
+ * próprio (revisão, canais, canal do jogo, direitos). Para os avisos da tabela de preços (#1438).
+ */
+export function modelsInUseFromEnv(env: Env = process.env): string[] {
+  const models = new Set<string>();
+  for (const e of [env, reviewLlmEnv(env), channelsLlmEnv(env), matchChannelLlmEnv(env), rightsLlmEnv(env)]) {
+    try {
+      const m = llmSettingsFromEnv(e).models;
+      models.add(m.light).add(m.standard).add(m.research);
+    } catch {
+      // provedor inválido: o próprio job falha com a mensagem de configuração
+    }
+  }
+  return [...models];
+}

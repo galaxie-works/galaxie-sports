@@ -66,6 +66,7 @@ const llm: LlmSpend = {
   agentUsdOrigins: {},
   agentDefaultUsdBudget: null,
   maxSearchesPerCall: null,
+  pricing: { checkedAt: { openai: '2026-10-21' }, warnings: [] },
 };
 
 /** Retrato mínimo com todo ajuste do registro no padrão (as páginas só de linhas de ajuste não leem mais nada). */

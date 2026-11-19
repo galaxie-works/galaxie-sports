@@ -1,3 +1,4 @@
+import type { PricingWarning } from '@galaxie/ai-ledger/pricing';
 /**
  * Dados do painel de Operação (Ajustes → Operação), já serializáveis: o servidor monta, o navegador só
  * desenha. Segredos chegam só como `configured`; nenhum valor de credencial sai do servidor.
@@ -151,6 +152,8 @@ export interface LlmSpend {
   agentDefaultUsdBudget: number | null;
   /** Buscas na web por chamada; null = sem teto. */
   maxSearchesPerCall: number | null;
+  /** Tabela de preços (config/ai-pricing.yaml, #1438): conferência por provedor e avisos de hoje. */
+  pricing: { checkedAt: Record<string, string>; warnings: PricingWarning[] };
 }
 
 export interface CreditStatus {

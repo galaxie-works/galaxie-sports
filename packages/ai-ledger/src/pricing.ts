@@ -1,17 +1,19 @@
 /**
- * Tabela de preços para estimar custo (USD por 1 milhão de tokens, tier padrão, contexto curto).
- * Fontes oficiais conferidas em 2026-10-21:
- * - https://developers.openai.com/api/docs/pricing
- * - https://platform.claude.com/docs/en/about-claude/pricing (Anthropic, modelos atuais conferidos em 2026-10-25)
- * - https://ai.google.dev/gemini-api/docs/pricing (Gemini, conferida em 2026-10-23)
- * - https://api-docs.deepseek.com/quick_start/pricing (DeepSeek, conferida em 2026-11-11)
- * É uma ESTIMATIVA para orçamento e métricas — a fatura do provedor é a fonte da verdade.
+ * Preços dos modelos de IA para estimar custo (US$ por 1 milhão de tokens). A tabela mora em config/ai-pricing.yaml
+ * (#1438), com a data da conferência de cada provedor e a vigência de cada preço; chega aqui pelo
+ * `prices.generated.ts`. É uma ESTIMATIVA para orçamento e métricas — a fatura do provedor é a fonte da verdade.
  *
- * É o único lugar com preço por token: os agentes (services/ai-agents), o ingestor e a Cosmos leem daqui.
- * Para mudar um preço (ou incluir um modelo) sem deploy: a flag AI_MODEL_PRICES em Ajustes
- * (`modelo=entrada/cache/saída[/gravação]`, US$ por 1 milhão de tokens), que vale por cima desta tabela.
+ * Os agentes (services/ai-agents), o ingestor e a Cosmos leem daqui. Para mudar um preço (ou incluir um modelo) sem
+ * deploy: a flag AI_MODEL_PRICES em Ajustes (`modelo=entrada/cache/saída[/gravação]`), que vale por cima da tabela.
  */
-import { AI_PROVIDER_MODEL_PREFIX, isAiProvider, providerOfModel } from '@galaxie/runtime-config';
+import {
+  AI_PROVIDER_MODEL_PREFIX,
+  MODEL_PRICES_PATTERN,
+  isAiProvider,
+  providerOfModel,
+} from '@galaxie/runtime-config';
+import { PRICING_DATA } from './prices.generated.js';
+import { pricesAt, pricingWarnings, type ModelPrice, type PricingWarning } from './pricing-data.js';
 
 /**
  * Tokens de uma chamada (a entrada inclui os lidos e os gravados no cache; `cachedInputTokens` e
@@ -24,83 +26,58 @@ export interface TokenUsage {
   cacheWriteTokens?: number;
 }
 
-/** US$ por 1 milhão de tokens. */
-export interface ModelPrice {
-  input: number;
-  /** Entrada lida do cache (ausente: o preço da entrada). */
-  cachedInput?: number;
-  output: number;
-  /** Entrada gravada no cache (ausente: o preço da entrada). */
-  cacheWrite?: number;
-}
+export type { ModelPrice } from './pricing-data.js';
 
-export const PRICES_CHECKED_AT = '2026-10-21';
+/** Data mais antiga entre as conferências dos provedores (a tabela inteira foi conferida até ela). */
+export const PRICES_CHECKED_AT = Object.values(PRICING_DATA.providers)
+  .map((p) => p.checked_at)
+  .sort()[0]!;
 
-export const MODEL_PRICES: Record<string, ModelPrice> = {
-  // OpenAI
-  'gpt-6-astra': { input: 10, cachedInput: 1, output: 50 },
-  'gpt-6.1-sol': { input: 2, cachedInput: 0.1, output: 10 },
-  'gpt-6-sol': { input: 2, cachedInput: 0.2, output: 10 },
-  'gpt-6-luna': { input: 0.1, cachedInput: 0.01, output: 0.5 },
-  'gpt-5.6-sol': { input: 4, cachedInput: 0.4, output: 20 },
-  'gpt-5.6-terra': { input: 2, cachedInput: 0.2, output: 12 },
-  'gpt-5.6-luna': { input: 0.2, cachedInput: 0.02, output: 1.2 },
-  'gpt-5.5': { input: 5, cachedInput: 0.5, output: 30 },
-  'gpt-5.4': { input: 2.5, cachedInput: 0.25, output: 15 },
-  'gpt-5.4-mini': { input: 0.75, cachedInput: 0.075, output: 4.5 },
-  'gpt-5.4-nano': { input: 0.2, cachedInput: 0.02, output: 1.25 },
-  'gpt-5-mini': { input: 0.25, cachedInput: 0.025, output: 2 },
-  'gpt-4.1-mini': { input: 0.4, cachedInput: 0.1, output: 1.6 },
-  // Anthropic (modelos atuais conferidos em 2026-10-25). Leitura de cache: Fable 5.1 e Mythos 5.1
-  // 0,025× da entrada, Opus 5.5 0,05×, Fable 5 US$ 1, os demais 0,1×. Mythos 5.1: só Project Glasswing.
-  'claude-fable-5-1': { input: 10, cachedInput: 0.25, output: 50 },
-  'claude-mythos-5-1': { input: 10, cachedInput: 0.25, output: 50 },
-  'claude-fable-5': { input: 10, cachedInput: 1, output: 50 },
-  'claude-opus-5-5': { input: 4, cachedInput: 0.2, output: 20 },
-  'claude-sonnet-5-5': { input: 2, cachedInput: 0.2, output: 10 },
-  /** Prompts até 100 mil tokens (acima disso: 0,50/2,50). */
-  'claude-haiku-5-5': { input: 0.1, cachedInput: 0.01, output: 0.5 },
-  'claude-opus-5': { input: 5, cachedInput: 0.5, output: 25 },
-  'claude-opus-4-8': { input: 5, cachedInput: 0.5, output: 25 },
-  'claude-opus-4-7': { input: 5, cachedInput: 0.5, output: 25 },
-  'claude-opus-4-6': { input: 5, cachedInput: 0.5, output: 25 },
-  'claude-sonnet-5': { input: 2, cachedInput: 0.2, output: 10 },
-  'claude-sonnet-4-6': { input: 3, cachedInput: 0.3, output: 15 },
-  'claude-haiku-4-5': { input: 1, cachedInput: 0.1, output: 5 },
-  // Gemini — preços até 31/12/2026 (o 3.8/3.6 Flash dobra em 01/01/2027; o 4 Argon em 01/12/2026)
-  'gemini-4-argon': { input: 2, output: 10 },
-  'gemini-3.8-flash': { input: 0.75, output: 3.75 },
-  'gemini-3.6-flash': { input: 0.75, output: 3.75 },
-  'gemini-3.5-flash-lite': { input: 0.3, output: 2.5 },
-  'gemini-3.1-pro-preview': { input: 2, output: 12 },
-  'gemini-3.1-flash-lite': { input: 0.25, output: 1.5 },
-  // DeepSeek (API compatível com a da OpenAI). Preço do horário de pico (01:00–04:00 e 06:00–10:00 UTC, dias
-  // úteis), o dobro do fora de pico: o teto do dia fica do lado seguro. `deepseek-chat` e `deepseek-reasoner`
-  // não aparecem mais na página de preços: fora da tabela, valem pelo preço mais caro do provedor.
-  'deepseek-flash': { input: 0.3, cachedInput: 0.006, output: 1.2 },
-  'deepseek-v4-pro': { input: 1.32, cachedInput: 0.044, output: 3.96 },
-};
+/** Tabela vigente no dia (a do yaml, sem AI_MODEL_PRICES). */
+export const tablePricesAt = (at: Date = new Date()): Record<string, ModelPrice> =>
+  pricesAt(PRICING_DATA, at);
+
+/** A tabela vigente quando o módulo carregou (processos de vida longa: use `effectiveModelPrices`, que segue o dia). */
+export const MODEL_PRICES: Record<string, ModelPrice> = tablePricesAt();
 
 /**
- * Anthropic: gravar no cache (TTL de 5 min) custa 1,25× a entrada; os demais não cobram à parte. Vale para a tabela
- * do código e para os preços de AI_MODEL_PRICES sem o quarto campo.
+ * Avisos da tabela no dia (conferência velha, preço que muda em breve, modelo em uso sem preço). `overrides`: o
+ * AI_MODEL_PRICES efetivo de quem chama (ex.: o painel, que resolve pelo banco); ausente = o do ambiente.
  */
+export function modelPricingWarnings(
+  inUse: readonly string[] = [],
+  at: Date = new Date(),
+  overrides?: string | null,
+): PricingWarning[] {
+  const prices =
+    overrides === undefined
+      ? effectiveModelPrices(at)
+      : { ...tablePricesAt(at), ...parseModelPrices(overrides) };
+  return pricingWarnings(PRICING_DATA, at, inUse, prices);
+}
+
+/** Data da conferência da tabela de cada provedor (config/ai-pricing.yaml). */
+export const PRICES_CHECKED_BY_PROVIDER: Readonly<Record<string, string>> = Object.fromEntries(
+  Object.entries(PRICING_DATA.providers).map(([p, info]) => [p, info.checked_at]),
+);
+
+export { describePricingWarning, type PricingWarning } from './pricing-data.js';
+
+/** Anthropic: gravar no cache custa o múltiplo da entrada do yaml (para AI_MODEL_PRICES sem o quarto campo). */
 function withAnthropicCacheWrite(model: string, price: ModelPrice): ModelPrice {
   if (model.startsWith('claude-') && price.cacheWrite === undefined)
-    price.cacheWrite = Math.round(price.input * 1.25 * 1_000_000) / 1_000_000;
+    price.cacheWrite =
+      Math.round(price.input * PRICING_DATA.anthropic_cache_write_multiplier * 1_000_000) / 1_000_000;
   return price;
 }
-for (const [model, price] of Object.entries(MODEL_PRICES)) withAnthropicCacheWrite(model, price);
 
 /**
  * AI_MODEL_PRICES: `modelo=entrada/cache/saída[/gravação]` separados por vírgula, ponto e vírgula ou
  * espaço (US$ por 1 milhão de tokens; `cache` e `gravação` podem ficar vazios: valem o preço da entrada, e a
- * gravação dos modelos `claude-*`, 1,25× a entrada).
+ * gravação dos modelos `claude-*`, o múltiplo do yaml sobre a entrada). Padrão único no registro (@galaxie/runtime-config).
  * Ex.: `deepseek-flash=0.15/0.003/0.6, gpt-6-luna=0.1/0.01/0.5`.
  */
-const PRICE_NUM = '\\d+(?:\\.\\d+)?';
-const PRICE_ENTRY = `[a-zA-Z0-9][a-zA-Z0-9._:/-]{0,80}=${PRICE_NUM}/(?:${PRICE_NUM})?/${PRICE_NUM}(?:/(?:${PRICE_NUM})?)?`;
-export const MODEL_PRICES_PATTERN = new RegExp(`^${PRICE_ENTRY}(?:[,;\\s]+${PRICE_ENTRY})*$`);
+export { MODEL_PRICES_PATTERN };
 
 /** Lê AI_MODEL_PRICES. Vazio: {}; formato inválido: erro com a entrada. */
 export function parseModelPrices(raw: string | null | undefined): Record<string, ModelPrice> {
@@ -153,18 +130,18 @@ export function setModelPriceOverrides(value: string | Record<string, ModelPrice
   overrides = value === null ? undefined : typeof value === 'string' ? parseModelPrices(value) : { ...value };
 }
 
-/** A tabela do código com os preços de AI_MODEL_PRICES por cima. */
-export function effectiveModelPrices(): Record<string, ModelPrice> {
-  return { ...MODEL_PRICES, ...modelPriceOverrides() };
+/** A tabela vigente no dia com os preços de AI_MODEL_PRICES por cima. */
+export function effectiveModelPrices(at: Date = new Date()): Record<string, ModelPrice> {
+  return { ...tablePricesAt(at), ...modelPriceOverrides() };
 }
 
-/** US$ por chamada da ferramenta de busca (US$ 10 por 1.000 na OpenAI e na Anthropic). */
-export const WEB_SEARCH_USD_PER_CALL = 0.01;
+/** US$ por chamada da ferramenta de busca (OpenAI e Anthropic; config/ai-pricing.yaml). */
+export const WEB_SEARCH_USD_PER_CALL = PRICING_DATA.search.web_search_usd_per_call;
 /**
  * Grounding with Google Search nos modelos Gemini 3+: US$ 14 por 1.000 consultas (uma requisição pode
  * fazer várias). As 5.000 consultas grátis por mês ficam fora da estimativa (custo conservador).
  */
-export const GEMINI_GROUNDING_USD_PER_QUERY = 0.014;
+export const GEMINI_GROUNDING_USD_PER_QUERY = PRICING_DATA.search.gemini_grounding_usd_per_query;
 
 /** US$ por busca na web do provedor (o Gemini cobra por consulta do grounding; os demais por chamada). */
 export function searchUsdFor(provider: string): number {
@@ -209,7 +186,7 @@ export function budgetPriceFor(model: string, provider?: string): ModelPrice | u
   if (fallback && !warnedUnpriced.has(model)) {
     warnedUnpriced.add(model);
     console.warn(
-      `[orçamento de IA] modelo ${model} fora da tabela de preços: o custo usa o preço mais caro do provedor ${family} (atualize MODEL_PRICES).`,
+      `[orçamento de IA] modelo ${model} fora da tabela de preços: o custo usa o preço mais caro do provedor ${family} (atualize config/ai-pricing.yaml).`,
     );
   }
   return fallback;

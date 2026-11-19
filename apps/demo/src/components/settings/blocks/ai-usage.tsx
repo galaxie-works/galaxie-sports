@@ -13,7 +13,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Slider } from '@/components/ui/slider';
 import { useI18n } from '@/lib/i18n/client';
 import { fill } from '@/lib/i18n/text';
-import type { OpsSetting } from '@/lib/ops/types';
+import type { LlmSpend, OpsSetting } from '@/lib/ops/types';
 import { cn } from '@/lib/utils';
 
 import { AI_MODEL_AGENTS, capPercent, rulerMarks, spendParts } from './logic';
@@ -288,5 +288,57 @@ export function ModelAgentCards({
         })}
       </div>
     </div>
+  );
+}
+
+/**
+ * Tabela de preços (#1438): data da conferência de cada provedor e os avisos de hoje (conferência velha, preço que
+ * muda em breve, modelo em uso sem preço). Os mesmos avisos saem no log do scheduler dos agentes.
+ */
+export function PricingNotice({ pricing }: { pricing: LlmSpend['pricing'] }) {
+  const { t } = useI18n();
+  const B = t.ops.blocks.ai;
+  const lines = pricing.warnings.map((w) =>
+    w.kind === 'stale'
+      ? fill(B.pricingStale, { provider: w.provider, days: w.days, date: w.checkedAt })
+      : w.kind === 'change'
+        ? fill(B.pricingChange, {
+            model: w.model,
+            date: w.from,
+            days: w.days,
+            input: w.price.input,
+            output: w.price.output,
+          })
+        : fill(B.pricingUnpriced, { model: w.model }),
+  );
+  return (
+    <Frame>
+      <FrameHeader className="flex-row flex-wrap items-center justify-between gap-2">
+        <FrameTitle>{B.pricingTitle}</FrameTitle>
+        {lines.length ? (
+          <Badge variant="warning-light" className="tabular-nums">
+            {lines.length}
+          </Badge>
+        ) : null}
+      </FrameHeader>
+      <FramePanel className="flex flex-col gap-3">
+        <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
+          {Object.entries(pricing.checkedAt).map(([provider, date]) => (
+            <li key={provider} className="text-muted-foreground">
+              <span className="font-mono">{provider}</span> · {B.pricingChecked} {date}
+            </li>
+          ))}
+        </ul>
+        {lines.length ? (
+          <ul className="flex flex-col gap-1.5 text-sm">
+            {lines.map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-muted-foreground text-sm">{B.pricingOk}</p>
+        )}
+      </FramePanel>
+    </Frame>
   );
 }
