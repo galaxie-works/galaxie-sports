@@ -2,7 +2,7 @@ import type { ExploreSummary } from '@galaxie/contracts';
 import { describe, expect, it } from 'vitest';
 
 import { agendaHref, EXPLORE_LINKS, exploreTotals, familyStats, readAgendaParams } from './explore-index';
-import { COUNTRIES, SPORTS } from './navigation';
+import { FALLBACK_COUNTRIES, SPORTS } from './navigation';
 
 const sport = (slug: string, competitions: number, upcoming: number, live: number) =>
   ({
@@ -22,7 +22,13 @@ const summary = {
     sport('nba', 1, 12, 0),
     sport('formula-1', 1, 0, 0),
   ],
-  countries: COUNTRIES.map((c) => ({ code: c.code })),
+  // 20 países no resumo (o banco), não os 17 da reserva
+  countries: [
+    ...FALLBACK_COUNTRIES.map((c) => ({ code: c.code })),
+    { code: 'US' },
+    { code: 'NL' },
+    { code: 'SA' },
+  ],
 } as unknown as ExploreSummary;
 
 describe('números da home e dos índices', () => {
@@ -35,11 +41,16 @@ describe('números da home e dos índices', () => {
     });
     expect(exploreTotals(summary)).toEqual({
       sports: SPORTS.length,
-      countries: COUNTRIES.length,
+      countries: 20,
       upcoming: 552,
       live: 4,
     });
-    expect(exploreTotals(null)).toMatchObject({ upcoming: null, live: null });
+    // sem a API, a lista de reserva
+    expect(exploreTotals(null)).toMatchObject({
+      countries: FALLBACK_COUNTRIES.length,
+      upcoming: null,
+      live: null,
+    });
   });
 
   it('a família soma os esportes dela, e a soma das famílias é o total da home', () => {

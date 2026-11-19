@@ -6,12 +6,11 @@ import { LoadingStatus } from '@/components/app-shell/loading-status';
 import { PageHeader } from '@/components/app-shell/page-header';
 import { IndexCardsSkeleton } from '@/components/app-shell/skeletons';
 import { CountryIndexCard } from '@/components/explore/index-cards';
-import { CONFEDERATIONS } from '@/components/explore/layout';
 import { exploreSummaryRequest, getExploreSummary } from '@/lib/galaxie/api';
 import { exploreTotals } from '@/lib/explore-index';
 import { getI18n } from '@/lib/i18n/server';
 import { plural } from '@/lib/i18n/text';
-import { COUNTRIES } from '@/lib/navigation';
+import { confederationLabel, countryGroups, countryName } from '@/lib/navigation';
 import type { TrailVisit } from '@/lib/trail';
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -20,8 +19,9 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /**
- * Índice de países (o "17 países" da home): os países da navegação por confederação, cada um com bandeira,
- * liga principal, competições domésticas e jogos da semana. Os números vêm do mesmo resumo da home.
+ * Índice de países (o "N países" da home): os países da navegação por confederação, cada um com bandeira,
+ * liga principal, competições domésticas e jogos da semana. A lista e os números vêm do mesmo resumo da home (os países
+ * com liga nacional de primeira divisão no catálogo); sem a API, a lista de reserva.
  */
 async function Content() {
   // contadores de agora (o resumo envelhece no máximo 1 min): na requisição, nunca no build
@@ -40,21 +40,23 @@ async function Content() {
           {totals.countries} {plural(locale, totals.countries, te.totals.countries)}
         </p>
       </div>
-      {CONFEDERATIONS.map((group) => {
-        const countries = COUNTRIES.filter((c) => c.group === group);
+      {countryGroups(summary).map(({ code: group, countries }) => {
+        const subtitle = confederationLabel(t, group);
         return (
           <section key={group} aria-labelledby={`conf-${group}`} className="flex flex-col gap-3">
             <h2 id={`conf-${group}`} className="flex items-center gap-3 border-b pb-2.5">
               <span className="bg-primary h-6 w-1 rounded-full" aria-hidden />
               <span className="text-lg font-bold tracking-[0.14em]">{group}</span>
-              <span className="text-muted-foreground text-sm font-medium">{t.nav.groups[group]}</span>
+              {subtitle ? (
+                <span className="text-muted-foreground text-sm font-medium">{subtitle}</span>
+              ) : null}
             </h2>
             <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {countries.map((c) => (
                 <li key={c.code} className="flex">
                   <CountryIndexCard
                     country={c}
-                    name={t.nav.countries[c.code]}
+                    name={countryName(t, locale, c.code, data.get(c.code)?.name)}
                     data={data.get(c.code)}
                     t={t}
                     locale={locale}

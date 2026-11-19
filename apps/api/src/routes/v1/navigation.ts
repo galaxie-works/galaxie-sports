@@ -23,6 +23,7 @@ import {
   sport,
   type Database,
 } from '@galaxie/db';
+import { compareCountries, loadNavigationCountries, MAIN_SPORT } from '@galaxie/explore';
 import { groupCompetitions, loadGeoConfig, type GeoConfig, type ScopeEntry } from '@galaxie/geo';
 import { sendCached } from '../../cache/http.js';
 import { CACHE_TTL } from '../../cache/policy.js';
@@ -97,6 +98,9 @@ export async function navigationRoutes(
       load: async () => {
         const db = requireDb(ctx);
         const g = geoConfig();
+        // países do catálogo (os que têm liga nacional de primeira divisão), não de uma lista fixa
+        const navCountries = await loadNavigationCountries(db, g);
+        const codes = navCountries.map((c) => c.code);
         const [sportRows, compCounts, eventCounts, countryRows] = await Promise.all([
           db
             .select({ slug: sport.slug, name: sport.name })
@@ -114,7 +118,7 @@ export async function navigationRoutes(
             })
             .from(country)
             .leftJoin(asset, eq(asset.id, country.flagAssetId))
-            .where(inArray(country.code, g.navigationCountries)),
+            .where(inArray(country.code, codes)),
         ]);
         const sportName = new Map(sportRows.map((s) => [s.slug, s.name as I18n]));
         const comps = new Map(compCounts.map((r) => [r.sport, Number(r.n)]));
@@ -140,16 +144,36 @@ export async function navigationRoutes(
         });
 
         const dbCountry = new Map(countryRows.map((r) => [r.code, r]));
-        const countries: Navigation['countries'] = g.navigationCountries.map((code) => {
-          const cfg = g.country(code)!;
-          const row = dbCountry.get(code);
-          return {
-            code,
-            name: pickText({ ...(cfg.name as I18n), ...(row?.name as I18n | undefined) }, locale, code)!,
-            flag: assetUrl(ctx.assetsBaseUrl, row?.storageKey, row?.sourceUrl),
-            confederation: confederationRef(g, row?.confederation ?? cfg.confederation, locale)!,
-          };
-        });
+        const order = compareCountries(
+          g.confederations.map((c) => c.code),
+          locale,
+        );
+        const countries: Navigation['countries'] = navCountries
+          .map((nav) => {
+            const cfg = g.country(nav.code)!;
+            const row = dbCountry.get(nav.code);
+            const item: Navigation['countries'][number] = {
+              code: nav.code,
+              name: pickText(
+                { ...(cfg.name as I18n), ...(row?.name as I18n | undefined) },
+                locale,
+                nav.code,
+              )!,
+              flag: assetUrl(ctx.assetsBaseUrl, row?.storageKey, row?.sourceUrl),
+              confederation: confederationRef(g, row?.confederation ?? cfg.confederation, locale)!,
+            };
+            // a mesma ordem da home (sem os jogos da semana): confederação, tier e `featured` da liga principal, nome
+            const key = {
+              code: nav.code,
+              confederation: item.confederation.code,
+              tier: nav.main.tier,
+              featured: g.featuredOrder(MAIN_SPORT, nav.main.slug),
+              name: item.name,
+            };
+            return { item, key };
+          })
+          .sort((a, b) => order(a.key, b.key))
+          .map(({ item }) => item);
         const confederations: Navigation['confederations'] = [];
         for (const c of countries) {
           let section = confederations.find((s) => s.code === c.confederation.code);
@@ -251,7 +275,7 @@ export async function navigationRoutes(
       ioc_code: row?.c.iocCode ?? cfg?.ioc ?? null,
       flag: assetUrl(ctx.assetsBaseUrl, row?.storageKey, row?.sourceUrl),
       confederation: confederationRef(g, row?.c.confederation ?? cfg?.confederation ?? null, locale),
-      in_navigation: g.navigationCountries.includes(code),
+      in_navigation: (await loadNavigationCountries(db, g)).some((c) => c.code === code),
     };
   }
 

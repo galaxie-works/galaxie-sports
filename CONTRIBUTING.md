@@ -36,7 +36,7 @@ O CI cobra isso (`pnpm lint:deps`): o PR que viola é reprovado com o nome da re
 | `packages/contracts` | DTOs Zod → OpenAPI compartilhados entre API e demo |
 | `packages/rules` | Motor de regras determinístico: tabelas calculadas e stakes; regulamentos em `config/rules/*.yaml` ([docs/rules](docs/rules/README.md)) |
 | `packages/knowledge` | Base semântica (`data/knowledge`): validação (`pnpm knowledge:validate`), seed (`pnpm db:seed:semantic`), resolução de IDs (`pnpm resolve:ids`), detecção de clássico e `selectCopy` |
-| `packages/geo` | Geografia da navegação (`config/geo`): confederações e membros, países do menu, escopo das competições por país (validação + agrupamento) |
+| `packages/geo` | Geografia da navegação (`config/geo`): confederações e membros, escopo das competições por país e a ordem editorial das divisões (validação + agrupamento); os países do menu vêm do catálogo no banco |
 | `services/ingestor` | Jobs de bootstrap, sync, live, assets e normalização raw → core; CLIs em `src/cli` |
 | `packages/where-to-watch` | Onde assistir determinístico: dicionário de emissoras e tabela de direitos (`config/broadcasters`, `config/broadcast-rights`), validador, versionamento, correção editorial, auditoria e métricas |
 | `services/ai-agents` | Camada de LLM independente de provedor (OpenAI/Anthropic, orçamento de tokens) e agentes de IA (onde assistir, cenário, live scheduler, curadoria) |

@@ -1,5 +1,6 @@
 'use client';
 
+import { useQuery } from '@tanstack/react-query';
 import { BookOpen, CalendarDays, ChevronRight, Compass, Globe2, Trophy } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -25,6 +26,7 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar';
 import { CLIENT_NAV } from '@/components/client/client-nav-shared';
+import { useInExample } from '@/components/example/example-provider';
 import { LIVE_HREF, LiveNavItem } from '@/components/live/live-nav-item';
 import { AnimatedSportIcon } from '@/components/sport/animated-sport-icon';
 import { CountryFlag } from '@/components/sport/country-flag';
@@ -36,7 +38,16 @@ import { DOCS_NAV } from '@/lib/docs';
 import { useHydrated } from '@/hooks/use-hydrated';
 import { useI18n } from '@/lib/i18n/client';
 import { fill } from '@/lib/i18n/text';
-import { COUNTRIES, EQUESTRIAN_NAV, FAMILIES, MULTISPORT_NAV, type NavItem } from '@/lib/navigation';
+import {
+  countryName,
+  EQUESTRIAN_NAV,
+  FALLBACK_COUNTRIES,
+  FAMILIES,
+  MULTISPORT_NAV,
+  type CountryNav,
+  type NavItem,
+} from '@/lib/navigation';
+import { fetchNavigationCountries, NAV_COUNTRIES_QUERY_KEY } from '@/lib/navigation-countries';
 import { topLevelClick } from '@/lib/trail';
 
 import { UserMenu } from './user-menu';
@@ -194,8 +205,29 @@ function ClientNavGroup({ pathname }: { pathname: string | null }) {
   );
 }
 
+/**
+ * Países do menu: os de /v1/navigation (do banco: os que têm liga nacional de primeira divisão no catálogo), buscados
+ * no navegador e guardados por 1 hora, como as bandeiras. Antes de hidratar, enquanto carrega, com a API fora do ar e
+ * no exemplo público (sem sessão), a lista de reserva.
+ */
+function useNavCountries() {
+  const { locale, t } = useI18n();
+  const hydrated = useHydrated();
+  const inExample = useInExample();
+  const { data } = useQuery({
+    queryKey: [NAV_COUNTRIES_QUERY_KEY, locale],
+    queryFn: () => fetchNavigationCountries(fetch, locale),
+    staleTime: 60 * 60 * 1000,
+    retry: 1,
+    enabled: !inExample,
+  });
+  const list: (CountryNav & { name?: string })[] = hydrated && data?.length ? data : FALLBACK_COUNTRIES;
+  return list.map((c) => ({ ...c, label: countryName(t, locale, c.code, c.name) }));
+}
+
 function SidebarNav({ pathname, section = null }: { pathname: string | null; section?: string | null }) {
   const { t } = useI18n();
+  const countries = useNavCountries();
   return (
     <SidebarContent>
       <ClientNavGroup pathname={pathname} />
@@ -231,14 +263,14 @@ function SidebarNav({ pathname, section = null }: { pathname: string | null; sec
         <SidebarGroupLabel>{t.shell.sidebar.countries}</SidebarGroupLabel>
         <SidebarGroupContent>
           <SidebarMenu>
-            {COUNTRIES.map((c) => (
+            {countries.map((c) => (
               <SidebarMenuItem key={c.code}>
                 <SidebarMenuButton
                   isActive={isActive(pathname, c.href, section)}
                   render={<Link href={c.href} onClick={topLevelClick(c.href)} />}
                 >
                   <CountryFlag code={c.code} />
-                  <span>{t.nav.countries[c.code]}</span>
+                  <span>{c.label}</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             ))}

@@ -23,7 +23,7 @@ import type { Locale } from '@/lib/i18n/config';
 import type { Dictionary } from '@/lib/i18n/dictionary';
 import { getI18n } from '@/lib/i18n/server';
 import { fill, plural } from '@/lib/i18n/text';
-import { COUNTRIES, countryHref, sportBySlug } from '@/lib/navigation';
+import { countryHref, FALLBACK_COUNTRIES, sportBySlug } from '@/lib/navigation';
 import {
   familyBySlug,
   familyHref,
@@ -46,8 +46,9 @@ export async function generateMetadata({
 const INTERNATIONAL = 'international';
 
 /**
- * Internacionais primeiro (Libertadores, Champions, Copa do Mundo), depois os países da navegação (na
- * ordem do menu) e o resto em ordem alfabética. Dentro do grupo, as nacionais antes das estaduais e
+ * Internacionais primeiro (Libertadores, Champions, Copa do Mundo), depois os países da navegação (
+avCodes, na
+ * ordem do menu: a do resumo do Explorar, que vem do banco) e o resto em ordem alfabética. Dentro do grupo, as nacionais antes das estaduais e
  * regionais (`level`) e, em cada nível, os destaques (`featured`) na frente (`sortFamilyCompetitions`).
  * Países do menu usam o nome do dicionário (o mesmo da sidebar); os demais, o que a API devolve.
  */
@@ -56,6 +57,7 @@ function groupByCountry(
   t: Dictionary,
   locale: Locale,
   featured: Map<string, number>,
+  navCodes: readonly string[],
 ) {
   const countryNames = t.nav.countries as Record<string, string>;
   const groups = new Map<string, { label: string; code: string | null; items: CompetitionSummary[] }>();
@@ -72,13 +74,13 @@ function groupByCountry(
   }
   // Inglaterra pode vir como GB-ENG (api-sports) ou GB (ISO 3166-1).
   const navOrder = new Map(
-    COUNTRIES.flatMap((c, i) =>
-      c.code === 'GB-ENG'
+    navCodes.flatMap((code, i) =>
+      code === 'GB-ENG'
         ? [
-            [c.code, i],
+            [code, i],
             ['GB', i],
           ]
-        : [[c.code, i]],
+        : [[code, i]],
     ) as [string, number][],
   );
   const rank = (g: { code: string | null }) =>
@@ -171,11 +173,14 @@ async function Content({
       items: sortFamilyCompetitions(lists.find((l) => l.sport === sport)?.items ?? [], featured, locale),
     }))
     .filter((s) => s.items.length);
+  // países da navegação: os do resumo (do banco); sem ele, a lista de reserva
+  const navCodes = summary ? summary.countries.map((c) => c.code) : FALLBACK_COUNTRIES.map((c) => c.code);
   const groups = groupByCountry(
     lists.filter((l) => !sectionSports.includes(l.sport)).flatMap((l) => l.items),
     t,
     locale,
     featured,
+    navCodes,
   );
   const api = sportCompetitionsRequest(family.sports[0], locale);
   const groupCount = sections.length + groups.length;
@@ -226,9 +231,9 @@ async function Content({
             description={plural(locale, g.items.length, ts.competitions)}
             api={api}
             action={
-              g.code && countrySlug(g.code) ? (
+              g.code && countrySlug(g.code, navCodes) ? (
                 <Link
-                  href={`/countries/${countrySlug(g.code)}?sport=${family.sports[0]}`}
+                  href={`/countries/${countrySlug(g.code, navCodes)}?sport=${family.sports[0]}`}
                   className="text-primary text-xs hover:underline"
                 >
                   {ts.seeCountry}
@@ -245,9 +250,9 @@ async function Content({
 }
 
 /** Slug da página de país da demo para um código ISO (Inglaterra usa GB-ENG). */
-function countrySlug(code: string): string | null {
-  const match = COUNTRIES.find((c) => c.code === code || (code === 'GB' && c.code === 'GB-ENG'));
-  return match ? match.code.toLowerCase() : null;
+function countrySlug(code: string, navCodes: readonly string[]): string | null {
+  const match = navCodes.find((c) => c === code || (code === 'GB' && c === 'GB-ENG'));
+  return match ? match.toLowerCase() : null;
 }
 
 function Fallback() {

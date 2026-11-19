@@ -57,7 +57,7 @@ import { ShopShelf } from '@/components/shop/shop-shelf';
 import { fill, plural } from '@/lib/i18n/text';
 import { announcementText, timeToBeConfirmed } from '@/lib/provisional';
 import { versusColors } from '@/lib/team-colors';
-import { COUNTRIES, eventCompetitionHref, eventParents, participantHref } from '@/lib/navigation';
+import { eventCompetitionHref, eventParents, FALLBACK_COUNTRIES, participantHref } from '@/lib/navigation';
 import { cn } from '@/lib/utils';
 import { EventChatSlot } from '@/components/chat/event-chat-slot';
 import { groupWhereToWatch, hasGroups } from '@/lib/where-to-watch';
@@ -79,8 +79,15 @@ import type { PageContentProps } from './types';
 
 const STARTED = new Set(['live', 'break', 'finished', 'suspended', 'abandoned']);
 
-/** Mercados de onde-assistir oferecidos na demo (ISO 3166-1 alpha-2); o nome do país sai do dicionário. */
-const WTW_MARKETS = COUNTRIES.map((c) => ({ code: c.code === 'GB-ENG' ? 'GB' : c.code, nav: c.code }));
+/**
+ * Mercados de onde-assistir oferecidos na demo (ISO 3166-1 alpha-2); o nome do país sai do dicionário. São os países de
+ * sempre (a lista de reserva da navegação), não os do catálogo: um país novo na navegação não ganha aba de onde
+ * assistir sem a pesquisa de direitos dele.
+ */
+const WTW_MARKETS = FALLBACK_COUNTRIES.map((c) => ({
+  code: c.code === 'GB-ENG' ? 'GB' : c.code,
+  nav: c.code,
+}));
 
 /** Parcial do placar para os textos (`{home}–{away}`); lado sem dado aparece como "?", não vira 0. */
 const pair = (p: { home: number | null; away: number | null }) => ({
@@ -357,7 +364,7 @@ function WhereToWatchCard({
           markets={WTW_MARKETS.map((m) => ({
             code: m.code,
             flag: m.nav,
-            name: t.nav.countries[m.nav] ?? m.code,
+            name: (t.nav.countries as Record<string, string | undefined>)[m.nav] ?? m.code,
           }))}
         />
         {groups && hasGroups(groups) ? (

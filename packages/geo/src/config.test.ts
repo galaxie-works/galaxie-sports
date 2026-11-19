@@ -11,6 +11,7 @@ const geoDir = fileURLToPath(new URL('../../../config/geo/', import.meta.url));
 interface CatalogEntry {
   slug: string;
   country: string;
+  type: string;
   tier: number;
 }
 
@@ -49,17 +50,35 @@ describe('config/geo do repositório', () => {
     expect(geo.country('BR')).toMatchObject({ confederation: 'CONMEBOL', ioc: 'BRA' });
   });
 
-  it('navegação: os 10 da CONMEBOL + México + 6 europeus, todos com nome em pt-BR e es', () => {
-    expect(geo.navigationCountries).toEqual(
-      expect.arrayContaining(['AR', 'BO', 'BR', 'CL', 'CO', 'EC', 'PY', 'PE', 'UY', 'VE', 'MX']),
-    );
-    expect(geo.navigationCountries).toEqual(expect.arrayContaining(['GB-ENG', 'ES', 'IT', 'DE', 'FR', 'PT']));
-    expect(geo.navigationCountries).toHaveLength(17);
-    for (const code of geo.navigationCountries) {
-      const c = geo.country(code)!;
-      expect(c.name['pt-BR'], code).toBeTruthy();
-      expect(c.name.es, code).toBeTruthy();
+  it('todo membro tem nome em pt-BR e es (qualquer um pode entrar na navegação pelo catálogo)', () => {
+    const missing = geo.allCountries().filter((c) => !c.name['pt-BR'] || !c.name.es);
+    expect(missing.map((c) => c.code)).toEqual([]);
+  });
+
+  it('todo país com liga nacional no catálogo tem a primeira divisão marcada em featured (a liga principal)', () => {
+    // sem a marcação, duas ligas do mesmo tier caíam no desempate por jogos no ano: a Liga Portugal 2 virava a
+    // liga principal de Portugal. A liga principal é a de menor tier e, nele, a primeira de featured
+    const byCountry = new Map<string, CatalogEntry[]>();
+    for (const c of catalogs.get('football') ?? []) {
+      if (c.type !== 'league' || c.tier > 2 || geo.isRegional('football', c.slug)) continue;
+      if (c.country === 'World' || regionCode(c.country) in geo.regions) continue;
+      byCountry.set(c.country, [...(byCountry.get(c.country) ?? []), c]);
     }
+    const order = (slug: string) => geo.featuredOrder('football', slug) ?? Number.MAX_SAFE_INTEGER;
+    const mains = new Map(
+      [...byCountry].map(([country, leagues]) => {
+        const sorted = [...leagues].sort((a, b) => a.tier - b.tier || order(a.slug) - order(b.slug));
+        return [country, sorted[0]!.slug];
+      }),
+    );
+    const unmarked = [...mains].filter(([, slug]) => geo.featuredOrder('football', slug) === null);
+    expect(unmarked.map(([country, slug]) => `${country}: ${slug}`)).toEqual([]);
+    const main = (country: string) => mains.get(country);
+    expect(main('Portugal')).toBe('primeira-liga');
+    expect(main('Venezuela')).toBe('venezuela-primera-division');
+    expect(main('Netherlands')).toBe('eredivisie');
+    expect(main('USA')).toBe('mls');
+    expect(main('Brazil')).toBe('brasileirao-serie-a');
   });
 
   it('mercados ativos da relevância por país: os 10 da CONMEBOL + México, EUA e Canadá', () => {
@@ -237,7 +256,7 @@ describe('parseGeoConfig', () => {
   const name = { en: 'X', 'pt-BR': 'X', es: 'X' };
   const geo = (over: Record<string, unknown> = {}) => ({
     schema_version: 1,
-    navigation: { countries: ['BR'], sports: [{ slug: 'football', name }] },
+    navigation: { sports: [{ slug: 'football', name }] },
     regions: { 'SOUTH-AMERICA': 'CONMEBOL' },
     confederations: [
       {
@@ -279,13 +298,8 @@ describe('parseGeoConfig', () => {
       scope(),
     ],
     [
-      'país da navegação sem tradução',
-      geo({ navigation: { countries: ['GB-ENG'], sports: [{ slug: 'football', name }] } }),
-      scope(),
-    ],
-    [
-      'país da navegação fora das confederações',
-      geo({ navigation: { countries: ['US'], sports: [{ slug: 'football', name }] } }),
+      'lista fixa de países na navegação (vêm do catálogo)',
+      geo({ navigation: { countries: ['BR'], sports: [{ slug: 'football', name }] } }),
       scope(),
     ],
     ['mercado fora das confederações', geo({ markets: ['US'] }), scope()],
@@ -313,11 +327,7 @@ describe('parseGeoConfig', () => {
       scope([{ slug: 'a', scope: 'world_clubs', confederations: ['FIFA'] }], { excluded: ['a'] }),
     ],
     ['região com confederação inexistente', geo({ regions: { EUROPE: 'XYZ' } }), scope()],
-    [
-      'código de país inválido',
-      geo({ navigation: { countries: ['bra'], sports: [{ slug: 'football', name }] } }),
-      scope(),
-    ],
+    ['código de país inválido', geo({ markets: ['bra'] }), scope()],
   ])('rejeita %s', (_label, g, s) => {
     expect(() => parseGeoConfig(g, s)).toThrow(GeoConfigError);
   });

@@ -11,6 +11,3 @@ export const FEATURED_SPORT_SPAN = 'col-span-2 md:col-span-3 lg:col-span-2 lg:ro
 
 export const COUNTRY_GRID =
   'grid grid-flow-dense grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4';
-
-/** Grupos de países, na ordem da navegação. */
-export const CONFEDERATIONS = ['CONMEBOL', 'CONCACAF', 'UEFA'] as const;

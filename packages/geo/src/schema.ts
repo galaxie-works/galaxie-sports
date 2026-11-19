@@ -53,8 +53,11 @@ export const NavigationSport = z.strictObject({ slug: Slug, name: I18nName });
 
 export const GeoFile = z.strictObject({
   schema_version: z.literal(1),
+  /**
+   * Esportes do menu. Os países da navegação não ficam aqui: vêm do catálogo no banco (os que têm liga nacional de
+   * primeira divisão, @galaxie/explore).
+   */
   navigation: z.strictObject({
-    countries: z.array(CountryCode).min(1),
     sports: z.array(NavigationSport).min(1),
   }),
   regions: z.record(z.string().regex(/^[A-Z-]+$/), ConfederationCode).default({}),

@@ -51,10 +51,9 @@ export function rankTopCompetitions<T extends CatalogItem>(items: T[], limit = T
  * Liga principal do país: só ligas (não copas), menor tier, a ordem de `featured` (config/geo) e, fora
  * dela, a com mais jogos recentes.
  */
-export function pickMainCompetition<T extends CatalogItem>(
-  items: T[],
-  featuredOrder: (sport: string, slug: string) => number | null,
-): T | null {
+export function pickMainCompetition<
+  T extends Pick<CatalogItem, 'sport' | 'slug' | 'type' | 'tier' | 'recent'>,
+>(items: T[], featuredOrder: (sport: string, slug: string) => number | null): T | null {
   const order = (c: T) => featuredOrder(c.sport, c.slug) ?? Number.MAX_SAFE_INTEGER;
   const leagues = items.filter((c) => c.type === 'league');
   return (

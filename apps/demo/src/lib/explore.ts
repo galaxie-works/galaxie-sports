@@ -48,11 +48,11 @@ export function sportUnits(slug: string): { participants: ParticipantUnit; event
  * frente) e largos; num grupo de até dois países, todos largos, para não sobrar um card solto na grade.
  */
 export function countryLayout(
-  codes: readonly CountryCode[],
+  codes: readonly string[],
   homeMarket: string,
-  featured: readonly CountryCode[] = FEATURED_COUNTRIES,
-): { code: CountryCode; wide: boolean }[] {
-  const rank = (code: CountryCode) => (code === homeMarket ? 0 : featured.includes(code) ? 1 : 2);
+  featured: readonly string[] = FEATURED_COUNTRIES,
+): { code: string; wide: boolean }[] {
+  const rank = (code: string) => (code === homeMarket ? 0 : featured.includes(code) ? 1 : 2);
   // só os em destaque mudam de lugar; o resto segue a ordem do menu
   return codes
     .map((code, i) => ({ code, i }))
