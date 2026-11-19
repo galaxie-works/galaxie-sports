@@ -57,6 +57,7 @@ import { CACHE_TTL } from '../../cache/policy.js';
 import { requireDb, type AppContext } from '../../context.js';
 import { problems } from '../../errors.js';
 import { buildEvents, eventsTtl } from '../../events/builder.js';
+import { participantEventIds } from '../../events/participant-events.js';
 import { constructorEvents, constructorProviderIds } from '../../events/race.js';
 import { assertWindow, competitionCond, IN_PLAY, sportScope } from '../../events/queries.js';
 import { competitionName, pickText } from '../../i18n.js';
@@ -466,6 +467,8 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
           });
         }
 
+        // últimos, ao vivo e próximo partem do participante (participantEventIds): o join direto com `limit`
+        // descia event_starts_at_idx inteiro para quem parou de competir (500 nas páginas de pilotos lendários)
         const teamEvents = (status: Event['status'][], order: 'asc' | 'desc', limit: number) =>
           constructorIds.length
             ? constructorEvents(
@@ -476,34 +479,23 @@ export async function teamRoutes(app: FastifyInstance, ctx: AppContext): Promise
                 order,
                 limit,
               )
-            : db
-                .select({ id: event.id })
-                .from(event)
-                .innerJoin(eventParticipant, eq(eventParticipant.eventId, event.id))
-                .where(
-                  and(eq(eventParticipant.participantId, team.id), inArray(event.status, status), inYear),
-                )
-                .orderBy(order === 'asc' ? asc(event.startsAt) : desc(event.startsAt), asc(event.id))
-                .limit(limit);
+            : participantEventIds(db, team.id, and(inArray(event.status, status), inYear), order, limit);
         const [competitions, lastIds, liveIds, nextIds] = await Promise.all([
           loadTeamCompetitions(bctx, team.id, year),
           teamEvents(['finished'], 'desc', 5),
           upcoming ? teamEvents(IN_PLAY, 'desc', 1) : [],
           !upcoming
             ? []
-            : db
-                .select({ id: event.id })
-                .from(event)
-                .innerJoin(eventParticipant, eq(eventParticipant.eventId, event.id))
-                .where(
-                  and(
-                    eq(eventParticipant.participantId, team.id),
-                    inArray(event.status, ['scheduled', 'starting']),
-                    sql`${event.startsAt} >= ${new Date(bctx.now.getTime() - 3 * 3600_000).toISOString()}::timestamptz`,
-                  ),
-                )
-                .orderBy(asc(event.startsAt), asc(event.id))
-                .limit(1),
+            : participantEventIds(
+                db,
+                team.id,
+                and(
+                  inArray(event.status, ['scheduled', 'starting']),
+                  sql`${event.startsAt} >= ${new Date(bctx.now.getTime() - 3 * 3600_000).toISOString()}::timestamptz`,
+                ),
+                'asc',
+                1,
+              ),
         ]);
         const built = await buildEvents(bctx, [
           ...lastIds.map((r) => r.id),
