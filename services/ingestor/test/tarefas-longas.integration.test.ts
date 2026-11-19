@@ -164,7 +164,8 @@ describe('acervo.importar', () => {
     const again = await importAcervo({ db, objects, manifest, dir: EXEMPLO });
     expect(again).toMatchObject({ linked: 7, uploaded: 0, changed: 0, detached: 0 });
     expect(await linked()).toEqual(afterCut);
-  });
+    // prévia + dois workers + reimportação: ~20–29 s no CI, colado no limite padrão de 30 s
+  }, 90_000);
 });
 
 describe('acervo.importar: a aprovação vale para o que a prévia viu', () => {
