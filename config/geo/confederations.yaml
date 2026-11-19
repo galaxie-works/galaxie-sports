@@ -21,9 +21,10 @@
 #                               nesses mercados (`relevance_by_market` no detalhe do evento, docs/06 §3.2),
 #                               somados aos mercados dos planos dos tenants.
 #   wtw_markets               - mercados do Onde Assistir (subconjunto de `markets`): os que têm pesquisa
-#                               de emissoras e direitos (config/broadcasters/<país>.yaml). Padrão do
-#                               WTW_MARKETS do painel (Ajustes), que manda quando preenchido; o espelho
-#                               WTW_MARKET_CODES do packages/runtime-config é cobrado pelo teste do geo.
+#                               de emissoras e direitos (config/broadcasters/<país>.yaml). São as
+#                               opções de WTW_MARKETS e RELATED_MARKETS no painel (Ajustes); sem valor no
+#                               painel, o wtw-run usa os mercados dos tenants. O espelho WTW_MARKET_CODES
+#                               do packages/runtime-config é cobrado pelo teste do geo.
 #   navigation.countries      - países da navegação da demo, na ordem do menu.
 #   navigation.sports         - os 12 esportes na ordem do menu, com nome localizado (fallback quando
 #                               o banco ainda não tem core.sport).

@@ -283,6 +283,11 @@ describe('parseGeoConfig', () => {
     expect(cfg.wtwMarkets).toEqual([]);
   });
 
+  it('lê wtw_markets na ordem do arquivo', () => {
+    const cfg = parseGeoConfig(geo({ markets: ['BR', 'AR'], wtw_markets: ['AR', 'BR'] }), scope());
+    expect(cfg.wtwMarkets).toEqual(['AR', 'BR']);
+  });
+
   it.each([
     [
       'país em duas confederações',
