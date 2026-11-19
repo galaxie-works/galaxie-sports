@@ -8,8 +8,6 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { auth, isAccessExpired } from '@/lib/auth/server';
 import { docsBaseUrl, safeDocsReturn, signDocsPass } from '@/lib/docs-sso';
 
-export const dynamic = 'force-dynamic';
-
 export async function GET(request: NextRequest) {
   const secret = process.env.DOCS_SSO_SECRET;
   if (!secret) return new NextResponse('Docs login is not configured', { status: 503 });
