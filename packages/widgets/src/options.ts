@@ -1397,6 +1397,19 @@ export const WIDGET_OPTIONS: Record<WidgetKind, readonly WidgetOptionSpec[]> = {
       label: l('Torcedores no Ranking', 'Hinchas en el ranking', 'Fans on the leaderboard'),
     },
   ],
+  fan_cards: [
+    {
+      key: 'show',
+      type: 'enum',
+      default: 'all',
+      label: l('Cartas no início', 'Cartas al inicio', 'Cards at first'),
+      values: [
+        { value: 'all', label: l('Todas', 'Todas', 'All') },
+        { value: 'owned', label: l('Só as que tem', 'Solo las que tiene', 'Owned only') },
+        { value: 'missing', label: l('Só as que faltam', 'Solo las que faltan', 'Missing only') },
+      ],
+    },
+  ],
 };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

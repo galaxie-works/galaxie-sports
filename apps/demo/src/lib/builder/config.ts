@@ -76,6 +76,7 @@ export const WIDGET_KINDS = [
   'shop_the_game',
   'live_chat',
   'fan_achievements',
+  'fan_cards',
 ] as const satisfies readonly WidgetKind[];
 
 /** O que o painel oferece: vídeos fora até decisão do dono (um widget já salvo continua editável). */
@@ -146,6 +147,7 @@ export const ENTITY_TYPES: Record<WidgetKind, readonly WidgetEntityType[]> = {
   shop_the_game: ['event', 'team', 'competition', 'person'],
   live_chat: ['event'],
   fan_achievements: [],
+  fan_cards: [],
 };
 
 /**
@@ -201,6 +203,7 @@ export const REQUIRED_ENTITY: Record<WidgetKind, WidgetEntityType | null> = {
   shop_the_game: null,
   live_chat: 'event',
   fan_achievements: null,
+  fan_cards: null,
 };
 
 /** Tipos que precisam de uma das entidades aceitas, qualquer uma (sem prop obrigatória no componente). */
@@ -594,6 +597,7 @@ export const REGISTRY_COMPONENTS: Record<WidgetKind, string> = {
   shop_the_game: 'GalaxieShopTheGame',
   live_chat: 'GalaxieLiveChat',
   fan_achievements: 'GalaxieAchievementShelf',
+  fan_cards: 'GalaxieCardAlbum',
 };
 
 /**

@@ -32,6 +32,7 @@ import type { ChampionsGalleryProps } from './widgets/champions-gallery.js';
 import type { CountdownProps } from './widgets/countdown.js';
 import type { LiveChatProps } from './widgets/live-chat.js';
 import type { AchievementShelfProps } from './widgets/achievement-shelf.js';
+import type { CardAlbumProps } from './widgets/card-album.js';
 import type { TeamSquadProps } from './widgets/team-squad.js';
 import type { PlayerProfileProps } from './widgets/player-profile.js';
 import type { LineupsProps } from './widgets/lineups.js';
@@ -93,6 +94,7 @@ export interface WidgetPropsByKind {
   shop_the_game: ShopTheGameProps;
   live_chat: LiveChatProps;
   fan_achievements: AchievementShelfProps;
+  fan_cards: CardAlbumProps;
 }
 
 export interface WidgetCatalogEntry<K extends WidgetKind = WidgetKind> {
@@ -143,7 +145,8 @@ export interface WidgetCatalogEntry<K extends WidgetKind = WidgetKind> {
     | 'UpcomingDerbies'
     | 'ShopTheGame'
     | 'LiveChat'
-    | 'AchievementShelf';
+    | 'AchievementShelf'
+    | 'CardAlbum';
   /** Componente que o arquivo instalado pelo registry exporta (com provider e tema embutidos). */
   registryComponent: string;
   name: Record<WidgetLocale, string>;
@@ -1078,6 +1081,24 @@ export const WIDGET_CATALOG: { [K in WidgetKind]: WidgetCatalogEntry<K> } = {
     optionalProps: ['view', 'sport', 'showLocked', 'rankingPeriod', 'rankingSize'],
     exampleProps: {},
     // não segue o ao vivo do jogo: a estante relê as Conquistas sozinha a cada minuto (aviso de Degrau novo)
+    polling: false,
+    sports: [],
+  },
+  fan_cards: {
+    kind: 'fan_cards',
+    component: 'CardAlbum',
+    registryComponent: 'GalaxieCardAlbum',
+    name: { 'pt-BR': 'Álbum de Cartas', es: 'Álbum de cartas', en: 'Card album' },
+    description: {
+      'pt-BR':
+        'O álbum do torcedor: as Cartas que ele tem e as que faltam, por família de Conquista, com como ganhar cada uma. Sem sorteio, compra ou troca. Precisa do login do torcedor.',
+      es: 'El álbum del hincha: las cartas que tiene y las que faltan, por familia de logros, con cómo ganar cada una. Sin sorteo, compra ni intercambio. Requiere la sesión del hincha.',
+      en: "The fan's album: the cards they own and the ones still missing, by achievement family, with how to earn each one. No draws, purchases or trading. Needs the fan's sign-in.",
+    },
+    requiredProps: [],
+    optionalProps: ['sport', 'show'],
+    exampleProps: {},
+    // relê as Cartas sozinho a cada 5 min (a Carta sai com o Degrau, no resultado definitivo)
     polling: false,
     sports: [],
   },
