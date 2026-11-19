@@ -8,9 +8,13 @@ cada país. Valida e agrupa a configuração de `config/geo`.
 Arquivos: `config/geo/confederations.yaml`, `competition-scope.yaml`, `market-audience.yaml`, lidos de `GEO_CONFIG_DIR`.
 O `services/ingestor` grava no banco com `geo:seed`.
 
+Mercados: `markets` (relevância por país) e `wtw_markets` (Onde Assistir, subconjunto de `markets`, um por
+dicionário em `config/broadcasters`). O `WTW_MARKET_CODES` do `@galaxie/runtime-config` é o espelho que o painel e o
+navegador usam; o teste deste pacote reprova se ele divergir do yaml.
+
 ## Depende de
 
-Nenhum pacote do repo.
+Nenhum pacote do repo em produção; os testes usam `@galaxie/runtime-config` para conferir o espelho dos mercados.
 
 ## Usado por
 

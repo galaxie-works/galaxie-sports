@@ -1,7 +1,9 @@
 import type { AccessModel, BroadcastMedium, BroadcasterKind, RightsDistribution } from '@galaxie/db';
 
-/** Mercados do onde assistir (docs/research/onde-assistir.md). */
-export const WTW_COUNTRIES = ['BR', 'AR', 'MX', 'CO', 'CL', 'PE', 'UY', 'EC'] as const;
+import { WTW_MARKET_CODES } from '@galaxie/runtime-config';
+
+/** Mercados do onde assistir (docs/research/onde-assistir.md): `wtw_markets` de config/geo. */
+export const WTW_COUNTRIES = WTW_MARKET_CODES;
 export type WtwCountry = (typeof WTW_COUNTRIES)[number];
 
 /**

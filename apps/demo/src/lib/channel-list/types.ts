@@ -2,6 +2,8 @@
  * Formato da lista de canais no portal (serializável para o navegador). Só nomes de canais: nunca
  * URL de stream nem EPG.
  */
+import { WTW_MARKET_CODES } from '@galaxie/runtime-config';
+
 export const MATCH_KINDS = ['exato', 'feed_generico', 'nome_divergente', 'sem_canal_na_lista'] as const;
 export type MatchKind = (typeof MATCH_KINDS)[number];
 
@@ -64,5 +66,5 @@ export function unmatchedChannels(view: Pick<ChannelListView, 'channels' | 'righ
   return view.channels.filter((c) => !used.has(c.idx));
 }
 
-/** Mercados do onde assistir (os mesmos de `WTW_COUNTRIES`, sem importar o pacote no navegador). */
-export const WTW_MARKETS = ['BR', 'AR', 'MX', 'CO', 'CL', 'PE', 'UY', 'EC'] as const;
+/** Mercados do onde assistir (`wtw_markets` de config/geo, pelo espelho do runtime-config, que roda no navegador). */
+export const WTW_MARKETS = WTW_MARKET_CODES;

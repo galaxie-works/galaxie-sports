@@ -69,6 +69,8 @@ export class GeoConfig {
   readonly navigationCountries: string[];
   /** Mercados ativos da relevância por país, na ordem do arquivo. */
   readonly markets: string[];
+  /** Mercados do Onde Assistir (subconjunto de `markets`), na ordem do arquivo. */
+  readonly wtwMarkets: string[];
   readonly navigationSports: { slug: string; name: I18nName }[];
   readonly regions: Record<string, string>;
   /** Audiência das competições por mercado (config/geo/market-audience.yaml). */
@@ -118,6 +120,12 @@ export class GeoConfig {
       if (!this.countries.has(code)) throw new GeoConfigError(`markets: país ${code} desconhecido.`);
     if (new Set(geo.markets).size !== geo.markets.length) throw new GeoConfigError('markets: país repetido.');
     this.markets = geo.markets;
+    const marketSet = new Set(geo.markets);
+    for (const code of geo.wtw_markets)
+      if (!marketSet.has(code)) throw new GeoConfigError(`wtw_markets: ${code} não está em markets.`);
+    if (new Set(geo.wtw_markets).size !== geo.wtw_markets.length)
+      throw new GeoConfigError('wtw_markets: país repetido.');
+    this.wtwMarkets = geo.wtw_markets;
     if (new Set(geo.navigation.sports.map((s) => s.slug)).size !== geo.navigation.sports.length)
       throw new GeoConfigError('navegação: esporte repetido.');
     this.navigationSports = geo.navigation.sports;

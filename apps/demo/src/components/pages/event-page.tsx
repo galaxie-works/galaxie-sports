@@ -1,4 +1,5 @@
 import type { Event, HeadToHead, WhereToWatch } from '@galaxie/contracts';
+import { WTW_MARKET_CODES } from '@galaxie/runtime-config';
 import {
   BadgeInfo,
   Bot,
@@ -57,7 +58,7 @@ import { ShopShelf } from '@/components/shop/shop-shelf';
 import { fill, plural } from '@/lib/i18n/text';
 import { announcementText, timeToBeConfirmed } from '@/lib/provisional';
 import { versusColors } from '@/lib/team-colors';
-import { COUNTRIES, eventCompetitionHref, eventParents, participantHref } from '@/lib/navigation';
+import { eventCompetitionHref, eventParents, participantHref } from '@/lib/navigation';
 import { cn } from '@/lib/utils';
 import { EventChatSlot } from '@/components/chat/event-chat-slot';
 import { groupWhereToWatch, hasGroups } from '@/lib/where-to-watch';
@@ -79,8 +80,8 @@ import type { PageContentProps } from './types';
 
 const STARTED = new Set(['live', 'break', 'finished', 'suspended', 'abandoned']);
 
-/** Mercados de onde-assistir oferecidos na demo (ISO 3166-1 alpha-2); o nome do país sai do dicionário. */
-const WTW_MARKETS = COUNTRIES.map((c) => ({ code: c.code === 'GB-ENG' ? 'GB' : c.code, nav: c.code }));
+/** Mercados do onde assistir (`wtw_markets` de config/geo, ISO 3166-1 alfa-2); o nome do país sai do dicionário. */
+const WTW_MARKETS = WTW_MARKET_CODES.map((code) => ({ code, nav: code }));
 
 /** Parcial do placar para os textos (`{home}–{away}`); lado sem dado aparece como "?", não vira 0. */
 const pair = (p: { home: number | null; away: number | null }) => ({
