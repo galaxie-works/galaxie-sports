@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# A mesma imagem de terceiros tem a mesma tag em todo lugar onde a infra a fixa: os compose de infra/ (produção, dev
-# local, NAS) e os padrões dos testes de ponta a ponta (`${E2E_*_IMAGE:-imagem:tag}`). Divergência já deixou o NAS com
-# rustfs 1.0.2 e o e2e com 1.0.4 enquanto a produção rodava 1.0.5 (#1432). Imagens nossas (ghcr.io/…) ficam de fora:
-# a tag delas é o commit.
+# A mesma imagem de terceiros tem a mesma tag em todos os compose de infra/ (produção, dev local, NAS) e nos padrões
+# `${E2E_*_IMAGE:-imagem:tag}` dos scripts de infra/ que ainda fixarem uma. Divergência já deixou o NAS com rustfs
+# 1.0.2 e o e2e com 1.0.4 enquanto a produção rodava 1.0.5 (#1432). Imagens nossas (ghcr.io/…) ficam de fora: a tag
+# delas é o commit. Fora do alcance: workflows do GitHub e Dockerfiles (issue própria no épico #1427).
 #   bash infra/ops/image-pins.test.sh            # na raiz do repositório
 set -euo pipefail
 cd "$(dirname "$0")/../.."
@@ -10,9 +10,9 @@ cd "$(dirname "$0")/../.."
 pins="$(
   {
     grep -rhoE '^[[:space:]]*image:[[:space:]]*["'"'"']?[a-z0-9./_-]+:[A-Za-z0-9._-]+' infra --include='*.yml' --include='*.yaml' |
-      sed -E 's/^[[:space:]]*image:[[:space:]]*["'"'"']?//'
+      sed -E 's/^[[:space:]]*image:[[:space:]]*["'"'"']?//' || true
     grep -rhoE '\$\{E2E_[A-Z0-9_]+_IMAGE:-[a-z0-9./_-]+:[A-Za-z0-9._-]+\}' infra --include='*.sh' |
-      sed -E 's/^\$\{E2E_[A-Z0-9_]+_IMAGE:-//; s/\}$//'
+      sed -E 's/^\$\{E2E_[A-Z0-9_]+_IMAGE:-//; s/\}$//' || true
   } | grep -v '^ghcr\.io/' | sort -u
 )"
 
