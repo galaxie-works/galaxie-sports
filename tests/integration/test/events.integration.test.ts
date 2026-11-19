@@ -1233,7 +1233,7 @@ describe('/v1/events/{id} — timeline, escalações, estatísticas, h2h e .ics'
     const ics = res.body;
     expect(ics.startsWith('BEGIN:VCALENDAR\r\nVERSION:2.0\r\n')).toBe(true);
     expect(ics.endsWith('END:VCALENDAR\r\n')).toBe(true);
-    expect(ics).toContain(`UID:${ids.leg2}@galaxie.sports\r\n`);
+    expect(ics).toContain(`UID:${ids.leg2}@galaxiesports.com\r\n`);
     expect(ics).toContain('DTSTART:20261022T003000Z\r\n');
     expect(ics).toMatch(/DTEND:20261022T\d{6}Z/);
     expect(ics).toContain('SUMMARY:Palmeiras × Fluminense · Libertadores');

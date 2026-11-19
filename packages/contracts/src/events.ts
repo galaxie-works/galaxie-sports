@@ -312,7 +312,7 @@ export const EventCompetitionRef = z
         description:
           'País da competição, com a bandeira (para "Liga Leumit" e "First NL" dizerem de onde são). `WORLD` nas ' +
           'internacionais (sem bandeira); null sem país no catálogo. Ausente nos blocos que não trazem o país.',
-        example: { code: 'BR', name: 'Brasil', flag: 'https://assets.galaxie.sports/flags/br.svg' },
+        example: { code: 'BR', name: 'Brasil', flag: 'https://assets.galaxiesports.com/flags/br.svg' },
       }),
   })
   .meta({ id: 'EventCompetitionRef' });

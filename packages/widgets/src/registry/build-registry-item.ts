@@ -28,7 +28,7 @@ export interface BuildRegistryItemInput {
   /** Nome do widget no Builder (vira o `name` do item e o nome do arquivo, em kebab-case). */
   name: string;
   theme: WidgetTheme;
-  /** Base da API pública, ex.: https://api.galaxie.sports */
+  /** Base da API pública, ex.: https://api.galaxiesports.com */
   apiBaseUrl: string;
   locale?: WidgetLocale | undefined;
   /** País ISO2. */

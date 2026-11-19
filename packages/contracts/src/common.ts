@@ -78,7 +78,7 @@ export const AGE_GATE_NEXT_STEPS = ['verify_age', 'guardian_consent', 'guardian_
 /** Erro no formato RFC 9457 (`application/problem+json`). */
 export const Problem = z
   .object({
-    type: z.string().meta({ example: 'https://docs.galaxie.sports/errors/invalid-key' }),
+    type: z.string().meta({ example: 'https://docs.galaxiesports.com/errors/invalid-key' }),
     title: z.string().meta({ example: 'Chave de API ausente ou inválida' }),
     status: z.number().int(),
     code: z.enum(ERROR_CODES),
@@ -171,9 +171,9 @@ export const LogoFormats = z
     description:
       'O mesmo escudo em SVG, PNG e WebP, quando o `logo` vem do acervo (`logo_source` = `acervo`). Cada formato ausente vem null; null inteiro nos logos do fornecedor e da Commons, que têm um formato só (o de `logo`).',
     example: {
-      svg: 'https://assets.galaxie.sports/acervo/football/teams/01a15fc2-0000-7000-8000-000000000000.52ee37d4a3a9.svg',
-      png: 'https://assets.galaxie.sports/acervo/football/teams/01a15fc2-0000-7000-8000-000000000000.8915da654980.png',
-      webp: 'https://assets.galaxie.sports/acervo/football/teams/01a15fc2-0000-7000-8000-000000000000.2ca1ab29158a.webp',
+      svg: 'https://assets.galaxiesports.com/acervo/football/teams/01a15fc2-0000-7000-8000-000000000000.52ee37d4a3a9.svg',
+      png: 'https://assets.galaxiesports.com/acervo/football/teams/01a15fc2-0000-7000-8000-000000000000.8915da654980.png',
+      webp: 'https://assets.galaxiesports.com/acervo/football/teams/01a15fc2-0000-7000-8000-000000000000.2ca1ab29158a.webp',
     },
   });
 export type LogoFormats = z.infer<typeof LogoFormats>;
@@ -199,14 +199,14 @@ export const LogoSizes = z
       'O escudo do acervo em PNG e WebP nos tamanhos fixos 64, 128, 256 e 512 px (quadrado, o logo encaixado sem corte, sobra transparente). Todo tamanho tem de fato o lado anunciado: o 512 é o `png`/`webp` de `logo_formats` quando ele já tem 512×512, senão um arquivo gerado nesse tamanho; escudo original menor que um tamanho não é ampliado e esse tamanho vem null. Tamanho ausente vem null; null inteiro fora do acervo (`logo_source` diferente de `acervo`).',
     example: {
       '64': {
-        png: 'https://assets.galaxie.sports/acervo/football/teams/01a15fc2-0000-7000-8000-000000000000.1f0c55e3b2a1.png',
-        webp: 'https://assets.galaxie.sports/acervo/football/teams/01a15fc2-0000-7000-8000-000000000000.7d2e90ab4c11.webp',
+        png: 'https://assets.galaxiesports.com/acervo/football/teams/01a15fc2-0000-7000-8000-000000000000.1f0c55e3b2a1.png',
+        webp: 'https://assets.galaxiesports.com/acervo/football/teams/01a15fc2-0000-7000-8000-000000000000.7d2e90ab4c11.webp',
       },
       '128': null,
       '256': null,
       '512': {
-        png: 'https://assets.galaxie.sports/acervo/football/teams/01a15fc2-0000-7000-8000-000000000000.8915da654980.png',
-        webp: 'https://assets.galaxie.sports/acervo/football/teams/01a15fc2-0000-7000-8000-000000000000.2ca1ab29158a.webp',
+        png: 'https://assets.galaxiesports.com/acervo/football/teams/01a15fc2-0000-7000-8000-000000000000.8915da654980.png',
+        webp: 'https://assets.galaxiesports.com/acervo/football/teams/01a15fc2-0000-7000-8000-000000000000.2ca1ab29158a.webp',
       },
     },
   });

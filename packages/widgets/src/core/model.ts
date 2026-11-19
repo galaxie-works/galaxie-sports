@@ -5159,7 +5159,7 @@ export function eventIcs(event: GsEvent, now: Date = new Date()): string {
     'VERSION:2.0',
     'PRODID:-//Galaxie Sports//Widgets//PT',
     'BEGIN:VEVENT',
-    `UID:${event.id}@galaxie.sports`,
+    `UID:${event.id}@galaxiesports.com`,
     `DTSTAMP:${icsDate(now)}`,
     `DTSTART:${icsDate(start)}`,
     `DTEND:${icsDate(end)}`,

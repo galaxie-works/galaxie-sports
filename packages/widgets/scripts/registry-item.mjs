@@ -15,7 +15,7 @@ const { values, positionals } = parseArgs({
   allowPositionals: true,
   options: {
     theme: { type: 'string', default: 'dark' },
-    api: { type: 'string', default: 'https://api.galaxie.sports' },
+    api: { type: 'string', default: 'https://api.galaxiesports.com' },
     locale: { type: 'string', default: 'pt-BR' },
     market: { type: 'string', default: 'BR' },
     event: { type: 'string' },

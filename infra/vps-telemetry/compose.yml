@@ -102,6 +102,8 @@ services:
       DIDIT_WORKFLOW_ID: ${DIDIT_WORKFLOW_ID:-}
       DIDIT_WEBHOOK_SECRET: ${DIDIT_WEBHOOK_SECRET:-}
       API_PUBLIC_URL: https://${API_DOMAIN:?defina API_DOMAIN}
+      # base do `type` dos erros (RFC 9457): as docs da plataforma (#1431); DOCS_DOMAIN no .env troca
+      DOCS_PUBLIC_URL: https://${DOCS_DOMAIN:-docs.galaxiesports.com}
       # Planos e módulos do console, no `upgrade_url` do 403 MODULE_NOT_IN_PLAN (plataforma comercial, #1137)
       UPGRADE_URL_BASE: https://${DEMO_DOMAIN:?defina DEMO_DOMAIN}/client/plans
       SEMANTIC_MIN_REVIEW_STATUS: ${SEMANTIC_MIN_REVIEW_STATUS:-approved}
@@ -815,7 +817,7 @@ configs:
       }
   maintenance-problem:
     content: |
-      {"type":"https://docs.galaxie.sports/errors/maintenance","title":"Em manutenção","status":503,"code":"MAINTENANCE","detail":"Estamos atualizando o Galaxie Sports. Tente de novo em 30 segundos.","retry_after":30}
+      {"type":"https://${DOCS_DOMAIN:-docs.galaxiesports.com}/errors/maintenance","title":"Em manutenção","status":503,"code":"MAINTENANCE","detail":"Estamos atualizando o Galaxie Sports. Tente de novo em 30 segundos.","retry_after":30}
   maintenance-page:
     content: |
       <!doctype html>

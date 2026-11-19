@@ -3,7 +3,11 @@ import type { ErrorCode, Problem } from '@galaxie/contracts';
 import type { ZodError } from 'zod';
 
 export const PROBLEM_CONTENT_TYPE = 'application/problem+json; charset=utf-8';
-const TYPE_BASE = 'https://docs.galaxie.sports/errors/';
+/**
+ * Base do `type` dos erros (RFC 9457): as docs da plataforma, em docs.galaxiesports.com (decisão do dono, #1431). Em
+ * produção vem de DOCS_PUBLIC_URL (o compose monta com DOCS_DOMAIN); o padrão serve a dev e testes.
+ */
+const TYPE_BASE = `${(process.env.DOCS_PUBLIC_URL ?? 'https://docs.galaxiesports.com').replace(/\/+$/, '')}/errors/`;
 
 /** Erro de domínio serializado como RFC 9457 (docs/05 §6). */
 export class ProblemError extends Error {

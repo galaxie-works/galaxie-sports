@@ -131,7 +131,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ path: st
   const { path } = await params;
   if (path[0] !== 'v1') return new Response('Not found', { status: 404 });
   const url = new URL(req.url);
-  const res = await fetch(`https://api.galaxie.sports/${path.join('/')}${url.search}`, {
+  const res = await fetch(`https://api.galaxiesports.com/${path.join('/')}${url.search}`, {
     headers: {
       'x-galaxie-key': process.env.GALAXIE_API_KEY!,
       'accept-language': req.headers.get('accept-language') ?? 'pt-BR',
@@ -373,11 +373,11 @@ Exemplo de evento canônico:
   "status": "scheduled",
   "momentum": "today",
   "participants": [
-    { "side": "home", "id": "0192c7e2-…-palmeiras", "name": "Palmeiras", "logo": "https://assets.galaxie.sports/api-sports/football/teams/121.png?v=9879fc79",
+    { "side": "home", "id": "0192c7e2-…-palmeiras", "name": "Palmeiras", "logo": "https://assets.galaxiesports.com/api-sports/football/teams/121.png?v=9879fc79",
       "nickname": "Verdão",
       "fan_tags": [{ "code": "advances_with_draw", "priority": 34, "text": { "pt-BR": "Avança com empate" } }],
       "cheer": { "text": "Avanti, Palestra!", "source_url": "https://pt.wikipedia.org/wiki/Sociedade_Esportiva_Palmeiras" } },
-    { "side": "away", "id": "0192c7e2-…-fluminense", "name": "Fluminense", "logo": "https://assets.galaxie.sports/api-sports/football/teams/124.png?v=1f0c2a7e",
+    { "side": "away", "id": "0192c7e2-…-fluminense", "name": "Fluminense", "logo": "https://assets.galaxiesports.com/api-sports/football/teams/124.png?v=1f0c2a7e",
       "nickname": "Tricolor",
       "fan_tags": [
         { "code": "needs_win_by_2", "priority": 31, "text": { "pt-BR": "Precisa vencer por 2 gols" } },
@@ -452,7 +452,7 @@ Convenções implementadas (`apps/api/src/routes/v1/events.ts`, montagem em `app
   Exemplo: `{ "type": "Ball Possession", "value": "54%", "code": "possession_pct", "label": "Posse de bola", "numeric": 54, "source": "provider" }`.
 - **`/h2h?limit=`** (1–50, padrão 10): confrontos **encerrados** entre os dois participantes no `core` (qualquer competição), do mais recente ao mais antigo. Inclui o próprio evento quando ele já terminou: na página de um jogo encerrado, ele está na lista e entra no `summary`, para a barra de vitórias não contradizer o placar da página; antes do apito final (agendado ou ao vivo), o confronto é só o histórico anterior. `summary` (`played`, `draws`, `wins`/`goals` por time; `scope: database`) considera todos os confrontos da base, não só os `limit` da lista. Nunca chama o fornecedor.
 - **`/card`** (só MMA; demais esportes → 404): a noite de lutas (fase `fight_card`) da luta, com `card` (`id`, `name`, `starts_at`, `ends_at`) e `fights` (eventos completos) na ordem de exibição — luta principal, card principal, preliminares, preliminares iniciais. Toda luta de MMA traz `fight`: `card`, `segment` (`main_card`/`prelims`/`early_prelims`, pelos blocos de horário do fornecedor e `is_main`), `main_event` (os dois sobrenomes no nome do card), `weight_class` (`code` do fornecedor e nome no locale) e `result` (`method` canônico — `ko`, `submission`, `decision_unanimous`, `decision_split`, `decision_majority`, `disqualification`, `draw`, `no_contest`, `other` —, `method_name` no locale, `detail`, `round`, `time`, `scorecards`; null até o desfecho chegar). Os cantos saem em ordem (`corner_red`, `corner_blue`), o `/h2h` conta vitórias pelo `winner` e a forma do lutador (`/teams/{id}/overview`) usa o vencedor e o método.
-- **`/{id}.ics`**: `text/calendar` (RFC 5545) com um `VEVENT`: `UID <id>@galaxie.sports`, `DTSTART`/`DTEND` em UTC (`starts_at` e `ends_at_expected`), `SUMMARY` "Mandante × Visitante · Competição", `LOCATION`, `STATUS` (`CANCELLED` para cancelado/abandonado, `TENTATIVE` para adiado), linhas CRLF dobradas em 75 octetos. O título segue o locale; os horários não dependem de `tz`.
+- **`/{id}.ics`**: `text/calendar` (RFC 5545) com um `VEVENT`: `UID <id>@galaxiesports.com`, `DTSTART`/`DTEND` em UTC (`starts_at` e `ends_at_expected`), `SUMMARY` "Mandante × Visitante · Competição", `LOCATION`, `STATUS` (`CANCELLED` para cancelado/abandonado, `TENTATIVE` para adiado), linhas CRLF dobradas em 75 octetos. O título segue o locale; os horários não dependem de `tz`.
 - **`/context?locale=&kind=scenario|recap`** (módulo `live_intelligence`; `apps/api/src/routes/v1/event-context.ts`): cenário pré-jogo e resumo pós-jogo dos agentes de IA (docs/07 §2.3), lidos de `enrich.event_context` por `readEventContext` (`@galaxie/db`, a mesma leitura dos agentes): a versão vigente por tipo no locale pedido, ignorando as rejeitadas pela revisão editorial — sem fallback entre locales (a copy é por mercado; locale sem texto → `data: []`). Cada item traz `text`, `sentences`, `origin` (`llm` aprovado pelos guardrails ou `fallback` determinístico), `model`, `confidence`, `review_status` (`auto`/`reviewed`), `generated_at` (no `tz`), `fits` (TV/mobile/web) e `sources` (core, regulamento com URL). Sem `kind`, os dois tipos. Evento inexistente → 404; esporte fora do plano → 403. TTL 1 h, purgado por `event.context_published` (tags `event_context:<id>` e `event:<id>`) e, quando a revisão rejeita um texto que já estava no ar, pelo tópico interno `event_context.rejected` (mesmas tags; não vai para SSE nem webhooks).
 - **`context` no detalhe**: para tenants com `live_intelligence`, `GET /v1/events/{id}` traz `context: { scenario, recap }` (texto vigente no locale, `origin` e `generated_at`, ou `null`) — uma consulta indexada a mais; para os demais planos o campo não aparece (a resposta em cache varia por isso).
 - **Cache**: detalhe com TTL de 10 s se ao vivo ou começando em até 2 h, 5 min se agendado e 1 h se encerrado; agenda até 5 min. No pico, `/v1/events`, `/v1/events/live`, `/v1/events/:id` e a tabela (`/standings`) recalculam uma vez por vencimento: quem chega durante o recálculo recebe o valor anterior por alguns segundos (`x-galaxie-cache: STALE`, `Cache-Control: no-cache`; janela de 5 s no ao vivo e no detalhe, 30 s na agenda, 60 s na tabela), e requisições simultâneas sem cache esperam um único load. Um purge apaga a entrada na hora: depois de uma mudança, o valor anterior nunca é servido. Tags `event:<id>` (e `event` nas listas): `publishChange(db, { entityType: 'event', entityId })` purga. O plano do tenant (esporte) é verificado também quando a resposta vem do cache.
@@ -968,7 +968,7 @@ O segredo fica em `api.webhook_endpoint.secret` **cifrado** (AES-256-GCM) com a 
 Formato RFC 9457 (`application/problem+json`):
 
 ```json
-{ "type": "https://docs.galaxie.sports/errors/quota", "title": "Plano não inclui o módulo where_to_watch", "status": 403, "code": "MODULE_NOT_IN_PLAN" }
+{ "type": "https://docs.galaxiesports.com/errors/quota", "title": "Plano não inclui o módulo where_to_watch", "status": 403, "code": "MODULE_NOT_IN_PLAN" }
 ```
 
 | Código | Situação |
@@ -993,7 +993,7 @@ Formato RFC 9457 (`application/problem+json`):
 | 503 `MAINTENANCE` | Stack em atualização (deploy ou reinício, segundos): quem responde é o serviço de manutenção na frente da API, com `Retry-After: 30`; tente de novo depois dele (infra/vps-telemetry/README.md › Página de manutenção) |
 | 500 `INTERNAL_ERROR` | Erro inesperado (registrado em log) |
 
-`type` segue `https://docs.galaxie.sports/errors/<código-em-kebab-case>` (ex.: `.../errors/module-not-in-plan`); `instance` é o caminho da requisição; `INVALID_PARAMS` traz `errors: [{ path, message }]`. Rotas inexistentes também respondem 404 `NOT_FOUND` em `application/problem+json`. Erros nunca são cacheados (`Cache-Control: no-store`).
+`type` segue `https://docs.galaxiesports.com/errors/<código-em-kebab-case>` (ex.: `.../errors/module-not-in-plan`); `instance` é o caminho da requisição; `INVALID_PARAMS` traz `errors: [{ path, message }]`. Rotas inexistentes também respondem 404 `NOT_FOUND` em `application/problem+json`. Erros nunca são cacheados (`Cache-Control: no-store`).
 
 ## 7. TTLs de cache recomendados
 
@@ -1142,7 +1142,7 @@ Faixa que desce de `18plus` para menor no mesmo Perfil congela as ações de adu
 **Exemplo em Node** (no servidor do cliente):
 
 ```js
-const res = await fetch('https://api.galaxie.sports/v1/fans/tokens', {
+const res = await fetch('https://api.galaxiesports.com/v1/fans/tokens', {
   method: 'POST',
   headers: { 'x-galaxie-key': process.env.GALAXIE_KEY, 'content-type': 'application/json' },
   body: JSON.stringify({
@@ -1165,7 +1165,7 @@ const { data } = await res.json(); // data.token vai para o widget; peça outro 
 **Exemplo em PHP:**
 
 ```php
-$ch = curl_init('https://api.galaxie.sports/v1/fans/tokens');
+$ch = curl_init('https://api.galaxiesports.com/v1/fans/tokens');
 curl_setopt_array($ch, [
   CURLOPT_POST => true,
   CURLOPT_RETURNTRANSFER => true,
@@ -1237,7 +1237,7 @@ Sem o módulo, sem as chaves do provedor, com um Perfil que não pode (403 ou 50
 
 ```tsx
 <GalaxieWidgetProvider
-  baseUrl="https://api.galaxie.sports"
+  baseUrl="https://api.galaxiesports.com"
   publishableKey="gs_pk_live_..."
   theme={theme}
   locale="pt-BR"
