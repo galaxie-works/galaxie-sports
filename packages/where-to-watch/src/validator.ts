@@ -74,6 +74,8 @@ export interface CandidateEvidence {
    * verificado.
    */
   excerptFound?: boolean | null;
+  /** Os dois times aparecem na página agora (o jogo continua nela)? null/undefined = não verificado. */
+  matchOnPage?: boolean | null;
   /** Já tinha sido achado numa verificação anterior (evidência salva). */
   excerptVerified?: boolean;
   contentHash?: string | null;

@@ -8,6 +8,7 @@
  */
 import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { broadcastOption, publishChange, type Database, type Evidence } from '@galaxie/db';
+import { normalizeName } from './normalize.js';
 import { optionKey, type ValidatedOption } from './validator.js';
 
 export type BroadcastOptionRow = typeof broadcastOption.$inferSelect;
@@ -114,6 +115,13 @@ export interface ApplyAgentInput {
   options: ValidatedOption[];
   /** Execução completa: chaves vigentes do agente que sumiram viram `retracted`. */
   retractMissing: boolean;
+  /**
+   * Emissoras que esta execução recusou com fonte (negação de fonte primária, bloqueio ou fora dos
+   * direitos). Só elas podem perder uma opção já `confirmed`: não achar a fonte de novo ou a fonte ficar
+   * velha não retira nem rebaixa o que já foi confirmado (decisão do Wagner, 19/11, #1400). Sem o campo,
+   * vale a regra antiga (qualquer ausência retira).
+   */
+  refutedProviders?: string[];
   runId?: string | null;
   producedBy?: string;
   now: Date;
@@ -150,6 +158,10 @@ export async function applyAgentResult(db: Database, input: ApplyAgentInput): Pr
     const current = await currentOptions(tx, input.eventId, input.country);
     const byKey = new Map(current.map((r) => [rowKey(r), r]));
     const seen = new Set<string>();
+    const refuted = input.refutedProviders ? new Set(input.refutedProviders.map(normalizeName)) : null;
+    // confirmada que esta execução não refutou: fica como está (sem nova versão)
+    const keepConfirmed = (prev: BroadcastOptionRow | null) =>
+      !!refuted && prev?.status === 'confirmed' && !refuted.has(normalizeName(prev.providerName));
 
     for (const o of input.options) {
       seen.add(o.key);
@@ -168,6 +180,10 @@ export async function applyAgentResult(db: Database, input: ApplyAgentInput): Pr
         confidence: o.confidence.toFixed(2),
         flags: o.flags,
       };
+      if (prev && o.status !== 'confirmed' && !o.conflict && keepConfirmed(prev)) {
+        result.touched++;
+        continue;
+      }
       if (prev && material(prev) === material(next)) {
         await tx
           .update(broadcastOption)
@@ -209,7 +225,8 @@ export async function applyAgentResult(db: Database, input: ApplyAgentInput): Pr
 
     if (input.retractMissing) {
       for (const prev of current) {
-        if (seen.has(rowKey(prev)) || prev.status === 'retracted' || isEditorial(prev)) continue;
+        if (seen.has(rowKey(prev)) || prev.status === 'retracted' || isEditorial(prev) || keepConfirmed(prev))
+          continue;
         const row = await insertVersion(
           tx,
           {

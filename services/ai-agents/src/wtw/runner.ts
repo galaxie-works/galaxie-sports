@@ -36,7 +36,7 @@ import type { LlmClient } from '../llm/types.js';
 import { WhereToWatchAgent, type AllocationResult } from './agent.js';
 import { loadEventInfos, matchFacts, type EventInfo } from './event-info.js';
 import { teamsOf } from './channel/runner.js';
-import { rowToCandidate, verifyCandidates } from './evidence.js';
+import { refutedBySource, rowToCandidate, verifyCandidates } from './evidence.js';
 import { CachingPageFetcher, type PageFetcher } from './fetcher.js';
 import { groupKeyOf, roundKeyOf } from './groups.js';
 import type { AllocationMarket } from './prompt.js';
@@ -86,6 +86,8 @@ export interface RunOutcome {
   error?: string;
 }
 
+/** Motivos de descarte que refutam um canal (os outros só dizem que a fonte não foi achada de novo). */
+const REFUTING = new Set(['denied_by_primary', 'blocked', 'not_a_rights_holder']);
 const ACTIVE = new Set(['confirmed', 'pending', 'omitted']);
 
 interface RunCtx {
@@ -554,6 +556,11 @@ export class WtwRunner {
         country: run.countryCode,
         options,
         retractMissing: true,
+        // só a recusa com fonte tira um canal já confirmado (#1400)
+        refutedProviders: [
+          ...report.discarded.filter((d) => REFUTING.has(d.reason)).map((d) => d.broadcaster),
+          ...verified.candidates.filter(refutedBySource).map((c) => c.broadcaster),
+        ],
         runId: run.id,
         now: this.now(),
       });
