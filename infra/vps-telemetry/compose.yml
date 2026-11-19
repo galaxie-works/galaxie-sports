@@ -194,6 +194,9 @@ services:
       DEMO_DATABASE_URL: ${DB_URL_DEMO:-postgres://${POSTGRES_USER:-galaxie}:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-galaxie_sports}}
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?defina BETTER_AUTH_SECRET (openssl rand -hex 32)}
       BETTER_AUTH_URL: https://${DEMO_DOMAIN:?defina DEMO_DOMAIN}
+      # Login das docs (galaxie-sports-docs, #1484): o mesmo segredo vai no contêiner das docs; vazio = /docs-handoff responde 503
+      DOCS_SSO_SECRET: ${DOCS_SSO_SECRET:-}
+      DOCS_DOMAIN: ${DOCS_DOMAIN:-docs.galaxiesports.com}
       # Primeiro admin: criado na subida se ainda não houver nenhum; recebe o convite por e-mail
       DEMO_ADMIN_EMAIL: ${DEMO_ADMIN_EMAIL:-}
       DEMO_ADMIN_NAME: ${DEMO_ADMIN_NAME:-}
