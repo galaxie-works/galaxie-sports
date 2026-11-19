@@ -43,9 +43,14 @@
 # Falha depois do passo 6 deixa a versão nova no ar e imprime o comando para voltar à anterior.
 set -euo pipefail
 
-VPS="${VPS:-root@145.223.94.149}"
-DIR="${VPS_DIR:-/docker/galaxie-sports}"
-REG="ghcr.io/galaxie-works/galaxie-sports"
+# alvo e pasta da VPS: do ambiente ou das vars do ambiente producao do GitHub (as mesmas do deploy.yml); sem IP no
+# código (#1429). Registry: IMAGE_PREFIX, como no deploy-gh.sh.
+VPS="${VPS:-$(gh -R galaxie-works/galaxie-sports variable get VPS_SSH_TARGET --env producao 2>/dev/null || true)}"
+VPS_DIR="${VPS_DIR:-$(gh -R galaxie-works/galaxie-sports variable get VPS_DIR --env producao 2>/dev/null || true)}"
+: "${VPS:?defina VPS ou entre no gh com acesso à var VPS_SSH_TARGET do ambiente producao}"
+: "${VPS_DIR:?defina VPS_DIR ou entre no gh com acesso à var VPS_DIR do ambiente producao}"
+DIR="$VPS_DIR"
+REG="${IMAGE_PREFIX:-ghcr.io/galaxie-works/galaxie-sports}"
 ROOT="$(git rev-parse --show-toplevel)"
 LOCK="$DIR/.deploy.lock"
 CI_WAIT_MIN="${CI_WAIT_MIN:-20}"

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Diagnóstico de alerta, SÓ LEITURA. É o único comando que a chave de diagnóstico (VPS_DIAG_SSH_KEY, ambiente
 # `producao` do GitHub) pode rodar na VPS: o authorized_keys força este script (command="…/diagnostico.sh",restrict).
-# O deploy grava a versão do SHA publicado em /docker/galaxie-sports/diagnostico.sh. Quem chama é o workflow
+# O deploy grava a versão do SHA publicado em $VPS_DIR/diagnostico.sh (a pasta da stack). Quem chama é o workflow
 # .github/workflows/diagnostico.yml, disparado quando um alerta abre ou reabre a issue (infra/ops/alerta-issue.sh).
 #
 # O pedido chega em SSH_ORIGINAL_COMMAND (ou nos argumentos, rodando à mão): o nome do alerta e rótulos opcionais,
@@ -13,7 +13,8 @@
 # - nunca imprime o .env nem segredo: só o que as consultas e os logs mostram;
 # - nada de docker compose up/restart/exec que escreva; o exec só roda psql de leitura e wget no Prometheus.
 set -uo pipefail
-cd /docker/galaxie-sports || exit 1
+# roda na pasta da stack, onde o deploy grava este script (#1429)
+cd "$(dirname "$(readlink -f "$0")")" || exit 1
 
 REQ="${SSH_ORIGINAL_COMMAND:-$*}"
 # só letras, números, espaço, = - _ . : (sem aspas, $, ;, |, crase…)
