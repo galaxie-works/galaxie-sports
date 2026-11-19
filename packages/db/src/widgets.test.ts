@@ -154,5 +154,6 @@ describe('tipos de widget', () => {
     expect(WIDGET_KIND_MODULES.match_prediction).toEqual(['core_data']);
     expect(WIDGET_KIND_MODULES.match_stakes).toEqual(['core_data']);
     expect(WIDGET_KIND_MODULES.medal_table).toEqual(['core_data', 'multisport']);
+    expect(WIDGET_KIND_MODULES.fan_achievements).toEqual(['core_data', 'gamification']);
   });
 });

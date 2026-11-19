@@ -83,6 +83,8 @@ export const WIDGET_KIND_MODULES: Record<WidgetKind, readonly ApiModule[]> = {
   shop_the_game: ['core_data', 'shopping'],
   // chat ao vivo da sala do jogo (#976): ler a sala e o stream
   live_chat: ['core_data', 'live_chat'],
+  // estante de Conquistas e Ranking do torcedor (#919)
+  fan_achievements: ['core_data', 'gamification'],
 };
 
 export function isWidgetKind(value: unknown): value is WidgetKind {

@@ -75,6 +75,7 @@ export const WIDGET_KINDS = [
   'upcoming_derbies',
   'shop_the_game',
   'live_chat',
+  'fan_achievements',
 ] as const satisfies readonly WidgetKind[];
 
 /** O que o painel oferece: vídeos fora até decisão do dono (um widget já salvo continua editável). */
@@ -144,6 +145,7 @@ export const ENTITY_TYPES: Record<WidgetKind, readonly WidgetEntityType[]> = {
   // Shopping: a entidade da página (o jogo ou o time, o campeonato ou o atleta); no embed, os atributos dela
   shop_the_game: ['event', 'team', 'competition', 'person'],
   live_chat: ['event'],
+  fan_achievements: [],
 };
 
 /**
@@ -198,6 +200,7 @@ export const REQUIRED_ENTITY: Record<WidgetKind, WidgetEntityType | null> = {
   upcoming_derbies: null,
   shop_the_game: null,
   live_chat: 'event',
+  fan_achievements: null,
 };
 
 /** Tipos que precisam de uma das entidades aceitas, qualquer uma (sem prop obrigatória no componente). */
@@ -590,6 +593,7 @@ export const REGISTRY_COMPONENTS: Record<WidgetKind, string> = {
   upcoming_derbies: 'GalaxieUpcomingDerbies',
   shop_the_game: 'GalaxieShopTheGame',
   live_chat: 'GalaxieLiveChat',
+  fan_achievements: 'GalaxieAchievementShelf',
 };
 
 /**

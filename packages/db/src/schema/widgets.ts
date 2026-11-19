@@ -51,6 +51,7 @@ export const WIDGET_KINDS = [
   'upcoming_derbies',
   'shop_the_game',
   'live_chat',
+  'fan_achievements',
 ] as const;
 export type WidgetKind = (typeof WIDGET_KINDS)[number];
 

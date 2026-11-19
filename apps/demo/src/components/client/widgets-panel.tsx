@@ -127,6 +127,7 @@ export const KIND_ICONS: Record<WidgetKind, LucideIcon> = {
   upcoming_derbies: Flame,
   shop_the_game: ShoppingBag,
   live_chat: MessagesSquare,
+  fan_achievements: Trophy,
 };
 
 /** Nome e descrição do tipo de widget no idioma da tela (vêm do catálogo de `@galaxie/widgets`). */

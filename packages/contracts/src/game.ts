@@ -85,8 +85,12 @@ export type SavedPredictions = z.infer<typeof SavedPredictions>;
 export const RankingParams = z.object({
   period: z
     .string()
-    .regex(/^\d{4}(-(0[1-9]|1[0-2]))?$/)
-    .meta({ description: 'Mês (`2026-11`) ou ano (`2026`), no fuso do país do programa.' }),
+    .regex(/^(\d{4}(-(0[1-9]|1[0-2]))?|current-month|current-year)$/)
+    .meta({
+      description:
+        'Mês (`2026-11`) ou ano (`2026`), no fuso do país do programa; `current-month` e `current-year` usam o ' +
+        'período corrente nesse fuso.',
+    }),
 });
 export const RankingQuery = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(50),
@@ -99,6 +103,10 @@ export const RankingEntryView = z
     nickname: z.string().nullable(),
     points: z.number().int(),
     full_hits: z.number().int(),
+    is_me: z
+      .boolean()
+      .optional()
+      .meta({ description: 'A linha é do torcedor do token (só nas rotas do torcedor).' }),
   })
   .meta({ id: 'RankingEntry' });
 
@@ -202,6 +210,7 @@ export const AchievementEarners = z
             nickname: z.string().nullable(),
             avatar_url: z.string().nullable(),
             step: z.number().int().min(1).max(5),
+            is_me: z.boolean().optional().meta({ description: 'É o torcedor do token.' }),
           }),
         )
         .meta({
@@ -212,6 +221,49 @@ export const AchievementEarners = z
   })
   .meta({ id: 'AchievementEarners' });
 export type AchievementEarners = z.infer<typeof AchievementEarners>;
+
+export const AchievementCatalogQuery = z.object({
+  /** Só as do esporte e as comuns a todos. Sem ele, o Catálogo inteiro do programa. */
+  sport: z
+    .string()
+    .regex(/^[a-z0-9-]+$/)
+    .max(40)
+    .optional(),
+});
+
+const GameI18nView = z
+  .object({ pt: z.string().optional(), es: z.string().optional(), en: z.string().optional() })
+  .meta({ description: 'Texto por idioma (`pt`, `es`, `en`); o widget escolhe o do leitor.' });
+
+export const AchievementCatalog = z
+  .object({
+    data: z.object({
+      program_country: z.string(),
+      achievements: z.array(
+        z.object({
+          id: z.string(),
+          sport: z.string().nullable().meta({ description: 'null = comum a todos os esportes.' }),
+          category: z.enum(['participation', 'hit', 'moment', 'consumption']),
+          family: z
+            .string()
+            .meta({ description: 'Grupo da estante (`loyalty`, `predictions`, `moments`...).' }),
+          stepped: z.boolean().meta({ description: 'false = Conquista de momento, única (um Degrau só).' }),
+          seasonal: z.boolean(),
+          name: GameI18nView,
+          description: GameI18nView,
+          steps: z.array(
+            z.object({
+              step: z.number().int().min(1).max(5),
+              threshold: z.number().int().positive(),
+              card_key: z.string().nullable(),
+            }),
+          ),
+        }),
+      ),
+    }),
+  })
+  .meta({ id: 'AchievementCatalog' });
+export type AchievementCatalog = z.infer<typeof AchievementCatalog>;
 
 const problem = (description: string) => ({
   description,
@@ -283,6 +335,18 @@ export const gamePaths: ZodOpenApiPathsObject = {
       tags: [TAG],
       security: fanAuth,
       responses: { '200': { description: 'OK', content: json(FanAchievements) }, ...common },
+    },
+  },
+  '/v1/achievements': {
+    get: {
+      summary: 'Catálogo de Conquistas do programa',
+      description:
+        'As Conquistas que valem no programa do torcedor (cliente e país): nome e descrição por idioma, a família ' +
+        'da estante e os Degraus com o limite e a Carta de cada um. As que o cliente desligou não aparecem.',
+      tags: [TAG],
+      security: fanAuth,
+      requestParams: { query: AchievementCatalogQuery },
+      responses: { '200': { description: 'OK', content: json(AchievementCatalog) }, ...common },
     },
   },
   '/v1/achievements/{achievementId}/earners': {
