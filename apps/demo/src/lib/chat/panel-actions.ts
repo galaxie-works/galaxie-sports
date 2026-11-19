@@ -14,6 +14,8 @@ import { pool } from '@/lib/auth/db';
 import { builderDb } from '@/lib/builder/store';
 import { allowed } from '@/lib/client/permissions';
 import { readClientContext } from '@/lib/client/session';
+
+import { hasLiveChat } from './access';
 import { getDictionary } from '@/lib/i18n/dictionary';
 import { getRequestLocale } from '@/lib/i18n/server';
 import { clocksFor, NoPolicyError, policyFor } from '@/lib/moderation/clocks';
@@ -50,10 +52,6 @@ async function session() {
 
 /** Id do jogo em minúsculas (o escopo do cargo e o da punição comparam texto). */
 const fixtureOf = (raw: string): string | null => (UUID.test(raw) ? raw.toLowerCase() : null);
-
-/** Sem o módulo `live_chat`, nenhuma ação do painel vale (a página já some do menu). */
-const hasLiveChat = (ctx: { tenant: { modules: readonly string[] } }) =>
-  ctx.tenant.modules.includes('live_chat');
 
 /** Id da sala do jogo no tenant, sem nada mais (a consulta do painel ao vivo, a cada 3 s, tem de ser leve). */
 async function roomIdOf(tenantId: string, fixtureId: string): Promise<string | null> {

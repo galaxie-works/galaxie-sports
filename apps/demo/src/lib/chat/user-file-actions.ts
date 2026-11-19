@@ -14,6 +14,7 @@ import { getDictionary } from '@/lib/i18n/dictionary';
 import { getRequestLocale } from '@/lib/i18n/server';
 import { clocksFor, NoPolicyError } from '@/lib/moderation/clocks';
 
+import { hasLiveChat } from './access';
 import type { ChatActionResult } from './panel-actions';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -28,7 +29,7 @@ export async function addNoteAction(input: { profileId: string; body: string }):
   if (!UUID.test(input.profileId) || !body) return { ok: false, error: T.invalid };
   if ([...body].length > NOTE_MAX) return { ok: false, error: D.userFile.noteTooLong };
   // a ficha é do tenant inteiro: cargo com escopo de sala não anota
-  if (!ctx.tenant.modules.includes('live_chat') || !allowed(ctx, 'moderation.hide').ok)
+  if (!hasLiveChat({ role: ctx.role, tenant: ctx.tenant }) || !allowed(ctx, 'moderation.hide').ok)
     return { ok: false, error: T.role };
   const profile = await pool.query(
     `select 1 from fan.profile where tenant_id = $1 and id = $2 and deleted_at is null`,
