@@ -12,6 +12,7 @@ import {
   type GamePredictionKind,
   type GamePredictionState,
 } from './schema/game.js';
+import { isProfileFrozen } from './game-fraud.js';
 
 type Executor = Pick<Database, 'select' | 'insert' | 'update' | 'delete' | 'execute'>;
 
@@ -263,7 +264,8 @@ export async function finalizePrediction(
     )
     .returning({ id: gamePrediction.id });
   if (done.length === 0) return false;
-  if (!p.voided && p.points > 0) {
+  // Perfil congelado pelo antifraude (#934): o Palpite fecha, mas não soma no Ranking (nem ganha os Pontos)
+  if (!p.voided && p.points > 0 && !(await isProfileFrozen(tx, p))) {
     for (const period of p.periods) {
       await tx
         .insert(gamePeriodPoints)

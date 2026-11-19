@@ -23,6 +23,7 @@ import {
   type FanPointsReason,
   type FanPointsSource,
 } from './schema/fan.js';
+import { isProfileFrozen } from './game-fraud.js';
 
 /** Motivos que creditam (o resgate e o estorno têm função própria). */
 export type FanCreditReason = Exclude<FanPointsReason, 'redeem' | 'revert'>;
@@ -61,6 +62,7 @@ export type FanWalletResult =
       error:
         | 'profile_not_found'
         | 'age_restricted'
+        | 'frozen'
         | 'insufficient_balance'
         | 'entry_not_found'
         | 'not_revertible'
@@ -263,6 +265,9 @@ export async function creditPoints(
     const band = await activeAgeBand(tx, input);
     if (!band) return { ok: false, error: 'profile_not_found' };
     if (band === 'under13') return { ok: false, error: 'age_restricted' };
+    // Perfil congelado pelo antifraude (#934) não ganha Pontos da Gamificação até alguém liberar
+    if (input.source === 'gamification' && (await isProfileFrozen(tx, input)))
+      return { ok: false, error: 'frozen' };
     const dup = await existingEntry(tx, input, input.source, input.sourceEvent, input.reason);
     // evento já estornado (palpite recalculado usa um `sourceEvent` novo, ex.: `palpite:1:v2`)
     if (dup)

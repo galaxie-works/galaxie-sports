@@ -4,6 +4,10 @@
  */
 import { createDb, type Database } from '@galaxie/db/client';
 import {
+  fanNicknames,
+  listFraudSignals,
+  listProfileFreezes,
+  type FraudSignalView,
   gameProgramReport,
   listGameCatalog,
   listGamePrograms,
@@ -37,6 +41,12 @@ export interface GamificationOverview {
   selected: string | null;
   catalog: GameCatalogItemView[];
   report: GameProgramReport | null;
+  /** Antifraude (#934): os alertas abertos e os Perfis congelados do cliente, com o apelido. */
+  fraud: {
+    signals: (Omit<FraudSignalView, 'createdAt' | 'reviewedAt'> & { createdAt: string })[];
+    frozen: { programCountry: string; profileId: string; frozenBy: 'galaxie' | 'team'; frozenAt: string }[];
+    nicknames: Record<string, string | null>;
+  };
 }
 
 export async function gamificationOverview(
@@ -51,8 +61,32 @@ export async function gamificationOverview(
     active.find((p) => p.primary)?.country ??
     active[0]?.country ??
     null;
-  if (!selected) return { programs, selected: null, catalog: [], report: null };
+  const fraud = await fraudOverview(db, tenantId);
+  if (!selected) return { programs, selected: null, catalog: [], report: null, fraud };
   const key = { tenantId, programCountry: selected };
   const [catalog, report] = await Promise.all([listGameCatalog(db, key), gameProgramReport(db, key)]);
-  return { programs, selected, catalog, report };
+  return { programs, selected, catalog, report, fraud };
+}
+
+async function fraudOverview(db: Database, tenantId: string): Promise<GamificationOverview['fraud']> {
+  const [signals, frozen] = await Promise.all([
+    listFraudSignals(db, { tenantId, status: 'open', limit: 50 }),
+    listProfileFreezes(db, tenantId),
+  ]);
+  const ids = [...signals.flatMap((s) => s.profileIds), ...frozen.map((f) => f.profileId)];
+  const names = await fanNicknames(db, tenantId, ids);
+  return {
+    signals: signals.map(({ createdAt, reviewedAt: _r, ...s }) => ({
+      ...s,
+      createdAt: createdAt.toISOString(),
+    })),
+    frozen: frozen.map((f) => ({
+      programCountry: f.programCountry,
+      profileId: f.profileId,
+      // o id interno de quem congelou não vai ao navegador: só se foi a equipe Galaxie ou a do cliente
+      frozenBy: f.frozenBy.startsWith('galaxie:') ? 'galaxie' : 'team',
+      frozenAt: f.frozenAt.toISOString(),
+    })),
+    nicknames: Object.fromEntries(names),
+  };
 }

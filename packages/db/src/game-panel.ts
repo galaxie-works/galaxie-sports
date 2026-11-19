@@ -3,6 +3,14 @@
  * país-alvo), as Conquistas do Catálogo que ele liga ou desliga, e o relatório do programa. Tudo filtrado pelo tenant
  * da sessão; o Catálogo é da Galaxie e aqui só se lê.
  */
+export {
+  listFraudSignals,
+  listProfileFreezes,
+  releaseProfileFreeze,
+  reviewFraudSignal,
+  fanNicknames,
+  type FraudSignalView,
+} from './game-fraud.js';
 import { and, eq, sql } from 'drizzle-orm';
 import type { Database } from './client.js';
 import { appendGameAudit, type GameProgramKey } from './game.js';

@@ -11,6 +11,7 @@
 import { and, eq, isNull, or, sql } from 'drizzle-orm';
 import type { Database } from './client.js';
 import { creditPoints } from './fan-wallet.js';
+import { isProfileFrozen } from './game-fraud.js';
 import { appendGameAudit, type GameProgramKey } from './game.js';
 import {
   gameAchievementProgress,
@@ -116,6 +117,8 @@ export async function applyAchievementProgress(
   },
 ): Promise<GameStepReached[]> {
   const reached: GameStepReached[] = [];
+  // Perfil congelado pelo antifraude (#934): nem progresso, nem Degrau, nem Carta até alguém liberar
+  if (await isProfileFrozen(tx, input)) return reached;
   for (const a of input.matched) {
     for (const season of a.seasonal ? ['all', input.season] : ['all']) {
       const [row] = await tx

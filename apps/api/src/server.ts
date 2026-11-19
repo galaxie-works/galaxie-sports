@@ -30,6 +30,7 @@ import { communityRoutes } from './engage/community-routes.js';
 import { ChatHub } from './chat/hub.js';
 import { gameRoutes } from './game/routes.js';
 import { GameScorer, startGameSweep } from './game/scorer.js';
+import { startFraudSweep } from './game/fraud.js';
 import { ChatGameFeed } from './chat/game.js';
 import { MemoryChatPeak, RedisChatPeak } from './chat/peak.js';
 import { RedisFloodGuard } from './chat/flood.js';
@@ -821,7 +822,12 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
     const scorer = new GameScorer(options.db, { logger: app.log });
     if (app.realtime) app.realtime.subscribe(scorer.handle);
     const stopSweep = startGameSweep(scorer, app.log);
-    app.addHook('onClose', async () => stopSweep());
+    // antifraude (#934): os alertas para revisão humana, a cada 15 min
+    const stopFraud = startFraudSweep(options.db, app.log);
+    app.addHook('onClose', async () => {
+      stopSweep();
+      stopFraud();
+    });
   }
 
   return app;
