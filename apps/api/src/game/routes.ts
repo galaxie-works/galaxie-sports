@@ -318,7 +318,6 @@ export async function gameRoutes(app: FastifyInstance, deps: GameRoutesDeps): Pr
     async (request, reply) => {
       const tenantId = secretTenantId(request);
       const params = parseInput(GameFanParams, request.params);
-      if (!(await tenantHasGamification(db(), tenantId))) throw problems.moduleNotInPlan('gamification');
       const fan = await findFanByExternal(db(), { tenantId, ...params });
       if (!fan) throw problems.notFound('Perfil');
       // menor de 13 fica fora da Gamificação, também na leitura pelo servidor
@@ -357,7 +356,6 @@ export async function gameRoutes(app: FastifyInstance, deps: GameRoutesDeps): Pr
     const params = parseInput(RankingParams, request.params);
     const { limit, country } = parseInput(GameRankingServerQuery, request.query);
     const period = resolveRankingPeriod(params.period, countryTimeZone(country), now());
-    if (!(await tenantHasGamification(db(), tenantId))) throw problems.moduleNotInPlan('gamification');
     // só os países em que o cliente opera (o programa de outro país não existe para ele)
     if ((await programCountryFor(db(), tenantId, country)) !== country)
       throw problems.notFound('Programa no país');

@@ -160,15 +160,10 @@ const ENGAGE_TOPICS: WebhookTopicDef[] = [
       step: z.number().int().min(1).max(5),
       completed: z.boolean(),
       card_key: z.string().nullable().meta({ description: 'Carta que o Degrau deu.' }),
-      rule_version: z
-        .number()
-        .int()
-        .positive()
-        .optional()
-        .meta({
-          description:
-            'Versão das regras do programa que valia quando o fato foi contado. Sempre presente a partir de 19/11/2026.',
-        }),
+      rule_version: z.number().int().positive().optional().meta({
+        description:
+          'Versão das regras do programa que valia quando o fato foi contado. Sempre presente a partir de 19/11/2026.',
+      }),
       source_event: z
         .string()
         .optional()
