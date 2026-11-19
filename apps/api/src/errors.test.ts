@@ -5,7 +5,8 @@ import { describe, expect, it } from 'vitest';
 import { problems, type ProblemError } from './errors.js';
 
 /** Palavras e letras do português que não podem aparecer num erro da API (#1421, épico #634). */
-const PORTUGUESE = /[áéíóúãõçâêôà]|\b(não|inválid[oa]|chave|plano|cota|requisição|encontrad[oa])\b/i;
+const PORTUGUESE =
+  /[áéíóúãõçâêôà]|\b(não|inválid[oa]|chave|plano|cota|requisição|encontrad[oa]|ausente|defina|sem|envie|deve|revogue|rotas)\b/i;
 
 /** Exemplos de cada erro do catálogo: o tipo obriga uma entrada por chave de `problems`. */
 const SAMPLES: Record<keyof typeof problems, ProblemError[]> = {
@@ -77,6 +78,11 @@ describe('erros escritos nas rotas', () => {
         if (PORTUGUESE.test(m[1]!)) offenders.push(`${rel}: ${m[1]}`);
       // primeiro argumento literal de problems.* (detail, nome do recurso), #1422
       for (const m of src.matchAll(/problems\.\w+\(\s*(['`])([^'`]*)\1/g))
+        if (PORTUGUESE.test(m[2]!)) offenders.push(`${rel}: ${m[2]}`);
+      // campos de INVALID_PARAMS e mensagens de erro de domínio que viram `detail` (KeyPolicyError, conflitos)
+      for (const m of src.matchAll(
+        /(?:\bmessage:\s*|new (?:KeyPolicyError|TenantConflictError)\(\s*(?:'[a-z_]+',\s*)?)(['`])([^'`]*)\1/g,
+      ))
         if (PORTUGUESE.test(m[2]!)) offenders.push(`${rel}: ${m[2]}`);
       for (const m of src.matchAll(/new ProblemError\(\s*\d+,\s*'[A-Z_]+',\s*(['`])([^'`]*)\1/g))
         if (PORTUGUESE.test(m[2]!)) offenders.push(`${rel}: ${m[2]}`);

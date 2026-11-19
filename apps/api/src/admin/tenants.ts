@@ -55,7 +55,7 @@ export interface OnboardingInput {
 
 export class TenantConflictError extends Error {
   constructor(readonly slug: string) {
-    super(`Já existe um tenant com o slug ${slug}.`);
+    super(`A tenant with slug ${slug} already exists.`);
     this.name = 'TenantConflictError';
   }
 }
@@ -270,8 +270,8 @@ async function activeKeyCount(tx: Tx, tenantId: string, env: KeyEnv, now: Date):
 const tooManyKeys = (env: KeyEnv) =>
   new KeyPolicyError(
     'too_many_keys',
-    `O tenant já tem ${MAX_SECRET_KEYS_PER_ENV} chaves ${env} válidas (contando as em período de graça); ` +
-      'revogue as que não usa.',
+    `The tenant already has ${MAX_SECRET_KEYS_PER_ENV} valid ${env} keys (including those in the grace period); ` +
+      'revoke the ones you do not use.',
   );
 
 /** Emissão com teto dentro de uma transação já aberta: trava o tenant, para que emissões simultâneas não furem o teto. */
@@ -398,7 +398,7 @@ export async function rotateKey(
     if (old.rotatedAt)
       throw new KeyPolicyError(
         'already_rotated',
-        'Esta chave já foi rotacionada e só vale até o fim do período de graça; use a chave nova.',
+        'This key was already rotated and only works until the end of the grace period; use the new key.',
       );
     const freed = options.graceSeconds <= 0 ? 1 : 0;
     if ((await activeKeyCount(tx, tenantId, old.env, now)) - freed >= MAX_SECRET_KEYS_PER_ENV)

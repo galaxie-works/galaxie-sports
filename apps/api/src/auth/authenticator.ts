@@ -143,7 +143,7 @@ export class Authenticator {
   }
 
   async authenticate(rawKey: string | undefined, attempt: AuthAttempt = {}): Promise<TenantContext> {
-    if (!rawKey) throw problems.invalidKey('Header x-galaxie-key ausente.');
+    if (!rawKey) throw problems.invalidKey('Missing x-galaxie-key header.');
     const parsed = parseApiKey(rawKey);
     if (!parsed) throw problems.invalidKey('Invalid key format.');
 

@@ -63,7 +63,7 @@ export async function channelListRoutes(app: FastifyInstance, ctx: AppContext): 
       const body = parseInput(ChannelListBody.strict(), request.body ?? {});
       if (body.default_country && !isCountry(body.default_country))
         throw problems.invalidParams([
-          { path: 'default_country', message: 'country outside where-to-watch' },
+          { path: 'default_country', message: 'country not covered by where-to-watch' },
         ]);
       let parsed;
       try {

@@ -10,7 +10,7 @@ import { problems } from '../errors.js';
  * e-mail), que vai para a trilha de auditoria. Sem ADMIN_KEY_HASHES configurado, respondem 503.
  */
 export function assertAdmin(request: FastifyRequest, guard: AdminGuard | undefined): string {
-  if (!guard) throw problems.degraded('Rotas internas desabilitadas: defina ADMIN_KEY_HASHES.');
+  if (!guard) throw problems.degraded('Internal routes disabled: set ADMIN_KEY_HASHES.');
   guard.check(request);
   const actorHeader = request.headers['x-galaxie-actor'];
   const actor = (Array.isArray(actorHeader) ? actorHeader[0] : actorHeader)?.trim() ?? '';
