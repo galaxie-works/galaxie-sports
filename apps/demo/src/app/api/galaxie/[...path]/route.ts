@@ -14,7 +14,7 @@
  */
 import { getSessionCookie } from 'better-auth/cookies';
 
-import { sessionFanAuthorization } from '@/lib/fan/session-token';
+import { dropSessionFanToken, sessionFanAuthorization } from '@/lib/fan/session-token';
 import { isSameOrigin } from '@/lib/fan/token';
 import {
   CHAT_STREAMS_PER_SESSION,
@@ -92,12 +92,14 @@ export async function GET(request: Request, ctx: RouteContext<'/api/galaxie/[...
   });
 
   let headers: Headers;
+  let fanToken: { userId: string; authorization: string } | null = null;
   if (fanRead) {
     // o Perfil do torcedor: com o token da pessoa da sessão, nunca com a chave da demo
     if (!isSameOrigin(request))
       return Response.json({ title: (await common()).routeNotAllowed }, { status: 404 });
     const fan = await sessionFanAuthorization(request);
     if (!fan.ok) return fanRefused(fan.status);
+    fanToken = fan;
     headers = new Headers({ accept: 'application/json', authorization: fan.authorization });
     const lang = request.headers.get('accept-language');
     if (lang) headers.set('accept-language', lang);
@@ -134,6 +136,8 @@ export async function GET(request: Request, ctx: RouteContext<'/api/galaxie/[...
     const t = await common();
     return Response.json({ title: t.apiUnavailable, detail: t.apiUnavailableDetail }, { status: 502 });
   }
+  // a API recusou o token guardado (perfil apagado, token revogado): o próximo pedido emite outro
+  if (fanToken && upstream.status === 401) dropSessionFanToken(fanToken.userId, fanToken.authorization);
   // recusa da API (sem stream): a vaga volta já, sem esperar o navegador ler o corpo
   if (
     !stream ||
@@ -216,6 +220,8 @@ export async function POST(request: Request, ctx: RouteContext<'/api/galaxie/[..
   } catch {
     return Response.json({ title: t.apiUnavailable, detail: t.apiUnavailableDetail }, { status: 502 });
   }
+  // a API recusou o token guardado (perfil apagado, token revogado): o próximo pedido emite outro
+  if (upstream.status === 401) dropSessionFanToken(fan.userId, authorization);
   const out = new Headers({ 'cache-control': 'no-store' });
   for (const h of ['content-type', 'retry-after', 'x-request-id']) {
     const v = upstream.headers.get(h);
