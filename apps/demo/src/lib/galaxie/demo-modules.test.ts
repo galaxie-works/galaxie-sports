@@ -18,7 +18,7 @@ describe('demoKeyAccess (#1389)', () => {
   it('lê os módulos que a chave da demo libera em /v1/account, com a chave no header', async () => {
     const fetchImpl = vi.fn(async () => account(['core_data', 'live_chat']));
     const out = await demoKeyAccess(() => 0, fetchImpl as unknown as typeof fetch);
-    expect(out).toEqual({ tenantName: 'Demo', modules: ['core_data', 'live_chat'] });
+    expect(out).toEqual({ tenantId: 't1', tenantName: 'Demo', modules: ['core_data', 'live_chat'] });
     const [url, init] = fetchImpl.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toMatch(/\/v1\/account$/);
     expect(new Headers(init.headers).get('x-galaxie-key')).toBe('gs_demo_chave');
@@ -47,7 +47,11 @@ describe('demoKeyAccess (#1389)', () => {
   it.each([
     ['403', async () => new Response(null, { status: 403 })],
     ['API fora do ar', async () => Promise.reject(new TypeError('fetch failed'))],
-    ['resposta sem a lista', async () => Response.json({ tenant: { name: 'Demo' }, key: {} })],
+    ['resposta sem a lista', async () => Response.json({ tenant: { id: 't1', name: 'Demo' }, key: {} })],
+    [
+      'resposta sem o tenant',
+      async () => Response.json({ key: { effectiveModules: ['core_data', 'live_chat'] } }),
+    ],
   ])('%s: null, e tenta de novo em 15 s', async (_, impl) => {
     let now = 0;
     const fetchImpl = vi.fn(impl);

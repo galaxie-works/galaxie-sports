@@ -10,6 +10,8 @@
 import { API_URL, apiHeaders } from './server';
 
 export interface DemoKeyAccess {
+  /** Tenant da chave da demo: o aviso para a equipe põe ele em foco antes de abrir Planos e módulos. */
+  tenantId: string;
   /** Nome do tenant da chave da demo (aparece no aviso para a equipe). */
   tenantName: string;
   /** Módulos que a chave libera (`key.effectiveModules`). */
@@ -34,13 +36,14 @@ async function load(fetchImpl: typeof fetch): Promise<DemoKeyAccess | null> {
     });
     if (!res.ok) return null;
     const body = (await res.json()) as {
-      tenant?: { name?: unknown };
+      tenant?: { id?: unknown; name?: unknown };
       key?: { effectiveModules?: unknown };
     };
     const modules = body.key?.effectiveModules;
     if (!Array.isArray(modules) || !modules.every((m) => typeof m === 'string')) return null;
-    const name = body.tenant?.name;
-    return { tenantName: typeof name === 'string' ? name : '', modules };
+    const { id, name } = body.tenant ?? {};
+    if (typeof id !== 'string') return null;
+    return { tenantId: id, tenantName: typeof name === 'string' ? name : '', modules };
   } catch {
     return null;
   }
