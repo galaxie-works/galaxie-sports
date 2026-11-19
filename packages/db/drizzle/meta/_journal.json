@@ -967,6 +967,13 @@
       "when": 1795053937318,
       "tag": "0195_moderacao_perfis_liberados",
       "breakpoints": true
+    },
+    {
+      "idx": 138,
+      "version": "7",
+      "when": 1795076087489,
+      "tag": "0196_chat_aceite_diretrizes",
+      "breakpoints": true
     }
   ]
 }

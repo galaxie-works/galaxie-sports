@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { createRateLimiter, isProxyPathAllowed } from './proxy-policy';
+import { createRateLimiter, isProxyFanRead, isProxyPathAllowed, isProxyWriteAllowed } from './proxy-policy';
 
 describe('isProxyPathAllowed', () => {
   it('só recursos de leitura do app, nunca a conta nem a lista de canais', () => {
@@ -20,5 +20,14 @@ describe('createRateLimiter', () => {
     expect(take('a', 30_000)).toBe(30);
     expect(take('b', 30_000)).toBe(0);
     expect(take('a', 60_000)).toBe(0);
+  });
+});
+
+describe('proxy: Diretrizes do chat (#957)', () => {
+  it('o GET vai como leitura do torcedor (nunca com a chave da demo) e o aceite como escrita', () => {
+    expect(isProxyFanRead(['v1', 'chat', 'guidelines'])).toBe(true);
+    expect(isProxyPathAllowed(['v1', 'chat', 'guidelines'])).toBe(false);
+    expect(isProxyWriteAllowed(['v1', 'chat', 'guidelines', 'accept'])).toBe(true);
+    expect(isProxyWriteAllowed(['v1', 'chat', 'guidelines', 'x'])).toBe(false);
   });
 });

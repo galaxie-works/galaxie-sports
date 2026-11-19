@@ -1,3 +1,4 @@
+import { CHAT_GUIDELINES_VERSION } from '@galaxie/engage';
 import { randomBytes } from 'node:crypto';
 import type { AddressInfo } from 'node:net';
 import type { FastifyInstance } from 'fastify';
@@ -128,7 +129,19 @@ async function fan(key: string, n: number, ageBand = '18plus'): Promise<string> 
     },
   });
   expect(res.statusCode).toBe(201);
-  return res.json().data.token as string;
+  const token = res.json().data.token as string;
+  // as Diretrizes do chat (#957): o adulto aceita antes de escrever
+  if (ageBand === '18plus') {
+    const accepted = await appA.inject({
+      method: 'POST',
+      url: '/v1/chat/guidelines/accept',
+      headers: { authorization: `Bearer ${token}` },
+      payload: { version: CHAT_GUIDELINES_VERSION },
+    });
+    // sem o módulo live_chat o aceite também recusa (403): o teste do módulo confere o envio
+    expect([204, 403]).toContain(accepted.statusCode);
+  }
+  return token;
 }
 
 async function game(): Promise<string> {

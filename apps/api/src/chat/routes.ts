@@ -13,6 +13,8 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import {
   ChatConfigBody,
+  ChatGuidelinesAcceptBody,
+  type ChatGuidelines,
   ChatMessageBody,
   ChatReactionBody,
   ChatRoomParams,
@@ -31,6 +33,8 @@ import {
 } from '@galaxie/db';
 import {
   canReadRoom,
+  CHAT_GUIDELINES_VERSION,
+  chatGuidelines,
   gameKindEnabled,
   linkHosts,
   roomWindow,
@@ -48,6 +52,8 @@ import { readFan } from '../engage/fans.js';
 import { clocksFor } from '../engage/moderation-routes.js';
 import { ModerationLists } from '../engage/moderation.js';
 import {
+  acceptedGuidelines,
+  acceptGuidelines,
   ensureRoom,
   insertMessage,
   lastSentAt,
@@ -417,6 +423,47 @@ export async function chatRoutes(app: FastifyInstance, deps: ChatRoutesDeps): Pr
     },
   );
 
+  // Diretrizes (#957): o torcedor aceita antes da primeira mensagem, e a versão aceita fica registrada
+  app.get('/v1/chat/guidelines', { config: { fan: true, age: 'write' } }, async (request, reply) => {
+    const fan = request.fan!;
+    if (!(await tenantHasLiveChat(db(), fan.tenantId))) throw problems.moduleNotInPlan('live_chat');
+    const g = chatGuidelines(fan.locale);
+    const res: ChatGuidelines = {
+      data: {
+        version: g.version,
+        accepted_version: await acceptedGuidelines(db(), fan.tenantId, fan.profileId),
+        title: g.title,
+        intro: g.intro,
+        not_allowed_title: g.notAllowedTitle,
+        not_allowed: g.notAllowed,
+        who_writes: g.whoWrites,
+        consequences: g.consequences,
+        report: g.report,
+        accept: g.accept,
+      },
+    };
+    reply.header('cache-control', 'no-store');
+    return res;
+  });
+
+  app.post('/v1/chat/guidelines/accept', { config: { fan: true, age: 'write' } }, async (request, reply) => {
+    const fan = request.fan!;
+    const body = parseInput(ChatGuidelinesAcceptBody, request.body);
+    if (!(await tenantHasLiveChat(db(), fan.tenantId))) throw problems.moduleNotInPlan('live_chat');
+    if (body.version !== CHAT_GUIDELINES_VERSION)
+      throw new ProblemError(
+        409,
+        'CONFLICT',
+        'Diretrizes mudaram',
+        sendRefusalNotice('guidelines', fan.locale),
+        {
+          errors: [{ path: 'version', message: String(CHAT_GUIDELINES_VERSION) }],
+        },
+      );
+    await acceptGuidelines(db(), fan.tenantId, fan.profileId, body.version, now());
+    return reply.code(204).send();
+  });
+
   app.post(
     '/v1/chat/rooms/:fixtureId/messages',
     { config: { fan: true, age: 'write' } },
@@ -431,7 +478,6 @@ export async function chatRoutes(app: FastifyInstance, deps: ChatRoutesDeps): Pr
       // o portão (config.age 'write') já conferiu a ficha do país; a faixa larga fica como segunda trava
       if (fan.ageBand !== '18plus')
         throw problems.fanAgeRestricted(sendRefusalNotice('age_band', fan.locale));
-
       const loaded = await loadRoom(fan.tenantId, fixtureId);
       const room = loaded.room!;
       const { eff, window } = loaded;
@@ -465,7 +511,7 @@ export async function chatRoutes(app: FastifyInstance, deps: ChatRoutesDeps): Pr
         );
 
       const at = now();
-      const [profile, sanctions, last, lists] = await Promise.all([
+      const [profile, sanctions, last, lists, accepted] = await Promise.all([
         readFan(database, fan.tenantId, fan.profileId),
         activeSanctions(database, {
           tenantId: fan.tenantId,
@@ -477,6 +523,7 @@ export async function chatRoutes(app: FastifyInstance, deps: ChatRoutesDeps): Pr
           ? lastSentAt(database, fan.tenantId, room.id, fan.profileId)
           : Promise.resolve(null),
         moderation!.forTenant(fan.tenantId),
+        acceptedGuidelines(database, fan.tenantId, fan.profileId),
       ]);
       if (!profile) throw problems.invalidFanToken('Perfil excluído.');
       // a faixa do banco vale sobre a do token (mudou depois de o token sair)
@@ -503,6 +550,18 @@ export async function chatRoutes(app: FastifyInstance, deps: ChatRoutesDeps): Pr
           },
         );
       const shadowMuted = sanctions.some((s) => here(s) && s.level === 'mute' && s.hidden);
+      // Diretrizes (#957): depois da sala, do pico e da punição (não pede aceite para nada); o widget mostra as
+      // regras e pede o aceite
+      if (accepted !== CHAT_GUIDELINES_VERSION)
+        throw new ProblemError(
+          409,
+          'CONFLICT',
+          'Aceite as Diretrizes',
+          sendRefusalNotice('guidelines', fan.locale),
+          {
+            errors: [{ path: 'refusal', message: 'guidelines' }],
+          },
+        );
 
       const text = body.body.trim();
       if ([...text].length > eff.maxChars)

@@ -50,6 +50,7 @@ export const CHAT_SEND_REFUSALS = [
   'room_read_only_peak',
   'sanctioned',
   'flood',
+  'guidelines',
   'bot',
 ] as const;
 
@@ -144,6 +145,40 @@ export const ChatRoom = z
   })
   .meta({ id: 'ChatRoom' });
 export type ChatRoom = z.infer<typeof ChatRoom>;
+
+export const ChatGuidelines = z
+  .object({
+    data: z.object({
+      version: z
+        .number()
+        .int()
+        .meta({ description: 'Versão das Diretrizes; versão nova pede aceite de novo.' }),
+      accepted_version: z.number().int().nullable().meta({
+        description: 'Última versão que o torcedor aceitou; null se nunca aceitou.',
+      }),
+      title: z.string(),
+      intro: z.string(),
+      not_allowed_title: z.string(),
+      not_allowed: z.array(z.string()),
+      who_writes: z.string(),
+      consequences: z.string(),
+      report: z.string(),
+      accept: z.string().meta({ description: 'Texto do botão de aceite.' }),
+    }),
+  })
+  .meta({ id: 'ChatGuidelines' });
+export type ChatGuidelines = z.infer<typeof ChatGuidelines>;
+
+export const ChatGuidelinesAcceptBody = z
+  .strictObject({
+    version: z
+      .number()
+      .int()
+      .min(1)
+      .meta({ description: 'A versão que o torcedor leu (a de `GET /v1/chat/guidelines`).' }),
+  })
+  .meta({ id: 'ChatGuidelinesAcceptBody' });
+export type ChatGuidelinesAcceptBody = z.infer<typeof ChatGuidelinesAcceptBody>;
 
 export const ChatMessageBody = z
   .strictObject({
@@ -269,6 +304,40 @@ export const chatPaths: ZodOpenApiPathsObject = {
       },
     },
   },
+  '/v1/chat/guidelines': {
+    get: {
+      summary: 'Diretrizes do chat',
+      description:
+        'As regras que o torcedor aceita antes da primeira mensagem (#957), no idioma do token, com a versão atual ' +
+        'e a última que ele aceitou. Sem o aceite da versão atual, o envio volta 409 com o motivo `guidelines`.',
+      tags: [TAG],
+      security: fanAuth,
+      responses: {
+        '200': { description: 'Diretrizes', content: json(ChatGuidelines) },
+        '401': problem('Token ausente, inválido, vencido ou de Perfil excluído (INVALID_KEY)'),
+        '403': problem('Faixa etária (FAN_AGE_RESTRICTED) ou módulo fora do plano (MODULE_NOT_IN_PLAN)'),
+      },
+    },
+  },
+  '/v1/chat/guidelines/accept': {
+    post: {
+      summary: 'Aceita as Diretrizes do chat',
+      description:
+        'Registra o aceite da versão lida, com data. Versão diferente da atual: 409 (releia e aceite).',
+      tags: [TAG],
+      security: fanAuth,
+      requestBody: { content: json(ChatGuidelinesAcceptBody) },
+      responses: {
+        '204': { description: 'Aceite registrado' },
+        '400': problem('Corpo inválido (INVALID_PARAMS)'),
+        '401': problem('Token ausente, inválido, vencido ou de Perfil excluído (INVALID_KEY)'),
+        '403': problem('Faixa etária (FAN_AGE_RESTRICTED) ou módulo fora do plano (MODULE_NOT_IN_PLAN)'),
+        '409': problem(
+          'A versão mudou; releia as Diretrizes (CONFLICT). `errors[path=version]` traz a versão atual',
+        ),
+      },
+    },
+  },
   '/v1/chat/rooms/{fixtureId}/reactions': {
     post: {
       summary: 'Reage ao jogo',
@@ -311,7 +380,9 @@ export const chatPaths: ZodOpenApiPathsObject = {
         '401': problem('Token ausente, inválido, vencido ou de Perfil excluído (INVALID_KEY)'),
         '403': problem('Faixa etária (FAN_AGE_RESTRICTED) ou módulo fora do plano (MODULE_NOT_IN_PLAN)'),
         '404': problem('Jogo não encontrado (NOT_FOUND)'),
-        '409': problem('Sala fechada para envio ou punição ativa (CONFLICT; motivo em `errors`)'),
+        '409': problem(
+          'Sala fechada para envio ou punição ativa (CONFLICT; motivo em `errors`) Também `refusal: guidelines`: Diretrizes não aceitas; integração própria chama `GET /v1/chat/guidelines` e `POST /v1/chat/guidelines/accept`',
+        ),
         '429': problem('Modo lento, anti-flood ou limite do torcedor (RATE_LIMITED)'),
         '503': problem('Ficha do país não configurada para o cliente (DEGRADED)'),
       },

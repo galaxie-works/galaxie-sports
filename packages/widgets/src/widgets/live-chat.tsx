@@ -13,6 +13,7 @@ import {
   parseSse,
   safeImageUrl,
   type GsChatGameMessage,
+  type GsChatGuidelines,
   type GsChatMessage,
   type GsChatReaction,
   type GsChatRoom,
@@ -269,6 +270,76 @@ function LiveChatRoom({
   const roomState = state ?? room?.state ?? null;
   useEffect(() => setSendError(null), [roomState]);
   const maxChars = room?.settings.max_chars ?? 280;
+  // Diretrizes (#957): a primeira mensagem pede o aceite das regras do chat
+  const [guidelines, setGuidelines] = useState<GsChatGuidelines | null>(null);
+  const [accepting, setAccepting] = useState(false);
+  const guidelinesRef = useRef<HTMLElement | null>(null);
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  // trocou o torcedor ou a sala mudou de estado: as regras abertas não valem mais
+  useEffect(() => setGuidelines(null), [fan.status, roomState]);
+  // as regras abertas recebem o foco (quem usa leitor de tela fica sabendo); depois do aceite, volta ao texto
+  useEffect(() => {
+    if (guidelines) guidelinesRef.current?.focus();
+  }, [guidelines]);
+  const showGuidelines = useCallback(
+    async (detail?: string) => {
+      const res = await fan.fetch('/v1/chat/guidelines');
+      const json = (await res.json().catch(() => null)) as { data?: GsChatGuidelines } | null;
+      if (res.ok && json?.data) setGuidelines(json.data);
+      // sem as regras, o aviso da API diz o que falta
+      else setSendError(detail ?? T.sendError);
+    },
+    [fan, T],
+  );
+  const acceptGuidelines = useCallback(async () => {
+    if (!guidelines || accepting) return;
+    setAccepting(true);
+    try {
+      const res = await fan.fetch('/v1/chat/guidelines/accept', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ version: guidelines.version }),
+      });
+      if (res.ok) {
+        setGuidelines(null);
+        setSendError(null);
+        inputRef.current?.focus();
+      } else if (res.status === 409) await showGuidelines();
+      else setSendError(T.sendError);
+    } catch {
+      setSendError(T.sendError);
+    } finally {
+      setAccepting(false);
+    }
+  }, [guidelines, accepting, fan, showGuidelines, T]);
+  // denúncia de mensagem (#971): o motivo e o envio ficam na própria mensagem
+  const [reporting, setReporting] = useState<string | null>(null);
+  const [reportReason, setReportReason] = useState<keyof typeof T.reportReasons>('hate');
+  const [reportNotice, setReportNotice] = useState<string | null>(null);
+  const sendReport = useCallback(
+    async (m: GsChatMessage) => {
+      try {
+        const res = await fan.fetch('/v1/moderation/reports', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            targetType: 'message',
+            targetId: m.id,
+            targetProfileId: m.author.profile_id,
+            module: 'chat',
+            ...(room?.room_id ? { room: room.room_id } : {}),
+            reason: reportReason,
+          }),
+        });
+        setReportNotice(res.ok ? T.reportSent : T.reportError);
+        if (res.ok) setReporting(null);
+      } catch {
+        setReportNotice(T.reportError);
+      }
+    },
+    [fan, room, reportReason, T],
+  );
+  const canReport = fan.status === 'ready' && fan.me !== null;
   const send = useCallback(
     async (e: FormEvent) => {
       e.preventDefault();
@@ -296,6 +367,14 @@ function LiveChatRoom({
           atBottom.current = true;
           return;
         }
+        // sem o aceite das Diretrizes: mostra as regras; o texto fica no rascunho para mandar depois do aceite
+        if (
+          res.status === 409 &&
+          json?.errors?.some((x) => x.path === 'refusal' && x.message === 'guidelines')
+        ) {
+          await showGuidelines(json.detail);
+          return;
+        }
         const retry = res.headers.get('retry-after');
         // o aviso do filtro sai no idioma do torcedor em `errors` (o `detail` de algumas recusas é fixo)
         const fieldMessage = json?.errors?.find((x) => x.path === 'body')?.message;
@@ -311,7 +390,7 @@ function LiveChatRoom({
         setSending(false);
       }
     },
-    [draft, sending, path, fan, T],
+    [draft, sending, path, fan, T, showGuidelines],
   );
 
   const react = useCallback(
@@ -399,6 +478,7 @@ function LiveChatRoom({
           <FanGate need="write">
             <form className="gs-chat-form" onSubmit={send}>
               <textarea
+                ref={inputRef}
                 className="gs-chat-input"
                 rows={2}
                 value={draft}
@@ -413,12 +493,44 @@ function LiveChatRoom({
                   }
                 }}
               />
-              <button type="submit" className="gs-button" disabled={sending || !draft.trim()}>
+              <button
+                type="submit"
+                className="gs-button"
+                disabled={sending || !draft.trim() || guidelines !== null}
+              >
                 {T.send}
               </button>
             </form>
           </FanGate>
         )}
+        {guidelines ? (
+          <section
+            className="gs-chat-guidelines"
+            aria-labelledby="gs-chat-guidelines-title"
+            tabIndex={-1}
+            ref={guidelinesRef}
+          >
+            <h3 id="gs-chat-guidelines-title">{guidelines.title}</h3>
+            <p>{guidelines.intro}</p>
+            <p id="gs-chat-guidelines-not-allowed">{guidelines.not_allowed_title}</p>
+            <ul aria-labelledby="gs-chat-guidelines-not-allowed">
+              {guidelines.not_allowed.map((rule) => (
+                <li key={rule}>{rule}</li>
+              ))}
+            </ul>
+            <p>{guidelines.who_writes}</p>
+            <p>{guidelines.consequences}</p>
+            <p>{guidelines.report}</p>
+            <button type="button" className="gs-button" disabled={accepting} onClick={acceptGuidelines}>
+              {guidelines.accept}
+            </button>
+          </section>
+        ) : null}
+        {reportNotice ? (
+          <p className="gs-small gs-muted" role="status">
+            {reportNotice}
+          </p>
+        ) : null}
         {sendError ? (
           <p className="gs-chat-error" role="alert">
             {sendError}
@@ -491,6 +603,49 @@ function LiveChatRoom({
                       <time dateTime={item.message.created_at}>{fmt.time(item.message.created_at)}</time>
                       {item.held ? ` · ${T.onlyYou}` : ''}
                     </span>
+                    {canReport && item.message.author.profile_id !== fan.me?.profile_id ? (
+                      <button
+                        type="button"
+                        className="gs-chat-report"
+                        aria-label={fillText(T.reportLabel, {
+                          name: item.message.author.nickname ?? T.unknownAuthor,
+                        })}
+                        aria-expanded={reporting === item.message.id}
+                        onClick={() => {
+                          setReportNotice(null);
+                          setReporting((cur) => (cur === item.message.id ? null : item.message.id));
+                        }}
+                      >
+                        {T.report}
+                      </button>
+                    ) : null}
+                    {reporting === item.message.id ? (
+                      <span className="gs-chat-report-form">
+                        <label>
+                          {T.reportReason}{' '}
+                          <select
+                            value={reportReason}
+                            onChange={(e) => setReportReason(e.target.value as keyof typeof T.reportReasons)}
+                          >
+                            {(Object.keys(T.reportReasons) as (keyof typeof T.reportReasons)[]).map((r) => (
+                              <option key={r} value={r}>
+                                {T.reportReasons[r]}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <button
+                          type="button"
+                          className="gs-button"
+                          onClick={() => void sendReport(item.message)}
+                        >
+                          {T.reportSend}
+                        </button>
+                        <button type="button" className="gs-chat-report" onClick={() => setReporting(null)}>
+                          {T.reportCancel}
+                        </button>
+                      </span>
+                    ) : null}
                   </span>
                 </li>
               ),

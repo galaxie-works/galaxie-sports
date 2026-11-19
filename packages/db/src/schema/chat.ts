@@ -232,3 +232,23 @@ export const chatGameMessage = chat.table(
     check('game_message_kind', inList('kind', CHAT_GAME_KINDS)),
   ],
 );
+
+/**
+ * Aceite das Diretrizes do chat (#957, item 6.2 do Contrato base): o Torcedor aceita antes da primeira mensagem, e a
+ * versão aceita fica registrada. Versão nova pede aceite de novo antes de escrever. Uma linha por Perfil e cliente
+ * (a última versão aceita). Sem chave estrangeira para o Perfil, de propósito: a prova do aceite fica mesmo depois de
+ * o Perfil ser apagado (decisão do Wagner, 19/11).
+ */
+export const chatGuidelinesAcceptance = chat.table(
+  'guidelines_acceptance',
+  {
+    tenantId: tenantRef(),
+    profileId: uuid('profile_id').notNull(),
+    version: integer('version').notNull(),
+    acceptedAt: timestamp('accepted_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ name: 'guidelines_acceptance_pkey', columns: [t.tenantId, t.profileId] }),
+    check('guidelines_acceptance_version', sql`${t.version} >= 1`),
+  ],
+);

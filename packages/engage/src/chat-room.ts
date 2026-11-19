@@ -65,7 +65,14 @@ export function roomWindow(input: ChatRoomWindowInput): ChatRoomWindow {
 
 /** Por que o envio foi recusado (o widget mostra o aviso e esconde a caixa de texto). */
 export type ChatSendRefusal =
-  'room_scheduled' | 'room_frozen' | 'room_closed' | 'room_read_only_peak' | 'age_band' | 'flood' | 'bot';
+  | 'room_scheduled'
+  | 'room_frozen'
+  | 'room_closed'
+  | 'room_read_only_peak'
+  | 'age_band'
+  | 'flood'
+  | 'bot'
+  | 'guidelines';
 
 /**
  * Pode enviar? Só `18plus` escreve (D1); `13_17` lê e reage; `under13` não entra. Sala congelada, encerrada, ainda
@@ -98,6 +105,7 @@ const NOTICES: Record<'pt' | 'es' | 'en', Record<ChatSendRefusal, string>> = {
     room_closed: 'A sala foi encerrada. As mensagens ficam para leitura.',
     room_read_only_peak: 'A sala está cheia e ficou só leitura para quem entrou agora.',
     flood: 'Muitas mensagens em pouco tempo. Espere um pouco para escrever de novo.',
+    guidelines: 'Antes da primeira mensagem, leia e aceite as regras do chat.',
     bot: 'O envio foi pausado por até 30 minutos porque as mensagens parecem automáticas. A moderação vai revisar.',
   },
   es: {
@@ -107,6 +115,7 @@ const NOTICES: Record<'pt' | 'es' | 'en', Record<ChatSendRefusal, string>> = {
     room_closed: 'La sala cerró. Los mensajes quedan para lectura.',
     room_read_only_peak: 'La sala está llena y quedó solo de lectura para quienes acaban de entrar.',
     flood: 'Demasiados mensajes en poco tiempo. Espera un poco para volver a escribir.',
+    guidelines: 'Antes del primer mensaje, lee y acepta las reglas del chat.',
     bot: 'El envío quedó en pausa hasta 30 minutos porque los mensajes parecen automáticos. La moderación lo va a revisar.',
   },
   en: {
@@ -116,6 +125,7 @@ const NOTICES: Record<'pt' | 'es' | 'en', Record<ChatSendRefusal, string>> = {
     room_closed: 'The room is closed. Messages stay available to read.',
     room_read_only_peak: 'The room is full and became read-only for people who just joined.',
     flood: 'Too many messages in a short time. Wait a moment before writing again.',
+    guidelines: 'Before your first message, read and accept the chat rules.',
     bot: 'Sending is paused for up to 30 minutes because the messages look automated. Moderators will review it.',
   },
 };

@@ -1,3 +1,4 @@
+import { CHAT_GUIDELINES_VERSION } from '@galaxie/engage';
 import { randomBytes } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import { Redis } from 'ioredis';
@@ -80,7 +81,7 @@ async function tenantKey(slug: string, modules: string[]): Promise<{ id: string;
   return { id: res.json().tenant.id, key: res.json().key.key };
 }
 
-const fan = async (key: string, n: number, ageBand = '18plus') => {
+const fan = async (key: string, n: number, ageBand = '18plus', acceptGuidelines = true) => {
   const res = await app.inject({
     method: 'POST',
     url: '/v1/fans/tokens',
@@ -97,10 +98,19 @@ const fan = async (key: string, n: number, ageBand = '18plus') => {
     },
   });
   expect(res.statusCode).toBe(201);
-  return {
-    token: res.json().data.token as string,
-    profileId: res.json().data.profile_id as string,
-  };
+  const token = res.json().data.token as string;
+  // as Diretrizes do chat (#957): o adulto aceita antes de escrever (o teste do aceite usa `acceptGuidelines = false`)
+  if (acceptGuidelines && ageBand === '18plus') {
+    const accepted = await app.inject({
+      method: 'POST',
+      url: '/v1/chat/guidelines/accept',
+      headers: { authorization: `Bearer ${token}` },
+      payload: { version: CHAT_GUIDELINES_VERSION },
+    });
+    // sem o módulo live_chat o aceite também recusa (403): o teste do módulo confere o envio
+    expect([204, 403]).toContain(accepted.statusCode);
+  }
+  return { token, profileId: res.json().data.profile_id as string };
 };
 
 /** Jogo que começa `startsInMin` minutos depois do relógio do teste. */
@@ -131,6 +141,50 @@ const send = (token: string, fixtureId: string, body: string) =>
     headers: { authorization: `Bearer ${token}` },
     payload: { body },
   });
+
+describe('Chat ao vivo: Diretrizes antes da primeira mensagem (#957)', () => {
+  it('sem o aceite, o envio volta 409; o torcedor lê, aceita a versão atual e escreve', async () => {
+    clock = Date.now();
+    const t = await tenantKey('chat-diretrizes', ['core_data', 'live_chat']);
+    const fixture = await game(-5, 'live');
+    const f = await fan(t.key, 1, '18plus', false);
+    const refused = await send(f.token, fixture, 'primeira mensagem');
+    expect(refused.statusCode).toBe(409);
+    expect(refused.json().errors[0]).toEqual({ path: 'refusal', message: 'guidelines' });
+    const g = await app.inject({
+      method: 'GET',
+      url: '/v1/chat/guidelines',
+      headers: { authorization: `Bearer ${f.token}` },
+    });
+    expect(g.statusCode).toBe(200);
+    expect(g.json().data).toMatchObject({ version: CHAT_GUIDELINES_VERSION, accepted_version: null });
+    expect(g.json().data.not_allowed.length).toBeGreaterThan(5);
+    const accept = (version: number) =>
+      app.inject({
+        method: 'POST',
+        url: '/v1/chat/guidelines/accept',
+        headers: { authorization: `Bearer ${f.token}` },
+        payload: { version },
+      });
+    expect((await accept(CHAT_GUIDELINES_VERSION + 1)).statusCode).toBe(409);
+    expect((await accept(CHAT_GUIDELINES_VERSION)).statusCode).toBe(204);
+    const again = await app.inject({
+      method: 'GET',
+      url: '/v1/chat/guidelines',
+      headers: { authorization: `Bearer ${f.token}` },
+    });
+    expect(again.json().data.accepted_version).toBe(CHAT_GUIDELINES_VERSION);
+    expect((await send(f.token, fixture, 'primeira mensagem')).statusCode).toBe(201);
+    // menor de 18 não chega às Diretrizes (portão de escrita)
+    const teen = await fan(t.key, 2, '13_17', false);
+    const teenRead = await app.inject({
+      method: 'GET',
+      url: '/v1/chat/guidelines',
+      headers: { authorization: `Bearer ${teen.token}` },
+    });
+    expect(teenRead.statusCode).toBe(403);
+  });
+});
 
 describe('Chat ao vivo: salas (#959)', () => {
   it('sala por jogo e por cliente: dois clientes no mesmo jogo não se veem', async () => {
