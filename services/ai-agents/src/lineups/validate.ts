@@ -17,6 +17,7 @@
  *
  * O que não passa entra como `unverified` (nunca sai na leitura pública) e o preço sem prova não é gravado.
  */
+import { countryCurrency, countryLanguage } from '@galaxie/geo';
 import {
   lineupSlug,
   type LineupAccess,
@@ -308,30 +309,11 @@ export function isPlanPage(url: string, plan: string, platformName: string): boo
 
 // ─── preço ───────────────────────────────────────────────────────────────────────────────────────
 
-/** Moeda (ISO 4217) de cada país da grade. */
-export const COUNTRY_CURRENCY: Record<string, string> = {
-  BR: 'BRL',
-  AR: 'ARS',
-  CL: 'CLP',
-  CO: 'COP',
-  PE: 'PEN',
-  UY: 'UYU',
-  MX: 'MXN',
-  EC: 'USD',
-  PA: 'USD',
-};
-
-const COUNTRY_LOCALE: Record<string, string> = {
-  BR: 'pt-BR',
-  AR: 'es-AR',
-  CL: 'es-CL',
-  CO: 'es-CO',
-  PE: 'es-PE',
-  UY: 'es-UY',
-  MX: 'es-MX',
-  EC: 'es-EC',
-  PA: 'es-PA',
-};
+/** Locale do `Intl` para o preço no país: idioma do país (packages/geo) com a região; `es` quando o país não tem idioma mapeado. */
+function priceLocale(country: string): string {
+  const lang = countryLanguage(country);
+  return lang ? `${lang}-${country.split('-')[0]!.toUpperCase()}` : 'es';
+}
 
 const NUMBER_RE = /\d{1,3}(?:[.\u00a0 ]\d{3})+(?:,\d{1,2})?|\d+(?:[.,]\d{1,3})?/g;
 
@@ -491,7 +473,7 @@ export function listPriceCheck(excerpt: string, amount: number): LineupCheckResu
 
 /** Preço como publicado, a partir do número e da moeda ("R$ 149,90/mês"). */
 export function formatPrice(amount: number, currency: string, country: string): string {
-  const locale = COUNTRY_LOCALE[country] ?? 'es';
+  const locale = priceLocale(country);
   // preço 0 publicado na página: plano (ou complemento) grátis
   if (amount === 0) return locale.startsWith('pt') ? 'Grátis' : 'Gratis';
   const money = new Intl.NumberFormat(locale, {
@@ -764,7 +746,7 @@ export async function verifyPlans(plans: readonly ModelPlan[], ctx: VerifyContex
   const out: VerifyOutcome = { plans: [], plansWithoutSource: 0, drops: [] };
   for (const p of plans) {
     const siblings = siblingsOf(p.name);
-    const currency = COUNTRY_CURRENCY[ctx.country] ?? null;
+    const currency = countryCurrency(ctx.country);
     // os preços vistos: os da etapa 2, cada um com a fonte dele, ou o único do formato do AI Studio
     const multi = (p.prices?.length ?? 0) > 0;
     const priceInputs: ModelPlanPrice[] = multi
@@ -976,7 +958,7 @@ export async function verifyAddons(
   ctx: VerifyContext,
 ): Promise<{ addons: VerifiedAddon[]; drops: { reason: ItemDrop; name: string }[] }> {
   const day = ctx.now.toISOString().slice(0, 10);
-  const currency = COUNTRY_CURRENCY[ctx.country] ?? null;
+  const currency = countryCurrency(ctx.country);
   const out: VerifiedAddon[] = [];
   const drops: { reason: ItemDrop; name: string }[] = [];
   for (const a of addons) {

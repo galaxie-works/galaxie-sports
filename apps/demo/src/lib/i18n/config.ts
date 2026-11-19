@@ -6,6 +6,7 @@
  * Módulo puro: serve ao proxy, ao servidor, ao navegador e aos testes.
  */
 import type { SupportedLocale } from '@galaxie/contracts';
+import { referenceTimeZone } from '@galaxie/geo/country';
 import { SPANISH_VOICE_COUNTRIES } from '@galaxie/geo/language';
 
 export const LOCALES = ['pt-BR', 'en', 'es-AR'] as const;
@@ -94,22 +95,18 @@ export function contentLocale(locale: Locale, country: string | null | undefined
   return SPANISH_VOICE_COUNTRIES.includes(code) ? (`es-${code}` as SupportedLocale) : base;
 }
 
-const TIME_ZONE_BY_LOCALE: Partial<Record<SupportedLocale, string>> = {
-  'pt-BR': 'America/Sao_Paulo',
-  'es-AR': 'America/Argentina/Buenos_Aires',
-  'es-MX': 'America/Mexico_City',
-  'es-CO': 'America/Bogota',
-  'es-CL': 'America/Santiago',
-  'es-PE': 'America/Lima',
-  'es-UY': 'America/Montevideo',
-  'es-EC': 'America/Guayaquil',
-  // inglês não tem mercado próprio: segue o fuso que a demo em inglês sempre usou (o de es-AR)
-  en: 'America/Argentina/Buenos_Aires',
-};
+/**
+ * País de referência do fuso de cada locale da API: o do próprio locale (`es-CL` → Chile, `pt-BR` → Brasil); o
+ * inglês não tem mercado próprio e segue o fuso que a demo em inglês sempre usou (o de es-AR). O fuso sai do
+ * packages/geo.
+ */
+const TIME_ZONE_COUNTRY: Partial<Record<SupportedLocale, string>> = { en: 'AR' };
+const timeZoneOfLocale = (locale: SupportedLocale): string | null =>
+  referenceTimeZone(TIME_ZONE_COUNTRY[locale] ?? locale.split('-')[1] ?? null);
 
 /** Fuso do mercado do locale da API: vai no `?tz` das chamadas (o "hoje" e o "amanhã" da API). */
 export function apiTimeZone(locale: ContentLocale): string {
-  return TIME_ZONE_BY_LOCALE[apiLocale(locale)] ?? 'America/Sao_Paulo';
+  return timeZoneOfLocale(apiLocale(locale)) ?? 'America/Sao_Paulo';
 }
 
 /** Fuso das datas enquanto o navegador ainda não informou o dele (primeiro acesso). */

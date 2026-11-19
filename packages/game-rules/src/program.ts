@@ -5,6 +5,7 @@
  * O Piso fica aqui até o Catálogo (#910) ganhar a tela em Ajustes; aí passa a vir do banco, com estes valores de
  * padrão. Só entram assuntos que o placar já traz: o total de pontos (gols, cestas, pontos) do jogo.
  */
+import { referenceTimeZone } from '@galaxie/geo/country';
 import type { MatchOutcome } from './prediction.js';
 
 /** Total de pontos do jogo (gols no futebol, pontos no basquete e no futebol americano). */
@@ -32,26 +33,5 @@ export function outcomeFromScore(
   return { home: score.home, away: score.away, totals: { [TOTAL_SCORE]: score.home + score.away } };
 }
 
-/** Fuso de cada país do programa, para o mês do Ranking. País com vários fusos usa o da capital ou do maior mercado. */
-export const COUNTRY_TIME_ZONES: Readonly<Record<string, string>> = Object.freeze({
-  AR: 'America/Argentina/Buenos_Aires',
-  BO: 'America/La_Paz',
-  BR: 'America/Sao_Paulo',
-  CA: 'America/Toronto',
-  CL: 'America/Santiago',
-  CO: 'America/Bogota',
-  CR: 'America/Costa_Rica',
-  EC: 'America/Guayaquil',
-  ES: 'Europe/Madrid',
-  GT: 'America/Guatemala',
-  MX: 'America/Mexico_City',
-  PA: 'America/Panama',
-  PE: 'America/Lima',
-  PT: 'Europe/Lisbon',
-  PY: 'America/Asuncion',
-  US: 'America/New_York',
-  UY: 'America/Montevideo',
-  VE: 'America/Caracas',
-});
-
-export const countryTimeZone = (country: string): string => COUNTRY_TIME_ZONES[country] ?? 'UTC';
+/** Fuso de cada país do programa, para o mês do Ranking: o de referência do packages/geo (capital ou maior mercado). */
+export const countryTimeZone = (country: string): string => referenceTimeZone(country) ?? 'UTC';

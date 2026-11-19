@@ -29,7 +29,8 @@ import {
 } from '@galaxie/db';
 import type { WtwConfig } from '@galaxie/where-to-watch';
 import { resolveOffer } from './extract.js';
-import { COUNTRY_CURRENCY, formatPrice } from './validate.js';
+import { countryCurrency } from '@galaxie/geo';
+import { formatPrice } from './validate.js';
 
 export const CURATION_NOTE = 'operadora (curadoria interna)';
 export const CURATION_BY = 'curadoria';
@@ -116,7 +117,7 @@ export async function curateLineup(
   if (!config.has(input.country))
     throw new CurationError(`País sem dicionário de emissoras: ${input.country}`);
   const dir = config.directory(input.country);
-  const currency = COUNTRY_CURRENCY[input.country] ?? null;
+  const currency = countryCurrency(input.country);
   const slug = input.platform.slug
     ? lineupSlug(input.platform.slug)
     : platformSlug(input.country, input.platform.name);

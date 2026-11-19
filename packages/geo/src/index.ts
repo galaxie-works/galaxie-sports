@@ -19,6 +19,14 @@ export {
   type ScopeEntry,
 } from './config.js';
 export {
+  COUNTRIES_WITH_FACTS,
+  countryCurrency,
+  countryFacts,
+  referenceTimeZone,
+  singleTimeZone,
+  type CountryFacts,
+} from './country.js';
+export {
   competitionName,
   countryLanguage,
   countryLocale,

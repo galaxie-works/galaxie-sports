@@ -3,20 +3,10 @@
  * (nível 2), ambos para vários países numa só chamada. Hierarquia de fontes, evidência obrigatória
  * e regras anti-alucinação / anti prompt injection.
  */
+import { referenceTimeZone } from '@galaxie/geo';
 import type { CountryDirectory } from '@galaxie/where-to-watch';
 import { UNTRUSTED_CONTENT_RULES } from '../llm/hygiene.js';
 import { matchLabel, type EventInfo } from './event-info.js';
-
-export const COUNTRY_TZ: Record<string, string> = {
-  BR: 'America/Sao_Paulo',
-  AR: 'America/Argentina/Buenos_Aires',
-  MX: 'America/Mexico_City',
-  CO: 'America/Bogota',
-  CL: 'America/Santiago',
-  PE: 'America/Lima',
-  UY: 'America/Montevideo',
-  EC: 'America/Guayaquil',
-};
 
 export const COUNTRY_NAMES: Record<string, { pt: string; es: string }> = {
   BR: { pt: 'Brasil', es: 'Brasil' },
@@ -33,7 +23,7 @@ const countryName = (c: string) => COUNTRY_NAMES[c]?.pt ?? c;
 
 /** Data e hora locais do jogo no país (dd/mm/aaaa, HH:mm). */
 export function localKickoff(startsAt: Date, country: string): { date: string; time: string } {
-  const tz = COUNTRY_TZ[country] ?? 'UTC';
+  const tz = referenceTimeZone(country) ?? 'UTC';
   const parts = Object.fromEntries(
     new Intl.DateTimeFormat('en-GB', {
       timeZone: tz,

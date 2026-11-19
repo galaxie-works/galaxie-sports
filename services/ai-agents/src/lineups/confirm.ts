@@ -37,7 +37,8 @@ import {
 import { hostOf, type WtwConfig } from '@galaxie/where-to-watch';
 import { extractAddons, extractPlanGrade, unknownPlanLabels, type PageGrade } from './extract.js';
 import type { OfficialPageReader, PageRead } from './pages.js';
-import { choosePrice, COUNTRY_CURRENCY, formatPrice, isOfficialUrl, priceCurrency } from './validate.js';
+import { countryCurrency } from '@galaxie/geo';
+import { choosePrice, formatPrice, isOfficialUrl, priceCurrency } from './validate.js';
 
 export interface ConfirmDeps {
   db: Database;
@@ -268,7 +269,7 @@ async function confirmPlatform(
     for (const n of found.unknown) if (!outcome.unknownAddons.includes(n)) outcome.unknownAddons.push(n);
   }
 
-  const currency = COUNTRY_CURRENCY[row.country] ?? null;
+  const currency = countryCurrency(row.country);
   const plans: LineupPlanDraft[] = [];
   for (const [name, { grade, read }] of best) {
     const existing = lineup.plans.find((p) => p.plan.name === name)?.plan ?? null;
