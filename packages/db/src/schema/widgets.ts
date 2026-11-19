@@ -52,6 +52,7 @@ export const WIDGET_KINDS = [
   'shop_the_game',
   'live_chat',
   'fan_achievements',
+  'fan_cards',
 ] as const;
 export type WidgetKind = (typeof WIDGET_KINDS)[number];
 

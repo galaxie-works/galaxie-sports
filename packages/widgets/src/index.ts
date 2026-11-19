@@ -199,3 +199,4 @@ export {
 } from './registry/build-registry-item.js';
 export { LiveChat, type LiveChatProps } from './widgets/live-chat.js';
 export { AchievementShelf, type AchievementShelfProps } from './widgets/achievement-shelf.js';
+export { CardAlbum, type CardAlbumProps } from './widgets/card-album.js';

@@ -51,6 +51,7 @@ export const WIDGET_KINDS = [
   'shop_the_game',
   'live_chat',
   'fan_achievements',
+  'fan_cards',
 ] as const;
 export type WidgetKind = (typeof WIDGET_KINDS)[number];
 
@@ -2019,6 +2020,13 @@ a.gs-tile:hover{border-color:var(--gs-primary)}
 .gs-rank-row{display:grid;grid-template-columns:2.5em 1fr auto;align-items:center;gap:8px;padding:6px 8px;border-radius:calc(var(--gs-radius)/2);font-variant-numeric:tabular-nums}
 .gs-rank-row[data-me]{background:color-mix(in srgb,var(--gs-primary) 14%,transparent);font-weight:700}
 .gs-rank-pos{color:var(--gs-muted-foreground);font-weight:700}
+.gs-album-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px;margin:0;padding:0;list-style:none}
+.gs-album-card{appearance:none;position:relative;display:flex;flex-direction:column;justify-content:flex-end;gap:2px;width:100%;aspect-ratio:3/4;padding:8px;border:2px solid var(--gs-ach-color,var(--gs-border));border-radius:calc(var(--gs-radius)*.6);background:radial-gradient(circle at 50% 30%,color-mix(in srgb,var(--gs-ach-color,var(--gs-primary)) 35%,transparent),transparent 65%),linear-gradient(160deg,#151a3a,#0b1020);color:#fff;font:inherit;font-size:.72em;text-align:left;cursor:pointer;overflow:hidden;transition:border-color .2s cubic-bezier(.22,1,.36,1)}
+.gs-album-card:focus-visible{outline:2px solid var(--gs-primary);outline-offset:2px}
+.gs-album-card[data-missing]{border-style:dashed;background:var(--gs-surface);color:var(--gs-muted-foreground)}
+.gs-album-card strong{font-size:1.05em;line-height:1.2}
+.gs-album-copies{position:absolute;top:6px;right:6px;padding:0 6px;border-radius:999px;background:rgba(0,0,0,.45);font-weight:700}
+@media (prefers-reduced-motion:reduce){.gs-album-card{transition:none}}
 @keyframes gs-ach-in{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){.gs-ach-toast{animation:none}.gs-ach-item{transition:none}}
 `;
@@ -2599,6 +2607,29 @@ export interface WidgetTexts {
     /** "{n} empates". */
     draws: string;
     scopes: Record<GsDerbyScope, string>;
+  };
+  /** Álbum de Cartas do torcedor (#926). */
+  album: {
+    title: string;
+    /** "{n} de {total} Cartas". */
+    count: string;
+    /** "{n} de {total}" (por família). */
+    familyCount: string;
+    empty: string;
+    filterLabel: string;
+    filters: Record<'all' | 'owned' | 'missing', string>;
+    missing: string;
+    /** "x{n}" (ganhou mais de uma vez). */
+    copies: string;
+    /** "Ganha em {date}". */
+    earnedOn: string;
+    /** Como ganhar: "{step} de {name}: {threshold}". */
+    howTo: string;
+    close: string;
+    /** Rótulo da Carta para leitor de tela: "{name}, {step}". */
+    cardLabel: string;
+    /** Sem troca nem fabricação: a Carta é certa por Degrau. */
+    note: string;
   };
   /** Estante de Conquistas e Ranking do torcedor (#919). */
   achievements: {
@@ -3296,6 +3327,21 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
         continental: 'Continental',
         international: 'Internacional',
       },
+    },
+    album: {
+      title: 'Álbum de Cartas',
+      count: '{n} de {total} Cartas',
+      familyCount: '{n} de {total}',
+      empty: 'Nenhuma Carta para mostrar aqui ainda.',
+      filterLabel: 'Mostrar',
+      filters: { all: 'Todas', owned: 'Tenho', missing: 'Faltam' },
+      missing: 'Falta',
+      copies: 'x{n}',
+      earnedOn: 'Ganha em {date}',
+      howTo: '{step} de {name}: {threshold}',
+      close: 'Fechar',
+      cardLabel: '{name}, {step}',
+      note: 'Cada Carta vem de um Degrau de Conquista: sem sorteio, sem compra e sem troca.',
     },
     achievements: {
       title: 'Minhas Conquistas',
@@ -3998,6 +4044,21 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
         international: 'Internacional',
       },
     },
+    album: {
+      title: 'Álbum de cartas',
+      count: '{n} de {total} cartas',
+      familyCount: '{n} de {total}',
+      empty: 'Todavía no hay cartas para mostrar aquí.',
+      filterLabel: 'Mostrar',
+      filters: { all: 'Todas', owned: 'Tengo', missing: 'Faltan' },
+      missing: 'Falta',
+      copies: 'x{n}',
+      earnedOn: 'Ganada el {date}',
+      howTo: '{step} de {name}: {threshold}',
+      close: 'Cerrar',
+      cardLabel: '{name}, {step}',
+      note: 'Cada carta viene de un escalón de logro: sin sorteo, sin compra y sin intercambio.',
+    },
     achievements: {
       title: 'Mis logros',
       tabShelf: 'Logros',
@@ -4685,6 +4746,21 @@ const TEXTS: Record<WidgetLocale, WidgetTexts> = {
         continental: 'Continental',
         international: 'International',
       },
+    },
+    album: {
+      title: 'Card album',
+      count: '{n} of {total} cards',
+      familyCount: '{n} of {total}',
+      empty: 'No cards to show here yet.',
+      filterLabel: 'Show',
+      filters: { all: 'All', owned: 'Owned', missing: 'Missing' },
+      missing: 'Missing',
+      copies: 'x{n}',
+      earnedOn: 'Earned on {date}',
+      howTo: '{step} of {name}: {threshold}',
+      close: 'Close',
+      cardLabel: '{name}, {step}',
+      note: 'Each card comes from an achievement tier: no draws, no purchases and no trading.',
     },
     achievements: {
       title: 'My achievements',
@@ -5848,4 +5924,107 @@ export function achievementShareSvg(input: {
     text(570, 16, '#8088a8', input.caption.slice(0, 60)) +
     '</svg>'
   );
+}
+
+// ─── Gamificação: álbum de Cartas (#926) ─────────────────────────────────────────────────────────
+
+/** Uma linha de `GET /v1/fans/me/cards`. */
+export interface GsFanCard {
+  card_key: string;
+  achievement_id: string;
+  season: string;
+  step: number;
+  granted_at: string;
+}
+
+/** Uma Carta do álbum: o Degrau de Conquista que a dá, e se o torcedor já tem. */
+export interface GsAlbumCard {
+  cardKey: string;
+  achievement: GsAchievementCatalogEntry;
+  step: number;
+  /** Quanto contar para ganhar (o limite do Degrau no programa). */
+  threshold: number;
+  /** Quantas vezes o torcedor ganhou (a vitalícia e cada temporada contam); 0 = falta. */
+  copies: number;
+  /** Primeira vez que ganhou. */
+  firstAt: string | null;
+}
+
+export interface GsAlbumGroup {
+  family: string;
+  cards: GsAlbumCard[];
+  owned: number;
+}
+
+/**
+ * Monta o álbum (#926): as Cartas do Catálogo ativo agrupadas pela família da Conquista (as Coleções de verdade
+ * chegam com o importador), com as que o torcedor tem e as que faltam. Dentro da família, pela Conquista e pelo
+ * Degrau. Nada aqui consome Carta: o álbum só mostra (sem fabricação nem troca, decisão de 19/11).
+ */
+export function buildAlbum(
+  catalog: readonly GsAchievementCatalogEntry[],
+  cards: readonly GsFanCard[],
+  options: { show?: 'all' | 'owned' | 'missing'; locale?: WidgetLocale } = {},
+): GsAlbumGroup[] {
+  const { show = 'all', locale = 'pt-BR' } = options;
+  const mine = new Map<string, { copies: number; firstAt: string }>();
+  for (const c of cards) {
+    const cur = mine.get(c.card_key);
+    if (!cur) mine.set(c.card_key, { copies: 1, firstAt: c.granted_at });
+    else {
+      cur.copies += 1;
+      if (c.granted_at < cur.firstAt) cur.firstAt = c.granted_at;
+    }
+  }
+  const groups = new Map<string, GsAlbumCard[]>();
+  for (const a of catalog) {
+    for (const s of a.steps) {
+      if (!s.card_key) continue;
+      const got = mine.get(s.card_key);
+      const card: GsAlbumCard = {
+        cardKey: s.card_key,
+        achievement: a,
+        step: s.step,
+        threshold: s.threshold,
+        copies: got?.copies ?? 0,
+        firstAt: got?.firstAt ?? null,
+      };
+      const list = groups.get(a.family) ?? [];
+      list.push(card);
+      groups.set(a.family, list);
+    }
+  }
+  const order = (f: string) => {
+    const i = (GS_ACHIEVEMENT_FAMILIES as readonly string[]).indexOf(f);
+    return i < 0 ? GS_ACHIEVEMENT_FAMILIES.length : i;
+  };
+  return [...groups.entries()]
+    .sort(([a], [b]) => order(a) - order(b) || a.localeCompare(b))
+    .map(([family, list]) => {
+      const sorted = list.sort(
+        (x, y) =>
+          gameText(x.achievement.name, locale).localeCompare(gameText(y.achievement.name, locale), locale) ||
+          x.step - y.step,
+      );
+      return {
+        family,
+        owned: sorted.filter((c) => c.copies > 0).length,
+        cards: sorted.filter((c) =>
+          show === 'owned' ? c.copies > 0 : show === 'missing' ? c.copies === 0 : true,
+        ),
+      };
+    })
+    .filter((g) => g.cards.length > 0);
+}
+
+/** Cartas do álbum inteiro: quantas o torcedor tem e quantas existem (sem o filtro de exibição). */
+export function albumTotals(
+  catalog: readonly GsAchievementCatalogEntry[],
+  cards: readonly GsFanCard[],
+): { owned: number; total: number } {
+  const keys = new Set(
+    catalog.flatMap((a) => a.steps.map((s) => s.card_key).filter((k): k is string => !!k)),
+  );
+  const owned = new Set(cards.map((c) => c.card_key).filter((k) => keys.has(k)));
+  return { owned: owned.size, total: keys.size };
 }

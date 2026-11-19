@@ -404,6 +404,76 @@ export function useFanSession(): GalaxieFanSession {
   return useGalaxieWidget().fan;
 }
 
+// ─── leitura das rotas do torcedor (Gamificação, #919 e #926) ───
+
+export interface FanJson<T> {
+  data: T | null;
+  error: boolean;
+  loading: boolean;
+  reload: () => void;
+}
+
+/** Leitura de uma rota do torcedor com o token (`fan.fetch`), relida a cada `refreshMs` com a aba visível. */
+export function useFanJson<T>(path: string | null, refreshMs?: number): FanJson<T> {
+  const fan = useFanSession();
+  const fetchRef = useRef(fan.fetch);
+  fetchRef.current = fan.fetch;
+  const [state, setState] = useState<{ data: T | null; error: boolean; loading: boolean }>({
+    data: null,
+    error: false,
+    loading: Boolean(path),
+  });
+  const [tick, setTick] = useState(0);
+  const reload = useCallback(() => setTick((t) => t + 1), []);
+  const loadedPath = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!path) return;
+    let cancelled = false;
+    if (loadedPath.current !== path) {
+      // outro recorte: o dado anterior sai da tela (não fica com o rótulo novo se a leitura falhar)
+      loadedPath.current = path;
+      setState({ data: null, error: false, loading: true });
+    } else setState((s) => ({ ...s, loading: s.data === null }));
+    fetchRef
+      .current(path)
+      .then(async (res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const body = (await res.json()) as { data?: T };
+        if (!cancelled) setState({ data: body.data ?? null, error: false, loading: false });
+      })
+      .catch(() => {
+        // a releitura que falha mantém o que já estava na tela
+        if (!cancelled) setState((s) => ({ data: s.data, error: s.data === null, loading: false }));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [path, tick]);
+
+  useEffect(() => {
+    if (!path || !refreshMs) return;
+    let last = Date.now();
+    const tick = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+      last = Date.now();
+      reload();
+    };
+    const timer = setInterval(tick, refreshMs);
+    // aba que volta depois de um tempo escondida relê na hora (sem esperar o próximo ciclo)
+    const onVisible = () => {
+      if (document.visibilityState === 'visible' && Date.now() - last >= refreshMs) tick();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [path, refreshMs, reload]);
+
+  return { ...state, reload };
+}
+
 /**
  * Portão dos recursos do torcedor: mostra `children` só se o Perfil pode `need` (padrão `write`). Sem token,
  * "entre para participar" (com o botão quando o site passa `onFanSignIn`); `13_17` onde precisa escrever, só
