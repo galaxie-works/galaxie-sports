@@ -1,5 +1,12 @@
 import * as z from 'zod';
-import { API_MODULES, API_PLANS } from '@galaxie/db/schema';
+import {
+  API_MODULES,
+  API_PLANS,
+  CAPACITY_TIERS,
+  MODULE_USAGE_METRICS,
+  type CapacityTier,
+  type ModuleUsageMetric,
+} from '@galaxie/db/schema';
 
 /**
  * Formato dos arquivos de `config/catalog/` (plataforma comercial F1). Só estrutura: preço, moeda e ids do Stripe
@@ -31,6 +38,13 @@ export const TierDef = z
     default: z.number().int().nonnegative(),
     /** Valores fixos aceitos (ex.: pico do chat); sem a lista, qualquer inteiro entre min e max. */
     values: z.array(z.number().int().nonnegative()).min(2).optional(),
+    /**
+     * Medida de uso do mês que esta faixa limita (`api.module_usage_monthly.metric`): a avaliação de uso compara as duas
+     * (aviso em 80%, excedente acima). Sem `metric`, a faixa não é medida no uso (ex.: teto contado no cadastro).
+     */
+    metric: z
+      .enum(Object.keys(MODULE_USAGE_METRICS) as [ModuleUsageMetric, ...ModuleUsageMetric[]])
+      .optional(),
   })
   .strict();
 export type TierDef = z.output<typeof TierDef>;
@@ -87,8 +101,8 @@ export type PlanTemplate = z.output<typeof PlanTemplate>;
 
 export const PlansFile = z.object({ plans: z.partialRecord(planId, PlanTemplate) }).strict();
 
-export const CAPACITY_TIERS = ['C1', 'C2', 'C3', 'C4'] as const;
-export type CapacityTier = (typeof CAPACITY_TIERS)[number];
+// Uma definição só (#1446): a do `@galaxie/db`, que também é a do check constraint `organization_capacity_tier`.
+export { CAPACITY_TIERS, type CapacityTier };
 
 export const CapacityDef = z
   .object({

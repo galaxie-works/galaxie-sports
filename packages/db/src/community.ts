@@ -25,7 +25,7 @@ import {
   type CommunityTermsBody,
 } from './schema/community.js';
 import { competition, event, eventParticipant, participant, person, season, sport } from './schema/core.js';
-import { MODULE_LIMITS, isValidModuleLimit } from './engage-modules.js';
+import { isValidModuleLimit, type ModuleLimitDef } from './engage-modules.js';
 
 export {
   COMMUNITY_ANCHOR_TYPES,
@@ -138,15 +138,18 @@ async function anchorsOfRule(db: Db, kind: CommunityScopeKind, target: string): 
   }
 }
 
-/** Teto de Comunidades ativas do tenant (`communities.max_communities`): o valor gravado ou o padrão. */
-export async function communityLimit(db: Db, tenantId: string): Promise<number> {
+/**
+ * Teto de Comunidades ativas do tenant (`communities.max_communities`): o valor gravado ou o padrão. `def` vem do
+ * catálogo (`moduleLimitDefs(catalog)['communities.max_communities']`, #1446): os números moram no `modules.yaml`.
+ */
+export async function communityLimit(db: Db, tenantId: string, def: ModuleLimitDef): Promise<number> {
   const key = 'communities.max_communities' as const;
   const [row] = await db
     .select({ value: tenantModuleLimit.value })
     .from(tenantModuleLimit)
     .where(and(eq(tenantModuleLimit.tenantId, tenantId), eq(tenantModuleLimit.key, key)))
     .limit(1);
-  return row && isValidModuleLimit(key, row.value) ? row.value : MODULE_LIMITS[key].default;
+  return row && isValidModuleLimit(def, row.value) ? row.value : def.default;
 }
 
 /**
@@ -202,6 +205,7 @@ export async function syncCommunities(
   db: Database,
   tenantId: string,
   actor: string,
+  limitDef: ModuleLimitDef,
 ): Promise<CommunitySyncResult> {
   return db.transaction(async (tx) => {
     await lockTenantCommunities(tx, tenantId);
@@ -217,7 +221,7 @@ export async function syncCommunities(
       })
       .from(communityCommunity)
       .where(eq(communityCommunity.tenantId, tenantId));
-    const plan = planScopeSync({ wanted, existing, limit: await communityLimit(tx, tenantId) });
+    const plan = planScopeSync({ wanted, existing, limit: await communityLimit(tx, tenantId, limitDef) });
     const at = new Date();
     if (plan.create.length)
       await tx
@@ -254,20 +258,27 @@ export async function syncCommunities(
 /** Liga uma regra de escopo (repetir a mesma não duplica) e sincroniza. */
 export async function addScopeRule(
   db: Database,
-  input: { tenantId: string; kind: CommunityScopeKind; target: string; actor: string },
+  input: {
+    tenantId: string;
+    kind: CommunityScopeKind;
+    target: string;
+    actor: string;
+    /** Faixa `communities.max_communities` do catálogo. */
+    limitDef: ModuleLimitDef;
+  },
 ): Promise<CommunitySyncResult> {
   if (!(await targetExists(db, input.kind, input.target))) throw new CommunityError('invalid_target');
   await db
     .insert(communityScopeRule)
     .values({ tenantId: input.tenantId, kind: input.kind, target: input.target, createdBy: input.actor })
     .onConflictDoNothing();
-  return syncCommunities(db, input.tenantId, input.actor);
+  return syncCommunities(db, input.tenantId, input.actor, input.limitDef);
 }
 
 /** Desliga uma regra de escopo e sincroniza (as Comunidades que só ela sustentava são arquivadas, sem apagar). */
 export async function removeScopeRule(
   db: Database,
-  input: { tenantId: string; ruleId: string; actor: string },
+  input: { tenantId: string; ruleId: string; actor: string; limitDef: ModuleLimitDef },
 ): Promise<CommunitySyncResult> {
   const done = await db
     .update(communityScopeRule)
@@ -281,7 +292,7 @@ export async function removeScopeRule(
     )
     .returning({ id: communityScopeRule.id });
   if (!done.length) throw new CommunityError('not_found');
-  return syncCommunities(db, input.tenantId, input.actor);
+  return syncCommunities(db, input.tenantId, input.actor, input.limitDef);
 }
 
 // ---------------------------------------------------------------- leitura

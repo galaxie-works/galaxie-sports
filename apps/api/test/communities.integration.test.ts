@@ -27,9 +27,13 @@ import {
 import { sql } from 'drizzle-orm';
 import { generateAdminKey, hashAdminKey } from '../src/admin/guard.js';
 import { loadPlans } from '../src/admin/plans.js';
+import { loadCatalog, moduleLimitDefs } from '@galaxie/billing';
 import { FanTokenSigner } from '../src/engage/fan-token.js';
 import { clocksFor } from '../src/engage/moderation-routes.js';
 import { buildServer } from '../src/server.js';
+
+/** Faixa do catálogo (`modules.yaml`, #1446): o teto de Comunidades de verdade, não um número do teste. */
+const limitDef = moduleLimitDefs(loadCatalog())['communities.max_communities'];
 
 const adminUrl = process.env.DATABASE_URL;
 if (!adminUrl) throw new Error('DATABASE_URL é obrigatória para os testes de integração (pnpm infra:up).');
@@ -164,6 +168,7 @@ describe('Comunidades por escopo (#939)', () => {
     const t = await tenantKey('com-a', ['core_data', 'communities']);
     const lg = await league('liga-a', ['Zeta FC', 'Alfa FC', 'Meio FC', 'Beta FC']);
     const first = await addScopeRule(db, {
+      limitDef,
       tenantId: t.id,
       kind: 'competition_participants',
       target: lg.id,
@@ -172,6 +177,7 @@ describe('Comunidades por escopo (#939)', () => {
     expect(first.created).toBe(4);
     // repetir a regra não cria nada
     const again = await addScopeRule(db, {
+      limitDef,
       tenantId: t.id,
       kind: 'competition_participants',
       target: lg.id,
@@ -180,6 +186,7 @@ describe('Comunidades por escopo (#939)', () => {
     expect(again).toMatchObject({ created: 0, archived: 0, reactivated: 0 });
     // o time sozinho, por outra regra, cai na mesma Comunidade (uma por Âncora)
     await addScopeRule(db, {
+      limitDef,
       tenantId: t.id,
       kind: 'participant',
       target: lg.teamIds[0]!,
@@ -221,6 +228,7 @@ describe('Comunidades por escopo (#939)', () => {
     );
     const lg = await league('liga-c', ['A', 'B', 'C', 'D']);
     const r = await addScopeRule(db, {
+      limitDef,
       tenantId: t.id,
       kind: 'competition_participants',
       target: lg.id,
@@ -231,7 +239,7 @@ describe('Comunidades por escopo (#939)', () => {
     const [rule] = await db.execute<{ id: string }>(
       sql`select id from community.scope_rule where tenant_id = ${t.id}`,
     );
-    const out = await removeScopeRule(db, { tenantId: t.id, ruleId: rule!.id, actor: 'tenant:x' });
+    const out = await removeScopeRule(db, { limitDef, tenantId: t.id, ruleId: rule!.id, actor: 'tenant:x' });
     expect(out.archived).toBe(2);
     const rows = await listCommunities(db, t.id);
     expect(rows.map((c) => c.state)).toEqual(['archived', 'archived']);
@@ -241,6 +249,7 @@ describe('Comunidades por escopo (#939)', () => {
     const t = await tenantKey('com-d', ['core_data', 'communities']);
     await expect(
       addScopeRule(db, {
+        limitDef,
         tenantId: t.id,
         kind: 'competition',
         target: '00000000-0000-7000-8000-000000000000',
@@ -254,7 +263,13 @@ describe('Entrada do torcedor (#939)', () => {
   async function setup(slug: string) {
     const t = await tenantKey(slug, ['core_data', 'communities']);
     const lg = await league(`liga-${slug}`, ['Time 1', 'Time 2']);
-    await addScopeRule(db, { tenantId: t.id, kind: 'competition', target: lg.id, actor: 'tenant:x' });
+    await addScopeRule(db, {
+      limitDef,
+      tenantId: t.id,
+      kind: 'competition',
+      target: lg.id,
+      actor: 'tenant:x',
+    });
     const [c] = await listCommunities(db, t.id);
     return { t, c: c! };
   }
@@ -446,7 +461,13 @@ describe('Feed da Comunidade (#946)', () => {
   async function member(slug: string) {
     const t = await tenantKey(slug, ['core_data', 'communities']);
     const lg = await league(`liga-${slug}`, ['Time A', 'Time B']);
-    await addScopeRule(db, { tenantId: t.id, kind: 'competition', target: lg.id, actor: 'tenant:x' });
+    await addScopeRule(db, {
+      limitDef,
+      tenantId: t.id,
+      kind: 'competition',
+      target: lg.id,
+      actor: 'tenant:x',
+    });
     const [c] = await listCommunities(db, t.id);
     const adult = await fan(t.key);
     expect((await post(adult.token, `/v1/communities/${c!.id}/join`)).statusCode).toBe(200);
@@ -693,7 +714,13 @@ describe('Enquetes (#947)', () => {
   async function setup(slug: string, modules = ['core_data', 'communities']) {
     const t = await tenantKey(slug, modules);
     const lg = await league(`liga-${slug}`, ['Time X', 'Time Y']);
-    await addScopeRule(db, { tenantId: t.id, kind: 'competition', target: lg.id, actor: 'tenant:x' });
+    await addScopeRule(db, {
+      limitDef,
+      tenantId: t.id,
+      kind: 'competition',
+      target: lg.id,
+      actor: 'tenant:x',
+    });
     const [c] = await listCommunities(db, t.id);
     return { t, c: c! };
   }
