@@ -351,16 +351,14 @@ describe('brandbook lido pela equipe Galaxie (#1392)', () => {
     const quote = (await quoteBrandbook(db, { tenantId: t, pdf, settings }, env))!;
     const user = `staff-${randomBytes(4).toString('hex')}`;
     for (let i = 0; i < BRANDBOOK_LIMITS.userPerHour; i++)
-      await db
-        .insert(staffUsage)
-        .values({
-          tenantId: t,
-          userId: user,
-          route: staff.route,
-          provider: 'anthropic',
-          model: 'm',
-          outcome: 'ok',
-        });
+      await db.insert(staffUsage).values({
+        tenantId: t,
+        userId: user,
+        route: staff.route,
+        provider: 'anthropic',
+        model: 'm',
+        outcome: 'ok',
+      });
     const r = await runBrandbook(
       db,
       { tenantId: t, userId: user, pdf, locale: 'pt-BR', quote, settings, client: fakeClient(GOOD), staff },
