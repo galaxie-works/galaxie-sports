@@ -39,10 +39,10 @@ export default async function NewBrandThemePage() {
             {(ctx) => (
               <BrandThemeEditor
                 initial={null}
-                // a leitura do brandbook gasta créditos do cliente: só para quem usa a Cosmos e salva temas
+                // a leitura do brandbook gasta créditos: o cliente precisa da Cosmos e de salvar temas; a equipe
+                // Galaxie lê em qualquer tenant e a conta é da Galaxie (#1392)
                 cosmos={
-                  !isStaffRole(ctx.role) &&
-                  ctx.tenant.modules.includes('cosmos_ai') &&
+                  (isStaffRole(ctx.role) || ctx.tenant.modules.includes('cosmos_ai')) &&
                   can(ctx, 'cosmos.assistant.ask') &&
                   can(ctx, 'builder.manage')
                 }

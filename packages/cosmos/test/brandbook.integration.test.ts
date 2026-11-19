@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import { ledger, reservation, tenant, type Database } from '@galaxie/db';
+import { ledger, reservation, staffUsage, tenant, type Database } from '@galaxie/db';
 import type { CompletionClient, CompletionRequest } from '@galaxie/llm';
 import { and, eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -306,5 +306,66 @@ describe('tema a partir do brandbook', () => {
     );
     expect([a!, b!].filter((r) => r.ok)).toHaveLength(1);
     expect([a!, b!].filter((r) => !r.ok)).toEqual([{ ok: false, error: 'busy' }]);
+  });
+});
+
+describe('brandbook lido pela equipe Galaxie (#1392)', () => {
+  const staff = { route: '/api/client/cosmos/theme' };
+
+  it('a conta é da Galaxie: nada sai da carteira e o custo fica em staff_usage', async () => {
+    const t = await newTenant();
+    const quote = (await quoteBrandbook(db, { tenantId: t, pdf, settings }, env))!;
+    const user = `staff-${randomBytes(4).toString('hex')}`;
+    const r = await runBrandbook(
+      db,
+      { tenantId: t, userId: user, pdf, locale: 'pt-BR', quote, settings, client: fakeClient(GOOD), staff },
+      env,
+    );
+    expect(r).toMatchObject({ ok: true, charged: 0 });
+    const w = await getWallet(db, t);
+    expect(w!.available).toBe(1000);
+    expect(w!.reserved).toBe(0);
+    expect(await db.select().from(reservation).where(eq(reservation.tenantId, t))).toHaveLength(0);
+    const [row] = await db.select().from(staffUsage).where(eq(staffUsage.userId, user));
+    expect(row).toMatchObject({ tenantId: t, route: staff.route, outcome: 'ok', inputTokens: 5000 });
+    expect(Number(row!.costUsd)).toBeGreaterThan(0);
+  });
+
+  it('leitura que não serve fica registrada como erro, sem cobrar ninguém', async () => {
+    const t = await newTenant();
+    const quote = (await quoteBrandbook(db, { tenantId: t, pdf, settings }, env))!;
+    const user = `staff-${randomBytes(4).toString('hex')}`;
+    const r = await runBrandbook(
+      db,
+      { tenantId: t, userId: user, pdf, locale: 'pt-BR', quote, settings, client: fakeClient('nada'), staff },
+      env,
+    );
+    expect(r).toMatchObject({ ok: false, error: 'unreadable' });
+    expect((await getWallet(db, t))!.available).toBe(1000);
+    const [row] = await db.select().from(staffUsage).where(eq(staffUsage.userId, user));
+    expect(row).toMatchObject({ outcome: 'error', error: 'unreadable' });
+  });
+
+  it('o limite por pessoa por hora vale para a equipe', async () => {
+    const t = await newTenant();
+    const quote = (await quoteBrandbook(db, { tenantId: t, pdf, settings }, env))!;
+    const user = `staff-${randomBytes(4).toString('hex')}`;
+    for (let i = 0; i < BRANDBOOK_LIMITS.userPerHour; i++)
+      await db
+        .insert(staffUsage)
+        .values({
+          tenantId: t,
+          userId: user,
+          route: staff.route,
+          provider: 'anthropic',
+          model: 'm',
+          outcome: 'ok',
+        });
+    const r = await runBrandbook(
+      db,
+      { tenantId: t, userId: user, pdf, locale: 'pt-BR', quote, settings, client: fakeClient(GOOD), staff },
+      env,
+    );
+    expect(r).toEqual({ ok: false, error: 'rate_limited' });
   });
 });

@@ -83,9 +83,10 @@ const fail = (code: ErrorCode, extra: object = {}) =>
 export async function POST(request: Request) {
   const ctx = await readClientContext();
   if (!ctx?.tenant) return fail('unauthorized');
-  // a equipe Galaxie não gasta créditos do cliente; a leitura do brandbook ainda não tem o caminho da equipe
-  if (isStaffRole(ctx.role)) return fail('staff');
-  if (!ctx.tenant.modules.includes('cosmos_ai')) return fail('module');
+  // a equipe Galaxie lê em qualquer tenant, com ou sem o módulo, e a conta é da Galaxie (#1392): nada sai da
+  // carteira do cliente, o custo fica em `cosmos.staff_usage`
+  const staff = isStaffRole(ctx.role);
+  if (!staff && !ctx.tenant.modules.includes('cosmos_ai')) return fail('module');
   // gasta créditos (Cosmos) e o resultado só serve para quem pode salvar temas (Ajustes)
   if (!can(ctx, 'cosmos.assistant.ask') || !can(ctx, 'builder.manage')) return fail('role');
 
@@ -95,7 +96,7 @@ export async function POST(request: Request) {
   const declared = Number(request.headers.get('content-length') ?? 0);
   if (declared > BRANDBOOK_MAX_BYTES + 64 * 1024) return fail('too_large');
   if (step === 'estimar' && !quoteAllowed(ctx.userId)) return fail('rate_limited');
-  const who = { tenantId: ctx.tenant.id, userId: ctx.userId };
+  const who = { tenantId: ctx.tenant.id, userId: ctx.userId, staff };
   if (step === 'estimar') return handle(request, who, step);
   // vaga do processo tomada antes de qualquer espera (leitura do corpo, banco): pedidos ao mesmo tempo não passam
   // juntos da conferência
@@ -110,7 +111,7 @@ export async function POST(request: Request) {
 
 async function handle(
   request: Request,
-  who: { tenantId: string; userId: string },
+  who: { tenantId: string; userId: string; staff: boolean },
   step: 'estimar' | 'criar',
 ) {
   const form = await request.formData().catch(() => null);
@@ -132,7 +133,9 @@ async function handle(
   // o cliente confirmou um valor; se o preço mudou no meio (outro arquivo, outro modelo), pede de novo
   if (Number(form!.get('creditos')) !== quote.credits) return fail('quote_changed');
   const result = await runBrandbook(db, {
-    ...who,
+    tenantId: who.tenantId,
+    userId: who.userId,
+    ...(who.staff ? { staff: { route: '/api/client/cosmos/theme' } } : {}),
     pdf,
     fileName: file.name.slice(0, 120) || 'brandbook.pdf',
     locale: await getRequestLocale(),
