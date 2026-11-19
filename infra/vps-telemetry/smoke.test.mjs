@@ -14,6 +14,9 @@ import { fileURLToPath } from 'node:url';
 const SMOKE = fileURLToPath(new URL('./smoke.mjs', import.meta.url));
 
 const hits = new Map();
+const TEAM = 'time-de-referencia';
+const THIS_YEAR = new Date().getUTCFullYear();
+const teamSeasons = [];
 const hung = [];
 let server;
 let base;
@@ -37,14 +40,29 @@ const routes = {
   // 500 sempre: o resumo da home que estourou o statement_timeout em todas as tentativas
   '/v1/explore/summary': (n, res) => json(res, 500, { code: 'INTERNAL' }),
   '/v1/explore/agenda': (n, res) => json(res, 200, { total: 5, days: [{ count: 5 }] }),
+  // temporada de referência (#1434): a API lista o ano corrente e dois anteriores, e ainda marca o anterior como
+  // `current` (o caso de janeiro); a referência é a encerrada mais recente, THIS_YEAR - 2
+  [`/v1/teams/${TEAM}/overview`]: (n, res, url) => {
+    const season = url.searchParams.get('season');
+    if (season) teamSeasons.push(Number(season));
+    const year = season ? Number(season) : THIS_YEAR;
+    json(res, 200, {
+      team: { colors: { primary: '#006437' } },
+      season: year,
+      seasons: [{ year: THIS_YEAR - 2 }, { year: THIS_YEAR - 1, current: true }, { year: THIS_YEAR }],
+      competitions: [{ competition: { slug: 'liga' }, season: { year }, campaign: { ongoing: false } }],
+      last_events: [{ id: 'jogo' }],
+    });
+  },
 };
 
 before(async () => {
   server = createServer((req, res) => {
-    const path = new URL(req.url, 'http://x').pathname;
+    const url = new URL(req.url, 'http://x');
+    const path = url.pathname;
     const n = (hits.get(path) ?? 0) + 1;
     hits.set(path, n);
-    (routes[path] ?? ((_n, r) => json(r, 404, {})))(n, res);
+    (routes[path] ?? ((_n, r) => json(r, 404, {})))(n, res, url);
   });
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   base = `http://127.0.0.1:${server.address().port}`;
@@ -76,6 +94,7 @@ describe('smoke: retry de 5xx e de tempo esgotado', () => {
             SMOKE_RETRY_MS: '50',
             SMOKE_RETRIES: '3',
             SMOKE_TIMEOUT_MS: '400',
+            SMOKE_TEAM_ID: TEAM,
           },
           timeout: 60_000,
         },
@@ -128,6 +147,13 @@ describe('smoke: retry de 5xx e de tempo esgotado', () => {
     assert.match(agenda, /^WARN {2}Agenda/);
     assert.match(agenda, /depende de "Home Explorar/);
     assert.doesNotMatch(agenda, /home 0/);
+  });
+
+  test('temporada de referência: a última encerrada que a API lista (sem a marcada como corrente), não um ano fixo', () => {
+    const ref = THIS_YEAR - 2;
+    assert.match(line('Time: cores do escudo'), new RegExp(`temporada de referência ${ref}`));
+    assert.match(line('Time por temporada'), new RegExp(`^PASS .*competições em ${ref}`));
+    assert.ok(teamSeasons.length > 0 && teamSeasons.every((y) => y === ref), `pediu ${teamSeasons}`);
   });
 
   test('o relatório e o código de saída seguem o formato que o deploy lê', () => {
