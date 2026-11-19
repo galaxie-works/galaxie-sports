@@ -693,7 +693,7 @@ export async function equestrianRoutes(app: FastifyInstance, ctx: AppContext): P
         const c = await context(locale);
         const { db } = c;
         const [a] = await db.select().from(eqAthlete).where(eq(eqAthlete.id, params.id));
-        if (!a) throw problems.notFound('Atleta');
+        if (!a) throw problems.notFound('Athlete');
         const { license } = await latestLicense(db);
         const [stats] = await db
           .select({
@@ -870,7 +870,7 @@ export async function equestrianRoutes(app: FastifyInstance, ctx: AppContext): P
         const c = await context(locale);
         const { db } = c;
         const [h] = await db.select().from(eqHorse).where(eq(eqHorse.id, params.id));
-        if (!h) throw problems.notFound('Cavalo');
+        if (!h) throw problems.notFound('Horse');
         const { license } = await latestLicense(db);
         const owners = await db
           .select()
@@ -1040,7 +1040,7 @@ export async function equestrianRoutes(app: FastifyInstance, ctx: AppContext): P
       load: async () => {
         const c = await context(locale);
         const [summary] = await competitionSummaries(c, eq(eqCompetition.id, params.id), 1, 0);
-        if (!summary) throw problems.notFound('Prova');
+        if (!summary) throw problems.notFound('Competition');
         const [k] = await c.db.select().from(eqCompetition).where(eq(eqCompetition.id, params.id));
         const { license } = await latestLicense(c.db);
         const rows = await c.db
@@ -1122,7 +1122,7 @@ export async function equestrianRoutes(app: FastifyInstance, ctx: AppContext): P
           .from(eqTeamResult)
           .where(eq(eqTeamResult.eventKey, params.key))
           .orderBy(sql`${eqTeamResult.position} asc nulls last`, asc(eqTeamResult.countryCode));
-        if (!rounds.length && !teams.length) throw problems.notFound('Campeonato');
+        if (!rounds.length && !teams.length) throw problems.notFound('Championship');
         const { license } = await latestLicense(db);
         const [comp] = await db
           .select({ id: eqCompetition.id })

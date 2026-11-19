@@ -141,5 +141,5 @@ async function teamVars(
       return { name: names.name(key, row.name), nickname: null };
     }
   }
-  throw problems.notFound('Time');
+  throw problems.notFound('Team');
 }

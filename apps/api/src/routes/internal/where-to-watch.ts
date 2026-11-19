@@ -136,7 +136,7 @@ function serialize(row: BroadcastOptionRow) {
 
 function mapError(err: unknown): never {
   if (err instanceof WtwError) {
-    if (err.code === 'not_found') throw problems.notFound('Opção');
+    if (err.code === 'not_found') throw problems.notFound('Option');
     if (err.code === 'conflict') throw problems.conflict(err.message);
     throw problems.invalidParams([], err.message);
   }
@@ -145,7 +145,7 @@ function mapError(err: unknown): never {
 
 async function assertEvent(db: Database, id: string): Promise<void> {
   const [row] = await db.select({ id: event.id }).from(event).where(eq(event.id, id));
-  if (!row) throw problems.notFound('Evento');
+  if (!row) throw problems.notFound('Event');
 }
 
 const noStore = (reply: FastifyReply) => reply.header('cache-control', 'no-store');

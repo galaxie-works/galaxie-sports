@@ -154,7 +154,7 @@ export async function eventHead(db: Database, id: string) {
     .from(event)
     .where(eq(event.id, id))
     .limit(1);
-  if (!row) throw problems.notFound('Evento');
+  if (!row) throw problems.notFound('Event');
   return row;
 }
 

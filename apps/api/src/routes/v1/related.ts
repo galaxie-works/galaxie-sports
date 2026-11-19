@@ -170,7 +170,7 @@ export async function relatedRoutes(app: FastifyInstance, ctx: AppContext): Prom
         tenantId: t.tenantId,
       }),
     );
-    if (!result) throw problems.notFound('Item do conteúdo relacionado');
+    if (!result) throw problems.notFound('Related content item');
     // jogos em que o vídeo relatado saiu agora (os outros, no limiar, são do resto do canal)
     const removedFrom = result.removals.filter((r) => r.removed.includes(result.externalId)).length;
     request.log.info(
