@@ -149,8 +149,8 @@
   {
     "id": "title.early_bird",
     "name": {
-      "pt": "Madrugador",
-      "es": "Madrugador",
+      "pt": "Na madrugada",
+      "es": "De madrugada",
       "en": "Early Bird"
     },
     "unlock": {
@@ -175,9 +175,9 @@
   {
     "id": "title.exact_score_king",
     "name": {
-      "pt": "Rei do placar exato",
-      "es": "Rey del marcador exacto",
-      "en": "Exact Score King"
+      "pt": "Placar exato",
+      "es": "Marcador exacto",
+      "en": "Exact Score"
     },
     "unlock": {
       "achievement": "predictions.exact_score",
