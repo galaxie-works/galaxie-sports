@@ -3,7 +3,7 @@
  * "deploy" no meio, retomado do checkpoint e com o mesmo resultado de uma execução sem corte), a `carga.historica`
  * que volta à fila quando a cota do dia acaba, e o scheduler em QUEUE_MODE=enqueue.
  */
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { cpSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -28,7 +28,7 @@ import { runTask, type TaskHandler } from '../src/tasks/run.js';
 import { disposableDb } from './db.js';
 import { entriesOf, tgz } from './tgz.js';
 
-const EXEMPLO = fileURLToPath(new URL('./fixtures/acervo-exemplo', import.meta.url));
+const FIXTURE = fileURLToPath(new URL('./fixtures/acervo-exemplo', import.meta.url));
 const BUCKET = 'galaxie-teste';
 const PACOTE = `s3://${BUCKET}/tasks/pacote-1/acervo-exemplo.tgz`;
 const MANIFESTO = `s3://${BUCKET}/tasks/pacote-1/exemplo.yaml`;
@@ -36,6 +36,16 @@ const MANIFESTO = `s3://${BUCKET}/tasks/pacote-1/exemplo.yaml`;
 const testDb = disposableDb();
 let db: Database;
 const work = mkdtempSync(join(tmpdir(), 'tarefas-longas-'));
+/**
+ * O acervo de exemplo sem o PNG e o WebP do Palmeiras: com SVG e um PNG que não é 512×512, a importação renderiza o
+ * SVG em 512 e gera os tamanhos fixos em WebP (#1383), uns 5 s de sharp por importação que este teste (fila, corte e
+ * checkpoint) não precisa e que estourava os 30 s no CI. Os tamanhos ficam no `acervo.integration.test.ts`.
+ */
+const EXEMPLO = join(work, 'acervo-exemplo');
+cpSync(FIXTURE, EXEMPLO, {
+  recursive: true,
+  filter: (src) => !/[\\/]teams[\\/]br[\\/]palmeiras\.(png|webp)$/.test(src),
+});
 const packages = new InMemoryPackageStore();
 let manifest: AcervoManifest;
 
