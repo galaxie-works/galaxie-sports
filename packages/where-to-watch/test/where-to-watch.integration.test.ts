@@ -747,3 +747,46 @@ describe('gasto de IA do dia nas métricas', () => {
     ]);
   });
 });
+
+describe('canal confirmado só sai com fonte (#1400)', () => {
+  it('não achar de novo e fonte velha não tiram; recusa com fonte tira', async () => {
+    const { eventId } = await seedEvent(db, { startsAt: KICKOFF });
+    const first = validate([
+      { broadcaster: 'TV Globo', evidence: [verified('https://ge.globo.com/a')] },
+      { broadcaster: 'ESPN', evidence: [verified('https://www.lance.com.br/b')] },
+    ]);
+    await applyAgentResult(db, { eventId, country: 'BR', options: first, retractMissing: true, now: NOW });
+    const later = new Date(NOW.getTime() + 3_600_000);
+    const globo = first.find((o) => o.broadcasterId === 'globo')!;
+
+    // a execução seguinte não acha a ESPN e rebaixa a Globo (fonte velha): os dois seguem confirmados
+    const r = await applyAgentResult(db, {
+      eventId,
+      country: 'BR',
+      options: [{ ...globo, status: 'pending', confidence: 0.5, flags: ['stale_source'] }],
+      retractMissing: true,
+      refutedProviders: [],
+      now: later,
+    });
+    expect(r).toMatchObject({ inserted: 0, retracted: 0, publicChanged: false });
+    expect((await currentOptions(db, eventId, 'BR')).map((o) => [o.broadcasterId, o.status]).sort()).toEqual([
+      ['espn', 'confirmed'],
+      ['globo', 'confirmed'],
+    ]);
+
+    // fonte primária nega a ESPN: aí ela sai
+    const r2 = await applyAgentResult(db, {
+      eventId,
+      country: 'BR',
+      options: [globo],
+      retractMissing: true,
+      refutedProviders: ['ESPN'],
+      now: later,
+    });
+    expect(r2).toMatchObject({ retracted: 1, publicChanged: true });
+    expect((await currentOptions(db, eventId, 'BR')).map((o) => [o.broadcasterId, o.status]).sort()).toEqual([
+      ['espn', 'retracted'],
+      ['globo', 'confirmed'],
+    ]);
+  });
+});

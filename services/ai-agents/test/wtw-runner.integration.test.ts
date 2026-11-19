@@ -491,7 +491,7 @@ describe('onde assistir por rodada', () => {
     expect(out.find((o) => o.eventId === ids[0])!.stats.allocation).toMatch(/alocação por rodada/);
   });
 
-  it('T-3h: revalida sem LLM; fonte que deixou de citar a emissora derruba a opção e volta o "a confirmar"', async () => {
+  it('T-3h: revalida sem LLM; a página que trocou de assunto não derruba o canal confirmado (#1400)', async () => {
     const ids = await seedRound({ slug: 'liga-dividida', games: 1, round: 'Rodada 40' });
     const t48 = new Date(KICKOFF.getTime() - 40 * H);
     await enqueueRuns(
@@ -524,9 +524,9 @@ describe('onde assistir por rodada', () => {
     const [r2] = await changed.runner.runQueued({ limit: 10, eventId: ids[0]! });
     expect(r2).toMatchObject({ window: 'T-30min', mode: 'revalidate', status: 'done' });
     expect(changed.fake.calls).toHaveLength(0);
+    // a página não tem mais o jogo nem nega o canal: o confirmado fica (só sai com fonte que o refute)
     const pub = await getPublicWhereToWatch(db, { eventId: ids[0]!, country: 'BR' });
-    expect(pub!.options).toEqual([]);
-    expect(pub!.toConfirm.map((o) => o.row.broadcasterId).sort()).toEqual(['emissora_a', 'streaming_b']);
+    expect(pub!.options).toHaveLength(1);
   });
 
   it('T-3h: o jogo trocou de canal na agenda compacta: a fonte que tinha o jogo cai para 0,4', async () => {
@@ -622,10 +622,22 @@ describe('onde assistir por rodada', () => {
       ),
     ).toEqual(['emissora_a']);
 
-    // a grade mudou: o J1 passou para o Streaming B, mas a página segue citando a Emissora A
+    // a grade mudou: o jogo passou para o Streaming B, mas a página segue citando a Emissora A (a fonte
+    // refuta o canal: o jogo continua na página, sem a Emissora A junto dele)
+    const [home, away] = (
+      await db
+        .select({ name: participant.name, side: eventParticipant.side })
+        .from(eventParticipant)
+        .innerJoin(participant, eq(participant.id, eventParticipant.participantId))
+        .where(eq(eventParticipant.eventId, ids[0]!))
+    )
+      .sort((a, b) => (a.side === 'home' ? -1 : b.side === 'home' ? 1 : 0))
+      .map((r) => r.name);
     const t3 = new Date(KICKOFF.getTime() - 2.5 * H);
     const moved = setup(t3, {
-      pages: { [GRADE_BR]: '<p>Grade da rodada: J1 no Streaming B; J2 na Emissora A.</p>' },
+      pages: {
+        [GRADE_BR]: `<p>Grade da rodada: ${home} x ${away} no Streaming B; Time Cinco x Time Seis na Emissora A.</p>`,
+      },
     });
     await enqueueRuns(
       db,

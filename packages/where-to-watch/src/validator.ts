@@ -74,6 +74,10 @@ export interface CandidateEvidence {
    * verificado.
    */
   excerptFound?: boolean | null;
+  /** O confronto ("A x B") continua na página? null/undefined = não verificado. */
+  matchOnPage?: boolean | null;
+  /** A emissora aparece perto do confronto (até 40 palavras, no mesmo jogo)? null = não verificado. */
+  broadcasterNearMatch?: boolean | null;
   /** Já tinha sido achado numa verificação anterior (evidência salva). */
   excerptVerified?: boolean;
   contentHash?: string | null;

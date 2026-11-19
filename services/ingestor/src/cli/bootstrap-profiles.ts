@@ -3,19 +3,20 @@
  * escalações): players/profiles?player e coachs?id, uma chamada por pessoa, normalizadas na hora.
  *   pnpm --filter @galaxie/ingestor bootstrap:perfis --plan
  *   pnpm --filter @galaxie/ingestor bootstrap:perfis
- * Opções: --desde 2026-01-01 · --tier-max 2 · --max-chamadas N · --forcar · --por-dia N
+ * Opções: --desde AAAA-MM-DD (padrão: 1º/jan do ano anterior, nunca antes de 2026) · --tier-max 2 · --max-chamadas N · --forcar · --por-dia N
  * Depois, `assets:fotos-wikidata` casa as fotos de quem ganhou data de nascimento.
  */
 import { closeDb } from '@galaxie/db';
 import { jobContextFromEnv } from '../context.js';
 import { profilesJob, profileTargets } from '../jobs/profiles-job.js';
+import { recentSinceDay } from '../jobs/recent-since.js';
 import { logger } from '../logger.js';
 import { normalizeAfterFetch } from '../normalize/after-fetch.js';
 import { intOption, parseCli, planOrRun, runCli } from './job-cli.js';
 
 await runCli(async () => {
   const { values } = parseCli({
-    desde: { type: 'string', default: '2026-01-01' },
+    desde: { type: 'string', default: recentSinceDay() },
     'tier-max': { type: 'string' },
   });
   const ctx = jobContextFromEnv();

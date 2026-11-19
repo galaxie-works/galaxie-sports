@@ -3,9 +3,7 @@
  * (AAAA-MM-DD, `to` inclusive) e volta. Puro, para o teste.
  */
 import type { DateSelectorValue } from '@/components/reui/date-selector';
-
-/** Antes da Cosmos não há extrato: "antes de" começa aqui. */
-const EARLIEST = '2026-01-01';
+import { EARLIEST_DAY as EARLIEST } from './data-utils';
 
 const pad = (n: number) => String(n).padStart(2, '0');
 const ymd = (y: number, m: number, d: number) => `${y}-${pad(m + 1)}-${pad(d)}`;

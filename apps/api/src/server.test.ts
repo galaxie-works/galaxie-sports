@@ -142,7 +142,7 @@ describe('autenticação e planos', () => {
     expect(res.statusCode).toBe(403);
     expect(res.json()).toMatchObject({
       code: 'MODULE_NOT_IN_PLAN',
-      title: 'Plano não inclui o módulo core_data',
+      title: 'Plan does not include the core_data module',
     });
   });
 

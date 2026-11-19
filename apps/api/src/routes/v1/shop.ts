@@ -78,7 +78,7 @@ export async function shopRoutes(
         country: q.country,
       },
     );
-    if (!stores) throw problems.notFound('Cadastro no Shopping');
+    if (!stores) throw problems.notFound('Shop registration');
     const click = (productId: string) => {
       const u = new URL(`${base || 'http://localhost'}/go/shop/${productId}`);
       u.searchParams.set('origin', q.origin);

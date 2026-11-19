@@ -182,13 +182,13 @@ export function todayIn(tz: string, now = new Date()): string {
 
 async function findGames(db: Database, slug: string): Promise<GamesRow> {
   const [g] = await db.select().from(games).where(eq(games.slug, slug)).limit(1);
-  if (!g) throw problems.notFound('Edição dos Jogos');
+  if (!g) throw problems.notFound('Games edition');
   return g;
 }
 
 async function findNoc(db: Database, code: string) {
   const [n] = await db.select().from(noc).where(eq(noc.code, code)).limit(1);
-  if (!n) throw problems.notFound('Comitê olímpico (CON)');
+  if (!n) throw problems.notFound('National Olympic Committee (NOC)');
   return n;
 }
 
@@ -475,7 +475,7 @@ export async function multisportRoutes(app: FastifyInstance, ctx: AppContext): P
           .leftJoin(msSport, eq(msSport.code, discipline.sportCode))
           .where(and(eq(msEvent.id, params.id), eq(msEvent.gamesId, g.id)))
           .limit(1);
-        if (!row) throw problems.notFound('Prova');
+        if (!row) throw problems.notFound('Event');
 
         const phases = await db
           .select()
@@ -667,7 +667,7 @@ export async function multisportRoutes(app: FastifyInstance, ctx: AppContext): P
       load: async () => {
         const db = requireDb(ctx);
         const nocs = await db.select().from(noc).where(inArray(noc.code, query.noc)).orderBy(asc(noc.code));
-        if (!nocs.length) throw problems.notFound('Comitê olímpico (CON)');
+        if (!nocs.length) throw problems.notFound('National Olympic Committee (NOC)');
         // as edições vêm de games: a retida entra em `withheld` mesmo sem linha do CON no quadro (senão o
         // cliente não distingue "retida" de "sem participação"); as futuras ainda não são histórico
         const conds: SQL[] = [inArray(games.type, query.type), ne(games.status, 'upcoming')];

@@ -253,7 +253,7 @@ export async function shopClickRoutes(app: FastifyInstance, opts: ShopClickRoute
 
       const target = await shopClickTarget(db, productId);
       const store = target ? await storeOf(target.storeId) : null;
-      if (!target || !store?.active) throw problems.notFound('Produto');
+      if (!target || !store?.active) throw problems.notFound('Product');
       reply.header('cache-control', 'no-store').header('referrer-policy', 'strict-origin-when-cross-origin');
       // link que não veio da vitrine da Galaxie (copiado para outro site, adulterado ou vencido): sem código e sem
       // contar. Assim o código da Galaxie não roda a partir de domínio de cliente

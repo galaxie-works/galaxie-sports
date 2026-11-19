@@ -318,7 +318,7 @@ describe('estado do tenant (plataforma comercial F3, doc 02 "O que cada estado p
       await expect(auth.authenticate(withRandomSecret(key))).rejects.toMatchObject({
         status: 401,
         code: 'INVALID_KEY',
-        detail: 'Envie uma chave válida no header x-galaxie-key.',
+        detail: 'Send a valid key in the x-galaxie-key header.',
       });
     },
   );

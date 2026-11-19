@@ -96,7 +96,7 @@ export class AdminGuard {
   }
 
   check(request: FastifyRequest): void {
-    if (!this.ipAllowed(request.ip)) throw problems.notFound('Rota');
+    if (!this.ipAllowed(request.ip)) throw problems.notFound('Route');
     const header = request.headers[ADMIN_KEY_HEADER];
     if (!this.keyValid(Array.isArray(header) ? header[0] : header))
       throw problems.invalidKey(`Envie uma chave administrativa válida no header ${ADMIN_KEY_HEADER}.`);

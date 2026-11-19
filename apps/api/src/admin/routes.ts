@@ -299,7 +299,7 @@ export async function adminRoutes(app: FastifyInstance, opts: AdminRoutesOptions
     const rotated = await rotateKey(db, t.id, keyId, { graceSeconds }).catch((err) => {
       throw err instanceof KeyPolicyError ? problems.conflict(err.message) : err;
     });
-    if (!rotated) throw problems.notFound('Chave ativa');
+    if (!rotated) throw problems.notFound('Active key');
     request.log.info(
       { tenant: t.slug, key: rotated.previous.prefix, admin: 'key.rotate' },
       'chave rotacionada',
@@ -312,7 +312,7 @@ export async function adminRoutes(app: FastifyInstance, opts: AdminRoutesOptions
   app.post('/internal/admin/tenants/:id/keys/:keyId/revoke', { config }, async (request) => {
     const { id, keyId } = parseInput(KeyParams, request.params);
     const t = await tenantOr404(id);
-    if (!(await revokeTenantKey(db, t.id, keyId))) throw problems.notFound('Chave ativa');
+    if (!(await revokeTenantKey(db, t.id, keyId))) throw problems.notFound('Active key');
     request.log.info({ tenant: t.slug, keyId, admin: 'key.revoke' }, 'chave revogada');
     return { revoked: true, keyId };
   });

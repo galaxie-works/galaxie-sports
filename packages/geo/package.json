@@ -10,6 +10,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./language": {
+      "types": "./dist/language.d.ts",
+      "default": "./dist/language.js"
     }
   },
   "files": [
@@ -23,5 +27,8 @@
   "dependencies": {
     "yaml": "^2.9.1",
     "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@galaxie/contracts": "workspace:*"
   }
 }

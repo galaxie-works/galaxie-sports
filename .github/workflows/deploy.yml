@@ -165,7 +165,9 @@ jobs:
       packages: read # a VPS baixa as imagens com o token deste job (vale só enquanto ele roda)
     env:
       SHA: ${{ needs.gate.outputs.sha }}
-      VPS: ${{ vars.VPS_SSH_TARGET || 'root@145.223.94.149' }}
+      # alvo e pasta da stack na VPS: só pelas vars do ambiente producao (Settings › Environments › producao), sem reserva no código
+      VPS: ${{ vars.VPS_SSH_TARGET }}
+      VPS_DIR: ${{ vars.VPS_DIR }}
     steps:
       # O roteiro vem da main de agora (o checkout padrão); a versão publicada, de um checkout separado no SHA. Voltar
       # para um SHA anterior ao deploy-gh.sh também funciona: só o compose.yml, o env.example e o smoke são dele.
@@ -176,6 +178,10 @@ jobs:
 
       - name: Checkout do SHA a publicar
         run: git worktree add --detach "$RUNNER_TEMP/alvo" "$SHA"
+
+      - name: Vars da VPS definidas
+        run: |
+          [ -n "$VPS" ] && [ -n "$VPS_DIR" ] || { echo "::error::vars VPS_SSH_TARGET e VPS_DIR do ambiente producao não configuradas"; exit 1; }
 
       - name: Chave SSH da VPS
         env:

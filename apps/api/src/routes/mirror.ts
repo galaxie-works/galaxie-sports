@@ -140,7 +140,7 @@ export async function enqueueBackfill(
 export async function mirrorRoutes(app: FastifyInstance, ctx: AppContext): Promise<void> {
   app.get('/mirror/:sport/*', { config: { module: 'core_data' } }, async (request, reply) => {
     const { sport, '*': rest } = parseInput(MirrorRouteParams, request.params);
-    if (!SPORTS.has(sport)) throw problems.notFound('Esporte do espelho');
+    if (!SPORTS.has(sport)) throw problems.notFound('Mirror sport');
     const path = rest.replace(/\/+$/, '');
     if (!ENDPOINT_RE.test(path))
       throw problems.invalidParams([{ path: 'endpoint', message: 'endpoint inválido' }]);

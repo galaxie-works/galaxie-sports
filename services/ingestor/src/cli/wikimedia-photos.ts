@@ -3,7 +3,7 @@
  * foto. Não usa a cota da api-sports.
  *   pnpm --filter @galaxie/ingestor assets:fotos-wikidata --plan     # quantos candidatos e consultas, sem rede
  *   pnpm --filter @galaxie/ingestor assets:fotos-wikidata            # busca, baixa, grava o crédito e liga
- * Opções: --desde 2026-01-01 (escalados desde) · --tier-max 2 · --limite N
+ * Opções: --desde AAAA-MM-DD (escalados desde; padrão: 1º/jan do ano anterior, nunca antes de 2026) · --tier-max 2 · --limite N
  * Variáveis: DATABASE_URL, S3_ENDPOINT, S3_BUCKET, S3_ACCESS_KEY, S3_SECRET_KEY.
  */
 import { parseArgs } from 'node:util';
@@ -16,12 +16,13 @@ import {
   matchCandidates,
   photoCandidates,
 } from '../assets/wikimedia-photos.js';
+import { recentSinceDay } from '../jobs/recent-since.js';
 import { PgSparqlCache, SparqlClient } from '../multisport/wikidata/sparql-client.js';
 
 const { values } = parseArgs({
   options: {
     plan: { type: 'boolean', default: false },
-    desde: { type: 'string', default: '2026-01-01' },
+    desde: { type: 'string', default: recentSinceDay() },
     'tier-max': { type: 'string', default: '2' },
     limite: { type: 'string' },
   },

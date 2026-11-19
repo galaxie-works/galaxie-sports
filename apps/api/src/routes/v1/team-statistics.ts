@@ -42,7 +42,7 @@ export async function teamStatisticsRoutes(app: FastifyInstance, ctx: AppContext
           .from(participant)
           .where(eq(participant.id, params.id))
           .limit(1);
-        if (!team) throw problems.notFound('Time');
+        if (!team) throw problems.notFound('Team');
 
         const rows = await db
           .select({

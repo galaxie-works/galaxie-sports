@@ -152,6 +152,9 @@ importers:
       '@galaxie/game-rules':
         specifier: workspace:*
         version: link:../../packages/game-rules
+      '@galaxie/geo':
+        specifier: workspace:*
+        version: link:../../packages/geo
       '@galaxie/net-guard':
         specifier: workspace:*
         version: link:../../packages/net-guard
@@ -462,6 +465,10 @@ importers:
       zod:
         specifier: ^4.6.7
         version: 4.6.7
+    devDependencies:
+      '@galaxie/contracts':
+        specifier: workspace:*
+        version: link:../contracts
 
   packages/knowledge:
     dependencies:
@@ -490,6 +497,9 @@ importers:
       '@galaxie/ai-ledger':
         specifier: workspace:*
         version: link:../ai-ledger
+      '@galaxie/runtime-config':
+        specifier: workspace:*
+        version: link:../runtime-config
       ajv:
         specifier: ^8.20.0
         version: 8.20.0

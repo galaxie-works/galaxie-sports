@@ -1,3 +1,4 @@
+import { iberianLanguage } from '@galaxie/geo';
 import type { FastifyInstance } from 'fastify';
 import {
   EventParams,
@@ -68,34 +69,9 @@ export const RELATED_TYPE_LABELS: Record<'pt' | 'es' | 'en', Record<RelatedConte
   },
 };
 
-const PT_COUNTRIES = new Set(['BR', 'PT']);
-const ES_COUNTRIES = new Set([
-  'AR',
-  'MX',
-  'CO',
-  'CL',
-  'PE',
-  'UY',
-  'EC',
-  'PY',
-  'BO',
-  'VE',
-  'ES',
-  'CR',
-  'GT',
-  'HN',
-  'SV',
-  'PA',
-  'DO',
-  'CU',
-  'NI',
-  'PR',
-]);
-
 /** Idioma dos vídeos para o público do país; null (sem filtro) fora dos países lusófonos e hispânicos. */
 export function relatedLanguageOf(country: string): 'pt' | 'es' | null {
-  const c = country.toUpperCase();
-  return PT_COUNTRIES.has(c) ? 'pt' : ES_COUNTRIES.has(c) ? 'es' : null;
+  return iberianLanguage(country);
 }
 
 export function relatedTypeLabel(type: RelatedContentTypeName, locale: SupportedLocale): string {
@@ -194,7 +170,7 @@ export async function relatedRoutes(app: FastifyInstance, ctx: AppContext): Prom
         tenantId: t.tenantId,
       }),
     );
-    if (!result) throw problems.notFound('Item do conteúdo relacionado');
+    if (!result) throw problems.notFound('Related content item');
     // jogos em que o vídeo relatado saiu agora (os outros, no limiar, são do resto do canal)
     const removedFrom = result.removals.filter((r) => r.removed.includes(result.externalId)).length;
     request.log.info(
