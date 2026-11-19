@@ -1833,13 +1833,38 @@ async function holdCommunityContent(
 async function holdCaseContent(
   tx: Executor,
   tenantId: string,
-  c: { module: string | null; targetType: string; targetId: string },
+  c: { module: string | null; targetType: string; targetId: string; targetProfileId?: string | null },
   until: Date,
+  caseId?: string,
 ): Promise<void> {
   if (c.module === 'chat' && c.targetType === 'message')
     await holdChatMessage(tx, tenantId, c.targetId, until);
   if (c.module === 'communities' && (c.targetType === 'post' || c.targetType === 'comment'))
     await holdCommunityContent(tx, tenantId, c.targetType, c.targetId, until);
+  if (caseId && c.targetType === 'profile') await copyProfileEvidence(tx, tenantId, caseId, c.targetId);
+}
+
+/**
+ * Prova fora do chat (#1296): a foto do Perfil denunciado é a prova principal em abuso infantil, mas a troca da foto e
+ * a exclusão do titular apagam `avatar_ref`/`avatar_hash`. Na guarda, o caso copia a referência e o hash da foto (e o
+ * apelido) para `detail.evidence`, que segue a guarda do caso. A primeira cópia vale: guardar de novo não sobrescreve.
+ */
+async function copyProfileEvidence(tx: Executor, tenantId: string, caseId: string, profileId: string) {
+  await (tx as Database).execute(sql`
+    update engage.moderation_case c
+       set detail = coalesce(c.detail, '{}'::jsonb) || jsonb_build_object(
+             'evidence',
+             jsonb_build_object(
+               'avatar_ref', p.avatar_ref,
+               'avatar_hash', p.avatar_hash,
+               'nickname', p.nickname,
+               'copied_at', now()
+             )
+           )
+      from fan.profile p
+     where c.tenant_id = ${tenantId} and c.id = ${caseId}
+       and p.tenant_id = c.tenant_id and p.id::text = ${profileId}
+       and not (coalesce(c.detail, '{}'::jsonb) ? 'evidence')`);
 }
 
 /**
@@ -1881,7 +1906,7 @@ export async function flagChildSafety(
       targetProfileId: moderationCase.targetProfileId,
     });
   if (!c) return false;
-  await holdCaseContent(tx, input.tenantId, c, input.holdUntil);
+  await holdCaseContent(tx, input.tenantId, c, input.holdUntil, input.caseId);
   await audit(tx, {
     tenantId: input.tenantId,
     actor: input.actor,
@@ -1938,7 +1963,7 @@ export async function reportToAuthorities(
       childSafety: moderationCase.childSafety,
     });
   if (!c) return false;
-  await holdCaseContent(tx, input.tenantId, c, input.holdUntil);
+  await holdCaseContent(tx, input.tenantId, c, input.holdUntil, input.caseId);
   await audit(tx, {
     tenantId: input.tenantId,
     actor: input.actor,
