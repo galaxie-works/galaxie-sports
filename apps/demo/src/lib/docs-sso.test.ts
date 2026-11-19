@@ -28,6 +28,9 @@ describe('passe do login das docs', () => {
     expect(safeDocsReturn('https://evil.test')).toBe('/');
     expect(safeDocsReturn('//evil.test')).toBe('/');
     expect(safeDocsReturn('/\\evil.test')).toBe('/');
+    expect(safeDocsReturn('/\t/evil.test')).toBe('/');
+    expect(safeDocsReturn('/\n/evil.test')).toBe('/');
+    expect(safeDocsReturn('/\r\n/evil.test/x')).toBe('/');
     expect(safeDocsReturn(null)).toBe('/');
   });
   it('base pelo DOCS_URL, pelo DOCS_DOMAIN ou o padrão', () => {

@@ -66,6 +66,18 @@ describe('proxy por papel (APP_ROLE)', () => {
     expect(res.headers.get('location')).toBe('http://demo.test/login?next=%2Fclient');
   });
 
+  it('/docs-handoff segue sem prefixo de idioma, e sem sessão vai ao login (#1484)', async () => {
+    const res = await get('/docs-handoff?return=%2Ferrors');
+    expect(res.status).toBe(200);
+    expect(res.headers.get('x-middleware-rewrite')).toBeNull();
+    getSession.mockResolvedValue(null);
+    const anon = await get('/docs-handoff?return=%2Ferrors');
+    expect(anon.status).toBe(307);
+    expect(anon.headers.get('location')).toBe(
+      'http://demo.test/login?next=%2Fdocs-handoff%3Freturn%3D%252Ferrors',
+    );
+  });
+
   it('sem APP_ROLE atende tudo, como antes', async () => {
     for (const path of ['/', '/teams/1', '/settings', '/client/builder'])
       expect((await get(path)).status, path).toBe(200);

@@ -40,9 +40,15 @@ const SMOKE_ROUTE = '/api/settings/operations';
  */
 const LEGACY_PASSWORD_PAGES = ['/definir-senha', '/esqueci-senha'];
 
-/** Páginas passam pelo segmento de idioma; API, arquivos e rotas internas do Next, não. */
+/** Rotas fora de `app/[locale]` que não são API nem arquivo: seguem sem o prefixo de idioma. */
+const LOCALELESS_ROUTES = ['/docs-handoff'];
+
+/** Páginas passam pelo segmento de idioma; API, arquivos, rotas internas do Next e as de cima, não. */
 const isPage = (pathname: string) =>
-  !pathname.startsWith('/api/') && !pathname.startsWith('/_next') && !/\.\w+$/.test(pathname);
+  !pathname.startsWith('/api/') &&
+  !pathname.startsWith('/_next') &&
+  !/\.\w+$/.test(pathname) &&
+  !matchesPrefix(pathname, LOCALELESS_ROUTES);
 
 const localeOf = (request: NextRequest) =>
   resolveLocale(request.cookies.get(LOCALE_COOKIE)?.value, request.headers.get('accept-language'));

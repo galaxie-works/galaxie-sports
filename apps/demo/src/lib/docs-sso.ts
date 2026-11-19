@@ -7,6 +7,7 @@
  * Formato do passe: `base64url(JSON).base64url(HMAC-SHA256)`. Puro, para os testes.
  */
 import { createHmac, timingSafeEqual } from 'node:crypto';
+import { internalPath } from './internal-path';
 
 /** Validade do passe: só o tempo do redirecionamento. */
 export const DOCS_PASS_TTL_SEC = 60;
@@ -54,10 +55,12 @@ export function verifyDocsPass(token: string, secret: string, now = Date.now()):
   }
 }
 
-/** Só caminhos do próprio site de docs voltam no `return` (nada de URL absoluta nem `//host`). */
+/**
+ * Só caminhos do próprio site de docs voltam no `return`, resolvidos como o navegador resolveria
+ * (`internalPath`): tab, quebra de linha, `\` e `//` que levariam a outro domínio viram `/`.
+ */
 export function safeDocsReturn(raw: string | null): string {
-  if (!raw || !raw.startsWith('/') || raw.startsWith('//') || raw.includes('\\')) return '/';
-  return raw;
+  return internalPath(raw) ?? '/';
 }
 
 /** Base do site de docs (`DOCS_URL`, padrão https://docs.galaxiesports.com). */

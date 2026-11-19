@@ -5,7 +5,7 @@
  */
 import { headers } from 'next/headers';
 import { NextResponse, type NextRequest } from 'next/server';
-import { auth } from '@/lib/auth/server';
+import { auth, isAccessExpired } from '@/lib/auth/server';
 import { docsBaseUrl, safeDocsReturn, signDocsPass } from '@/lib/docs-sso';
 
 export const dynamic = 'force-dynamic';
@@ -15,7 +15,8 @@ export async function GET(request: NextRequest) {
   if (!secret) return new NextResponse('Docs login is not configured', { status: 503 });
 
   const session = await auth.api.getSession({ headers: await headers() });
-  if (!session) {
+  // o proxy já barra; repetido aqui para nenhum passe sair sem sessão válida
+  if (!session || isAccessExpired(session.user)) {
     const login = new URL('/login', request.url);
     login.searchParams.set('next', `${request.nextUrl.pathname}${request.nextUrl.search}`);
     return NextResponse.redirect(login);
