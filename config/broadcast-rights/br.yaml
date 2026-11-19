@@ -120,13 +120,14 @@ rights:
     valid_from: 2026-08-01
     valid_to: 2027-06-30
     per_round_selection: true
-    # Mesmo modelo da Premier League: Disney+ com todos os jogos; ESPN e SportyNet (76 jogos
+    # Mesmo modelo da Premier League: Disney+ com todos os jogos; ESPN, CazéTV e SportyNet (76 jogos
     # sublicenciados em 2026/27) só os escolhidos. Curada em 19/11 no lugar da pesquisada (#1400).
     distribution: selected
-    holders: [disney_plus, espn, sportynet]
+    holders: [disney_plus, espn, cazetv, sportynet]
     all_matches: [disney_plus]
-    notes: Disney+ com os 380 jogos; ESPN e SportyNet com jogos escolhidos por rodada.
+    notes: Disney+ com os 380 jogos; ESPN, CazéTV e SportyNet com jogos escolhidos por rodada.
     sources:
+      - https://es.digitaltrends.com/deportes/derechos-transmision-ligas-europeas-2026-27-america-latina/
       - https://natelinha.uol.com.br/televisao/2026/08/21/com-760-jogos-espn-e-disney-retomam-transmissao-da-premier-league-e-da-serie-a-246523.php
   - competition: laliga
     season: 2026
