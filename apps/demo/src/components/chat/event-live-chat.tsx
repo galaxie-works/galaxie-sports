@@ -1,7 +1,6 @@
 'use client';
 
 import { DEFAULT_THEMES, FAN_TOKEN_CHANGED_EVENT, GalaxieWidgetProvider, LiveChat } from '@galaxie/widgets';
-import { useTheme } from 'next-themes';
 import { useEffect, useState } from 'react';
 
 import { FanProfileDialog } from '@/components/app-shell/fan-profile-dialog';
@@ -17,6 +16,13 @@ import { useI18n } from '@/lib/i18n/client';
 const sameOriginFetch: typeof fetch = (input, init) => fetch(input, { ...init, credentials: 'same-origin' });
 
 /**
+ * A demo é só tema escuro (classe `dark` fixa no <html>, sem next-themes: `app/providers.tsx`). Antes o tema saía do
+ * `useTheme()` do next-themes, que sem provider devolve `resolvedTheme` indefinido: o widget caía no tema claro e o
+ * card (`--gs-surface: #ffffff`) aparecia branco dentro da página escura (#1389).
+ */
+export const DEMO_WIDGET_THEME = DEFAULT_THEMES.dark;
+
+/**
  * Chat ao vivo na página do jogo da demo (#977): o widget `live_chat` pelo proxy da demo, com o token do torcedor
  * da pessoa logada. A faixa do perfil de torcedor decide: `18plus` escreve, `13_17` lê e reage. O "Entrar" do widget
  * abre o perfil de torcedor aqui mesmo (no celular o menu do usuário fica fechado dentro da barra lateral). O demo é
@@ -24,14 +30,12 @@ const sameOriginFetch: typeof fetch = (input, init) => fetch(input, { ...init, c
  */
 export function EventLiveChat({ eventId, market }: { eventId: string; market?: string | undefined }) {
   const { locale } = useI18n();
-  const { resolvedTheme } = useTheme();
   const { data, refetch } = authClient.useSession();
   const [profileOpen, setProfileOpen] = useState(false);
-  // só no navegador: o tema certo desde o primeiro quadro, e nada do chat no HTML do servidor
+  // só no navegador: nada do chat no HTML do servidor
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
   if (!mounted) return null;
-  const theme = resolvedTheme === 'dark' ? DEFAULT_THEMES.dark : DEFAULT_THEMES.light;
   const user = data?.user as
     { fanNickname?: string | null; fanAgeBand?: string | null; fanCountry?: string | null } | undefined;
   return (
@@ -40,7 +44,7 @@ export function EventLiveChat({ eventId, market }: { eventId: string; market?: s
         baseUrl="/api/galaxie"
         publishableKey=""
         fetch={sameOriginFetch}
-        theme={theme}
+        theme={DEMO_WIDGET_THEME}
         locale={locale === 'es-AR' ? 'es' : locale}
         market={market}
         getFanToken={() => getDemoFanToken()}
