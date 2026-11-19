@@ -17,6 +17,7 @@ import {
   activeAchievements,
   addPeriodPoints,
   recordParticipation,
+  pollVoteCandidates,
   watchedCandidates,
   applyAchievementProgress,
   creditPoints,
@@ -223,7 +224,7 @@ export class GameScorer {
   }
 
   /** Varredura: prazos vencidos, provisório dos jogos em andamento e definitivo dos encerrados. */
-  async sweep(): Promise<{ finalized: number; voided: number; watched: number }> {
+  async sweep(): Promise<{ finalized: number; voided: number; watched: number; polls: number }> {
     await lockPredictions(this.db);
     let finalized = 0;
     let voided = 0;
@@ -241,7 +242,8 @@ export class GameScorer {
       }
     }
     const watched = await this.sweepWatched();
-    return { finalized, voided, watched };
+    const polls = await this.sweepPolls();
+    return { finalized, voided, watched, polls };
   }
 
   /**
@@ -320,6 +322,91 @@ export class GameScorer {
         if (done) counted++;
       } catch (err) {
         this.options.logger?.warn({ err, event: c.eventId }, 'gamificação: jogo assistido falhou');
+      }
+    }
+    return counted;
+  }
+
+  /**
+   * Voto em enquete (#947): conta uma vez por Perfil e enquete, com os Pontos de participação (teto diário), o Ranking
+   * do período e a Conquista de enquetes. Olha os votos das últimas 48 h; a enquete das Comunidades não depende da
+   * Gamificação, então nada aqui bloqueia o voto.
+   */
+  async sweepPolls(): Promise<number> {
+    const since = new Date(this.now() - 48 * 3_600_000);
+    let counted = 0;
+    // um programa e uma escala por cliente e país na varredura (o mesmo jogo traz milhares de votos)
+    const programs = new Map<string, ReturnType<typeof resolveProgram>>();
+    const scales = new Map<string, Promise<PointsScale>>();
+    for (const c of await pollVoteCandidates(this.db, { since })) {
+      try {
+        const pk = `${c.tenantId}:${c.profileCountry}`;
+        if (!programs.has(pk)) programs.set(pk, resolveProgram(this.db, c.tenantId, c.profileCountry));
+        const program = await programs.get(pk)!;
+        const keys = periodKeys(c.votedAt, program.timeZone);
+        const day = new Intl.DateTimeFormat('en-CA', {
+          timeZone: program.timeZone,
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+        }).format(c.votedAt);
+        const sk = `${c.tenantId}:${program.programCountry}:${program.ruleVersion}`;
+        if (!scales.has(sk))
+          scales.set(sk, this.programScale(c.tenantId, program.programCountry, program.ruleVersion));
+        const scale = await scales.get(sk)!;
+        const done = await this.db.transaction(async (tx) => {
+          const key = { tenantId: c.tenantId, programCountry: program.programCountry };
+          const [alive] = await tx.execute<{ ok: number }>(
+            sql`select 1 as ok from fan.profile where tenant_id = ${c.tenantId} and id = ${c.profileId} and deleted_at is null for share`,
+          );
+          if (!alive) return false;
+          const rec = await recordParticipation(tx, {
+            ...key,
+            profileId: c.profileId,
+            day,
+            action: 'poll',
+            ref: `poll:${c.pollId}`,
+            points: cappedParticipationPoints('poll', 0, scale),
+            dailyCap: scale.dailyParticipationCap,
+          });
+          if (!rec) return false;
+          if (rec.points > 0) {
+            const credit = await creditPoints(tx as unknown as Database, {
+              ...key,
+              profileId: c.profileId,
+              amount: rec.points,
+              reason: 'poll',
+              source: 'communities',
+              sourceEvent: `poll:${c.pollId}`,
+              note: 'Voto em enquete',
+            });
+            if (credit.ok)
+              await addPeriodPoints(tx, {
+                ...key,
+                profileId: c.profileId,
+                periods: [keys.month, keys.year],
+                points: rec.points,
+              });
+          }
+          const input = { type: 'participation' as const, action: 'poll' as const, sport: null };
+          const matched = (await activeAchievements(tx, key)).filter(
+            (a) => entryAppliesTo(a, null) && ruleMatches(a.rule as AchievementRule, input),
+          );
+          if (matched.length)
+            await applyAchievementProgress(tx, {
+              ...key,
+              profileId: c.profileId,
+              ruleVersion: program.ruleVersion,
+              season: keys.year,
+              periods: [keys.month, keys.year],
+              sourceEvent: `poll:${c.pollId}`,
+              matched,
+            });
+          return true;
+        });
+        if (done) counted++;
+      } catch (err) {
+        this.options.logger?.warn({ err, poll: c.pollId }, 'gamificação: voto em enquete falhou');
       }
     }
     return counted;

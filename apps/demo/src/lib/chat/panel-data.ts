@@ -150,6 +150,17 @@ export interface ChatTenantSettings {
   eventKinds: string[] | null;
   floodMaxPerMinute: number | null;
   floodBlockSeconds: number | null;
+  /** Perfis oficiais liberados no filtro de contato (#1373), sem o `@` (lista `allowed_handles` do cliente). */
+  allowedHandles: string[];
+}
+
+/** Perfis oficiais liberados pelo cliente (#1373). */
+async function loadAllowedHandles(tenantId: string): Promise<string[]> {
+  const { rows } = await pool.query<{ terms: string[] }>(
+    `select terms from engage.moderation_list where tenant_id = $1 and list = 'allowed_handles' and locale = 'all'`,
+    [tenantId],
+  );
+  return rows[0]?.terms ?? [];
 }
 
 export async function loadChatSettings(tenantId: string): Promise<ChatTenantSettings> {
@@ -176,6 +187,7 @@ export async function loadChatSettings(tenantId: string): Promise<ChatTenantSett
     eventKinds: r?.event_kinds ?? null,
     floodMaxPerMinute: r?.flood_max_per_minute ?? null,
     floodBlockSeconds: r?.flood_block_seconds ?? null,
+    allowedHandles: await loadAllowedHandles(tenantId),
   };
 }
 

@@ -140,6 +140,15 @@ export default defineMessages(
       title: 'Conteúdo relacionado',
       description: 'Links diretos para vídeos do jogo, classificados por tipo — canais oficiais primeiro',
     },
+    // chat ao vivo (#1389): sem o módulo na chave da demo, o chat não aparece; a equipe Galaxie vê este aviso
+    chat: {
+      moduleOff: {
+        title: 'Chat ao vivo desligado',
+        description:
+          'A chave da demo é da marca {tenant}, que não tem o módulo Chat ao vivo. Com o módulo ligado em Planos e módulos, o chat aparece nos jogos. Só a equipe Galaxie vê este aviso.',
+        action: 'Abrir Planos e módulos',
+      },
+    },
     relevance: {
       title: 'Relevância do jogo',
       howTo: 'Como a relevância do jogo é calculada',
@@ -373,6 +382,14 @@ export default defineMessages(
         title: 'Related content',
         description: 'Direct links to match videos, grouped by type — official channels first',
       },
+      chat: {
+        moduleOff: {
+          title: 'Live chat is off',
+          description:
+            "The demo key belongs to the {tenant} brand, which doesn't have the Live chat module. Once the module is on in Plans and modules, the chat shows up on matches. Only the Galaxie team sees this notice.",
+          action: 'Open Plans and modules',
+        },
+      },
       relevance: {
         title: 'Match relevance',
         howTo: 'How match relevance is calculated',
@@ -604,6 +621,14 @@ export default defineMessages(
         title: 'Contenido relacionado',
         description:
           'Links directos a videos del partido, ordenados por tipo — primero los canales oficiales',
+      },
+      chat: {
+        moduleOff: {
+          title: 'Chat en vivo desactivado',
+          description:
+            'La clave de la demo es de la marca {tenant}, que no tiene el módulo Chat en vivo. Con el módulo activado en Planes y módulos, el chat aparece en los partidos. Solo el equipo de Galaxie ve este aviso.',
+          action: 'Abrir Planes y módulos',
+        },
       },
       relevance: {
         title: 'Relevancia del partido',

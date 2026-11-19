@@ -25,6 +25,7 @@ import {
 import { moderationRoutes } from './engage/moderation-routes.js';
 import { chatRoutes } from './chat/routes.js';
 import { communityFeedRoutes, startCommunityPurge } from './engage/community-feed-routes.js';
+import { communityPollRoutes } from './engage/community-poll-routes.js';
 import { communityRoutes } from './engage/community-routes.js';
 import { ChatHub } from './chat/hub.js';
 import { gameRoutes } from './game/routes.js';
@@ -702,6 +703,7 @@ export function buildServer(options: ServerOptions = {}): FastifyInstance {
     await gameRoutes(instance, { db: options.db, now: options.now });
     await communityRoutes(instance, { db: options.db, now: options.now });
     await communityFeedRoutes(instance, { db: options.db, now: options.now });
+    await communityPollRoutes(instance, { db: options.db, now: options.now });
     if (options.db) {
       const stopCommunityPurge = startCommunityPurge(options.db, instance.log);
       instance.addHook('onClose', async () => stopCommunityPurge());
