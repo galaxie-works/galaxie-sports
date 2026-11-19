@@ -47,7 +47,7 @@ jobs:
           ALERTA: ${{ inputs.alerta }}
           VPS: ${{ vars.VPS_SSH_TARGET }}
         run: |
-          [ -n "$VPS" ] || { echo "::error::var VPS_SSH_TARGET do repositório não configurada"; exit 1; }
+          [ -n "$VPS" ] || { echo "::error::var VPS_SSH_TARGET do ambiente producao não configurada"; exit 1; }
           if [ -z "$SSH_KEY" ] || [ -z "$KNOWN_HOSTS" ]; then
             echo "::error::secrets VPS_DIAG_SSH_KEY e VPS_KNOWN_HOSTS do ambiente producao não configurados"
             exit 1

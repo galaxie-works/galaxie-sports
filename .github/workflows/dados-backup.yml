@@ -36,11 +36,15 @@ jobs:
       contents: read
       packages: read # a VPS baixa a imagem com o token deste job (vale só enquanto ele roda)
     env:
-      # alvo e pasta da stack na VPS: só pelas vars do repositório (Settings › Variables), sem IP de reserva no código
+      # alvo e pasta da stack na VPS: só pelas vars do ambiente producao (Settings › Environments › producao), sem reserva no código
       VPS: ${{ vars.VPS_SSH_TARGET }}
       DIR: ${{ vars.VPS_DIR }}
       IMAGE: ghcr.io/galaxie-works/galaxie-sports-backup
     steps:
+      - name: Vars da VPS definidas
+        run: |
+          [ -n "$VPS" ] && [ -n "$DIR" ] || { echo "::error::vars VPS_SSH_TARGET e VPS_DIR do ambiente producao não configuradas"; exit 1; }
+
       # a mesma régua do gate do deploy.yml: o commit tem de estar na main e com o CI e o workflow de imagens verdes
       # (o in-<hash> também sai de commit de fila de merge; só o manifesto não basta)
       - name: Commit na main e CI verde
