@@ -327,11 +327,12 @@ describe('tenant.lifecycle com o banco', () => {
     ]);
     expect(claims.filter((c) => c !== null)).toHaveLength(1);
 
-    // seis dias depois (dia 29) sai o lembrete 29, e só ele
+    // seis dias depois (dia 29) sai o lembrete 29, e só ele; o convite do Financeiro venceu no dia 26 (relógio do job)
     const r4 = await runTenantLifecycle(db, deps, new Date(NOW.getTime() + 6 * 86_400_000));
-    expect(r4.notifications.sent.map((n) => `${n.tenant}: ${n.kind} ${n.ref}`)).toEqual([
-      'mail-dia-23: trial_reminder 29',
+    expect(r4.notifications.sent.map((n) => `${n.tenant}: ${n.kind} ${n.ref} → ${n.recipients}`)).toEqual([
+      'mail-dia-23: trial_reminder 29 → 1',
     ]);
+    expect(sent.at(-1)?.to).toEqual(['dono@exemplo.test']);
     expect(sent.at(-1)?.subject).toBe("mail-dia-23's trial ends in 2 days");
   });
 });
