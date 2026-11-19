@@ -19,7 +19,7 @@ import {
   type SeedRow,
 } from '@galaxie/rules';
 import { IN_PLAY } from '../events/queries.js';
-import { formatInstant, pickText } from '../i18n.js';
+import { formatInstant, pickText, type Tri } from '../i18n.js';
 
 /** Fases de mata-mata (as mesmas de `KNOCKOUT_KINDS` em events/builder). */
 export const BRACKET_KINDS: ReadonlySet<string> = new Set([
@@ -128,7 +128,7 @@ type Round = Bracket['rounds'][number];
 type Pair = { home: number | null; away: number | null };
 
 /** Nomes das fases deduzidas pela profundidade (playoffs divididos por semana). */
-const DERIVED: Record<string, Record<string, string>> = {
+const DERIVED: Record<string, Tri> = {
   final: { 'pt-BR': 'Final', es: 'Final', en: 'Final' },
   semi_final: { 'pt-BR': 'Semifinal', es: 'Semifinales', en: 'Semi-finals' },
 };
@@ -139,7 +139,7 @@ const KIND_BY_TIES: Record<number, string> = {
   8: 'round_of_16',
   16: 'round_of_32',
 };
-const ROUND_WORD: Record<string, string> = { 'pt-BR': 'Rodada', es: 'Ronda', en: 'Round' };
+const ROUND_WORD: Tri = { 'pt-BR': 'Rodada', es: 'Ronda', en: 'Round' };
 
 const started = (m: BracketMatch) => m.status === 'finished' || IN_PLAY.includes(m.status);
 

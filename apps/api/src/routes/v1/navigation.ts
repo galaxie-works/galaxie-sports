@@ -28,7 +28,7 @@ import { sendCached } from '../../cache/http.js';
 import { CACHE_TTL } from '../../cache/policy.js';
 import { requireDb, type AppContext } from '../../context.js';
 import { problems } from '../../errors.js';
-import { competitionName, pickList, pickText, resolveLocale } from '../../i18n.js';
+import { competitionName, pickList, pickText, resolveLocale, type Tri } from '../../i18n.js';
 import { competitionLogoId } from '../../assets/custom-logos.js';
 import { assetUrl, parseInput } from '../../util.js';
 import { OFF_CATALOG_SPORTS } from '../../off-catalog.js';
@@ -40,7 +40,7 @@ const MIRRORED = new Set<string>(MIRROR_SPORTS);
 type I18n = Record<string, string>;
 
 /** Rótulo de cada grupo da página do país. */
-const SCOPE_LABELS: Record<CompetitionScope, I18n> = {
+const SCOPE_LABELS: Record<CompetitionScope, Tri> = {
   domestic: { 'pt-BR': 'Competições nacionais', es: 'Competiciones nacionales', en: 'Domestic competitions' },
   continental_clubs: {
     'pt-BR': 'Copas continentais de clubes',
