@@ -17,7 +17,7 @@ describe('fuso e moeda por país', () => {
       expect(countryFacts(code), code).not.toBeNull();
   });
 
-  it('fusos IANA válidos, moedas ISO 4217 e países conhecidos do geo', () => {
+  it('fusos IANA válidos, moeda no formato ISO 4217 e países conhecidos do geo', () => {
     for (const code of COUNTRIES_WITH_FACTS) {
       const f = countryFacts(code)!;
       expect(() => new Intl.DateTimeFormat('en', { timeZone: f.timeZone }), code).not.toThrow();
@@ -36,5 +36,23 @@ describe('fuso e moeda por país', () => {
     expect(countryCurrency('EC')).toBe('USD');
     expect(countryCurrency('ZZ')).toBeNull();
     expect(referenceTimeZone(null)).toBeNull();
+  });
+
+  it('fixa os valores dos 8 mercados do Onde Assistir e do Panamá (os que a grade já usava)', () => {
+    const expected: Record<string, [string, string]> = {
+      BR: ['America/Sao_Paulo', 'BRL'],
+      AR: ['America/Argentina/Buenos_Aires', 'ARS'],
+      MX: ['America/Mexico_City', 'MXN'],
+      CO: ['America/Bogota', 'COP'],
+      CL: ['America/Santiago', 'CLP'],
+      PE: ['America/Lima', 'PEN'],
+      UY: ['America/Montevideo', 'UYU'],
+      EC: ['America/Guayaquil', 'USD'],
+      PA: ['America/Panama', 'USD'],
+    };
+    for (const [code, [tz, currency]] of Object.entries(expected)) {
+      expect(referenceTimeZone(code), code).toBe(tz);
+      expect(countryCurrency(code), code).toBe(currency);
+    }
   });
 });

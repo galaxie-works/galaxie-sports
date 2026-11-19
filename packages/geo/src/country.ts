@@ -5,7 +5,7 @@
  * - `timeZone`: fuso de referência do país (o da capital ou do maior mercado). É o que decide o dia civil
  *   local (vigência de direitos, mês do Ranking, data do jogo no prompt).
  * - `singleTimeZone`: o fuso cobre praticamente todos os estádios. Falso nos países com vários fusos e sem
- *   um dominante (EUA, Canadá, Austrália, Rússia): quem precisa do fuso do *local* só resolve pela cidade.
+ *   um dominante (EUA, Canadá): quem precisa do fuso do *local* só resolve pela cidade.
  * - `currency`: moeda (ISO 4217) em que o país cobra (preço de pacote, complemento de canal).
  *
  * Todo mercado de config/geo (`markets`) tem de estar aqui; o teste do pacote cobra.
