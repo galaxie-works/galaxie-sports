@@ -5,20 +5,21 @@
  *   `/v1/stream` e o da sala do chat). Só os recursos de leitura que o app usa (`lib/galaxie/proxy-policy.ts`), com
  *   teto de pedidos por sessão e, no stream do chat, teto de conexões abertas por sessão.
  * - Torcedor (#977): `GET /v1/fans/me` e as escritas do chat (`POST` mensagem e reação) vão com o token `gft_` da
- *   pessoa logada e sem a chave da demo: a API autentica pelo token, e o proxy não fala em nome do tenant. Só da
- *   própria demo, com balde próprio para as escritas.
+ *   pessoa logada e sem a chave da demo: a API autentica pelo token, e o proxy não fala em nome do tenant. O token
+ *   sai da sessão, no servidor (#1369): o que o navegador manda no `Authorization` é ignorado. Só da própria demo,
+ *   com balde próprio para as escritas.
  *
  * Se um dia a API exigir chave junto com o token nessas rotas, o 401 dela vira "sessão expirou" no widget (ele pede
  * outro token e desiste): a mudança teria de vir com a chave publicável da demo aqui.
  */
 import { getSessionCookie } from 'better-auth/cookies';
 
+import { dropSessionFanToken, sessionFanAuthorization } from '@/lib/fan/session-token';
 import { isSameOrigin } from '@/lib/fan/token';
 import {
   CHAT_STREAMS_PER_SESSION,
   createRateLimiter,
   isChatStream,
-  isFanAuthorization,
   isProxyFanRead,
   isProxyPathAllowed,
   isProxyWriteAllowed,
@@ -54,6 +55,13 @@ function tooMany(title: string, retryAfter: number) {
   return Response.json({ title }, { status: 429, headers: { 'retry-after': String(retryAfter) } });
 }
 
+/** Sem token da sessão: 401 faz o widget pedir login ou perfil; a API fora do ar vira 502/503. */
+async function fanRefused(status: 401 | 502 | 503) {
+  const t = await common();
+  if (status === 401) return Response.json({ title: t.fanTokenRequired }, { status: 401 });
+  return Response.json({ title: t.apiUnavailable, detail: t.apiUnavailableDetail }, { status });
+}
+
 function relay(upstream: Response, body: ReadableStream<Uint8Array> | null = upstream.body) {
   const out = new Headers();
   for (const h of FORWARD_RESPONSE_HEADERS) {
@@ -84,14 +92,15 @@ export async function GET(request: Request, ctx: RouteContext<'/api/galaxie/[...
   });
 
   let headers: Headers;
+  let fanToken: { userId: string; authorization: string } | null = null;
   if (fanRead) {
-    // o Perfil do torcedor: com o token dele, nunca com a chave da demo
-    const authorization = request.headers.get('authorization') ?? '';
+    // o Perfil do torcedor: com o token da pessoa da sessão, nunca com a chave da demo
     if (!isSameOrigin(request))
       return Response.json({ title: (await common()).routeNotAllowed }, { status: 404 });
-    if (!isFanAuthorization(authorization))
-      return Response.json({ title: (await common()).fanTokenRequired }, { status: 401 });
-    headers = new Headers({ accept: 'application/json', authorization });
+    const fan = await sessionFanAuthorization(request);
+    if (!fan.ok) return fanRefused(fan.status);
+    fanToken = fan;
+    headers = new Headers({ accept: 'application/json', authorization: fan.authorization });
     const lang = request.headers.get('accept-language');
     if (lang) headers.set('accept-language', lang);
   } else {
@@ -127,6 +136,8 @@ export async function GET(request: Request, ctx: RouteContext<'/api/galaxie/[...
     const t = await common();
     return Response.json({ title: t.apiUnavailable, detail: t.apiUnavailableDetail }, { status: 502 });
   }
+  // a API recusou o token guardado (perfil apagado, token revogado): o próximo pedido emite outro
+  if (fanToken && upstream.status === 401) dropSessionFanToken(fanToken.userId, fanToken.authorization);
   // recusa da API (sem stream): a vaga volta já, sem esperar o navegador ler o corpo
   if (
     !stream ||
@@ -175,20 +186,20 @@ async function readCapped(request: Request, max: number): Promise<string | null>
 
 /**
  * Escrita do chat ao vivo (#977): enviar mensagem e reagir, com o token do torcedor da pessoa logada
- * (`Authorization: Bearer gft_…`, pedido pelo widget a `/api/fan/token`). A chave da demo não vai.
+ * (o token sai da sessão, #1369; o `Authorization` do navegador não conta). A chave da demo não vai.
  */
 export async function POST(request: Request, ctx: RouteContext<'/api/galaxie/[...path]'>) {
   const { path } = await ctx.params;
   const t = await common();
   if (!isProxyWriteAllowed(path) || !isSameOrigin(request))
     return Response.json({ title: t.routeNotAllowed }, { status: 404 });
-  const authorization = request.headers.get('authorization') ?? '';
-  if (!isFanAuthorization(authorization))
-    return Response.json({ title: t.fanTokenRequired }, { status: 401 });
   const retryAfter = takeWrite(sessionOf(request));
   if (retryAfter) return tooMany(t.tooManyRequests, retryAfter);
   const body = await readCapped(request, PROXY_WRITE_MAX_BYTES);
   if (body === null) return Response.json({ title: t.bodyTooLarge }, { status: 413 });
+  const fan = await sessionFanAuthorization(request);
+  if (!fan.ok) return fanRefused(fan.status);
+  const authorization = fan.authorization;
 
   const headers = new Headers({
     accept: 'application/json',
@@ -209,6 +220,8 @@ export async function POST(request: Request, ctx: RouteContext<'/api/galaxie/[..
   } catch {
     return Response.json({ title: t.apiUnavailable, detail: t.apiUnavailableDetail }, { status: 502 });
   }
+  // a API recusou o token guardado (perfil apagado, token revogado): o próximo pedido emite outro
+  if (upstream.status === 401) dropSessionFanToken(fan.userId, authorization);
   const out = new Headers({ 'cache-control': 'no-store' });
   for (const h of ['content-type', 'retry-after', 'x-request-id']) {
     const v = upstream.headers.get(h);

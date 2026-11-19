@@ -456,3 +456,126 @@ export const communityReaction = community.table(
     check('reaction_kind', inList('kind', COMMUNITY_REACTIONS)),
   ],
 );
+
+// ---------------------------------------------------------------- Enquetes (#947)
+
+/**
+ * Onde a enquete vive: numa Comunidade (só membros votam) ou na Sala do Jogo do cliente (#915, quem está na sala
+ * vota, com ou sem Comunidade). Motor único: a Sala do Jogo usa estas mesmas tabelas (#984).
+ */
+export const COMMUNITY_POLL_SCOPES = ['community', 'room'] as const;
+export type CommunityPollScope = (typeof COMMUNITY_POLL_SCOPES)[number];
+
+/** `free`: pergunta e opções da equipe. `man_of_match`: craque do jogo, opções da escalação do jogo. */
+export const COMMUNITY_POLL_KINDS = ['free', 'man_of_match'] as const;
+export type CommunityPollKind = (typeof COMMUNITY_POLL_KINDS)[number];
+
+export const communityPoll = community.table(
+  'poll',
+  {
+    tenantId: tenantRef(),
+    id: communityId(),
+    scope: text('scope').$type<CommunityPollScope>().notNull(),
+    /** A Comunidade (`community`); null na Sala do Jogo. */
+    communityId: uuid('community_id'),
+    /** O jogo: obrigatório na Sala do Jogo e no craque do jogo; opcional na Comunidade (enquete ligada a um jogo). */
+    eventId: uuid('event_id'),
+    kind: text('kind').$type<CommunityPollKind>().notNull().default('free'),
+    /** Pergunta da equipe, já filtrada pela base de regras; null no craque (o texto sai do modelo, no idioma de quem lê). */
+    question: text('question'),
+    /** Quem criou: `tenant:<prefixo da chave>`, `panel:<id>` ou `galaxie:<id>`. */
+    createdBy: text('created_by').notNull(),
+    /** Votação aberta até aqui; null = até a equipe fechar. */
+    closesAt: timestamp('closes_at', { withTimezone: true }),
+    closedAt: timestamp('closed_at', { withTimezone: true }),
+    closedBy: text('closed_by'),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    primaryKey({ name: 'poll_pkey', columns: [t.tenantId, t.id] }),
+    foreignKey({
+      name: 'poll_community_fk',
+      columns: [t.tenantId, t.communityId],
+      foreignColumns: [communityCommunity.tenantId, communityCommunity.id],
+    }).onDelete('cascade'),
+    index('poll_community_idx').on(t.tenantId, t.communityId, t.id),
+    index('poll_event_idx').on(t.tenantId, t.eventId, t.id),
+    // um craque do jogo por jogo e lugar (repetir o pedido devolve o mesmo)
+    uniqueIndex('poll_mom_room_uq')
+      .on(t.tenantId, t.eventId)
+      .where(sql`${t.kind} = 'man_of_match' and ${t.scope} = 'room'`),
+    uniqueIndex('poll_mom_community_uq')
+      .on(t.tenantId, t.communityId, t.eventId)
+      .where(sql`${t.kind} = 'man_of_match' and ${t.scope} = 'community'`),
+    check('poll_scope', inList('scope', COMMUNITY_POLL_SCOPES)),
+    check('poll_kind', inList('kind', COMMUNITY_POLL_KINDS)),
+    check(
+      'poll_scope_target',
+      sql`(${t.scope} = 'community' and ${t.communityId} is not null) or (${t.scope} = 'room' and ${t.communityId} is null and ${t.eventId} is not null)`,
+    ),
+    check('poll_mom_event', sql`${t.kind} <> 'man_of_match' or ${t.eventId} is not null`),
+    check('poll_question', sql`${t.kind} = 'man_of_match' or ${t.question} is not null`),
+    check('poll_question_len', sql`${t.question} is null or length(${t.question}) between 1 and 200`),
+  ],
+);
+
+export const communityPollOption = community.table(
+  'poll_option',
+  {
+    tenantId: tenantRef(),
+    pollId: uuid('poll_id').notNull(),
+    id: communityId(),
+    position: integer('position').notNull(),
+    /** Texto da opção (`free`), já filtrado; null no craque (o nome vem da pessoa). */
+    label: text('label'),
+    /** Jogador do craque do jogo (`core.person.id`, sem chave estrangeira). */
+    personId: uuid('person_id'),
+    /** Time do jogador, para o card. */
+    participantId: uuid('participant_id'),
+  },
+  (t) => [
+    primaryKey({ name: 'poll_option_pkey', columns: [t.tenantId, t.id] }),
+    foreignKey({
+      name: 'poll_option_poll_fk',
+      columns: [t.tenantId, t.pollId],
+      foreignColumns: [communityPoll.tenantId, communityPoll.id],
+    }).onDelete('cascade'),
+    uniqueIndex('poll_option_position_uq').on(t.tenantId, t.pollId, t.position),
+    check('poll_option_content', sql`${t.label} is not null or ${t.personId} is not null`),
+    check('poll_option_label_len', sql`${t.label} is null or length(${t.label}) between 1 and 120`),
+    check('poll_option_position', sql`${t.position} between 0 and 59`),
+  ],
+);
+
+/** Um voto por Perfil e enquete. 13 a 17 também vota (votar não é escrever). */
+export const communityPollVote = community.table(
+  'poll_vote',
+  {
+    tenantId: tenantRef(),
+    pollId: uuid('poll_id').notNull(),
+    profileId: uuid('profile_id').notNull(),
+    optionId: uuid('option_id').notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    primaryKey({ name: 'poll_vote_pkey', columns: [t.tenantId, t.pollId, t.profileId] }),
+    foreignKey({
+      name: 'poll_vote_poll_fk',
+      columns: [t.tenantId, t.pollId],
+      foreignColumns: [communityPoll.tenantId, communityPoll.id],
+    }).onDelete('cascade'),
+    foreignKey({
+      name: 'poll_vote_option_fk',
+      columns: [t.tenantId, t.optionId],
+      foreignColumns: [communityPollOption.tenantId, communityPollOption.id],
+    }).onDelete('cascade'),
+    foreignKey({
+      name: 'poll_vote_profile_fk',
+      columns: [t.tenantId, t.profileId],
+      foreignColumns: [fanProfile.tenantId, fanProfile.id],
+    }).onDelete('cascade'),
+    index('poll_vote_option_idx').on(t.tenantId, t.pollId, t.optionId),
+    // a Gamificação varre os votos recentes para os Pontos de participação
+    index('poll_vote_created_idx').on(t.createdAt),
+  ],
+);

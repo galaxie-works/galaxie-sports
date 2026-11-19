@@ -2,6 +2,7 @@
  * Relatório do Shopping em CSV (#930): o período e os filtros da tela, só do tenant da sessão. Uma linha por dia,
  * jogo, time, loja, widget e produto, com os cliques. Os dias do período são os do fuso de quem olha, como na tela.
  */
+import { isStaffRole } from '@/lib/auth/roles';
 import { can } from '@/lib/client/permissions';
 import { readClientContext } from '@/lib/client/session';
 import { shopClientReportRows, shopReportCsv, shopReportFilter } from '@/lib/client/shop-report';
@@ -18,8 +19,13 @@ export async function GET(request: Request) {
   const locale = await getRequestLocale();
   const t = getDictionary(locale);
   if (!ctx) return Response.json({ title: t.common.unauthorized }, { status: 401 });
-  // o mesmo que a tela exige: cargo com `billing.view` e o módulo shopping no tenant
-  if (!ctx.tenant || !ctx.tenant.modules.includes('shopping') || !can(ctx, 'billing.view'))
+  // o mesmo que a tela exige: cargo com `billing.view` e o módulo shopping no tenant; a equipe Galaxie entra em
+  // qualquer tenant, com ou sem o módulo (#1392)
+  if (
+    !ctx.tenant ||
+    !(isStaffRole(ctx.role) || ctx.tenant.modules.includes('shopping')) ||
+    !can(ctx, 'billing.view')
+  )
     return Response.json({ title: t.common.forbidden }, { status: 403 });
 
   const url = new URL(request.url);

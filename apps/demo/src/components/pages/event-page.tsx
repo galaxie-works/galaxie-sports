@@ -59,7 +59,7 @@ import { announcementText, timeToBeConfirmed } from '@/lib/provisional';
 import { versusColors } from '@/lib/team-colors';
 import { COUNTRIES, eventCompetitionHref, eventParents, participantHref } from '@/lib/navigation';
 import { cn } from '@/lib/utils';
-import { EventLiveChat } from '@/components/chat/event-live-chat';
+import { EventChatSlot } from '@/components/chat/event-chat-slot';
 import { groupWhereToWatch, hasGroups } from '@/lib/where-to-watch';
 
 /** Título da aba do navegador (e do histórico): o nome da página, não só "Galaxie Sports". */
@@ -662,8 +662,13 @@ export async function EventContent({ params, searchParams, source }: PageContent
                 relatedHref={related?.data.length ? '#conteudo-relacionado' : null}
               />
             )}
-            {/* chat ao vivo do jogo (#977): a sala do tenant da demo, com o perfil de torcedor de quem está logado */}
-            {source.showcase ? null : <EventLiveChat eventId={event.id} market={country ?? undefined} />}
+            {/* chat ao vivo do jogo (#977): a sala do tenant da demo, com o perfil de torcedor de quem está logado; só
+                com o módulo `live_chat` na chave da demo, decidido no servidor (#1389) */}
+            {source.showcase ? null : (
+              <Suspense fallback={null}>
+                <EventChatSlot eventId={event.id} market={country ?? undefined} />
+              </Suspense>
+            )}
           </div>
         </div>
         {/* Shopping (#921): os dois times e o campeonato, na ordem do contexto do jogo (#923); fora do exemplo público */}

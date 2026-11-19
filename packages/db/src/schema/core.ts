@@ -108,8 +108,11 @@ export type AssetVariant = {
   width: number | null;
   height: number | null;
 };
-/** Tamanhos fixos gerados do PNG do acervo (o maior, 512, é o próprio `png`/`webp`). */
-export const ASSET_SIZES = [64, 128, 256] as const;
+/**
+ * Tamanhos fixos gerados do PNG do acervo. O 512 só é gerado quando o `png`/`webp` do escudo não tem já
+ * 512×512 (a API usa o próprio `png`/`webp` nesse caso).
+ */
+export const ASSET_SIZES = [64, 128, 256, 512] as const;
 export type AssetSize = (typeof ASSET_SIZES)[number];
 export type AssetRasterFormat = Exclude<AssetFormat, 'svg'>;
 /**
