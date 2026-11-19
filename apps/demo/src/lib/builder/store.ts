@@ -15,6 +15,7 @@ export {
   listWidgetThemes,
   saveWidgetTheme,
   createPublishableKey,
+  getTenantDefaultLocale,
   getWidget,
   listPublishableKeys,
   listWidgets,
@@ -23,6 +24,7 @@ export {
   PublishableKeyLimitError,
   revokePublishableKey,
   saveWidget,
+  setTenantDefaultLocale,
   type PublishableKeyEnv,
 } from '@galaxie/db/widgets';
 

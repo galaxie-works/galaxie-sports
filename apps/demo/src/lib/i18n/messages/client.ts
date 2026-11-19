@@ -295,6 +295,16 @@ export default defineMessages(
         'Os widgets que usam esta chave param de carregar na hora. Não dá para desfazer: crie outra chave se precisar.',
       cancel: 'Cancelar',
       revokedToast: 'Chave revogada',
+      language: 'Idioma padrão da chave',
+      languageInherit: 'O do tenant',
+      languageHint:
+        'Idioma das respostas quando o site não manda ?locale nem Accept-Language. Use para um site de outro país.',
+      languageColumn: 'Idioma',
+      tenantLanguageTitle: 'Idioma padrão da API',
+      tenantLanguageDescription:
+        'Idioma das respostas de todas as chaves deste tenant quando o pedido não diz o idioma (?locale ou Accept-Language). A chave pode ter o próprio idioma, que vale antes deste.',
+      tenantLanguageApi: 'Padrão da API (português)',
+      tenantLanguageSaved: 'Idioma padrão salvo. Vale para as respostas novas em até 1 minuto.',
     },
     themes: {
       title: 'Temas da marca',
@@ -1074,6 +1084,7 @@ export default defineMessages(
       originsTestOnly: 'Chave de teste só aceita localhost, 127.0.0.1 ou [::1]: {list}',
       keyLimit: 'O tenant já tem 20 chaves publicáveis ativas. Revogue as que não usa.',
       keyNotFound: 'Chave não encontrada ou já revogada.',
+      language: 'Idioma inválido.',
       widgetNotFound: 'Widget não encontrado.',
       generic: 'Não deu certo. Tente de novo.',
       brandThemes: {
@@ -1393,6 +1404,16 @@ export default defineMessages(
           "Widgets using this key stop loading right away. This can't be undone: create another key if you need one.",
         cancel: 'Cancel',
         revokedToast: 'Key revoked',
+        language: 'Key default language',
+        languageInherit: "The tenant's",
+        languageHint:
+          'Response language when the site sends neither ?locale nor Accept-Language. Use it for a site in another country.',
+        languageColumn: 'Language',
+        tenantLanguageTitle: 'API default language',
+        tenantLanguageDescription:
+          "Response language for all of this tenant's keys when the request does not state one (?locale or Accept-Language). A key can have its own language, which takes precedence.",
+        tenantLanguageApi: 'API default (Portuguese)',
+        tenantLanguageSaved: 'Default language saved. It applies to new responses within 1 minute.',
       },
       themes: {
         title: 'Brand themes',
@@ -2177,6 +2198,7 @@ export default defineMessages(
         originsTestOnly: 'A test key only accepts localhost, 127.0.0.1 or [::1]: {list}',
         keyLimit: 'The tenant already has 20 active publishable keys. Revoke the ones you do not use.',
         keyNotFound: 'Key not found or already revoked.',
+        language: 'Invalid language.',
         widgetNotFound: 'Widget not found.',
         generic: "That didn't work. Try again.",
         brandThemes: {
@@ -2494,6 +2516,17 @@ export default defineMessages(
           'Los widgets que usan esta clave dejan de cargar en el momento. No se puede deshacer: creá otra clave si la necesitás.',
         cancel: 'Cancelar',
         revokedToast: 'Clave revocada',
+        language: 'Idioma predeterminado de la clave',
+        languageInherit: 'El del tenant',
+        languageHint:
+          'Idioma de las respuestas cuando el sitio no envía ?locale ni Accept-Language. Úselo para un sitio de otro país.',
+        languageColumn: 'Idioma',
+        tenantLanguageTitle: 'Idioma predeterminado de la API',
+        tenantLanguageDescription:
+          'Idioma de las respuestas de todas las claves de este tenant cuando el pedido no indica el idioma (?locale o Accept-Language). Cada clave puede tener su propio idioma, que tiene prioridad.',
+        tenantLanguageApi: 'Predeterminado de la API (portugués)',
+        tenantLanguageSaved:
+          'Idioma predeterminado guardado. Se aplica a las respuestas nuevas en hasta 1 minuto.',
       },
       themes: {
         title: 'Temas de marca',
@@ -3295,6 +3328,7 @@ export default defineMessages(
         originsTestOnly: 'Una clave de prueba solo acepta localhost, 127.0.0.1 o [::1]: {list}',
         keyLimit: 'El tenant ya tiene 20 claves publicables activas. Revocá las que no usás.',
         keyNotFound: 'Clave no encontrada o ya revocada.',
+        language: 'Idioma inválido.',
         widgetNotFound: 'Widget no encontrado.',
         generic: 'No funcionó. Probá de nuevo.',
         brandThemes: {

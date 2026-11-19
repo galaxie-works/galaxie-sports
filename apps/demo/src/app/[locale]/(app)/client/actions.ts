@@ -7,6 +7,7 @@
  */
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
+import { isSupportedLocale } from '@galaxie/contracts';
 
 import {
   ENTITY_TYPES,
@@ -32,6 +33,7 @@ import {
   PublishableKeyLimitError,
   revokePublishableKey,
   saveWidget,
+  setTenantDefaultLocale,
   type PublishableKeyEnv,
 } from '@/lib/builder/store';
 import type { BrandThemeItem, Widget, WidgetKind } from '@/lib/builder/types';
@@ -130,6 +132,8 @@ export const createKey = withStaffAudit(
     widgetId: string | null;
     /** `live` (padrão, domínios públicos) ou `test` (gs_pk_test_, só localhost). */
     env?: PublishableKeyEnv;
+    /** Idioma padrão das respostas desta chave (#1445); null = o do tenant. */
+    defaultLocale?: string | null;
   }): Promise<CreateKeyResult> => {
     const t = await texts();
     const r = await tenantOrError('keys.manage');
@@ -142,6 +146,8 @@ export const createKey = withStaffAudit(
     if (origins.length > MAX_ORIGINS)
       return { ok: false, error: fill(t.errors.tooManyOrigins, { max: MAX_ORIGINS }) };
     const env: PublishableKeyEnv = input.env === 'test' ? 'test' : 'live';
+    if (input.defaultLocale && !isSupportedLocale(input.defaultLocale))
+      return { ok: false, error: t.errors.language };
     const outside = originsOutsideEnv(env, origins);
     if (outside.length)
       return {
@@ -164,6 +170,7 @@ export const createKey = withStaffAudit(
         allowedOrigins: origins,
         widgetId,
         env,
+        defaultLocale: input.defaultLocale || null,
         actor: `panel:${r.ctx.userId}`,
       });
       revalidateClient();
@@ -173,6 +180,20 @@ export const createKey = withStaffAudit(
       console.error('[cliente] falha ao criar chave publicável', err);
       return { ok: false, error: t.errors.generic };
     }
+  },
+);
+
+/** Idioma padrão das respostas das chaves do tenant (#1445); null volta ao padrão da API. */
+export const setDefaultLocale = withStaffAudit(
+  'keys.locale',
+  async (locale: string | null): Promise<ClientActionResult> => {
+    const t = await texts();
+    const r = await tenantOrError('keys.manage');
+    if ('error' in r) return { ok: false, error: r.error };
+    if (locale !== null && !isSupportedLocale(locale)) return { ok: false, error: t.errors.language };
+    await setTenantDefaultLocale(builderDb(), r.tenant.id, locale);
+    revalidateClient();
+    return { ok: true };
   },
 );
 

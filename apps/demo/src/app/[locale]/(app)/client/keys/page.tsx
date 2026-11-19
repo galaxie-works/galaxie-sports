@@ -5,9 +5,9 @@ import { LoadingStatus } from '@/components/app-shell/loading-status';
 import { PageHeader } from '@/components/app-shell/page-header';
 import { TablePanelSkeleton } from '@/components/app-shell/skeletons';
 import { ClientArea } from '@/components/client/client-area';
-import { KeysPanel } from '@/components/client/keys-panel';
+import { KeysPanel, TenantLanguagePanel } from '@/components/client/keys-panel';
 import { CosmosHelpSlot } from '@/components/cosmos/integration-help-slot';
-import { builderDb, listPublishableKeys, listWidgets } from '@/lib/builder/store';
+import { builderDb, getTenantDefaultLocale, listPublishableKeys, listWidgets } from '@/lib/builder/store';
 import { getT, getTimeZone } from '@/lib/i18n/server';
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -24,9 +24,10 @@ async function Keys() {
       {async (ctx) => {
         const { tenant } = ctx;
         const db = builderDb();
-        const [keys, widgets] = await Promise.all([
+        const [keys, widgets, defaultLocale] = await Promise.all([
           listPublishableKeys(db, tenant.id),
           listWidgets(db, tenant.id),
+          getTenantDefaultLocale(db, tenant.id),
         ]);
         return (
           <div className="flex flex-col gap-4">
@@ -40,12 +41,15 @@ async function Keys() {
                 prefix: k.prefix,
                 allowedOrigins: k.allowedOrigins,
                 widgetId: k.widgetId,
+                defaultLocale: k.defaultLocale,
                 createdAt: k.createdAt.toISOString(),
                 revokedAt: iso(k.revokedAt),
               }))}
               widgets={widgets.map((w) => ({ id: w.id, name: w.name }))}
               timeZone={timeZone}
             />
+            {/* #1445: idioma das respostas das chaves quando o pedido não diz */}
+            <TenantLanguagePanel value={defaultLocale} />
           </div>
         );
       }}
