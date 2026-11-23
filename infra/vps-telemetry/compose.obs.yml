@@ -33,7 +33,7 @@ services:
   # para leitura) fica no disco onde o Docker guarda os volumes (Postgres, backups, Prometheus), e o statfs dele é o
   # desse disco. Só o coletor de sistemas de arquivos; sem porta publicada (o Prometheus raspa pela rede da stack).
   node-exporter:
-    image: prom/node-exporter:v1.12.1
+    image: prom/node-exporter:v1.13.1
     restart: unless-stopped
     mem_limit: 64m
     command:
