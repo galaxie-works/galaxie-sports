@@ -21,10 +21,10 @@
     "test": "vitest run --dir src --passWithNoTests"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^1.8.0",
+    "@anthropic-ai/sdk": "^1.11.0",
     "@galaxie/ai-ledger": "workspace:*",
     "@galaxie/runtime-config": "workspace:*",
     "ajv": "^8.20.0",
-    "openai": "^7.57.0"
+    "openai": "^7.62.0"
   }
 }
